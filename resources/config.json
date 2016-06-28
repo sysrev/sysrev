@@ -1,0 +1,20 @@
+{
+    "dataRootPath": [
+        "~/.insilica/sysrev/"
+    ],
+    "mongo": {
+        "hostPort": "localhost:27017",
+        "dbName": "Systematic_Review"
+    },
+    "pg": {
+        "hostPort": "localhost:5432",
+        "dbName": "insilica",
+        "name": "postgres",
+        "password": ""
+    },
+    "solr": {
+        "hostPort": "localhost:8983",
+        "coreName": "ct-core"
+    },
+    citationsXmlFileName: "citations.xml"
+}
