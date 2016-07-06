@@ -4,11 +4,11 @@ package co.insilica.sysrev
 import java.io.File
 import java.net.{URL, URI}
 
-import co.insilica.dataProvider.config.{Overrider, ConfigFileHandler}
-import co.insilica.dataProvider.config.{Config => DefaultConfig}
+import co.insilica.dataProvider.config.{Config => DefaultConfig, Overrider, ConfigFileHandler}
 import co.insilica.dataProvider.mongo.{Config => MongoConfig}
 import co.insilica.dataProvider.pg.{DBConfig => PgConfig}
 import co.insilica.dataProvider.solr.{Config => SolrConfig}
+import upickle.default._
 
 import doobie.imports.Transactor
 
@@ -49,7 +49,9 @@ object Implicits {
     override def customFileName: String = ".insilica/sysrev/config.json"
   }
 
-  implicit lazy val config = fileHandler.readConfig()
+  implicit lazy val config : Config = fileHandler.readConfig()
 
   implicit lazy val transactor : Transactor[Task] = co.insilica.dataProvider.pg.connection.Implicits.fromConfig(config.pg)
+
+  implicit val mongoConfig = config.mongo
 }
