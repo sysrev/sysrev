@@ -28,7 +28,7 @@ val postgresDeps = Seq(
   "org.postgresql" % "postgresql" % "9.4.1208",
   "org.tpolecat" %% "doobie-core"               % doobieVersion,
   "org.tpolecat" %% "doobie-contrib-postgresql" % doobieVersion,
-  "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1-SNAPSHOT"
+  "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1"
 )
 
 lazy val scalaSettings = Seq(
@@ -78,18 +78,22 @@ val commonDependencySettings = Seq(
   "org.json4s"   %% "json4s-jackson" % "3.3.0",
   // test
   "org.scalatest" %% "scalatest" % "3.0.0-RC3" % "test",
-  "co.insilica" %% "data-provider" % "0.3.2-SNAPSHOT",
+  "co.insilica" %% "data-provider" % "0.3.2",
   "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
   "com.lihaoyi" %% "upickle" % "0.3.9",
-  "org.reactivemongo" %% "reactivemongo" % "0.11.11"
+  "org.reactivemongo" %% "reactivemongo" % "0.11.11",
+  "org.tpolecat" %% "doobie-core"               % doobieVersion,
+  "org.tpolecat" %% "doobie-contrib-postgresql" % doobieVersion,
+  "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1",
+  "com.typesafe.play" %% "play-iteratees" % "2.4.6"
 ))
 
 val commonSettings = buildSettings ++ scalaSettings ++ commonDependencySettings
 
 val apiSettings = Seq(
   libraryDependencies ++= scalatraDeps ++ postgresDeps ++ Seq(
-    "co.insilica" %% "api-stack" % "0.1.2-SNAPSHOT",
-    "co.insilica" %% "auth" % "0.1.5-SNAPSHOT"
+    "co.insilica" %% "api-stack" % "0.1.2",
+    "co.insilica" %% "auth" % "0.1.5"
   )
 )
 
@@ -103,5 +107,6 @@ lazy val sysrevApi = project.in(file("./api"))
   .settings(name := "api")
   .enablePlugins(JettyPlugin)
   .settings(containerPort := 3005)
+
   .dependsOn(core)
   .aggregate(core)

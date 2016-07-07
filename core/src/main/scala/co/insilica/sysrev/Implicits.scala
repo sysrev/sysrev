@@ -8,11 +8,11 @@ import co.insilica.dataProvider.config.{Config => DefaultConfig, Overrider, Conf
 import co.insilica.dataProvider.mongo.{Config => MongoConfig}
 import co.insilica.dataProvider.pg.{DBConfig => PgConfig}
 import co.insilica.dataProvider.solr.{Config => SolrConfig}
+import doobie.imports._
 import upickle.default._
 
-import doobie.imports.Transactor
-
 import scalaz.concurrent.Task
+
 
 object Implicits {
   case class Config(
