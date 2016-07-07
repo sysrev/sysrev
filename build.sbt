@@ -78,7 +78,7 @@ val commonDependencySettings = Seq(
   "org.json4s"   %% "json4s-jackson" % "3.3.0",
   // test
   "org.scalatest" %% "scalatest" % "3.0.0-RC3" % "test",
-  "co.insilica" %% "data-provider" % "0.3.2",
+  "co.insilica" %% "data-provider" % "0.3.3",
   "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
   "com.lihaoyi" %% "upickle" % "0.3.9",
   "org.reactivemongo" %% "reactivemongo" % "0.11.11",
