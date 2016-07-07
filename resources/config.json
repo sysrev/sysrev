@@ -4,7 +4,7 @@
     ],
     "mongo": {
         "hostPort": "localhost:27017",
-        "dbName": "Systematic_Review"
+        "dbName": "SystematicReview"
     },
     "pg": {
         "hostPort": "localhost:5432",
