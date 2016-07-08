@@ -1,0 +1,17 @@
+#!/bin/bash
+set -eu
+
+rm -f flyway
+rm -rf flyway-4.0.1
+rm -f flyway-commandline-4.0.1.tar.gz
+
+echo "Downloading and installing Flyway..."
+wget https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/4.0.1/flyway-commandline-4.0.1.tar.gz
+tar zxf flyway-commandline-4.0.1.tar.gz
+ln -s flyway-4.0.1/flyway flyway
+rm -f flyway-commandline-4.0.1.tar.gz
+
+echo "Flyway installed."
+echo " ** ./flyway script created"
+echo " ** SQL schema files are in ./sql"
+echo " ** Edit Flyway config at ./flyway.conf"
