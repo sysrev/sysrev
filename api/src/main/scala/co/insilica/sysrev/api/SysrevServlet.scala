@@ -1,8 +1,11 @@
-package co.insilica.sysrev.api
+package co.insilica.sysrev
+package api
 
 import co.insilica.apistack.ApiStack
-import co.insilica.sysrev.indexing.DocIndex
+import co.insilica.sysrev.indexing.{QueryEnv, DocIndex}
 import DocIndex._
+import Types._
+import QueryEnv._
 
 import org.scalatra._
 
@@ -17,6 +20,6 @@ class SysrevServlet extends ApiStack with FutureSupport {
   }
 
   get("/ranking") {
-    DocIndex.sysrevImporter.select() flatMap (_ |>>> Iteratee.takeUpTo(100))
+    indexing.sysrevImporter.select[SysRev]() flatMap (_ |>>> Iteratee.takeUpTo(100))
   }
 }

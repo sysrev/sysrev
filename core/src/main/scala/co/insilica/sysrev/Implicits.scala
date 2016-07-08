@@ -3,15 +3,20 @@ package co.insilica.sysrev
 
 import java.io.File
 import java.net.{URL, URI}
+import reactivemongo.bson._
+
+import scala.language.implicitConversions
 
 import co.insilica.dataProvider.config.{Config => DefaultConfig, Overrider, ConfigFileHandler}
 import co.insilica.dataProvider.mongo.{Config => MongoConfig}
 import co.insilica.dataProvider.pg.{DBConfig => PgConfig}
 import co.insilica.dataProvider.solr.{Config => SolrConfig}
 import doobie.imports._
-import upickle.default._
 
 import scalaz.concurrent.Task
+
+import scalaz._
+import Scalaz._
 
 
 object Implicits {
@@ -25,6 +30,7 @@ object Implicits {
     def citationsURI: Option[URI] = dataRootPath.map(new File(_, citationsXmlFileName).toURI)
     def citationsURL: Option[URL] = this.citationsURI.map(_.toURL)
   }
+
 
   implicit object ConfigOverrider extends Overrider[DefaultConfig, Config] {
     // NOTE: FOR EACH FIELD, ADD LINE TO COPY IT BELOW

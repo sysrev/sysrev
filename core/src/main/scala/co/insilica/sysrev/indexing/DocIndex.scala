@@ -12,36 +12,27 @@ import reactivemongo.bson.{BSONDocument, BSONDocumentReader}
 
 import scala.concurrent.{Future, ExecutionContext}
 
+import Types._
+
+import QueryEnv._
+
+object sysrevImporter extends Importer{
+  def collection(implicit ec: ExecutionContext) = connectAsync("sysrev")
+}
+
 object DocIndex {
-  case class Titles(title: String, secondaryTitle: Option[String])
-  case class SysRev(titles: Titles, docabstract: Option[String], keywords: List[String])
-
-  implicit object SysRevProjector extends Projector[SysRev] {
-    def apply(): BSONDocument = BSONDocument("abstract" -> 1, "keywords" -> 1, "titles" -> 1)
-  }
-
-  implicit val titleReader = new BSONDocumentReader[Titles] {
-    override def read(bson: BSONDocument): Titles = Titles(
-      bson.getAs[String]("title").get,
-      bson.getAs[String]("secondary-title")
-    )
-  }
-
-  implicit object SysRevReader extends BSONDocumentReader[SysRev]{
-    override def read(bson: BSONDocument): SysRev = SysRev(
-      bson.getAs[Titles]("titles").get,
-      bson.getAs[String]("abstract"),
-      bson.getAs[BSONDocument]("keywords") flatMap (_.getAs[List[String]]("keyword")) getOrElse (List[String]())
-    )
-  }
-
-  object sysrevImporter extends Importer{
-    def collection(implicit ec: ExecutionContext) = connectAsync("sysrev")
+  def all[T]()(implicit env: QueryEnv[T]): Future[List[T]] = {
+    import env._
+    sysrevImporter.select().flatMap{ enum =>
+      enum |>>> Iteratee.getChunks
+    }
   }
 
   def index()(implicit ec: ExecutionContext) : Future[Seq[SysRev]] = {
-    sysrevImporter.select[SysRev]().flatMap { enum =>
+    sysrevImporter.select[SysRev]().flatMap{ enum =>
       enum |>>> Iteratee.takeUpTo(5)
     }
   }
 }
+
+

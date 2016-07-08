@@ -20,13 +20,14 @@ object QueryEnv{
     implicit def reader: BSONDocumentReader[A] = ireader
     implicit def ec: ExecutionContext = iec
   }
-
 }
 
 trait Importer {
   def collection(implicit ec: ExecutionContext): Future[InsilicaCollection]
 
-  def select[T](q: BSONDocument = BSONDocument())(implicit env : QueryEnv[T]) : Future[Enumerator[T]] = {
+  def select[T]()(implicit env: QueryEnv[T]): Future[Enumerator[T]] = select(BSONDocument())
+
+  def select[T, Q](q: Q)(implicit env : QueryEnv[T], qw : BSONDocumentWriter[Q]) : Future[Enumerator[T]] = {
     import env._
     collection.map(_.find(q, env.projector()).cursor[T]().enumerate())
   }

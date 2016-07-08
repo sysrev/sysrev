@@ -28,7 +28,6 @@ object Importer{
         nodeWriter(this).write(n)
       }
 
-
     def knownPaths = Map(
       "style" -> (n => BSONString(n.text)),
       "contributors" -> atLeastEmptyArray,

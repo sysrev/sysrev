@@ -97,8 +97,18 @@ val apiSettings = Seq(
   )
 )
 
+val sparkSettings = Seq(
+  libraryDependencies ++= Seq(
+    // Spark Machine Learning
+    "org.apache.spark" % "spark-core_2.11" % "1.6.2",
+    "org.apache.spark" % "spark-sql_2.11" % "1.6.2",
+    "org.apache.spark" % "spark-mllib_2.11" % "1.6.2"
+  ),
+  dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4"
+)
+
 lazy val core = project.in(file("./core"))
-  .settings(commonSettings)
+  .settings(commonSettings ++ sparkSettings)
   .settings(name := "core")
   .settings(description := "")
 
