@@ -16,5 +16,6 @@
         "hostPort": "localhost:8983",
         "coreName": "ct-core"
     },
-    "citationsXmlFileName": "citations.xml"
+    "citationsXmlFileName": "citations.xml",
+    "criteriaCsvFileName": "criteria.csv"
 }

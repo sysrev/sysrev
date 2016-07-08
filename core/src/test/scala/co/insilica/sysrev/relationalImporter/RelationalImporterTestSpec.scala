@@ -13,4 +13,6 @@ class RelationalImporterTestSpec extends AsyncFlatSpec with Matchers {
   "All articles" should "be imported to pg" in {
     RelationalImporter.all.map(_ => true should be (true))
   }
+
+
 }

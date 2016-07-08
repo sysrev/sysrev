@@ -107,8 +107,14 @@ val sparkSettings = Seq(
   dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4"
 )
 
+val coreDataSettings = Seq(
+  libraryDependencies ++= Seq(
+    "com.opencsv" % "opencsv" % "3.5"
+  )
+)
+
 lazy val core = project.in(file("./core"))
-  .settings(commonSettings ++ sparkSettings)
+  .settings(commonSettings ++ sparkSettings ++ coreDataSettings)
   .settings(name := "core")
   .settings(description := "")
 

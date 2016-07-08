@@ -25,7 +25,8 @@ object Implicits {
     mongo: MongoConfig,
     pg: PgConfig,
     solr: SolrConfig,
-    citationsXmlFileName: String
+    citationsXmlFileName: String,
+    criteriaCsvFileName: String
   ){
     def citationsURI: Option[URI] = dataRootPath.map(new File(_, citationsXmlFileName).toURI)
     def citationsURL: Option[URL] = this.citationsURI.map(_.toURL)
@@ -39,7 +40,8 @@ object Implicits {
       c2.mongo,
       c2.pg,
       c2.solr,
-      c2.citationsXmlFileName
+      c2.citationsXmlFileName,
+      c2.criteriaCsvFileName
     )
 
     def defaults(c1: DefaultConfig): Config = Config(
@@ -47,6 +49,7 @@ object Implicits {
       c1.mongo,
       c1.pg,
       c1.solr,
+      "",
       ""
     )
   }

@@ -27,7 +27,7 @@ object RelationalImporter {
       }
     }
 
-    kwds.map(_.toList).flatMap(Queries insertKeywords _ transact tx runFuture)
+    kwds.map(_.toList).flatMap(Queries.insertKeywords(_).transact(tx).runFuture)
   }
 
   def all(implicit ec: ExecutionContext, tx: Transactor[Task]): Future[Unit] = {
