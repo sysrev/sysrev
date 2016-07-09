@@ -14,6 +14,16 @@ import Converters._
 import scalaz._
 import Scalaz._
 
+/**
+  * Defines a set of criteria, read from excel document provided.
+  * @param include
+  * @param notCancer
+  * @param notHuman
+  * @param notClinical
+  * @param notPhase1
+  * @param notImmuno
+  * @param isConference
+  */
 case class Criteria(
    include: Boolean,
    notCancer: Boolean,
@@ -25,17 +35,34 @@ case class Criteria(
  ){
   import Criteria._
 
+  /**
+    * Convenience method to get map of known criteria names to values.
+    */
   def valueMap: Map[String, Boolean] = nameMap.map{
     case (s, f) => (s, f(this))
   }
 }
 
+/**
+  * Defines a whole row read from the excel sheet
+  */
+case class ArticleRow(author: String, title: String, journal: String, docAbstract: String, criteria: Criteria)
+
+
+
 object Criteria{
+
+  /**
+    * From a list of Yes/No, build a [[Criteria]], matching on String "Yes" -> true
+    */
   def apply(data: List[String]): Criteria = {
     val facts: List[Boolean] = data.map(_.trim == "Yes")
     Criteria(facts(0), facts(1), facts(2), facts(3), facts(4), facts(5), facts(6))
   }
 
+  /**
+    * known criteria by names, and how to get the value for that name out of the row.
+    */
   def nameMap : Map[String, Criteria => Boolean] = Map(
     "overall include" -> (_.include),
     "not cancer" -> (_.notCancer),
@@ -47,13 +74,13 @@ object Criteria{
   )
 }
 
-
-case class ArticleRow(author: String, title: String, journal: String, docAbstract: String, criteria: Criteria)
-
 object CsvImport{
 
-  def getArticlesFromFile: Stream[ArticleRow] = {
-    val reader = new CSVReader(new InputStreamReader(new FileInputStream(new File(config.dataRootPath.get, config.criteriaCsvFileName))))
+  /**
+    * Read a csv file into [[ArticleRow]]s
+    */
+  def getArticlesFromFile(file: File): Stream[ArticleRow] = {
+    val reader = new CSVReader(new InputStreamReader(new FileInputStream(file)))
     reader.iterator().asScala.toStream.drop(1).map { row =>
       ArticleRow(
         row(0),
@@ -64,10 +91,17 @@ object CsvImport{
     }
   }
 
+  /**
+    * Get ids for all the criteria in the database, so we can save to them by name.
+    * @return a Map of unique criteria names to database ids.
+    */
   def criteriaNames: ConnectionIO[Map[String, CriteriaId]] = relationalImporter.Queries.allCriteria.map{ cs =>
     cs.map(c => (c.t.name, c.id)).toMap
   }
 
+  /**
+    * Look up article by title, and attach criteria answers to it.
+    */
   def linkArticleByTitleWithCriteria(title: String, criteria: Criteria): ConnectionIO[Int] = {
 
     val jobs : OptionT[ConnectionIO, List[Int]] = for {
