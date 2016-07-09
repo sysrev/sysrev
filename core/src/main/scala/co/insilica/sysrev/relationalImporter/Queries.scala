@@ -85,6 +85,20 @@ object Queries{
       select criteria_id, name, question, is_exclusion, is_inclusion
       from criteria
       """.query[WithCriteriaId[Criteria]]
+
+    def criteriaIdByName(name: String) : Query0[CriteriaId] = sql"""
+      select criteria_id
+      from criteria
+      where name = $name
+      """.query[CriteriaId]
+
+
+    def articlesWithCriteriaAnswer(cid: CriteriaId) : Query0[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])] = sql"""
+      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, answer
+      from article
+      left join article_criteria using (article_id)
+      where criteria_id = $cid
+    """.query[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])]
   }
 
   def insertArticleBody(a: Article) : ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("criteria_id")
@@ -142,5 +156,7 @@ object Queries{
 
   def articleCriteriaRespond(aid: ArticleId, cid: CriteriaId, answer: Boolean) : ConnectionIO[Int] =
     insert.addCriteriaAnswer(aid, cid, answer).run
+
+
 }
 
