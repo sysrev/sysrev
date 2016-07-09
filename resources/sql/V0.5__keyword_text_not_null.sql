@@ -1,0 +1,1 @@
+alter table keyword alter column keyword_text set not null;
