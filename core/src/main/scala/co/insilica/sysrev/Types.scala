@@ -33,8 +33,7 @@ case class Article(
   remoteDatabaseName: Option[String],
   year: Option[Int],
   pubDates: Option[String],
-  urls: List[String],
-  keywords: List[String]
+  urls: List[String]
 ){
   def primaryTitle: String = sysRev.titles.title
   def secondaryTitle: Option[String] = sysRev.titles.secondaryTitle
@@ -91,8 +90,7 @@ object Types {
       bson.getAs[String]("remote-database-name"),
       ds.flatMap(_.year),
       ds.flatMap(_.date),
-      bson.getAs[RelatedUrls]("urls").map(_.urls).getOrElse(Nil),
-      bson.getAs[BSONDocument]("keywords").flatMap(_.getAs[List[String]]("keyword")).getOrElse(Nil)
+      bson.getAs[RelatedUrls]("urls").map(_.urls).getOrElse(Nil)
     )
   }
 

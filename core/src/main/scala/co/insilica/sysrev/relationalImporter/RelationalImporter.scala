@@ -21,13 +21,13 @@ object RelationalImporter {
   def allKeywords(implicit ec: ExecutionContext, tx: Transactor[Task]): Future[Int] = {
     val articles : Future[Enumerator[Article]] = indexing.sysrevImporter.select[Article]()
     val kwds : Future[Set[String]] = articles.flatMap{ enum =>
-      val ee = Enumeratee.map[Article](_.keywords)
+      val ee = Enumeratee.map[Article](_.sysRev.keywords)
       enum &> ee |>>> Iteratee.fold(Set[String]()){
         case (acc, ns) => acc ++ ns
       }
     }
 
-    kwds.map(_.toList).flatMap(Queries.insertKeywords(_).transact(tx).runFuture)
+    kwds.map(_.toList).flatMap(Queries.insert.keywords(_).transact(tx).runFuture)
   }
 
   def all(implicit ec: ExecutionContext, tx: Transactor[Task]): Future[Unit] = {
