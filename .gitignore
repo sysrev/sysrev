@@ -7,3 +7,14 @@ target/
 
 # added by GitSavvy
 /flyway
+
+# sysrev-web
+/sysrev-web/resources/public/out-dev
+
+!/sysrev-web/semantic
+/sysrev-web/semantic/*
+!/sysrev-web/semantic/src/
+/sysrev-web/semantic/src/*
+!/sysrev-web/semantic/src/site/
+
+/sysrev-web/node_modules

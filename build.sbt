@@ -122,7 +122,7 @@ lazy val sysrevApi = project.in(file("./api"))
   .settings(commonSettings ++ apiSettings)
   .settings(name := "api")
   .enablePlugins(JettyPlugin)
-  .settings(containerPort := 3005)
+  .settings(containerPort := 3020)
 
   .dependsOn(core)
   .aggregate(core)
