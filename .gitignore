@@ -9,12 +9,13 @@ target/
 /flyway
 
 # sysrev-web
+/sysrev-web/node_modules
+
 /sysrev-web/resources/public/out-dev
+/sysrev-web/resources/public/vendor
 
 !/sysrev-web/semantic
 /sysrev-web/semantic/*
 !/sysrev-web/semantic/src/
 /sysrev-web/semantic/src/*
 !/sysrev-web/semantic/src/site/
-
-/sysrev-web/node_modules

@@ -23,11 +23,13 @@
              "-XX:+AggressiveOpts"]
   :source-paths ["src/clj"]
   :plugins [[lein-cljsbuild "1.1.3"]
+            [lein-bower "0.5.1"]
             [lein-ring "0.9.7"]
             [lein-ancient "0.6.10"]
             [cider/cider-nrepl "0.12.0"]
             [refactor-nrepl "2.2.0"]
             [lein-figwheel "0.5.3"]]
+  :bower-dependencies [[jquery "2.2.4"]]
   :clean-targets ^{:protect false}
   ["resources/public/out-dev"
    "resources/public/out-production"
