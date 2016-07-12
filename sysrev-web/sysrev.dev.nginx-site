@@ -1,26 +1,24 @@
 upstream sysrev-scala {
-	server 127.0.0.1:3020;
+    server 127.0.0.1:3020;
 }
 
 server {
-	listen 3021;
+    listen 3021;
     # server_name localhost isysrev.ddns.net;
-	       
-	access_log /var/log/nginx/sysrev.access_log;
-	error_log /var/log/nginx/sysrev.error_log info;
 
-	root /var/www/sysrev;
+    access_log /var/log/nginx/sysrev.access_log;
+    error_log /var/log/nginx/sysrev.error_log info;
+
+    root /var/www/sysrev;
 
     location /api/ {
-	    proxy_next_upstream error;
-		proxy_set_header X-Real-IP $remote_addr;
-		proxy_set_header Host $host;
+        proxy_next_upstream error;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
         proxy_pass http://sysrev-scala/;
-	}
+    }
            
-	location / {
-        if (-f $request_filename) {
-			expires 1h;
-		}
-	}
+    location / {
+        try_files $uri $uri/index.html;
+    }
 }
