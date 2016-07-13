@@ -1,3 +1,7 @@
+upstream sysrev-lein {
+     server 127.0.0.1:3449;
+}
+
 upstream sysrev-scala {
     server 127.0.0.1:3020;
 }
@@ -19,6 +23,9 @@ server {
     }
            
     location / {
-        try_files $uri $uri/index.html;
+        proxy_next_upstream error;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_pass http://sysrev-lein/;
     }
 }
