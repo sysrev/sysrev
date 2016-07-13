@@ -21,7 +21,10 @@
 
 (defn main-content []
   [:div.main-content
-   [home state]
-   [show-state]])
+   [:div.ui.grid.container
+    [:div.row
+     [home state]]
+    [:div.row
+     [show-state]]]])
 
 

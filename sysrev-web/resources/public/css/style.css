@@ -1,2 +1,6 @@
 /* some style */
 
+.main-content > .grid {
+    padding-top: 100px;
+
+}

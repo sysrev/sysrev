@@ -3,14 +3,14 @@
 
 (defn ratings-list [articles]
   (fn [articles]
-    [:div.ui.fluid.cards
+    [:div.ui.cards
      (let [num (count articles)] 
        (map-indexed
         (fn [idx item]
           (let [article (:_1 (:t item))]
-            [:div.ui.card
+            [:div.ui.fluid.card
              [:div.content
-              [:div.heaeder (:title article)]]
+              [:div.header (:title article)]]
              [:div.content (:abstract article)]]))
         articles))]))
 
