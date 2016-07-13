@@ -25,7 +25,9 @@ case class WithScore[T](item: T, score: Double)
 
 case class CriteriaFilter(id: CriteriaId, answer: Option[Boolean])
 
-object Queries{
+case class CriteriaResponse(id: CriteriaId, answer: Boolean)
+
+object Queries {
 
   type ScoredArticle = WithArticleId[WithScore[ArticleWithoutKeywords]]
 
@@ -33,12 +35,14 @@ object Queries{
     /**
       * Insert an article without regard to references.
       */
-    def articleBody(a: Article): Update0 = sql"""
+    def articleBody(a: Article): Update0 =
+      sql"""
       insert into article (primary_title, secondary_title, abstract, work_type, remote_database_name, year, authors, urls)
       values (${a.primaryTitle}, ${a.secondaryTitle}, ${a.sysRev.docabstract}, ${a.work_type}, ${a.remoteDatabaseName}, ${a.year}, ${a.authors}, ${a.urls})
     """.update
 
-    def criteria(c: Criteria): Update0 = sql"""
+    def criteria(c: Criteria): Update0 =
+      sql"""
       insert into criteria (name, question, is_exclusion, is_inclusion)
       values (${c.name}, ${c.questionText}, ${c.isExclusion}, ${c.isInclusion})
     """.update
@@ -46,12 +50,13 @@ object Queries{
     /**
       * Insert many keywords into database
       */
-    def keywords(kwds: List[String]) : ConnectionIO[Int] = {
+    def keywords(kwds: List[String]): ConnectionIO[Int] = {
       val sql = "insert into keyword (keyword_text) values (?)"
       Update[String](sql).updateMany(kwds)
     }
 
-    def addCriteriaAnswer(aid: ArticleId, cid: CriteriaId, value: Boolean): Update0 = sql"""
+    def addCriteriaAnswer(aid: ArticleId, cid: CriteriaId, value: Boolean): Update0 =
+      sql"""
       insert into article_criteria (article_id, criteria_id, answer)
       values ($aid, $cid, $value)
     """.update
@@ -106,7 +111,8 @@ object Queries{
       where criteria_id = $cid
     """.query[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])]
 
-    def rankedArticlesAll(start: Int = 0, numrows: Int = 200): Query0[ScoredArticle] = sql"""
+    def rankedArticlesAll(start: Int = 0, numrows: Int = 200): Query0[ScoredArticle] =
+      sql"""
       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
       from article
       left join article_ranking on _1 = article_id
@@ -116,7 +122,8 @@ object Queries{
     """.query
 
 
-    def rankedArticlesAllWithAbstracts(start: Int = 0, numrows: Int = 200): Query0[ScoredArticle] = sql"""
+    def rankedArticlesAllWithAbstracts(start: Int = 0, numrows: Int = 200): Query0[ScoredArticle] =
+      sql"""
       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
       from article
       left join article_ranking on _1 = article_id
@@ -141,47 +148,55 @@ object Queries{
       """.query
     }
 
-    def criteriaResponsesFor(articleIds: NonEmptyList[ArticleId]) : Query0[WithArticleId[WithCriteriaId[Boolean]]] = {
+    def criteriaResponsesFor(articleIds: NonEmptyList[ArticleId]): Query0[WithArticleId[WithCriteriaId[Boolean]]] = {
       implicit val param = Param.many(articleIds)
-       sql"""
+      sql"""
           select article_id, criteria_id, answer
           from article_criteria
           where article_id in ${articleIds: articleIds.type}
         """.query
     }
+
+    def allCriteriaResponses: Query0[WithArticleId[CriteriaResponse]] =
+      sql"""
+      select article_id, criteria_id, answer
+      from article_criteria
+    """.query
   }
 
   def rankedArticlesPage(pageNum: Int = 0): ConnectionIO[List[ScoredArticle]] =
     select.rankedArticlesAllWithAbstracts(pageNum * 200, 200).list
 
-  def rankedArticlesPageFilterCriteria(criteriaIds: List[CriteriaFilter]) : ConnectionIO[List[ScoredArticle]] =
+  def rankedArticlesPageFilterCriteria(criteriaIds: List[CriteriaFilter]): ConnectionIO[List[ScoredArticle]] =
     criteriaIds.toNel.map(select.rankedArticlesPageFilterCriteria(_).list).getOrElse(List[ScoredArticle]().point[ConnectionIO])
 
 
-  def insertArticleBody(a: Article) : ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("criteria_id")
+  def insertArticleBody(a: Article): ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("criteria_id")
+
   def articleBodyByTitlePrefix(tp: String): ConnectionIO[List[WithArticleId[ArticleWithoutKeywords]]] =
     select.articleBodyByTitlePrefix(tp).list
+
   def keywordsForArticle(aid: ArticleId): ConnectionIO[List[WithKeywordId[String]]] = select.keywordsForArticle(aid).list
 
   def articleByTitlePrefix(tp: String): ConnectionIO[Option[WithArticleId[Article]]] = {
-    val articleBodyQ : ConnectionIO[Option[WithArticleId[ArticleWithoutKeywords]]] = articleBodyByTitlePrefix(tp).map(_.headOption)
+    val articleBodyQ: ConnectionIO[Option[WithArticleId[ArticleWithoutKeywords]]] = articleBodyByTitlePrefix(tp).map(_.headOption)
 
-    val r : OptionT[ConnectionIO, WithArticleId[Article]] = for {
+    val r: OptionT[ConnectionIO, WithArticleId[Article]] = for {
       a <- articleBodyQ |> (OptionT apply _)
-      val ad =  a.t
+      val ad = a.t
       val aid = a.id
       kws <- keywordsForArticle(aid) |> liftOptionC
       kwNames = kws.map(_.t)
     } yield WithAnyId(
-        aid,
-        Article(
-          SysRev(Titles(ad.title, ad.title2), ad.abs, kwNames),
-          ad.authors.getOrElse(Nil),
-          ad.work_type,
-          ad.rdn,
-          ad.year,
-          None,
-          ad.urls.getOrElse(Nil)))
+      aid,
+      Article(
+        SysRev(Titles(ad.title, ad.title2), ad.abs, kwNames),
+        ad.authors.getOrElse(Nil),
+        ad.work_type,
+        ad.rdn,
+        ad.year,
+        None,
+        ad.urls.getOrElse(Nil)))
 
     r.run
   }
@@ -209,12 +224,13 @@ object Queries{
   } yield links
 
   def insertCriteria(c: Criteria): ConnectionIO[CriteriaId] = insert.criteria(c).withUniqueGeneratedKeys("criteria_id")
+
   def allCriteria(): ConnectionIO[List[WithCriteriaId[Criteria]]] = select.allCriteria().list
 
-  def articleCriteriaRespond(aid: ArticleId, cid: CriteriaId, answer: Boolean) : ConnectionIO[Int] =
+  def articleCriteriaRespond(aid: ArticleId, cid: CriteriaId, answer: Boolean): ConnectionIO[Int] =
     insert.addCriteriaAnswer(aid, cid, answer).run
 
-  def criteriaResponsesFor(articleIds: List[ArticleId]) : ConnectionIO[Map[ArticleId, Map[CriteriaId, Boolean]]] =
+  def criteriaResponsesFor(articleIds: List[ArticleId]): ConnectionIO[Map[ArticleId, Map[CriteriaId, Boolean]]] =
     articleIds.toNel.map { aids =>
       select.criteriaResponsesFor(aids).list.map { data =>
         data.foldLeft(Map[ArticleId, Map[CriteriaId, Boolean]]()) {
@@ -226,5 +242,13 @@ object Queries{
     } getOrElse {
       Map[ArticleId, Map[CriteriaId, Boolean]]().point[ConnectionIO]
     }
+
+  def allCriteriaResponses: ConnectionIO[Map[ArticleId, List[CriteriaResponse]]] = {
+    val qr: ConnectionIO[List[WithArticleId[CriteriaResponse]]] = select.allCriteriaResponses.list
+    qr.map(_.foldLeft(Map[ArticleId, List[CriteriaResponse]]()){
+      case (acc, WithArticleId(aid, resp)) if acc.contains(aid) => acc + (aid -> (resp :: acc(aid)))
+      case (acc, WithArticleId(aid, resp)) => acc + (aid -> List(resp))
+    })
+  }
 }
 

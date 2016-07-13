@@ -35,11 +35,21 @@ class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
     Queries.allCriteria().transact(tx)
   }
 
+  /**
+    * Expects {:articleIds [list of numbers]}
+    */
   postT("/article_criteria"){
     parsedBody.extractOpt[ArticleIds].map {
       case ArticleIds(articleIds) => Queries.criteriaResponsesFor(articleIds).transact(tx)
     } getOrElse {
       Task.now(ErrorResult("Article ids must not be empty, must be numbers."))
     }
+  }
+
+  /**
+    * Returns a map articleid -> List[criteriaid, boolean]
+    */
+  getT("/allcriteria"){
+    Queries.allCriteriaResponses.transact(tx)
   }
 }
