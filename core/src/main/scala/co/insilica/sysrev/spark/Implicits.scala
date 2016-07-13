@@ -23,8 +23,5 @@ object Implicits{
       .setAppName("try it remotely")
       .setMaster("spark://insilica-ws-1:7077")  // tunnel to master.
   }
-
-  import org.apache.spark.deploy.SparkSubmit
-
 }
 

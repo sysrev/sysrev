@@ -1,5 +1,7 @@
 package co.insilica.sysrev.spark
 
+import java.util.Properties
+
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
 import scala.language.implicitConversions
@@ -22,6 +24,12 @@ object readers {
     "user" -> pg.name,
     "password" -> pg.password
   )
+
+  def props = {
+    val p = new Properties()
+    opts.foreach{ case (k, v) => p.setProperty(k, v) }
+    p
+  }
 
   def dataFrameBuilder : SQLReader[String => DataFrame] = Reader{ context => tableName =>
     context.read
