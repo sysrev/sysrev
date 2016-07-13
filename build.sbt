@@ -92,7 +92,7 @@ val commonSettings = buildSettings ++ scalaSettings ++ commonDependencySettings
 
 val apiSettings = Seq(
   libraryDependencies ++= scalatraDeps ++ postgresDeps ++ Seq(
-    "co.insilica" %% "api-stack" % "0.1.2",
+    "co.insilica" %% "api-stack" % "0.1.3",
     "co.insilica" %% "auth" % "0.1.5"
   )
 )

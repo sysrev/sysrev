@@ -99,7 +99,19 @@ object Queries{
       left join article_criteria using (article_id)
       where criteria_id = $cid
     """.query[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])]
+
+    def rankedArticlesAll(start: Int = 0, numrows: Int = 200): Query0[WithArticleId[(ArticleWithoutKeywords, Double)]] = sql"""
+      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+      from article
+      left join article_ranking on _1 = article_id
+      order by score desc
+      limit $numrows
+      offset $start
+    """.query[WithArticleId[(ArticleWithoutKeywords, Double)]]
   }
+
+  def rankedArticlesPage(pageNum: Int = 0): ConnectionIO[List[WithArticleId[(ArticleWithoutKeywords, Double)]]] =
+    select.rankedArticlesAll(pageNum * 200, 200).list
 
   def insertArticleBody(a: Article) : ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("criteria_id")
   def articleBodyByTitlePrefix(tp: String): ConnectionIO[List[WithArticleId[ArticleWithoutKeywords]]] =
