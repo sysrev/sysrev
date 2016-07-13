@@ -27,4 +27,8 @@ class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
   getT("/ranking") {
     getRankedPage(0)
   }
+
+  getT("/criteria") {
+    Queries.allCriteria().transact(tx)
+  }
 }
