@@ -4,9 +4,13 @@
               [secretary.core :as secretary
                :include-macros true :refer-macros [defroute]]))
 
+
+
+
 (defroute "/" {}
   (ajax/pull-initial-data)
-  (reset! state {:home true}))
+  (println "home route.")
+  (reset! state {:page :home}))
 
 (defroute "/user" {}
   (ajax/pull-initial-data)
