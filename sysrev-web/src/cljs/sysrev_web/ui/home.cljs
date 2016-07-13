@@ -1,24 +1,24 @@
 (ns sysrev-web.ui.home
-  (:require [sysrev-web.base :refer [state server-data]]))
+  (:require [sysrev-web.base :refer [state server-data]]
+            [sysrev-web.ajax :refer [get-article get-ranking-article-ids]]))
 
-(defn ratings-list [articles]
-  (fn [articles]
+(defn ratings-list [page-num]
+  (fn [page-num]
     [:div.ui.cards
-     (let [num (count articles)] 
-       (map-indexed
-        (fn [idx item]
-          (let [article (get-in item [:t :item])]
-            ^{:key {:rating-card-idx idx}}
-            [:div.ui.fluid.card
-             [:div.content
-              [:div.header (:title article)]]
-             [:div.content (:abs article)]]))
-        articles))]))
+     (let [page-article-ids (get-ranking-article-ids page-num)]
+       (doall
+        (map
+         (fn [article-id]
+           (let [article (get-article article-id)]
+             ^{:key {:rating-card-id article-id}}
+             [:div.ui.fluid.card
+              [:div.content
+               [:div.header (-> article :item :title)]]
+              [:div.content (-> article :item :abs)]]))
+         page-article-ids)))]))
 
 (defn home []
-  (let [page-num (:ranking-page @state)
-        articles (and page-num
-                      (get-in @server-data [:ranking :pages page-num]))]
-    (if articles
-      [ratings-list articles]
+  (let [page-num (:ranking-page @state)]
+    (if page-num
+      [ratings-list page-num]
       [:div])))
