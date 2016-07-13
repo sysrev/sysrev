@@ -7,11 +7,11 @@
      (let [num (count articles)] 
        (map-indexed
         (fn [idx item]
-          (let [article (:_1 (:t item))]
+          (let [article (get-in item [:t :item])]
             [:div.ui.fluid.card
              [:div.content
               [:div.header (:title article)]]
-             [:div.content (:abstract article)]]))
+             [:div.content (:abs article)]]))
         articles))]))
 
 (defn home [state]
