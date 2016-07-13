@@ -1,9 +1,10 @@
 (ns sysrev-web.base
-    (:require [reagent.core :as r]
-              [secretary.core :as secretary :include-macros true]
-              [pushy.core :as pushy]))
+  (:require [reagent.core :as r]
+            [secretary.core :as secretary :include-macros true]
+            [pushy.core :as pushy]))
 
 (defonce state (r/atom nil))
+(defonce server-data (r/atom {}))
 
 (defn state-val [ks]
   (get-in @state ks))
