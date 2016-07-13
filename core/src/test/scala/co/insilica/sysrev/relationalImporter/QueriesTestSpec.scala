@@ -26,4 +26,7 @@ class QueriesTestSpec extends FlatSpec with AnalysisSpec {
 
   "Criteria article join query" should "typecheck" in
     check(Queries.select.articlesWithCriteriaAnswer(1))
+
+  "Ranked articles with abstracts query" should "typecheck" in
+    check(Queries.select.rankedArticlesAllWithAbstracts(0,1))
 }

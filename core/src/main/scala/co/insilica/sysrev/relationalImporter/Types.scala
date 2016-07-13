@@ -13,6 +13,8 @@ object Types{
   type CriteriaId = Int
   type WithCriteriaId[T] = WithAnyId[CriteriaId, T]
 
+
+
   case class Criteria(
      name: String,
      questionText: String,

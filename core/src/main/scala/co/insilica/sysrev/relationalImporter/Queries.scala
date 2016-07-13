@@ -10,18 +10,20 @@ import Scalaz._
 import Converters._
 import relationalImporter.Types._
 
-object Queries{
-  case class ArticleWithoutKeywords(
-    title: String,
-    title2: Option[String],
-    abs: Option[String],
-    authors: Option[List[String]],
-    work_type: Option[String],
-    rdn: Option[String],
-    year: Option[Int],
-    urls: Option[List[String]]
-  )
+case class ArticleWithoutKeywords(
+  title: String,
+  title2: Option[String],
+  abs: Option[String],
+  authors: Option[List[String]],
+  work_type: Option[String],
+  rdn: Option[String],
+  year: Option[Int],
+  urls: Option[List[String]]
+)
 
+case class WithScore[T](item: T, score: Double)
+
+object Queries{
 
   object insert {
     /**
@@ -86,32 +88,43 @@ object Queries{
       from criteria
       """.query[WithCriteriaId[Criteria]]
 
-    def criteriaIdByName(name: String) : Query0[CriteriaId] = sql"""
+    def criteriaIdByName(name: String): Query0[CriteriaId] = sql"""
       select criteria_id
       from criteria
       where name = $name
       """.query[CriteriaId]
 
 
-    def articlesWithCriteriaAnswer(cid: CriteriaId) : Query0[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])] = sql"""
+    def articlesWithCriteriaAnswer(cid: CriteriaId): Query0[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])] = sql"""
       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, answer
       from article
       left join article_criteria using (article_id)
       where criteria_id = $cid
     """.query[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])]
 
-    def rankedArticlesAll(start: Int = 0, numrows: Int = 200): Query0[WithArticleId[(ArticleWithoutKeywords, Double)]] = sql"""
+    def rankedArticlesAll(start: Int = 0, numrows: Int = 200): Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
       from article
       left join article_ranking on _1 = article_id
-      order by score desc
+      order by score asc
       limit $numrows
       offset $start
-    """.query[WithArticleId[(ArticleWithoutKeywords, Double)]]
+    """.query
+
+
+    def rankedArticlesAllWithAbstracts(start: Int = 0, numrows: Int = 200): Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
+      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+      from article
+      left join article_ranking on _1 = article_id
+      where (abstract = '') is not true
+      order by score asc
+      limit $numrows
+      offset $start
+    """.query
   }
 
-  def rankedArticlesPage(pageNum: Int = 0): ConnectionIO[List[WithArticleId[(ArticleWithoutKeywords, Double)]]] =
-    select.rankedArticlesAll(pageNum * 200, 200).list
+  def rankedArticlesPage(pageNum: Int = 0): ConnectionIO[List[WithArticleId[WithScore[ArticleWithoutKeywords]]]] =
+    select.rankedArticlesAllWithAbstracts(pageNum * 200, 200).list
 
   def insertArticleBody(a: Article) : ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("criteria_id")
   def articleBodyByTitlePrefix(tp: String): ConnectionIO[List[WithArticleId[ArticleWithoutKeywords]]] =
