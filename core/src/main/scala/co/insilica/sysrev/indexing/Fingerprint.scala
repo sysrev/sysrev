@@ -25,6 +25,8 @@ object Fingerprint {
   import spark.readers._
   import spark.alg._
 
+  type DoubleVector = breeze.linalg.SparseVector[Double]
+  val DoubleVector = breeze.linalg.SparseVector
 
   /**
     *    Emulating a query like this:
@@ -64,9 +66,9 @@ object Fingerprint {
         "primary_title" -> "title1 words",
         "secondary_title" -> "title2 words"
       ),
-      applyTfidf("title1 words" -> "title1 words tfidf", 10),
-      applyTfidf("abstract words" -> "abstract words tfidf", 100),
-      applyTfidf("title2 words" -> "title2 words tfidf", 10),
+      applyTfidf("title1 words" -> "title1 words tfidf", 50),
+      applyTfidf("abstract words" -> "abstract words tfidf", 1000),
+      applyTfidf("title2 words" -> "title2 words tfidf", 50),
       new VectorAssembler()
         .setInputCols(Array("abstract words tfidf", "title1 words tfidf", "title2 words tfidf"))
         .setOutputCol("features").transform
@@ -74,6 +76,7 @@ object Fingerprint {
 
     transformers.foldLeft(qdf)(_ |> _)
   }
+
 
   /**
     * dumbRank takes a set of vectors pointing in a direction
@@ -92,9 +95,6 @@ object Fingerprint {
     val numgood = good.count()
     val numunk = unknown.count()
 
-    type DoubleVector = breeze.linalg.SparseVector[Double]
-    val DoubleVector = breeze.linalg.SparseVector
-
     def makeSparse(x: SparkVector): DoubleVector = {
       val sp = x.toSparse
       new breeze.linalg.SparseVector(sp.indices, sp.values, sp.size)
@@ -107,11 +107,14 @@ object Fingerprint {
 
     val bavg : DoubleVector = bad.map{ case (v, _) => makeSparse(v) }.reduce(_ + _) / numbad.toDouble
 
-    val gavg : DoubleVector = good.map{ case (v, _) => makeSparse(v) }.reduce (_ + _)  / numgood.toDouble
+    val goodVectors: List[DoubleVector] = good.map{ case (v, _) => makeSparse(v) }.collect().toList
+
+    val gavg : DoubleVector = goodVectors.reduce (_ + _)  / numgood.toDouble
 
     val proj : DoubleVector = gavg - ((gavg dot bavg) / (norm(bavg)))
 
-    val sortCondition : DoubleVector => Double = _ dot proj
+    val sortCondition : DoubleVector => Double = test =>
+      goodVectors.map(g => breeze.linalg.functions.cosineDistance(test, g)).min
 
     val merged = bad ++ good ++ unknown
 
@@ -139,11 +142,9 @@ object Fingerprint {
   }
 
 
-  def rankJob : SQLTransaction[RDD[(Row, Double)]] = queryForDataFrame map { wholeDf =>
-    val ranked = wholeDf |> fillNullValues |> sysrevTfidfTransform |> rankTransform
-
-    ranked
-  }
+  def rankJob : SQLTransaction[RDD[(Row, Double)]] = queryForDataFrame map (
+    _ |> fillNullValues |> sysrevTfidfTransform |> rankTransform
+  )
 
   def rankedDf: SQLTransaction[DataFrame] = withSqlContext map { context =>
     import context.implicits._

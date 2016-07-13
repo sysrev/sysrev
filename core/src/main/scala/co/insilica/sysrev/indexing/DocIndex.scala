@@ -6,9 +6,9 @@ import Implicits._
 import co.insilica.dataProvider.mongo.connection.Implicits.config._
 import dataProvider.mongo.connectAsync
 import play.api.libs.iteratee.Iteratee
-
+import QueryEnv._
 import scala.concurrent.{Future, ExecutionContext}
-
+import Types._
 
 object sysrevImporter extends Importer{
   def collection(implicit ec: ExecutionContext) = connectAsync("sysrev")
