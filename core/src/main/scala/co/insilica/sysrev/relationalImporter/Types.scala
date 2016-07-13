@@ -6,13 +6,15 @@ object Types{
 
   type KeywordId = Int
   type WithKeywordId[T] = WithAnyId[KeywordId, T]
+  val WithKeywordId = WithAnyId
 
   type ArticleId = Int
   type WithArticleId[T] = WithAnyId[ArticleId, T]
+  val WithArticleId = WithAnyId
 
   type CriteriaId = Int
   type WithCriteriaId[T] = WithAnyId[CriteriaId, T]
-
+  val WithCriteriaId = WithAnyId
 
 
   case class Criteria(

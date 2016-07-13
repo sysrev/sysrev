@@ -3,8 +3,8 @@ package api
 
 import co.insilica.apistack.{ApiStack, ResultWrapSupport}
 import co.insilica.sysrev.indexing.{QueryEnv, DocIndex}
+import co.insilica.sysrev.relationalImporter.Types.{WithArticleId, ArticleId}
 import co.insilica.sysrev.relationalImporter._
-import co.insilica.sysrev.relationalImporter.Types._
 
 import org.scalatra._
 import doobie.imports._
@@ -12,6 +12,9 @@ import doobie.imports._
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
+
+case class ArticleIds(articleIds: List[ArticleId])
+case class ErrorResult(msg: String)
 
 class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
 
@@ -30,5 +33,13 @@ class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
 
   getT("/criteria") {
     Queries.allCriteria().transact(tx)
+  }
+
+  postT("/article_criteria"){
+    parsedBody.extractOpt[ArticleIds].map {
+      case ArticleIds(articleIds) => Queries.criteriaResponsesFor(articleIds).transact(tx)
+    } getOrElse {
+      Task.now(ErrorResult("Article ids must not be empty, must be numbers."))
+    }
   }
 }
