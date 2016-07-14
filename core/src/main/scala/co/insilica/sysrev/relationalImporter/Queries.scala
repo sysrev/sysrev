@@ -25,7 +25,7 @@ case class WithScore[T](item: T, score: Double)
 
 case class CriteriaFilter(id: CriteriaId, answer: Option[Boolean])
 
-case class CriteriaResponse(id: CriteriaId, answer: Boolean)
+case class CriteriaResponse(id: CriteriaId, answer: Option[Boolean])
 
 object Queries {
 
@@ -111,7 +111,7 @@ object Queries {
       where criteria_id = $cid
     """.query[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])]
 
-    def rankedArticlesAll(start: Int = 0, numrows: Int = 200): Query0[ScoredArticle] =
+    def rankedArticlesAll(start: Long = 0, numrows: Long = 200): Query0[ScoredArticle] =
       sql"""
       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
       from article
@@ -122,7 +122,7 @@ object Queries {
     """.query
 
 
-    def rankedArticlesAllWithAbstracts(start: Int = 0, numrows: Int = 200): Query0[ScoredArticle] =
+    def rankedArticlesAllWithAbstracts(start: Long = 0, numrows: Long = 200): Query0[ScoredArticle] =
       sql"""
       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
       from article
@@ -148,21 +148,45 @@ object Queries {
       """.query
     }
 
-    def criteriaResponsesFor(articleIds: NonEmptyList[ArticleId]): Query0[WithArticleId[WithCriteriaId[Boolean]]] = {
+    def criteriaResponsesFor(articleIds: NonEmptyList[ArticleId]): Query0[WithArticleId[WithCriteriaId[Option[Boolean]]]] = {
       implicit val param = Param.many(articleIds)
       sql"""
           select article_id, criteria_id, answer
           from article_criteria
-          where article_id in ${articleIds: articleIds.type}
+          where article_id in (${articleIds: articleIds.type})
         """.query
     }
 
     def allCriteriaResponses: Query0[WithArticleId[CriteriaResponse]] =
       sql"""
-      select article_id, criteria_id, answer
-      from article_criteria
-    """.query
+        select article_id, criteria_id, answer
+        from article_criteria
+      """.query
+
+    def articlesById(articleIds: NonEmptyList[ArticleId]): Query0[ScoredArticle] = {
+      implicit val param = Param.many(articleIds)
+
+      sql"""
+        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+        from article
+        left join article_ranking on _1 = article_id
+        where article_id in (${articleIds: articleIds.type})
+      """.query
+    }
+
+    def textSearch(text: String): Query0[ScoredArticle] = {
+      val searchTerms = s"%$text%"
+      sql"""
+        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+        from article
+        left join article_ranking on _1 = article_id
+        where primary_title ilike $searchTerms or abstract ilike $searchTerms
+        order by score asc
+        limit 100
+      """.query
+    }
   }
+
 
   def rankedArticlesPage(pageNum: Int = 0): ConnectionIO[List[ScoredArticle]] =
     select.rankedArticlesAllWithAbstracts(pageNum * 200, 200).list
@@ -230,25 +254,22 @@ object Queries {
   def articleCriteriaRespond(aid: ArticleId, cid: CriteriaId, answer: Boolean): ConnectionIO[Int] =
     insert.addCriteriaAnswer(aid, cid, answer).run
 
-  def criteriaResponsesFor(articleIds: List[ArticleId]): ConnectionIO[Map[ArticleId, Map[CriteriaId, Boolean]]] =
-    articleIds.toNel.map { aids =>
-      select.criteriaResponsesFor(aids).list.map { data =>
-        data.foldLeft(Map[ArticleId, Map[CriteriaId, Boolean]]()) {
-          case (acc, WithArticleId(aid, WithCriteriaId(cid, answer))) if acc.contains(aid) =>
-            acc + (aid -> (acc(aid) + (cid -> answer)))
-          case (acc, WithArticleId(aid, WithCriteriaId(cid, answer))) => acc + (aid -> Map(cid -> answer))
-        }
-      }
-    } getOrElse {
-      Map[ArticleId, Map[CriteriaId, Boolean]]().point[ConnectionIO]
-    }
-
   def allCriteriaResponses: ConnectionIO[Map[ArticleId, List[CriteriaResponse]]] = {
     val qr: ConnectionIO[List[WithArticleId[CriteriaResponse]]] = select.allCriteriaResponses.list
     qr.map(_.foldLeft(Map[ArticleId, List[CriteriaResponse]]()){
       case (acc, WithArticleId(aid, resp)) if acc.contains(aid) => acc + (aid -> (resp :: acc(aid)))
       case (acc, WithArticleId(aid, resp)) => acc + (aid -> List(resp))
+      case (acc, _) => acc
     })
   }
+
+  def articlesById(ids: List[ArticleId]) : ConnectionIO[List[ScoredArticle]] =
+    ids.toNel.map {
+      select.articlesById(_).list
+    } getOrElse {
+      List[ScoredArticle]().point[ConnectionIO]
+    }
+
+  def textSearch(text: String) : ConnectionIO[List[ScoredArticle]] = select.textSearch(text).list
 }
 
