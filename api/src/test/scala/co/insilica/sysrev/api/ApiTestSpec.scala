@@ -3,6 +3,7 @@ package api
 
 
 import co.insilica.apistack.test.{PostSupport, SuiteJsonSupport}
+import co.insilica.sysrev.relationalImporter.CriteriaResponse
 import co.insilica.sysrev.relationalImporter.Types.{ArticleId, CriteriaId}
 import org.scalatest._
 import org.scalatra.test.scalatest.ScalatraSuite
@@ -25,9 +26,9 @@ class ApiTestSpec extends ScalatraSuite with FlatSpecLike with Matchers with Sui
 
   "criteria" should "be received" in {
     session{
-      postAsJson("/article_criteria", ArticleIds(List(1442, 1646))){
-        parse(response.body).extractOpt[Map[ArticleId, Map[CriteriaId, Boolean]]].map{ resMap =>
-          resMap.size should be > (1)
+      get("/allcriteria"){
+        parse(response.body).extractOpt[Map[ArticleId, List[CriteriaResponse]]].map{ resMap =>
+          resMap.size should be > (10)
         }
       }
     }

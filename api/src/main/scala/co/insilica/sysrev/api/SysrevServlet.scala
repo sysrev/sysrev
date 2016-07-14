@@ -3,12 +3,16 @@ package api
 
 import co.insilica.apistack.{ApiStack, ResultWrapSupport}
 import co.insilica.sysrev.indexing.{QueryEnv, DocIndex}
-import co.insilica.sysrev.relationalImporter.Types.{WithArticleId, ArticleId}
+import co.insilica.sysrev.relationalImporter.Types.{CriteriaId, WithArticleId, ArticleId}
 import co.insilica.sysrev.relationalImporter._
+import doobie.free.connection.ConnectionOp
+
+import co.insilica.dataProvider.TaskFutureOps._
 
 import org.scalatra._
 import doobie.imports._
 
+import scala.concurrent.Future
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
@@ -35,21 +39,22 @@ class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
     Queries.allCriteria().transact(tx)
   }
 
-  /**
-    * Expects {:articleIds [list of numbers]}
-    */
-  postT("/article_criteria"){
-    parsedBody.extractOpt[ArticleIds].map {
-      case ArticleIds(articleIds) => Queries.criteriaResponsesFor(articleIds).transact(tx)
-    } getOrElse {
-      Task.now(ErrorResult("Article ids must not be empty, must be numbers."))
-    }
+  getT("/search/:text") {
+    Queries.textSearch(params("text")).transact(tx)
   }
 
   /**
     * Returns a map articleid -> List[criteriaid, boolean]
     */
   getT("/allcriteria"){
-    Queries.allCriteriaResponses.transact(tx)
+    for {
+      criteria <- Queries.allCriteriaResponses.transact(tx)
+      articles <- Queries.articlesById(criteria.keys.toList).transact(tx)
+    } yield {
+      Map(
+        "criteria" -> criteria,
+        "articles" -> articles.map(WithArticleId.unapply(_).get).toMap
+      )
+    }
   }
 }
