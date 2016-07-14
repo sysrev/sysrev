@@ -14,9 +14,17 @@
             :keywords? true
             :handler handler))
 
+(defn ajax-post [url content handler]
+  (ajax/POST url
+             :format :json
+             :response-format :json
+             :keywords? true
+             :params content
+             :handler handler))
+
 (defonce page-data-fields
   {:home
-   [[:criteria] [:ranking] [:articles]]})
+   [[:criteria] [:ranking] [:articles] [:articles-criteria]]})
 
 (defn data-initialized? [page]
   (let [required-fields (get page-data-fields page)]
@@ -39,6 +47,12 @@
                 (swap! server-data assoc
                        :criteria (mapify-id-t (:result response)))))))
 
+(defn pull-articles-criteria []
+  (ajax-get "/api/allcriteria"
+            (fn [response]
+              (swap! server-data assoc
+                     :articles-criteria (:result response)))))
+
 (defn pull-ranking-page [num]
   (when (nil? (get-in @server-data [:ranking :pages num]))
     (ajax-get (str "/api/ranking/" num)
@@ -52,11 +66,19 @@
 
 (defn pull-initial-data []
   (pull-criteria)
+  (pull-articles-criteria)
   (let [rpage (:ranking-page @state)]
     (when rpage (pull-ranking-page rpage))))
 
 (defn get-ranking-article-ids [page-num]
   (get-in @server-data [:ranking :pages page-num]))
 
+(defn get-article-criteria [id]
+  (let [id-keyword (keyword (str id))]
+    (->> (get-in @server-data [:articles-criteria id-keyword])
+         (sort-by :id))))
+
 (defn get-article [id]
-  (get-in @server-data [:articles id]))
+  (let [article (get-in @server-data [:articles id])]
+    (when article
+      (assoc article :criteria (get-article-criteria id)))))
