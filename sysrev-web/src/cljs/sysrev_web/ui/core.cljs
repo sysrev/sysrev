@@ -11,7 +11,6 @@
    [:h1 "State"]
    [:pre (with-out-str (pprint @state))]])
 
-
 ;; Not working at the moment...
 ;; should be able to select page open based on route set in routes.cljs.
 (defmulti current-page #(@state :page))
