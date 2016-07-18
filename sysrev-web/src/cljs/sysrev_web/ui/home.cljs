@@ -1,15 +1,30 @@
 (ns sysrev-web.ui.home
   (:require [sysrev-web.base :refer [state server-data debug-box]]
             [sysrev-web.ajax :refer [get-article get-ranking-article-ids]]
-            [cljs.pprint :as pprint :refer [cl-format]]))
+            [cljs.pprint :as pprint :refer [cl-format]]
+            [clojure.string :refer [split join]]
+            [goog.string :refer [unescapeEntities]]))
 
+(def nbsp (unescapeEntities "&nbsp;"))
+
+(defn url-domain' [url]
+  (-> url (split "//") second (split "/") first (split ".") (->> (take-last 2) (join "."))))
+
+(defn url-domain [url]
+  (let [res (url-domain' url)]
+    (if (string? res) res url)))
+
+(defn out-link [url]
+  [:a.item {:target "_blank" :href url}
+    (url-domain url)
+    nbsp
+    [:i.external.icon]])
 
 (defn similarity-bar [score percent]
   (fn [score percent]
     [:div.ui.tiny.blue.progress
      [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
       [:div.progress]]]))
-;       (cl-format nil "~4,2F" score)]]]))
 
 (defn criteria-detail [criteria]
   (fn [criteria]
@@ -46,6 +61,12 @@
        [:div.header
         (-> article :item :title)]
       [:div.content (-> article :item :abs)]
+      [:div.content.ui.list
+       (map-indexed
+         (fn [idx url]
+           ^{:key idx}
+           [out-link url])
+         (-> article :item :urls))]
       [debug-box article]]]))
 
 (defn ratings-list [page-num]
