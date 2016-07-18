@@ -51,7 +51,7 @@
   (ajax-get "/api/allcriteria"
             (fn [response]
               (swap! server-data assoc
-                     :articles-criteria (:result response)))))
+                     :articles-criteria (get-in response [:result :criteria])))))
 
 (defn pull-ranking-page [num]
   (when (nil? (get-in @server-data [:ranking :pages num]))
