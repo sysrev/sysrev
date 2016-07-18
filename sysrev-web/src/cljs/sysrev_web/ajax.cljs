@@ -5,7 +5,7 @@
             [cljs-http.client :as http]
             [cljs.core.async :refer [<!]]
             [pushy.core :as pushy]
-            [sysrev-web.base :refer [state state-set server-data]]))
+            [sysrev-web.base :refer [state state-set server-data debug]]))
 
 (defn ajax-get [url handler]
   (ajax/GET url
@@ -70,8 +70,11 @@
   (let [rpage (:ranking-page @state)]
     (when rpage (pull-ranking-page rpage))))
 
+(defn takeOnly [els]
+  (if debug (take 10 els) els))
+
 (defn get-ranking-article-ids [page-num]
-  (get-in @server-data [:ranking :pages page-num]))
+  (takeOnly (get-in @server-data [:ranking :pages page-num])))
 
 (defn get-article-criteria [id]
   (let [id-keyword (keyword (str id))]

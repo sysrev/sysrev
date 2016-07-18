@@ -1,10 +1,13 @@
 (ns sysrev-web.base
   (:require [reagent.core :as r]
             [secretary.core :as secretary :include-macros true]
-            [pushy.core :as pushy]))
+            [pushy.core :as pushy]
+            [cljs.pprint :refer [pprint]]))
 
 (defonce state (r/atom nil))
 (defonce server-data (r/atom {}))
+
+(def debug false)
 
 (defn state-val [ks]
   (get-in @state ks))
@@ -13,6 +16,22 @@
   (swap! state #(assoc-in % ks val)))
 
 (enable-console-print!)
+
+(defn debug-container [children]
+  (fn [children]
+   [:div {:style {:background-color "lightgrey"}} children]))
+
+(defn show-debug-box
+  (
+   [title obj]
+   [debug-container [:h1 title] [:pre (with-out-str (pprint obj))]])
+  (
+   [obj]
+   [debug-container [:pre (with-out-str (pprint obj))]]))
+
+(defn debug-box [arg & args]
+  (when debug (apply show-debug-box arg args)))
+
 
 (secretary/set-config! :prefix "/")
 

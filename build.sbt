@@ -5,7 +5,9 @@ version := "0.0.1-SNAPSHOT"
 val Organization = "co.insilica"
 val ScalaVersion = "2.11.8"
 val scalatraVersion = "2.4.1"
-val doobieVersion = "0.2.3"
+val doobieVersion = "0.3.0"
+val scalazVersion = "7.2.4"
+val reactiveMongoVersion = "0.11.14"
 
 val scalatraDeps = Seq(
   // Scalatra:
@@ -74,18 +76,29 @@ lazy val buildSettings = Seq(
 
 val commonDependencySettings = Seq(
   libraryDependencies ++= Seq(
-  // akka
+  // Json
   "org.json4s"   %% "json4s-jackson" % "3.3.0",
+
   // test
   "org.scalatest" %% "scalatest" % "3.0.0-RC3" % "test",
-  "co.insilica" %% "data-provider" % "0.3.3",
   "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
+
+  // files
   "com.lihaoyi" %% "upickle" % "0.3.9",
-  "org.reactivemongo" %% "reactivemongo" % "0.11.11",
+
+  // Mongo
+  "org.reactivemongo" %% "reactivemongo" % reactiveMongoVersion,
+  "org.reactivemongo" %% "reactivemongo-iteratees" % reactiveMongoVersion,
+
+  // Doobie
   "org.tpolecat" %% "doobie-core"               % doobieVersion,
   "org.tpolecat" %% "doobie-contrib-postgresql" % doobieVersion,
+  "com.typesafe.play" %% "play-iteratees" % "2.4.6",
+  "org.scalaz" %% "scalaz-core" % scalazVersion,
+
+  // Insilica internal projects:
   "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1",
-  "com.typesafe.play" %% "play-iteratees" % "2.4.6"
+  "co.insilica" %% "data-provider" % "0.3.3"
 ))
 
 val commonSettings = buildSettings ++ scalaSettings ++ commonDependencySettings

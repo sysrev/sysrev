@@ -1,15 +1,10 @@
 (ns sysrev-web.ui.core
-  (:require [sysrev-web.base :refer [state history server-data]]
+  (:require [sysrev-web.base :refer [state history server-data debug-box]]
             [sysrev-web.ajax :as ajax]
             [pushy.core :as pushy]
             [reagent.core :as r]
             [cljs.pprint :refer [pprint]]
             [sysrev-web.ui.home :refer [home]]))
-
-(defn show-state []
-  [:div {:style {:background-color "lightgrey"}}
-   [:h1 "State"]
-   [:pre (with-out-str (pprint @state))]])
 
 ;; Not working at the moment...
 ;; should be able to select page open based on route set in routes.cljs.
@@ -26,4 +21,6 @@
       [:div.row
        [home]]
       [:div.row
-       [show-state]]])])
+       [debug-box "Ui data" @state]]
+      [:div.row
+       [debug-box "Server data" @server-data]]])])
