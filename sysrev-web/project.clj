@@ -7,6 +7,7 @@
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]
                  [figwheel-sidecar "0.5.3"]
+                 [binaryage/devtools "0.7.2"]
 
                  ;; ClojureScript libraries
                  [org.clojure/clojurescript "1.9.36"]
@@ -15,6 +16,7 @@
                  [kibu/pushy "0.3.6"]
                  [cljs-ajax "0.5.8"]
                  [cljs-http "0.1.41"]]
+
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms200m"
              "-Xmx400m"
@@ -43,6 +45,7 @@
                 :output-to "resources/public/out-dev/sysrev_web.js"
                 :output-dir "resources/public/out-dev"
                 :asset-path "out-dev"
+;;                :preloads      [devtools.preload]
                 :optimizations :none
                 :pretty-print true
                 :source-map true

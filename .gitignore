@@ -156,3 +156,13 @@ fabric.properties
 # .idea/misc.xml
 # *.ipr
 
+
+/sysrev-web/.cljs_rhino_repl/
+
+/sysrev-web/out/
+
+/sysrev-web/repl/
+
+/sysrev-web/sysrev.sublime-project
+
+/sysrev-web/sysrev.sublime-workspace
