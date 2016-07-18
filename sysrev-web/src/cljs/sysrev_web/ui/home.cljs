@@ -6,10 +6,10 @@
 
 (defn similarity-bar [score percent]
   (fn [score percent]
-    [:div.ui.blue.progress
+    [:div.ui.tiny.blue.progress
      [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
-      [:div.progress
-       (cl-format nil "~4,2F" score)]]]))
+      [:div.progress]]]))
+;       (cl-format nil "~4,2F" score)]]]))
 
 (defn criteria-detail [criteria]
   (fn [criteria]
@@ -32,25 +32,21 @@
                                nil "unknown")]
               [:div.item {:key criteria-id}
                [:div.content
-                (str criteria-name ": " answer-str)]])))))]]]))
+                (str criteria-name ": " answer-str)]])))))]]
+     [debug-box criteria]]))
 
 (defn similarity-card [article criteria score percent article-id]
   (fn [article criteria]
     [:div.ui.fluid.card
      [:div.content
-      [:div.ui.grid
-       [:div.ui.row
-        [:div.ui.two.wide.column.center.aligned.middle.aligned
-         [:h4.header "Similarity"]]
-        [:div.ui.thirteen.wide.column.center.aligned.middle.aligned
-         [similarity-bar score percent]]]]
-      (when (not (empty? criteria))
+       [similarity-bar score percent]
+       (when (not (empty? criteria))
         [criteria-detail criteria])]
      [:div.content
        [:div.header
         (-> article :item :title)]
-      [:div.content (-> article :item :abs)]]]))
-
+      [:div.content (-> article :item :abs)]
+      [debug-box article]]]))
 
 (defn ratings-list [page-num]
   (fn [page-num]
@@ -64,7 +60,7 @@
                 percent (Math/round (* 100 score))
                 criteria (:criteria article)]
             ^{:key article-id}
-              [similarity-card article criteria score percent article-id]))
+            [similarity-card article criteria score percent article-id]))
          page-article-ids)))]))
 
 (defn home []
