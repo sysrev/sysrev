@@ -2,23 +2,9 @@
   (:require [sysrev-web.base :refer [state server-data debug-box]]
             [sysrev-web.ajax :refer [get-article get-ranking-article-ids]]
             [cljs.pprint :as pprint :refer [cl-format]]
-            [clojure.string :refer [split join]]
-            [goog.string :refer [unescapeEntities]]))
+            [sysrev-web.ui.base :refer [out-link]]
+            [reagent.core :as r]))
 
-(def nbsp (unescapeEntities "&nbsp;"))
-
-(defn url-domain' [url]
-  (-> url (split "//") second (split "/") first (split ".") (->> (take-last 2) (join "."))))
-
-(defn url-domain [url]
-  (let [res (url-domain' url)]
-    (if (string? res) res url)))
-
-(defn out-link [url]
-  [:a.item {:target "_blank" :href url}
-    (url-domain url)
-    nbsp
-    [:i.external.icon]])
 
 (defn similarity-bar [score percent]
   (fn [score percent]
@@ -47,31 +33,33 @@
                                nil "unknown")]
               [:div.item {:key criteria-id}
                [:div.content
-                (str criteria-name ": " answer-str)]])))))]]
-     [debug-box criteria]]))
+                (str criteria-name ": " answer-str)]])))))]]]))
 
-(defn similarity-card [article criteria score percent article-id]
+
+(defn similarity-card
+  "Shows an article with a representation of its match quality and how it
+  has been manually classified"
+  [article criteria score percent article-id]
   (fn [article criteria]
     [:div.ui.fluid.card
      [:div.content
        [similarity-bar score percent]
-       (when (not (empty? criteria))
+       (when-not (empty? criteria)
         [criteria-detail criteria])]
      [:div.content
-       [:div.header
-        (-> article :item :title)]
+      [:div.header (-> article :item :title)]
       [:div.content (-> article :item :abs)]
       [:div.content.ui.list
        (map-indexed
          (fn [idx url]
            ^{:key idx}
            [out-link url])
-         (-> article :item :urls))]
-      [debug-box article]]]))
+         (-> article :item :urls))]]]))
+
 
 (defn ratings-list [page-num]
   (fn [page-num]
-    [:div.ui.cards.container
+    [:div.ui.cards
      (let [page-article-ids (get-ranking-article-ids page-num)]
        (doall
         (map
@@ -84,8 +72,37 @@
             [similarity-card article criteria score percent article-id]))
          page-article-ids)))]))
 
+(defn filter-search []
+  [:div.ui.fluid.input
+   [:input {:onChange #(swap! state assoc :filter-text (-> % .-target .-value))}]
+   [:div.ui.primary.button "Search"]])
+
+(defn filter-list []
+  (let [criteria (-> @server-data :criteria :entries)
+        boxes
+          (map
+            (fn [[id item]]
+              (assoc item
+                :handler #(swap! state update-in [:article-filter (keyword (str id))] not)
+                :id (str id)))
+            criteria)]
+    [:div.ui.segment
+     [:div.ui.form
+      [filter-search]
+      [:div.ui.list
+       (doall
+        (map
+          (fn [item]
+            [:div.ui.toggle.checkbox.item {key (:id item)}
+             [:input {:type "checkbox" :on-change (:handler item)}]
+             [:label (:name item)]])
+          boxes))]]]))
+
+
 (defn home []
   (let [page-num (:ranking-page @state)]
     (if page-num
-      [ratings-list page-num])))
-
+      [:div.ui.container
+;;       [debug-box @state]
+       [filter-list]
+       [ratings-list page-num]])))

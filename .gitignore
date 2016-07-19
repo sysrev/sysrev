@@ -166,3 +166,5 @@ fabric.properties
 /sysrev-web/sysrev.sublime-project
 
 /sysrev-web/sysrev.sublime-workspace
+
+/sysrev-web/resources/public/out-production/

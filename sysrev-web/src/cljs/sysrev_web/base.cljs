@@ -4,10 +4,10 @@
             [pushy.core :as pushy]
             [cljs.pprint :refer [pprint]]))
 
-(defonce state (r/atom nil))
+(defonce state (r/atom {}))
 (defonce server-data (r/atom {}))
 
-(def debug false)
+(def debug true)
 
 (defn state-val [ks]
   (get-in @state ks))
