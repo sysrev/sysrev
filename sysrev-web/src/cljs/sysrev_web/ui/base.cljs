@@ -2,7 +2,6 @@
   (:require [clojure.string :refer [split join]]
             [goog.string :refer [unescapeEntities]]))
 
-
 (def nbsp (unescapeEntities "&nbsp;"))
 
 (defn url-domain' [url]
@@ -23,6 +22,6 @@
 
 (defn out-link [url]
   [:a.item {:target "_blank" :href url}
-    (url-domain url)
-    nbsp
-    [:i.external.icon]])
+   (url-domain url)
+   nbsp
+   [:i.external.icon]])

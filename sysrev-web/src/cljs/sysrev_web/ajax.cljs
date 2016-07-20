@@ -28,8 +28,7 @@
 
 (defn data-initialized? [page]
   (let [required-fields (get page-data-fields page)]
-    (every? #(not= (get-in @server-data % :not-found)
-                   :not-found)
+    (every? #(not= :not-found (get-in @server-data % :not-found))
             required-fields)))
 
 (defn mapify-id-t [result]
