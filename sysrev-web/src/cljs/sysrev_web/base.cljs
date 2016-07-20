@@ -17,16 +17,14 @@
 
 (enable-console-print!)
 
-(defn debug-container [children]
-  (fn [children]
-   [:div {:style {:background-color "lightgrey"}} children]))
+(defn debug-container [content]
+  (fn [content]
+    [:div {:style {:background-color "lightgrey"}} content]))
 
 (defn show-debug-box
-  (
-   [title obj]
-   [debug-container [:h1 title] [:pre (with-out-str (pprint obj))]])
-  (
-   [obj]
+  ([title obj]
+   [debug-container [:div [:h1 title] [:pre (with-out-str (pprint obj))]]])
+  ([obj]
    [debug-container [:pre (with-out-str (pprint obj))]]))
 
 (defn debug-box [arg & args]
