@@ -23,7 +23,7 @@
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
-  :source-paths ["src/clj"]
+  :source-paths ["src/clj" "script"]
   :plugins [[lein-cljsbuild "1.1.3"]
             [lein-bower "0.5.1"]
             [lein-ring "0.9.7"]
