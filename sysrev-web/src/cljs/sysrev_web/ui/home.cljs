@@ -73,9 +73,10 @@
          page-article-ids)))]))
 
 (defn filter-search []
-  [:div.ui.fluid.input
-   [:input {:onChange #(swap! state assoc :filter-text (-> % .-target .-value))}]
-   [:div.ui.primary.button "Search"]])
+  (letfn [(handler [e] (swap! state assoc :filter-text (-> e .-target .-value)))]
+    [:div.ui.fluid.input
+     [:input {:value (:filter-text @state) :on-change #(swap! state assoc :filter-text (-> % .-target .-value))}]
+     [:div.ui.primary.button "Search"]]))
 
 (defn filter-list []
   (let [criteria (-> @server-data :criteria :entries)
@@ -85,7 +86,10 @@
               (assoc item
                 :handler #(swap! state update-in [:article-filter (keyword (str id))] not)
                 :id (str id)))
-            criteria)]
+            criteria)
+          checked?
+            (fn [id]
+              (get-in @state [:article-filter (keyword (str id))]))]
     [:div.ui.segment
      [:div.ui.form
       [filter-search]
@@ -93,9 +97,14 @@
        (doall
         (map
           (fn [item]
-            [:div.ui.toggle.checkbox.item {key (:id item)}
-             [:input {:type "checkbox" :on-change (:handler item)}]
-             [:label (:name item)]])
+            (let [id (:id item)]
+              [:div.ui.toggle.checkbox.item {:key (:id item)}
+               [:input {:checked
+                        (checked? (:id item))
+                        :id (:id item)
+                        :type "checkbox"
+                        :on-change (:handler item)}]
+               [:label {:style {:cursor "pointer"} :for (:id item)} (:name item)]]))
           boxes))]]]))
 
 
@@ -103,6 +112,6 @@
   (let [page-num (:ranking-page @state)]
     (if page-num
       [:div.ui.container
-;;       [debug-box @state]
+       ;;[debug-box @state]
        [filter-list]
        [ratings-list page-num]])))
