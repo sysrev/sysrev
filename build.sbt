@@ -141,6 +141,17 @@ lazy val core = project.in(file("./core"))
   .settings(commonSettings ++ sparkSettings ++ coreDataSettings)
   .settings(name := "core")
   .settings(description := "")
+  .settings(jarName in assembly := "sysrev-fingerprint_assembly.jar")
+  .settings(assemblyMergeStrategy in assembly := {
+    case PathList("reference.conf") => MergeStrategy.concat
+    case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+    case m if m.toLowerCase.matches("meta-inf.*\\.sf$") => MergeStrategy.discard
+    case _ => MergeStrategy.first
+  })
+  .settings(assemblyOption in assembly :=
+    (assemblyOption in assembly).value.copy(includeScala = false))
+  .settings(mainClass in assembly := Some("co.insilica.sysrev.indexing.Test"))
+  .settings(test in assembly := {})
 
 lazy val sysrevApi = project.in(file("./api"))
   .settings(commonSettings ++ apiSettings)
