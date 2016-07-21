@@ -5,7 +5,8 @@
             [cljs-http.client :as http]
             [cljs.core.async :refer [<!]]
             [pushy.core :as pushy]
-            [sysrev-web.base :refer [state state-set server-data debug]]))
+            [sysrev-web.base :refer [state state-set server-data debug]]
+            [clojure.set :refer [intersection]]))
 
 (defn ajax-get [url handler]
   (ajax/GET url
@@ -21,6 +22,12 @@
              :keywords? true
              :params content
              :handler handler))
+
+(defn handle-result [f] #(f (:result %)))
+
+(defn request-articles-criteria [f]
+  (ajax-get "/api/allcriteria"
+    (handle-result f)))
 
 (defonce page-data-fields
   {:home
@@ -49,8 +56,11 @@
 (defn pull-articles-criteria []
   (ajax-get "/api/allcriteria"
             (fn [response]
-              (swap! server-data assoc
-                     :articles-criteria (get-in response [:result :criteria])))))
+              (let [result (:result response)
+                    {articles :articles criteria :criteria} result]
+                (swap! server-data assoc
+                       :articles-criteria criteria)
+                (swap! server-data update :articles #(merge % articles))))))
 
 (defn pull-ranking-page [num]
   (when (nil? (get-in @server-data [:ranking :pages num]))
@@ -75,12 +85,29 @@
 (defn get-ranking-article-ids [page-num]
   (takeOnly (get-in @server-data [:ranking :pages page-num])))
 
+(defn get-ui-filtered-article-ids []
+  (let [af (:article-filter @state)
+        in-cids (set (map #(-> % first name int) (filter val af)))
+        ex-cids (map first (filter #(-> % val false?) af))
+        acs (:articles-criteria @server-data)
+        ;get the list of criteria ids in common with a given article's criteria.
+        has-criteria (fn [criteria] (intersection (set (map :id criteria)) in-cids))
+        meets-criteria (fn [criteria])
+        f-acs (filter (fn [[aid criteria]] (has-criteria criteria)) acs)]
+    (keys f-acs)))
+
+(defn get-classified-ids []
+  (let [af (:articles-criteria @server-data)]
+    (map #(-> % name int) (keys af))))
+
+(defn insist-key [s]
+  (if (keyword? s) s (keyword (str s))))
+
 (defn get-article-criteria [id]
-  (let [id-keyword (keyword (str id))]
-    (->> (get-in @server-data [:articles-criteria id-keyword])
-         (sort-by :id))))
+  (->> (get-in @server-data [:articles-criteria (insist-key id)])
+       (sort-by :id)))
 
 (defn get-article [id]
-  (let [article (get-in @server-data [:articles id])]
+  (let [article (get-in @server-data [:articles (insist-key id)])]
     (when article
       (assoc article :criteria (get-article-criteria id)))))

@@ -19,8 +19,8 @@
        [:h1.ui.header.huge.center.aligned "Loading data..."]]]
      [:div.ui.grid.container
       [:div.row
-       [home]]
-      [:div.row
-       [debug-box "Ui data" @state]]
-      [:div.row
-       [debug-box "Server data" @server-data]]])])
+       [home]]])])
+;      [:div.row
+ ;      [debug-box "Ui data" @state]]
+  ;    [:div.row
+   ;    [debug-box "Server data" @server-data]]])])
