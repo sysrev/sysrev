@@ -66,9 +66,9 @@ object Fingerprint {
         "primary_title" -> "title1 words",
         "secondary_title" -> "title2 words"
       ),
-      applyTfidf("title1 words" -> "title1 words tfidf", 50),
-      applyTfidf("abstract words" -> "abstract words tfidf", 1000),
-      applyTfidf("title2 words" -> "title2 words tfidf", 50),
+      applyTfidf("title1 words" -> "title1 words tfidf", 262144),       // 2^18
+      applyTfidf("abstract words" -> "abstract words tfidf", 1048576),  // 2^20
+      applyTfidf("title2 words" -> "title2 words tfidf", 262144),
       new VectorAssembler()
         .setInputCols(Array("abstract words tfidf", "title1 words tfidf", "title2 words tfidf"))
         .setOutputCol("features").transform
