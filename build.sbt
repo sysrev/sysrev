@@ -98,7 +98,9 @@ val commonDependencySettings = Seq(
 
   // Insilica internal projects:
   "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1",
-  "co.insilica" %% "data-provider" % "0.3.3"
+  "co.insilica" %% "data-provider" % "0.3.3",
+
+  "org.scala-lang.modules" % "scala-parser-combinators_2.11" % "1.0.4"
 ))
 
 val commonSettings = buildSettings ++ scalaSettings ++ commonDependencySettings
@@ -148,6 +150,7 @@ lazy val core = project.in(file("./core"))
     case m if m.toLowerCase.matches("meta-inf.*\\.sf$") => MergeStrategy.discard
     case _ => MergeStrategy.first
   })
+  .settings(fork in run := true)
   .settings(assemblyOption in assembly :=
     (assemblyOption in assembly).value.copy(includeScala = false))
   .settings(mainClass in assembly := Some("co.insilica.sysrev.indexing.Test"))
