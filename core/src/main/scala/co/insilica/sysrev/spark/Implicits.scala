@@ -18,6 +18,11 @@ object Implicits{
       .setMaster("local[*]")  // local mode
   }
 
+  object submit extends build {
+    implicit val conf = new SparkConf()
+      .setAppName("sysrev")
+  }
+
   object tunnel extends build {
     implicit val conf = new SparkConf()
       .setAppName("try it remotely")

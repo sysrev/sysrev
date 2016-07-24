@@ -159,7 +159,7 @@ object Fingerprint {
 // SparkContext -> T
 
 object Test extends App{
-  import spark.Implicits.local._
+  import spark.Implicits.submit._
   import spark.readers._
   type Extractor = Row => String => String
 
