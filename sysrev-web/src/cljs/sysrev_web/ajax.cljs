@@ -38,20 +38,12 @@
     (every? #(not= :not-found (get-in @server-data % :not-found))
             required-fields)))
 
-(defn mapify-id-t [result]
-  (let [ids (mapv :id result)
-        entries (->> result
-                     (map #(vector (:id %) (:t %)))
-                     (apply concat)
-                     (apply hash-map))]
-    {:ids ids :entries entries}))
-
 (defn pull-criteria []
   (when (nil? (:criteria @server-data))
     (ajax-get "/api/criteria"
               (fn [response]
                 (swap! server-data assoc
-                       :criteria (mapify-id-t (:result response)))))))
+                       :criteria (:result response))))))
 
 (defn pull-articles-criteria []
   (ajax-get "/api/allcriteria"
@@ -66,7 +58,7 @@
   (when (nil? (get-in @server-data [:ranking :pages num]))
     (ajax-get (str "/api/ranking/" num)
               (fn [response]
-                (let [mapified (mapify-id-t (:result response))]
+                (let [mapified (:result response)]
                   (swap! server-data
                          #(assoc % :articles
                                  (merge (:articles %) (:entries mapified))))
@@ -85,29 +77,43 @@
 (defn get-ranking-article-ids [page-num]
   (takeOnly (get-in @server-data [:ranking :pages page-num])))
 
+
+(defn critbyId [criteria id]
+  (println criteria)
+  (println id)
+  (let [rcrit (first (filter #(= id (:id %)) criteria))
+        res (when-not (empty? rcrit) (:answer rcrit))]
+    (println rcrit)
+    (println res)
+    res))
+
+
 (defn get-ui-filtered-article-ids []
   (let [af (:article-filter @state)
-        in-cids (set (map #(-> % first name int) (filter val af)))
-        ex-cids (map first (filter #(-> % val false?) af))
-        acs (:articles-criteria @server-data)
-        ;get the list of criteria ids in common with a given article's criteria.
-        has-criteria (fn [criteria] (intersection (set (map :id criteria)) in-cids))
-        meets-criteria (fn [criteria])
-        f-acs (filter (fn [[aid criteria]] (has-criteria criteria)) acs)]
-    (keys f-acs)))
+        articles (:articles @server-data)
+        res-keys
+        ;; here we get a list of keys based on the ui filters.
+        ;; If no filter chosen, just get all the article keys.
+          (if (empty? af)
+            (keys (:articles @server-data))
+            (let [in-cids (set (keys (filter val af)))
+                  ex-cids (map first (filter #(-> % val false?) af))
+                  acs (:articles-criteria @server-data)
+                  meets-criteria (fn [criteria] (every? #(critbyId criteria (int (name %))) in-cids))
+                  filter-fn (fn [[_ criteria]] (meets-criteria criteria))]
+              (keys (filter filter-fn acs))))]
+       ; Sort list of keys by their ranking score.
+       (sort-by #(get-in articles [% :score]) res-keys)))
 
 (defn get-classified-ids []
   (let [af (:articles-criteria @server-data)]
     (map #(-> % name int) (keys af))))
 
-(defn insist-key [s]
-  (if (keyword? s) s (keyword (str s))))
-
 (defn get-article-criteria [id]
-  (->> (get-in @server-data [:articles-criteria (insist-key id)])
+  (->> (get-in @server-data [:articles-criteria id])
        (sort-by :id)))
 
 (defn get-article [id]
-  (let [article (get-in @server-data [:articles (insist-key id)])]
+  (let [article (get-in @server-data [:articles id])]
     (when article
       (assoc article :criteria (get-article-criteria id)))))

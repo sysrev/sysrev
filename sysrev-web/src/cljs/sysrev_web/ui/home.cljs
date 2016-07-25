@@ -24,17 +24,14 @@
         (->>
          criteria
          (map
-          (fn [criteria-entry]
-            (let [criteria-id (:id criteria-entry)
+          (fn [{cid :id answer :answer}]
+            (let [ck (-> cid str keyword)
                   criteria-name
-                  (get-in @server-data
-                          [:criteria :entries criteria-id :name])
-                  answer (:answer criteria-entry)
+                    (get-in @server-data [:criteria ck :name])
                   answer-str (case answer
-                               true "true"
-                               false "false"
-                               nil "unknown")]
-              [:div.item {:key criteria-id}
+                               nil "unknown"
+                               (str answer))]
+              [:div.item {:key cid}
                [:div.content
                 (str criteria-name ": " answer-str)]])))))]]]))
 
@@ -62,18 +59,22 @@
 
 (defn ratings-list [page-num]
   (fn [page-num]
-    [:div.ui.cards
-     (let [page-article-ids (get-ui-filtered-article-ids)]
-       (doall
-        (map
-         (fn [article-id]
-          (let [article (get-article article-id)
-                score (- 1.0 (Math/abs (:score article)))
-                percent (Math/round (* 100 score))
-                criteria (:criteria article)]
-            ^{:key article-id}
-            [similarity-card article criteria score percent article-id]))
-         page-article-ids)))]))
+    (let [page-article-ids (get-ui-filtered-article-ids)]
+      [:div
+       [:div.ui.segment (str "Showing " (count page-article-ids) " articles")]
+       [:div.ui.cards
+        (doall
+          (->>
+            page-article-ids
+            (map
+             (fn [article-id]
+              (let [article (get-article article-id)
+                    score (- 1.0 (Math/abs (:score article)))
+                    percent (Math/round (* 100 score))
+                    criteria (-> @server-data :articles-criteria article-id)]
+                ^{:key article-id}
+                [similarity-card article criteria score percent article-id])))))]])))
+
 
 (defn filter-search []
   (let [handler #(swap! state assoc :filter-text (-> % .-target .-value))]
@@ -82,37 +83,39 @@
      [:div.ui.primary.button "Search"]]))
 
 (defn filter-list []
-  (let [criteria (-> @server-data :criteria :entries)
-        handler #(swap! state update-in [:article-filter (keyword (str %))] not)
-        boxes
+  (fn []
+    (let [criteria (:criteria @server-data)
+          handler #(swap! state update-in [:article-filter %] not)
+          boxes
+            (map
+              (fn [[id item]] (assoc item :handler #(handler id) :id (str id)))
+              criteria)
+          checked?
+            (fn [id]
+              (get-in @state [:article-filter id]))]
+      [:div.ui.form.list
+        (doall
           (map
-            (fn [[id item]] (assoc item :handler #(handler id) :id (str id)))
-            criteria)
-        checked?
-          (fn [id]
-            (get-in @state [:article-filter (keyword (str id))]))]
-    [:div.ui.form.list
-      (doall
-        (map
-          (fn [item]
-            (let [id (:id item)]
-              [:div.ui.toggle.checkbox.item {:key (:id item)}
-               [:input {:checked
-                        (checked? (:id item))
-                        :id (:id item)
-                        :type "checkbox"
-                        :on-change (:handler item)}]
-               [:label {:style {:cursor "pointer"} :for (:id item)} (:name item)]]))
-          boxes))]))
+            (fn [item]
+              (let [id (:id item)]
+                [:div.ui.toggle.checkbox.item {:key (:id item)}
+                 [:input {:checked
+                          (checked? (:id item))
+                          :id (:id item)
+                          :type "checkbox"
+                          :on-change (:handler item)}]
+                 [:label {:style {:cursor "pointer"} :for (:id item)} (:name item)]]))
+            boxes))])))
 
 
 (defn home []
-  (let [page-num (:ranking-page @state)]
-    (if page-num
-      [:div.ui.container
-       [:div.ui.segment
-;        [debug-box @state]
-;        [debug-box "article ids" (get-ui-filtered-article-ids)]
-        [filter-search]
-        [filter-list]
-        [ratings-list page-num]]])))
+  (fn []
+    (let [page-num (:ranking-page @state)]
+      (if page-num
+        [:div.ui.container
+         [:div.ui.segment
+          [debug-box @state]
+  ;        [debug-box "article ids" (get-ui-filtered-article-ids)]
+          [filter-search]
+          [filter-list]
+          [ratings-list page-num]]]))))
