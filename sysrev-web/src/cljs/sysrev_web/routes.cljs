@@ -10,6 +10,6 @@
   (println "home route."))
 
 (defroute "/user" {}
+  (reset! state {:page :user})
   (ajax/pull-initial-data)
-  (println "got /user route")
-  (reset! state {:user true}))
+  (println "got /user route"))

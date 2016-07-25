@@ -10,7 +10,6 @@
 ;; Not working at the moment...
 ;; should be able to select page open based on route set in routes.cljs.
 
-
 (defn loading-screen []
   (fn []
     [:div.ui.container
@@ -23,7 +22,6 @@
      [:div.row
       page]]))
 
-
 (defn get-page [key r]
   (if (data-initialized? key)
     [page-container [r]]
@@ -32,7 +30,6 @@
 (defmulti current-page (fn [] (:page @state)))
 (defmethod current-page :home []  (get-page :home home))
 (defmethod current-page :user [] (get-page :user user))
-
 
 (defn main-content []
   [:div.main-content

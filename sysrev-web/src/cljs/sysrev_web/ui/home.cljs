@@ -113,9 +113,10 @@
     (let [page-num (:ranking-page @state)]
       (if page-num
         [:div.ui.container
+         [:a {:href "/user"} "Go to /user"]
          [:div.ui.segment
           [debug-box @state]
-  ;        [debug-box "article ids" (get-ui-filtered-article-ids)]
+          ;;[debug-box "article ids" (get-ui-filtered-article-ids)]
           [filter-search]
           [filter-list]
           [ratings-list page-num]]]))))

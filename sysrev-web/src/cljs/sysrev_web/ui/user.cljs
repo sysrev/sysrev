@@ -8,7 +8,8 @@
             [sysrev-web.ui.base :refer [out-link]]
             [reagent.core :as r]))
 
-
 (defn user []
   (fn []
-    [:div "USER !"]))
+    [:div
+     [:div "USER !"]
+     [:a {:href "/"} "Go to /"]]))
