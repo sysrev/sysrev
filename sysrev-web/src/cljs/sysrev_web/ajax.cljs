@@ -79,12 +79,8 @@
 
 
 (defn critbyId [criteria id]
-  (println criteria)
-  (println id)
   (let [rcrit (first (filter #(= id (:id %)) criteria))
         res (when-not (empty? rcrit) (:answer rcrit))]
-    (println rcrit)
-    (println res)
     res))
 
 
@@ -99,7 +95,11 @@
             (let [in-cids (set (keys (filter val af)))
                   ex-cids (map first (filter #(-> % val false?) af))
                   acs (:articles-criteria @server-data)
-                  meets-criteria (fn [criteria] (every? #(critbyId criteria (int (name %))) in-cids))
+                  meets-criteria
+                    (fn [criteria]
+                      (and ;;Could simplify the logic here.
+                        (every? #(critbyId criteria (int (name %))) in-cids)
+                        (not-any? #(critbyId criteria (int (name %))) ex-cids)))
                   filter-fn (fn [[_ criteria]] (meets-criteria criteria))]
               (keys (filter filter-fn acs))))]
        ; Sort list of keys by their ranking score.
