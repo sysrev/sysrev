@@ -6,6 +6,8 @@
                                      get-classified-ids]]
             [cljs.pprint :as pprint :refer [cl-format]]
             [sysrev-web.ui.base :refer [out-link]]
+            [sysrev-web.react.components :refer [link]]
+            [sysrev-web.routes :as routes]
             [reagent.core :as r]))
 
 
@@ -77,7 +79,7 @@
 
 
 (defn filter-search []
-  (let [handler #(swap! state assoc :filter-text (-> % .-target .-value))]
+  (let [handler #(swap! state assoc :filter-text (.. % -target -value))]
     [:div.ui.fluid.input
      [:input {:value (:filter-text @state) :on-change handler}]
      [:div.ui.primary.button "Search"]]))
@@ -113,7 +115,7 @@
     (let [page-num (:ranking-page @state)]
       (if page-num
         [:div.ui.container
-         [:a {:href "/user"} "Go to /user"]
+         [link routes/user "Go to /user"]
          [:div.ui.segment
           [debug-box @state]
           ;;[debug-box "article ids" (get-ui-filtered-article-ids)]

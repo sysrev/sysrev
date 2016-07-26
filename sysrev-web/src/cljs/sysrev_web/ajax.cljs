@@ -66,10 +66,10 @@
                          [:ranking :pages num] (:ids mapified)))))))
 
 (defn pull-initial-data []
-  (pull-criteria)
-  (pull-articles-criteria)
+  (when (nil? (:criteria @server-data)) (pull-criteria))
+  (when (or (nil? (:articles @server-data)) (nil? (:articles-criteria @server-data))) (pull-articles-criteria))
   (let [rpage (:ranking-page @state)]
-    (when rpage (pull-ranking-page rpage))))
+    (when (and (not (nil? rpage)) (nil? (:ranking @server-data))) (pull-ranking-page rpage))))
 
 (defn takeOnly [els]
   (if debug (take 10 els) els))

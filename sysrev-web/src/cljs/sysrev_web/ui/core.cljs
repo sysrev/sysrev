@@ -4,11 +4,12 @@
             [pushy.core :as pushy]
             [reagent.core :as r]
             [cljs.pprint :refer [pprint]]
+            [sysrev-web.routes :as routes]
+            [sysrev-web.react.components :refer [link]]
             [sysrev-web.ui.home :refer [home]]
+            [sysrev-web.ui.login :refer [login]]
             [sysrev-web.ui.user :refer [user]]))
 
-;; Not working at the moment...
-;; should be able to select page open based on route set in routes.cljs.
 
 (defn loading-screen []
   (fn []
@@ -30,7 +31,26 @@
 (defmulti current-page (fn [] (:page @state)))
 (defmethod current-page :home []  (get-page :home home))
 (defmethod current-page :user [] (get-page :user user))
+(defmethod current-page :login [] (get-page :login login))
+
+(defn user-status []
+  (let [user (:user @server-data)]
+    (if (nil? user)
+      [:div.item
+       [link routes/login-route
+        [:div.ui.primary.button "Log in"]]]
+      [:div.item
+       (:name user)])))
 
 (defn main-content []
-  [:div.main-content
-   [current-page]])
+  [:div
+   [:div.ui.container
+    [:div.ui.grid
+     [:div.ten.wide.column
+      [:h1 "Systematic Review"]]
+     [:div.six.wide.column
+      [:div.ui.right.menu
+       [user-status]]]]]
+   [:div.main-content
+    [current-page]]])
+

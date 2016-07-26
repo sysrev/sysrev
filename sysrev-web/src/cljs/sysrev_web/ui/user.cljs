@@ -6,10 +6,12 @@
                                      get-classified-ids]]
             [cljs.pprint :as pprint :refer [cl-format]]
             [sysrev-web.ui.base :refer [out-link]]
+            [sysrev-web.react.components :refer [link]]
+            [sysrev-web.routes :as routes]
             [reagent.core :as r]))
 
 (defn user []
   (fn []
     [:div
      [:div "USER !"]
-     [:a {:href "/"} "Go to /"]]))
+     [link routes/home "Go to /"]]))

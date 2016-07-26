@@ -4,7 +4,7 @@
             [pushy.core :as pushy]
             [cljs.pprint :refer [pprint]]))
 
-(defonce state (r/atom {}))
+(defonce state (r/atom {:page 0 :ranking-page 0}))
 (defonce server-data (r/atom {}))
 
 (def debug true)
@@ -31,7 +31,7 @@
   (when debug (apply show-debug-box arg args)))
 
 
-(secretary/set-config! :prefix "/")
+(secretary/set-config! :prefix "")
 
 (defonce history
   (pushy/pushy secretary/dispatch!
