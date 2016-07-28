@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.containers
-  (:require [sysrev-web.ajax :refer [data-initialized?]]))
+  (:require [sysrev-web.routes :refer [data-initialized?]]))
 
 (defn loading-screen []
   (fn []

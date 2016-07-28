@@ -1,8 +1,6 @@
 (ns sysrev-web.main
-    (:require [sysrev-web.base :as base :refer [state history]]
-              [sysrev-web.ajax :as ajax]
-              [sysrev-web.routes :as routes]
-              [sysrev-web.ui.core :as ui :refer [main-content]]
+    (:require [sysrev-web.base :refer [history]]
+              [sysrev-web.ui.core :refer [main-content]]
               [pushy.core :as pushy]
               [reagent.core :as r]))
 

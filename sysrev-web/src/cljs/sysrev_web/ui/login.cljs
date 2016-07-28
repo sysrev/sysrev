@@ -1,7 +1,6 @@
 (ns sysrev-web.ui.login
   (:require [sysrev-web.base :refer [state server-data debug-box]]
             [sysrev-web.react.components :refer [link]]
-            [sysrev-web.routes :as routes]
             [reagent.core :as r]
             [sysrev-web.forms.validate :refer [validate]]
             [sysrev-web.base :refer [debug-box]]))

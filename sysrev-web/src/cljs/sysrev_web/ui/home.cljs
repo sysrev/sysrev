@@ -1,13 +1,12 @@
 (ns sysrev-web.ui.home
   (:require [sysrev-web.base :refer [state server-data debug-box]]
-            [sysrev-web.ajax :refer [get-article
-                                     get-ranking-article-ids
-                                     get-ui-filtered-article-ids
-                                     get-classified-ids]]
+            [sysrev-web.routes :as routes :refer [get-article
+                                                  get-ranking-article-ids
+                                                  get-ui-filtered-article-ids
+                                                  get-classified-ids]]
             [cljs.pprint :as pprint :refer [cl-format]]
             [sysrev-web.ui.base :refer [out-link]]
             [sysrev-web.react.components :refer [link]]
-            [sysrev-web.routes :as routes]
             [reagent.core :as r]))
 
 
@@ -117,8 +116,7 @@
         [:div.ui.container
          [link routes/user "Go to /user"]
          [:div.ui.segment
-          [debug-box @state]
-          ;;[debug-box "article ids" (get-ui-filtered-article-ids)]
+          ;; [debug-box @state]
           [filter-search]
           [filter-list]
           [ratings-list page-num]]]))))
