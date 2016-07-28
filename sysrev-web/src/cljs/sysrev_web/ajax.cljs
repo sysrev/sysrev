@@ -23,12 +23,6 @@
              :params content
              :handler handler))
 
-(defn handle-result [f] #(f (:result %)))
-
-(defn request-articles-criteria [f]
-  (ajax-get "/api/allcriteria"
-    (handle-result f)))
-
 (defonce page-data-fields
   {:home
    [[:criteria] [:ranking] [:articles] [:articles-criteria]]})
@@ -117,3 +111,17 @@
   (let [article (get-in @server-data [:articles id])]
     (when article
       (assoc article :criteria (get-article-criteria id)))))
+
+
+(defn post-login [data]
+  (println (str "Posting with data: " (cljs.pprint/pprint data)))
+  (ajax-post "/api/auth/login"
+             data
+             (fn [response]
+               (println response))))
+
+(defn post-register [data]
+  (ajax-post "/api/auth/register"
+             data
+             (fn [response]
+               (println response))))

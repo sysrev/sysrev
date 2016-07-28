@@ -6,7 +6,7 @@
             [sysrev-web.forms.validate :refer [validate]]
             [sysrev-web.base :refer [debug-box]]))
 
-(def login-validation {:user [not-empty "Must provide user"]
+(def login-validation {:username [not-empty "Must provide user"]
                        :password [#(> (count %) 6) (str "Password must be greater than six characters")]})
 
 (defn login
@@ -16,7 +16,7 @@
         validator #(validate @form-data login-validation)
         submit (fn []
                  (swap! form-data assoc :submit true)
-                 (when (nil? (validator)) (handler @form-data)))
+                 (when (empty? (validator)) (handler @form-data)))
         input-change (fn [key] (fn [e] (swap! form-data assoc key (-> e .-target .-value))))]
     (fn []
       ; recalculate the validation status if the submit button has been pressed
@@ -24,16 +24,13 @@
             error-class (fn [k] (when (k validation) "error"))
             error-msg (fn [k] (when (k validation) [:div.ui.warning.message (k validation)]))
             form-class (when-not (empty? validation) "warning")]
-        [:div.ui.fluid.grid.container
-         [:div.three.column.centered.row
-          [:div.ui.form.column.segment {:class form-class}
-           [:div.ui.field {:class (error-class :user)}
-            [:label "Email"]
-            [:input.input {:type "text" :value (:user @form-data) :on-change (input-change :user)}]]
-           [:div.ui.field {:class (error-class :password)}
-            [:label "Password"]
-            [:input {:type "password" :value (:password @form-data) :on-change (input-change :password)}]]
-           [error-msg :user]
-           [error-msg :password]
-           [:button.ui.primary.button {:type "button" :on-click submit} "Submit"]]]]))))
-
+        [:div.ui.form {:class form-class}
+         [:div.ui.field {:class (error-class :username)}
+          [:label "Email"]
+          [:input.input {:type "text" :value (:username @form-data) :on-change (input-change :username)}]]
+         [:div.ui.field {:class (error-class :password)}
+          [:label "Password"]
+          [:input {:type "password" :value (:password @form-data) :on-change (input-change :password)}]]
+         [error-msg :user]
+         [error-msg :password]
+         [:button.ui.primary.button {:type "button" :on-click submit} "Submit"]]))))

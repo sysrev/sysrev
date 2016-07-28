@@ -1,56 +1,44 @@
 (ns sysrev-web.ui.core
   (:require [sysrev-web.base :refer [state history server-data debug-box]]
-            [sysrev-web.ajax :refer [data-initialized?]]
-            [pushy.core :as pushy]
-            [reagent.core :as r]
-            [cljs.pprint :refer [pprint]]
+            [sysrev-web.ajax :refer [data-initialized? post-login post-register]]
+            [sysrev-web.ui.containers :refer [loading-screen page-container get-page center-page]]
             [sysrev-web.routes :as routes]
             [sysrev-web.react.components :refer [link]]
             [sysrev-web.ui.home :refer [home]]
             [sysrev-web.ui.login :refer [login]]
             [sysrev-web.ui.user :refer [user]]))
 
+(defn login-page [handler] (center-page [:h1 "Login"] [login handler]))
+(defn register-page [handler] (center-page [:h1 "Register"] [login handler]))
 
-(defn loading-screen []
-  (fn []
-    [:div.ui.container
-     [:div.ui.stripe {:style {:padding-top "20px"}}
-      [:h1.ui.header.huge.center.aligned "Loading data..."]]]))
-
-(defn page-container [page]
-  (fn [page]
-    [:div.ui.grid.container
-     [:div.row
-      page]]))
-
-(defn get-page [key r]
-  (if (data-initialized? key)
-    [page-container [r]]
-    [loading-screen]))
 
 (defmulti current-page (fn [] (:page @state)))
 (defmethod current-page :home []  (get-page :home home))
 (defmethod current-page :user [] (get-page :user user))
-(defmethod current-page :login [] (get-page :login login))
+(defmethod current-page :login [] (get-page :login login-page post-login))
+(defmethod current-page :register [] (get-page :register register-page post-register))
 
-(defn user-status []
+(defn user-status [{:keys [class]}]
   (let [user (:user @server-data)]
     (if (nil? user)
-      [:div.item
-       [link routes/login-route
-        [:div.ui.primary.button "Log in"]]]
-      [:div.item
-       (:name user)])))
+      [:div.ui.menu {:class class}
+       [:div.item
+        [link routes/login
+         [:div.ui.primary.button "Log in"]]]
+       [:div.item
+        [link routes/register
+         [:div.ui.primary.button "Register"]]]]
+      [:div.ui.menu {:class class}
+       [:div.item
+        (:name user)]])))
 
 (defn main-content []
   [:div
    [:div.ui.container
     [:div.ui.grid
      [:div.ten.wide.column
-      [:h1 "Systematic Review"]]
+      [link routes/home [:h1 "Systematic Review"]]]
      [:div.six.wide.column
-      [:div.ui.right.menu
-       [user-status]]]]]
+       [user-status]]]]
    [:div.main-content
     [current-page]]])
-

@@ -16,3 +16,6 @@
 
 (defroute login "/login" []
   (swap! state assoc :page :login))
+
+(defroute register "/register" []
+  (swap! state assoc :page :register))
