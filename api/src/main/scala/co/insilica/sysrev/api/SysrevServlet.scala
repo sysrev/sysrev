@@ -1,19 +1,16 @@
 package co.insilica.sysrev
 package api
 
+import co.insilica.auth.AuthServlet
 import co.insilica.apistack.{ApiStack, ResultWrapSupport}
-import co.insilica.auth.Types.WithAnyId
+import co.insilica.sysrev.Implicits
 import co.insilica.sysrev.indexing.{QueryEnv, DocIndex}
 import co.insilica.sysrev.relationalImporter.Types.{CriteriaId, WithArticleId, ArticleId, WithCriteriaId}
 import co.insilica.sysrev.relationalImporter._
-import doobie.free.connection.ConnectionOp
-
-import co.insilica.dataProvider.TaskFutureOps._
 
 import org.scalatra._
 import doobie.imports._
 
-import scala.concurrent.Future
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
@@ -21,9 +18,12 @@ import scalaz.concurrent.Task
 case class ArticleIds(articleIds: List[ArticleId])
 case class ErrorResult(msg: String)
 
-class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
+class SysrevAuthServlet extends AuthServlet{
+  override protected implicit lazy val transactor: Transactor[Task] = Implicits.transactor
+}
 
-  implicit val tx: Transactor[Task] = Implicits.transactor
+class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
+  val tx = Implicits.transactor
 
   def getRankedPage(p: Int = 0) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
     Queries.rankedArticlesPage(p).transact(tx).map{ xs =>
