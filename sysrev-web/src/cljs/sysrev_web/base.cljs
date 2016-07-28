@@ -36,3 +36,11 @@
 (defonce history
   (pushy/pushy secretary/dispatch!
                (fn [x] (when (secretary/locate-route x) x))))
+
+(defn history-init []
+  (pushy/start! history))
+
+(defn nav!
+  "takes a function which returns a route to navigate to"
+  [to-route-f]
+  (pushy/set-token! history (to-route-f)))

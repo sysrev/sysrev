@@ -1,8 +1,7 @@
 (ns sysrev-web.routes
-  (:require [sysrev-web.base :refer [state server-data history]]
+  (:require [sysrev-web.base :refer [state server-data nav!]]
             [secretary.core :include-macros true :refer-macros [defroute]]
-            [pushy.core :as pushy]
-            [ajax.core :as ajax]))
+            [ajax.core :refer [GET POST]]))
 
 (defroute home "/" []
   (pull-initial-data)
@@ -18,27 +17,20 @@
 (defroute register "/register" []
   (swap! state assoc :page :register))
 
-(defn nav!
-  "takes a function which returns a route to navigate to"
-  [to-route-f]
-  (pushy/set-token! history (to-route-f)))
-
-
-
 (defn ajax-get [url handler]
-  (ajax/GET url
-            :format :json
-            :response-format :json
-            :keywords? true
-            :handler handler))
+  (GET url
+    :format :json
+    :response-format :json
+    :keywords? true
+    :handler handler))
 
 (defn ajax-post [url content handler]
-  (ajax/POST url
-             :format :json
-             :response-format :json
-             :keywords? true
-             :params content
-             :handler handler))
+  (POST url
+    :format :json
+    :response-format :json
+    :keywords? true
+    :params content
+    :handler handler))
 
 (defonce page-data-fields
          {:home

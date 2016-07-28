@@ -1,12 +1,10 @@
 (ns sysrev-web.main
-    (:require [sysrev-web.base :refer [history]]
+    (:require [sysrev-web.base :refer [history-init]]
               [sysrev-web.ui.core :refer [main-content]]
-              [pushy.core :as pushy]
               [reagent.core :as r]))
 
 (defonce started
-  (pushy/start! history))
-
+  (history-init))
 
 (defn ^:export run []
   (r/render

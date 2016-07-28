@@ -1,6 +1,5 @@
 (ns sysrev-web.react.components
-  (:require [sysrev-web.routes :refer [nav!]]
-            [pushy.core :refer [replace-token!]]))
+  (:require [sysrev-web.base :refer [nav!]]))
 
 (defn replace-event
   "Creates a function that takes an event, calls preventDefault, and runs the provided handler"
