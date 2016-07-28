@@ -1,8 +1,8 @@
 package co.insilica.sysrev
 package api
 
-import co.insilica.auth.AuthServlet
-import co.insilica.apistack.{ApiStack, ResultWrapSupport}
+import co.insilica.auth.{ErrorResult, AuthStack, AuthServlet}
+import co.insilica.apistack.{Result, ApiStack, ResultWrapSupport}
 import co.insilica.sysrev.Implicits
 import co.insilica.sysrev.indexing.{QueryEnv, DocIndex}
 import co.insilica.sysrev.relationalImporter.Types.{CriteriaId, WithArticleId, ArticleId, WithCriteriaId}
@@ -16,14 +16,14 @@ import Scalaz._
 import scalaz.concurrent.Task
 
 case class ArticleIds(articleIds: List[ArticleId])
-case class ErrorResult(msg: String)
 
 class SysrevAuthServlet extends AuthServlet{
   override protected implicit lazy val transactor: Transactor[Task] = Implicits.transactor
 }
 
-class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
+class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport {
   val tx = Implicits.transactor
+  override protected implicit lazy val transactor: Transactor[Task] = tx
 
   def getRankedPage(p: Int = 0) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
     Queries.rankedArticlesPage(p).transact(tx).map{ xs =>
@@ -52,4 +52,10 @@ class SysrevServlet extends ApiStack with FutureSupport with ResultWrapSupport {
       )
     }
   }
+
+  get("/user"){
+    if(isAuthenticated) Result(user.t.t)
+    else ErrorResult("Not authenticated")
+  }
+
 }
