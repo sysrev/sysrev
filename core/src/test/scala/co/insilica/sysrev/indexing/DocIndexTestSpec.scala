@@ -9,7 +9,8 @@ import QueryEnv._
 import co.insilica.sysrev.Types._
 
 class DocIndexTestSpec extends AsyncFlatSpec with Matchers {
-  "The doc importer" should "read out documents" in {
+  // "The doc importer"
+  ignore should "read out documents" in {
     sysrevImporter.select[SysRev]() flatMap (_ |>>> Iteratee.takeUpTo(5)) map { docs =>
       docs.length should equal (5)
     }

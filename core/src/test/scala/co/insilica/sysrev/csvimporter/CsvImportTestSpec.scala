@@ -20,14 +20,16 @@ class CsvImportTestSpec extends AsyncFlatSpec with Matchers{
 
   val criteriaCsv: File = new File(config.dataRootPath.get, config.criteriaCsvFileName)
 
-  "Articles" should "be imported from file" in {
+  // "Articles"
+  ignore should "be imported from file" in {
     val firstRow = CsvImport.getArticlesFromFile(criteriaCsv).take(1).head
     info("Read first row")
     info(firstRow.toString())
     firstRow.author.length should be > (5)
   }
 
-  "Criteria answers" should "be inserted" in {
+  // "Criteria answers"
+  ignore should "be inserted" in {
     val rs: List[ArticleRow] = CsvImport.getArticlesFromFile(criteriaCsv).toList
 
     val jobs : List[ConnectionIO[Int]] = rs.map{ r =>
