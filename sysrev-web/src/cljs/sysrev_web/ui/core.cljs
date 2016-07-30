@@ -5,7 +5,8 @@
             [sysrev-web.react.components :refer [link link-nonav]]
             [sysrev-web.ui.home :refer [home]]
             [sysrev-web.ui.login :refer [login]]
-            [sysrev-web.ui.user :refer [user]]))
+            [sysrev-web.ui.user :refer [user]]
+            [sysrev-web.ui.users :refer [users]]))
 
 (defn login-page [handler] (center-page [:h1 "Login"] [login handler]))
 (defn register-page [handler] (center-page [:h1 "Register"] [login handler]))
@@ -16,6 +17,7 @@
 (defmethod current-page :user [] (get-page :user user))
 (defmethod current-page :login [] (get-page :login login-page post-login))
 (defmethod current-page :register [] (get-page :register register-page post-register))
+(defmethod current-page :users [] (get-page :users users))
 
 (defn user-status [{:keys [class]}]
   (fn []

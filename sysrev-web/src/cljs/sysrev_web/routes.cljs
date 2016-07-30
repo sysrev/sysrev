@@ -5,7 +5,9 @@
 
 (defonce page-data-fields
          {:home
-          [[:criteria] [:ranking] [:articles] [:articles-criteria]]})
+          [[:criteria] [:ranking] [:articles] [:articles-criteria]]
+          :users
+           [[:users]]})
 
 
 (defn ajax-get [url handler]
@@ -63,14 +65,18 @@
                          [:ranking :pages num] (:ids mapified)))))))
 
 
+(defn pull-users-data []
+  (ajax-get "/api/users"
+            (fn [response]
+              (swap! server-data assoc :users (:result response)))))
+
 (defn pull-initial-data []
   (when (nil? (:criteria @server-data)) (pull-criteria))
   (when (or (nil? (:articles @server-data)) (nil? (:articles-criteria @server-data))) (pull-articles-criteria))
   (when (nil? (:user @server-data)) (pull-user-status))
+  (when (nil? (:users @server-data)) (pull-users-data))
   (let [rpage (:ranking-page @state)]
     (when (and (not (nil? rpage)) (nil? (:ranking @server-data))) (pull-ranking-page rpage))))
-
-
 
 
 (defn set-page! [key] (swap! state assoc :page key))
@@ -88,6 +94,10 @@
 
 (defroute register "/register" []
   (set-page! :register))
+
+(defroute users "/users" []
+          (set-page! :users))
+
 
 
 (defn get-ranking-article-ids [page-num]

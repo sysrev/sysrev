@@ -130,6 +130,7 @@
       (if page-num
         [:div.ui.container
          [link routes/user "Go to /user"]
+         [link routes/users "Go to /users"]
          [:div.ui.segment
           ;; [debug-box @state]
           [filter-search]
