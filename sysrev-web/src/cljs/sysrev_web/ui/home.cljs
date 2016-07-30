@@ -16,7 +16,7 @@
      [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
       [:div.progress]]]))
 
-(defn criteria-detail [criteria]
+(defn criteria-detail [criteria article-id]
   (fn [criteria]
     [:div.content.ui.segment
      [:div.header
@@ -32,7 +32,7 @@
                   answer-str (case answer
                                nil "unknown"
                                (str answer))]
-              [:div.item {:key cid}
+              [:div.item {:key (str cid "_" article-id)}
                [:div.content
                 (str criteria-name ": " answer-str)]])))))]]]))
 
@@ -46,7 +46,7 @@
      [:div.content
        [similarity-bar score percent]
        (when-not (empty? criteria)
-        [criteria-detail criteria])]
+        [criteria-detail criteria article-id])]
      [:div.content
       [:div.header (-> article :item :title)]
       [:div.content (-> article :item :abs)]
@@ -83,30 +83,45 @@
      [:input {:value (:filter-text @state) :on-change handler}]
      [:div.ui.primary.button "Search"]]))
 
+(defn filter-bool [{:keys [class]} item handler checked]
+  (fn [{:keys [class]} item handler checked]
+    [:div.ui.checkbox.item {:class class}
+     [:input {:key "input"
+              :checked checked
+              :id (:id item)
+              :type "checkbox"
+              :on-change handler}]
+     [:label {:key "label" :style {:cursor "pointer"} :for (:id item)} (:name item)]]))
+
+(defn filter-check [item handler checked]
+  [filter-bool {} item handler checked])
+
+(defn filter-slider [item handler checked]
+  [filter-bool {:class "toggle"} item handler checked])
+
 (defn filter-list []
-  (fn []
-    (let [criteria (:criteria @server-data)
-          handler #(swap! state update-in [:article-filter %] not)
-          boxes
-            (map
-              (fn [[id item]] (assoc item :handler #(handler id) :id (str id)))
-              criteria)
-          checked?
-            (fn [id]
-              (get-in @state [:article-filter id]))]
-      [:div.ui.form.list
-        (doall
-          (map
-            (fn [item]
-              (let [id (:id item)]
-                [:div.ui.toggle.checkbox.item {:key (:id item)}
-                 [:input {:checked
-                          (checked? (:id item))
-                          :id (:id item)
-                          :type "checkbox"
-                          :on-change (:handler item)}]
-                 [:label {:style {:cursor "pointer"} :for (:id item)} (:name item)]]))
-            boxes))])))
+  (let [criteria (:criteria @server-data)
+        make-handler (fn [key] #(swap! state update-in [:article-filter key] not))
+        unclassified-handler #((swap! state update-in [:article-filter :unclassified-only] not)
+                               (when (get-in @state [:article-filter :unclassified-only])
+                                     (swap! state assoc-in [:article-filter :classified-only] false)))
+        classified-handler #((swap! state update-in [:article-filter :classified-only] not)
+                             (when (get-in @state [:article-filter :classified-only])
+                                   (swap! state assoc-in [:article-filter :unclassified-only] false)))
+        filter-set? (fn [key] (get-in @state [:article-filter key]))
+        boxes (->> criteria
+                (map
+                  (fn [[id item]] (assoc item :id id))))]
+    [:div.ui.form.list
+     [filter-check {:name "Classified only" :id "classified"} classified-handler (filter-set? :classified-only)]
+     [filter-check {:name "Unclassified only" :id "unclassified"} unclassified-handler (filter-set? :unclassified-only)]
+     (doall
+       (->> boxes
+         (map
+           (fn [item]
+             (let [id (:id item)]
+               ^{:key id}
+               [filter-slider item (make-handler id) (filter-set? id)])))))]))
 
 
 (defn home []
