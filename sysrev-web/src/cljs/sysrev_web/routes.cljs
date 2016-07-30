@@ -3,43 +3,37 @@
             [secretary.core :include-macros true :refer-macros [defroute]]
             [ajax.core :refer [GET POST]]))
 
-(defroute home "/" []
-  (pull-initial-data)
-  (swap! state assoc :page :home))
-
-(defroute user "/user" []
-  (pull-initial-data)
-  (swap! state assoc :page :user))
-
-(defroute login "/login" []
-  (swap! state assoc :page :login))
-
-(defroute register "/register" []
-  (swap! state assoc :page :register))
-
-(defn ajax-get [url handler]
-  (GET url
-    :format :json
-    :response-format :json
-    :keywords? true
-    :handler handler))
-
-(defn ajax-post [url content handler]
-  (POST url
-    :format :json
-    :response-format :json
-    :keywords? true
-    :params content
-    :handler handler))
-
 (defonce page-data-fields
          {:home
           [[:criteria] [:ranking] [:articles] [:articles-criteria]]})
+
+
+(defn ajax-get [url handler]
+  (GET url
+       :format :json
+       :response-format :json
+       :keywords? true
+       :handler handler))
+
+(defn ajax-post [url content handler]
+  (POST url
+        :format :json
+        :response-format :json
+        :keywords? true
+        :params content
+        :handler handler))
+
 
 (defn data-initialized? [page]
   (let [required-fields (get page-data-fields page)]
     (every? #(not= :not-found (get-in @server-data % :not-found))
             required-fields)))
+
+
+(defn pull-user-status []
+  (ajax-get "/api/user"
+            (fn [response]
+              (swap! server-data assoc :user (:result response)))))
 
 (defn pull-criteria []
   (when (nil? (:criteria @server-data))
@@ -68,17 +62,36 @@
                   (swap! server-data assoc-in
                          [:ranking :pages num] (:ids mapified)))))))
 
-(defn pull-user-status []
-  (ajax-get "/api/user"
-            (fn [response]
-              (swap! server-data assoc :user (:result response)))))
+
+(defn pull-initial-data []
+  (when (nil? (:criteria @server-data)) (pull-criteria))
+  (when (or (nil? (:articles @server-data)) (nil? (:articles-criteria @server-data))) (pull-articles-criteria))
+  (when (nil? (:user @server-data)) (pull-user-status))
+  (let [rpage (:ranking-page @state)]
+    (when (and (not (nil? rpage)) (nil? (:ranking @server-data))) (pull-ranking-page rpage))))
 
 
-(defn takeOnly [els]
-  (if debug (take 10 els) els))
+
+
+(defn set-page! [key] (swap! state assoc :page key))
+
+(defroute home "/" []
+  (pull-initial-data)
+  (set-page! :home))
+
+(defroute user "/user" []
+  (pull-initial-data)
+  (set-page! :user))
+
+(defroute login "/login" []
+  (set-page! :login))
+
+(defroute register "/register" []
+  (set-page! :register))
+
 
 (defn get-ranking-article-ids [page-num]
-  (takeOnly (get-in @server-data [:ranking :pages page-num])))
+  (get-in @server-data [:ranking :pages page-num]))
 
 
 (defn critbyId [criteria id]
@@ -151,11 +164,4 @@
                (swap! server-data dissoc :user))))
 
 
-
-(defn pull-initial-data []
-  (when (nil? (:criteria @server-data)) (pull-criteria))
-  (when (or (nil? (:articles @server-data)) (nil? (:articles-criteria @server-data))) (pull-articles-criteria))
-  (when (nil? (:user @server-data)) (pull-user-status))
-  (let [rpage (:ranking-page @state)]
-    (when (and (not (nil? rpage)) (nil? (:ranking @server-data))) (pull-ranking-page rpage))))
 
