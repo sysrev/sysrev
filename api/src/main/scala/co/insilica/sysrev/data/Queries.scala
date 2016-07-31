@@ -10,13 +10,15 @@ import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 
 import scalaz._
 import Scalaz._
+import scalaz.concurrent.Task
 
 case class SimpleUser(username: String, profileId: String) {
   def name: String = username.split("@").toList.headOption.getOrElse("")
 }
 
-case class UserArticle(user: WithAnyId[UserId, SimpleUser], article: WithArticleId[ArticleWithoutKeywords])
-case class UserArticles(user: WithAnyId[UserId, SimpleUser], articles: List[WithArticleId[ArticleWithoutKeywords]])
+case class UserArticle(user: WithAnyId[Int, SimpleUser], article: WithAnyId[Int, ArticleWithoutKeywords])
+case class UserArticles(user: WithAnyId[Int, SimpleUser], articles: List[WithAnyId[Int, ArticleWithoutKeywords]])
+
 
 
 object Queries{

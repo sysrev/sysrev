@@ -14,6 +14,9 @@ import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
 
+import org.json4s.jackson._
+import org.json4s.jackson.Serialization.write
+
 case class ArticleIds(articleIds: List[ArticleId])
 
 
@@ -21,6 +24,9 @@ class SysrevAuthServlet extends AuthServlet{
   override protected implicit lazy val transactor: Transactor[Task] = Implicits.transactor
 }
 
+/**
+  * Remember: Type aliases lead to infinite loops and hanging behavior in json4s.
+  */
 class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport {
   val tx = Implicits.transactor
   override protected implicit lazy val transactor: Transactor[Task] = tx
@@ -28,6 +34,8 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
   type WithUserId[T] = co.insilica.auth.Types.WithId[T]
   val WithUserId = co.insilica.auth.WithAnyId
   val errorTask = Task.now(ErrorResult("BadRequest"))
+
+
 
   def getRankedPage(p: Int = 0) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
     Queries.rankedArticlesPage(p).transact(tx).map{ xs =>
@@ -71,6 +79,11 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
     job.getOrElse(errorTask)
   }
 
-
-
+  getT("/users"){
+    userOption map { _ =>
+      data.Queries.usersSummaryData.transact(tx)
+    } getOrElse {
+      errorTask
+    }
+  }
 }
