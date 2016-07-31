@@ -10,6 +10,9 @@ import Scalaz._
 import Converters._
 import relationalImporter.Types._
 
+
+// Having the List of Strings in there, mapped to the postgres array, requires the import
+// of doobie.contrib.postgresql.pgtypes._ if using this in a query.
 case class ArticleWithoutKeywords(
   title: String,
   title2: Option[String],

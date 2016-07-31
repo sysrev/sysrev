@@ -13,8 +13,9 @@ class QueriesTestSpec extends FlatSpec with AnalysisSpec {
 
   val tag = ReviewTag(1, 2, Some(true))
 
-  "Api queries" should "typecheck" in {
-    check(Queries.tagArticleQ(1, tag))
-    check(Queries.updateTagArticleQ(1, tag))
-  }
+  "Api queries" should "typecheck tagarticle" in check(Queries.tagArticleQ(1, tag))
+
+  it should "typecheck updatetagarticle properly" in check(Queries.updateTagArticleQ(1, tag))
+
+  it should "typecheck user summary data query" in check(Queries.usersSummaryDataQ)
 }
