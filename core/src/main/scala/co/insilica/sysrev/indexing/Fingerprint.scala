@@ -7,7 +7,7 @@ import org.apache.spark.ml.feature.{VectorAssembler, HashingTF, IDF, Tokenizer}
 import org.apache.spark.mllib.linalg.{SparseVector, Vectors}
 import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, RowMatrix}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, GroupedData, DataFrame, Row}
+import org.apache.spark.sql.{SaveMode, DataFrame, Row}
 
 import spark.readers.dataFrameBuilder
 

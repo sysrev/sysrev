@@ -9,6 +9,7 @@ val doobieVersion = "0.3.0"
 val scalazVersion = "7.2.4"
 val reactiveMongoVersion = "0.11.14"
 
+
 val scalatraDeps = Seq(
   // Scalatra:
   "org.scalatra" %% "scalatra" % scalatraVersion,
@@ -77,14 +78,14 @@ lazy val buildSettings = Seq(
 val commonDependencySettings = Seq(
   libraryDependencies ++= Seq(
   // Json
-  "org.json4s"   %% "json4s-jackson" % "3.3.0",
+  "org.json4s"   %% "json4s-jackson" % "3.4.0",
 
   // test
-  "org.scalatest" %% "scalatest" % "3.0.0-RC3" % "test",
+  "org.scalatest" %% "scalatest" % "3.0.0-RC4" % "test",
   "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
 
   // files
-  "com.lihaoyi" %% "upickle" % "0.3.9",
+  "com.lihaoyi" %% "upickle" % "0.4.1",
 
   // Mongo
   "org.reactivemongo" %% "reactivemongo" % reactiveMongoVersion,
@@ -115,16 +116,16 @@ val apiSettings = Seq(
 val sparkSettings = Seq(
   libraryDependencies ++= Seq(
     // Spark Machine Learning
-    "org.apache.spark" % "spark-core_2.11" % "1.6.2",
-    "org.apache.spark" % "spark-sql_2.11" % "1.6.2",
-    "org.apache.spark" % "spark-mllib_2.11" % "1.6.2"
+    "org.apache.spark" % "spark-core_2.11" % "2.0.0",
+    "org.apache.spark" % "spark-sql_2.11" % "2.0.0",
+    "org.apache.spark" % "spark-mllib_2.11" % "2.0.0"
   ),
   dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4"
 )
 
 val coreDataSettings = Seq(
   libraryDependencies ++= Seq(
-    "com.opencsv" % "opencsv" % "3.5",
+    "com.opencsv" % "opencsv" % "3.8",
 
     // Breeze matrix ops
     "org.scalanlp" %% "breeze" % "0.12",
