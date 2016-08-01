@@ -8,15 +8,23 @@
         userArticles (:users @server-data)
         userArticle (first (filter (fn [u] (= display-user-id (get-in [:user :id] u))) userArticles))
         user (:t (:user userArticle))
-        articles (:articles userArticle)
+        articlesUnsorted (:articles userArticle)
+        articles (sort-by :score articlesUnsorted)
         name (:name user)
         username (:username user)
-        display-name (if (empty? name) username name)]
+        display-name (if (empty? name) username name)
+        article-id #(-> % :item :id)
+        article #(-> % :item :t)
+        article-score #(- 1.0 (Math/abs (:score %)))]
     [:div.sixteen.wide.column
      [:h1 display-name]
-     (->> articles
-       (map
-         (fn [article]
-           ^{:key (:id article)}
-           [similarity-card {:item (:t article)} nil nil nil (:id article)])))]))
-
+     (doall
+       (->> articles
+         (map
+           (fn [adata]
+             (let [score (article-score adata)
+                   percent (Math/round (* 100 score))
+                   aid (article-id adata)
+                   criteria (get-in @server-data [:articles-criteria (keyword (str aid))])]
+               ^{:key (article-id adata)}
+               [similarity-card {:item (article adata)} criteria score percent aid])))))]))

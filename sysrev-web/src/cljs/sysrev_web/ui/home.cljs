@@ -41,7 +41,7 @@
   "Shows an article with a representation of its match quality and how it
   has been manually classified"
   [article criteria score percent article-id]
-  (fn [article criteria]
+  (fn [article criteria score]
     [:div.ui.fluid.card
      [:div.content
        (when-not (nil? score)

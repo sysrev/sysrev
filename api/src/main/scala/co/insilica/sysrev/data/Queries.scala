@@ -16,8 +16,8 @@ case class SimpleUser(username: String, profileId: String) {
   def name: String = username.split("@").toList.headOption.getOrElse("")
 }
 
-case class UserArticle(user: WithId[SimpleUser], article: WithArticleId[ArticleWithoutKeywords])
-case class UserArticles(user: WithId[SimpleUser], articles: List[WithArticleId[ArticleWithoutKeywords]])
+case class UserArticle(user: WithId[SimpleUser], article: WithScore[WithArticleId[ArticleWithoutKeywords]])
+case class UserArticles(user: WithId[SimpleUser], articles: List[WithScore[WithArticleId[ArticleWithoutKeywords]]])
 
 
 
@@ -46,10 +46,11 @@ object Queries{
 
 
   def usersSummaryDataQ : Query0[UserArticle] = sql"""
-    select id, email, profileid, article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls
+    select id, email, profileid, article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
     from site_user
     left join article_criteria on id = user_id and criteria_id = 1
     left join article using (article_id)
+    left join article_ranking on _1 = article_id
     where criteria_id = 1
   """.query[UserArticle]
 
