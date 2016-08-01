@@ -2,8 +2,7 @@
   (:require [sysrev-web.base :refer [state server-data debug-box]]
             [sysrev-web.routes :as routes :refer [get-article
                                                   get-ranking-article-ids
-                                                  get-ui-filtered-article-ids
-                                                  get-classified-ids]]
+                                                  get-ui-filtered-article-ids]]
             [cljs.pprint :as pprint :refer [cl-format]]
             [sysrev-web.ui.base :refer [out-link]]
             [sysrev-web.react.components :refer [link]]
@@ -130,7 +129,7 @@
     (let [page-num (:ranking-page @state)]
       (if page-num
         [:div.ui.container
-         [link routes/user "Go to /user"]
+         [link routes/current-user "Go to /user"]
          [link routes/users "Go to /users"]
          [:div.ui.segment
           ;; [debug-box @state]

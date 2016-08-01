@@ -1,7 +1,8 @@
 package co.insilica.sysrev
 package api
 
-import co.insilica.auth.{ErrorResult, AuthStack, AuthServlet}
+import co.insilica.auth.Types.UserId
+import co.insilica.auth.{User, ErrorResult, AuthStack, AuthServlet}
 import co.insilica.apistack.{Result, ResultWrapSupport}
 import co.insilica.sysrev.data.Types.ReviewTag
 import co.insilica.sysrev.relationalImporter.Types.{ArticleId, WithArticleId, WithCriteriaId}
@@ -18,7 +19,7 @@ import org.json4s.jackson._
 import org.json4s.jackson.Serialization.write
 
 case class ArticleIds(articleIds: List[ArticleId])
-
+case class CurrentUser(id: UserId, user: User)
 
 class SysrevAuthServlet extends AuthServlet{
   override protected implicit lazy val transactor: Transactor[Task] = Implicits.transactor
@@ -66,7 +67,7 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
   }
 
   get("/user"){
-    if(isAuthenticated) Result(user.t.t)
+    if(isAuthenticated) Result(CurrentUser(user.id, user.t.t))
     else ErrorResult("Not authenticated")
   }
 
