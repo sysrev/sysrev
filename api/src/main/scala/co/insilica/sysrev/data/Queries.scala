@@ -16,8 +16,8 @@ case class SimpleUser(username: String, profileId: String) {
   def name: String = username.split("@").toList.headOption.getOrElse("")
 }
 
-case class UserArticle(user: WithAnyId[Int, SimpleUser], article: WithAnyId[Int, ArticleWithoutKeywords])
-case class UserArticles(user: WithAnyId[Int, SimpleUser], articles: List[WithAnyId[Int, ArticleWithoutKeywords]])
+case class UserArticle(user: WithId[SimpleUser], article: WithArticleId[ArticleWithoutKeywords])
+case class UserArticles(user: WithId[SimpleUser], articles: List[WithArticleId[ArticleWithoutKeywords]])
 
 
 

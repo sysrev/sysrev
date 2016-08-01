@@ -14,7 +14,7 @@ val scalatraDeps = Seq(
   "org.scalatra" %% "scalatra" % scalatraVersion,
   "org.scalatra" %% "scalatra-scalate" % scalatraVersion,
   "org.scalatra" %% "scalatra-scalatest" % scalatraVersion,
-  "org.json4s"   %% "json4s-jackson" % "3.3.0",
+  "org.json4s"   %% "json4s-jackson" % "3.4.0",
   "org.scalatra" %% "scalatra-json" % scalatraVersion,
   "org.scalatra" %% "scalatra-auth" % scalatraVersion,
   "org.scalatra" %% "scalatra-test" % scalatraVersion,
