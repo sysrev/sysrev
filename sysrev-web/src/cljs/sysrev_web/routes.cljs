@@ -89,6 +89,11 @@
   (pull-initial-data)
   (set-page! :user))
 
+(defroute user "/user/:id" [id]
+          (pull-initial-data)
+          (swap! state assoc-in [:user :display-id] id)
+          (set-page! :user))
+
 (defroute login "/login" []
   (set-page! :login))
 

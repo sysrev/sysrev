@@ -44,7 +44,8 @@
   (fn [article criteria]
     [:div.ui.fluid.card
      [:div.content
-       [similarity-bar score percent]
+       (when-not (empty? score)
+         [similarity-bar score percent])
        (when-not (empty? criteria)
         [criteria-detail criteria article-id])]
      [:div.content
