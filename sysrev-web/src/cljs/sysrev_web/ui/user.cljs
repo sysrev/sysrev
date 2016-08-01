@@ -17,5 +17,6 @@
      (->> articles
        (map
          (fn [article]
+           ^{:key (:id article)}
            [similarity-card {:item (:t article)} nil nil nil (:id article)])))]))
 
