@@ -1,5 +1,5 @@
 (ns sysrev-web.routes
-  (:require [sysrev-web.base :refer [state server-data nav!]]
+  (:require [sysrev-web.base :refer [state server-data nav! notify]]
             [secretary.core :include-macros true :refer-macros [defroute]]
             [ajax.core :refer [GET POST]]))
 
@@ -181,7 +181,15 @@
              nil
              (fn [response]
                (swap! server-data dissoc :user)
-               (nav! home))))
+               (nav! home)
+               (notify "Logged out."))))
 
 
+(defn submit-tag [{:keys [article-id criteria-id value]}]
+  (ajax-post "/api/tag"
+             {:articleId article-id
+              :criteriaId criteria-id
+              :value value}
+             (fn [response]
+               (notify "Tag sent"))))
 
