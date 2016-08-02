@@ -19,7 +19,7 @@
                    display-name (if (empty? name) username name)
                    num-classified (count articles)
                    included (filter :include articles)
-                   excluded (filter #(-> % :include not) articles)
+                   excluded (remove :include articles)
                    num-include (count included)
                    num-exclude (count excluded)]
                [:div.ui.fluid.card {:key uid}
