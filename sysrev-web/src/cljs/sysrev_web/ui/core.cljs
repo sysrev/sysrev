@@ -64,7 +64,7 @@
     [:div
      [:div.ui.container
       [:div.ui.grid
-       [:div.row
+       [:div.middle.aligned.row
         [:div.ui.middle.aligned.four.wide.column
          [link routes/home [:h1 "Systematic Review"]]]
         [:div.ui.right.floated.left.aligned.twelve.wide.column

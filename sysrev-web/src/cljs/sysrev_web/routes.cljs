@@ -155,6 +155,7 @@
 
 (defn auth-success [result]
   (swap! server-data assoc :user result)
+  (pull-user-status)
   (nav! home))
 
 (defn auth-failure [err]
