@@ -180,7 +180,8 @@
   (ajax-post "/api/auth/logout"
              nil
              (fn [response]
-               (swap! server-data dissoc :user))))
+               (swap! server-data dissoc :user)
+               (nav! home))))
 
 
 
