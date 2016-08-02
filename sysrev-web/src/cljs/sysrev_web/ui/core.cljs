@@ -8,6 +8,7 @@
             [sysrev-web.ui.user :refer [user]]
             [sysrev-web.ui.users :refer [users]]
             [sysrev-web.ui.classify :refer [classify]]
+            [sysrev-web.ui.labels :refer [labels]]
             [sysrev-web.ui.notification :refer [notifier]]))
 
 (def notification-timeout 3000)
@@ -25,8 +26,11 @@
 (defmethod current-page :register [] (get-page :register register-page post-register))
 (defmethod current-page :users [] (get-page :users users))
 (defmethod current-page :classify [] (get-page :classify classify))
+(defmethod current-page :labels [] (get-page :labels labels))
 
-(defn menu-link [f content] (link {:class "item"} f content))
+(defn menu-link
+  ([f attributes content] (link attributes content))
+  ([f content] (link {:class "item"} f content)))
 (defn menu-link-nonav [f content] (link {:class "item"} f content))
 
 (defn logged-in-menu [{:keys [class]} user]
@@ -42,8 +46,11 @@
              (:username user)
              (:name user))]]]]
      [menu-link routes/users "Users"]
+     [menu-link routes/labels "Labels"]
      [menu-link routes/classify "Classify"]
      [menu-link-nonav routes/post-logout "Logout"]]))
+
+
 
 (defn logged-out-menu [{:keys [class]}]
   [:div.ui.menu {:class class}

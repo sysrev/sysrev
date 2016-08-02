@@ -107,6 +107,8 @@
 (defroute classify "/classify" []
           (set-page! :classify))
 
+(defroute labels "/labels" []
+          (set-page! :labels))
 
 (defn get-ranking-article-ids [page-num]
   (get-in @server-data [:ranking :pages page-num]))

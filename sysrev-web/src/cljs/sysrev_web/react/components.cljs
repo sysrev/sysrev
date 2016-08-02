@@ -17,9 +17,9 @@
 (defn link
   "Constructs a link which blocks normal link behavior and runs a navigation through secretary
   todo: could also extend this to provide href and handle cases where browsers do not support history navigation"
-  ([{:keys [class]} route-f child]
+  ([attributes route-f child]
    (let [handler (replace-event #(nav! route-f))]
-     [base-link {:class class} route-f handler child]))
+     [base-link attributes route-f handler child]))
   ([route-f child]
    (link {:class "ui link"} route-f child)))
 
