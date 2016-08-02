@@ -17,9 +17,16 @@
                    username (:username u)
                    name (:name u)
                    display-name (if (empty? name) username name)
-                   num-classified (count articles)]
+                   num-classified (count articles)
+                   included (filter :include articles)
+                   excluded (filter #(-> % :include not) articles)
+                   num-include (count included)
+                   num-exclude (count excluded)]
                [:div.ui.fluid.card {:key uid}
                 [:div.content
                  [:div.header
                   [link (fn [] (routes/user {:id uid})) display-name]]]
-                [:div.content (str num-classified " articles classified")]]))))]])
+                [:div.content (str num-classified " articles classified")]
+                [:div.content.list
+                 [:div.item (str num-include " articles included")]
+                 [:div.item (str num-exclude " articles excluded")]]]))))]])
