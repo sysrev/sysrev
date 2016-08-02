@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.user
-  (:require [sysrev-web.base :refer [state server-data]]
+  (:require [sysrev-web.base :refer [state server-data debug-box]]
             [sysrev-web.ui.home :refer [similarity-card]]
             [sysrev-web.react.components :refer [link]]))
 
@@ -13,8 +13,8 @@
         name (:name user)
         username (:username user)
         display-name (if (empty? name) username name)
-        article-id #(-> % :item :id)
-        article #(-> % :item :t)
+        article-id :id
+        article :article
         article-score #(- 1.0 (Math/abs (:score %)))]
     [:div.sixteen.wide.column
      [:h1 display-name]
@@ -27,4 +27,4 @@
                    aid (article-id adata)
                    criteria (get-in @server-data [:articles-criteria (keyword (str aid))])]
                ^{:key (article-id adata)}
-               [similarity-card {:item (article adata)} criteria score percent aid])))))]))
+               [similarity-card (article adata) criteria score percent aid])))))]))

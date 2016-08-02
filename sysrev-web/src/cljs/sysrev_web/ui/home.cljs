@@ -48,14 +48,14 @@
        (when-not (empty? criteria)
         [criteria-detail criteria article-id])]
      [:div.content
-      [:div.header (-> article :item :title)]
-      [:div.content (-> article :item :abs)]
+      [:div.header (:title article)]
+      [:div.content (:abs article)]
       [:div.content.ui.list
        (map-indexed
          (fn [idx url]
            ^{:key idx}
            [out-link url])
-         (-> article :item :urls))]]]))
+         (-> article :urls))]]]))
 
 
 (defn ratings-list [page-num]
@@ -69,8 +69,9 @@
             page-article-ids
             (map
              (fn [article-id]
-              (let [article (get-article article-id)
-                    score (- 1.0 (Math/abs (:score article)))
+              (let [adata (get-article article-id)
+                    article (:item adata)
+                    score (- 1.0 (Math/abs (:score adata)))
                     percent (Math/round (* 100 score))
                     criteria (-> @server-data :articles-criteria article-id)]
                 ^{:key article-id}
