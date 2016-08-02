@@ -130,10 +130,7 @@
     (let [page-num (:ranking-page @state)]
       (if page-num
         [:div.ui.container
-         [link routes/current-user "Go to /user"]
-         [link routes/users "Go to /users"]
          [:div.ui.segment
-          ;; [debug-box @state]
           [filter-search]
           [filter-list]
           [ratings-list page-num]]]))))
