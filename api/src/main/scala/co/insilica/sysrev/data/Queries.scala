@@ -1,9 +1,6 @@
 package co.insilica.sysrev.data
 
 import co.insilica.auth.Types.{WithId, UserId}
-import co.insilica.sysrev.data.Types.ReviewTag
-import co.insilica.sysrev.relationalImporter._
-import co.insilica.sysrev.relationalImporter.Types._
 import doobie.imports._
 import doobie.contrib.postgresql.pgtypes._
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
@@ -11,15 +8,6 @@ import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
-
-case class SimpleUser(username: String, profileId: String) {
-  def name: String = username.split("@").toList.headOption.getOrElse("")
-}
-
-case class ClassifiedArticle(id: ArticleId, article: ArticleWithoutKeywords, include: Option[Boolean], score: Double)
-case class UserArticle(user: WithId[SimpleUser], article: ClassifiedArticle)
-case class UserArticles(user: WithId[SimpleUser], articles: List[ClassifiedArticle])
-
 
 
 object Queries{

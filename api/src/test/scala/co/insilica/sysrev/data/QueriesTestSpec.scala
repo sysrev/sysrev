@@ -1,6 +1,5 @@
 package co.insilica.sysrev.data
 
-import co.insilica.sysrev.data.Types.ReviewTag
 import doobie.util.transactor.Transactor
 import org.scalatest._
 import doobie.contrib.scalatest.analysisspec.AnalysisSpec

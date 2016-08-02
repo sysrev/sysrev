@@ -4,7 +4,7 @@ package api
 import co.insilica.auth.Types.UserId
 import co.insilica.auth.{User, ErrorResult, AuthStack, AuthServlet}
 import co.insilica.apistack.{Result, ResultWrapSupport}
-import co.insilica.sysrev.data.Types.ReviewTag
+import co.insilica.sysrev.data.ReviewTag
 import co.insilica.sysrev.relationalImporter.Types.{ArticleId, WithArticleId, WithCriteriaId}
 import co.insilica.sysrev.relationalImporter._
 
@@ -71,6 +71,7 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
     else ErrorResult("Not authenticated")
   }
 
+  // Expects a [[ReviewTag]] as json, saves or updates the tag, and sends back the id of the tag.
   postT("/tag"){
     val job: Option[Task[Int]] = for{
       u <- userOption
