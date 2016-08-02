@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.core
-  (:require [sysrev-web.base :refer [state history server-data debug-box]]
+  (:require [sysrev-web.base :refer [state history server-data debug-box notify-pop notify-head]]
             [sysrev-web.routes :as routes :refer [data-initialized? post-login post-register]]
             [sysrev-web.ui.containers :refer [loading-screen page-container get-page center-page]]
             [sysrev-web.react.components :refer [link link-nonav]]
@@ -7,7 +7,11 @@
             [sysrev-web.ui.login :refer [login]]
             [sysrev-web.ui.user :refer [user]]
             [sysrev-web.ui.users :refer [users]]
-            [sysrev-web.ui.classify :refer [classify]]))
+            [sysrev-web.ui.classify :refer [classify]]
+            [sysrev-web.ui.notification :refer [notifier]]))
+
+(def notification-timeout 3000)
+(defn page-notifier [head] (notifier head notify-pop notification-timeout))
 
 
 (defn login-page [handler] (center-page [:h1 "Login"] [login handler]))
@@ -71,4 +75,5 @@
          [user-status {:class "right floated"}]]]
        [:div.row
         [:div.main-content
-         [current-page]]]]]]))
+         [current-page]]]]]
+     [page-notifier (notify-head)]]))

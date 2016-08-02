@@ -4,7 +4,10 @@
             [pushy.core :as pushy]
             [cljs.pprint :refer [pprint]]))
 
-(defonce state (r/atom {:page 0 :ranking-page 0}))
+(defonce state (r/atom {:page 0
+                        :ranking-page 0
+                        :notifications #queue []}))
+
 (defonce server-data (r/atom {}))
 
 (def debug true)
@@ -14,6 +17,21 @@
 
 (defn state-set [ks val]
   (swap! state #(assoc-in % ks val)))
+
+(defn notify
+  "enqueue a notification"
+  [message]
+  (swap! state update-in [:notifications] #(conj % message)))
+
+(defn notify-pop
+  "Removes the oldest notification"
+  []
+  (swap! state update-in [:notifications] pop))
+
+(defn notify-head
+  "Get the oldest notification"
+  []
+  (-> @state :notifications first))
 
 (enable-console-print!)
 
