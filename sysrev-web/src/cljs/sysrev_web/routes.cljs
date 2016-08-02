@@ -104,6 +104,8 @@
 (defroute users "/users" []
           (set-page! :users))
 
+(defroute classify "/classify" []
+          (set-page! :classify))
 
 
 (defn get-ranking-article-ids [page-num]

@@ -6,7 +6,8 @@
             [sysrev-web.ui.home :refer [home]]
             [sysrev-web.ui.login :refer [login]]
             [sysrev-web.ui.user :refer [user]]
-            [sysrev-web.ui.users :refer [users]]))
+            [sysrev-web.ui.users :refer [users]]
+            [sysrev-web.ui.classify :refer [classify]]))
 
 
 (defn login-page [handler] (center-page [:h1 "Login"] [login handler]))
@@ -19,7 +20,10 @@
 (defmethod current-page :login [] (get-page :login login-page post-login))
 (defmethod current-page :register [] (get-page :register register-page post-register))
 (defmethod current-page :users [] (get-page :users users))
+(defmethod current-page :classify [] (get-page :classify classify))
 
+(defn menu-link [f content] (link {:class "item"} f content))
+(defn menu-link-nonav [f content] (link {:class "item"} f content))
 
 (defn logged-in-menu [{:keys [class]} user]
   (let [uid (:id user)
@@ -33,12 +37,9 @@
          (if (nil? (:name user))
              (:username user)
              (:name user))]]]]
-     [:div.item
-      [link routes/users
-       [:div.ui.primary.button "Users"]]]
-     [:div.item
-      [link-nonav routes/post-logout
-       [:div.ui.primary.button "Logout"]]]]))
+     [menu-link routes/users "Users"]
+     [menu-link routes/classify "Classify"]
+     [menu-link-nonav routes/post-logout "Logout"]]))
 
 (defn logged-out-menu [{:keys [class]}]
   [:div.ui.menu {:class class}
@@ -46,8 +47,7 @@
     [link routes/login
      [:div.ui.primary.button "Log in"]]]
    [:div.item
-    [link routes/register
-     [:div.ui.primary.button "Register"]]]])
+    [menu-link routes/register "Register"]]])
 
 ;; Login dependent upper menu
 (defn user-status [{:keys [class]}]
@@ -59,16 +59,16 @@
 
 ;;"Main container for all dom elements. Includes page from above current-page to
 ;; select content based on accessed route."
-
-
 (defn main-content []
   (fn []
     [:div
      [:div.ui.container
       [:div.ui.grid
-       [:div.ten.wide.column
-        [link routes/home [:h1 "Systematic Review"]]]
-       [:div.six.wide.column
-         [user-status]]]]
-     [:div.main-content
-      [current-page]]]))
+       [:div.row
+        [:div.ui.middle.aligned.four.wide.column
+         [link routes/home [:h1 "Systematic Review"]]]
+        [:div.ui.right.floated.left.aligned.twelve.wide.column
+         [user-status {:class "right floated"}]]]
+       [:div.row
+        [:div.main-content
+         [current-page]]]]]]))
