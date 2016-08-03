@@ -1,6 +1,8 @@
 package co.insilica.sysrev.data
 
 import co.insilica.auth.Types.{WithId, UserId}
+import co.insilica.sysrev.relationalImporter.{WithScore, ArticleWithoutKeywords}
+import co.insilica.sysrev.relationalImporter.Types.WithArticleId
 import doobie.imports._
 import doobie.contrib.postgresql.pgtypes._
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
@@ -54,4 +56,19 @@ object Queries{
       case (None, UserArticle(ruser, art)) => UserArticles(ruser, List(art))
     })
   }
+
+  def getLabelingTaskByHighestRankQ(num: Long = 10) : Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
+    select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls,
+           _2 as score
+    from article
+    left join article_criteria using (article_id)
+    left join article_ranking on _1 = article_id
+    where criteria_id is null
+    order by score desc
+    limit $num
+  """.query
+
+  def getLabelingTaskByHighestRank(num :Long = 10) : ConnectionIO[List[WithArticleId[WithScore[ArticleWithoutKeywords]]]] =
+    getLabelingTaskByHighestRankQ(num).list
+
 }

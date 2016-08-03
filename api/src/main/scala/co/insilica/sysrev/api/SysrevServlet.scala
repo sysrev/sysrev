@@ -21,9 +21,12 @@ import co.insilica.dataProvider.TaskFutureOps._
 case class ArticleIds(articleIds: List[ArticleId])
 case class CurrentUser(id: UserId, user: User)
 
+case class LabelingTaskItem(article_id: Int, score: Double, article: ArticleWithoutKeywords)
+
 class SysrevAuthServlet extends AuthServlet{
   override protected implicit lazy val transactor: Transactor[Task] = Implicits.transactor
 }
+
 
 /**
   * Add-ons for ResultWrapSupport to handle Options of tasks. Common situation with unauthenticated users for example.
@@ -88,20 +91,27 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
   }
 
   // Expects a [[ReviewTag]] as json, saves or updates the tag, and sends back the id of the tag.
-  postT("/tag"){
-    val job: Option[Task[Int]] = for{
+  postOT("/tag"){
+    for{
       u <- userOption
       tag <- parsedBody.extractOpt[ReviewTag]
     } yield data.Queries.tagArticle(u.id, tag).transact(tx)
-
-    job.getOrElse(errorTask)
   }
 
-  getT("/users"){
+  getOT("/users"){
     userOption map { _ =>
       data.Queries.usersSummaryData.transact(tx)
-    } getOrElse {
-      errorTask
     }
+  }
+
+  getOT("/label-task/:num"){
+    for {
+      _ <- userOption
+      num <- params("num").parseInt.toOption.getOrElse(5) |> (Option apply _)
+      qres <- data.Queries.getLabelingTaskByHighestRank(num) |> (Option apply _)
+      res <- qres.map(_.map{
+              case WithArticleId(aid, WithScore(art, score)) => LabelingTaskItem(aid, score, art)
+             }) |> (Option apply _)
+    } yield res.transact(tx)
   }
 }
