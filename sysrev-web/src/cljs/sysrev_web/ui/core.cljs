@@ -80,7 +80,7 @@
          [link routes/home [:h1 "Systematic Review"]]]
         [:div.ui.right.floated.left.aligned.twelve.wide.column
          [user-status {:class "right floated"}]]]
-       [:div.row
-        [:div.main-content
+       [:div.middle.aligned.row
+        [:div.main-content.sixteen.wide.column
          [current-page]]]]]
      [page-notifier (notify-head)]]))

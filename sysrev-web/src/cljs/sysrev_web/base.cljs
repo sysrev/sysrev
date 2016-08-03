@@ -6,7 +6,8 @@
 
 (defonce state (r/atom {:page 0
                         :ranking-page 0
-                        :notifications #queue []}))
+                        :notifications #queue []
+                        :label-activity #queue []}))
 
 (defonce server-data (r/atom {}))
 
@@ -62,3 +63,13 @@
   "takes a function which returns a route to navigate to"
   [to-route-f]
   (pushy/set-token! history (to-route-f)))
+
+
+
+(defn label-queue-head []
+  (-> @state :label-activity first))
+
+(defn label-queue-pop []
+  (swap! @state update-in [:label-activity] pop))
+
+(defn label-queue [] (:label-activity @state))

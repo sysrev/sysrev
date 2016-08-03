@@ -1,5 +1,5 @@
 (ns sysrev-web.routes
-  (:require [sysrev-web.base :refer [state server-data nav! notify]]
+  (:require [sysrev-web.base :refer [state server-data nav! notify label-queue]]
             [secretary.core :include-macros true :refer-macros [defroute]]
             [ajax.core :refer [GET POST]]))
 
@@ -85,6 +85,21 @@
   (pull-initial-data)
   (set-page! :home))
 
+
+(defroute login "/login" []
+  (set-page! :login))
+
+(defroute register "/register" []
+  (set-page! :register))
+
+
+;; Below routes require login to function.
+;; Todo: Redirect to / if not logged in.
+(defroute users "/users" []
+          (pull-initial-data)
+          (set-page! :users))
+
+
 (defroute current-user "/user" []
           (pull-initial-data)
           (swap! state assoc-in [:user :display-id] (-> @server-data :user :id))
@@ -95,19 +110,12 @@
           (swap! state assoc-in [:user :display-id] id)
           (set-page! :user))
 
-(defroute login "/login" []
-  (set-page! :login))
-
-(defroute register "/register" []
-  (set-page! :register))
-
-(defroute users "/users" []
-          (set-page! :users))
-
 (defroute classify "/classify" []
+          (pull-initial-data)
           (set-page! :classify))
 
 (defroute labels "/labels" []
+          (pull-initial-data)
           (set-page! :labels))
 
 (defn get-ranking-article-ids [page-num]
@@ -195,3 +203,22 @@
              (fn [response]
                (notify "Tag sent"))))
 
+
+(defn pull-label-tasks [interval handler]
+  (ajax-get (str "/api/label-task/" interval)
+            (fn [response]
+              (let [result (:result response)]
+                (notify (str "Fetched " (count result) " more articles"))
+                (handler result)))))
+
+
+(defn label-queue-update
+  ([min-length interval]
+   (let [cur-len (count (label-queue))
+         deficit (- min-length cur-len)
+         fetch-num (if (> deficit 0) (max deficit interval) 0)]
+     (when (> fetch-num 0)
+       (pull-label-tasks fetch-num
+         (fn [tasks]
+           (swap! state update-in [:label-activity] #(into % tasks)))))))
+  ([] (label-queue-update 5 1)))

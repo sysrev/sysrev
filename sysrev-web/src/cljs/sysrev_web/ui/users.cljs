@@ -6,7 +6,7 @@
 
 
 (defn users []
-  [:div.sixteen.wide.column
+  [:div.ui.container
    [:h1 "User Activity Summary"]
    [:div.ui.cards
     (->> (:users @server-data)

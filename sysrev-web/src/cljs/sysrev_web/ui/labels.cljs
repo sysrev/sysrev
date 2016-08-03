@@ -23,4 +23,3 @@
              [:td (str (:isInclusion criteria))]
              [:td (str (:isExclusion criteria))]
              [:td]]))))]])
-    
