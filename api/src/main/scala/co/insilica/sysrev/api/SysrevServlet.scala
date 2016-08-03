@@ -98,6 +98,13 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
     } yield data.Queries.tagArticle(u.id, tag).transact(tx)
   }
 
+  postOT("/tags"){
+    for{
+      u <- userOption
+      tags <- parsedBody.extractOpt[List[ReviewTag]]
+    } yield data.Queries.updateTagsForArticle(u.id, tags).transact(tx)
+  }
+
   getOT("/users"){
     userOption map { _ =>
       data.Queries.usersSummaryData.transact(tx)
