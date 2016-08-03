@@ -3,7 +3,7 @@ package api
 
 import co.insilica.auth.Types.UserId
 import co.insilica.auth.{User, ErrorResult, AuthStack, AuthServlet}
-import co.insilica.apistack.{Result, ResultWrapSupport}
+import co.insilica.apistack.{ApiStack, Result, ResultWrapSupport}
 import co.insilica.sysrev.data.ReviewTag
 import co.insilica.sysrev.relationalImporter.Types.{ArticleId, WithArticleId, WithCriteriaId}
 import co.insilica.sysrev.relationalImporter._
@@ -11,12 +11,12 @@ import co.insilica.sysrev.relationalImporter._
 import org.scalatra._
 import doobie.imports._
 
+import scala.concurrent.Future
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
 
-import org.json4s.jackson._
-import org.json4s.jackson.Serialization.write
+import co.insilica.dataProvider.TaskFutureOps._
 
 case class ArticleIds(articleIds: List[ArticleId])
 case class CurrentUser(id: UserId, user: User)
@@ -26,17 +26,33 @@ class SysrevAuthServlet extends AuthServlet{
 }
 
 /**
+  * Add-ons for ResultWrapSupport to handle Options of tasks. Common situation with unauthenticated users for example.
+  *
+  */
+trait RouteHelpers{ this : ApiStack with ResultWrapSupport with FutureSupport =>
+  /**
+    * Error task to be run, to return message indicating failure.  Override to send custom error.
+    *
+    * @return an immediate task wrapping an error result.
+    */
+  def errorTask : Task[ErrorResult[Any]] = Task.now(ErrorResult("BadRequest"))
+
+  def handleOT(action: Option[Task[Any]]): Future[Result] = action.getOrElse(errorTask).map(Result apply _).runFuture
+
+  def getOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = get(route: _*)(handleOT(action))
+
+  def postOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = post(route: _*)(handleOT(action))
+}
+
+/**
   * Remember: Type aliases lead to infinite loops and hanging behavior in json4s.
   */
-class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport {
+class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport with RouteHelpers {
   val tx = Implicits.transactor
   override protected implicit lazy val transactor: Transactor[Task] = tx
 
   type WithUserId[T] = co.insilica.auth.Types.WithId[T]
   val WithUserId = co.insilica.auth.WithAnyId
-  val errorTask = Task.now(ErrorResult("BadRequest"))
-
-
 
   def getRankedPage(p: Int = 0) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
     Queries.rankedArticlesPage(p).transact(tx).map{ xs =>
