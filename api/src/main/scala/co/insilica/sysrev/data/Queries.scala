@@ -64,7 +64,7 @@ object Queries{
     left join article_criteria using (article_id)
     left join article_ranking on _1 = article_id
     where criteria_id is null
-    order by score desc
+    order by score asc
     limit $num
   """.query
 
