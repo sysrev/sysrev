@@ -1,5 +1,5 @@
 (ns sysrev-web.routes
-  (:require [sysrev-web.base :refer [state server-data nav! notify label-queue]]
+  (:require [sysrev-web.base :refer [state server-data nav! notify label-queue label-queue-right-append]]
             [secretary.core :include-macros true :refer-macros [defroute]]
             [ajax.core :refer [GET POST]]))
 
@@ -218,7 +218,5 @@
          deficit (- min-length cur-len)
          fetch-num (if (> deficit 0) (max deficit interval) 0)]
      (when (> fetch-num 0)
-       (pull-label-tasks fetch-num
-         (fn [tasks]
-           (swap! state update-in [:label-activity] #(into % tasks)))))))
+       (pull-label-tasks fetch-num label-queue-right-append))))
   ([] (label-queue-update 5 1)))

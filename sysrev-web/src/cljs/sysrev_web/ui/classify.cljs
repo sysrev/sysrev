@@ -1,5 +1,11 @@
 (ns sysrev-web.ui.classify
-  (:require [sysrev-web.base :refer [server-data label-queue label-queue-head debug-box]]
+  (:require [sysrev-web.base :refer [server-data
+                                     label-queue
+                                     label-queue-head
+                                     debug-box
+                                     label-skip
+                                     label-skipped-head
+                                     label-load-skipped]]
             [sysrev-web.routes :refer [label-queue-update]]
             [sysrev-web.ui.home :refer [similarity-card]]
             [reagent.core :as r]))
@@ -39,10 +45,11 @@
 
 (defn navigate []
   [:div.ui.buttons
-   [:div.ui.secondary.left.icon.button
-    [:i.left.arrow.icon]
-    "Previous"]
-   [:div.ui.primary.right.icon.button
+   (when-not (nil? (label-skipped-head))
+     [:div.ui.secondary.left.icon.button {:on-click label-load-skipped}
+      [:i.left.arrow.icon]
+      "Previous"])
+   [:div.ui.primary.right.icon.button {:on-click label-skip}
     "Next"
     [:i.right.arrow.icon]]])
 
@@ -63,4 +70,3 @@
         [:div.right.aligned.column
          [navigate]]]
        [criteria-block]])))
-
