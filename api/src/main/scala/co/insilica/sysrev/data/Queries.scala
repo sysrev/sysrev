@@ -4,12 +4,13 @@ import co.insilica.auth.Types.{WithId, UserId}
 import co.insilica.sysrev.relationalImporter.{WithScore, ArticleWithoutKeywords}
 import co.insilica.sysrev.relationalImporter.Types.WithArticleId
 import doobie.imports._
+
+// Need this import for resolving postgres arrays into scala seqs.
 import doobie.contrib.postgresql.pgtypes._
 import doobie.contrib.postgresql.sqlstate.class23.UNIQUE_VIOLATION
 
 import scalaz._
 import Scalaz._
-import scalaz.concurrent.Task
 
 
 object Queries{
