@@ -6,6 +6,7 @@
 
 (defonce state (r/atom {:page 0
                         :ranking-page 0
+                        ;; FIFO for notifications
                         :notifications #queue []
                         :label-activity #queue []}))
 
@@ -22,12 +23,13 @@
 (defn notify
   "enqueue a notification"
   [message]
-  (swap! state update-in [:notifications] #(conj % message)))
+  (swap! state update :notifications #(conj % message))
+  (js/setTimeout #(swap! state update :notifications pop) 2000))
 
 (defn notify-pop
   "Removes the oldest notification"
   []
-  (swap! state update-in [:notifications] pop))
+  (swap! state update :notifications pop))
 
 (defn notify-head
   "Get the oldest notification"

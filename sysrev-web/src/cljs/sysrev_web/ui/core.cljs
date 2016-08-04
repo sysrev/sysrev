@@ -11,9 +11,6 @@
             [sysrev-web.ui.labels :refer [labels]]
             [sysrev-web.ui.notification :refer [notifier]]))
 
-(def notification-timeout 3000)
-(defn page-notifier [head] (notifier head notify-pop notification-timeout))
-
 
 (defn login-page [handler] (center-page [:h1 "Login"] [login handler]))
 (defn register-page [handler] (center-page [:h1 "Register"] [login handler]))
@@ -83,4 +80,4 @@
        [:div.middle.aligned.row
         [:div.main-content.sixteen.wide.column
          [current-page]]]]]
-     [page-notifier (notify-head)]]))
+     [notifier (notify-head) 2000]]))

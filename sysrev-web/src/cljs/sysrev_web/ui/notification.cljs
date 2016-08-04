@@ -1,11 +1,9 @@
-(ns sysrev-web.ui.notification)
+(ns sysrev-web.ui.notification
+  (:require [sysrev-web.base :refer [notify-head notify-pop]]))
 
-(defn notifier [head pop-handle timeout]
+(defn notifier [head]
   (fn [head]
     (when-not (empty? head)
-      ;; On re-render, this will call the provided
-      ;; handler to pop the head out of the queue.
-      (js/setTimeout pop-handle timeout)
       [:div.ui.middle.aligned.large.warning.message
          {:style {:position "fixed"
                      :bottom "0px"
@@ -13,4 +11,3 @@
                      :width "auto"
                      :right "0px"}}
        head])))
-
