@@ -25,17 +25,26 @@
 (defn criteria-block []
   (fn []
     (let [criteria (:criteria @server-data)]
-      [:div.ui.segment
+      [:div.ui.sixteen.wide.column.segment
        (doall
          (->>
            criteria
            (map (fn [[id criterion]]
                   ^{:key id}
                   [:div.ui.two.column.middle.aligned.grid
-                   [:div.column (:questionText criterion)]
-                   [:div.column
+                   [:div.left.aligned.column (:questionText criterion)]
+                   [:div.right.aligned.column
                     [three-state-selection]]]))))])))
 
+
+(defn navigate []
+  [:div.ui.buttons
+   [:div.ui.secondary.left.icon.button
+    [:i.left.arrow.icon]
+    "Previous"]
+   [:div.ui.primary.right.icon.button
+    "Next"
+    [:i.right.arrow.icon]]])
 
 (defn classify []
   (fn []
@@ -45,6 +54,13 @@
           score (- 1.0 (Math/abs (:score adata)))
           percent (Math/round (* 100 score))
           aid (:articleId adata)]
-      [:div.ui.container
+      [:div.ui.grid.container
+       [:h2 "Article data"]
        [similarity-card article nil score percent aid]
+       [:div.two.column.row
+        [:div.column
+         [:h2 "Alter labels"]]
+        [:div.right.aligned.column
+         [navigate]]]
        [criteria-block]])))
+
