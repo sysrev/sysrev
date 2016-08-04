@@ -11,7 +11,7 @@
             [reagent.core :as r]))
 
 (defn radio-button [handler set child]
-  (let [class (if set "primary" "")]
+  (let [class (when set "primary")]
     [:div.ui.icon.button {:class class :on-click handler} child]))
 
 
@@ -22,11 +22,8 @@
     (fn [change-handler]
       [:div.ui.large.buttons
        [radio-button (make-handler false) (false? @selection) "No"]
-;        [:i.thumbs.down.icon]]
-       [radio-button (make-handler nil) (nil? @selection)
-        [:i.meh.icon]]
+       [radio-button (make-handler nil) (nil? @selection) "?"]
        [radio-button (make-handler true) (true? @selection) "Yes"]])))
-;        [:i.thumbs.up.icon]]])))
 
 (defn criteria-block []
   (fn []
