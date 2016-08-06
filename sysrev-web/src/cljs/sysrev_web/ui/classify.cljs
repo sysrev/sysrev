@@ -6,7 +6,7 @@
                                      label-skip
                                      label-skipped-head
                                      label-load-skipped]]
-            [sysrev-web.routes :refer [label-queue-update]]
+            [sysrev-web.routes :refer [label-queue-update send-tags]]
             [sysrev-web.ui.home :refer [similarity-card]]
             [reagent.core :as r]))
 
@@ -15,29 +15,33 @@
     [:div.ui.icon.button {:class class :on-click handler} child]))
 
 
-(defn three-state-selection [change-handler]
+(defn three-state-selection [change-handler curval]
   ;; nil for unset, true, false
-  (let [selection (r/atom nil)
-        make-handler (fn [v] #((reset! selection v) (change-handler v)))]
-    (fn [change-handler]
-      [:div.ui.large.buttons
-       [radio-button (make-handler false) (false? @selection) "No"]
-       [radio-button (make-handler nil) (nil? @selection) "?"]
-       [radio-button (make-handler true) (true? @selection) "Yes"]])))
+  (fn [change-handler curval]
+    [:div.ui.large.buttons
+     [radio-button #(change-handler false) (false? curval) "No"]
+     [radio-button #(change-handler nil) (nil? curval) "?"]
+     [radio-button #(change-handler true) (true? curval) "Yes"]]))
 
-(defn criteria-block []
-  (fn []
-    (let [criteria (:criteria @server-data)]
+(defn criteria-block [handler]
+  (fn [handler]
+    (let [criteria (:criteria @server-data)
+          ;; Initial state is nil for each criteria id.
+          criteria-ids (keys criteria)
+          criteria-state (r/atom (zipmap criteria-ids (repeat (count criteria-ids) nil)))
+          make-handler (fn [cid]
+                           #((swap! criteria-state assoc cid %)
+                             (handler @criteria-state)))]
       [:div.ui.sixteen.wide.column.segment
        (doall
          (->>
            criteria
-           (map (fn [[id criterion]]
-                  ^{:key id}
+           (map (fn [[cid criterion]]
+                  ^{:key (name cid)}
                   [:div.ui.two.column.middle.aligned.grid
                    [:div.left.aligned.column (:questionText criterion)]
                    [:div.right.aligned.column
-                    [three-state-selection]]]))))])))
+                    [three-state-selection (make-handler cid) (cid @criteria-state)]]]))))])))
 
 
 (defn navigate []
@@ -57,7 +61,8 @@
           article (:article adata)
           score (- 1.0 (Math/abs (:score adata)))
           percent (Math/round (* 100 score))
-          aid (:articleId adata)]
+          aid (:article_id adata)
+          criteria-change-handler (fn [st] (send-tags aid st))]
       [:div.ui.grid.container
        [:h2 "Article data"]
        [similarity-card article nil score percent aid]
@@ -66,4 +71,4 @@
          [:h2 "Alter labels"]]
         [:div.right.aligned.column
          [navigate]]]
-       [criteria-block]])))
+       [criteria-block criteria-change-handler]])))

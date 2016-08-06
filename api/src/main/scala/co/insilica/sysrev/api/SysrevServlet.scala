@@ -4,7 +4,7 @@ package api
 import co.insilica.auth.Types.UserId
 import co.insilica.auth.{User, ErrorResult, AuthStack, AuthServlet}
 import co.insilica.apistack.{ApiStack, Result, ResultWrapSupport}
-import co.insilica.sysrev.data.ReviewTag
+import co.insilica.sysrev.data.{Tags, ReviewTag}
 import co.insilica.sysrev.relationalImporter.Types.{ArticleId, WithArticleId, WithCriteriaId}
 import co.insilica.sysrev.relationalImporter._
 
@@ -38,13 +38,18 @@ trait RouteHelpers{ this : ApiStack with ResultWrapSupport with FutureSupport =>
     *
     * @return an immediate task wrapping an error result.
     */
-  def errorTask : Task[ErrorResult[Any]] = Task.now(ErrorResult("Bad request"))
+  def errorResult : ErrorResult[Any] = ErrorResult("Bad request")
+
+  def errorTask : Task[ErrorResult[Any]] = Task.now(errorResult)
 
   def handleOT(action: Option[Task[Any]]): Future[Any] = action.map(_.map(Result apply _)).getOrElse(errorTask).runFuture
 
   def getOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = get(route: _*)(handleOT(action))
 
   def postOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = post(route: _*)(handleOT(action))
+
+  def getO(route: RouteTransformer*)(action: => Option[Any]): Route =
+    get(route: _*)(action.map(Result apply _).getOrElse(errorResult))
 }
 
 /**
@@ -85,31 +90,16 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
     }
   }
 
-  get("/user"){
-    if(isAuthenticated) Result(CurrentUser(user.id, user.t.t))
-    else ErrorResult("Not authenticated")
-  }
+  getO("/user")(userOption.map(u => CurrentUser(u.id, u.t.t)))
 
   // Expects a [[ReviewTag]] as json, saves or updates the tag, and sends back the id of the tag.
-  postOT("/tag"){
-    for{
-      u <- userOption
-      tag <- parsedBody.extractOpt[ReviewTag]
-    } yield data.Queries.tagArticle(u.id, tag).transact(tx)
-  }
+  postOT("/tag")((userOption |@| parsedBody.extractOpt[ReviewTag])((u, r) => data.Queries.tagArticle(u.id, r).transact(tx)))
 
-  postOT("/tags"){
-    for{
-      u <- userOption
-      tags <- parsedBody.extractOpt[List[ReviewTag]]
-    } yield data.Queries.updateTagsForArticle(u.id, tags).transact(tx)
-  }
+  postOT("/tags")((userOption |@| parsedBody.extractOpt[Tags])((u, ts) =>
+      data.Queries.updateTagsForArticle(u.id, ts.tags).transact(tx))
+  )
 
-  getOT("/users"){
-    userOption map { _ =>
-      data.Queries.usersSummaryData.transact(tx)
-    }
-  }
+  getOT("/users")(userOption *> Option(data.Queries.usersSummaryData.transact(tx)))
 
   getOT("/label-task/:num"){
     val greaterThanScore : Double = params.get("greaterThanScore").flatMap(_.parseDouble.toOption).getOrElse(0.0)

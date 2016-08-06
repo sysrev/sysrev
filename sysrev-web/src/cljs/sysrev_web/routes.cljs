@@ -227,3 +227,21 @@
        (println (str "fetching scores greater than " max-dist-score))
        (pull-label-tasks fetch-num label-queue-right-append max-dist-score))))
   ([] (label-queue-update 5 1)))
+
+(defn send-tags
+  "send the criteria responses for a given article.
+  Takes an article-id and a map of criteria-ids to booleans.
+  Any unset criteria-ids will be unset on the server."
+  [article-id criteria-values]
+  (let [data (->> criteria-values
+                  (map (fn [[cid, value]]
+                         {:articleId article-id
+                          :criteriaId (js/parseInt (name cid))
+                          :value value})))]
+    (ajax-post "/api/tags"
+               {:tags data}
+               (fn [response]
+                 (let [err (:err response)
+                       res (:result response)]
+                   (when-not (empty? err) (notify (str "Error: " err)))
+                   (when-not (empty? res) (notify "Tags saved")))))))

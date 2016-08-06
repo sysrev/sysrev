@@ -31,14 +31,15 @@ object Queries{
 
   def updateTagArticle(userId: UserId, reviewTag: ReviewTag) : ConnectionIO[Int] = updateTagArticleQ(userId, reviewTag).run
 
-  def updateTagsForArticle(userId: UserId, reviewTags: List[ReviewTag]): ConnectionIO[List[Int]] =
-    reviewTags.map(t => updateTagArticle(userId, t)).sequenceU
 
 
   def tagArticle(userId: UserId, reviewTag: ReviewTag): ConnectionIO[Int] =
     unsafeTagArticleQ(userId, reviewTag).exceptSomeSqlState{
       case UNIQUE_VIOLATION => updateTagArticle(userId, reviewTag)
     }
+
+  def updateTagsForArticle(userId: UserId, reviewTags: List[ReviewTag]): ConnectionIO[List[Int]] =
+    reviewTags.map(t => tagArticle(userId, t)).sequenceU
 
 
   def usersSummaryDataQ : Query0[UserArticle] = sql"""
