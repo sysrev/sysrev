@@ -38,9 +38,9 @@ trait RouteHelpers{ this : ApiStack with ResultWrapSupport with FutureSupport =>
     *
     * @return an immediate task wrapping an error result.
     */
-  def errorTask : Task[ErrorResult[Any]] = Task.now(ErrorResult("BadRequest"))
+  def errorTask : Task[ErrorResult[Any]] = Task.now(ErrorResult("Bad request"))
 
-  def handleOT(action: Option[Task[Any]]): Future[Result] = action.getOrElse(errorTask).map(Result apply _).runFuture
+  def handleOT(action: Option[Task[Any]]): Future[Any] = action.map(_.map(Result apply _)).getOrElse(errorTask).runFuture
 
   def getOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = get(route: _*)(handleOT(action))
 
