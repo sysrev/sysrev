@@ -61,14 +61,17 @@
   ([obj] (show-debug-box "" obj)))
 
 (defn debug-box [arg & args]
-  (when debug (apply show-debug-box arg args)))
+  (apply show-debug-box arg args))
+
+(defn scrollTop []
+  (. js/window (scrollTo 0 0)))
 
 
 (defn nav!
   "takes a function which returns a route to navigate to"
   [to-route-f]
-  (pushy/set-token! history (to-route-f)))
-
+  (pushy/set-token! history (to-route-f))
+  (scrollTop))
 
 ;; The classification task is driven by a vector holding articles
 ;; Articles received from the server are inserted to the right.
