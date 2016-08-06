@@ -112,10 +112,11 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
   }
 
   getOT("/label-task/:num"){
+    val greaterThanScore : Double = params.get("greaterThanScore").flatMap(_.parseDouble.toOption).getOrElse(0.0)
     for {
       _ <- userOption
       num <- params("num").parseInt.toOption.getOrElse(5) |> (Option apply _)
-      qres <- data.Queries.getLabelingTaskByHighestRank(num) |> (Option apply _)
+      qres <- data.Queries.getLabelingTaskByHighestRank(num, greaterThanScore) |> (Option apply _)
       res <- qres.map(_.map{
               case WithArticleId(aid, WithScore(art, score)) => LabelingTaskItem(aid, score, art)
              }) |> (Option apply _)

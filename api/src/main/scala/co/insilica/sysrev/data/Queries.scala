@@ -62,18 +62,26 @@ object Queries{
     })
   }
 
-  def getLabelingTaskByHighestRankQ(num: Long = 10) : Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
+  /**
+    * Score in the database represents a distance. Low is good.
+    * @param num
+    * @param greaterThanScore - return articles with worse scores than this.
+    * @return
+    */
+  def getLabelingTaskByHighestRankQ(num: Long = 10, greaterThanScore: Double = 0.0) : Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
     select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls,
            _2 as score
     from article
     left join article_criteria using (article_id)
     left join article_ranking on _1 = article_id
-    where criteria_id is null
+    where criteria_id is null and _2 > $greaterThanScore
     order by score asc
     limit $num
   """.query
 
-  def getLabelingTaskByHighestRank(num :Long = 10) : ConnectionIO[List[WithArticleId[WithScore[ArticleWithoutKeywords]]]] =
-    getLabelingTaskByHighestRankQ(num).list
+
+
+  def getLabelingTaskByHighestRank(num :Long = 10, greaterThanScore: Double = 0.0) : ConnectionIO[List[WithArticleId[WithScore[ArticleWithoutKeywords]]]] =
+    getLabelingTaskByHighestRankQ(num, greaterThanScore).list
 
 }
