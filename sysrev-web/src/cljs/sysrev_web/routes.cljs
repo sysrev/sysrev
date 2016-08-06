@@ -210,7 +210,7 @@
 (defn pull-label-tasks
   ([interval handler after-score]
    (ajax-get (str "/api/label-task/" interval)
-             {:greaterThanScore (str after-score)}
+             (when-not (nil? after-score) {:greaterThanScore after-score})
              (fn [response]
                (let [result (:result response)]
                  (notify (str "Fetched " (count result) " more articles"))
@@ -222,7 +222,7 @@
    (let [cur-len (count (label-queue))
          deficit (- min-length cur-len)
          fetch-num (if (> deficit 0) (max deficit interval) 0)
-         max-dist-score (:score (last (label-queue)))]
+         max-dist-score (if (empty? (label-queue)) nil (:score (last (label-queue))))]
      (when (> fetch-num 0)
        (println (str "fetching scores greater than " max-dist-score))
        (pull-label-tasks fetch-num label-queue-right-append max-dist-score))))
