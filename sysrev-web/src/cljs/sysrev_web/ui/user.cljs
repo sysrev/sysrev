@@ -4,9 +4,9 @@
             [sysrev-web.react.components :refer [link]]))
 
 (defn user []
-  (let [display-user-id (:user (:display-id @state))
+  (let [display-user-id (:display-id (:user @state))
         userArticles (:users @server-data)
-        userArticle (first (filter (fn [u] (= display-user-id (get-in [:user :id] u))) userArticles))
+        userArticle (first (filter (fn [u] (= display-user-id (-> u :user :id))) userArticles))
         user (:t (:user userArticle))
         articlesUnsorted (:articles userArticle)
         articles (sort-by :score articlesUnsorted)

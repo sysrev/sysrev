@@ -110,7 +110,7 @@
 
 (defroute user "/user/:id" [id]
           (pull-initial-data)
-          (swap! state assoc-in [:user :display-id] id)
+          (swap! state assoc-in [:user :display-id] (js/parseInt id))
           (set-page! :user))
 
 (defroute classify "/classify" []
