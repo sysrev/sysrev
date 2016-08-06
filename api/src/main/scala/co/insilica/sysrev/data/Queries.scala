@@ -51,6 +51,7 @@ object Queries{
     left join article using (article_id)
     left join article_ranking on _1 = article_id
     where criteria_id = 1
+    order by id asc
   """.query[UserArticle]
 
 
