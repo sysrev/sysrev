@@ -24,24 +24,27 @@
      [radio-button #(change-handler true) (true? curval) "Yes"]]))
 
 (defn criteria-block [handler]
-  (fn [handler]
-    (let [criteria (:criteria @server-data)
-          ;; Initial state is nil for each criteria id.
-          criteria-ids (keys criteria)
-          criteria-state (r/atom (zipmap criteria-ids (repeat (count criteria-ids) nil)))
-          make-handler (fn [cid]
-                           #((swap! criteria-state assoc cid %)
-                             (handler @criteria-state)))]
-      [:div.ui.sixteen.wide.column.segment
-       (doall
-         (->>
-           criteria
-           (map (fn [[cid criterion]]
-                  ^{:key (name cid)}
-                  [:div.ui.two.column.middle.aligned.grid
-                   [:div.left.aligned.column (:questionText criterion)]
-                   [:div.right.aligned.column
-                    [three-state-selection (make-handler cid) (cid @criteria-state)]]]))))])))
+  (let [criteria (:criteria @server-data)
+        criteria-ids (keys criteria)
+        criteria-state (r/atom (zipmap criteria-ids (repeat nil)))]
+    (fn [handler]
+      (let [make-handler (fn [cid]
+                             #(do (swap! criteria-state assoc cid %)
+                                  (println (str "change " cid " to " %))
+                                  (handler @criteria-state)))]
+        [:div.ui.sixteen.wide.column.segment
+         [debug-box @criteria-state]
+         (doall
+           (->>
+             criteria
+             (map (fn [[cid criterion]]
+                    ^{:key (name cid)}
+                    [:div.ui.two.column.middle.aligned.grid
+                     [:div.left.aligned.column (:questionText criterion)]
+                     [:div.right.aligned.column
+                      [three-state-selection (make-handler cid) (cid @criteria-state)]]]))))]))))
+
+
 
 
 (defn navigate []
