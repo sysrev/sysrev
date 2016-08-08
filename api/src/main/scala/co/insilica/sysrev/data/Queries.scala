@@ -30,16 +30,16 @@ object Queries{
     tagArticleQ(userId, reviewTag).withUniqueGeneratedKeys("article_criteria_id")
 
   def updateTagArticle(userId: UserId, reviewTag: ReviewTag) : ConnectionIO[Int] = updateTagArticleQ(userId, reviewTag).run
-
-
-
+  
   def tagArticle(userId: UserId, reviewTag: ReviewTag): ConnectionIO[Int] =
+    // Todo: how to set save point here, in case this function is being used multiple times within the same
+    // transaction? not working -> HC.setSavepoint *>
     unsafeTagArticleQ(userId, reviewTag).exceptSomeSqlState{
       case UNIQUE_VIOLATION => HC.rollback *> updateTagArticle(userId, reviewTag)
     }
 
-  def updateTagsForArticle(userId: UserId, reviewTags: List[ReviewTag]): ConnectionIO[List[Int]] =
-    reviewTags.map(t => tagArticle(userId, t)).sequenceU
+  def updateTagsForArticle(userId: UserId, reviewTags: List[ReviewTag]): List[ConnectionIO[Int]] =
+    reviewTags.map(t => tagArticle(userId, t))
 
 
   def usersSummaryDataQ : Query0[UserArticle] = sql"""

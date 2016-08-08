@@ -96,8 +96,11 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
   postOT("/tag")((userOption |@| parsedBody.extractOpt[ReviewTag])((u, r) => data.Queries.tagArticle(u.id, r).transact(tx)))
 
   postOT("/tags")((userOption |@| parsedBody.extractOpt[Tags])((u, ts) =>
-      data.Queries.updateTagsForArticle(u.id, ts.tags).transact(tx))
-  )
+    // Doing this as N different transactions. There should be a way to sequence first and then transact,
+    // doing the update as a single transaction. Right now, making this switch causes only the last item
+    // to get updated.
+    data.Queries.updateTagsForArticle(u.id, ts.tags).map(_.transact(tx)).sequenceU
+  ))
 
   getOT("/users")(userOption *> Option(data.Queries.usersSummaryData.transact(tx)))
 
