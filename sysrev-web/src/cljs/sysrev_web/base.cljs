@@ -127,3 +127,29 @@
     (when-not (nil? head)
       (label-queue-left-append [head])  ;; This is expensive for large queue.
       (label-skipped-pop))))
+
+;Slavish copy from stack overflow, get the position of occurence of regex, and the match.
+;Modified though to use a sorted map so we can have the result sorted by index.
+;https://stackoverflow.com/questions/18735665/how-can-i-get-the-positions-of-regex-matches-in-clojurescript
+(defn re-pos [re s]
+  (let [re (js/RegExp. (.-source re) "g")]
+    (loop [res (sorted-map)]
+      (if-let [m (.exec re s)]
+        (recur (assoc res (.-index m) (first m)))
+        res))))
+
+(defn map-values
+  "Map a function over the values of a collection of pairs (vector of vectors, hash-map, etc.) Optionally accept
+  a result collection to put values into."
+  ([m f rescoll]
+   (into rescoll (->> m (map (fn [[k v]] [k (f v)])))))
+  ([m f]
+   (map-values m f {})))
+
+
+(defn current-user-data []
+  (let [display-user-id (:display-id (:user @state))
+        user-pred (fn [u] (= display-user-id (-> u :user :id)))
+        all-users (:users @server-data)]
+    (first (filter user-pred all-users))))
+

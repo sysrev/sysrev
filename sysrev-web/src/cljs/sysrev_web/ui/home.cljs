@@ -6,6 +6,7 @@
             [cljs.pprint :as pprint :refer [cl-format]]
             [sysrev-web.ui.base :refer [out-link]]
             [sysrev-web.react.components :refer [link]]
+            [sysrev-web.ui.content :refer [abstract]]
             [reagent.core :as r]))
 
 
@@ -36,6 +37,7 @@
                 (str criteria-name ": " answer-str)]])))))]]]))
 
 
+
 (defn similarity-card
   "Shows an article with a representation of its match quality and how it
   has been manually classified"
@@ -49,7 +51,7 @@
         [criteria-detail criteria article-id])]
      [:div.content
       [:div.header (:title article)]
-      [:div.content (:abs article)]
+      [abstract (:abs article)]
       [:div.content.ui.list
        (map-indexed
          (fn [idx url]
