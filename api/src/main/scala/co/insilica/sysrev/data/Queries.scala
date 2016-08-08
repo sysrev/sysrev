@@ -35,7 +35,7 @@ object Queries{
 
   def tagArticle(userId: UserId, reviewTag: ReviewTag): ConnectionIO[Int] =
     unsafeTagArticleQ(userId, reviewTag).exceptSomeSqlState{
-      case UNIQUE_VIOLATION => updateTagArticle(userId, reviewTag)
+      case UNIQUE_VIOLATION => HC.rollback *> updateTagArticle(userId, reviewTag)
     }
 
   def updateTagsForArticle(userId: UserId, reviewTags: List[ReviewTag]): ConnectionIO[List[Int]] =
