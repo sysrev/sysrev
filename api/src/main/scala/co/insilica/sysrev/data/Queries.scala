@@ -22,7 +22,7 @@ object Queries{
 
   def updateTagArticleQ(userId: UserId, reviewTag: ReviewTag): Update0 = sql"""
     update article_criteria
-    set answer = ${reviewTag.value}
+    set answer = ${reviewTag.value}, updated_time = now()
     where article_id = ${reviewTag.articleId} and criteria_id = ${reviewTag.criteriaId} and user_id = ${userId}
   """.update
 
