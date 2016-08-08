@@ -30,10 +30,8 @@
     (fn [handler]
       (let [make-handler (fn [cid]
                              #(do (swap! criteria-state assoc cid %)
-                                  (println (str "change " cid " to " %))
                                   (handler @criteria-state)))]
         [:div.ui.sixteen.wide.column.segment
-         [debug-box @criteria-state]
          (doall
            (->>
              criteria
