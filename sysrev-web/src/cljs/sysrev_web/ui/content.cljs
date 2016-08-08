@@ -3,6 +3,16 @@
             [clojure.string :refer [capitalize]]
             [clojure.core.reducers :refer [fold]]))
 
+
+; React's "dangerouslySetInnerHTML" capability, as suggested here:
+; https://github.com/reagent-project/reagent/issues/14
+; Our text data uses <sup> frequently, so this is mainly for that.
+(defn dangerous
+  ([comp content]
+   (dangerous comp nil content))
+  ([comp props content]
+   [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))
+
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
   (let [group-header #"([A-Z]\S+):"
@@ -47,9 +57,9 @@
 (defn abstract [text]
   (let [secs (sections text)]
     [:div
-     [:p (first secs)]
+     [dangerous :p (first secs)]
      (->> (rest secs)
           (map-indexed
             (fn [idx [name text]]
               ^{:key idx}
-              [:p [:strong (capitalize name)] ": " text])))]))
+              [:p [:strong (capitalize name)] ": " (dangerous :span text)])))]))
