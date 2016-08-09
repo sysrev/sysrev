@@ -3,7 +3,10 @@ package sysrev
 package relationalImporter
 
 import dataProvider.TaskFutureOps._
-import relationalImporter.Types._
+
+import queries._
+import queries.Types._
+
 import doobie.imports._
 
 import scala.concurrent.Future

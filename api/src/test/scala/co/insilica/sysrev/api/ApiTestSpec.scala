@@ -4,8 +4,8 @@ package api
 import co.insilica.apistack.test.{PostSupport, SuiteJsonSupport}
 import co.insilica.auth.Login
 import co.insilica.sysrev.data.UserArticles
-import co.insilica.sysrev.relationalImporter.CriteriaResponse
-import co.insilica.sysrev.relationalImporter.Types.{ArticleId, CriteriaId}
+import co.insilica.sysrev.relationalImporter.queries.CriteriaResponse
+import co.insilica.sysrev.relationalImporter.queries.Types.{ArticleId, CriteriaId}
 import org.scalatest._
 import org.scalatra.test.scalatest.ScalatraSuite
 import language.implicitConversions

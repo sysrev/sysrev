@@ -7,7 +7,8 @@ import scalaz._
 import Scalaz._
 
 
-case class AuthorList(names: List[String])
+case class
+AuthorList(names: List[String])
 case class Contributors(authors: Option[AuthorList]){
   def names : List[String] = authors.map(_.names).getOrElse(Nil)
 }

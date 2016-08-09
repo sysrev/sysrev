@@ -5,8 +5,9 @@ import co.insilica.auth.Types.UserId
 import co.insilica.auth.{User, ErrorResult, AuthStack, AuthServlet}
 import co.insilica.apistack.{ApiStack, Result, ResultWrapSupport}
 import co.insilica.sysrev.data.{Tags, ReviewTag}
-import co.insilica.sysrev.relationalImporter.Types.{ArticleId, WithArticleId, WithCriteriaId}
+import co.insilica.sysrev.relationalImporter.queries.Types.{ArticleId, WithArticleId, WithCriteriaId}
 import co.insilica.sysrev.relationalImporter._
+import queries._
 
 import org.scalatra._
 import doobie.imports._

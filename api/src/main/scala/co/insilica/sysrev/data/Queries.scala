@@ -1,8 +1,8 @@
 package co.insilica.sysrev.data
 
 import co.insilica.auth.Types.{WithId, UserId}
-import co.insilica.sysrev.relationalImporter.{WithScore, ArticleWithoutKeywords}
-import co.insilica.sysrev.relationalImporter.Types.WithArticleId
+import co.insilica.sysrev.relationalImporter.queries.{WithScore, ArticleWithoutKeywords}
+import co.insilica.sysrev.relationalImporter.queries.Types.WithArticleId
 import doobie.imports._
 
 // Need this import for resolving postgres arrays into scala seqs.

@@ -3,7 +3,7 @@ package csvimporter
 
 import java.io.{File, FileInputStream, InputStreamReader}
 
-import co.insilica.sysrev.relationalImporter.Types.{CriteriaId, ArticleId}
+import co.insilica.sysrev.relationalImporter.queries.Types.{CriteriaId, ArticleId}
 import collection.JavaConverters._
 
 import com.opencsv.CSVReader

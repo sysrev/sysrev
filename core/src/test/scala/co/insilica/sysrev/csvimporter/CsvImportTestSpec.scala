@@ -4,7 +4,7 @@ package csvimporter
 
 import java.io.File
 
-import co.insilica.sysrev.relationalImporter.Types.{WithArticleId, ArticleId}
+import co.insilica.sysrev.relationalImporter.queries.Types.{WithArticleId, ArticleId}
 import org.scalatest._
 import scala.concurrent.Future
 import scalaz._
