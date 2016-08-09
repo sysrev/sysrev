@@ -3,7 +3,6 @@ package co.insilica.sysrev
 import co.insilica.dataProvider.mongo._
 import reactivemongo.bson.{BSONDocumentReader, BSONDocument}
 
-import scala.concurrent.ExecutionContext
 import scalaz._
 import Scalaz._
 

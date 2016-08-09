@@ -3,12 +3,8 @@ package indexing
 
 import co.insilica.dataProvider.pg.{DBConfig => PgConfig}
 
-import co.insilica.sysrev.spark
 import co.insilica.sysrev.spark.ConfigContext
-import org.apache.spark.ml.{Pipeline, Transformer}
-import org.apache.spark.ml.feature.{VectorAssembler, HashingTF, IDF, Tokenizer}
-import org.apache.spark.mllib.linalg.{SparseVector, Vectors}
-import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, RowMatrix}
+import org.apache.spark.ml.feature.{VectorAssembler}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SQLContext, SaveMode, DataFrame, Row}
 
@@ -16,9 +12,7 @@ import spark.readers.dataFrameBuilder
 
 import scalaz._
 import Scalaz._
-import breeze.math._
 import breeze.linalg._
-import breeze.numerics._
 
 import spark.Types.SparkVector
 

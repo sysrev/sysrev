@@ -1,8 +1,6 @@
 package co.insilica.sysrev
 package api
 
-
-import co.insilica.apistack.Result
 import co.insilica.apistack.test.{PostSupport, SuiteJsonSupport}
 import co.insilica.auth.Login
 import co.insilica.sysrev.data.UserArticles
