@@ -65,4 +65,10 @@ object SysrevConfig{
       override def customFileName: String = ".insilica/sysrev/config.json"
     }
   }
+
+  def apply(filename: String) : SysrevConfig = new SysrevConfig{
+    lazy val fileHandler: ConfigFileHandler[Config] = new ConfigFileHandler[Config]{
+      override def customFileName: String = filename
+    }
+  }
 }

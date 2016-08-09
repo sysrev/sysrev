@@ -52,11 +52,10 @@ trait RouteHelpers{ this : ApiStack with ResultWrapSupport with FutureSupport =>
     get(route: _*)(action.map(Result apply _).getOrElse(errorResult))
 }
 
-/**
-  * Remember: Type aliases lead to infinite loops and hanging behavior in json4s.
-  */
+
 class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport with RouteHelpers {
-  val tx = SysrevConfig.default.transactor
+  implicit val cfg = SysrevConfig(".insilica/sysrev/config_api.json")
+  val tx = cfg.transactor
   override protected implicit lazy val transactor: Transactor[Task] = tx
 
   type WithUserId[T] = co.insilica.auth.Types.WithId[T]
