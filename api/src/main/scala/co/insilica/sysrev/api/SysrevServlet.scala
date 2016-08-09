@@ -61,12 +61,12 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
   type WithUserId[T] = co.insilica.auth.Types.WithId[T]
   val WithUserId = co.insilica.auth.WithAnyId
 
-  def getRankedPage(p: Int = 0) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
+  def getRankedPage(p: Long = 0L) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
     Queries.rankedArticlesPage(p).transact(tx).map{ xs =>
       xs.map(WithArticleId.unapply(_).get).toMap
     }
 
-  getT("/ranking/:page")(params("page").parseInt.toOption.map(getRankedPage).getOrElse(getRankedPage(0)))
+  getT("/ranking/:page")(params("page").parseLong.toOption.map(getRankedPage).getOrElse(getRankedPage(0)))
 
   getT("/ranking")(getRankedPage(0))
 
@@ -107,7 +107,7 @@ class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport 
     val greaterThanScore : Double = params.get("greaterThanScore").flatMap(_.parseDouble.toOption).getOrElse(0.0)
     for {
       _ <- userOption
-      num <- params("num").parseInt.toOption.getOrElse(5) |> (Option apply _)
+      num <- params("num").parseLong.toOption.getOrElse(5L) |> (Option apply _)
       qres <- data.Queries.getLabelingTaskByHighestRank(num, greaterThanScore) |> (Option apply _)
       res <- qres.map(_.map{
               case WithArticleId(aid, WithScore(art, score)) => LabelingTaskItem(aid, score, art)
