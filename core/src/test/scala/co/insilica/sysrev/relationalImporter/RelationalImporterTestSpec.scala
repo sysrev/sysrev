@@ -1,9 +1,10 @@
-package co.insilica.sysrev.relationalImporter
+package co.insilica.sysrev
+package relationalImporter
 
 import org.scalatest._
-import co.insilica.sysrev.Implicits._
 
 class RelationalImporterTestSpec extends AsyncFlatSpec with Matchers {
+  import TestConfig._
 
   // "All keywords"
   ignore should "be imported to pg" in {

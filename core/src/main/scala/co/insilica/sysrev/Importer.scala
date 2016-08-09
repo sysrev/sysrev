@@ -1,13 +1,12 @@
 package co.insilica
 package sysrev
 
-import Implicits._
 import co.insilica.dataProvider.mongo.bson.XmlToBsonConfig
 import dataProvider.mongo.connectAsync
-import dataProvider.mongo.connection.Implicits.config._
 import dataProvider.mongo.bson.fromXml._
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.bson.{BSONDocument, BSONArray, BSONString}
+import co.insilica.dataProvider.mongo.connection.Implicits.config._
 
 import scala.concurrent.{Future, ExecutionContext}
 import scala.xml.{Node, XML}
@@ -40,10 +39,11 @@ object Importer{
   /**
     * Import systemreview data into the mongo collection
     */
-  def importData(implicit ec: ExecutionContext): Future[Option[List[WriteResult]]] = {
+  def importData(collectionName: String)(implicit ec: ExecutionContext, ctx : SysrevConfig): Future[Option[List[WriteResult]]] = {
+    import ctx._
     val o : Option[Future[List[WriteResult]]] = config.citationsURL.map { fileUrl =>
       for {
-        c <- connectAsync("sysrev")
+        c <- connectAsync(collectionName)
         ds <- Future((XML.load(fileUrl) \\ "record").toList)
         r <- ds.flatMap(docFromNode(_) map (s => List(c.insert(s))) getOrElse Nil).sequenceU
       } yield r

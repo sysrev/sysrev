@@ -1,6 +1,8 @@
 package co.insilica.sysrev.spark
 
 import java.util.Properties
+import co.insilica.dataProvider.pg.{DBConfig => PgConfig}
+import co.insilica.sysrev.{SysrevConfig, Config}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, DataFrameReader, SQLContext}
@@ -8,30 +10,37 @@ import scala.language.implicitConversions
 
 import scalaz._
 
-import co.insilica.sysrev.Implicits.config.pg
+trait ConfigContext[C] {
+  implicit def config: Config
+  implicit val context: C
+  implicit def pg = config.pg
+}
 
 object readers {
   type ScReader[T] = Reader[SparkContext, T]
-  type SQLReader[T] = Reader[SQLContext, T]
+  type ConfigSQL = ConfigContext[SQLContext]
+  type ConfigSQLReader[T] = Reader[ConfigSQL, T]
 
-  type SQLTransaction[T] = SQLReader[T]
+
   def contextReader : ScReader[SparkContext] = Reader(identity)
-  def withSqlContext : SQLReader[SQLContext] = Reader(identity)
+  def withContext : ConfigSQLReader[ConfigSQL] = Reader(identity)
+  type SQLTransaction[T] = ConfigSQLReader[T]
 
-  val opts = Map(
-    "url" -> s"jdbc:postgresql://${pg.hostPort}/${pg.dbName}",
+  def opts(implicit config : PgConfig) = Map(
+    "url" -> s"jdbc:postgresql://${config.hostPort}/${config.dbName}",
     "driver" -> "org.postgresql.Driver",
-    "user" -> pg.name,
-    "password" -> pg.password
+    "user" -> config.name,
+    "password" -> config.password
   )
 
-  def props = {
+  def props(implicit config : PgConfig) = {
     val p = new Properties()
     opts.foreach{ case (k, v) => p.setProperty(k, v) }
     p
   }
 
-  def dataFrameBuilder : SQLReader[String => DataFrame] = Reader{ context => tableName =>
+  def dataFrameBuilder : ConfigSQLReader[String => DataFrame] = Reader{ ctx => tableName =>
+    import ctx._
     context.read
     .format("jdbc")
     .options(opts + ("dbtable" -> tableName))

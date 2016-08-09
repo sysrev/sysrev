@@ -4,8 +4,6 @@ package csvimporter
 
 import java.io.File
 
-import Implicits._
-
 import co.insilica.sysrev.relationalImporter.Types.{WithArticleId, ArticleId}
 import org.scalatest._
 import scala.concurrent.Future
@@ -16,7 +14,7 @@ import dataProvider.TaskFutureOps._
 
 
 class CsvImportTestSpec extends AsyncFlatSpec with Matchers{
-  val tx = Implicits.transactor
+  import TestConfig._
 
   val criteriaCsv: File = new File(config.dataRootPath.get, config.criteriaCsvFileName)
 
@@ -36,6 +34,6 @@ class CsvImportTestSpec extends AsyncFlatSpec with Matchers{
       CsvImport.linkArticleByTitleWithCriteria(r.title.trim().dropRight(1), r.criteria)
     }
 
-    jobs.sequenceU.transact(tx).runFuture.map(_.sum should equal (rs.length * Criteria.nameMap.size))
+    jobs.sequenceU.transact(transactor).runFuture.map(_.sum should equal (rs.length * Criteria.nameMap.size))
   }
 }

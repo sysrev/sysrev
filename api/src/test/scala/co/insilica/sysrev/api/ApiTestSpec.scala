@@ -17,7 +17,7 @@ case class UserStatusResult(result: List[UserArticles])
 
 class ApiTestSpec extends ScalatraSuite with FlatSpecLike with Matchers with SuiteJsonSupport with PostSupport {
   override implicit val jsonFormats = DefaultFormats
-  implicit lazy val transactor = Implicits.transactor
+  implicit lazy val transactor = TestConfig.transactor
 
   def okStatus = status should equal (200)
 

@@ -12,10 +12,6 @@
         "name": "postgres",
         "password": ""
     },
-    "solr": {
-        "hostPort": "localhost:8983",
-        "coreName": "ct-core"
-    },
     "citationsXmlFileName": "citations.xml",
     "criteriaCsvFileName": "criteria.csv"
 }

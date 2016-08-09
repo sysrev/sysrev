@@ -1,19 +1,21 @@
 package co.insilica.sysrev
 package indexing
 
+import co.insilica.dataProvider.pg.{DBConfig => PgConfig}
+
 import co.insilica.sysrev.spark
+import co.insilica.sysrev.spark.ConfigContext
 import org.apache.spark.ml.{Pipeline, Transformer}
 import org.apache.spark.ml.feature.{VectorAssembler, HashingTF, IDF, Tokenizer}
 import org.apache.spark.mllib.linalg.{SparseVector, Vectors}
 import org.apache.spark.mllib.linalg.distributed.{CoordinateMatrix, RowMatrix}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{SaveMode, DataFrame, Row}
+import org.apache.spark.sql.{SQLContext, SaveMode, DataFrame, Row}
 
 import spark.readers.dataFrameBuilder
 
 import scalaz._
 import Scalaz._
-import Implicits.config.pg
 import breeze.math._
 import breeze.linalg._
 import breeze.numerics._
@@ -36,8 +38,8 @@ object Fingerprint {
     *    left join criteria using (criteria_id)
     *    where name = 'overall include' or name is null
     */
-  def queryForDataFrame: SQLTransaction[DataFrame] = withSqlContext map { context =>
-    val makeDf = dataFrameBuilder(context)
+  def queryForDataFrame: SQLTransaction[DataFrame] = withContext map { ctx =>
+    val makeDf = dataFrameBuilder(ctx)
 
     val articleDf = makeDf("article")
     val articleCriteriaDf = makeDf("article_criteria")
@@ -146,9 +148,9 @@ object Fingerprint {
     _ |> fillNullValues |> sysrevTfidfTransform |> rankTransform
   )
 
-  def rankedDf: SQLTransaction[DataFrame] = withSqlContext map { context =>
-    import context.implicits._
-    rankJob(context).toDF
+  def rankedDf: SQLTransaction[DataFrame] = withContext map { ctx =>
+    import ctx.context.implicits._
+    rankJob(ctx).toDF
   }
 
 
@@ -162,6 +164,13 @@ object Test extends App{
   import spark.Implicits.submit._
   import spark.readers._
   type Extractor = Row => String => String
+
+
+  implicit val ctx = new ConfigContext[SQLContext] {
+    implicit def config : Config = SysrevConfig.default.config
+    implicit val context : SQLContext = spark.Implicits.local.getSqlContext
+  }
+
 
   val textDelim = "\"\"\""
   def delimText(s: String): String = textDelim + s + textDelim
@@ -185,9 +194,9 @@ object Test extends App{
     csvRdd.saveAsTextFile(location)
   }
 
-  def saveDb(rdd: RDD[(Row, Double)]) : SQLTransaction[Unit] = withSqlContext map { context =>
+  def saveDb(rdd: RDD[(Row, Double)]) : SQLTransaction[Unit] = withContext map { ctx =>
+    import ctx._
     import context.implicits._
-    import Implicits.config.pg
 
     val newDf = rdd.map {
       case (r, score) =>

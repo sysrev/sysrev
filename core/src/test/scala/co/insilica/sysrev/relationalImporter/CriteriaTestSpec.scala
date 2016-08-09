@@ -3,7 +3,6 @@ package sysrev
 package relationalImporter
 
 import dataProvider.TaskFutureOps._
-import Implicits._
 import relationalImporter.Types._
 import doobie.imports._
 
@@ -15,7 +14,7 @@ import org.scalatest._
 
 
 class CriteriaTestSpec extends AsyncFlatSpec with Matchers {
-  val tx = Implicits.transactor
+  import TestConfig._
 
 
   // "Known criteria"

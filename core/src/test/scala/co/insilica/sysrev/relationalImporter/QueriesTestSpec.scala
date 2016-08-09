@@ -13,7 +13,7 @@ import doobie.imports._
 import co.insilica.dataProvider.TaskFutureOps._
 
 class QueriesTestSpec extends FlatSpec with Matchers with AnalysisSpec {
-  implicit val transactor = Implicits.transactor
+  implicit val transactor = TestConfig.transactor
   import scala.concurrent.ExecutionContext.Implicits.global
 
   "Article body queries" should "typecheck" in

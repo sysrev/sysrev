@@ -2,28 +2,31 @@ package co.insilica
 package sysrev
 package indexing
 
-import Implicits._
+
 import co.insilica.dataProvider.mongo.connection.Implicits.config._
 import dataProvider.mongo.connectAsync
 import play.api.libs.iteratee.Iteratee
-import QueryEnv._
 import scala.concurrent.{Future, ExecutionContext}
-import Types._
+import co.insilica.sysrev.Types._
+import co.insilica.dataProvider.mongo.{Config => MongoConfig}
 
-object sysrevImporter extends Importer{
-  def collection(implicit ec: ExecutionContext) = connectAsync("sysrev")
+object sysrevImporter {
+  def apply()(implicit config: MongoConfig): Importer = new Importer{
+    def collection(implicit ec: ExecutionContext) = connectAsync("sysrev")
+  }
 }
 
 object DocIndex {
-  def all[T]()(implicit env: QueryEnv[T]): Future[List[T]] = {
+
+  def all[T]()(implicit env: QueryEnv[T], config: MongoConfig): Future[List[T]] = {
     import env._
-    sysrevImporter.select().flatMap{ enum =>
+    sysrevImporter().select().flatMap{ enum =>
       enum |>>> Iteratee.getChunks
     }
   }
 
-  def index()(implicit ec: ExecutionContext) : Future[Seq[SysRev]] = {
-    sysrevImporter.select[SysRev]().flatMap{ enum =>
+  def index()(implicit ec: ExecutionContext, config: MongoConfig) : Future[Seq[SysRev]] = {
+    sysrevImporter().select[SysRev]().flatMap{ enum =>
       enum |>>> Iteratee.takeUpTo(5)
     }
   }

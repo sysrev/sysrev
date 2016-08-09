@@ -1,4 +1,5 @@
-package co.insilica.sysrev.data
+package co.insilica.sysrev
+package data
 
 import doobie.util.transactor.Transactor
 import org.scalatest._
@@ -8,7 +9,7 @@ import scalaz.concurrent.Task
 
 
 class QueriesTestSpec extends FlatSpec with AnalysisSpec {
-  override def transactor: Transactor[Task] = co.insilica.sysrev.Implicits.transactor
+  override def transactor: Transactor[Task] = TestConfig.transactor
 
   val tag = ReviewTag(1, 2, Some(true))
 

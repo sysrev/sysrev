@@ -24,7 +24,7 @@ case class CurrentUser(id: UserId, user: User)
 case class LabelingTaskItem(article_id: Int, score: Double, article: ArticleWithoutKeywords)
 
 class SysrevAuthServlet extends AuthServlet{
-  override protected implicit lazy val transactor: Transactor[Task] = Implicits.transactor
+  override protected implicit lazy val transactor: Transactor[Task] = SysrevConfig.default.transactor
 }
 
 
@@ -56,7 +56,7 @@ trait RouteHelpers{ this : ApiStack with ResultWrapSupport with FutureSupport =>
   * Remember: Type aliases lead to infinite loops and hanging behavior in json4s.
   */
 class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport with RouteHelpers {
-  val tx = Implicits.transactor
+  val tx = SysrevConfig.default.transactor
   override protected implicit lazy val transactor: Transactor[Task] = tx
 
   type WithUserId[T] = co.insilica.auth.Types.WithId[T]
