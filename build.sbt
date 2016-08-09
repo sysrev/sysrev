@@ -36,12 +36,17 @@ val postgresDeps = Seq(
 
 lazy val scalaSettings = Seq(
   scalacOptions ++= Seq(
+    "-deprecation",
     "-encoding", "UTF-8", // 2 args
     "-feature",
+    "-target:jvm-1.8",
     "-unchecked",
     "-Xlint",
+    "-Xfuture",
     "-Yno-adapted-args",
     "-Ywarn-dead-code",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-unused",
     "-Ywarn-value-discard"
   )
 )
