@@ -21,7 +21,8 @@ case class ArticleWithoutKeywords(
   work_type: Option[String],
   rdn: Option[String],
   year: Option[Int],
-  urls: Option[List[String]]
+  urls: Option[List[String]],
+  documentIds: Option[List[String]]
 )
 
 case class WithScore[T](item: T, score: Double)
@@ -40,8 +41,8 @@ object Queries {
       */
     def articleBody(a: Article): Update0 =
       sql"""
-      insert into article (primary_title, secondary_title, abstract, work_type, remote_database_name, year, authors, urls)
-      values (${a.primaryTitle}, ${a.secondaryTitle}, ${a.sysRev.docabstract}, ${a.work_type}, ${a.remoteDatabaseName}, ${a.year}, ${a.authors}, ${a.urls})
+      insert into article (primary_title, secondary_title, abstract, work_type, remote_database_name, year, authors, urls, document_ids)
+      values (${a.primaryTitle}, ${a.secondaryTitle}, ${a.sysRev.docabstract}, ${a.work_type}, ${a.remoteDatabaseName}, ${a.year}, ${a.authors}, ${a.urls}, ${a.documentIds})
     """.update
 
     def criteria(c: Criteria): Update0 =
@@ -50,13 +51,13 @@ object Queries {
       values (${c.name}, ${c.questionText}, ${c.isExclusion}, ${c.isInclusion})
     """.update
 
+
+    def keywordsQ: Update[String] = Update[String]("insert into keyword (keyword_text) values (?)")
+
     /**
       * Insert many keywords into database
       */
-    def keywords(kwds: List[String]): ConnectionIO[Int] = {
-      val sql = "insert into keyword (keyword_text) values (?)"
-      Update[String](sql).updateMany(kwds)
-    }
+    def keywords(kwds: List[String]): ConnectionIO[Int] = keywordsQ.updateMany(kwds)
 
     def addCriteriaAnswer(aid: ArticleId, cid: CriteriaId, value: Boolean): Update0 =
       sql"""
@@ -69,7 +70,7 @@ object Queries {
     def articleBodyByTitlePrefix(tp: String): Query0[WithArticleId[ArticleWithoutKeywords]] = {
       val q = s"$tp%"
       sql"""
-       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls
+       select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids
        from article
        where primary_title ilike $q
      """.query[WithArticleId[ArticleWithoutKeywords]]
@@ -108,7 +109,7 @@ object Queries {
 
 
     def articlesWithCriteriaAnswer(cid: CriteriaId): Query0[(WithArticleId[ArticleWithoutKeywords], Option[Boolean])] = sql"""
-      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, answer
+      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids, answer
       from article
       left join article_criteria using (article_id)
       where criteria_id = $cid
@@ -116,7 +117,7 @@ object Queries {
 
     def rankedArticlesAll(start: Long = 0, numrows: Long = 200): Query0[ScoredArticle] =
       sql"""
-      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids, _2 as score
       from article
       left join article_ranking on _1 = article_id
       order by score asc
@@ -127,7 +128,7 @@ object Queries {
 
     def rankedArticlesAllWithAbstracts(start: Long = 0, numrows: Long = 200): Query0[ScoredArticle] =
       sql"""
-      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+      select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids, _2 as score
       from article
       left join article_ranking on _1 = article_id
       where (abstract = '') is not true
@@ -142,7 +143,7 @@ object Queries {
       implicit val param = Param.many(hasCriteria)
 
       sql"""
-        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, documentIds, _2 as score
         from article
         left join article_ranking on _1 = article_id
         left join article_criteria using (article_id)
@@ -170,7 +171,7 @@ object Queries {
       implicit val param = Param.many(articleIds)
 
       sql"""
-        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids, _2 as score
         from article
         left join article_ranking on _1 = article_id
         where article_id in (${articleIds: articleIds.type})
@@ -180,7 +181,7 @@ object Queries {
     def textSearch(text: String): Query0[ScoredArticle] = {
       val searchTerms = s"%$text%"
       sql"""
-        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, _2 as score
+        select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids, _2 as score
         from article
         left join article_ranking on _1 = article_id
         where primary_title ilike $searchTerms or abstract ilike $searchTerms
@@ -223,7 +224,8 @@ object Queries {
         ad.rdn,
         ad.year,
         None,
-        ad.urls.getOrElse(Nil)))
+        ad.urls.getOrElse(Nil),
+        ad.documentIds.getOrElse(Nil)))
 
     r.run
   }

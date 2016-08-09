@@ -44,7 +44,7 @@ object Queries{
 
   def usersSummaryDataQ : Query0[UserArticle] = sql"""
     select              id, email, profileid,
-                        article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls,
+                        article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids,
                         answer, _2 as score
     from site_user
     left join article_criteria on id = user_id and criteria_id = 1
@@ -71,7 +71,7 @@ object Queries{
     * @return
     */
   def getLabelingTaskByHighestRankQ(num: Long = 10, greaterThanScore: Double = 0.0) : Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
-    select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls,
+    select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, docuemnt_ids,
            _2 as score
     from article
     left join article_criteria using (article_id)

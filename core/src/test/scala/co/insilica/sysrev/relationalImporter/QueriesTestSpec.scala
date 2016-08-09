@@ -16,6 +16,20 @@ class QueriesTestSpec extends FlatSpec with Matchers with AnalysisSpec {
   implicit val transactor = TestConfig.transactor
   import scala.concurrent.ExecutionContext.Implicits.global
 
+  val article = Article(SysRev(Titles("First", Option("second")), Option("hi"), Nil), Nil, None, None, None, None, Nil, Nil)
+
+  "Article body insert" should "typecheck" in
+    check(Queries.insert.articleBody(article))
+
+  "Criteria insert" should "typecheck" in
+    check(Queries.insert.criteria(Criteria.knownCriteria.head))
+
+  "Criteria answer insert" should "typecheck" in
+    check(Queries.insert.addCriteriaAnswer(2, 1, true))
+
+  "Keyword insert" should "typecheck" in
+    check(Queries.insert.keywordsQ)
+
   "Article body queries" should "typecheck" in
     check(Queries.select.articleBodyByTitlePrefix("hello"))
 

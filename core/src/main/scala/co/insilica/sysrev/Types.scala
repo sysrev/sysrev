@@ -21,6 +21,19 @@ case class RelatedUrls(us: Option[UrlList]){
   def urls : List[String] = us.map(_.urls).getOrElse(Nil)
 }
 
+case class PdfUrls(us: Option[UrlList]){
+  import PdfUrls._
+  def urls: List[String] = us.map(_.urls).getOrElse(Nil)
+  def pdfidFileNames: List[(String, String)] = urls.collect{
+    case PdfUrl(id, filename) => (id, filename)
+  }
+  def pdfIds = pdfidFileNames.map(_._1)
+}
+
+object PdfUrls{
+  val PdfUrl = """internal-pdf://([^/)+/(\S+)""".r
+}
+
 case class Titles(title: String, secondaryTitle: Option[String])
 case class SysRev(titles: Titles, docabstract: Option[String], keywords: List[String])
 case class Article(
@@ -30,7 +43,8 @@ case class Article(
   remoteDatabaseName: Option[String],
   year: Option[Int],
   pubDates: Option[String],
-  urls: List[String]
+  urls: List[String],
+  documentIds: List[String]
 ){
   def primaryTitle: String = sysRev.titles.title
   def secondaryTitle: Option[String] = sysRev.titles.secondaryTitle
@@ -59,6 +73,8 @@ object Types {
 
   implicit val urlsListReader = makeReader { bson => UrlList(bson.getAs[List[String]]("url").getOrElse(Nil)) }
   implicit val relatedUrlsReader = makeReader { bson => RelatedUrls(bson.getAs[UrlList]("related-urls")) }
+  implicit val pdfUrlsReader = makeReader { bson => PdfUrls(bson.getAs[UrlList]("pdf-urls")) }
+
 
   implicit val sysRevProjector = new Projector[SysRev]{ def apply() = BSONDocument("abstract" -> 1, "keywords" -> 1, "titles" -> 1)}
 
@@ -87,7 +103,8 @@ object Types {
       bson.getAs[String]("remote-database-name"),
       ds.flatMap(_.year),
       ds.flatMap(_.date),
-      bson.getAs[RelatedUrls]("urls").map(_.urls).getOrElse(Nil)
+      bson.getAs[RelatedUrls]("urls").map(_.urls).getOrElse(Nil),
+      bson.getAs[PdfUrls]("urls").map(_.pdfIds).getOrElse(Nil)
     )
   }
 

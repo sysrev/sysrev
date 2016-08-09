@@ -12,7 +12,7 @@ import co.insilica.dataProvider.mongo.{Config => MongoConfig}
 
 object sysrevImporter {
   def apply()(implicit config: MongoConfig): Importer = new Importer{
-    def collection(implicit ec: ExecutionContext) = connectAsync("sysrev")
+    def collection(implicit ec: ExecutionContext) = connectAsync("Citations")
   }
 }
 

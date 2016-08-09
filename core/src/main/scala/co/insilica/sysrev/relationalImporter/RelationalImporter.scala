@@ -33,8 +33,8 @@ object RelationalImporter {
   def all(implicit ec: ExecutionContext, tx: Transactor[Task], cfg : MongoConfig): Future[Unit] = {
     val articles: Future[Enumerator[Article]] = indexing.sysrevImporter().select[Article]()
     articles.flatMap(_ |>>> Iteratee.foreach[Article]{ article =>
-      val res: Int = Queries.insertArticle(article).transact(tx).run
-      println(res)
+      Queries.insertArticle(article).transact(tx).run
+      ()
     })
   }
 }

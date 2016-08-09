@@ -19,7 +19,7 @@ class CriteriaTestSpec extends AsyncFlatSpec with Matchers {
 
   // "Known criteria"
   ignore should "be inserted" in {
-    val r : Future[List[CriteriaId]] = relationalImporter.Types.Criteria.knownCriteria.map{ c =>
+    val r : Future[List[CriteriaId]] = Criteria.knownCriteria.map{ c =>
       Queries.insertCriteria(c).transact(tx).runFuture
     }.sequenceU
 
