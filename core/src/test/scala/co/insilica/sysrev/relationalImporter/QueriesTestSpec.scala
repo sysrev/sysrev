@@ -32,6 +32,9 @@ class QueriesTestSpec extends FlatSpec with Matchers with AnalysisSpec {
   "Keyword insert" should "typecheck" in
     check(insert.keywordsQ)
 
+  "DocumentIds update" should "typecheck" in
+    check(update.updateArticleWithDocumentIdsAndAuthors(1, List("hi"), List("hi2")))
+
   "Article body queries" should "typecheck" in
     check(select.articleBodyByTitlePrefix("hello"))
 

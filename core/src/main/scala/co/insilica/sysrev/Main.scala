@@ -25,5 +25,24 @@ object RelationalImporterMain extends App{
   println("Starting with config")
   println(default.config)
 
+
+  println("Applying destructive database operations in 5 seconds")
+  Thread.sleep(5000)
+
   Await.result(RelationalImporter.all, Duration.Inf)
+}
+
+object DocumentIdsUpdateMain extends App {
+  import SysrevConfig.default
+  implicit val tx = default.transactor
+  implicit val cfg = default.config.mongo
+
+  println("Starting with config")
+  println(default.config)
+
+  println("Applying destructive database operations in 5 seconds")
+  Thread.sleep(5000)
+
+  Await.result(RelationalImporter.augmentWithDocumentIdsAndAuthors, Duration.Inf)
+
 }

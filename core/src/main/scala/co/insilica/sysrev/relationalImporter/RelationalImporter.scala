@@ -36,14 +36,27 @@ object RelationalImporter {
 
   def all(implicit ec: ExecutionContext, tx: Transactor[Task], cfg : MongoConfig): Future[Unit] = {
     allArticles.flatMap(_ |>>> Iteratee.foreach[Article]{ article =>
-      Queries.insertArticle(article).transact(tx).unsafePerformSync
-      ()
+      try {
+        Queries.insertArticle(article).transact(tx).unsafePerformSync
+        ()
+      } catch {
+        case e : Throwable => println(e)
+      }
     })
   }
 
-  def augmentWithDocumentIds(implicit ec: ExecutionContext, tx: Transactor[Task], cfg: MongoConfig): Future[Unit] = {
+  /* Special purpose, first import missed authors, and didn't have document_ids.
+    */
+  def augmentWithDocumentIdsAndAuthors(implicit ec: ExecutionContext, tx: Transactor[Task], cfg: MongoConfig): Future[Unit] = {
     allArticles.flatMap(_ |>>> Iteratee.foreach[Article]{ article =>
-      Queries.articleBodyByTitlePrefix(article.primaryTitle)
+      Queries.articleBodyByTitlePrefix(article.primaryTitle).flatMap{ indexArticles =>
+        indexArticles.map{
+          case WithAnyId(id, indexArticle) =>
+            val curids = indexArticle.documentIds.getOrElse(Nil)
+            val curauthors = indexArticle.authors.getOrElse(Nil)
+            Queries.augmentArticleWithDocumentIdsAndAuthors(id, curids ++ article.documentIds, curauthors ++ article.authors)
+        }.sequenceU
+      }.transact(tx).unsafePerformSync
       ()
     })
   }

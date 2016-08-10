@@ -20,7 +20,7 @@ object Queries {
   def rankedArticlesPageFilterCriteria(criteriaIds: List[CriteriaFilter]): ConnectionIO[List[ScoredArticle]] =
     criteriaIds.toNel.map(select.rankedArticlesPageFilterCriteria(_).list).getOrElse(List[ScoredArticle]().point[ConnectionIO])
 
-  def insertArticleBody(a: Article): ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("criteria_id")
+  def insertArticleBody(a: Article): ConnectionIO[CriteriaId] = insert.articleBody(a).withUniqueGeneratedKeys("article_id")
 
   def articleBodyByTitlePrefix(tp: String): ConnectionIO[List[WithArticleId[ArticleWithoutKeywords]]] =
     select.articleBodyByTitlePrefix(tp).list
@@ -88,6 +88,10 @@ object Queries {
       case (acc, _) => acc
     })
   }
+
+  def augmentArticleWithDocumentIdsAndAuthors(articleId: ArticleId, documentIds: List[String], authors: List[String]) : ConnectionIO[Int] =
+    update.updateArticleWithDocumentIdsAndAuthors(articleId, documentIds, authors).run
+
 
   def articlesById(ids: List[ArticleId]) : ConnectionIO[List[ScoredArticle]] =
     ids.toNel.map {
