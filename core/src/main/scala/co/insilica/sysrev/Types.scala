@@ -1,7 +1,7 @@
 package co.insilica.sysrev
 
 import co.insilica.dataProvider.mongo._
-import reactivemongo.bson.{BSONDocumentReader, BSONDocument}
+import reactivemongo.bson._
 
 import scalaz._
 import Scalaz._
@@ -25,14 +25,16 @@ case class RelatedUrls(us: Option[UrlList]){
 case class PdfUrls(us: Option[UrlList]){
   import PdfUrls._
   def urls: List[String] = us.map(_.urls).getOrElse(Nil)
+
   def pdfidFileNames: List[(String, String)] = urls.collect{
     case PdfUrl(id, filename) => (id, filename)
   }
+
   def pdfIds = pdfidFileNames.map(_._1)
 }
 
 object PdfUrls{
-  val PdfUrl = """internal-pdf://([^/)+/(\S+)""".r
+  val PdfUrl = """internal-pdf://([^/]+)/(.+)""".r
 }
 
 case class Titles(title: String, secondaryTitle: Option[String])
@@ -53,9 +55,20 @@ case class Article(
 
 
 object Types {
-  def makeReader[T](f : BSONDocument => T): BSONDocumentReader[T] = new BSONDocumentReader[T]{
+  def makeReader[T](f : BSONDocument => T): BSONDocumentReader[T] = new BSONDocumentReader[T] {
     def read(bson: BSONDocument): T = f(bson)
   }
+
+  def makeWriter[T](f: T => BSONDocument) : BSONDocumentWriter[T] = new BSONDocumentWriter[T] {
+    def write(t: T): BSONDocument = f(t)
+  }
+
+// Should be able to make this generic
+//  def getList[T, V <: BSONValue](bson: BSONDocument)(name : String)(implicit reader : BSONReader[V, T]): List[T] =
+//    bson.getAs[List[T]](name).orElse(bson.getAs[T](name).map(List apply _)).getOrElse(Nil)
+
+  def getList(bson: BSONDocument)(name : String): List[String] =
+      bson.getAs[List[String]](name).orElse(bson.getAs[String](name).map(List apply _)).getOrElse(Nil)
 
   implicit val titleReader = makeReader { bson =>
     Titles(
@@ -72,18 +85,17 @@ object Types {
     )
   }
 
-  implicit val urlsListReader = makeReader { bson => UrlList(bson.getAs[List[String]]("url").getOrElse(Nil)) }
+  // TODO: Handle single url here correctly.
+  implicit val urlsListReader = makeReader { bson => UrlList(getList(bson)("url")) }
   implicit val relatedUrlsReader = makeReader { bson => RelatedUrls(bson.getAs[UrlList]("related-urls")) }
   implicit val pdfUrlsReader = makeReader { bson => PdfUrls(bson.getAs[UrlList]("pdf-urls")) }
 
 
   implicit val sysRevProjector = new Projector[SysRev]{ def apply() = BSONDocument("abstract" -> 1, "keywords" -> 1, "titles" -> 1)}
 
-  implicit val authorListReader = makeReader{ bson =>
-    AuthorList(bson.getAs[List[String]]("author").getOrElse(Nil))
-  }
+  implicit val authorListReader = makeReader(bson => AuthorList(getList(bson)("author")))
 
-  implicit val contributorsReader = makeReader(b => Contributors(b.getAs[AuthorList]("author")(authorListReader)))
+  implicit val contributorsReader = makeReader(b => Contributors(b.getAs[AuthorList]("authors")(authorListReader)))
 
   implicit val pubDatesReader = makeReader(b => PubDates(b.getAs[String]("date")))
 
