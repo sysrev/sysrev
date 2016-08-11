@@ -7,8 +7,8 @@
             [sysrev-web.ui.base :refer [out-link]]
             [sysrev-web.react.components :refer [link]]
             [sysrev-web.ui.content :refer [dangerous abstract]]
-            [reagent.core :as r]))
-
+            [reagent.core :as r]
+            [clojure.string :refer [join]]))
 
 (defn similarity-bar [score percent]
   (fn [score percent]
@@ -37,6 +37,24 @@
                 (str criteria-name ": " answer-str)]])))))]]]))
 
 
+(defn truncated-list [num coll]
+  (let [show-list (take num coll)]
+    (when-not (empty? coll)
+      [:div.ui.list
+       (doall
+         (->> show-list
+              (map-indexed
+                (fn [idx item]
+                  ^{:key idx}
+                  (if (and (= idx (- num 1)) (< (count show-list) (count coll)))
+                    [:div.item (str item " et al")]
+                    [:div.item item])))))])))
+
+(defn truncated-horizontal-list [num coll]
+  (let [show-list (take num coll)
+        display (join ", " show-list)
+        extra (when (> (count coll) num) " et al")]
+    (str display extra)))
 
 (defn similarity-card
   "Shows an article with a representation of its match quality and how it
@@ -51,6 +69,8 @@
         [criteria-detail criteria article-id])]
      [:div.content
       [dangerous :div.header (:title article)]
+      (when-not (empty? (:authors article))
+        [:p (truncated-horizontal-list 5 (:authors article))])
       [abstract (:abs article)]
       [:div.content.ui.list
        (map-indexed
