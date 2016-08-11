@@ -24,12 +24,4 @@ object DocIndex {
       enum |>>> Iteratee.getChunks
     }
   }
-
-  def index()(implicit ec: ExecutionContext, config: MongoConfig) : Future[Seq[SysRev]] = {
-    sysrevImporter().select[SysRev]().flatMap{ enum =>
-      enum |>>> Iteratee.takeUpTo(5)
-    }
-  }
 }
-
-

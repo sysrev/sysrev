@@ -3,12 +3,13 @@ name := "sysrev"
 version := "0.0.1-SNAPSHOT"
 
 val Organization = "co.insilica"
-val ScalaVersion = "2.11.8"
+val sv = "2.11.8"
 val scalatraVersion = "2.4.1"
 val doobieVersion = "0.3.0"
-val scalazVersion = "7.2.4"
+val scalazVersion = "7.2.0"   // matched with doobieversion
 val reactiveMongoVersion = "0.11.14"
 
+scalaVersion := sv
 
 val scalatraDeps = Seq(
   // Scalatra:
@@ -19,16 +20,16 @@ val scalatraDeps = Seq(
   "org.scalatra" %% "scalatra-json" % scalatraVersion,
   "org.scalatra" %% "scalatra-auth" % scalatraVersion,
   "org.scalatra" %% "scalatra-test" % scalatraVersion,
-  "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
+//  "javax.servlet" % "javax.servlet-api" % "3.1.0",
   "org.scalatra" %% "scalatra-scalatest" % scalatraVersion,
 
   // Scala library and reflect, needed by scalate now...
-  "org.scala-lang" % "scala-reflect" % ScalaVersion,
-  "org.scala-lang" % "scala-compiler" % ScalaVersion
+  "org.scala-lang" % "scala-reflect" % sv,
+  "org.scala-lang" % "scala-compiler" % sv
 )
 
 val postgresDeps = Seq(
-  "org.postgresql" % "postgresql" % "9.4.1208",
+  "org.postgresql" % "postgresql" % "9.4-1201-jdbc41",    // tied to doobie version
   "org.tpolecat" %% "doobie-core"               % doobieVersion,
   "org.tpolecat" %% "doobie-contrib-postgresql" % doobieVersion,
   "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1"
@@ -68,7 +69,7 @@ val insilicaResolver = {
 
 lazy val buildSettings = Seq(
   organization := Organization,
-  scalaVersion := ScalaVersion,
+  scalaVersion := sv,
   resolvers ++= Seq(
     insilicaResolver,
     "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases",
@@ -86,12 +87,13 @@ val commonDependencySettings = Seq(
   "org.json4s"   %% "json4s-jackson" % "3.4.0",
 
   // test
-  "org.scalatest" %% "scalatest" % "3.0.0-RC4" % "test",
+  "org.scalatest" %% "scalatest" % "3.0.0" % "test",
   "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
 
   // files
   "com.lihaoyi" %% "upickle" % "0.4.1",
-
+  "com.opencsv" % "opencsv" % "3.8",
+  
   // Mongo
   "org.reactivemongo" %% "reactivemongo" % reactiveMongoVersion,
   "org.reactivemongo" %% "reactivemongo-iteratees" % reactiveMongoVersion,
@@ -99,12 +101,16 @@ val commonDependencySettings = Seq(
   // Doobie
   "org.tpolecat" %% "doobie-core"               % doobieVersion,
   "org.tpolecat" %% "doobie-contrib-postgresql" % doobieVersion,
-  "com.typesafe.play" %% "play-iteratees" % "2.4.6",
+
+  "com.typesafe.play" %% "play-iteratees" % "2.3.10", //reactivemongo version uses this.
   "org.scalaz" %% "scalaz-core" % scalazVersion,
 
   // Insilica internal projects:
   "co.insilica" %% "doobie-contrib-scalatest" % "0.1.1",
   "co.insilica" %% "data-provider" % "0.3.3",
+
+  // Auth requirement:
+  "de.svenkubiak" % "jBCrypt" % "0.4.1",
 
   "org.scala-lang.modules" % "scala-parser-combinators_2.11" % "1.0.4"
 ))
@@ -118,35 +124,8 @@ val apiSettings = Seq(
   )
 )
 
-val sparkSettings = Seq(
-  libraryDependencies ++= Seq(
-    // Spark Machine Learning
-    "org.apache.spark" % "spark-core_2.11" % "2.0.0",
-    "org.apache.spark" % "spark-sql_2.11" % "2.0.0",
-    "org.apache.spark" % "spark-mllib_2.11" % "2.0.0"
-  ),
-  dependencyOverrides += "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4"
-)
-
-val coreDataSettings = Seq(
-  libraryDependencies ++= Seq(
-    "com.opencsv" % "opencsv" % "3.8",
-
-    // Breeze matrix ops
-    "org.scalanlp" %% "breeze" % "0.12",
-    // native libraries are not included by default. add this if you want them (as of 0.7)
-    // native libraries greatly improve performance, but increase jar sizes.
-    // It also packages various blas implementations, which have licenses that may or may not
-    // be compatible with the Apache License. No GPL code, as best I know.
-    "org.scalanlp" %% "breeze-natives" % "0.12",
-    // the visualization library is distributed separately as well.
-    // It depends on LGPL code.
-    "org.scalanlp" %% "breeze-viz" % "0.12"
-  )
-)
-
 lazy val core = project.in(file("./core"))
-  .settings(commonSettings ++ sparkSettings ++ coreDataSettings)
+  .settings(commonSettings)
   .settings(name := "core")
   .settings(description := "")
   .settings(jarName in assembly := "sysrev-fingerprint_assembly.jar")
