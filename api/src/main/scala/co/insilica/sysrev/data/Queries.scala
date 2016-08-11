@@ -71,7 +71,7 @@ object Queries{
     * @return
     */
   def getLabelingTaskByHighestRankQ(num: Long = 10, greaterThanScore: Double = 0.0) : Query0[WithArticleId[WithScore[ArticleWithoutKeywords]]] = sql"""
-    select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, docuemnt_ids,
+    select article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids,
            _2 as score
     from article
     left join article_criteria using (article_id)
