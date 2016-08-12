@@ -24,37 +24,12 @@ case class CurrentUser(id: UserId, user: User)
 
 case class LabelingTaskItem(article_id: Int, score: Double, article: ArticleWithoutKeywords)
 
-class SysrevAuthServlet extends AuthServlet{
+class SysrevAuthServlet extends AuthServlet {
   override protected implicit lazy val transactor: Transactor[Task] = SysrevConfig.default.transactor
 }
 
 
-/**
-  * Add-ons for ResultWrapSupport to handle Options of tasks. Common situation with unauthenticated users for example.
-  *
-  */
-trait RouteHelpers{ this : ApiStack with ResultWrapSupport with FutureSupport =>
-  /**
-    * Error task to be run, to return message indicating failure.  Override to send custom error.
-    *
-    * @return an immediate task wrapping an error result.
-    */
-  def errorResult : ErrorResult[Any] = ErrorResult("Bad request")
-
-  def errorTask : Task[ErrorResult[Any]] = Task.now(errorResult)
-
-  def handleOT(action: Option[Task[Any]]): Future[Any] = action.map(_.map(Result apply _)).getOrElse(errorTask).runFuture
-
-  def getOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = get(route: _*)(handleOT(action))
-
-  def postOT(route: RouteTransformer*)(action: => Option[Task[Any]]): Route = post(route: _*)(handleOT(action))
-
-  def getO(route: RouteTransformer*)(action: => Option[Any]): Route =
-    get(route: _*)(action.map(Result apply _).getOrElse(errorResult))
-}
-
-
-class SysrevServlet extends AuthStack with FutureSupport with ResultWrapSupport with RouteHelpers {
+class SysrevServlet extends AuthStack {
   implicit val cfg = SysrevConfig(".insilica/sysrev/config_api.json")
   val tx = cfg.transactor
   override protected implicit lazy val transactor: Transactor[Task] = tx
