@@ -83,7 +83,7 @@ class SysrevServlet extends AuthStack {
     val greaterThanScore : Double = params.get("greaterThanScore").flatMap(_.parseDouble.toOption).getOrElse(0.0)
     for {
       _ <- userOption
-      num <- params("num").parseLong.toOption.getOrElse(5L) |> (Option apply _)
+      num <- params("num").parseLong.toOption.orElse(Option(5L))
       qres <- data.Queries.getLabelingTaskByHighestRank(num, greaterThanScore) |> (Option apply _)
       res <- qres.map(_.map{
               case WithArticleId(aid, WithScore(art, score)) => LabelingTaskItem(aid, score, art)
