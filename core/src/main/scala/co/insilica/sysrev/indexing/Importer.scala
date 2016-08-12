@@ -5,6 +5,7 @@ package indexing
 import co.insilica.dataProvider.mongo.{Projector, InsilicaCollection}
 import play.api.libs.iteratee.Enumerator
 import reactivemongo.bson.{BSONDocumentReader, BSONDocumentWriter, BSONDocument}
+import reactivemongo.play.iteratees.cursorProducer
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.{Future, ExecutionContext}
@@ -51,6 +52,6 @@ trait Importer {
     */
   def select[T, Q](q: Q)(implicit env : QueryEnv[T], qw : BSONDocumentWriter[Q]) : Future[Enumerator[T]] = {
     import env._
-    collection.map(_.find(q, env.projector()).cursor[T]().enumerate())
+    collection.map(_.find(q, env.projector()).cursor[T]().enumerator())
   }
 }
