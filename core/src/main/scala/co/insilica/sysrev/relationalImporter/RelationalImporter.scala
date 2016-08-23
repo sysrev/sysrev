@@ -49,8 +49,8 @@ object RelationalImporter {
     */
   def augmentWithDocumentIdsAndAuthors(implicit ec: ExecutionContext, tx: Transactor[Task], cfg: MongoConfig): Future[Unit] = {
     allArticles.flatMap(_ |>>> Iteratee.foreach[Article]{ article =>
-      Queries.articleBodyByTitlePrefix(article.primaryTitle).flatMap{ indexArticles =>
-        indexArticles.map{
+      Queries.articleBodyByTitlePrefix(article.primaryTitle).flatMap { indexArticles =>
+        indexArticles.map {
           case WithAnyId(id, indexArticle) =>
             val curids = indexArticle.documentIds.getOrElse(Nil)
             val curauthors = indexArticle.authors.getOrElse(Nil)
