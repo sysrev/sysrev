@@ -8,6 +8,16 @@ In the future, it will do much more.
 
 See resources/config.json. For now it is just using mongo and the data paths.
 
+Structure
+===
+This project is divided among two git repositories.
+
+* `systematic_review`
+    * `/api` Manages a web interface, depends on jetty/scalatra.
+    * `/core` Contains importing functionality and entity relationship functions. This way, `core` should be releasable without any dependencies on jetty, so the second repository for spark can use it.
+* `systematic_review_spark`
+    Contains all the spark functionality which dump databases that the web ui can reference.
+
 Outline
 ==========
 1. We have ~20,000 articles loaded into mongo database *SystematicReview* collection *sysrev*.  These are loaded from endnote file **PMP1C_Master.enlx**
