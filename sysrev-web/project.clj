@@ -43,7 +43,7 @@
      :compiler {:main "sysrev-web.main"
                 :output-to "resources/public/out-dev/sysrev_web.js"
                 :output-dir "resources/public/out-dev"
-                :asset-path "out-dev"
+                :asset-path "/out-dev"
 ;;                :preloads      [devtools.preload]
                 :optimizations :none
                 :pretty-print true
@@ -54,7 +54,7 @@
      :compiler {:main "sysrev-web.main"
                 :output-to "resources/public/out-production/sysrev_web.js"
                 :output-dir "resources/public/out-production"
-                :asset-path "out-production"
+                :asset-path "/out-production"
                 :closure-defines {goog.DEBUG false}
                 :optimizations :advanced
                 :pretty-print false
