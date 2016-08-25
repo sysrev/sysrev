@@ -22,8 +22,8 @@ object insert {
 
   def criteria(c: Criteria): Update0 =
     sql"""
-      insert into criteria (name, question, is_exclusion, is_inclusion)
-      values (${c.name}, ${c.questionText}, ${c.isExclusion}, ${c.isInclusion})
+      insert into criteria (name, question, is_inclusion)
+      values (${c.name}, ${c.questionText}, ${c.isInclusion})
     """.update
 
 

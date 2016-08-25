@@ -1,5 +1,7 @@
 package co.insilica.sysrev.relationalImporter.queries
 
+import scalaz._
+import Scalaz._
 import Types._
 
 case class WithAnyId[I, T](id: I, t: T)
@@ -43,18 +45,17 @@ object Types {
 case class Criteria(
   name: String,
   questionText: String,
-  isInclusion: Boolean,
-  isExclusion: Boolean
+  isInclusion: Option[Boolean]
 )
 
 object Criteria{
   def knownCriteria: List[Criteria] = List(
-    Criteria("overall include", "Include?", true, false),
-    Criteria("not cancer", "Not related to cancer? (Yes if not related)", false, true),
-    Criteria("not human", "Not a human study? (Yes if not a human study)", false, true),
-    Criteria("not clinical trial", "Not a clinical trial? (Yes if not a clinical trial", false, true),
-    Criteria("not phase 1", "Not a phase 1 trial? (Yes if not a phase 1 trial", false, true),
-    Criteria("not immunotherapy", "Not immunotherapy? (Yes if not immunotherapy)", false, true),
-    Criteria("conference abstract", "Conference abstract? (Yes if conference abstract", false, true)
+    Criteria("overall include", "Include?",  true.some),
+    Criteria("not cancer", "Not related to cancer? (Yes if not related)", false.some),
+    Criteria("not human", "Not a human study? (Yes if not a human study)", false.some),
+    Criteria("not clinical trial", "Not a clinical trial? (Yes if not a clinical trial", false.some),
+    Criteria("not phase 1", "Not a phase 1 trial? (Yes if not a phase 1 trial", false.some),
+    Criteria("not immunotherapy", "Not immunotherapy? (Yes if not immunotherapy)", false.some),
+    Criteria("conference abstract", "Conference abstract? (Yes if conference abstract", false.some)
   )
 }

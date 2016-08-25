@@ -41,8 +41,9 @@ object select {
   }
 
   def allCriteria(): Query0[WithCriteriaId[Criteria]] = sql"""
-      select criteria_id, name, question, is_exclusion, is_inclusion
+      select criteria_id, name, question, is_inclusion
       from criteria
+      order by criteria_id asc
       """.query[WithCriteriaId[Criteria]]
 
   def criteriaIdByName(name: String): Query0[CriteriaId] = sql"""

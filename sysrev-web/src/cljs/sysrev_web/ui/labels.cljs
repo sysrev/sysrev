@@ -7,9 +7,7 @@
     [:tr
      [:th "Name"]
      [:th "Question Text"]
-     [:th "Inclusion"]
-     [:th "Exclusion"]
-     [:th "Number Articles"]]]
+     [:th "Required for inclusion"]]]
    [:tbody
     (doall
       (->>
@@ -20,6 +18,4 @@
             [:tr
              [:td (:name criteria)]
              [:td (:questionText criteria)]
-             [:td (str (:isInclusion criteria))]
-             [:td (str (:isExclusion criteria))]
-             [:td]]))))]])
+             [:td (if (true? (:isInclusion criteria))  "Yes" "No")]]))))]])
