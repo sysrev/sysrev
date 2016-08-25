@@ -1,5 +1,6 @@
 (ns sysrev-web.ui.classify
-  (:require [sysrev-web.base :refer [server-data
+  (:require [sysrev-web.base :refer [state
+                                     server-data
                                      label-queue
                                      label-queue-head
                                      debug-box
@@ -14,7 +15,6 @@
   (let [class (when set "primary")]
     [:div.ui.icon.button {:class class :on-click handler} child]))
 
-
 (defn three-state-selection [change-handler curval]
   ;; nil for unset, true, false
   (fn [change-handler curval]
@@ -25,25 +25,23 @@
 
 (defn criteria-block [handler]
   (let [criteria (:criteria @server-data)
-        criteria-ids (keys criteria)
-        criteria-state (r/atom (zipmap criteria-ids (repeat nil)))]
+        criteria-ids (keys criteria)]
     (fn [handler]
       (let [make-handler (fn [cid]
-                             #(do (swap! criteria-state assoc cid %)
-                                  (handler @criteria-state)))]
+                           #(do (swap! state assoc-in [:criteria cid] %)
+                                (handler (:criteria @state))))]
         [:div.ui.sixteen.wide.column.segment
          (doall
-           (->>
-             criteria
-             (map (fn [[cid criterion]]
-                    ^{:key (name cid)}
-                    [:div.ui.two.column.middle.aligned.grid
-                     [:div.left.aligned.column (:questionText criterion)]
-                     [:div.right.aligned.column
-                      [three-state-selection (make-handler cid) (cid @criteria-state)]]]))))]))))
-
-
-
+          (->>
+           criteria
+           (map (fn [[cid criterion]]
+                  ^{:key (name cid)}
+                  [:div.ui.two.column.middle.aligned.grid
+                   [:div.left.aligned.column (:questionText criterion)]
+                   [:div.right.aligned.column
+                    [three-state-selection
+                     (make-handler cid)
+                     (get-in @state [:criteria cid])]]]))))]))))
 
 (defn navigate []
   [:div.ui.buttons

@@ -7,6 +7,7 @@
             [cljs.pprint :refer [pprint]]))
 
 (defonce state (r/atom {:page 0
+                        :criteria {}
                         :ranking-page 0
                         ;; FIFO for notifications
                         :notifications #queue []
@@ -102,7 +103,8 @@
 (defn label-skipped-push
   "Put an article on top of the skipped stack."
   [head]
-  (swap! state update :label-skipped #(conj % head)))
+  (swap! state update :label-skipped #(conj % head))
+  (swap! state assoc :criteria {}))
 
 (defn label-skip
   "Take an article off of the front of the task queue, and put it on the skipped stack"
