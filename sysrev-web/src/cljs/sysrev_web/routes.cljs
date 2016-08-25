@@ -63,10 +63,9 @@
                 (let [mapified (:result response)]
                   (swap! server-data
                          #(assoc % :articles
-                                   (merge (:articles %) (:entries mapified))))
+                                 (merge (:articles %) (:entries mapified))))
                   (swap! server-data assoc-in
                          [:ranking :pages num] (:ids mapified)))))))
-
 
 (defn pull-users-data []
   (ajax-get "/api/users"
@@ -95,13 +94,14 @@
 (defroute register "/register" []
   (set-page! :register))
 
-
 ;; Below routes require login to function.
 ;; Todo: Redirect to / if not logged in.
 (defroute users "/users" []
-          (pull-initial-data)
-          (set-page! :users))
-
+  (pull-initial-data)
+  ;; Re-fetch :users data in case it has changed
+  (when (:users @server-data)
+    (pull-users-data))
+  (set-page! :users))
 
 (defroute current-user "/user" []
           (pull-initial-data)
