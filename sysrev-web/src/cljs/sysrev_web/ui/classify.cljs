@@ -24,24 +24,24 @@
      [radio-button #(change-handler true) (true? curval) "Yes"]]))
 
 (defn criteria-block [handler]
-  (let [criteria (:criteria @server-data)
-        criteria-ids (keys criteria)]
-    (fn [handler]
-      (let [make-handler (fn [cid]
-                           #(do (swap! state assoc-in [:criteria cid] %)
-                                (handler (:criteria @state))))]
-        [:div.ui.sixteen.wide.column.segment
-         (doall
-          (->>
-           criteria
-           (map (fn [[cid criterion]]
-                  ^{:key (name cid)}
-                  [:div.ui.two.column.middle.aligned.grid
-                   [:div.left.aligned.column (:questionText criterion)]
-                   [:div.right.aligned.column
-                    [three-state-selection
-                     (make-handler cid)
-                     (get-in @state [:criteria cid])]]]))))]))))
+  (fn [handler]
+    (let [criteria (:criteria @server-data)
+          criteria-ids (keys criteria)
+          make-handler (fn [cid]
+                         #(do (swap! state assoc-in [:criteria cid] %)
+                              (handler (:criteria @state))))]
+      [:div.ui.sixteen.wide.column.segment
+       (doall
+        (->>
+         criteria
+         (map (fn [[cid criterion]]
+                ^{:key (name cid)}
+                [:div.ui.two.column.middle.aligned.grid
+                 [:div.left.aligned.column (:questionText criterion)]
+                 [:div.right.aligned.column
+                  [three-state-selection
+                   (make-handler cid)
+                   (get-in @state [:criteria cid])]]]))))])))
 
 (defn navigate []
   [:div.ui.buttons
