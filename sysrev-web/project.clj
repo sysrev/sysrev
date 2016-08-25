@@ -29,7 +29,7 @@
             [lein-ancient "0.6.10"]
             [cider/cider-nrepl "0.12.0"]
             [refactor-nrepl "2.2.0"]
-            [lein-figwheel "0.5.3"]]
+            [lein-figwheel "0.5.4-7"]]
   :bower-dependencies [[jquery "3.1.0"]]
   :clean-targets ^{:protect false}
   ["resources/public/out-dev"
