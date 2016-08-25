@@ -37,7 +37,7 @@
          (map (fn [[cid criterion]]
                 ^{:key (name cid)}
                 [:div.ui.two.column.middle.aligned.grid
-                 [:div.left.aligned.column (:questionText criterion)]
+                 [:div.left.aligned.column (:question criterion)]
                  [:div.right.aligned.column
                   [three-state-selection
                    (make-handler cid)
