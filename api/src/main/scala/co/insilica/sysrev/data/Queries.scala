@@ -41,7 +41,8 @@ object Queries{
   def updateTagsForArticle(userId: UserId, reviewTags: List[ReviewTag]): List[ConnectionIO[Int]] =
     reviewTags.map(t => tagArticle(userId, t))
 
-
+  // TODO: Assumes global include flag will be correct and always have id 1.
+  // Obviously we shouldn't rely on the value of the id here.
   def usersSummaryDataQ : Query0[UserArticle] = sql"""
     select              id, email, profileid,
                         article_id, primary_title, secondary_title, abstract, authors, work_type, remote_database_name, year, urls, document_ids,
