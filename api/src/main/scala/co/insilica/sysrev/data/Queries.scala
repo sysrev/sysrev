@@ -84,8 +84,23 @@ object Queries{
   """.query
 
 
-
   def getLabelingTaskByHighestRank(num :Long = 10, greaterThanScore: Double = 0.0) : ConnectionIO[List[WithArticleId[WithScore[ArticleWithoutKeywords]]]] =
     getLabelingTaskByHighestRankQ(num, greaterThanScore).list
 
+  def responsesForArticleQ(aid: ArticleId) : Query0[WithUserId[CriteriaResponse]] = sql"""
+    select user_id, criteria_id, answer
+    from article_criteria
+    where article_id = $aid
+    order by user_id asc
+  """.query
+
+  def responsesForArticle(aid: ArticleId): ConnectionIO[Map[UserId, Map[CriteriaId, Boolean]]] =
+    responsesForArticleQ(aid).list.map { rs =>
+      val as: Map[UserId, List[CriteriaResponse]] = rs.groupBy(_.id).mapValues(_.map(_.t))
+
+      as.mapValues(_.collect{
+        case CriteriaResponse(id, Some(answer)) => (id, answer)
+      }.toMap)
+
+    }
 }

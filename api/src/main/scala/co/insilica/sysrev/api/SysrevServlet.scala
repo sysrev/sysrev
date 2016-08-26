@@ -41,6 +41,12 @@ class SysrevServlet extends AuthStack {
 
   getT("/search/:text")(Queries.textSearch(params("text")).transact(tx))
 
+  getOT("/article-labels/:articleId"){
+    params("articleId").parseInt.toOption.map ( id =>
+      data.Queries.responsesForArticle(id).transact(tx)
+    )
+  }
+
   /**
     * Returns a map articleid -> List[criteriaid, boolean]
     */

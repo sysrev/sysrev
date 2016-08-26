@@ -20,4 +20,6 @@ class QueriesTestSpec extends FlatSpec with AnalysisSpec {
   it should "typecheck user summary data query" in check(Queries.usersSummaryDataQ)
 
   it should "typecheck labeling task query" in check(Queries.getLabelingTaskByHighestRankQ(10))
+
+  it should "typecheck article responses query" in check(Queries.responsesForArticleQ(2))
 }
