@@ -2,22 +2,16 @@ package co.insilica.sysrev
 package api
 
 import co.insilica.auth.Types.UserId
-import co.insilica.auth.{User, ErrorResult, AuthStack, AuthServlet}
-import co.insilica.apistack.{ApiStack, Result, ResultWrapSupport}
-import co.insilica.sysrev.data.{Tags, ReviewTag}
-import co.insilica.sysrev.relationalImporter.queries.Types.{ArticleId, WithArticleId, WithCriteriaId}
+import co.insilica.auth.{AuthServlet, AuthStack, User}
+import co.insilica.sysrev.data.{ReviewTag, Tags}
+import co.insilica.sysrev.relationalImporter.queries.Types.{ArticleId, CriteriaId, WithArticleId, WithCriteriaId}
 import co.insilica.sysrev.relationalImporter._
 import queries._
-
-import org.scalatra._
 import doobie.imports._
 
-import scala.concurrent.Future
 import scalaz._
 import Scalaz._
 import scalaz.concurrent.Task
-
-import co.insilica.dataProvider.TaskFutureOps._
 
 case class ArticleIds(articleIds: List[ArticleId])
 case class CurrentUser(id: UserId, user: User)
@@ -33,9 +27,6 @@ class SysrevServlet extends AuthStack {
   implicit val cfg = SysrevConfig(".insilica/sysrev/config_api.json")
   val tx = cfg.transactor
   override protected implicit lazy val transactor: Transactor[Task] = tx
-
-  type WithUserId[T] = co.insilica.auth.Types.WithId[T]
-  val WithUserId = co.insilica.auth.WithAnyId
 
   def getRankedPage(p: Long = 0L) : Task[Map[ArticleId, WithScore[ArticleWithoutKeywords]]] =
     Queries.rankedArticlesPage(p).transact(tx).map{ xs =>

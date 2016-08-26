@@ -16,3 +16,7 @@ case class UserArticle(user: WithId[SimpleUser], article: ClassifiedArticle)
 case class UserArticles(user: WithId[SimpleUser], articles: List[ClassifiedArticle])
 
 
+object Types {
+  type WithUserId[T] = co.insilica.auth.Types.WithId[T]
+  val WithUserId = co.insilica.auth.WithAnyId
+}
