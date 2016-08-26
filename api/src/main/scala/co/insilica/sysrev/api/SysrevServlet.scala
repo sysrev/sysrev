@@ -42,7 +42,7 @@ class SysrevServlet extends AuthStack {
   getT("/search/:text")(Queries.textSearch(params("text")).transact(tx))
 
   getOT("/article-labels/:articleId"){
-    params("articleId").parseInt.toOption.map ( id =>
+    userOption *> params("articleId").parseInt.toOption.map ( id =>
       data.Queries.responsesForArticle(id).transact(tx)
     )
   }
