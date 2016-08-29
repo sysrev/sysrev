@@ -12,9 +12,16 @@
 
 (defn similarity-bar [score percent]
   (fn [score percent]
-    [:div.ui.tiny.blue.progress
-     [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
-      [:div.progress]]]))
+    [:div.ui.grid
+     [:div.ui.row
+      {:style {:padding-bottom "10px"}}
+      [:div.ui.twelve.wide.column
+       [:div.ui.tiny.blue.progress
+        [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
+         [:div.progress]]]]
+      [:div.ui.four.wide.column
+       [:div.right.aligned
+        (str "(" percent "% similarity to included articles)")]]]]))
 
 (defn criteria-detail [criteria article-id]
   (fn [criteria]
@@ -68,6 +75,7 @@
       (when-not (empty? criteria)
         [criteria-detail criteria article-id])]
      [:div.content
+      {:style {:padding-top "0px"}}
       [dangerous :h2.header (:title article)]
       [:h3.header (:title2 article)]
       (when-not (empty? (:authors article))
