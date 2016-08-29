@@ -63,21 +63,22 @@
   (fn [article criteria score percent]
     [:div.ui.fluid.card
      [:div.content
-       (when-not (nil? score)
-         [similarity-bar score percent])
-       (when-not (empty? criteria)
+      (when-not (nil? score)
+        [similarity-bar score percent])
+      (when-not (empty? criteria)
         [criteria-detail criteria article-id])]
      [:div.content
-      [dangerous :div.header (:title article)]
+      [dangerous :h2.header (:title article)]
+      [:h3.header (:title2 article)]
       (when-not (empty? (:authors article))
         [:p (truncated-horizontal-list 5 (:authors article))])
       [abstract (:abs article)]
       [:div.content.ui.list
        (map-indexed
-         (fn [idx url]
-           ^{:key idx}
-           [out-link url])
-         (-> article :urls))]]]))
+        (fn [idx url]
+          ^{:key idx}
+          [out-link url])
+        (-> article :urls))]]]))
 
 
 (defn ratings-list [page-num]
