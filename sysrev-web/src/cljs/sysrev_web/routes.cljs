@@ -47,6 +47,12 @@
                 (swap! server-data assoc
                        :criteria (:result response))))))
 
+(defn overall-include-id []
+  (->> @server-data :criteria keys
+       (filter #(= (:name (get-in @server-data [:criteria %]))
+                   "overall include"))
+       first))
+
 (defn pull-articles-criteria []
   (ajax-get "/api/allcriteria"
             (fn [response]
@@ -55,6 +61,14 @@
                 (swap! server-data assoc
                        :articles-criteria criteria)
                 (swap! server-data update :articles #(merge % articles))))))
+
+(defn pull-article-labels [aid & [handler]]
+  (ajax-get (str "/api/article-labels/" aid)
+            (fn [response]
+              (let [result (:result response)]
+                (swap! server-data update-in [:article-labels aid] #(merge % result))
+                (when handler
+                  (handler response))))))
 
 (defn pull-ranking-page [num]
   (when (nil? (get-in @server-data [:ranking :pages num]))

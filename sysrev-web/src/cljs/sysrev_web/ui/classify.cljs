@@ -7,7 +7,8 @@
                                      label-skip
                                      label-skipped-head
                                      label-load-skipped]]
-            [sysrev-web.routes :refer [label-queue-update send-tags]]
+            [sysrev-web.routes :refer [label-queue-update send-tags overall-include-id
+                                       pull-article-labels]]
             [sysrev-web.ui.home :refer [similarity-card]]
             [reagent.core :as r]))
 
@@ -25,31 +26,60 @@
 
 (defn criteria-block [handler]
   (fn [handler]
-    (let [criteria (:criteria @server-data)
-          criteria-ids (keys criteria)
-          make-handler (fn [cid]
-                         #(do (swap! state assoc-in [:criteria cid] %)
-                              (handler (:criteria @state))))]
-      [:div.ui.sixteen.wide.column.segment
-       (doall
-        (->>
-         criteria
-         (map (fn [[cid criterion]]
-                ^{:key (name cid)}
-                [:div.ui.two.column.middle.aligned.grid
-                 [:div.left.aligned.column (:questionText criterion)]
-                 [:div.right.aligned.column
-                  [three-state-selection
-                   (make-handler cid)
-                   (get-in @state [:criteria cid])]]]))))])))
+    (when-let [criteria (:criteria @server-data)]
+      (let [overall-id (overall-include-id)
+            criteria-ids (->> criteria keys (sort-by #(js/parseInt (name %)))
+                              (remove (partial = overall-id)))
+            make-handler (fn [cid]
+                           #(do (swap! state assoc-in [:criteria cid] %)
+                                (handler (:criteria @state))))]
+        [:div
+         [:div.ui.sixteen.wide.column.segment
+          (doall
+           (->>
+            criteria-ids
+            (map (fn [cid]
+                   (let [criterion (get criteria cid)]
+                     ^{:key (name cid)}
+                     [:div.ui.two.column.middle.aligned.grid
+                      [:div.left.aligned.column (:questionText criterion)]
+                      [:div.right.aligned.column
+                       [three-state-selection
+                        (make-handler cid)
+                        (get-in @state [:criteria cid])]]])))))]
+         (let [cid overall-id
+               criterion (get criteria overall-id)]
+           ^{:key (name cid)}
+           [:div.ui.sixteen.wide.column.segment
+            [:div.ui.two.column.middle.aligned.grid
+             [:div.left.aligned.column (:questionText criterion)]
+             [:div.right.aligned.column
+              [three-state-selection
+               (make-handler cid)
+               (get-in @state [:criteria cid])]]]])]))))
+
+(defn update-active-criteria []
+  (let [aid (:article_id (label-queue-head))
+        uid (-> @server-data :user :id str keyword)]
+    (pull-article-labels
+     aid
+     (fn [response]
+       (let [result (-> response :result uid)]
+         (swap! state assoc :criteria result))))))
 
 (defn navigate []
   [:div.ui.buttons
    (when-not (nil? (label-skipped-head))
-     [:div.ui.secondary.left.icon.button {:on-click label-load-skipped}
+     [:div.ui.secondary.left.icon.button
+      {:on-click (fn []
+                   (label-load-skipped)
+                   (update-active-criteria))}
       [:i.left.arrow.icon]
       "Previous"])
-   [:div.ui.primary.right.icon.button {:on-click label-skip}
+   [:div.ui.primary.right.icon.button
+    {:on-click (fn []
+                 (label-skip)
+                 (update-active-criteria))}
     "Next"
     [:i.right.arrow.icon]]])
 
