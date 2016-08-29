@@ -93,6 +93,7 @@
           aid (:article_id adata)
           criteria-change-handler (fn [st] (send-tags aid st))]
       [:div.ui.grid.container
+       {:style {:padding-bottom "24px"}}
        [:h2 "Article data"]
        [similarity-card article nil score percent aid]
        [:div.two.column.row
