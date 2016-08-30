@@ -28,7 +28,7 @@
           (fn [{cid :id answer :answer}]
             (let [ck (-> cid str keyword)
                   criteria-name
-                    (get-in @server-data [:criteria ck :name])
+                  (get-in @server-data [:criteria ck :name])
                   answer-str (case answer
                                nil "unknown"
                                (str answer))]
@@ -36,19 +36,18 @@
                [:div.content
                 (str criteria-name ": " answer-str)]])))))]]]))
 
-
 (defn truncated-list [num coll]
   (let [show-list (take num coll)]
     (when-not (empty? coll)
       [:div.ui.list
        (doall
-         (->> show-list
-              (map-indexed
-                (fn [idx item]
-                  ^{:key idx}
-                  (if (and (= idx (- num 1)) (< (count show-list) (count coll)))
-                    [:div.item (str item " et al")]
-                    [:div.item item])))))])))
+        (->> show-list
+             (map-indexed
+              (fn [idx item]
+                ^{:key idx}
+                (if (and (= idx (- num 1)) (< (count show-list) (count coll)))
+                  [:div.item (str item " et al")]
+                  [:div.item item])))))])))
 
 (defn truncated-horizontal-list [num coll]
   (let [show-list (take num coll)
@@ -87,17 +86,17 @@
        [:div.ui.segment (str "Showing " (count page-article-ids) " articles")]
        [:div.ui.cards
         (doall
-          (->>
-            page-article-ids
-            (map
-             (fn [article-id]
-              (let [adata (get-article article-id)
-                    article (:item adata)
-                    score (- 1.0 (Math/abs (:score adata)))
-                    percent (Math/round (* 100 score))
-                    criteria (-> @server-data :articles-criteria article-id)]
-                ^{:key article-id}
-                [similarity-card article criteria score percent article-id])))))]])))
+         (->>
+          page-article-ids
+          (map
+           (fn [article-id]
+             (let [adata (get-article article-id)
+                   article (:item adata)
+                   score (- 1.0 (Math/abs (:score adata)))
+                   percent (Math/round (* 100 score))
+                   criteria (get-in @server-data [:labels article-id])]
+               ^{:key article-id}
+               [similarity-card article criteria score percent article-id])))))]])))
 
 
 (defn filter-search []

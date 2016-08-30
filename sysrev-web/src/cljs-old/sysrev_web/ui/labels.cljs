@@ -1,7 +1,7 @@
 (ns sysrev-web.ui.labels
   (:require [sysrev-web.base :refer [server-data]]))
 
-(defn labels-page []
+(defn labels []
   [:table.ui.celled.table
    [:thead
     [:tr
@@ -14,8 +14,8 @@
       (:criteria @server-data)
       (map
        (fn [[id criteria]]
-         ^{:key {:label-entry id}}
+         ^{:key id}
          [:tr
           [:td (:name criteria)]
           [:td (:question criteria)]
-          [:td (if (true? (:is_inclusion criteria))  "Yes" "No")]]))))]])
+          [:td (if (true? (:isInclusion criteria))  "Yes" "No")]]))))]])

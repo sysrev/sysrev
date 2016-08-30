@@ -7,11 +7,12 @@
                  ;; REPL
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]
-                 [figwheel-sidecar "0.5.5"]
+                 [figwheel-sidecar "0.5.6"]
                  ;; Database
                  [org.postgresql/postgresql "9.4.1209"]
                  [clojure.jdbc/clojure.jdbc-c3p0 "0.3.2"]
                  [postgre-types "0.0.4"]
+                 [clj-postgresql "0.4.0"]
                  [honeysql "0.8.0"]
                  ;; Web server
                  [compojure "1.5.1"]
@@ -19,6 +20,9 @@
                  [ring "1.5.0"]
                  [ring/ring-defaults "0.2.1"]
                  [http-kit "2.2.0"]
+                 ;; Encryption / Authentication
+                 [crypto-random "1.2.0"]
+                 [buddy "1.0.0"]
 
                  ;; ClojureScript libraries
                  [org.clojure/clojurescript "1.9.225"]
@@ -40,7 +44,7 @@
             [lein-ancient "0.6.10"]
             [cider/cider-nrepl "0.13.0"]
             [refactor-nrepl "2.2.0"]
-            [lein-figwheel "0.5.5"]]
+            [lein-figwheel "0.5.6"]]
   :bower-dependencies [[jquery "3.1.0"]]
   :clean-targets ^{:protect false}
   ["resources/public/out-dev"
@@ -71,7 +75,8 @@
                 :pretty-print false
                 :source-map "resources/public/out-production/sysrev_web.js.map"
                 :source-map-timestamp true}}]}
-  :figwheel {:nrepl-port 7888
+  :figwheel {:nrepl-port 7889
+             :server-port 3450
              ;; these should work with both Cider and Cursive
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 "refactor-nrepl.middleware/wrap-refactor"

@@ -19,12 +19,12 @@
     [:div.sixteen.wide.column
      [:h1 display-name]
      (doall
-       (->> articles
-         (map
-           (fn [adata]
-             (let [score (article-score adata)
-                   percent (Math/round (* 100 score))
-                   aid (article-id adata)
-                   criteria (get-in @server-data [:articles-criteria (keyword (str aid))])]
-               ^{:key (article-id adata)}
-               [similarity-card (article adata) criteria score percent aid])))))]))
+      (->> articles
+           (map
+            (fn [adata]
+              (let [score (article-score adata)
+                    percent (Math/round (* 100 score))
+                    aid (article-id adata)
+                    criteria (get-in @server-data [:labels aid])]
+                ^{:key (article-id adata)}
+                [similarity-card (article adata) criteria score percent aid])))))]))

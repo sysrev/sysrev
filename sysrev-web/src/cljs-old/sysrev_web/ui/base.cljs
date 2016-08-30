@@ -12,8 +12,8 @@
       first
       (split ".")
       (->>
-        (take-last 2)
-        (join "."))))
+       (take-last 2)
+       (join "."))))
 
 (defn url-domain [url]
   "Gets the example.com part of a url"

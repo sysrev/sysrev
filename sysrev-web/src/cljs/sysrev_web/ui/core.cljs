@@ -1,83 +1,86 @@
 (ns sysrev-web.ui.core
-  (:require [sysrev-web.base :refer [state history server-data debug-box notify-pop notify-head]]
-            [sysrev-web.routes :as routes :refer [data-initialized? post-login post-register]]
-            [sysrev-web.ui.containers :refer [loading-screen page-container get-page center-page]]
-            [sysrev-web.react.components :refer [link link-nonav]]
-            [sysrev-web.ui.home :refer [home]]
-            [sysrev-web.ui.login :refer [login]]
-            [sysrev-web.ui.user :refer [user]]
-            [sysrev-web.ui.users :refer [users]]
-            [sysrev-web.ui.classify :refer [classify]]
-            [sysrev-web.ui.labels :refer [labels]]
-            [sysrev-web.ui.notification :refer [notifier]]))
+  (:require
+   [sysrev-web.base :refer [state server-data current-page on-page? logged-in?]]
+   [sysrev-web.routes :refer [data-initialized?]]
+   [sysrev-web.notify :refer [notify-head]]
+   [sysrev-web.ui.components :refer [loading-screen notifier]]
+   [sysrev-web.ui.users :refer [users-page]]
+   [sysrev-web.ui.labels :refer [labels-page]]
+   [sysrev-web.ui.login :refer [login-page register-page]]
+   [sysrev-web.ui.user-profile :refer [user-profile-page]]
+   [sysrev-web.ajax :as ajax]
+   [sysrev-web.classify]))
 
-
-(defn login-page [handler] (center-page [:h1 "Login"] [login handler]))
-(defn register-page [handler] (center-page [:h1 "Register"] [login handler]))
-
-;; Route resolving function, to construct the proper page based on the page accessed.
-(defmulti current-page (fn [] (:page @state)))
-(defmethod current-page :home []  (get-page :home home))
-(defmethod current-page :user [] (get-page :user user))
-(defmethod current-page :login [] (get-page :login login-page post-login))
-(defmethod current-page :register [] (get-page :register register-page post-register))
-(defmethod current-page :users [] (get-page :users users))
-(defmethod current-page :classify [] (get-page :classify classify))
-(defmethod current-page :labels [] (get-page :labels labels))
+(defn current-page-content []
+  (if-not (data-initialized? (current-page))
+    [loading-screen]
+    (cond (on-page? :users) (users-page)
+          (on-page? :labels) (labels-page)
+          (on-page? :login) (login-page)
+          (on-page? :register) (register-page)
+          (on-page? :user-profile) (user-profile-page)
+          true [:div "Route not found"])))
 
 (defn menu-link
-  ([f attributes content] (link attributes content))
-  ([f content] (link {:class "item"} f content)))
-(defn menu-link-nonav [f content] (link {:class "item"} f content))
+  ([route-or-action attributes content]
+   (if (string? route-or-action)
+     [:a.ui.link (merge {:href route-or-action} attributes)
+      content]
+     [:a.ui.link (merge {:on-click route-or-action} attributes)
+      content]))
+  ([route-or-action content]
+   (menu-link route-or-action {:class "item"} content)))
 
-(defn logged-in-menu [{:keys [class]} user]
-  (let [uid (:id user)
-        user (:user user)]
-    [:div.ui.menu {:class class}
+(defn logged-in-menu []
+  (let [ident (-> @state :identity)
+        uid (:id ident)
+        email (:email ident)
+        name (:name ident)
+        display-name (or name email)]
+    [:div.ui.menu.right.floated
      [:div.item
       [:div.content
        [:div.header "Welcome"]
        [:div.description
-        [link #(routes/user {:id uid})
-         (if (nil? (:name user))
-             (:username user)
-             (:name user))]]]]
-     [menu-link routes/users "Users"]
-     [menu-link routes/labels "Labels"]
-     [menu-link routes/classify "Classify"]
-     [menu-link-nonav routes/post-logout "Logout"]]))
+        [:a.ui.link {:href (str "/user/" uid)}
+         display-name]]]]
+     [menu-link "/users" "Users"]
+     [menu-link "/labels" "Labels"]
+     [menu-link "/classify" "Classify"]
+     [menu-link ajax/post-logout "Logout"]]))
 
-
-
-(defn logged-out-menu [{:keys [class]}]
-  [:div.ui.menu {:class class}
+(defn logged-out-menu []
+  [:div.ui.menu.right.floated
    [:div.item
-    [link routes/login
+    [:a.ui.link {:href "/login"}
      [:div.ui.primary.button "Log in"]]]
    [:div.item
-    [menu-link routes/register "Register"]]])
+    [:a.ui.link {:href "/register"}
+     [:div.ui.primary.button "Register"]]]])
 
-;; Login dependent upper menu
-(defn user-status [{:keys [class]}]
+(defn menu-component []
   (fn []
-    (let [user (:user @server-data)]
-      (if (nil? user)
-        [logged-out-menu {:class class}]
-        [logged-in-menu {:class class} user]))))
+    (if (logged-in?)
+      [logged-in-menu]
+      [logged-out-menu])))
 
-;;"Main container for all dom elements. Includes page from above current-page to
-;; select content based on accessed route."
-(defn main-content []
-  (fn []
+(defn page-container [content]
+  (fn [content]
     [:div
      [:div.ui.container
       [:div.ui.grid
        [:div.middle.aligned.row
         [:div.ui.middle.aligned.four.wide.column
-         [link routes/home [:h1 "Systematic Review"]]]
+         [:a.ui.link {:href "/"}
+          [:h1 "Systematic Review"]]]
         [:div.ui.right.floated.left.aligned.twelve.wide.column
-         [user-status {:class "right floated"}]]]
+         [menu-component]]]
        [:div.middle.aligned.row
         [:div.main-content.sixteen.wide.column
-         [current-page]]]]]
+         content]]]]
      [notifier (notify-head) 2000]]))
+
+(defn main-content []
+  (fn []
+    (let [content (current-page-content)]
+      [page-container content])))

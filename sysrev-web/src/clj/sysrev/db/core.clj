@@ -1,5 +1,6 @@
 (ns sysrev.db.core
   (:require [clojure.java.jdbc :as j]
+            [clj-postgresql.core :as pg]
             [jdbc.pool.c3p0 :as pool]
             [clojure.data.json :as json]
             [postgre-types.json :refer [add-jsonb-type]]
@@ -15,12 +16,10 @@
                               user "postgres"
                               password nil
                               port 5432}}]
-  (reset! active-db (pool/make-datasource-spec
-                     {:classname "org.postgresql.Driver"
-                      :subprotocol "postgresql"
-                      :user user
-                      :password password
-                      :subname (format "//localhost:%d/%s" port dbname)})))
+  (reset! active-db (pg/pool :dbname dbname
+                             :user user
+                             :password password
+                             :port port)))
 
 (add-jsonb-type
  (fn [writer]
@@ -48,3 +47,17 @@
                  (binding [*sql-array-results* true]
                    (apply f [])))]
     `(apply ~helper [(fn [] ~@body)])))
+
+(defn sql-now []
+  (-> (j/query @active-db "SELECT LOCALTIMESTAMP") first :timestamp))
+
+(defn mapify-by-id
+  "Convert the sequence `entries` to a map, using the value under `id-key` from
+  each entry as its map key."
+  [entries id-key]
+  (->> entries
+       (mapv #(let [k (get % id-key)
+                    m (dissoc % id-key)]
+                [k m]))
+       (apply concat)
+       (apply hash-map)))
