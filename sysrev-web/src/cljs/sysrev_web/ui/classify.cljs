@@ -6,7 +6,8 @@
                                      debug-box
                                      label-skip
                                      label-skipped-head
-                                     label-load-skipped]]
+                                     label-load-skipped
+                                     label-queue]]
             [sysrev-web.routes :refer [label-queue-update send-tags overall-include-id
                                        pull-article-labels]]
             [sysrev-web.ui.home :refer [similarity-card]]
@@ -85,7 +86,7 @@
 
 (defn classify []
   (fn []
-    (label-queue-update)
+    (when (empty? (label-queue)) (label-queue-update))
     (let [adata (label-queue-head)
           article (:article adata)
           score (- 1.0 (Math/abs (:score adata)))
@@ -102,3 +103,12 @@
         [:div.right.aligned.column
          [navigate]]]
        [criteria-block criteria-change-handler]])))
+
+(add-watch
+ state :label-queue-update
+ (fn [k v old new]
+   (let [q-old (-> old :label-activity)
+         q-new (-> new :label-activity)]
+     (when (and (not= q-old q-new)
+                (< (count q-new) 5))
+       (label-queue-update)))))
