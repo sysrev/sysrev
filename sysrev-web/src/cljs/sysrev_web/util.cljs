@@ -60,3 +60,17 @@
       domain url)))
 
 (def nbsp (unescapeEntities "&nbsp;"))
+
+(defn mapify-by-id
+  "Convert the sequence `entries` to a map, using the value under `id-key` from
+  each entry as its map key.
+  If `remove-key?` is true, `id-key` will also be dissoc'd from each entry."
+  [id-key remove-key? entries]
+  (->> entries
+       (mapv #(let [k (get % id-key)
+                    m (if remove-key?
+                        (dissoc % id-key)
+                        %)]
+                [k m]))
+       (apply concat)
+       (apply hash-map)))

@@ -36,11 +36,20 @@
                 :right "0px"}}
        head])))
 
-(defn similarity-bar [score percent]
-  (fn [score percent]
-    [:div.ui.tiny.blue.progress
-     [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
-      [:div.progress]]]))
+
+(defn similarity-bar [similarity]
+  (fn [similarity]
+    (let [percent (Math/round (* 100 similarity))]
+      [:div.ui.grid
+       [:div.ui.row
+        {:style {:padding-bottom "10px"}}
+        [:div.ui.twelve.wide.column
+         [:div.ui.tiny.blue.progress
+          [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
+           [:div.progress]]]]
+        [:div.ui.four.wide.column
+         [:div.right.aligned
+          (str "(" percent "% similarity to included articles)")]]]])))
 
 (defn truncated-list [num coll]
   (let [show-list (take num coll)]
@@ -66,3 +75,15 @@
    (url-domain url)
    nbsp
    [:i.external.icon]])
+
+(defn radio-button [on-click is-selected child]
+  (let [class (when is-selected "primary")]
+    [:div.ui.icon.button {:class class :on-click on-click} child]))
+
+(defn three-state-selection [change-handler curval]
+  ;; nil for unset, true, false
+  (fn [change-handler curval]
+    [:div.ui.large.buttons
+     [radio-button #(change-handler false) (false? curval) "No"]
+     [radio-button #(change-handler nil) (nil? curval) "?"]
+     [radio-button #(change-handler true) (true? curval) "Yes"]]))

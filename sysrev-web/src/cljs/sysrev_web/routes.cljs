@@ -1,7 +1,7 @@
 (ns sysrev-web.routes
   (:require
    [sysrev-web.base :refer [state server-data]]
-   [sysrev-web.ajax :refer [pull-initial-data pull-project-users]]
+   [sysrev-web.ajax :refer [pull-initial-data pull-project-users pull-all-labels]]
    [secretary.core :include-macros true :refer-macros [defroute]]))
 
 ;; This var records the elements of `server-data` that are required by
@@ -52,18 +52,23 @@
   (set-page-state {:user-profile
                    {:self true
                     :user-id (-> @state :identity :id)}})
-  (println "hi")
-  (pull-initial-data))
+  (pull-initial-data)
+  ;; Re-fetch user label data in case it has changed
+  (when (:labels @server-data)
+    (pull-all-labels)))
 
 (defroute user-profile "/user/:id" [id]
   (let [id (js/parseInt id)]
     (set-page-state {:user-profile
                      {:self false
                       :user-id id}})
-    (pull-initial-data)))
+    (pull-initial-data)
+    ;; Re-fetch user label data in case it has changed
+    (when (:labels @server-data)
+      (pull-all-labels))))
 
 (defroute classify "/classify" []
-  (set-page-state {:classify {:labels {}}})
+  (set-page-state {:classify {:label-values {}}})
   (pull-initial-data))
 
 (defroute labels "/labels" []

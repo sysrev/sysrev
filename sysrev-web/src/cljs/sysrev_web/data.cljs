@@ -36,3 +36,25 @@
                 nil))))
          (apply concat)
          (apply hash-map))))
+
+(defn user-article-ids-sorted
+  "Gets the list of `article-id`s that `user-id` has labeled,
+  sorted by function `sort-key` applied to the article object.
+
+  Optional argument `ascending?` (default false) specifies the
+  sort direction (default descending)."
+  [user-id sort-key & [ascending?]]
+  (let [articles-map (get-in @server-data [:users user-id :articles])]
+    (->>
+     (concat (:includes articles-map)
+             (:excludes articles-map))
+     (map #(get-in @server-data [:articles %]))
+     (remove nil?)
+     (sort-by sort-key (if ascending? > <))
+     (map :article_id))))
+
+(defn current-user-data []
+  (let [user-id (:id (:user @state))
+        user-pred (fn [u] (= user-id (-> u :user :id)))
+        all-users (:users @server-data)]
+    (first (filter user-pred all-users))))

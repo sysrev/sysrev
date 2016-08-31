@@ -1,10 +1,12 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now mapify-by-id]]
+             [do-query do-execute do-transaction sql-now
+              mapify-by-id scorify-article]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             buddy.hashers
-            crypto.random))
+            crypto.random
+            [clojure.set :as set]))
 
 (defn all-users []
   (-> (select :*)
@@ -116,7 +118,7 @@
          (apply hash-map))))
 
 (defn get-user-summaries []
-  (let [users (mapify-by-id (all-users) :id)
+  (let [users (mapify-by-id :id true (all-users))
         inclusions (all-user-inclusions)]
     (->> (keys users)
          (mapv (fn [user-id]
@@ -126,3 +128,75 @@
                    :articles (get inclusions user-id)}]))
          (apply concat)
          (apply hash-map))))
+
+(defn get-user-label-tasks [user-id n-max & [above-score]]
+  (let [above-score (or above-score -1.0)]
+    (->>
+     (-> (select :*)
+         (from [:article :a])
+         (join [:article_ranking :r] [:= :a.article_id :r._1])
+         (where
+          [:and
+           [:> :r._2 above-score]
+           [:not
+            [:exists
+             (-> (select :*)
+                 (from [:article_criteria :ac])
+                 (where [:and
+                         [:= :ac.user_id user-id]
+                         [:= :ac.article_id :a.article_id]
+                         [:or
+                          [:= :ac.answer true]
+                          [:= :ac.answer false]]]))]]])
+         (order-by :r._2)
+         (limit n-max)
+         do-query)
+     (mapv scorify-article))))
+
+(defn get-user-article-labels [user-id article-id]
+  (->> (-> (select :criteria_id :answer)
+           (from :article_criteria)
+           (where [:and
+                   [:= :article_id article-id]
+                   [:= :user_id user-id]])
+           do-query)
+       (map #(do [(:criteria_id %) (:answer %)]))
+       (apply concat)
+       (apply hash-map)))
+
+(defn set-user-article-labels [user-id article-id label-values]
+  (assert (integer? user-id))
+  (assert (integer? article-id))
+  (assert (map? label-values))
+  (do-transaction
+   (let [existing-cids
+         (->> (-> (select :criteria_id)
+                  (from :article_criteria)
+                  (where [:and
+                          [:= :article_id article-id]
+                          [:= :user_id user-id]])
+                  do-query)
+              (map :criteria_id))]
+     (doseq [cid existing-cids]
+       (-> (sqlh/update :article_criteria)
+           (sset {:answer (get label-values cid)
+                  :updated_time (sql-now)})
+           (where [:and
+                   [:= :article_id article-id]
+                   [:= :user_id user-id]
+                   [:= :criteria_id cid]])
+           do-execute))
+     (let [new-cids
+           (->> (vec existing-cids)
+                (set/difference (-> label-values keys set))
+                seq)
+           new-entries
+           (->> new-cids (map (fn [cid]
+                                {:criteria_id cid
+                                 :article_id article-id
+                                 :user_id user-id
+                                 :answer (get label-values cid)})))]
+       (when-not (empty? new-entries)
+         (-> (insert-into :article_criteria)
+             (values new-entries)
+             do-execute))))))

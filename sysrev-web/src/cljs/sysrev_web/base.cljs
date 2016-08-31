@@ -36,5 +36,8 @@
   [page-key]
   (contains? (:page @state) page-key))
 
+(defn current-user-id []
+  (-> @state :identity :id))
+
 (defn logged-in? []
-  (-> @state :identity :id integer?))
+  (integer? (current-user-id)))

@@ -1,5 +1,7 @@
 (ns sysrev.db.articles
-  (:require [sysrev.db.core :refer [do-query do-execute do-transaction]]
+  (:require [sysrev.util :refer [map-values]]
+            [sysrev.db.core :refer
+             [do-query do-execute do-transaction mapify-by-id scorify-article]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -17,19 +19,8 @@
            (limit 100)
            (offset (* page-idx 100))
            do-query)
-       (mapv #(let [score (:_2 %)
-                    item (dissoc % :_1 :_2)]
-                [(:article_id item)
-                 {:item item :score score}]))
-       (apply concat)
-       (apply hash-map)))
-#_
-(defn all-labeled-articles []
-  (->> (-> (select :a.*)
-           (from [:article_criteria :ac])
-           (join [:article :a] [:= :ac.article_id :a.article_id])
-           do-query)
-       (group-by )))
+       (mapify-by-id :article_id false)
+       (map-values scorify-article)))
 
 (defn all-labeled-articles []
   (->> (-> (select :*)
@@ -40,13 +31,8 @@
                        (from [:article_criteria :ac])
                        (where [:= :ac.article_id :a.article_id]))])
            do-query)
-       (map (fn [entry]
-              (let [id (:article_id entry)
-                    score (:_2 entry)
-                    item (dissoc entry :_1 :_2)]
-                [id {:item item :score score}])))
-       (apply concat)
-       (apply hash-map)))
+       (mapify-by-id :article_id false)
+       (map-values scorify-article)))
 
 (defn all-article-labels [& label-keys]
   (let [article-ids (->> (-> (select :article_id)
@@ -70,3 +56,9 @@
                   [article-id alabels])))
          (apply concat)
          (apply hash-map))))
+
+(defn all-labels-for-article [article-id]
+  (-> (select :ac.*)
+      (from [:article_criteria :ac])
+      (where [:= :ac.article_id article-id])
+      do-query))

@@ -53,11 +53,21 @@
 
 (defn mapify-by-id
   "Convert the sequence `entries` to a map, using the value under `id-key` from
-  each entry as its map key."
-  [entries id-key]
+  each entry as its map key.
+  If `remove-key?` is true, `id-key` will also be dissoc'd from each entry."
+  [id-key remove-key? entries]
   (->> entries
        (mapv #(let [k (get % id-key)
-                    m (dissoc % id-key)]
+                    m (if remove-key?
+                        (dissoc % id-key)
+                        %)]
                 [k m]))
        (apply concat)
        (apply hash-map)))
+
+(defn scorify-article
+  "Clean up the map structure of an `article` joined with `article_ranking`."
+  [m]
+  (let [score (:_2 m)
+        article (dissoc m :_1 :_2)]
+    (merge article {:score score})))

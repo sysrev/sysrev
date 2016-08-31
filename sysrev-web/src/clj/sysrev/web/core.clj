@@ -17,7 +17,8 @@
             [sysrev.web.ajax :as ajax :refer [wrap-json]]
             [sysrev.web.auth :as auth]
             [sysrev.web.index :as index]
-            [sysrev.db.articles :as articles]))
+            [sysrev.db.articles :as articles]
+            [sysrev.util :refer [parse-number]]))
 
 (def web-filesystem-path "/var/www/sysrev-clj/")
 
@@ -38,7 +39,17 @@
   (GET "/api/ranking/:page-idx" [page-idx]
        (let [page-idx (Integer/parseInt page-idx)]
          (wrap-json (articles/get-ranked-articles page-idx))))
-  
+  (GET "/api/label-task/:interval" request
+       (let [user-id (ajax/get-user-id request)
+             interval (-> request :params :interval Integer/parseInt)
+             above-score (-> request :params :above-score)
+             above-score (when above-score (Double/parseDouble above-score))]
+         (wrap-json (ajax/web-label-task user-id interval above-score))))
+  (GET "/api/article-labels/:article-id" [article-id]
+       (let [article-id (Integer/parseInt article-id)]
+         (wrap-json (ajax/web-article-labels article-id))))
+  (POST "/api/set-labels" request
+        (wrap-json (ajax/web-set-labels request)))
   (route/files web-filesystem-path)
   (route/not-found index/index))
 

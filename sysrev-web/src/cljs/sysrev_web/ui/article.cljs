@@ -16,7 +16,7 @@
        (doall
         (->>
          (get-label-values article-id user-id)
-         (remove (fn [[k v]] (nil? v)))
+         (remove (fn [[k v]] (or (nil? v) (nil? (:answer v)))))
          (map
           (fn [[cid {answer :answer}]]
             (let [criteria-name
@@ -98,34 +98,36 @@
   "Shows an article with a representation of its match quality and how it
   has been manually classified.
   `article-id` is required to specify the article.
+  `show-labels` is a boolean (default false) specifying whether to display
+  user values for labels on the article.
   `user-id` is optional, if specified then only input from that user will
   be included."
-  [article-id & [user-id]]
-  (fn [article-id & [user-id]]
-    (let [entry (get-in @server-data [:articles article-id])]
-      (when entry
-        (let [article (:item entry)
-              score (:score entry)
-              percent (Math/round (* 100 score))
-              labels (get-label-values article-id user-id)]
-          [:div.ui.fluid.card
-           [:div.content
-            (when-not (nil? score)
-              [similarity-bar score percent])
-            (when-not (empty? labels)
-              [label-values-component article-id user-id])]
-           [:div.content
-            [:h2.header (:primary_title article)]
-            (when-not (empty? (:secondary_title article))
-              [:h2.header (:secondary_title article)])
-            (when-not (empty? (:authors article))
-              [:p (truncated-horizontal-list 5 (:authors article))])
-            [abstract (:abstract article)]
-            [:div.content.ui.list
-             (->> article :urls
-                  (map-indexed
-                   (fn [idx url]
-                     ^{:key {:article-url {:aid article-id
-                                           :url-idx idx}}}
-                     [out-link url]))
-                  doall)]]])))))
+  [article-id & [show-labels user-id]]
+  (fn [article-id & [show-labels user-id]]
+    (when-let [article (get-in @server-data [:articles article-id])]
+      (let [score (:score article)
+            similarity (- 1.0 (Math/abs score))
+            labels (get-label-values article-id user-id)]
+        [:div.ui.fluid.card
+         [:div.content
+          (when-not (nil? score)
+            [similarity-bar similarity])
+          (when (and show-labels
+                     ((comp not empty?)
+                      (get-label-values article-id user-id)))
+            [label-values-component article-id user-id])]
+         [:div.content
+          [:h2.header (:primary_title article)]
+          (when-not (empty? (:secondary_title article))
+            [:h2.header (:secondary_title article)])
+          (when-not (empty? (:authors article))
+            [:p (truncated-horizontal-list 5 (:authors article))])
+          [abstract (:abstract article)]
+          [:div.content.ui.list
+           (->> article :urls
+                (map-indexed
+                 (fn [idx url]
+                   ^{:key {:article-url {:aid article-id
+                                         :url-idx idx}}}
+                   [out-link url]))
+                doall)]]]))))

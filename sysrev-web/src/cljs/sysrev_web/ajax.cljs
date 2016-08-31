@@ -2,13 +2,13 @@
   (:require
    [ajax.core :refer [GET POST]]
    [sysrev-web.base :refer [state server-data]]
-   [sysrev-web.util :refer [nav nav-scroll-top]]
+   [sysrev-web.util :refer [nav nav-scroll-top mapify-by-id]]
    [sysrev-web.notify :refer [notify]]))
 
 (defn integerify-map-keys
-  "Server-side maps with integer keys will have the keys changed to keywords
-   when converted to JSON. This converts any integer keywords back to integers,
-  operating recursively through nested maps."
+  "Maps parsed from JSON with integer keys will have the integers changed 
+  to keywords. This converts any integer keywords back to integers, operating
+  recursively through nested maps."
   [m]
   (if (not (map? m))
     m
@@ -71,6 +71,15 @@
      (swap! server-data update
             :articles #(merge % (:articles response))))))
 
+(defn pull-article-labels [article-id & [handler]]
+  (ajax-get
+   (str "/api/article-labels/" article-id)
+   (fn [response]
+     (swap! server-data assoc-in
+            [:article-labels article-id] response)
+     (when handler
+       (handler response)))))
+
 (defn pull-ranking-page [num]
   (when (nil? (get-in @server-data [:ranking :pages num]))
     (ajax-get
@@ -132,32 +141,33 @@
    (fn [_] (notify "Tag saved"))))
 
 (defn pull-label-tasks
-  ([interval handler after-score]
+  ([interval handler above-score]
    (ajax-get
     (str "/api/label-task/" interval)
-    (when-not (nil? after-score) {:greaterThanScore after-score})
+    (when-not (nil? above-score) {:above-score above-score})
     (fn [response]
-      (let [result (:result response)]
-        (notify (str "Fetched " (count result) " more articles"))
-        (handler result)))))
+      (when-let [result (:result response)]
+        (let [article-ids (map :article_id result)
+              articles (mapify-by-id :article_id false result)]
+          (swap! server-data update
+                 :articles #(merge % articles))
+          (notify (str "Fetched " (count result) " more articles"))
+          (handler article-ids))))))
   ([interval handler]
    (pull-label-tasks interval handler 0.0)))
 
-#_
 (defn send-tags
-  "send the criteria responses for a given article.
-  Takes an article-id and a map of criteria-ids to booleans.
-  Any unset criteria-ids will be unset on the server."
+  "Update the database with user label values for `article-id`.
+  `criteria-values` is a map of criteria-ids to booleans.
+  Any unset criteria-ids will be unset on the server.
+  Will fail on server if user is not logged in."
   [article-id criteria-values]
-  (let [data (->> criteria-values
-                  (map (fn [[cid, value]]
-                         {:articleId article-id
-                          :criteriaId (js/parseInt (name cid))
-                          :value value})))]
-    (ajax-post "/api/tags"
-               {:tags data}
-               (fn [response]
-                 (let [err (:err response)
-                       res (:result response)]
-                   (when-not (empty? err) (notify (str "Error: " err)))
-                   (when-not (empty? res) (notify "Tags saved")))))))
+  (ajax-post
+   "/api/set-labels"
+   {:article-id article-id
+    :label-values criteria-values}
+   (fn [response]
+     (let [err (:error response)
+           res (:result response)]
+       (when-not (empty? err) (notify (str "Error: " err)))
+       (when-not (empty? res) (notify "Tags saved"))))))

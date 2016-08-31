@@ -2,7 +2,7 @@
   (:require [clojure.data.json :as json]
             [ring.util.response :as r]
             [sysrev.db.users :as users]
-            [sysrev.web.ajax :refer [wrap-json]]))
+            [sysrev.web.ajax :refer [wrap-json get-user-id]]))
 
 (defn web-login-handler [request]
   (let [session (:session request)
@@ -59,8 +59,8 @@ If you created the account, follow this link to verify ownership: "
     (-> {:success success?} wrap-json)))
 
 (defn web-get-identity [request]
-  (let [email (-> request :session :identity)
-        user-id (and email (:id (users/get-user-by-email email)))
+  (let [user-id (get-user-id request)
+        email (-> request :session :identity)
         response (if (and email user-id)
                    {:identity {:email email :id user-id}}
                    {:identity nil})]

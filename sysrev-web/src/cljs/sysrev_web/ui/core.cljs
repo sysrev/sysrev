@@ -9,16 +9,17 @@
    [sysrev-web.ui.login :refer [login-page register-page]]
    [sysrev-web.ui.user-profile :refer [user-profile-page]]
    [sysrev-web.ajax :as ajax]
-   [sysrev-web.classify]))
+   [sysrev-web.ui.classify :refer [classify-page]]))
 
 (defn current-page-content []
   (if-not (data-initialized? (current-page))
     [loading-screen]
-    (cond (on-page? :users) (users-page)
-          (on-page? :labels) (labels-page)
-          (on-page? :login) (login-page)
-          (on-page? :register) (register-page)
-          (on-page? :user-profile) (user-profile-page)
+    (cond (on-page? :users) [users-page]
+          (on-page? :labels) [labels-page]
+          (on-page? :login) [login-page]
+          (on-page? :register) [register-page]
+          (on-page? :user-profile) [user-profile-page]
+          (on-page? :classify) [classify-page]
           true [:div "Route not found"])))
 
 (defn menu-link
