@@ -66,7 +66,8 @@
   (ajax-get (str "/api/article-labels/" aid)
             (fn [response]
               (let [result (:result response)]
-                (swap! server-data update-in [:article-labels aid] #(merge % result))
+                (swap! server-data assoc-in
+                       [:article-labels aid] result)
                 (when handler
                   (handler response))))))
 
