@@ -2,11 +2,11 @@
   (:require [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now
               mapify-by-id scorify-article]]
+            [sysrev.util :refer [in?]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             buddy.hashers
-            crypto.random
-            [clojure.set :as set]))
+            crypto.random))
 
 (defn all-users []
   (-> (select :*)
@@ -187,9 +187,8 @@
                    [:= :criteria_id cid]])
            do-execute))
      (let [new-cids
-           (->> (vec existing-cids)
-                (set/difference (-> label-values keys set))
-                seq)
+           (->> (keys label-values)
+                (remove (in? existing-cids)))
            new-entries
            (->> new-cids (map (fn [cid]
                                 {:criteria_id cid
@@ -199,4 +198,5 @@
        (when-not (empty? new-entries)
          (-> (insert-into :article_criteria)
              (values new-entries)
-             do-execute))))))
+             do-execute))))
+   nil))

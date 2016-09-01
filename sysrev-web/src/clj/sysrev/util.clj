@@ -13,3 +13,9 @@
   [s]
   (when (re-find #"^-?\d+\.?\d*$" s)
     (read-string s)))
+
+(defn in?
+  "Tests if `coll` contains an element equal to `x`.
+  With one argument `coll`, returns the function #(in? coll %)."
+  ([coll x] (some #(= x %) coll))
+  ([coll] #(in? coll %)))
