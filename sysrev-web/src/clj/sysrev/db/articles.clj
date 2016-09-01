@@ -1,9 +1,10 @@
 (ns sysrev.db.articles
-  (:require [sysrev.util :refer [map-values]]
-            [sysrev.db.core :refer
-             [do-query do-execute do-transaction mapify-by-id scorify-article]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
+  (:require
+   [sysrev.util :refer [map-values mapify-by-id]]
+   [sysrev.db.core :refer
+    [do-query do-execute do-transaction  scorify-article]]
+   [honeysql.core :as sql]
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
 (defn all-criteria []
   (-> (select :*)

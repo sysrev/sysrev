@@ -1,8 +1,7 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now
-              mapify-by-id scorify-article]]
-            [sysrev.util :refer [in?]]
+             [do-query do-execute do-transaction sql-now scorify-article]]
+            [sysrev.util :refer [in? mapify-by-id]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             buddy.hashers

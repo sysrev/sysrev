@@ -3,8 +3,7 @@
             [ring.util.response :as r]
             [sysrev.db.articles :as articles]
             [sysrev.db.users :as users]
-            [sysrev.db.core :refer [mapify-by-id]]
-            [sysrev.util :refer [parse-number]]))
+            [sysrev.util :refer [parse-number mapify-by-id]]))
 
 (defn wrap-json
   "Create an HTTP response with content of OBJ converted to a JSON string."

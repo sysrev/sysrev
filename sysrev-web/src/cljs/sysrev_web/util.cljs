@@ -75,6 +75,24 @@
        (apply concat)
        (apply hash-map)))
 
+(defn mapify-group-by-id
+  "Convert the sequence `entries` to a map, using the value under `id-key` from
+  each entry as its map key, with each value of the result being a vector
+  of the entries sharing the key value.
+  If `remove-key?` is true, `id-key` will also be dissoc'd from each entry."
+  [id-key remove-key? entries]
+  (let [all-keys (->> entries (map #(get % id-key)) distinct)]
+    (->> all-keys
+         (mapv (fn [key]
+                 [key
+                  (->> entries
+                       (filter #(= (get % id-key) key))
+                       (mapv #(if remove-key?
+                                (dissoc % id-key)
+                                %)))]))
+         (apply concat)
+         (apply hash-map))))
+
 (defn in?
   "Tests if `coll` contains an element equal to `x`.
   With one argument `coll`, returns the function #(in? coll %)."
