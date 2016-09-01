@@ -52,9 +52,3 @@
      (remove nil?)
      (sort-by sort-key (if ascending? > <))
      (map :article_id))))
-
-(defn current-user-data []
-  (let [user-id (:id (:user @state))
-        user-pred (fn [u] (= user-id (-> u :user :id)))
-        all-users (:users @server-data)]
-    (first (filter user-pred all-users))))
