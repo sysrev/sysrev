@@ -12,7 +12,7 @@
 (defonce ^:dynamic *sql-array-results* false)
 
 (defn set-db-config! [& {:keys [dbname user password port]
-                         :or {dbname "systematic_review_webnew"
+                         :or {dbname "sysrev"
                               user "postgres"
                               password nil
                               port 5432}}]
@@ -59,8 +59,3 @@
   (let [score (:_2 m)
         article (dissoc m :_1 :_2)]
     (merge article {:score score})))
-
-
-
-
-
