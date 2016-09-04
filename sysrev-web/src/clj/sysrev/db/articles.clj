@@ -12,6 +12,20 @@
       (order-by :criteria_id)
       do-query))
 
+(defn get-criteria-id [name]
+  (-> (select :criteria_id)
+      (from :criteria)
+      (where [:= :name name])
+      do-query
+      first
+      :criteria_id))
+
+(defn alter-criteria [id values]
+  (-> (sqlh/update :criteria)
+      (sset values)
+      (where [:= :criteria_id id])
+      do-execute))
+
 (defn get-ranked-articles [page-idx]
   (->> (-> (select :*)
            (from [:article :a])

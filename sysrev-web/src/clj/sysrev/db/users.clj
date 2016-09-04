@@ -1,6 +1,7 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now scorify-article]]
+            [sysrev.db.articles :refer [get-criteria-id]]
             [sysrev.util :refer [in? mapify-by-id]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -90,14 +91,6 @@
       (from :article_criteria)
       (where [:= :user_id user-id])
       do-query))
-
-(defn get-criteria-id [name]
-  (-> (select :criteria_id)
-      (from :criteria)
-      (where [:= :name name])
-      do-query
-      first
-      :criteria_id))
 
 (defn all-user-inclusions []
   (let [overall-include-id (get-criteria-id "overall include")]
