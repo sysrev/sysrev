@@ -44,7 +44,7 @@
   Optional argument `ascending?` (default false) specifies the
   sort direction (default descending)."
   [user-id sort-key & [ascending?]]
-  (let [articles-map (get-in @server-data [:users user-id :articles])]
+  (let [articles-map (get-in @server-data [:sysrev :users user-id :articles])]
     (->>
      (concat (:includes articles-map)
              (:excludes articles-map))

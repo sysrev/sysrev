@@ -5,6 +5,7 @@
    [sysrev-web.notify :refer [notify-head]]
    [sysrev-web.ui.components :refer [loading-screen notifier]]
    [sysrev-web.ui.users :refer [users-page]]
+   [sysrev-web.ui.sysrev :refer [project-page]]
    [sysrev-web.ui.labels :refer [labels-page]]
    [sysrev-web.ui.login :refer [login-page register-page]]
    [sysrev-web.ui.user-profile :refer [user-profile-page]]
@@ -20,6 +21,7 @@
   (cond (not (data-initialized? (current-page))) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
+        (on-page? :project) [project-page]
         (on-page? :users) [users-page]
         (on-page? :labels) [labels-page]
         (on-page? :login) [login-page]
@@ -51,13 +53,15 @@
        [:div.description
         [:a.ui.link {:href (str "/user/" uid)}
          display-name]]]]
-     [menu-link "/users" "Users"]
+     [menu-link "/project" "Project"]
      [menu-link "/labels" "Labels"]
      [menu-link "/classify" "Classify"]
      [menu-link ajax/post-logout "Logout"]]))
 
 (defn logged-out-menu []
   [:div.ui.menu.right.floated
+   [menu-link "/project" "Project"]
+   [menu-link "/labels" "Labels"]
    [:div.item
     [:a.ui.link {:href "/login"}
      [:div.ui.primary.button "Log in"]]]

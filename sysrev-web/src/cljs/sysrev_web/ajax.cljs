@@ -93,16 +93,16 @@
          (swap! server-data assoc-in
                 [:ranking :pages num] ranked-ids))))))
 
-(defn pull-project-users []
+(defn pull-project-info []
   (ajax-get
-   "/api/project-users"
-   #(swap! server-data assoc :users %)))
+   "/api/project-info"
+   #(swap! server-data assoc :sysrev %)))
 
 (defn pull-initial-data []
   (pull-identity)
   (when (nil? (:criteria @server-data)) (pull-criteria))
   (when (nil? (:labels @server-data)) (pull-all-labels))
-  (when (nil? (:users @server-data)) (pull-project-users))
+  (when (nil? (:sysrev @server-data)) (pull-project-info))
   (when (contains? (:page @state) :ranking)
     (let [page-num (-> @state :page :ranking :ranking-page)]
       (when page-num

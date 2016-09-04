@@ -3,6 +3,7 @@
             [ring.util.response :as r]
             [sysrev.db.articles :as articles]
             [sysrev.db.users :as users]
+            [sysrev.db.sysrev :as sysrev]
             [sysrev.util :refer [parse-number mapify-by-id]]))
 
 (defn wrap-json
@@ -49,8 +50,11 @@
    :articles
    (articles/all-labeled-articles)})
 
-(defn web-project-users []
-  (users/get-user-summaries))
+(defn web-project-summary []
+  {:users
+   (users/get-user-summaries)
+   :stats
+   (sysrev/sr-summary)})
 
 (defn web-label-task [user-id n-max & [above-score]]
   (if user-id

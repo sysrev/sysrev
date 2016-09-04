@@ -6,7 +6,7 @@
 
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])
-        user (get-in @server-data [:users user-id :user])
+        user (get-in @server-data [:sysrev :users user-id :user])
         display-name (or (:username user) (:name user) (:email user))
         article-ids (user-article-ids-sorted user-id :score)]
     [:div.sixteen.wide.column

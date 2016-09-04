@@ -3,8 +3,10 @@
         sysrev.db.core
         sysrev.db.articles
         sysrev.db.users
+        sysrev.db.sysrev
         sysrev.web.core
         sysrev.web.ajax
+        sysrev.web.auth
         sysrev.web.index)
   (:require [sysrev.init :as init]
             [clojure.java.jdbc :as j]

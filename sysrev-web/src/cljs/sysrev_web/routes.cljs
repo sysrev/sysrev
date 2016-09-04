@@ -1,7 +1,8 @@
 (ns sysrev-web.routes
   (:require
    [sysrev-web.base :refer [state server-data on-page?]]
-   [sysrev-web.ajax :refer [pull-initial-data pull-project-users pull-all-labels]]
+   [sysrev-web.ajax :refer [pull-initial-data pull-project-info pull-all-labels]]
+   [sysrev-web.util :refer [nav]]
    [secretary.core :include-macros true :refer-macros [defroute]]))
 
 ;; This var records the elements of `server-data` that are required by
@@ -9,18 +10,20 @@
 ;; all the required data has been received.
 (def page-data-fields
   {:ranking
-   [[:criteria] [:articles] [:labels] [:users] [:ranking]]
+   [[:criteria] [:articles] [:labels] [:sysrev] [:ranking]]
    :users
-   [[:criteria] [:articles] [:users]]
+   [[:criteria] [:articles] [:sysrev]]
+   :project
+   [[:criteria] [:articles] [:sysrev]]
    :classify
-   [[:criteria] [:articles] [:labels] [:users]]
+   [[:criteria] [:articles] [:labels] [:sysrev]]
    :user-profile
-   [[:criteria] [:articles] [:labels] [:users]]
+   [[:criteria] [:articles] [:labels] [:sysrev]]
    :labels
    [[:criteria]]})
 
 (def public-pages
-  [:home :login :register])
+  [:home :login :register :project :users :labels :user-profile])
 
 (defn on-public-page? []
   (some on-page? public-pages))
@@ -36,8 +39,9 @@
   (swap! state assoc :page s))
 
 (defroute home "/" []
-  (set-page-state {:users {}})
-  #_
+  (nav "/project"))
+
+(defroute ranking "/ranking" []
   (set-page-state {:ranking
                    {:ranking-page 0
                     :filters {}}})
@@ -52,9 +56,16 @@
 (defroute users "/users" []
   (set-page-state {:users {}})
   (pull-initial-data)
-  ;; Re-fetch :users data in case it has changed
-  (when (:users @server-data)
-    (pull-project-users)))
+  ;; Re-fetch project info in case it has changed
+  (when (:sysrev @server-data)
+    (pull-project-info)))
+
+(defroute project "/project" []
+  (set-page-state {:project {}})
+  (pull-initial-data)
+  ;; Re-fetch project info in case it has changed
+  (when (:sysrev @server-data)
+    (pull-project-info)))
 
 (defroute self-profile "/user" []
   (set-page-state {:user-profile

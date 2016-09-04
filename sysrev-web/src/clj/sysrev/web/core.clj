@@ -35,7 +35,7 @@
        (auth/web-get-identity request))
   (GET "/api/criteria" [] (wrap-json (ajax/web-criteria)))
   (GET "/api/all-labels" [] (wrap-json (ajax/web-all-labels)))
-  (GET "/api/project-users" [] (wrap-json (ajax/web-project-users)))
+  (GET "/api/project-info" [] (wrap-json (ajax/web-project-summary)))
   (GET "/api/ranking/:page-idx" [page-idx]
        (let [page-idx (Integer/parseInt page-idx)]
          (wrap-json (articles/get-ranked-articles page-idx))))
