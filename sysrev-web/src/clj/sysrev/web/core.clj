@@ -20,7 +20,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.util :refer [parse-number]]))
 
-(def web-filesystem-path "/var/www/sysrev-clj/")
+(def web-filesystem-path "/var/www/sysrev/")
 
 (defroutes app-routes
   (GET "/" [] index/index)
