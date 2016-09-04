@@ -32,17 +32,19 @@
              :iterations 6
              :salt (crypto.random/bytes 16)}))
 
-(defn create-user [email password]
+(defn create-user [email password & [id]]
   (let [now (sql-now)
         encrypted-password (encrypt-password password)
-        verify-code (crypto.random/hex 16)]
+        verify-code (crypto.random/hex 16)
+        entry {:email email
+               :pw_encrypted_buddy encrypted-password
+               :verify_code verify-code
+               ;; TODO: implement email verification
+               :verified true
+               :date_created now}
+        entry (if (nil? id) entry (assoc entry :id id))]
     (-> (insert-into :web_user)
-        (values [{:email email
-                  :pw_encrypted_buddy encrypted-password
-                  :verify_code verify-code
-                  ;; TODO: implement email verification
-                  :verified true
-                  :date_created now}])
+        (values [entry])
         do-execute)))
 
 (defn set-user-password [email new-password]
