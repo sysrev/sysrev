@@ -1,6 +1,6 @@
 #!/bin/bash
 
-npm install semantic-ui@2.2.2
+npm install
 
 lein deps
 lein bower install
