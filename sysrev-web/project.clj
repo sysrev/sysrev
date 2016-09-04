@@ -83,4 +83,7 @@
                                 "cemerick.piggieback/wrap-cljs-repl"]
              :css-dirs ["resources/public/css"]}
   :repl-options {:timeout 120000
-                 :init-ns sysrev.user})
+                 :init-ns sysrev.user}
+  :ring {:handler sysrev.web.core/app
+         :init sysrev.init/init
+         :port 4041})

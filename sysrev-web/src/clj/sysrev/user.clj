@@ -6,7 +6,8 @@
         sysrev.web.core
         sysrev.web.ajax
         sysrev.web.index)
-  (:require [clojure.java.jdbc :as j]
+  (:require [sysrev.init :as init]
+            [clojure.java.jdbc :as j]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
