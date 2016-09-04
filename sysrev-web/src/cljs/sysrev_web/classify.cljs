@@ -94,8 +94,10 @@
 (add-watch
  state :active-criteria
  (fn [k v old new]
-   (when (on-page? :classify)
+   (when (contains? (:page new) :classify)
      (let [new-aid (-> new :label-activity first)
            old-aid (-> old :label-activity first)]
-       (when (and new-aid (not= new-aid old-aid))
+       (when (and new-aid
+                  (or (not= new-aid old-aid)
+                      (not (contains? (:page old) :classify))))
          (update-active-criteria))))))
