@@ -25,7 +25,7 @@
                  [buddy "1.0.0"]
 
                  ;; ClojureScript libraries
-                 [org.clojure/clojurescript "1.9.225"]
+                 [org.clojure/clojurescript "1.9.93"]
                  [reagent "0.6.0-rc"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.6"]
