@@ -1,6 +1,6 @@
 (ns sysrev-web.routes
   (:require
-   [sysrev-web.base :refer [state server-data]]
+   [sysrev-web.base :refer [state server-data on-page?]]
    [sysrev-web.ajax :refer [pull-initial-data pull-project-users pull-all-labels]]
    [secretary.core :include-macros true :refer-macros [defroute]]))
 
@@ -19,6 +19,12 @@
    :labels
    [[:criteria]]})
 
+(def public-pages
+  [:home :login :register])
+
+(defn on-public-page? []
+  (some on-page? public-pages))
+
 (defn data-initialized?
   "Test whether all server data required for a page has been received."
   [page]
@@ -30,6 +36,8 @@
   (swap! state assoc :page s))
 
 (defroute home "/" []
+  (set-page-state {:users {}})
+  #_
   (set-page-state {:ranking
                    {:ranking-page 0
                     :filters {}}})

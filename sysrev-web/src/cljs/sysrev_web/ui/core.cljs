@@ -1,7 +1,7 @@
 (ns sysrev-web.ui.core
   (:require
    [sysrev-web.base :refer [state server-data current-page on-page? logged-in?]]
-   [sysrev-web.routes :refer [data-initialized?]]
+   [sysrev-web.routes :refer [data-initialized? on-public-page?]]
    [sysrev-web.notify :refer [notify-head]]
    [sysrev-web.ui.components :refer [loading-screen notifier]]
    [sysrev-web.ui.users :refer [users-page]]
@@ -11,16 +11,22 @@
    [sysrev-web.ajax :as ajax]
    [sysrev-web.ui.classify :refer [classify-page]]))
 
+(defn logged-out-content []
+  [:div.ui.container
+   [:div.ui.stripe {:style {:padding-top "20px"}}
+    [:h2.ui.header.huge.center.aligned "Please log in or register"]]])
+
 (defn current-page-content []
-  (if-not (data-initialized? (current-page))
-    [loading-screen]
-    (cond (on-page? :users) [users-page]
-          (on-page? :labels) [labels-page]
-          (on-page? :login) [login-page]
-          (on-page? :register) [register-page]
-          (on-page? :user-profile) [user-profile-page]
-          (on-page? :classify) [classify-page]
-          true [:div "Route not found"])))
+  (cond (not (data-initialized? (current-page))) [loading-screen]
+        (and (not (logged-in?))
+             (not (on-public-page?))) [logged-out-content]
+        (on-page? :users) [users-page]
+        (on-page? :labels) [labels-page]
+        (on-page? :login) [login-page]
+        (on-page? :register) [register-page]
+        (on-page? :user-profile) [user-profile-page]
+        (on-page? :classify) [classify-page]
+        true [:div "Route not found"]))
 
 (defn menu-link
   ([route-or-action attributes content]
@@ -68,7 +74,7 @@
 (defn page-container [content]
   (fn [content]
     [:div
-     [:div.ui.container
+     [:div.ui.container.main-content
       [:div.ui.grid
        [:div.middle.aligned.row
         [:div.ui.middle.aligned.four.wide.column
