@@ -61,9 +61,15 @@
          (buddy.hashers/check password-attempt encrypted-password))))
 
 (defn delete-user [user-id]
-  (-> (delete-from :web_user)
-      (where [:= :id user-id])
-      do-execute))
+  (assert (integer? user-id))
+  (do-transaction
+   (-> (delete-from :article_criteria)
+       (where [:= :user_id user-id])
+       do-execute)
+   (-> (delete-from :web_user)
+       (where [:= :id user-id])
+       do-execute)
+   nil))
 
 (defn verify-user-email [verify-code]
   (-> (sqlh/update :web_user)
