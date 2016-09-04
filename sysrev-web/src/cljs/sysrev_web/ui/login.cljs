@@ -38,11 +38,17 @@
          [:button.ui.primary.button {:type "button" :on-click submit} "Submit"]]))))
 
 (defn login-page []
-  [:div
-   [:h1 "Login"]
-   [login-form ajax/post-login]])
+  [:div.ui.padded.raised.segments.auto-margin
+   {:style {:width "40%" :margin-top "15px"}}
+   [:h2.ui.top.attached.header
+    "Login"]
+   [:div.ui.bottom.attached.segment
+    [login-form ajax/post-login]]])
 
 (defn register-page []
-  [:div
-   [:h1 "Register"]
-   [login-form ajax/post-register]])
+  [:div.ui.padded.raised.segments.auto-margin
+   {:style {:width "40%" :margin-top "15px"}}
+   [:h2.ui.top.attached.header
+    "Register"]
+   [:div.ui.bottom.attached.segment
+    [login-form ajax/post-register]]])

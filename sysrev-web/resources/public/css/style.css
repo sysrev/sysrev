@@ -19,3 +19,8 @@ span.attention {
     color: green;
     padding: 2px;
 }
+
+.auto-margin {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}

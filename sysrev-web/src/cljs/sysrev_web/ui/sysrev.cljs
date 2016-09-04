@@ -11,7 +11,7 @@
        [:div.ui.column
         [:div.ui.raised.segments
          ;; {:style {:width "75%" :margin-left "auto" :margin-right "auto"}}
-         [:h2.ui.top.attached.gray.header.center.aligned
+         [:h2.ui.top.attached.header.center.aligned
           "Project summary"]
          [:div.ui.bottom.attached.segment
           [:div.ui.three.column.grid.project-stats
@@ -43,7 +43,7 @@
        [:div.ui.column
         [:div.ui.raised.segments
          ;; {:style {:width "75%" :margin-left "auto" :margin-right "auto"}}
-         [:h2.ui.top.attached.gray.header.center.aligned
+         [:h2.ui.top.attached.header.center.aligned
           "Members"]
          [:div.ui.attached.segment.cards
           (doall
