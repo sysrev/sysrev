@@ -75,8 +75,8 @@
                 :pretty-print false
                 :source-map "resources/public/out-production/sysrev_web.js.map"
                 :source-map-timestamp true}}]}
-  :figwheel {:nrepl-port 7889
-             :server-port 3450
+  :figwheel {:nrepl-port 7888
+             :server-port 3449
              ;; these should work with both Cider and Cursive
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 "refactor-nrepl.middleware/wrap-refactor"
