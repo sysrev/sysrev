@@ -10,7 +10,8 @@
    [sysrev-web.ui.login :refer [login-page register-page]]
    [sysrev-web.ui.user-profile :refer [user-profile-page]]
    [sysrev-web.ajax :as ajax]
-   [sysrev-web.ui.classify :refer [classify-page]]))
+   [sysrev-web.ui.classify :refer [classify-page]]
+   [reagent.core :as reagent]))
 
 (defn logged-out-content []
   [:div.ui.container
@@ -70,28 +71,21 @@
      [:div.ui.primary.button "Register"]]]])
 
 (defn menu-component []
-  (fn []
-    (if (logged-in?)
-      [logged-in-menu]
-      [logged-out-menu])))
-
-(defn page-container [content]
-  (fn [content]
-    [:div
-     [:div.ui.container.main-content
-      [:div.ui.grid
-       [:div.middle.aligned.row
-        [:div.ui.middle.aligned.four.wide.column
-         [:a.ui.link {:href "/"}
-          [:h1 "Systematic Review"]]]
-        [:div.ui.right.floated.left.aligned.twelve.wide.column
-         [menu-component]]]
-       [:div.middle.aligned.row
-        [:div.main-content.sixteen.wide.column
-         content]]]]
-     [notifier (notify-head) 2000]]))
+  (if (logged-in?)
+    [logged-in-menu]
+    [logged-out-menu]))
 
 (defn main-content []
-  (fn []
-    (let [content (current-page-content)]
-      [page-container content])))
+  [:div
+   [:div.ui.container.main-content
+    [:div.ui.grid
+     [:div.middle.aligned.row
+      [:div.ui.middle.aligned.four.wide.column
+       [:a.ui.link {:href "/"}
+        [:h1 "Systematic Review"]]]
+      [:div.ui.right.floated.left.aligned.twelve.wide.column
+       [menu-component]]]
+     [:div.middle.aligned.row
+      [:div.main-content.sixteen.wide.column
+       [current-page-content]]]]]
+   [notifier (notify-head) 2000]])
