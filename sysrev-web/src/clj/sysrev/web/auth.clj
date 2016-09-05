@@ -12,18 +12,21 @@
         valid-pw (users/valid-password? (:email fields) (:password fields))
         verified (and valid-pw (true? (:verified user)))
         success? (and valid-pw verified)
-        response (-> {:valid valid-pw :verified verified} wrap-json)]
-    (if success?
-      (-> response (assoc :session auth-session))
-      (-> response (assoc :err "Invalid username or password") (wrap-json)))))
+        result {:valid valid-pw :verified verified}
+        response
+        (if success?
+          (-> result wrap-json (assoc :session auth-session))
+          (-> result (assoc :err "Invalid username or password") wrap-json))]
+    response))
 
 (defn web-logout-handler [request]
   (let [session (:session request)
         success? (not (nil? (:identity session)))
-        result {:success (if success? true false)}]
-    (-> result
-        wrap-json
-        (assoc :session (assoc session :identity nil)))))
+        result {:success (if success? true false)}
+        response (-> result
+                     wrap-json
+                     (assoc :session (assoc session :identity nil)))]
+    response))
 
 (defn web-create-account-handler [request]
   (let [fields (-> request :body slurp (json/read-str :key-fn keyword))
