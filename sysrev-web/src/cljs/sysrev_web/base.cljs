@@ -34,7 +34,7 @@
   The current page is contained in (:page @state) which is a map with a
   single element, the key of which identifies the page."
   [page-key]
-  (contains? (:page @state) page-key))
+  (= (current-page) page-key))
 
 (defn current-user-id []
   (-> @state :identity :id))

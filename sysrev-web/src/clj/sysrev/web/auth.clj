@@ -15,7 +15,7 @@
         response (-> {:valid valid-pw :verified verified} wrap-json)]
     (if success?
       (-> response (assoc :session auth-session))
-      response)))
+      (-> response (assoc :err "Invalid username or password") (wrap-json)))))
 
 (defn web-logout-handler [request]
   (let [session (:session request)
