@@ -1,7 +1,8 @@
 (ns sysrev-web.ui.components
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
-            [sysrev-web.util :refer [url-domain nbsp]]))
+            [sysrev-web.util :refer [url-domain nbsp]]
+            [sysrev-web.base :refer [state server-data]]))
 
 (defn debug-container [child & children]
   (fn [child & children]
@@ -87,3 +88,17 @@
      [radio-button #(change-handler false) (false? curval) "No"]
      [radio-button #(change-handler nil) (nil? curval) "?"]
      [radio-button #(change-handler true) (true? curval) "Yes"]]))
+
+(defn label-value-tag
+  "UI component for representing the value of a criteria label.
+  `value` is one of true, false, nil."
+  [criteria-id value]
+  (let [[vclass iclass] (case value
+                          true ["green" "fa-thumbs-o-up"]
+                          false ["orange" "fa-thumbs-o-down"]
+                          nil ["grey" nil])
+        label (get-in @server-data [:criteria criteria-id :short_label])]
+    [:div.ui.small.label {:class vclass}
+     (str label "? ")
+     (when iclass
+       [:i.fa.fa-lg {:class iclass :aria-hidden true}])]))

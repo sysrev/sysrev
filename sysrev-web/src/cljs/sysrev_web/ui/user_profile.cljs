@@ -2,7 +2,7 @@
   (:require [sysrev-web.base :refer [state server-data]]
             [sysrev-web.data :refer [user-article-ids-sorted]]
             [sysrev-web.ui.components :refer [debug-box]]
-            [sysrev-web.ui.article :refer [article-info-component]]))
+            [sysrev-web.ui.article :refer [article-short-info-component]]))
 
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])
@@ -14,4 +14,4 @@
      (doall
       (for [article-id article-ids]
         ^{:key {:user-article {:a article-id :u user-id}}}
-        [article-info-component article-id true user-id]))]))
+        [article-short-info-component article-id true user-id]))]))

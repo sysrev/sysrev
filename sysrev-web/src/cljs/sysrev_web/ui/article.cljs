@@ -5,29 +5,28 @@
    [sysrev-web.base :refer [state server-data]]
    [sysrev-web.data :refer [get-label-values]]
    [sysrev-web.ui.components :refer
-    [similarity-bar truncated-horizontal-list out-link]]
+    [similarity-bar truncated-horizontal-list out-link label-value-tag]]
    [sysrev-web.util :refer [re-pos map-values]]))
 
 (defn label-values-component [article-id & [user-id]]
   (fn [article-id & [user-id]]
-    [:div.content.ui.segment
-     [:div.header
-      [:div.ui.horizontal.divided.list
-       (doall
-        (->>
-         (get-label-values article-id user-id)
-         (remove (fn [[k v]] (or (nil? v) (nil? (:answer v)))))
-         (map
-          (fn [[cid {answer :answer}]]
-            (let [criteria-name
-                  (get-in @server-data [:criteria cid :name])
-                  answer-str (if (nil? answer)
-                               "unknown"
-                               (str answer))]
-              ^{:key {:label-value (str cid "_" article-id)}}
-              [:div.item
-               [:div.content
-                (str criteria-name ": " answer-str)]])))))]]]))
+    [:div.ui.header.content
+     [:div.ui.horizontal.divided.list
+      (doall
+       (->>
+        (get-label-values article-id user-id)
+        (remove (fn [[k v]] (or (nil? v) (nil? (:answer v)))))
+        (map
+         (fn [[cid {answer :answer}]]
+           (let [criteria-name
+                 (get-in @server-data [:criteria cid :name])
+                 answer-str (if (nil? answer)
+                              "unknown"
+                              (str answer))]
+             ^{:key {:label-value (str cid "_" article-id)}}
+             [:div.item
+              [:div.content
+               [label-value-tag cid answer]]])))))]]))
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
@@ -93,6 +92,36 @@
                 [:strong (capitalize name)]
                 ": "
                 [:span text]])))])))
+
+(defn article-short-info-component
+  "Shows a minimal summary of an article with a representation of its match
+  quality and how it has been manually classified.
+  `article-id` is required to specify the article.
+  `show-labels` is a boolean (default false) specifying whether to display
+  user values for labels on the article.
+  `user-id` is optional, if specified then only input from that user will
+  be included."
+  [article-id & [show-labels user-id]]
+  (fn [article-id & [show-labels user-id]]
+    (when-let [article (get-in @server-data [:articles article-id])]
+      (let [score (:score article)
+            similarity (- 1.0 (Math/abs score))
+            labels (get-label-values article-id user-id)]
+        [:div.ui.segments
+         [:div.ui.top.attached.segment
+          [similarity-bar similarity]]
+         [:div.ui.attached.segment
+          [:h3.header
+           (:primary_title article)
+           (when-let [journal-name (:secondary_title article)]
+             (str  " - " journal-name))]
+          (when-not (empty? (:authors article))
+            [:p (truncated-horizontal-list 5 (:authors article))])]
+         [:div.ui.bottom.attached.segment
+          (when (and show-labels
+                     ((comp not empty?)
+                      (get-label-values article-id user-id)))
+            [label-values-component article-id user-id])]]))))
 
 (defn article-info-component
   "Shows an article with a representation of its match quality and how it
