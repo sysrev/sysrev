@@ -48,10 +48,10 @@
   (pull-initial-data))
 
 (defroute login "/login" []
-  (set-page-state {:login {}}))
+  (set-page-state {:login {:email "" :password "" :submit false}}))
 
 (defroute register "/register" []
-  (set-page-state {:register {}}))
+  (set-page-state {:register {:email "" :password "" :submit false}}))
 
 (defroute users "/users" []
   (set-page-state {:users {}})
