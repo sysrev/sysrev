@@ -4,7 +4,7 @@
 (defn index [& req]
   (page/html5
    [:head
-    [:title "dotastats"]
+    [:title "Systematic Review"]
     [:meta {:charset "utf-8"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
     (page/include-js "/vendor/jquery/dist/jquery.min.js"
