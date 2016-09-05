@@ -12,7 +12,8 @@
   (-> obj
       (json/write-str)
       (r/response)
-      (r/header "Content-Type" "application/json; charset=utf-8")))
+      (r/header "Content-Type" "application/json; charset=utf-8")
+      (r/header "Cache-Control" "no-cache, no-store")))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed 
