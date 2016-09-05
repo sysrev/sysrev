@@ -1,22 +1,29 @@
 Systematic Review
 =====
 
-For now, this just imports an xml file that's exported from EndNote, for
-a list of citations.
+This has a Scala project for importing articles data and running Spark ML on it, and a Clojure project implementing a web app (server and client).
 
-In the future, it will do much more.
-
-See resources/config.json. For now it is just using mongo and the data paths.
+Both projects share a PostgreSQL database that holds all data.
 
 Structure
 ===
-This project is divided among two git repositories.
-
-* `systematic_review`
-    * `/api` Manages a web interface, depends on jetty/scalatra.
-    * `/core` Contains importing functionality and entity relationship functions. This way, `core` should be releasable without any dependencies on jetty, so the second repository for spark can use it.
-* `systematic_review_spark`
-    Contains all the spark functionality which dump databases that the web ui can reference.
+* Scala (database and ML)
+    * `systematic_review/core` This imports an xml file of articles exported from EndNote, into a Postgres database, and provides queries on the database.
+    * `systematic_review_spark` This is a separate repo which has Spark functionality and saves results of the Spark algorithms to Postgres.
+    * `resources/config.json` has settings for database connections and file paths.
+* Clojure/ClojureScript (web server and client)
+    * Located under `/sysrev-web` in this repo.
+    * `/sysrev-web/project.clj` has the project definition for both the server and client projects.
+    * Setup and use:
+        * In `sysrev-web`, run `sh setup.sh` to do initial setup.
+        * Run an nginx server using the `.nginx-site` file to serve static client files and proxy AJAX requests to the Clojure web server.
+        * Web server can be run for development with `lein repl` in `sysrev-web` directory.
+            * This will start an NREPL server for CIDER/Cursive, connect to the database and run the web server.
+            * If you make code changes to the `app` definition in `web/core.clj`, changes will not be picked up until you run `(run-web)` to restart the web server.
+            * All other code changes will be picked up immediately when compiled.
+        * Build deployable production JAR for web server with `lein ring uberjar`. Run the web server with `java -jar sysrev-XXXXX-standalone.jar`.
+        * `lein figwheel` starts a Figwheel NREPL server for the Clojurescript client project.
+        * `lein cljsbuild once production` to build client project with production settings. (change `resources/public/out` symlink to `out-production` to use)
 
 Outline
 ==========
