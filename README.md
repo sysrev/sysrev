@@ -17,6 +17,7 @@ Structure
     * Setup and use:
         * In `sysrev-web`, run `sh setup.sh` to do initial setup.
         * Run an nginx server using the `.nginx-site` file to serve static client files and proxy AJAX requests to the Clojure web server.
+        * The database connection settings can be changed by adding arguments to the `(set-db-config!)` call in `user.clj`. The `set-db-config!` function has defaults that connect to localhost on port 5432 with no password, that will work if an SSH tunnel is opened on port 5432 to a machine running the database.
         * Web server can be run for development with `lein repl` in `sysrev-web` directory.
             * This will start an NREPL server for CIDER/Cursive, connect to the database and run the web server.
             * If you make code changes to the `app` definition in `web/core.clj`, changes will not be picked up until you run `(run-web)` to restart the web server.
