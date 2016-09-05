@@ -56,7 +56,7 @@
      [menu-link "/project" "Project"]
      [menu-link "/labels" "Labels"]
      [menu-link "/classify" "Classify"]
-     [menu-link ajax/post-logout "Logout"]]))
+     [menu-link ajax/do-post-logout "Logout"]]))
 
 (defn logged-out-menu []
   [:div.ui.menu.right.floated
