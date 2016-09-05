@@ -21,7 +21,7 @@
         input-change (fn [key]
                        (fn [e]
                          (swap! login-data assoc key (-> e .-target .-value))))
-      ;; recalculate the validation status if the submit button has been pressed
+        ;; recalculate the validation status if the submit button has been pressed
         validation (when (:submit @login-data) (validator))
         error-class (fn [k] (when (k validation) "error"))
         error-msg (fn [k] (when (k validation) [:div.ui.warning.message (k validation)]))
@@ -30,10 +30,10 @@
     [:div.ui.form {:class form-class}
      [:div.ui.field {:class (error-class :email)}
       [:label "Email"]
-      [:input.input {:type "text" :value (:email @login-data) :on-change (input-change :email)}]]
+      [:input.input {:type "text" :on-change (input-change :email)}]]
      [:div.ui.field {:class (error-class :password)}
       [:label "Password"]
-      [:input {:type "password" :value (:password @login-data) :on-change (input-change :password)}]]
+      [:input {:type "password" :on-change (input-change :password)}]]
      [error-msg :user]
      [error-msg :password]
      [:div
