@@ -48,12 +48,10 @@
         name (:name ident)
         display-name (or name email)]
     [:div.ui.menu.right.floated
-     [:div.item
-      [:div.content
-       [:div.header "Welcome"]
-       [:div.description
-        [:a.ui.link {:href (str "/user/" uid)}
-         display-name]]]]
+     [menu-link (str "/user/" uid)
+      {:class "item"
+       :style {:color "rgba(64, 121, 191, 1)"}}
+      display-name]
      [menu-link "/project" "Project"]
      [menu-link "/labels" "Labels"]
      [menu-link "/classify" "Classify"]
