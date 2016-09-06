@@ -74,7 +74,10 @@
   (pull-initial-data)
   ;; Re-fetch user label data in case it has changed
   (when (:labels @server-data)
-    (pull-all-labels)))
+    (pull-all-labels))
+  ;; Re-fetch project info in case it has changed
+  (when (:sysrev @server-data)
+    (pull-project-info)))
 
 (defroute user-profile "/user/:id" [id]
   (let [id (js/parseInt id)]
@@ -84,7 +87,10 @@
     (pull-initial-data)
     ;; Re-fetch user label data in case it has changed
     (when (:labels @server-data)
-      (pull-all-labels))))
+      (pull-all-labels))
+    ;; Re-fetch project info in case it has changed
+    (when (:sysrev @server-data)
+      (pull-project-info))))
 
 (defroute classify "/classify" []
   (set-page-state {:classify {:label-values {}}})
