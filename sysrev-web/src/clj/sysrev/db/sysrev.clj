@@ -65,13 +65,11 @@
   []
   (let [entries
         (->>
-         (-> (select :a.article_id :ac.criteria_id :ac.user_id :ac.answer)
-             (from [:article :a])
-             (join [:article_criteria :ac]
-                   [:= :ac.article_id :a.article_id])
+         (-> (select :article_id :criteria_id :user_id :answer)
+             (from [:article_criteria :ac])
              (where [:or
-                     [:= :ac.answer true]
-                     [:= :ac.answer false]])
+                     [:= :answer true]
+                     [:= :answer false]])
              do-query)
          (mapify-group-by-id :user_id true)
          (map-values
