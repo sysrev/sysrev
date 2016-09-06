@@ -30,7 +30,9 @@
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.6"]
                  [cljs-ajax "0.5.8"]
-                 [cljs-http "0.1.41"]]
+                 [cljs-http "0.1.41"]
+                 [cljsjs/jquery "2.2.2-0"]
+                 [cljsjs/semantic-ui "2.2.2-0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms200m"
              "-Xmx400m"
@@ -45,7 +47,6 @@
             [cider/cider-nrepl "0.13.0"]
             [refactor-nrepl "2.2.0"]
             [lein-figwheel "0.5.6"]]
-  :bower-dependencies [[jquery "3.1.0"]]
   :clean-targets ^{:protect false} ["target"]
   :cljsbuild
   {:builds

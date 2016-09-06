@@ -3,7 +3,9 @@
             [clojure.string :as str]
             [sysrev-web.util :refer [url-domain nbsp]]
             [sysrev-web.base :refer [state server-data]]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [cljsjs.jquery]
+            [cljsjs.semantic-ui]))
 
 (defn debug-container [child & children]
   (fn [child & children]
@@ -108,6 +110,6 @@
 (defn with-tooltip [content]
   (r/create-class
    {:component-did-mount
-    #(.popup (js/jQuery (r/dom-node %)))
+    #(.popup (js/$ (r/dom-node %)))
     :reagent-render
     (fn [content] content)}))
