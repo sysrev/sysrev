@@ -2,7 +2,8 @@
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
             [sysrev-web.util :refer [url-domain nbsp]]
-            [sysrev-web.base :refer [state server-data]]))
+            [sysrev-web.base :refer [state server-data]]
+            [reagent.core :as r]))
 
 (defn debug-container [child & children]
   (fn [child & children]
@@ -77,8 +78,9 @@
    nbsp
    [:i.external.icon]])
 
-(defn radio-button [on-click is-selected child]
-  (let [class (when is-selected "primary")]
+(defn radio-button [on-click is-selected child & [is-secondary?]]
+  (let [class (when is-selected
+                (if is-secondary? "grey" "primary"))]
     [:div.ui.icon.button {:class class :on-click on-click} child]))
 
 (defn three-state-selection [change-handler curval]
@@ -86,7 +88,7 @@
   (fn [change-handler curval]
     [:div.ui.large.buttons
      [radio-button #(change-handler false) (false? curval) "No"]
-     [radio-button #(change-handler nil) (nil? curval) "?"]
+     [radio-button #(change-handler nil) (nil? curval) "?" true]
      [radio-button #(change-handler true) (true? curval) "Yes"]]))
 
 (defn label-value-tag
@@ -102,3 +104,10 @@
      (str label "? ")
      (when iclass
        [:i.fa.fa-lg {:class iclass :aria-hidden true}])]))
+
+(defn with-tooltip [content]
+  (r/create-class
+   {:component-did-mount
+    #(.popup (js/jQuery (r/dom-node %)))
+    :reagent-render
+    (fn [content] content)}))

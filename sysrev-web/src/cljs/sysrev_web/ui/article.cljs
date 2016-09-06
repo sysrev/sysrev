@@ -137,26 +137,31 @@
       (let [score (:score article)
             similarity (- 1.0 (Math/abs score))
             labels (get-label-values article-id user-id)]
-        [:div.ui.fluid.card
-         [:div.content
-          (when-not (nil? score)
-            [similarity-bar similarity])
-          (when (and show-labels
-                     ((comp not empty?)
-                      (get-label-values article-id user-id)))
-            [label-values-component article-id user-id])]
-         [:div.content
-          [:h2.header (:primary_title article)]
-          (when-not (empty? (:secondary_title article))
-            [:h2.header (:secondary_title article)])
-          (when-not (empty? (:authors article))
-            [:p (truncated-horizontal-list 5 (:authors article))])
-          [abstract (:abstract article)]
-          [:div.content.ui.list
-           (->> article :urls
-                (map-indexed
-                 (fn [idx url]
-                   ^{:key {:article-url {:aid article-id
-                                         :url-idx idx}}}
-                   [out-link url]))
-                doall)]]]))))
+        [:div
+         [:h3.ui.top.attached.header.segment
+          "Article info"]
+         (when-not (nil? score)
+           [:div.ui.attached.segment
+            [similarity-bar similarity]])
+         [:div.ui.bottom.attached.segment
+          [:div.content
+           (when (and show-labels
+                      ((comp not empty?)
+                       (get-label-values article-id user-id)))
+             [label-values-component article-id user-id])]
+          [:div.content
+           [:h3.header (:primary_title article)]
+           (when-not (empty? (:secondary_title article))
+             [:h3.header {:style {:margin-top "0px"}}
+              (:secondary_title article)])
+           (when-not (empty? (:authors article))
+             [:p (truncated-horizontal-list 5 (:authors article))])
+           [abstract (:abstract article)]
+           [:div.content.ui.list
+            (->> article :urls
+                 (map-indexed
+                  (fn [idx url]
+                    ^{:key {:article-url {:aid article-id
+                                          :url-idx idx}}}
+                    [out-link url]))
+                 doall)]]]]))))
