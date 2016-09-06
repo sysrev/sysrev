@@ -46,10 +46,7 @@
             [refactor-nrepl "2.2.0"]
             [lein-figwheel "0.5.6"]]
   :bower-dependencies [[jquery "3.1.0"]]
-  :clean-targets ^{:protect false}
-  ["resources/public/out-dev"
-   "resources/public/out-production"
-   "target"]
+  :clean-targets ^{:protect false} ["target"]
   :cljsbuild
   {:builds
    [{:id "dev"
