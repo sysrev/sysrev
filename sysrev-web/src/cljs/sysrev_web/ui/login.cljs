@@ -36,10 +36,14 @@
       [:div.ui.form {:class form-class}
        [:div.ui.field {:class (error-class :email)}
         [:label "Email"]
-        [:input.input {:type "text" :on-change (input-change :email)}]]
+        [:input.input {:type "text"
+                       :value (-> @state :page page :email)
+                       :on-change (input-change :email)}]]
        [:div.ui.field {:class (error-class :password)}
         [:label "Password"]
-        [:input {:type "password" :on-change (input-change :password)}]]
+        [:input {:type "password"
+                 :value (-> @state :page page :password)
+                 :on-change (input-change :password)}]]
        [error-msg :user]
        [error-msg :password]
        [:div

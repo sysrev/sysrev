@@ -26,7 +26,7 @@
 
                  ;; ClojureScript libraries
                  [org.clojure/clojurescript "1.9.93"]
-                 [reagent "0.6.0-rc"]
+                 [reagent "0.6.0-SNAPSHOT"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.6"]
                  [cljs-ajax "0.5.8"]
