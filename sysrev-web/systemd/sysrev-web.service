@@ -1,0 +1,13 @@
+[Unit]
+Description=Clojure web server for sysrev
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/data/sysrev
+ExecStart=/usr/bin/java -jar /data/sysrev/sysrev-web-standalone.jar
+Restart=always
+
+[Install]
+WantedBy=default.target

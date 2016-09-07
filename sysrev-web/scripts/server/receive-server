@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+dir=/data/sysrev
+
+sudo systemctl restart sysrev-web

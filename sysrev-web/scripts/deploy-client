@@ -1,0 +1,33 @@
+#!/bin/bash
+set -eu
+
+echo $SYSREV_HOST > /dev/null
+
+dir=`pwd`
+
+mkdir -p $dir/deploy
+
+lein cljsbuild once production
+
+cd ./resources/public
+
+mkdir tmp
+cp -R ./out-production ./tmp/out
+cp ./index.html ./tmp/
+cp -R ./css/ ./tmp/
+cp ./favicon.ico ./tmp
+cp -R ../../semantic/dist ./tmp/semantic
+cp -R  ./vendor ./tmp
+cd tmp
+tar -czf $dir/deploy/client.tgz *
+cd ..
+rm -rf ./tmp
+
+cd $dir
+
+scp ./deploy/client.tgz ubuntu@"$SYSREV_HOST":/data/sysrev/deploy
+
+rm -f deploy-done.client
+touch deploy-done.client
+scp ./deploy-done.client ubuntu@"$SYSREV_HOST":/data/sysrev/deploy
+rm -f deploy-done.client

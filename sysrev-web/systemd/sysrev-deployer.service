@@ -1,0 +1,13 @@
+[Unit]
+Description=Start listener processes for sysrev web deploys
+After=network.target sysrev-web.service
+
+[Service]
+Type=forking
+User=ubuntu
+ExecStart=/data/sysrev/scripts/watch-deploy
+ExecStop=
+Restart=no
+
+[Install]
+WantedBy=default.target

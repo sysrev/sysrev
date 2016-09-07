@@ -1,0 +1,15 @@
+#!/bin/bash
+set -eu
+
+echo $SYSREV_HOST > /dev/null
+
+dir=`pwd`
+
+lein ring uberjar
+
+scp ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar ubuntu@"$SYSREV_HOST":/data/sysrev/sysrev-web-standalone.jar
+
+rm -f deploy-done.server
+touch deploy-done.server
+scp ./deploy-done.server ubuntu@"$SYSREV_HOST":/data/sysrev/deploy
+rm -f deploy-done.server
