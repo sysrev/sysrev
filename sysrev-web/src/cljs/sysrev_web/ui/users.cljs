@@ -15,10 +15,21 @@
      [:div.content
       [:div.header
        [:a.ui.link {:href (str "/user/" user-id)} display-name]]]
-     [:div.content (str num-classified " articles classified")]
-     [:div.content.list
-      [:div.item (str num-include " articles included")]
-      [:div.item (str num-exclude " articles excluded")]]]))
+     [:div.content
+      [:div.ui.three.column.grid.user-card
+       [:div.ui.row
+        [:div.ui.column
+         [:span.attention
+          (str num-classified)]
+         " articles classified"]
+        [:div.ui.column
+         [:span.attention
+          (str num-include)]
+         " included"]
+        [:div.ui.column
+         [:span.attention
+          (str num-exclude)]
+         " excluded"]]]]]))
 
 (defn users-page []
   (let [users (-> @server-data :sysrev :users)

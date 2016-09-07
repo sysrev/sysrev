@@ -13,6 +13,10 @@
     text-align: center;
 }
 
+.grid.user-card > .row > .column {
+    text-align: center;
+}
+
 span.attention {
     font-size: 120%;
     font-weight: bold;
