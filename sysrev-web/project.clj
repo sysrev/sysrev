@@ -53,7 +53,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs"]
+     :source-paths ["src/cljs" "script"]
      :figwheel true
      :compiler {:main "sysrev-web.main"
                 :output-to "resources/public/out-dev/sysrev_web.js"
