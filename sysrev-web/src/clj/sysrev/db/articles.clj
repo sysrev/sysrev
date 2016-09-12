@@ -57,7 +57,7 @@
                              (modifiers :distinct)
                              do-query)
                          (map :article_id))
-        labels (-> (select :*)
+        labels (-> (apply select :article_id label-keys)
                    (from :article_criteria)
                    do-query)]
     (->> article-ids

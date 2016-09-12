@@ -147,9 +147,7 @@
                  (where [:and
                          [:= :ac.user_id user-id]
                          [:= :ac.article_id :a.article_id]
-                         [:or
-                          [:= :ac.answer true]
-                          [:= :ac.answer false]]]))]]])
+                         [:!= :ac.answer nil]]))]]])
          (order-by :r._2)
          (limit n-max)
          do-query)

@@ -46,16 +46,15 @@
          (apply hash-map))))
 
 (defn web-all-labels []
-  {:labels
-   (articles/all-article-labels :criteria_id :user_id :answer)
-   :articles
-   (articles/all-labeled-articles)})
+  (let [labels (future (articles/all-article-labels
+                        :criteria_id :user_id :answer))
+        articles (future (articles/all-labeled-articles))]
+    {:labels @labels :articles @articles}))
 
 (defn web-project-summary []
-  {:users
-   (users/get-user-summaries)
-   :stats
-   (sysrev/sr-summary)})
+  (let [users (future (users/get-user-summaries))
+        stats (future (sysrev/sr-summary))]
+    {:users @users :stats @stats}))
 
 (defn web-label-task [user-id n-max & [above-score]]
   (if user-id
