@@ -4,7 +4,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.users :as users]
             [sysrev.db.sysrev :as sysrev]
-            [sysrev.util :refer [parse-number mapify-by-id]]))
+            [sysrev.util :refer [parse-number]]))
 
 (defn wrap-json
   "Create an HTTP response with content of OBJ converted to a JSON string."

@@ -2,7 +2,7 @@
   (:require [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now scorify-article]]
             [sysrev.db.articles :refer [get-criteria-id]]
-            [sysrev.util :refer [in? mapify-by-id]]
+            [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             buddy.hashers
@@ -118,7 +118,9 @@
          (apply hash-map))))
 
 (defn get-user-summaries []
-  (let [users (mapify-by-id :id true (all-users))
+  (let [users (->> (all-users)
+                   (group-by :id)
+                   (map-values first))
         inclusions (all-user-inclusions)]
     (->> (keys users)
          (mapv (fn [user-id]

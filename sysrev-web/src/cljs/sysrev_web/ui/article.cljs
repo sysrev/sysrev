@@ -33,7 +33,7 @@
   (let [group-header #"([A-Z][ A-Za-z]+):"
         groups (re-pos group-header text)
         ;; remove the colon:
-        headers (map-values groups #(. % (slice 0 -1)) (sorted-map))
+        headers (map-values #(. % (slice 0 -1)) (sorted-map) groups)
         windows (partition 2 1 headers)
         start-stop-names (map (fn [[[start name] [end _]]]
                                 [(+ (count name) start 1) end name])

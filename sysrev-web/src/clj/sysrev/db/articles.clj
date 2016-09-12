@@ -1,6 +1,6 @@
 (ns sysrev.db.articles
   (:require
-   [sysrev.util :refer [map-values mapify-by-id]]
+   [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
     [do-query do-execute do-transaction  scorify-article]]
    [honeysql.core :as sql]
@@ -34,7 +34,8 @@
            (limit 100)
            (offset (* page-idx 100))
            do-query)
-       (mapify-by-id :article_id false)
+       (group-by :article_id)
+       (map-values first)
        (map-values scorify-article)))
 
 (defn all-labeled-articles []
@@ -46,7 +47,8 @@
                        (from [:article_criteria :ac])
                        (where [:= :ac.article_id :a.article_id]))])
            do-query)
-       (mapify-by-id :article_id false)
+       (group-by :article_id)
+       (map-values first)
        (map-values scorify-article)))
 
 (defn all-article-labels [& label-keys]

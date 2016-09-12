@@ -3,7 +3,7 @@
    [sysrev.db.core :refer [do-query do-execute do-transaction]]
    [sysrev.db.articles :as articles]
    [sysrev.db.users :as users]
-   [sysrev.util :refer [map-values mapify-by-id mapify-group-by-id]]
+   [sysrev.util :refer [map-values]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -29,7 +29,7 @@
                 [:= :ac.answer true]
                 [:= :ac.answer false]]])
        do-query)
-   (mapify-group-by-id :article_id true)))
+   (group-by :article_id)))
 
 (defn sr-label-conflicts []
   (->> (sr-overall-labels)
@@ -71,13 +71,13 @@
                      [:= :answer true]
                      [:= :answer false]])
              do-query)
-         (mapify-group-by-id :user_id true)
+         (group-by :user_id)
          (map-values
           (fn [uentries]
-            (->> (mapify-group-by-id :article_id true uentries)
+            (->> (group-by :article_id uentries)
                  (map-values
                   #(map-values (comp first (partial map :answer))
-                               (mapify-group-by-id :criteria_id true %)))))))
+                               (group-by :criteria_id %)))))))
         user-articles (->> (keys entries)
                            (map
                             (fn [user-id]

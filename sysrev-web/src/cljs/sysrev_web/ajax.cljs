@@ -2,7 +2,7 @@
   (:require
    [ajax.core :refer [GET POST]]
    [sysrev-web.base :refer [state server-data]]
-   [sysrev-web.util :refer [nav nav-scroll-top mapify-by-id]]
+   [sysrev-web.util :refer [nav nav-scroll-top map-values]]
    [sysrev-web.notify :refer [notify]]))
 
 (defn integerify-map-keys
@@ -157,16 +157,18 @@
 (defn pull-label-tasks
   ([interval handler above-score]
    (get-label-tasks
-     interval
-     above-score
-     (fn [response]
-       (when-let [result (:result response)]
-         (let [article-ids (map :article_id result)
-               articles (mapify-by-id :article_id false result)]
-           (swap! server-data update
-                  :articles #(merge % articles))
-           (notify (str "Fetched " (count result) " more articles"))
-           (handler article-ids))))))
+    interval
+    above-score
+    (fn [response]
+      (when-let [result (:result response)]
+        (let [article-ids (map :article_id result)
+              articles (->> result
+                            (group-by :article_id)
+                            (map-values first))]
+          (swap! server-data update
+                 :articles #(merge % articles))
+          (notify (str "Fetched " (count result) " more articles"))
+          (handler article-ids))))))
   ([interval handler]
    (pull-label-tasks interval handler 0.0)))
 
