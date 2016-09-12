@@ -123,7 +123,7 @@
   `label-values` is a map of criteria-id to current label value."
   [change-handler label-values]
   (let [criteria (:criteria @server-data)]
-    [:div.ui.sixteen.wide.column.segments
+    [:div.ui.segments
      [:h3.ui.top.attached.header.segment
       "Edit labels"]
      [:div.ui.bottom.attached.segment

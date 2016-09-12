@@ -28,7 +28,7 @@
         criteria (:criteria @server-data)
         criteria-ids (keys criteria)
         overall-cid (:overall-cid @server-data)]
-    [:div.ui.grid
+    [:div.ui
      [article-info-component article-id false]
      [label-editor-component
       (fn [cid new-value]
@@ -37,30 +37,31 @@
         (->> (get-in @state [:page :classify :label-values])
              (ajax/send-tags article-id)))
       (get-in @state [:page :classify :label-values])]
-     [:div.ui.row
-      [:div.ui.five.wide.column]
-      [:div.ui.six.wide.column.center.aligned
-       [:div.ui.primary.right.labeled.icon.button
-        {:on-click #(do (label-skip)
-                        (ajax/pull-user-info user-id))}
-        "Continue"
-        [:i.right.circle.arrow.icon]]
-       [:div.ui.secondary.right.labeled.icon.button
-        {:class
-         (if (nil? (get-in @state [:page :classify :label-values overall-cid]))
-           "disabled"
-           "")}
-        ;; {:on-click label-skip}
-        "Finalize..."
-        [:i.check.circle.outline.icon]]]
-      (let [n-unconfirmed
-            (count
-             (get-in @server-data [:users user-id :labels :unconfirmed]))
-            n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
-        [:div.ui.five.wide.column
-         [:div.ui.buttons.right.floated
-          [:div.ui.labeled.button
-           {:on-click #(nav-scroll-top (str "/user/" user-id))}
-           [:div.ui.green.button
-            (str "Review and confirm... ")]
-           [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]]))
+     [:div.ui.grid
+      [:div.ui.row
+       [:div.ui.five.wide.column]
+       [:div.ui.six.wide.column.center.aligned
+        [:div.ui.primary.right.labeled.icon.button
+         {:on-click #(do (label-skip)
+                         (ajax/pull-user-info user-id))}
+         "Continue"
+         [:i.right.circle.arrow.icon]]
+        [:div.ui.secondary.right.labeled.icon.button
+         {:class
+          (if (nil? (get-in @state [:page :classify :label-values overall-cid]))
+            "disabled"
+            "")}
+         ;; {:on-click label-skip}
+         "Finalize..."
+         [:i.check.circle.outline.icon]]]
+       (let [n-unconfirmed
+             (count
+              (get-in @server-data [:users user-id :labels :unconfirmed]))
+             n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
+         [:div.ui.five.wide.column
+          [:div.ui.buttons.right.floated
+           [:div.ui.labeled.button
+            {:on-click #(nav-scroll-top (str "/user/" user-id))}
+            [:div.ui.green.button
+             (str "Review and confirm... ")]
+            [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]]]))
