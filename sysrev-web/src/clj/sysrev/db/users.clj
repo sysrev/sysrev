@@ -202,3 +202,12 @@
              (values new-entries)
              do-execute))))
    nil))
+
+(defn confirm-user-article-labels [user-id article-id]
+  (do-transaction
+   (-> (sqlh/update :article_criteria)
+       (sset {:confirm_time (sql-now)})
+       (where [:and
+               [:= :user_id user-id]
+               [:= :article_id article-id]])
+       do-execute)))
