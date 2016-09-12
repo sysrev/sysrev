@@ -11,6 +11,7 @@
    [sysrev-web.ui.user-profile :refer [user-profile-page]]
    [sysrev-web.ajax :as ajax]
    [sysrev-web.ui.classify :refer [classify-page]]
+   [sysrev-web.ui.article-page :refer [article-page]]
    [reagent.core :as reagent]))
 
 (defn logged-out-content []
@@ -19,7 +20,8 @@
     [:h2.ui.header.huge.center.aligned "Please log in or register"]]])
 
 (defn current-page-content []
-  (cond (not (data-initialized? (current-page))) [loading-screen]
+  (cond (not (data-initialized?
+              (current-page) @server-data)) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
         (on-page? :project) [project-page]
@@ -29,6 +31,7 @@
         (on-page? :register) [login-register-page true]
         (on-page? :user-profile) [user-profile-page]
         (on-page? :classify) [classify-page]
+        (on-page? :article) [article-page]
         true [:div "Route not found"]))
 
 (defn menu-link
@@ -51,7 +54,9 @@
      [menu-link (str "/user/" uid)
       {:class "item"
        :style {:color "rgba(64, 121, 191, 1)"}}
-      display-name]
+      [:div
+       [:i.user.icon]
+       display-name]]
      [menu-link "/project" "Project"]
      [menu-link "/labels" "Labels"]
      [menu-link "/classify" "Classify"]

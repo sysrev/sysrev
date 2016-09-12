@@ -10,26 +10,31 @@
         articles (-> u :articles)
         num-include (-> u :articles :includes count)
         num-exclude (-> u :articles :excludes count)
-        num-classified (+ num-include num-exclude)]
-    [:div.ui.fluid.card
-     [:div.content
-      [:div.header
-       [:a.ui.link {:href (str "/user/" user-id)} display-name]]]
-     [:div.content
-      [:div.ui.three.column.grid.user-card
-       [:div.ui.row
-        [:div.ui.column
-         [:span.attention
-          (str num-classified)]
-         " articles classified"]
-        [:div.ui.column
-         [:span.attention
-          (str num-include)]
-         " included"]
-        [:div.ui.column
-         [:span.attention
-          (str num-exclude)]
-         " excluded"]]]]]))
+        num-classified (+ num-include num-exclude)
+        num-in-progress (-> u :in-progress)]
+    [:div.ui.grid.padded.user-card
+     [:div.ui.row.top.attached.segment
+      [:div.ui.six.wide.column
+       [:a.ui.link {:href (str "/user/" user-id)}
+        [:h4.header display-name]]]]
+     [:div.ui.row.attached.segment
+      [:div.ui.six.wide.column
+       [:span.attention
+        (str num-classified)]
+       " articles classified"]
+      [:div.ui.five.wide.column
+       [:span.attention
+        (str num-include)]
+       " included"]
+      [:div.ui.five.wide.column
+       [:span.attention
+        (str num-exclude)]
+       " excluded"]]
+     [:div.ui.row.bottom.attached.segment
+      [:div.ui.five.wide.column
+       [:span.attention
+        (str num-in-progress)]
+       " in progress"]]]))
 
 (defn users-page []
   (let [users (-> @server-data :sysrev :users)

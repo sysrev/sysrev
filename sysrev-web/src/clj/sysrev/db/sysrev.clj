@@ -25,9 +25,8 @@
                    [:= :ac.criteria_id :c.criteria_id])
        (where [:and
                [:= :c.name "overall include"]
-               [:or
-                [:= :ac.answer true]
-                [:= :ac.answer false]]])
+               [:!= :ac.confirm_time nil]
+               [:!= :ac.answer nil]])
        do-query)
    (group-by :article_id)))
 
@@ -67,9 +66,9 @@
         (->>
          (-> (select :article_id :criteria_id :user_id :answer)
              (from [:article_criteria :ac])
-             (where [:or
-                     [:= :answer true]
-                     [:= :answer false]])
+             (where [:and
+                     [:!= :answer nil]
+                     [:!= :confirm_time nil]])
              do-query)
          (group-by :user_id)
          (map-values

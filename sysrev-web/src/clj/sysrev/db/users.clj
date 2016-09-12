@@ -1,7 +1,8 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now scorify-article]]
-            [sysrev.db.articles :refer [get-criteria-id]]
+            [sysrev.db.articles :refer
+             [get-criteria-id label-confirmed-test]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -92,15 +93,14 @@
       (where [:= :user_id user-id])
       do-query))
 
-(defn all-user-inclusions []
+(defn all-user-inclusions [& [confirmed?]]
   (let [overall-include-id (get-criteria-id "overall include")]
     (->> (-> (select :article_id :user_id :answer)
              (from [:article_criteria :ac])
              (where [:and
                      [:= :criteria_id overall-include-id]
-                     [:or
-                      [:= :answer true]
-                      [:= :answer false]]])
+                     [:!= :answer nil]
+                     (label-confirmed-test confirmed?)])
              do-query)
          (group-by :user_id)
          (mapv (fn [[user-id entries]]
@@ -121,13 +121,25 @@
   (let [users (->> (all-users)
                    (group-by :id)
                    (map-values first))
-        inclusions (all-user-inclusions)]
+        inclusions (all-user-inclusions true)
+        in-progress
+        (->> (-> (select :user_id :%count.%distinct.article_id)
+                 (from :article_criteria)
+                 (group :user_id)
+                 (where [:and
+                         [:!= :answer nil]
+                         [:= :confirm_time nil]])
+                 do-query)
+             (group-by :user_id)
+             (map-values (comp :count first)))]
     (->> (keys users)
          (mapv (fn [user-id]
                  [user-id
                   {:user (-> (get users user-id)
                              (select-keys [:email]))
-                   :articles (get inclusions user-id)}]))
+                   :articles (get inclusions user-id)
+                   :in-progress (if-let [count (get in-progress user-id)]
+                                  count 0)}]))
          (apply concat)
          (apply hash-map))))
 
@@ -201,7 +213,9 @@
              do-execute))))
    nil))
 
-(defn confirm-user-article-labels [user-id article-id]
+(defn confirm-user-article-labels
+  "Mark all labels by `user-id` on `article-id` as being confirmed at current time."
+  [user-id article-id]
   (do-transaction
    (-> (sqlh/update :article_criteria)
        (sset {:confirm_time (sql-now)})
@@ -209,3 +223,44 @@
                [:= :user_id user-id]
                [:= :article_id article-id]])
        do-execute)))
+
+(defn confirm-user-labels
+  "Mark all labels by `user-id` as being confirmed at current time."
+  [user-id]
+  (do-transaction
+   (-> (sqlh/update :article_criteria)
+       (sset {:confirm_time (sql-now)})
+       (where [:= :user_id user-id])
+       do-execute)))
+
+(defn get-user-info [user-id]
+  (let [umap (future
+               (-> (select :id :email :verified :name :username :admin)
+                   (from :web_user)
+                   (where [:= :id user-id])
+                   do-query
+                   first))
+        labels (->>
+                (-> (select :article_id :criteria_id :answer :confirm_time)
+                    (from [:article_criteria :ac])
+                    (where [:= :user_id user-id])
+                    do-query)
+                (map #(-> %
+                          (assoc :confirmed (not (nil? (:confirm_time %))))
+                          (dissoc :confirm_time))))
+        labels-map (fn [confirmed?]
+                     (->> labels
+                          (filter #(= (true? (:confirmed %)) confirmed?))
+                          (group-by :article_id)
+                          (map-values
+                           #(map (fn [m]
+                                   (dissoc m :article_id :confirmed))
+                                 %))
+                          (filter
+                           (fn [[aid cs]]
+                             (some (comp not nil? :answer) cs)))
+                          (apply concat)
+                          (apply hash-map)))]
+    (assoc @umap :labels
+           {:confirmed (labels-map true)
+            :unconfirmed (labels-map false)})))

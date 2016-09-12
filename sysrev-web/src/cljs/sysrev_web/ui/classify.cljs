@@ -1,61 +1,66 @@
 (ns sysrev-web.ui.classify
   (:require
-   [sysrev-web.base :refer [state server-data current-user-id]]
+   [sysrev-web.base :refer [state server-data current-user-id current-page]]
+   [sysrev-web.util :refer [nav-scroll-top nbsp]]
    [sysrev-web.ajax :refer [send-tags pull-article-labels]]
-   [sysrev-web.ui.components :refer [three-state-selection with-tooltip]]
+   [sysrev-web.routes :refer [data-initialized?]]
+   [sysrev-web.ui.components :refer
+    [three-state-selection with-tooltip label-editor-component]]
    [sysrev-web.ui.article :refer [article-info-component]]
    [sysrev-web.classify :refer
     [label-queue label-queue-head label-skipped-head
-     label-load-skipped label-skip label-queue-update]]))
+     label-load-skipped label-skip label-queue-update]]
+   [sysrev-web.ajax :as ajax]))
+
+;; Initialize the label queue after other data has been loaded
+(add-watch
+ server-data :initial-label-queue
+ (fn [k v old new]
+   (when (= (current-page) :classify)
+     (when (and (empty? (label-queue))
+                (not (data-initialized? :classify old))
+                (data-initialized? :classify new))
+       (label-queue-update)))))
 
 (defn classify-page []
-  (when (empty? (label-queue))
-    (label-queue-update))
-  (let [article-id (label-queue-head)
+  (let [user-id (current-user-id)
+        article-id (label-queue-head)
         criteria (:criteria @server-data)
-        criteria-ids (keys criteria)]
+        criteria-ids (keys criteria)
+        overall-cid (:overall-cid @server-data)]
     [:div.ui.grid
      [article-info-component article-id false]
-     [:div.ui.sixteen.wide.column
-      [:h3.ui.top.attached.header.segment
-       "Edit labels"]
-      [:div.ui.bottom.attached.segment
-       [:div.ui.four.column.grid
-        (doall
-         (->>
-          criteria
-          (map
-           (fn [[cid criterion]]
-             ^{:key {:article-label cid}}
-             [with-tooltip
-              [:div.ui.column
-               {:data-content (:question criterion)
-                :data-position "top left"
-                :style (if (= (:name criterion) "overall include")
-                         {:border "1px solid rgba(210,210,210,1)"
-                          }
-                         {})}
-               [:div.ui.two.column.middle.aligned.grid
-                [:div.right.aligned.column
-                 {:style {:padding-left "0px"}}
-                 (str (:short_label criterion) "?")]
-                [:div.left.aligned.column
-                 {:style {:padding-left "0px"}}
-                 [three-state-selection
-                  (fn [new-value]
-                    (swap! state assoc-in
-                           [:page :classify :label-values cid] new-value)
-                    (->> (get-in @state [:page :classify :label-values])
-                         (send-tags article-id)))
-                  (get-in @state [:page :classify :label-values cid])]]]]]))))]]]
-     [:div.ui.sixteen.wide.column.center.aligned
-      [:div.ui.buttons
-       (when-not (nil? (label-skipped-head))
-         [:div.ui.secondary.left.icon.button
-          {:on-click label-load-skipped}
-          [:i.left.arrow.icon]
-          "Previous"])
-       [:div.ui.primary.right.icon.button
-        {:on-click label-skip}
-        "Next"
-        [:i.right.arrow.icon]]]]]))
+     [label-editor-component
+      (fn [cid new-value]
+        (swap! state assoc-in
+               [:page :classify :label-values cid] new-value)
+        (->> (get-in @state [:page :classify :label-values])
+             (ajax/send-tags article-id)))
+      (get-in @state [:page :classify :label-values])]
+     [:div.ui.row
+      [:div.ui.five.wide.column]
+      [:div.ui.six.wide.column.center.aligned
+       [:div.ui.primary.right.labeled.icon.button
+        {:on-click #(do (label-skip)
+                        (ajax/pull-user-info user-id))}
+        "Continue"
+        [:i.right.circle.arrow.icon]]
+       [:div.ui.secondary.right.labeled.icon.button
+        {:class
+         (if (nil? (get-in @state [:page :classify :label-values overall-cid]))
+           "disabled"
+           "")}
+        ;; {:on-click label-skip}
+        "Finalize..."
+        [:i.check.circle.outline.icon]]]
+      (let [n-unconfirmed
+            (count
+             (get-in @server-data [:users user-id :labels :unconfirmed]))
+            n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
+        [:div.ui.five.wide.column
+         [:div.ui.buttons.right.floated
+          [:div.ui.labeled.button
+           {:on-click #(nav-scroll-top (str "/user/" user-id))}
+           [:div.ui.green.button
+            (str "Review and confirm... ")]
+           [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]]))

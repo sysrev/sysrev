@@ -6,6 +6,12 @@
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
+(defn label-confirmed-test [confirmed?]
+  (case confirmed?
+    true [:!= :confirm_time nil]
+    false [:= :confirm_time nil]
+    true))
+
 (defn all-criteria []
   (-> (select :*)
       (from :criteria)
@@ -38,27 +44,34 @@
        (map-values first)
        (map-values scorify-article)))
 
-(defn all-labeled-articles []
+(defn all-labeled-articles [& [confirmed?]]
   (->> (-> (select :*)
            (from [:article :a])
            (join [:article_ranking :r] [:= :a.article_id :r._1])
            (where [:exists
                    (-> (select :*)
                        (from [:article_criteria :ac])
-                       (where [:= :ac.article_id :a.article_id]))])
+                       (where
+                        [:and
+                         [:= :ac.article_id :a.article_id]
+                         (label-confirmed-test confirmed?)]))])
            do-query)
        (group-by :article_id)
        (map-values first)
        (map-values scorify-article)))
 
-(defn all-article-labels [& label-keys]
+(defn all-article-labels [confirmed? & label-keys]
   (let [article-ids (->> (-> (select :article_id)
                              (from :article_criteria)
+                             (where
+                              (label-confirmed-test confirmed?))
                              (modifiers :distinct)
                              do-query)
                          (map :article_id))
-        labels (-> (apply select :article_id label-keys)
+        labels (-> (apply select :article_id :confirm_time label-keys)
                    (from :article_criteria)
+                   (where
+                    (label-confirmed-test confirmed?))
                    do-query)]
     (->> article-ids
          (map (fn [article-id]
@@ -69,7 +82,14 @@
                       (if (empty? label-keys)
                         alabels
                         (->> alabels
-                             (map #(select-keys % label-keys))))]
+                             (map #(select-keys
+                                    % (conj label-keys :confirm_time)))))
+                      alabels
+                      (->> alabels
+                           (map
+                            #(assoc % :confirmed
+                                    (not (nil? (:confirm_time %)))))
+                           (map #(dissoc % :confirm_time)))]
                   [article-id alabels])))
          (apply concat)
          (apply hash-map))))

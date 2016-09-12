@@ -13,8 +13,9 @@
     text-align: center;
 }
 
-.grid.user-card > .row > .column {
-    text-align: center;
+.grid.user-card {
+    padding-top: 6px;
+    padding-bottom: 6px;
 }
 
 span.attention {

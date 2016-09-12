@@ -3,30 +3,35 @@
    [clojure.core.reducers :refer [fold]]
    [clojure.string :refer [capitalize]]
    [sysrev-web.base :refer [state server-data]]
-   [sysrev-web.data :refer [get-label-values]]
+   [sysrev-web.data :refer [get-label-values get-user-label-values]]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-value-tag]]
    [sysrev-web.util :refer [re-pos map-values]]))
 
 (defn label-values-component [article-id & [user-id]]
   (fn [article-id & [user-id]]
-    [:div.ui.header.content
-     [:div.ui.horizontal.divided.list
-      (doall
-       (->>
-        (get-label-values article-id user-id)
-        (remove (fn [[k v]] (or (nil? v) (nil? (:answer v)))))
-        (map
-         (fn [[cid {answer :answer}]]
-           (let [criteria-name
-                 (get-in @server-data [:criteria cid :name])
-                 answer-str (if (nil? answer)
-                              "unknown"
-                              (str answer))]
-             ^{:key {:label-value (str cid "_" article-id)}}
-             [:div.item
-              [:div.content
-               [label-value-tag cid answer]]])))))]]))
+    (let [cids (-> @server-data :criteria keys sort)
+          values (if (nil? user-id)
+                   (get-label-values article-id)
+                   (get-user-label-values article-id user-id))]
+      [:div.ui.header.content
+       [:div.ui.horizontal.divided.list
+        (doall
+         (->>
+          cids
+          (map #(do [% (get values %)]))
+          ;;(remove (fn [[k v]] (or (nil? v) (nil? (:answer v)))))
+          (map
+           (fn [[cid {answer :answer}]]
+             (let [criteria-name
+                   (get-in @server-data [:criteria cid :name])
+                   answer-str (if (nil? answer)
+                                "unknown"
+                                (str answer))]
+               ^{:key {:label-value (str cid "_" article-id)}}
+               [:div.item {:style {:padding-left "0px"}}
+                [:div.content
+                 [label-value-tag cid answer]]])))))]])))
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
@@ -105,14 +110,14 @@
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @server-data [:articles article-id])]
       (let [score (:score article)
-            similarity (- 1.0 (Math/abs score))
-            labels (get-label-values article-id user-id)]
+            similarity (- 1.0 (Math/abs score))]
         [:div.ui.segments
          [:div.ui.top.attached.segment
           [similarity-bar similarity]]
          [:div.ui.attached.segment
           [:h3.header
-           (:primary_title article)
+           [:a.ui.link {:href (str "/article/" article-id)}
+            (:primary_title article)]
            (when-let [journal-name (:secondary_title article)]
              (str  " - " journal-name))]
           (when-not (empty? (:authors article))
@@ -120,7 +125,7 @@
          [:div.ui.bottom.attached.segment
           (when (and show-labels
                      ((comp not empty?)
-                      (get-label-values article-id user-id)))
+                      (get-user-label-values article-id user-id)))
             [label-values-component article-id user-id])]]))))
 
 (defn article-info-component
@@ -136,19 +141,21 @@
     (when-let [article (get-in @server-data [:articles article-id])]
       (let [score (:score article)
             similarity (- 1.0 (Math/abs score))
-            labels (get-label-values article-id user-id)]
+            labels (and show-labels
+                        (if user-id
+                          (get-user-label-values article-id user-id)
+                          (get-label-values article-id)))
+            have-labels? (if labels true false)]
         [:div
          [:h3.ui.top.attached.header.segment
           "Article info"]
          (when-not (nil? score)
            [:div.ui.attached.segment
             [similarity-bar similarity]])
-         [:div.ui.bottom.attached.segment
-          [:div.content
-           (when (and show-labels
-                      ((comp not empty?)
-                       (get-label-values article-id user-id)))
-             [label-values-component article-id user-id])]
+         [:div.ui
+          {:class (if have-labels?
+                    "attached segment"
+                    "bottom attached segment")}
           [:div.content
            [:h3.header (:primary_title article)]
            (when-not (empty? (:secondary_title article))
@@ -164,4 +171,8 @@
                     ^{:key {:article-url {:aid article-id
                                           :url-idx idx}}}
                     [out-link url]))
-                 doall)]]]]))))
+                 doall)]]]
+         (when have-labels?
+           [:div.ui.bottom.attached.segment
+            [:div.content
+             [label-values-component article-id user-id]]])]))))

@@ -98,9 +98,9 @@
   `value` is one of true, false, nil."
   [criteria-id value]
   (let [[vclass iclass] (case value
-                          true ["green" "fa-thumbs-o-up"]
-                          false ["orange" "fa-thumbs-o-down"]
-                          nil ["grey" nil])
+                          true ["green" "fa-check-circle-o"]
+                          false ["orange" "fa-times-circle-o"]
+                          nil ["grey" "fa-question-circle-o"])
         label (get-in @server-data [:criteria criteria-id :short_label])]
     [:div.ui.small.label {:class vclass}
      (str label "? ")
@@ -113,3 +113,40 @@
     #(.popup (js/$ (r/dom-node %)))
     :reagent-render
     (fn [content] content)}))
+
+(defn label-editor-component
+  "UI component for editing label values on an article.
+
+  `change-handler` is a function with args `[criteria-id new-value]` that will be called
+  whenever the value of a label is changed.
+
+  `label-values` is a map of criteria-id to current label value."
+  [change-handler label-values]
+  (let [criteria (:criteria @server-data)]
+    [:div.ui.sixteen.wide.column.segments
+     [:h3.ui.top.attached.header.segment
+      "Edit labels"]
+     [:div.ui.bottom.attached.segment
+      [:div.ui.four.column.grid
+       (doall
+        (->>
+         criteria
+         (map
+          (fn [[cid criterion]]
+            ^{:key {:article-label cid}}
+            [with-tooltip
+             [:div.ui.column
+              {:data-content (:question criterion)
+               :data-position "top left"
+               :style (if (= (:name criterion) "overall include")
+                        {:background-color "rgba(200,200,200,1)"}
+                        {})}
+              [:div.ui.two.column.middle.aligned.grid
+               [:div.right.aligned.column
+                {:style {:padding-left "0px"}}
+                (str (:short_label criterion) "?")]
+               [:div.left.aligned.column
+                {:style {:padding-left "0px"}}
+                [three-state-selection
+                 #(change-handler cid %)
+                 (get label-values cid)]]]]]))))]]]))

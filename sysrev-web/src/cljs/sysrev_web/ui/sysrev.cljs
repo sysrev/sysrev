@@ -5,7 +5,7 @@
 (defn project-summary-box []
   (let [stats (-> @server-data :sysrev :stats)]
     [:div.ui.raised.segments
-     [:h2.ui.top.attached.header.center.aligned
+     [:h3.ui.top.attached.header.center.aligned
       "Project summary"]
      [:div.ui.bottom.attached.segment
       [:div.ui.three.column.grid.project-stats
@@ -38,7 +38,7 @@
 (defn label-stats-box []
   (let [stats (-> @server-data :sysrev :stats)]
     [:div.ui.raised.segments
-     [:h2.ui.top.attached.header.center.aligned
+     [:h3.ui.top.attached.header.center.aligned
       "Label statistics"]
      [:div.ui.bottom.attached.segment
       (doall
@@ -67,7 +67,7 @@
 (defn user-list-box []
   (let [user-ids (-> @server-data :sysrev :users keys)]
     [:div.ui.raised.segments
-     [:h2.ui.top.attached.header.center.aligned
+     [:h3.ui.top.attached.header.center.aligned
       "Members"]
      [:div.ui.attached.segment.cards
       (doall

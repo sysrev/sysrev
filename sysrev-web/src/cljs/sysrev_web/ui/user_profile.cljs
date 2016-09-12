@@ -1,17 +1,63 @@
 (ns sysrev-web.ui.user-profile
   (:require [sysrev-web.base :refer [state server-data]]
-            [sysrev-web.data :refer [user-article-ids-sorted]]
+            [sysrev-web.data :refer [get-user-label-values]]
             [sysrev-web.ui.components :refer [debug-box]]
             [sysrev-web.ui.article :refer [article-short-info-component]]))
 
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])
-        user (get-in @server-data [:sysrev :users user-id :user])
+        user (get-in @server-data [:users user-id])
         display-name (or (:username user) (:name user) (:email user))
-        article-ids (user-article-ids-sorted user-id :score)]
+        overall-cid (:overall-cid @server-data)
+        unconfirmed-ids (->> user :labels :unconfirmed keys)
+        completed-ids
+        (->> unconfirmed-ids
+             (filter #((comp not nil?)
+                       (get-in (get-user-label-values % user-id)
+                               [overall-cid :answer]))))
+        incomplete-ids
+        (->> unconfirmed-ids
+             (filter #(nil?
+                       (get-in (get-user-label-values % user-id)
+                               [overall-cid :answer]))))
+        confirmed-ids (->> user :labels :confirmed keys)
+        active-tab
+        (as-> (get-in @state [:page :user-profile :articles-tab])
+            active-tab
+          (if (= active-tab :default)
+            (cond (not= 0 (count completed-ids)) :completed
+                  (not= 0 (count incomplete-ids)) :incomplete
+                  :else :confirmed)
+            active-tab))]
     [:div.sixteen.wide.column
-     [:h1 display-name]
-     (doall
-      (for [article-id article-ids]
-        ^{:key {:user-article {:a article-id :u user-id}}}
-        [article-short-info-component article-id true user-id]))]))
+     [:div.ui.raised.segments
+      [:div.ui.top.attached.header.segment
+       [:h3 display-name]]
+      [:div.ui.bottom.attached.segment
+       [:div.ui.secondary.pointing.large.three.item.menu
+        [:a.item
+         {:class (if (= active-tab :completed) "active" "")
+          :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
+                            :completed)}
+         (str (count completed-ids) " awaiting confirmation")]
+        [:a.item
+         {:class (if (= active-tab :incomplete) "active" "")
+          :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
+                            :incomplete)}
+         (str (count incomplete-ids) " unfinished article"
+              (if (= 1 (count incomplete-ids)) "" "s"))]
+        [:a.item
+         {:class (if (= active-tab :confirmed) "active" "")
+          :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
+                            :confirmed)}
+         (str (count confirmed-ids) " confirmed article"
+              (if (= 1 (count confirmed-ids)) "" "s"))]]
+       (let [article-ids (case active-tab
+                           :completed completed-ids
+                           :incomplete incomplete-ids
+                           :confirmed confirmed-ids
+                           nil)]
+         (doall
+          (for [article-id article-ids]
+            ^{:key {:user-article {:a article-id :u user-id}}}
+            [article-short-info-component article-id true user-id])))]]]))

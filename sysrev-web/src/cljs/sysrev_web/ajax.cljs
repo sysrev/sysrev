@@ -1,7 +1,7 @@
 (ns sysrev-web.ajax
   (:require
    [ajax.core :refer [GET POST]]
-   [sysrev-web.base :refer [state server-data]]
+   [sysrev-web.base :refer [state server-data current-page current-user-id]]
    [sysrev-web.util :refer [nav nav-scroll-top map-values]]
    [sysrev-web.notify :refer [notify]]))
 
@@ -58,6 +58,8 @@
 (defn get-ranking-page [num handler]
   (ajax-get (str "/api/ranking" num) handler))
 (def get-project-info (partial ajax-get "/api/project-info"))
+(defn get-user-info [user-id handler]
+  (ajax-get (str "/api/user-info/" user-id) handler))
 (defn post-login [data handler] (ajax-post "/api/auth/login" data handler))
 (defn post-register [data handler] (ajax-post "/api/auth/register" data handler))
 (defn post-logout [handler] (ajax-post "/api/auth/logout" handler))
@@ -65,61 +67,81 @@
 (defn get-label-tasks
   ([interval above-score handler]
    (ajax-get
-     (str "/api/label-task/" interval)
-     (when-not (nil? above-score) {:above-score above-score})
-     handler))
+    (str "/api/label-task/" interval)
+    (when-not (nil? above-score) {:above-score above-score})
+    handler))
   ([interval handler] (get-label-tasks interval nil handler)))
 (defn post-tags [data handler] (ajax-post "/api/set-labels" data handler))
 
 
+(defn pull-user-info [user-id]
+  (get-user-info
+   user-id
+   (fn [response]
+     (swap! server-data assoc-in
+            [:users user-id] response))))
+
 (defn pull-identity []
-  (get-identity #(swap! state assoc :identity (:identity %))))
+  (get-identity
+   (fn [response]
+     (swap! state assoc :identity (:identity response))
+     (when-let [user-id (current-user-id)]
+       (when (empty? (get-in @server-data [:users user-id]))
+         (pull-user-info user-id))))))
 
 (defn pull-criteria []
   (when (nil? (:criteria @server-data))
     (get-criteria
-     #(swap! server-data assoc :criteria %))))
+     (fn [response]
+       (swap! server-data assoc
+              :criteria response
+              :overall-cid
+              (->> response
+                   (filter (fn [[cid {:keys [name]}]]
+                             (= name "overall include")))
+                   first first))))))
 
 (defn pull-all-labels []
   (get-all-labels
    (fn [response]
      (swap! server-data assoc
-            :labels (:labels response)
-            :labeled-articles (:articles response))
+            :labels (:labels response))
      (swap! server-data update
             :articles #(merge % (:articles response))))))
 
 (defn pull-article-labels [article-id & [handler]]
   (get-article-labels
-    article-id
-    (fn [response]
-      (swap! server-data assoc-in
-             [:article-labels article-id] response)
-      (when handler
-        (handler response)))))
+   article-id
+   (fn [response]
+     (swap! server-data assoc-in
+            [:article-labels article-id] response)
+     (when handler
+       (handler response)))))
 
 (defn pull-ranking-page [num]
   (when (nil? (get-in @server-data [:ranking :pages num]))
     (get-ranking-page
-      num
-      (fn [response]
-        (let [ranked-ids (->> response
-                              (sort-by (comp :score second))
-                              (mapv first))]
-          (swap! server-data update
-                 :articles #(merge % response))
-          (swap! server-data assoc-in
-                 [:ranking :pages num] ranked-ids))))))
+     num
+     (fn [response]
+       (let [ranked-ids (->> response
+                             (sort-by (comp :score second))
+                             (mapv first))]
+         (swap! server-data update
+                :articles #(merge % response))
+         (swap! server-data assoc-in
+                [:ranking :pages num] ranked-ids))))))
 
 (defn pull-project-info []
   (get-project-info #(swap! server-data assoc :sysrev %)))
+
+
 
 (defn pull-initial-data []
   (pull-identity)
   (when (nil? (:criteria @server-data)) (pull-criteria))
   (when (nil? (:labels @server-data)) (pull-all-labels))
   (when (nil? (:sysrev @server-data)) (pull-project-info))
-  (when (contains? (:page @state) :ranking)
+  (when (= (current-page) :ranking)
     (let [page-num (-> @state :page :ranking :ranking-page)]
       (when page-num
         (pull-ranking-page page-num)))))

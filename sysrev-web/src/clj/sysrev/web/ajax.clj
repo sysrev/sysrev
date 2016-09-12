@@ -47,14 +47,20 @@
 
 (defn web-all-labels []
   (let [labels (future (articles/all-article-labels
-                        :criteria_id :user_id :answer))
-        articles (future (articles/all-labeled-articles))]
+                        nil :criteria_id :user_id :answer))
+        articles (future (articles/all-labeled-articles nil))]
     {:labels @labels :articles @articles}))
 
 (defn web-project-summary []
   (let [users (future (users/get-user-summaries))
         stats (future (sysrev/sr-summary))]
     {:users @users :stats @stats}))
+
+(defn web-user-info [user-id self?]
+  (let [umap (users/get-user-info user-id)]
+    (if true ;;self?
+      umap
+      (assoc-in umap [:labels :unconfirmed] nil))))
 
 (defn web-label-task [user-id n-max & [above-score]]
   (if user-id

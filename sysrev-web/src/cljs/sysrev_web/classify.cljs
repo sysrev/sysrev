@@ -79,15 +79,17 @@
       (label-skipped-pop))))
 
 (defn update-active-criteria []
-  (when (on-page? :classify)
-    (let [article-id (label-queue-head)
-          user-id (current-user-id)]
-      (ajax/pull-article-labels
-       article-id
-       (fn [response]
-         (let [user-labels (get response user-id)]
-           (swap! state assoc-in
-                  [:page :classify :label-values] user-labels)))))))
+  (let [article-id (label-queue-head)
+        user-id (current-user-id)]
+    (ajax/pull-article-labels
+     article-id
+     (fn [response]
+       (let [user-labels (get response user-id)]
+         (swap! state
+                #(if (contains? (:page %) :classify)
+                   (assoc-in % [:page :classify :label-values]
+                             user-labels)
+                   %)))))))
 
 ;; Watch `state` for changes to the head of the article queue
 ;; and pull updated label values for the article.
