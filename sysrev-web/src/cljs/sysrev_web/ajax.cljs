@@ -1,7 +1,9 @@
 (ns sysrev-web.ajax
   (:require
    [ajax.core :refer [GET POST]]
-   [sysrev-web.base :refer [state server-data current-page current-user-id]]
+   [sysrev-web.base :refer [state]]
+   [sysrev-web.state.core :as s]
+   [sysrev-web.state.data :as d]
    [sysrev-web.util :refer [nav nav-scroll-top map-values]]
    [sysrev-web.notify :refer [notify]]))
 
@@ -78,83 +80,54 @@
   (get-user-info
    user-id
    (fn [response]
-     (swap! server-data assoc-in
-            [:users user-id] response))))
+     (swap! state (d/set-user-info user-id response)))))
 
 (defn pull-identity []
   (get-identity
    (fn [response]
-     (swap! state assoc :identity (:identity response))
-     (when-let [user-id (current-user-id)]
-       (when (empty? (get-in @server-data [:users user-id]))
+     (swap! state (s/set-identity (:identity response)))
+     (when-let [user-id (s/current-user-id)]
+       (when-not (d/user-info user-id)
          (pull-user-info user-id))))))
 
 (defn pull-criteria []
-  (when (nil? (:criteria @server-data))
+  (when (nil? (d/data :criteria))
     (get-criteria
      (fn [response]
-       (swap! server-data assoc
-              :criteria response
-              :overall-cid
-              (->> response
-                   (filter (fn [[cid {:keys [name]}]]
-                             (= name "overall include")))
-                   first first))))))
+       (swap! state (d/set-criteria response))))))
 
 (defn pull-all-labels []
   (get-all-labels
    (fn [response]
-     (swap! server-data assoc
-            :labels (:labels response))
-     (swap! server-data update
-            :articles #(merge % (:articles response))))))
-
-(defn pull-article-labels [article-id & [handler]]
-  (get-article-labels
-   article-id
-   (fn [response]
-     (swap! server-data assoc-in
-            [:article-labels article-id] response)
-     (when handler
-       (handler response)))))
+     (swap! state
+            (comp (d/set-all-labels (:labels response))
+                  (d/merge-articles (:articles response)))))))
 
 (defn pull-ranking-page [num]
-  (when (nil? (get-in @server-data [:ranking :pages num]))
+  (when (nil? (d/data [:ranking :pages num]))
     (get-ranking-page
      num
      (fn [response]
        (let [ranked-ids (->> response
                              (sort-by (comp :score second))
                              (mapv first))]
-         (swap! server-data update
-                :articles #(merge % response))
-         (swap! server-data assoc-in
-                [:ranking :pages num] ranked-ids))))))
+         (swap! state
+                (comp (d/set-ranking-page num ranked-ids)
+                      (d/merge-articles response))))))))
 
 (defn pull-project-info []
-  (get-project-info #(swap! server-data assoc :sysrev %)))
-
-
-
-(defn pull-initial-data []
-  (pull-identity)
-  (when (nil? (:criteria @server-data)) (pull-criteria))
-  (when (nil? (:labels @server-data)) (pull-all-labels))
-  (when (nil? (:sysrev @server-data)) (pull-project-info))
-  (when (= (current-page) :ranking)
-    (let [page-num (-> @state :page :ranking :ranking-page)]
-      (when page-num
-        (pull-ranking-page page-num)))))
+  (get-project-info
+   #(swap! state (d/set-project-info %))))
 
 (defn do-post-login [email password]
   (post-login
-    {:email email :password password}
-    (fn [response]
-      (if (:valid response)
-        (do
-          (pull-identity)
-          (nav-scroll-top "/"))
-        (swap! state assoc-in [:page :login :err] (:err response))))))
+   {:email email :password password}
+   (fn [response]
+     (if (:valid response)
+       (do
+         (pull-identity)
+         (nav-scroll-top "/"))
+       (swap! state assoc-in [:page :login :err] (:err response))))))
 
 (defn do-post-register [email password]
   (post-register
@@ -165,7 +138,7 @@
 (defn do-post-logout []
   (post-logout
    (fn [_]
-     (swap! state dissoc :identity)
+     (swap! state (s/log-out))
      (nav-scroll-top "/")
      (notify "Logged out."))))
 
@@ -187,8 +160,7 @@
               articles (->> result
                             (group-by :article_id)
                             (map-values first))]
-          (swap! server-data update
-                 :articles #(merge % articles))
+          (swap! state (d/merge-articles articles))
           (notify (str "Fetched " (count result) " more articles"))
           (handler article-ids))))))
   ([interval handler]
@@ -201,10 +173,30 @@
   Will fail on server if user is not logged in."
   [article-id criteria-values]
   (post-tags
-    {:article-id article-id
-     :label-values criteria-values}
-    (fn [response]
-      (let [err (:error response)
-            res (:result response)]
-        (when-not (empty? err) (notify (str "Error: " err)))
-        (when-not (empty? res) (notify "Tags saved"))))))
+   {:article-id article-id
+    :label-values criteria-values}
+   (fn [response]
+     (let [err (:error response)
+           res (:result response)]
+       (when-not (empty? err) (notify (str "Error: " err)))
+       (when-not (empty? res) (notify "Tags saved"))))))
+
+(defn fetch-data
+  "Fetches the data value under path `ks` in (:data @state) if it does
+  not already exist (or if `force?` is true)."
+  [ks & [force?]]
+  (let [ks (if (keyword? ks) [ks] ks)]
+    (when (or force? (nil? (d/data ks)))
+      (case (first ks)
+        :criteria (pull-criteria)
+        :labels (pull-all-labels)
+        :sysrev (pull-project-info)
+        :users (let [[_ user-id] ks] (pull-user-info user-id))
+        :ranking (let [[_ pages page-num] ks]
+                   (when (and (= pages :pages)
+                              (integer? page-num))
+                     (pull-ranking-page page-num)))
+        :articles (let [[_ article-id] ks]
+                    ;; todo - fetch single articles here
+                    nil)
+        nil))))

@@ -2,18 +2,18 @@
   (:require
    [clojure.core.reducers :refer [fold]]
    [clojure.string :refer [capitalize]]
-   [sysrev-web.base :refer [state server-data]]
-   [sysrev-web.data :refer [get-label-values get-user-label-values]]
+   [sysrev-web.base :refer [state]]
+   [sysrev-web.state.data :refer [article-label-values user-label-values]]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-value-tag]]
    [sysrev-web.util :refer [re-pos map-values]]))
 
 (defn label-values-component [article-id & [user-id]]
   (fn [article-id & [user-id]]
-    (let [cids (-> @server-data :criteria keys sort)
+    (let [cids (-> @state :data :criteria keys sort)
           values (if (nil? user-id)
-                   (get-label-values article-id)
-                   (get-user-label-values article-id user-id))]
+                   (article-label-values article-id)
+                   (user-label-values article-id user-id))]
       [:div.ui.header.content
        [:div.ui.horizontal.divided.list
         (doall
@@ -24,7 +24,7 @@
           (map
            (fn [[cid {answer :answer}]]
              (let [criteria-name
-                   (get-in @server-data [:criteria cid :name])
+                   (get-in @state [:data :criteria cid :name])
                    answer-str (if (nil? answer)
                                 "unknown"
                                 (str answer))]
@@ -108,7 +108,7 @@
   be included."
   [article-id & [show-labels user-id]]
   (fn [article-id & [show-labels user-id]]
-    (when-let [article (get-in @server-data [:articles article-id])]
+    (when-let [article (get-in @state [:data :articles article-id])]
       (let [score (:score article)
             similarity (- 1.0 (Math/abs score))]
         [:div.ui.segments
@@ -125,7 +125,7 @@
          [:div.ui.bottom.attached.segment
           (when (and show-labels
                      ((comp not empty?)
-                      (get-user-label-values article-id user-id)))
+                      (user-label-values article-id user-id)))
             [label-values-component article-id user-id])]]))))
 
 (defn article-info-component
@@ -138,13 +138,13 @@
   be included."
   [article-id & [show-labels user-id]]
   (fn [article-id & [show-labels user-id]]
-    (when-let [article (get-in @server-data [:articles article-id])]
+    (when-let [article (get-in @state [:data :articles article-id])]
       (let [score (:score article)
             similarity (- 1.0 (Math/abs score))
             labels (and show-labels
                         (if user-id
-                          (get-user-label-values article-id user-id)
-                          (get-label-values article-id)))
+                          (user-label-values article-id user-id)
+                          (article-label-values article-id)))
             have-labels? (if labels true false)]
         [:div
          [:h3.ui.top.attached.header.segment

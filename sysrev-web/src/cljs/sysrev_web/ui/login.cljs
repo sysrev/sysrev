@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.login
-  (:require [sysrev-web.base :refer [state server-data]]
+  (:require [sysrev-web.base :refer [state]]
             [sysrev-web.ajax :as ajax]
             [reagent.core :as r]
             [sysrev-web.util :refer [validate]]

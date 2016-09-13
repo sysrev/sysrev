@@ -1,24 +1,24 @@
 (ns sysrev-web.ui.user-profile
-  (:require [sysrev-web.base :refer [state server-data]]
-            [sysrev-web.data :refer [get-user-label-values]]
+  (:require [sysrev-web.base :refer [state]]
+            [sysrev-web.state.data :refer [user-label-values]]
             [sysrev-web.ui.components :refer [debug-box]]
             [sysrev-web.ui.article :refer [article-short-info-component]]))
 
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])
-        user (get-in @server-data [:users user-id])
+        user (get-in @state [:data :users user-id])
         display-name (or (:username user) (:name user) (:email user))
-        overall-cid (:overall-cid @server-data)
+        overall-cid (-> @state :data :overall-cid)
         unconfirmed-ids (->> user :labels :unconfirmed keys)
         completed-ids
         (->> unconfirmed-ids
              (filter #((comp not nil?)
-                       (get-in (get-user-label-values % user-id)
+                       (get-in (user-label-values % user-id)
                                [overall-cid :answer]))))
         incomplete-ids
         (->> unconfirmed-ids
              (filter #(nil?
-                       (get-in (get-user-label-values % user-id)
+                       (get-in (user-label-values % user-id)
                                [overall-cid :answer]))))
         confirmed-ids (->> user :labels :confirmed keys)
         active-tab

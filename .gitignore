@@ -172,3 +172,5 @@ fabric.properties
 /sysrev-web/sysrev-web.iml
 
 /sysrev-web/deploy/
+
+*.org

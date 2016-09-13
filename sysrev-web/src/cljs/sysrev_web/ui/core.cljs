@@ -1,10 +1,10 @@
 (ns sysrev-web.ui.core
   (:require
-   [sysrev-web.base :refer [state server-data current-page on-page? logged-in?]]
+   [sysrev-web.base :refer [state]]
+   [sysrev-web.state.core :refer [current-page on-page? logged-in?]]
    [sysrev-web.routes :refer [data-initialized? on-public-page?]]
    [sysrev-web.notify :refer [notify-head]]
    [sysrev-web.ui.components :refer [loading-screen notifier]]
-   [sysrev-web.ui.users :refer [users-page]]
    [sysrev-web.ui.sysrev :refer [project-page]]
    [sysrev-web.ui.labels :refer [labels-page]]
    [sysrev-web.ui.login :refer [login-register-page]]
@@ -20,12 +20,10 @@
     [:h2.ui.header.huge.center.aligned "Please log in or register"]]])
 
 (defn current-page-content []
-  (cond (not (data-initialized?
-              (current-page) @server-data)) [loading-screen]
+  (cond (not (data-initialized? (current-page))) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
         (on-page? :project) [project-page]
-        (on-page? :users) [users-page]
         (on-page? :labels) [labels-page]
         (on-page? :login) [login-register-page false]
         (on-page? :register) [login-register-page true]

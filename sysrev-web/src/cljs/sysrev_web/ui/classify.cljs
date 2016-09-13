@@ -1,8 +1,8 @@
 (ns sysrev-web.ui.classify
   (:require
-   [sysrev-web.base :refer [state server-data current-user-id current-page]]
+   [sysrev-web.base :refer [state]]
+   [sysrev-web.state.core :refer [current-user-id current-page]]
    [sysrev-web.util :refer [nav-scroll-top nbsp]]
-   [sysrev-web.ajax :refer [send-tags pull-article-labels]]
    [sysrev-web.routes :refer [data-initialized?]]
    [sysrev-web.ui.components :refer
     [three-state-selection with-tooltip label-editor-component]]
@@ -10,24 +10,25 @@
    [sysrev-web.classify :refer
     [label-queue label-queue-head label-skipped-head
      label-load-skipped label-skip label-queue-update]]
-   [sysrev-web.ajax :as ajax]))
+   [sysrev-web.ajax :as ajax])
+  (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 ;; Initialize the label queue after other data has been loaded
 (add-watch
- server-data :initial-label-queue
+ state :initial-label-queue
  (fn [k v old new]
-   (when (= (current-page) :classify)
-     (when (and (empty? (label-queue))
-                (not (data-initialized? :classify old))
-                (data-initialized? :classify new))
+   (when (= (with-state new (current-page)) :classify)
+     (when (and (empty? (with-state new (label-queue)))
+                (not (with-state old (data-initialized? :classify)))
+                (with-state new (data-initialized? :classify)))
        (label-queue-update)))))
 
 (defn classify-page []
   (let [user-id (current-user-id)
         article-id (label-queue-head)
-        criteria (:criteria @server-data)
+        criteria (-> @state :data :criteria)
         criteria-ids (keys criteria)
-        overall-cid (:overall-cid @server-data)]
+        overall-cid (-> @state :data :overall-cid)]
     [:div.ui
      [article-info-component article-id false]
      [label-editor-component
@@ -56,7 +57,7 @@
          [:i.check.circle.outline.icon]]]
        (let [n-unconfirmed
              (count
-              (get-in @server-data [:users user-id :labels :unconfirmed]))
+              (get-in @state [:data :users user-id :labels :unconfirmed]))
              n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
          [:div.ui.five.wide.column
           [:div.ui.buttons.right.floated

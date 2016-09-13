@@ -1,110 +1,184 @@
 (ns sysrev-web.routes
   (:require
-   [sysrev-web.base :refer [state server-data on-page? current-user-id]]
-   [sysrev-web.ajax :refer
-    [pull-initial-data pull-project-info pull-all-labels pull-user-info]]
+   [sysrev-web.base :refer [state]]
+   [sysrev-web.state.core :refer [on-page? current-user-id]]
+   [sysrev-web.state.data :refer [data]]
+   [sysrev-web.ajax :refer [fetch-data pull-identity]]
    [sysrev-web.classify :refer [label-queue label-queue-update]]
    [sysrev-web.util :refer [nav]]
-   [secretary.core :include-macros true :refer-macros [defroute]]))
+   [secretary.core :include-macros true :refer-macros [defroute]]
+   [reagent.core :as r])
+  (:require-macros [sysrev-web.macros :refer [with-state]]))
 
-;; This var records the elements of `server-data` that are required by
-;; a page on the web site, so that rendering can be delayed until
-;; all the required data has been received.
-(def page-data-fields
-  {:ranking
-   [[:criteria] [:articles] [:labels] [:sysrev] [:ranking]]
-   :users
-   [[:criteria] [:articles] [:sysrev]]
+;; This var records the elements of `(:data @state)` that are required by
+;; each page on the web site.
+;;
+;; Each entry can have keys [:required :reload :on-ready]
+;; `:required` is a function that takes a state map as its argument
+;; and returns a vector of required data entries.
+;; These will be fetched if they have not been already.
+;;
+;; `:reload` returns the same as `:required` but takes two arguments,
+;; `[old new]` containing the state maps before and after the route change.
+;; The entries will be fetched even if they already exist.
+;;
+;; `:on-ready` is a function that will be called when the `:required`
+;; data entries have all become available.
+;;
+(def page-specs
+  {:login
+   {:required
+    (fn [s]
+      [])}
+
+   :register
+   {:required
+    (fn [s]
+      [])}
+   
+   :ranking
+   {:required
+    (fn [s]
+      [[:criteria]
+       [:labels]
+       [:articles]
+       [:sysrev]
+       [:ranking]])
+    :reload
+    (fn [old new] nil)}
+   
    :project
-   [[:criteria] [:articles] [:sysrev]]
+   {:required
+    (fn [s]
+      [[:criteria]
+       [:labels]
+       [:articles]
+       [:sysrev]])
+    :reload
+    (fn [old new]
+      [[:sysrev]])}
+   
    :classify
-   [[:criteria] [:articles] [:labels] [:sysrev]]
+   {:required
+    (fn [s]
+      [[:criteria]
+       [:labels]
+       [:articles]
+       [:sysrev]
+       (when-let [user-id (with-state s (current-user-id))]
+         [:users user-id])])
+    :reload
+    (fn [old new]
+      [(when-let [user-id (with-state new (current-user-id))]
+         [:users user-id])])}
+   
    :article
-   [[:criteria] [:articles] [:sysrev]]
+   {:required
+    (fn [s]
+      [[:criteria]
+       [:labels]
+       [:articles (-> s :page :article :id)]
+       [:sysrev]
+       (when-let [user-id (with-state s (current-user-id))]
+         [:users user-id])])
+    :reload
+    (fn [old new]
+      [(when-let [user-id (with-state new (current-user-id))]
+         [:users user-id])])}
+   
    :user-profile
-   [[:criteria] [:articles] [:sysrev]]
+   {:required
+    (fn [s]
+      [[:criteria]
+       [:sysrev]
+       [:labels]
+       [:users (-> s :page :user-profile :user-id)]])
+    :reload
+    (fn [old new]
+      [[:users (-> new :page :user-profile :user-id)]])
+    :on-ready
+    (fn [] nil)}
+   
    :labels
-   [[:criteria]]})
+   {:required
+    (fn [s]
+      [[:criteria]])}})
+
+(defn do-route-change
+  "This should be called in each route handler, to set the page state
+  and fetch data according to the page's entry in `page-specs`."
+  [page-key page-map]
+  (let [old-state @state]
+    (swap! state #(-> %
+                      (assoc-in [:page page-key] page-map)
+                      (assoc :active-page page-key)))
+    (when-not (contains? @state :identity)
+      (pull-identity))
+    (let [required-fn (get-in page-specs [page-key :required])
+          required-data (remove nil? (required-fn @state))]
+      (doall (map fetch-data required-data)))
+    (when-let [reload-fn (get-in page-specs [page-key :reload])]
+      (let [reload-data (remove nil? (reload-fn old-state @state))]
+        (doseq [ks reload-data]
+          (when (not= :not-found (data ks :not-found))
+            (fetch-data ks true)))))
+    (when-let [on-ready-fn (get-in page-specs [page-key :on-ready])]
+      (on-ready-fn))))
 
 (def public-pages
-  [:home :login :register :project :users :labels :user-profile :article])
+  [:home :login :register :project :labels :user-profile :article])
 
 (defn on-public-page? []
   (some on-page? public-pages))
 
 (defn data-initialized?
   "Test whether all server data required for a page has been received."
-  [page data-map]
-  (let [required-fields (get page-data-fields page)]
-    (every? #(not= :not-found (get-in data-map % :not-found))
+  [page]
+  (let [required-fn (get-in page-specs [page :required])
+        required-fields (required-fn @state)]
+    (every? #(not= :not-found (data % :not-found))
             required-fields)))
-
-(defn set-page-state [s]
-  (swap! state assoc :page s))
 
 (defroute home "/" []
   (nav "/project"))
 
 (defroute ranking "/ranking" []
-  (set-page-state {:ranking
-                   {:ranking-page 0
-                    :filters {}}})
-  (pull-initial-data))
+  (do-route-change :ranking {:ranking-page 0
+                             :filters {}}))
 
 (defroute login "/login" []
-  (set-page-state {:login {:email "" :password "" :submit false}}))
+  (do-route-change :login {:email "" :password "" :submit false}))
 
 (defroute register "/register" []
-  (set-page-state {:register {:email "" :password "" :submit false}}))
-
-(defroute users "/users" []
-  (set-page-state {:users {}})
-  (pull-initial-data)
-  ;; Re-fetch project info in case it has changed
-  (when (:sysrev @server-data)
-    (pull-project-info)))
+  (do-route-change :register {:email "" :password "" :submit false}))
 
 (defroute project "/project" []
-  (set-page-state {:project {}})
-  (pull-initial-data)
-  ;; Re-fetch project info in case it has changed
-  (when (:sysrev @server-data)
-    (pull-project-info)))
+  (do-route-change :project {}))
 
 (defroute self-profile "/user" []
-  (set-page-state {:user-profile
+  (do-route-change :user-profile
                    {:self true
                     :user-id (current-user-id)
-                    :articles-tab :default}})
-  (pull-initial-data)
-  (pull-user-info (current-user-id)))
+                    :articles-tab :default}))
 
 (defroute user-profile "/user/:id" [id]
   (let [id (js/parseInt id)]
-    (set-page-state {:user-profile
+    (do-route-change :user-profile
                      {:self false
                       :user-id id
-                      :articles-tab :default}})
-    (pull-initial-data)
-    (pull-user-info id)))
+                      :articles-tab :default})))
 
 (defroute article "/article/:article-id" [article-id]
   (let [article-id (js/parseInt article-id)]
-    (set-page-state {:article {:id article-id
-                               :label-values {}}})
-    (pull-initial-data)
-    (when-let [user-id (current-user-id)]
-      (pull-user-info user-id))))
+    (do-route-change :article
+                     {:id article-id
+                      :label-values {}})))
 
 (defroute classify "/classify" []
-  (set-page-state {:classify {:label-values {}}})
-  (pull-initial-data)
-  (when (data-initialized? :classify @server-data)
+  (do-route-change :classify {:label-values {}})
+  (when (data-initialized? :classify)
     (when (empty? (label-queue))
-      (label-queue-update))
-    (when-let [user-id (current-user-id)]
-      (pull-user-info user-id))))
+      (label-queue-update))))
 
 (defroute labels "/labels" []
-  (set-page-state {:labels {}})
-  (pull-initial-data))
+  (do-route-change :labels {}))

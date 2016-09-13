@@ -2,7 +2,7 @@
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
             [sysrev-web.util :refer [url-domain nbsp]]
-            [sysrev-web.base :refer [state server-data]]
+            [sysrev-web.base :refer [state]]
             [reagent.core :as r]
             [cljsjs.jquery]
             [cljsjs.semantic-ui]))
@@ -101,7 +101,7 @@
                           true ["green" "fa-check-circle-o"]
                           false ["orange" "fa-times-circle-o"]
                           nil ["grey" "fa-question-circle-o"])
-        label (get-in @server-data [:criteria criteria-id :short_label])]
+        label (get-in @state [:data :criteria criteria-id :short_label])]
     [:div.ui.small.label {:class vclass}
      (str label "? ")
      (when iclass
@@ -122,7 +122,7 @@
 
   `label-values` is a map of criteria-id to current label value."
   [change-handler label-values]
-  (let [criteria (:criteria @server-data)]
+  (let [criteria (-> @state :data :criteria)]
     [:div.ui.segments
      [:h3.ui.top.attached.header.segment
       "Edit labels"]

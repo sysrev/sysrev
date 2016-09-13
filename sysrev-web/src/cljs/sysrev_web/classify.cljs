@@ -1,7 +1,8 @@
 (ns sysrev-web.classify
-  (:require [sysrev-web.base :refer
-             [state server-data current-user-id on-page?]]
-            [sysrev-web.ajax :as ajax]))
+  (:require [sysrev-web.base :refer [state]]
+            [sysrev-web.state.core :refer [current-user-id on-page?]]
+            [sysrev-web.ajax :as ajax])
+  (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 ;; The classification task is driven by a vector holding articles
 ;; Articles received from the server are inserted to the right.
@@ -18,9 +19,10 @@
          fetch-num (if (> deficit 0) (max deficit interval) 0)
          max-dist-score (if (empty? (label-queue))
                           nil
-                          (get-in @server-data [:articles
-                                                (last (label-queue))
-                                                :score]))]
+                          (get-in @state [:data
+                                          :articles
+                                          (last (label-queue))
+                                          :score]))]
      (when (> fetch-num 0)
        (ajax/pull-label-tasks
         fetch-num label-queue-right-append max-dist-score))))
@@ -81,12 +83,12 @@
 (defn update-active-criteria []
   (let [article-id (label-queue-head)
         user-id (current-user-id)]
-    (ajax/pull-article-labels
+    (ajax/get-article-labels
      article-id
      (fn [response]
        (let [user-labels (get response user-id)]
          (swap! state
-                #(if (contains? (:page %) :classify)
+                #(if (on-page? :classify)
                    (assoc-in % [:page :classify :label-values]
                              user-labels)
                    %)))))))
@@ -96,10 +98,10 @@
 (add-watch
  state :active-criteria
  (fn [k v old new]
-   (when (contains? (:page new) :classify)
+   (when (with-state new (on-page? :classify))
      (let [new-aid (-> new :label-activity first)
            old-aid (-> old :label-activity first)]
        (when (and new-aid
                   (or (not= new-aid old-aid)
-                      (not (contains? (:page old) :classify))))
+                      (not (with-state old (on-page? :classify)))))
          (update-active-criteria))))))

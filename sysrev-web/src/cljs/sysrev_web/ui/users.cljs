@@ -1,8 +1,8 @@
 (ns sysrev-web.ui.users
-  (:require [sysrev-web.base :refer [server-data]]))
+  (:require [sysrev-web.base :refer [state]]))
 
 (defn user-info-card [user-id]
-  (let [users (-> @server-data :sysrev :users)
+  (let [users (-> @state :data :sysrev :users)
         u (get users user-id)
         email (-> u :user :email)
         name (-> u :user :name)
@@ -35,15 +35,3 @@
        [:span.attention
         (str num-in-progress)]
        " in progress"]]]))
-
-(defn users-page []
-  (let [users (-> @server-data :sysrev :users)
-        user-ids (keys users)]
-    [:div.ui.container
-     [:h1 "User Activity Summary"]
-     [:div.ui.cards
-      (->> user-ids
-           (map-indexed
-            (fn [idx user-id]
-              ^{:key {:user-summary user-id}}
-              [user-info-card user-id])))]]))

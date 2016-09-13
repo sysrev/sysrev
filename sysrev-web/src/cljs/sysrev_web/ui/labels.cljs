@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.labels
-  (:require [sysrev-web.base :refer [server-data]]))
+  (:require [sysrev-web.base :refer [state]]))
 
 (defn labels-page []
   [:table.ui.celled.table
@@ -11,7 +11,7 @@
    [:tbody
     (doall
      (->>
-      (:criteria @server-data)
+      (-> @state :data :criteria)
       (map
        (fn [[id criteria]]
          ^{:key {:label-entry id}}

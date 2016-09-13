@@ -1,9 +1,9 @@
 (ns sysrev-web.ui.sysrev
-  (:require [sysrev-web.base :refer [state server-data]]
+  (:require [sysrev-web.base :refer [state]]
             [sysrev-web.ui.users :as users]))
 
 (defn project-summary-box []
-  (let [stats (-> @server-data :sysrev :stats)]
+  (let [stats (-> @state :data :sysrev :stats)]
     [:div.ui.raised.segments
      [:h3.ui.top.attached.header.center.aligned
       "Project summary"]
@@ -36,14 +36,14 @@
          " awaiting extra review"]]]]]))
 
 (defn label-stats-box []
-  (let [stats (-> @server-data :sysrev :stats)]
+  (let [stats (-> @state :data :sysrev :stats)]
     [:div.ui.raised.segments
      [:h3.ui.top.attached.header.center.aligned
       "Label statistics"]
      [:div.ui.bottom.attached.segment
       (doall
        (for [cid (-> stats :label-values keys)]
-         (let [clabel (get-in @server-data [:criteria cid :short_label])
+         (let [clabel (get-in @state [:data :criteria cid :short_label])
                counts (get-in stats [:label-values cid])]
            ^{:key {:label-stats cid}}
            [:div.ui.vertical.segment
@@ -65,7 +65,7 @@
                " unknown"]]]])))]]))
 
 (defn user-list-box []
-  (let [user-ids (-> @server-data :sysrev :users keys)]
+  (let [user-ids (-> @state :data :sysrev :users keys)]
     [:div.ui.raised.segments
      [:h3.ui.top.attached.header.center.aligned
       "Members"]

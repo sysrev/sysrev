@@ -1,20 +1,21 @@
 (ns sysrev-web.ui.article-page
   (:require
-   [sysrev-web.base :refer
-    [state server-data current-page current-user-id on-page?]]
+   [sysrev-web.base :refer [state]]
+   [sysrev-web.state.core :refer [current-page current-user-id on-page?]]
    [sysrev-web.ajax :as ajax]
    [sysrev-web.ui.article :refer [article-info-component]]
-   [sysrev-web.ui.components :refer [label-editor-component]]))
+   [sysrev-web.ui.components :refer [label-editor-component]])
+  (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 (defn update-article-active-criteria []
   (when-let [user-id (current-user-id)]
     (let [article-id (-> @state :page :article :id)]
-      (ajax/pull-article-labels
+      (ajax/get-article-labels
        article-id
        (fn [response]
          (let [user-labels (get response user-id)]
            (swap! state
-                  #(if (contains? (:page %) :article)
+                  #(if (on-page? :article)
                      (assoc-in % [:page :article :label-values]
                                user-labels)
                      %))))))))
@@ -22,28 +23,31 @@
 (add-watch
  state :article-active-criteria
  (fn [k v old new]
-   (when (contains? (:page new) :article)
-     (let [new-aid (-> new :page :article :id)
+   (when (with-state new (on-page? :article))
+     (let [new-page (with-state new (current-page))
+           old-page (with-state old (current-page))
+           new-aid (-> new :page :article :id)
            old-aid (-> old :page :article :id)
            new-uid (-> new :identity :id)
            old-uid (-> old :identity :id)]
-       (when (or (not= new-aid old-aid)
+       (when (or (not= new-page old-page)
+                 (not= new-aid old-aid)
                  (not= new-uid old-uid))
          (update-article-active-criteria))))))
 
 (defn article-page []
   (let [article-id (-> @state :page :article :id)
-        criteria (:criteria @server-data)
+        criteria (-> @state :data :criteria)
         criteria-ids (keys criteria)
-        overall-cid (:overall-cid @server-data)]
+        overall-cid (-> @state :data :overall-cid)]
     [:div.ui.grid
      (let [user-id (current-user-id)
            confirmed
-           (and user-id (get-in @server-data [:users user-id :labels
-                                              :confirmed article-id]))
+           (and user-id (get-in @state [:data :users user-id :labels
+                                        :confirmed article-id]))
            unconfirmed
-           (and user-id (get-in @server-data [:users user-id :labels
-                                              :unconfirmed article-id]))
+           (and user-id (get-in @state [:data :users user-id :labels
+                                        :unconfirmed article-id]))
            status (cond (nil? user-id) :logged-out
                         confirmed :confirmed
                         unconfirmed :unconfirmed
