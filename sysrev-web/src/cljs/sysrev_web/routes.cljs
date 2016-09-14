@@ -105,14 +105,27 @@
 (defn data-initialized?
   "Test whether all server data required for a page has been received."
   [page]
-  (let [required-fn (get-in page-specs [page :required])
-        required-fields (required-fn @state)]
-    (every? #(not= :not-found (data % :not-found))
-            required-fields)))
+  (and (contains? @state :identity)
+       (let [required-fn (get-in page-specs [page :required])
+             required-fields (required-fn @state)]
+         (every? #(not= :not-found (data % :not-found))
+                 required-fields))))
 
-(defn page-required-data [page-key]
-  (let [required-fn (get-in page-specs [page-key :required])]
-    (remove nil? (required-fn @state))))
+(defn page-required-data
+  ([page-key]
+   (page-required-data page-key @state))
+  ([page-key state-map]
+   (let [required-fn (get-in page-specs [page-key :required])]
+     (remove nil? (required-fn state-map)))))
+
+(defn page-reload-data
+  ([page-key]
+   (page-reload-data page-key @state))
+  ([page-key state-map]
+   (page-reload-data page-key state-map state-map))
+  ([page-key old-state-map new-state-map]
+   (when-let [reload-fn (get-in page-specs [page-key :reload])]
+     (remove nil? (reload-fn old-state-map new-state-map)))))
 
 (defn do-route-change
   "This should be called in each route handler, to set the page state
@@ -124,14 +137,11 @@
                       (assoc :active-page page-key)))
     (when-not (contains? @state :identity)
       (ajax/pull-identity))
-    (let [required-fn (get-in page-specs [page-key :required])
-          required-data (remove nil? (required-fn @state))]
-      (doall (map ajax/fetch-data required-data)))
-    (when-let [reload-fn (get-in page-specs [page-key :reload])]
-      (let [reload-data (remove nil? (reload-fn old-state @state))]
-        (doseq [ks reload-data]
-          (when (not= :not-found (data ks :not-found))
-            (ajax/fetch-data ks true)))))))
+    (let [reload-data (page-reload-data page-key old-state @state)]
+      (doseq [ks reload-data]
+        (when (not= :not-found (data ks :not-found))
+          (ajax/fetch-data ks true))))
+    (doall (map ajax/fetch-data (page-required-data page-key)))))
 
 ;; This monitors for changes in the data requirements of the current page.
 ;;
@@ -148,13 +158,13 @@
    (let [page (with-state new (current-page))
          old-page (with-state old (current-page))]
      (when (and page old-page (= page old-page))
-       (let [reqs (with-state new (page-required-data page))
-             old-reqs (with-state old (page-required-data page))
+       (let [reqs (page-required-data page new)
+             old-reqs (page-required-data page old)
              fetch-reqs (->> reqs
                              (remove #(in? old-reqs %)))
              reload-fn (get-in page-specs [page :reload])
-             reload-data (when reload-fn (reload-fn new new))
-             old-reload-data (when reload-fn (reload-fn old old))
+             reload-data (page-reload-data page new)
+             old-reload-data (page-reload-data page old)
              reloads (->> reload-data
                           (remove #(in? old-reload-data %))
                           (remove #(in? fetch-reqs %)))]

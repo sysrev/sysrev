@@ -8,14 +8,7 @@
                  ;; Data pulled from server
                  :data {}
                  ;; Independent app-wide state for popup notifications
-                 :notifications #queue []
-                 ;;
-                 ;; Independent app-wide state for holding state of the classify queue.
-                 ;;
-                 ;; FIFO for upcoming articles
-                 :label-activity #queue []
-                 ;; LIFO for skipped articles
-                 :label-skipped '()}))
+                 :notifications #queue []}))
 
 (defn current-page []
   (-> @state :active-page))
@@ -43,7 +36,7 @@
 
 (defn log-out []
   (fn [s]
-    (dissoc s :identity)))
+    (assoc s :identity nil)))
 
 (defn set-classify-task [article-id]
   (fn [s]

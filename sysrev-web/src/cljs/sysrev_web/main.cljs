@@ -14,5 +14,6 @@
   (do (enable-console-print!)
       (init-state)
       (history-init)
-      (run)
       true))
+
+(run)

@@ -54,7 +54,7 @@
            article-id [:page :article :label-values]]
           [:div.ui.grid
            [:div.ui.sixteen.wide.column.center.aligned
-            [:div.ui.secondary.right.labeled.icon.button
+            [:div.ui.primary.right.labeled.icon.button
              {:class
               (if (nil?
                    (get (d/active-label-values

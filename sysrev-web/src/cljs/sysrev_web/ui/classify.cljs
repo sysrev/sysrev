@@ -47,11 +47,6 @@
          [:div.ui.five.wide.column]
          [:div.ui.six.wide.column.center.aligned
           [:div.ui.primary.right.labeled.icon.button
-           {:on-click #(do (ajax/fetch-classify-task true)
-                           (ajax/pull-user-info user-id))}
-           "Continue"
-           [:i.right.circle.arrow.icon]]
-          [:div.ui.secondary.right.labeled.icon.button
            {:class
             (if (nil?
                  (get (d/active-label-values
@@ -60,7 +55,12 @@
               "disabled"
               "")}
            "Finalize..."
-           [:i.check.circle.outline.icon]]]
+           [:i.check.circle.outline.icon]]
+          [:div.ui.secondary.right.labeled.icon.button
+           {:on-click #(do (ajax/fetch-classify-task true)
+                           (ajax/pull-user-info user-id))}
+           "Next article"
+           [:i.right.circle.arrow.icon]]]
          (let [n-unconfirmed
                (count
                 (get-in @state [:data :users user-id :labels :unconfirmed]))

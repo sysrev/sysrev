@@ -58,18 +58,20 @@
      [menu-link "/project" "Project"]
      [menu-link "/labels" "Labels"]
      [menu-link "/classify" "Classify"]
-     [menu-link ajax/do-post-logout "Logout"]]))
+     [:div.item
+      [:a.ui.button {:on-click ajax/do-post-logout}
+       "Log out"]]]))
 
 (defn logged-out-menu []
   [:div.ui.menu.right.floated
    [menu-link "/project" "Project"]
    [menu-link "/labels" "Labels"]
    [:div.item
-    [:a.ui.link {:href "/login"}
-     [:div.ui.primary.button "Log in"]]]
+    [:a.ui.button {:href "/login"}
+     "Log in"]]
    [:div.item
-    [:a.ui.link {:href "/register"}
-     [:div.ui.primary.button "Register"]]]])
+    [:a.ui.button {:href "/register"}
+     "Register"]]])
 
 (defn menu-component []
   (if (logged-in?)
@@ -84,8 +86,9 @@
       [:div.ui.middle.aligned.four.wide.column
        [:a.ui.link {:href "/"}
         [:h1 "Systematic Review"]]]
-      [:div.ui.right.floated.left.aligned.twelve.wide.column
-       [menu-component]]]
+      (when (contains? @state :identity)
+        [:div.ui.right.floated.left.aligned.twelve.wide.column
+         [menu-component]])]
      [:div.middle.aligned.row
       [:div.main-content.sixteen.wide.column
        [current-page-content]]]]]
