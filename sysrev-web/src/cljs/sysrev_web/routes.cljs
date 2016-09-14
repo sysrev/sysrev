@@ -12,7 +12,7 @@
 ;; This var records the elements of `(:data @state)` that are required by
 ;; each page on the web site.
 ;;
-;; Each entry can have keys [:required :reload :on-ready]
+;; Each entry can have keys [:required :reload]
 ;; `:required` is a function that takes a state map as its argument
 ;; and returns a vector of required data entries.
 ;; These will be fetched if they have not been already.
@@ -20,9 +20,6 @@
 ;; `:reload` returns the same as `:required` but takes two arguments,
 ;; `[old new]` containing the state maps before and after the route change.
 ;; The entries will be fetched even if they already exist.
-;;
-;; `:on-ready` is a function that will be called when the `:required`
-;; data entries have all become available.
 ;;
 (def page-specs
   {:login
@@ -99,9 +96,7 @@
        [:users (-> s :page :user-profile :user-id)]])
     :reload
     (fn [old new]
-      [[:users (-> new :page :user-profile :user-id)]])
-    :on-ready
-    (fn [] nil)}
+      [[:users (-> new :page :user-profile :user-id)]])}
    
    :labels
    {:required
@@ -137,9 +132,7 @@
       (let [reload-data (remove nil? (reload-fn old-state @state))]
         (doseq [ks reload-data]
           (when (not= :not-found (data ks :not-found))
-            (ajax/fetch-data ks true)))))
-    (when-let [on-ready-fn (get-in page-specs [page-key :on-ready])]
-      (on-ready-fn))))
+            (ajax/fetch-data ks true)))))))
 
 ;; This monitors for changes in the data requirements of the current page.
 ;;
