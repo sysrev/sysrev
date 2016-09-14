@@ -9,17 +9,16 @@
    [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
 
-;; This var records the elements of `(:data @state)` that are required by
-;; each page on the web site.
+;; This var records the elements of `(:data @state)` that are required by each
+;; page on the web site.
 ;;
-;; Each entry can have keys [:required :reload]
-;; `:required` is a function that takes a state map as its argument
-;; and returns a vector of required data entries.
-;; These will be fetched if they have not been already.
+;; `:required` is a function that takes a state map as its argument and returns
+;; a vector of required data entries. These will be fetched if they have not
+;; been already.
 ;;
-;; `:reload` returns the same as `:required` but takes two arguments,
-;; `[old new]` containing the state maps before and after the route change.
-;; The entries will be fetched even if they already exist.
+;; `:reload` (optional) returns entries like `:required` and takes two arguments
+;; `[old new]` containing the state maps before and after the route change. The
+;; entries will be fetched even if they already exist.
 ;;
 (def page-specs
   {:login
