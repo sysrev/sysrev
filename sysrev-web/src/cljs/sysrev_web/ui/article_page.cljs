@@ -2,38 +2,11 @@
   (:require
    [sysrev-web.base :refer [state]]
    [sysrev-web.state.core :refer [current-page current-user-id on-page?]]
+   [sysrev-web.state.data :as d]
    [sysrev-web.ajax :as ajax]
-   [sysrev-web.ui.article :refer [article-info-component]]
-   [sysrev-web.ui.components :refer [label-editor-component]])
+   [sysrev-web.ui.article :refer
+    [article-info-component label-editor-component]])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
-
-(defn update-article-active-criteria []
-  (when-let [user-id (current-user-id)]
-    (let [article-id (-> @state :page :article :id)]
-      (ajax/get-article-labels
-       article-id
-       (fn [response]
-         (let [user-labels (get response user-id)]
-           (swap! state
-                  #(if (on-page? :article)
-                     (assoc-in % [:page :article :label-values]
-                               user-labels)
-                     %))))))))
-
-(add-watch
- state :article-active-criteria
- (fn [k v old new]
-   (when (with-state new (on-page? :article))
-     (let [new-page (with-state new (current-page))
-           old-page (with-state old (current-page))
-           new-aid (-> new :page :article :id)
-           old-aid (-> old :page :article :id)
-           new-uid (-> new :identity :id)
-           old-uid (-> old :identity :id)]
-       (when (or (not= new-page old-page)
-                 (not= new-aid old-aid)
-                 (not= new-uid old-uid))
-         (update-article-active-criteria))))))
 
 (defn article-page []
   (let [article-id (-> @state :page :article :id)
@@ -78,19 +51,16 @@
             "Your labels for this article are not yet confirmed."]]
           [article-info-component article-id false]
           [label-editor-component
-           (fn [cid new-value]
-             (swap! state assoc-in
-                    [:page :article :label-values cid] new-value)
-             (->> (get-in @state [:page :article :label-values])
-                  (ajax/send-tags article-id)))
-           (get-in @state [:page :article :label-values])]
+           article-id [:page :article :label-values]]
           [:div.ui.grid
            [:div.ui.sixteen.wide.column.center.aligned
             [:div.ui.secondary.right.labeled.icon.button
              {:class
-              (if (nil? (get-in @state [:page :article :label-values overall-cid]))
+              (if (nil?
+                   (get (d/active-label-values
+                         article-id [:page :article :label-values])
+                        overall-cid))
                 "disabled"
                 "")}
-             ;; {:on-click label-skip}
              "Finalize..."
              [:i.check.circle.outline.icon]]]]]))]))

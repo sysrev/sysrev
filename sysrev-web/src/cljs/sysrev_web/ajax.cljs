@@ -3,7 +3,7 @@
    [ajax.core :refer [GET POST]]
    [sysrev-web.base :refer [state]]
    [sysrev-web.state.core :as s]
-   [sysrev-web.state.data :as d]
+   [sysrev-web.state.data :as d :refer [data]]
    [sysrev-web.util :refer [nav nav-scroll-top map-values]]
    [sysrev-web.notify :refer [notify]]))
 
@@ -96,6 +96,12 @@
      (fn [response]
        (swap! state (d/set-criteria response))))))
 
+(defn pull-article-labels [article-id]
+  (get-article-labels
+   article-id
+   (fn [response]
+     (swap! state (d/set-article-labels article-id response)))))
+
 (defn pull-all-labels []
   (get-all-labels
    (fn [response]
@@ -161,7 +167,7 @@
                             (group-by :article_id)
                             (map-values first))]
           (swap! state (d/merge-articles articles))
-          (notify (str "Fetched " (count result) " more articles"))
+          ;; (notify (str "Fetched " (count result) " more articles"))
           (handler article-ids))))))
   ([interval handler]
    (pull-label-tasks interval handler 0.0)))
@@ -181,6 +187,18 @@
        (when-not (empty? err) (notify (str "Error: " err)))
        (when-not (empty? res) (notify "Tags saved"))))))
 
+(defn fetch-classify-task [& [force?]]
+  (let [current-id (data :classify-article-id)]
+    (when (or force? (nil? current-id))
+      (let [current-score
+            (if (nil? current-id)
+              nil
+              (data [:articles current-id :score]))]
+        (pull-label-tasks
+         1
+         #(swap! state (s/set-classify-task (first %)))
+         current-score)))))
+
 (defn fetch-data
   "Fetches the data value under path `ks` in (:data @state) if it does
   not already exist (or if `force?` is true)."
@@ -199,4 +217,9 @@
         :articles (let [[_ article-id] ks]
                     ;; todo - fetch single articles here
                     nil)
+        :article-labels (let [[_ article-id] ks]
+                          (pull-article-labels article-id))
+        :classify-article-id (fetch-classify-task force?)
         nil))))
+
+

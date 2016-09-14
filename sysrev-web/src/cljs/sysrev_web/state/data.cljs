@@ -1,6 +1,7 @@
 (ns sysrev-web.state.data
   (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.util :refer [map-values]]))
+            [sysrev-web.util :refer [map-values]]
+            [sysrev-web.state.core :refer [current-user-id]]))
 
 (defn data
   ([ks]
@@ -42,6 +43,10 @@
   (fn [s]
     (assoc-in s [:data :sysrev] pmap)))
 
+(defn set-article-labels [article-id lmap]
+  (fn [s]
+    (assoc-in s [:data :article-labels article-id] lmap)))
+
 (defn article-label-values
   "Looks up label values for `article-id` from all users on the project.
   If multiple users have stored a value for a label, only the first value
@@ -78,3 +83,11 @@
     (->> amap
          (group-by :criteria_id)
          (map-values first))))
+
+(defn active-label-values
+  "Get the active label values for `article-id` by taking the values
+  pulled from the server and overriding with state values set by the user."
+  [article-id labels-path]
+  (when-let [user-id (current-user-id)]
+    (merge (data [:article-labels article-id user-id] {})
+           (get-in @state labels-path {}))))

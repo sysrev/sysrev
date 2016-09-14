@@ -3,17 +3,19 @@
    [clojure.core.reducers :refer [fold]]
    [clojure.string :refer [capitalize]]
    [sysrev-web.base :refer [state]]
-   [sysrev-web.state.data :refer [article-label-values user-label-values]]
+   [sysrev-web.state.data :as d :refer [data]]
    [sysrev-web.ui.components :refer
-    [similarity-bar truncated-horizontal-list out-link label-value-tag]]
-   [sysrev-web.util :refer [re-pos map-values]]))
+    [similarity-bar truncated-horizontal-list out-link label-value-tag
+     with-tooltip three-state-selection]]
+   [sysrev-web.util :refer [re-pos map-values]]
+   [sysrev-web.ajax :as ajax]))
 
 (defn label-values-component [article-id & [user-id]]
   (fn [article-id & [user-id]]
     (let [cids (-> @state :data :criteria keys sort)
           values (if (nil? user-id)
-                   (article-label-values article-id)
-                   (user-label-values article-id user-id))]
+                   (d/article-label-values article-id)
+                   (d/user-label-values article-id user-id))]
       [:div.ui.header.content
        [:div.ui.horizontal.divided.list
         (doall
@@ -125,7 +127,7 @@
          [:div.ui.bottom.attached.segment
           (when (and show-labels
                      ((comp not empty?)
-                      (user-label-values article-id user-id)))
+                      (d/user-label-values article-id user-id)))
             [label-values-component article-id user-id])]]))))
 
 (defn article-info-component
@@ -143,8 +145,8 @@
             similarity (- 1.0 (Math/abs score))
             labels (and show-labels
                         (if user-id
-                          (user-label-values article-id user-id)
-                          (article-label-values article-id)))
+                          (d/user-label-values article-id user-id)
+                          (d/article-label-values article-id)))
             have-labels? (if labels true false)]
         [:div
          [:h3.ui.top.attached.header.segment
@@ -176,3 +178,46 @@
            [:div.ui.bottom.attached.segment
             [:div.content
              [label-values-component article-id user-id]]])]))))
+
+(defn label-editor-component
+  "UI component for editing label values on an article.
+
+  `article-id` is the article being edited.
+
+  `labels-path` is a sequence of keys specifying the path
+  in `state` where the label values set by the user will be stored."
+  [article-id labels-path]
+  (let [criteria (data :criteria)
+        label-values (d/active-label-values article-id labels-path)]
+    [:div.ui.segments
+     [:h3.ui.top.attached.header.segment
+      "Edit labels"]
+     [:div.ui.bottom.attached.segment
+      [:div.ui.four.column.grid
+       (doall
+        (->>
+         criteria
+         (map
+          (fn [[cid criterion]]
+            ^{:key {:article-label cid}}
+            [with-tooltip
+             [:div.ui.column
+              {:data-content (:question criterion)
+               :data-position "top left"
+               :style (if (= (:name criterion) "overall include")
+                        {:background-color "rgba(200,200,200,1)"}
+                        {})}
+              [:div.ui.two.column.middle.aligned.grid
+               [:div.right.aligned.column
+                {:style {:padding-left "0px"}}
+                (str (:short_label criterion) "?")]
+               [:div.left.aligned.column
+                {:style {:padding-left "0px"}}
+                [three-state-selection
+                 (fn [new-value]
+                   (swap! state assoc-in
+                          (concat labels-path [cid])
+                          new-value)
+                   (->> (d/active-label-values article-id labels-path)
+                        (ajax/send-tags article-id)))
+                 (get label-values cid)]]]]]))))]]]))

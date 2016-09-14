@@ -79,29 +79,3 @@
     (when-not (nil? head)
       (label-queue-left-append [head])  ;; This is expensive for large queue.
       (label-skipped-pop))))
-
-(defn update-active-criteria []
-  (let [article-id (label-queue-head)
-        user-id (current-user-id)]
-    (ajax/get-article-labels
-     article-id
-     (fn [response]
-       (let [user-labels (get response user-id)]
-         (swap! state
-                #(if (on-page? :classify)
-                   (assoc-in % [:page :classify :label-values]
-                             user-labels)
-                   %)))))))
-
-;; Watch `state` for changes to the head of the article queue
-;; and pull updated label values for the article.
-(add-watch
- state :active-criteria
- (fn [k v old new]
-   (when (with-state new (on-page? :classify))
-     (let [new-aid (-> new :label-activity first)
-           old-aid (-> old :label-activity first)]
-       (when (and new-aid
-                  (or (not= new-aid old-aid)
-                      (not (with-state old (on-page? :classify)))))
-         (update-active-criteria))))))

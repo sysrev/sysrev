@@ -44,3 +44,9 @@
 (defn log-out []
   (fn [s]
     (dissoc s :identity)))
+
+(defn set-classify-task [article-id]
+  (fn [s]
+    (-> s
+        (assoc-in [:data :classify-article-id] article-id)
+        (assoc-in [:page :classify :label-values] {}))))
