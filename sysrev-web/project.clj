@@ -2,17 +2,26 @@
   :dependencies [;; Clojure (JVM) libraries
                  ;;
                  [org.clojure/clojure "1.8.0"]
-                 [org.clojure/core.async "0.2.385"]
+                 [org.clojure/clojurescript "1.9.229"]
+                 ;;[org.clojure/clojurescript "1.9.93"]
+                 [org.clojure/core.async "0.2.391"]
                  [org.clojure/data.json "0.2.6"]
                  ;; REPL
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]
                  [figwheel-sidecar "0.5.7"]
                  ;; Database
-                 [org.postgresql/postgresql "9.4.1209"]
+                 [org.postgresql/postgresql "9.4.1210"]
                  [clojure.jdbc/clojure.jdbc-c3p0 "0.3.2"]
                  [postgre-types "0.0.4"]
-                 [clj-postgresql "0.4.0"]
+                 [clj-postgresql "0.4.0"
+                  :exclusions
+                  [joda-time
+                   com.fasterxml.jackson.dataformat/jackson-dataformat-smile
+                   com.fasterxml.jackson.core/jackson-core
+                   commons-codec
+                   clj-time
+                   cheshire]]
                  [honeysql "0.8.0"]
                  ;; Web server
                  [compojure "1.5.1"]
@@ -22,19 +31,16 @@
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
                  [crypto-random "1.2.0"]
-                 [buddy "1.0.0"]
+                 [buddy "1.1.0"]
 
                  ;; ClojureScript libraries
-                 ;;[org.clojure/clojurescript "1.9.229"]
-                 ;;(production build fails with 229)
-                 [org.clojure/clojurescript "1.9.93"]
-                 [reagent "0.6.0-SNAPSHOT"]
+                 [reagent "0.6.0"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.6"]
                  [cljs-ajax "0.5.8"]
                  [cljs-http "0.1.41"]
                  [cljsjs/jquery "2.2.2-0"]
-                 [cljsjs/semantic-ui "2.2.2-0"]]
+                 [cljsjs/semantic-ui "2.2.4-0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms200m"
              "-Xmx400m"
