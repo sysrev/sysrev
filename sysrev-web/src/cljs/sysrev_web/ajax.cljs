@@ -4,7 +4,7 @@
    [sysrev-web.base :refer [state]]
    [sysrev-web.state.core :as s]
    [sysrev-web.state.data :as d :refer [data]]
-   [sysrev-web.util :refer [nav nav-scroll-top map-values]]
+   [sysrev-web.util :refer [nav scroll-top nav-scroll-top map-values]]
    [sysrev-web.notify :refer [notify]]))
 
 (defn integerify-map-keys
@@ -73,7 +73,8 @@
     (when-not (nil? above-score) {:above-score above-score})
     handler))
   ([interval handler] (get-label-tasks interval nil handler)))
-(defn post-tags [data handler] (ajax-post "/api/set-labels" data handler))
+(defn post-set-labels [data handler] (ajax-post "/api/set-labels" data handler))
+(defn post-confirm-labels [data handler] (ajax-post "/api/confirm-labels" data handler))
 
 
 (defn pull-user-info [user-id]
@@ -172,21 +173,6 @@
   ([interval handler]
    (pull-label-tasks interval handler 0.0)))
 
-(defn send-tags
-  "Update the database with user label values for `article-id`.
-  `criteria-values` is a map of criteria-ids to booleans.
-  Any unset criteria-ids will be unset on the server.
-  Will fail on server if user is not logged in."
-  [article-id criteria-values]
-  (post-tags
-   {:article-id article-id
-    :label-values criteria-values}
-   (fn [response]
-     (let [err (:error response)
-           res (:result response)]
-       (when-not (empty? err) (notify (str "Error: " err)))
-       (when-not (empty? res) (notify "Tags saved"))))))
-
 (defn fetch-classify-task [& [force?]]
   (let [current-id (data :classify-article-id)]
     (when (or force? (nil? current-id))
@@ -198,6 +184,38 @@
          1
          #(swap! state (s/set-classify-task (first %)))
          current-score)))))
+
+(defn confirm-labels [article-id label-values on-confirm]
+  (post-confirm-labels
+   {:article-id article-id
+    :label-values label-values}
+   (fn [response]
+     (let [err (:error response)
+           res (:result response)]
+       (when-not (empty? err) (notify (str "Error: " err)))
+       (when-not (empty? res)
+         (notify "Labels submitted")
+         (pull-article-labels article-id)
+         (pull-user-info (s/current-user-id))
+         (when (= article-id (data :classify-article-id))
+           (fetch-classify-task true))
+         (on-confirm))))))
+
+(defn send-labels
+  "Update the database with user label values for `article-id`.
+  `criteria-values` is a map of criteria-ids to booleans.
+  Any unset criteria-ids will be unset on the server.
+  Will fail on server if user is not logged in.
+  If `confirm?` is true, will also mark these labels as confirmed."
+  [article-id criteria-values]
+  (post-set-labels
+   {:article-id article-id
+    :label-values criteria-values}
+   (fn [response]
+     (let [err (:error response)
+           res (:result response)]
+       (when-not (empty? err) (notify (str "Error: " err)))
+       (when-not (empty? res) (notify "Labels saved"))))))
 
 (defn fetch-data
   "Fetches the data value under path `ks` in (:data @state) if it does
@@ -221,5 +239,3 @@
                           (pull-article-labels article-id))
         :classify-article-id (fetch-classify-task force?)
         nil))))
-
-

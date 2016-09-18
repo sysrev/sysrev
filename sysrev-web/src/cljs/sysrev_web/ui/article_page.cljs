@@ -1,11 +1,13 @@
 (ns sysrev-web.ui.article-page
   (:require
    [sysrev-web.base :refer [state]]
+   [sysrev-web.util :refer [scroll-top]]
    [sysrev-web.state.core :refer [current-page current-user-id on-page?]]
    [sysrev-web.state.data :as d]
    [sysrev-web.ajax :as ajax]
    [sysrev-web.ui.article :refer
-    [article-info-component label-editor-component]])
+    [article-info-component label-editor-component]]
+   [sysrev-web.ui.components :refer [confirm-modal-box]])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 (defn article-page []
@@ -52,6 +54,10 @@
           [article-info-component article-id false]
           [label-editor-component
            article-id [:page :article :label-values]]
+          [confirm-modal-box
+           article-id
+           [:page :article :label-values]
+           (fn [] (scroll-top))]
           [:div.ui.grid
            [:div.ui.sixteen.wide.column.center.aligned
             [:div.ui.primary.right.labeled.icon.button
@@ -61,6 +67,7 @@
                          article-id [:page :article :label-values])
                         overall-cid))
                 "disabled"
-                "")}
-             "Finalize..."
+                "")
+              :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+             "Confirm labels"
              [:i.check.circle.outline.icon]]]]]))]))

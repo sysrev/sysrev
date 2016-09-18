@@ -55,7 +55,9 @@
        (let [article-id (Integer/parseInt article-id)]
          (wrap-json (ajax/web-article-labels article-id))))
   (POST "/api/set-labels" request
-        (wrap-json (ajax/web-set-labels request)))
+        (wrap-json (ajax/web-set-labels request false)))
+  (POST "/api/confirm-labels" request
+        (wrap-json (ajax/web-set-labels request true)))
   (route/files web-filesystem-path)
   (route/not-found index/index))
 

@@ -176,6 +176,15 @@
        (apply concat)
        (apply hash-map)))
 
+(defn user-article-confirmed? [user-id article-id]
+  (-> (select :%count.*)
+      (from :article_criteria)
+      (where [:and
+              [:= :user_id user-id]
+              [:= :article_id article-id]
+              [:!= :confirm_time nil]])
+      do-query first :count pos?))
+
 (defn set-user-article-labels [user-id article-id label-values]
   (assert (integer? user-id))
   (assert (integer? article-id))
@@ -188,35 +197,54 @@
                           [:= :article_id article-id]
                           [:= :user_id user-id]])
                   do-query)
-              (map :criteria_id))]
-     (doseq [cid existing-cids]
-       (-> (sqlh/update :article_criteria)
-           (sset {:answer (get label-values cid)
-                  :updated_time (sql-now)})
-           (where [:and
-                   [:= :article_id article-id]
-                   [:= :user_id user-id]
-                   [:= :criteria_id cid]])
-           do-execute))
-     (let [new-cids
-           (->> (keys label-values)
-                (remove (in? existing-cids)))
-           new-entries
-           (->> new-cids (map (fn [cid]
-                                {:criteria_id cid
-                                 :article_id article-id
-                                 :user_id user-id
-                                 :answer (get label-values cid)})))]
-       (when-not (empty? new-entries)
-         (-> (insert-into :article_criteria)
-             (values new-entries)
-             do-execute))))
-   nil))
+              (map :criteria_id))
+         new-cids
+         (->> (keys label-values)
+              (remove (in? existing-cids)))
+         new-entries
+         (->> new-cids (map (fn [cid]
+                              {:criteria_id cid
+                               :article_id article-id
+                               :user_id user-id
+                               :answer (get label-values cid)})))
+         update-futures
+         (->> existing-cids
+              (map (fn [cid]
+                     (future
+                       (-> (sqlh/update :article_criteria)
+                           (sset {:answer (get label-values cid)
+                                  :updated_time (sql-now)})
+                           (where [:and
+                                   [:= :article_id article-id]
+                                   [:= :user_id user-id]
+                                   [:= :criteria_id cid]
+                                   [:= :confirm_time nil]])
+                           do-execute)))))
+         insert-future (future
+                         (when-not (empty? new-entries)
+                           (-> (insert-into :article_criteria)
+                               (values new-entries)
+                               do-execute)))]
+     (doall (map deref update-futures))
+     (deref insert-future)
+     true)))
 
 (defn confirm-user-article-labels
   "Mark all labels by `user-id` on `article-id` as being confirmed at current time."
   [user-id article-id]
+  (assert (not (user-article-confirmed? user-id article-id)))
   (do-transaction
+   (let [required (-> (select :answer)
+                      (from [:article_criteria :ac])
+                      (join [:criteria :c]
+                            [:= :ac.criteria_id :c.criteria_id])
+                      (where [:and
+                              [:= :user_id user-id]
+                              [:= :article-id article-id]
+                              [:= :c.name "overall include"]])
+                      do-query)]
+     (assert (not (empty? required)))
+     (assert (every? (comp not nil? :answer) required)))
    (-> (sqlh/update :article_criteria)
        (sset {:confirm_time (sql-now)})
        (where [:and

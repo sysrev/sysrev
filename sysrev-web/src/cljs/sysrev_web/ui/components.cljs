@@ -1,8 +1,10 @@
 (ns sysrev-web.ui.components
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
-            [sysrev-web.util :refer [url-domain nbsp]]
+            [sysrev-web.util :refer [url-domain nbsp scroll-top]]
             [sysrev-web.base :refer [state]]
+            [sysrev-web.ajax :as ajax]
+            [sysrev-web.state.data :as d :refer [data]]
             [reagent.core :as r]
             [cljsjs.jquery]
             [cljsjs.semantic-ui]))
@@ -113,3 +115,52 @@
     #(.popup (js/$ (r/dom-node %)))
     :reagent-render
     (fn [content] content)}))
+
+(defn confirm-modal-box
+  "UI component for user to confirm label submission.
+
+  Must be triggered by (.modal (js/$ \".ui.modal\") \"show\") from the component
+  containing this.
+
+  `labels-path` is the path of keys in `state` containing active label values.
+
+  `on-confirm` is a function that will be run when the AJAX confirm request
+  succeeds."
+  [article-id labels-path on-confirm]
+  (r/create-class
+   {:component-did-mount
+    (fn [e]
+      (.modal
+       (js/$ (r/dom-node e))
+       (clj->js
+        {;; `:detachable false` is needed to avoid a conflict between
+         ;; semantic and reagent in managing DOM
+         :detachable false
+         :onApprove
+         #(ajax/confirm-labels
+           article-id
+           (d/active-label-values article-id labels-path)
+           on-confirm)}))
+      (.modal
+       (js/$ (r/dom-node e))
+       "setting" "transition" "fade up"))
+    :reagent-render
+    (fn [article-id labels-path on-confirm]
+      [:div.ui.small.modal
+       [:div.header "Confirm article labels?"]
+       (let [criteria (data :criteria)
+             n-total (count criteria)
+             label-values (d/active-label-values article-id labels-path)
+             n-set (->> label-values vals (remove nil?) count)]
+         [:div.content
+          [:h3.ui.header.centered
+           (str "You have set "
+                n-set " of " n-total
+                " possible labels for this article.")]
+          [:h3.ui.header.centered
+           "Click 'Confirm' to finalize and submit these labels."]
+          [:h3.ui.header.centered
+           "You will not be able to edit them later."]])
+       [:div.ui.actions
+        [:div.ui.button.cancel "Cancel"]
+        [:div.ui.button.ok "Confirm"]]])}))

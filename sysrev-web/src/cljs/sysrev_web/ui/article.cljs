@@ -218,6 +218,7 @@
                    (swap! state assoc-in
                           (concat labels-path [cid])
                           new-value)
-                   (->> (d/active-label-values article-id labels-path)
-                        (ajax/send-tags article-id)))
+                   (ajax/send-labels
+                    article-id
+                    (d/active-label-values article-id labels-path)))
                  (get label-values cid)]]]]]))))]]]))

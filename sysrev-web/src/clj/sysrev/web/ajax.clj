@@ -83,7 +83,7 @@
          (apply concat)
          (apply hash-map))))
 
-(defn web-set-labels [request]
+(defn web-set-labels [request confirm?]
   (if-let [user-id (get-user-id request)]
     (try
       (let [fields (-> request :body slurp
@@ -91,7 +91,10 @@
                        integerify-map-keys)
             article-id (:article-id fields)
             label-values (:label-values fields)]
+        (assert (not (users/user-article-confirmed? user-id article-id)))
         (users/set-user-article-labels user-id article-id label-values)
+        (when confirm?
+          (users/confirm-user-article-labels user-id article-id))
         {:result fields})
       (catch Exception e
         (println e)

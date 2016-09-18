@@ -2,14 +2,15 @@
   (:require
    [sysrev-web.base :refer [state]]
    [sysrev-web.state.core :refer [current-user-id current-page]]
-   [sysrev-web.util :refer [nav-scroll-top nbsp]]
+   [sysrev-web.util :refer [scroll-top nav-scroll-top nbsp]]
    [sysrev-web.routes :refer [data-initialized?]]
    [sysrev-web.ui.components :refer
-    [three-state-selection with-tooltip]]
+    [three-state-selection with-tooltip confirm-modal-box]]
    [sysrev-web.ui.article :refer
     [article-info-component label-editor-component]]
    [sysrev-web.ajax :as ajax]
-   [sysrev-web.state.data :as d :refer [data]])
+   [sysrev-web.state.data :as d :refer [data]]
+   [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 ;; Initialize the label queue after other data has been loaded
@@ -34,14 +35,10 @@
        [article-info-component article-id false]
        [label-editor-component
         article-id [:page :classify :label-values]]
-       #_
-       [label-editor-component
-        (fn [cid new-value]
-          (swap! state assoc-in
-                 [:page :classify :label-values cid] new-value)
-          (->> (get-in @state [:page :classify :label-values])
-               (ajax/send-tags article-id)))
-        (get-in @state [:page :classify :label-values])]
+       [confirm-modal-box
+        article-id
+        [:page :classify :label-values]
+        (fn [] (scroll-top))]
        [:div.ui.grid
         [:div.ui.row
          [:div.ui.five.wide.column]
@@ -53,12 +50,14 @@
                        article-id [:page :classify :label-values])
                       overall-cid))
               "disabled"
-              "")}
-           "Finalize..."
+              "")
+            :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+           "Confirm labels"
            [:i.check.circle.outline.icon]]
-          [:div.ui.secondary.right.labeled.icon.button
+          [:div.ui.right.labeled.icon.button
            {:on-click #(do (ajax/fetch-classify-task true)
-                           (ajax/pull-user-info user-id))}
+                           (ajax/pull-user-info user-id)
+                           (scroll-top))}
            "Next article"
            [:i.right.circle.arrow.icon]]]
          (let [n-unconfirmed
@@ -68,7 +67,8 @@
            [:div.ui.five.wide.column
             [:div.ui.buttons.right.floated
              [:div.ui.labeled.button
-              {:on-click #(nav-scroll-top (str "/user/" user-id))}
+              {:on-click #(nav-scroll-top (str "/user/" user-id))
+               :class (if (= 0 n-unconfirmed) "disabled" "")}
               [:div.ui.green.button
-               (str "Review and confirm... ")]
+               (str "Review unconfirmed")]
               [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]]])))
