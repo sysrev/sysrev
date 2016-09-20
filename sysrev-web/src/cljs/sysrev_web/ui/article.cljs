@@ -138,7 +138,7 @@
   user values for labels on the article.
   `user-id` is optional, if specified then only input from that user will
   be included."
-  [article-id & [show-labels user-id]]
+  [article-id & [show-labels user-id review-status]]
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [score (:score article)
@@ -149,8 +149,24 @@
                           (d/article-label-values article-id)))
             have-labels? (if labels true false)]
         [:div
-         [:h3.ui.top.attached.header.segment
-          "Article info"]
+         [:div.ui.top.attached.header.segment.middle.aligned
+          [:div.ui
+           {:style {:float "left"}}
+           [:h3 "Article info"]]
+          (when review-status
+            (let [sstr
+                  (cond (= review-status "conflict")
+                        "Resolving conflict in user labels"
+                        (= review-status "single")
+                        "Reviewed by one other user"
+                        (= review-status "fresh")
+                        "Not yet reviewed"
+                        :else nil)]
+              (when sstr
+                [:div.ui.large.grey.label
+                 {:style {:float "right"}}
+                 (str sstr)])))
+          [:div {:style {:clear "both"}}]]
          (when-not (nil? score)
            [:div.ui.attached.segment
             [similarity-bar similarity]])

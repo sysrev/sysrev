@@ -12,6 +12,28 @@
     false [:= :confirm_time nil]
     true))
 
+(defn all-overall-labels []
+  (->>
+   (-> (select :a.article_id :ac.user_id :ac.answer)
+       (from [:article :a])
+       (join [:article_criteria :ac]
+             [:= :ac.article_id :a.article_id])
+       (merge-join [:criteria :c]
+                   [:= :ac.criteria_id :c.criteria_id])
+       (where [:and
+               [:= :c.name "overall include"]
+               [:!= :ac.confirm_time nil]
+               [:!= :ac.answer nil]])
+       do-query)
+   (group-by :article_id)))
+
+(defn all-label-conflicts []
+  (->> (all-overall-labels)
+       (filter (fn [[aid labels]]
+                 (< 1 (->> labels (map :answer) distinct count))))
+       (apply concat)
+       (apply hash-map)))
+
 (defn all-criteria []
   (-> (select :*)
       (from :criteria)
@@ -60,6 +82,26 @@
        (map-values first)
        (map-values scorify-article)))
 
+(defn get-unlabeled-articles [fields n-max above-score & [confirmed?]]
+  (let [above-score (or above-score -1.0)]
+    (->> (-> (apply select :article_id :r._2 fields)
+             (from [:article :a])
+             (join [:article_ranking :r] [:= :a.article_id :r._1])
+             (where [:and
+                     [:> :r._2 above-score]
+                     [:not
+                      [:exists
+                       (-> (select :*)
+                           (from [:article_criteria :ac])
+                           (where
+                            [:and
+                             [:= :ac.article_id :a.article_id]
+                             (label-confirmed-test confirmed?)]))]]])
+             (order-by :r._2)
+             (#(if n-max (limit % n-max) (identity %)))
+             do-query)
+         (map scorify-article))))
+
 (defn all-article-labels [confirmed? & label-keys]
   (let [article-ids (->> (-> (select :article_id)
                              (from :article_criteria)
@@ -99,3 +141,27 @@
       (from [:article_criteria :ac])
       (where [:= :ac.article_id article-id])
       do-query))
+
+(defn get-n-labeled-articles
+  "Queries for articles that have confirmed labels from `user-count` distinct
+  users. Excludes articles that have been labeled by `self-id`. Sorts by article
+  ranking score, excluding articles with score <= `above-score`. `n-max` is
+  used in LIMIT clause, or may be nil."
+  [self-id user-count n-max & [above-score]]
+  (let [above-score (or above-score -1.0)]
+    (-> (select :a.* [(sql/call :min :r._2) :score])
+        (from [:article :a])
+        (join [:article_criteria :ac] [:= :ac.article_id :a.article_id])
+        (merge-join [:article_ranking :r] [:= :a.article_id :r._1])
+        (where [:and
+                [:!= :ac.answer nil]
+                [:!= :ac.confirm_time nil]
+                [:> :r._2 above-score]])
+        (group :a.article_id)
+        (having [:and
+                 (sql/call :every (sql/raw (str "ac.user_id != " self-id)))
+                 [:= user-count (sql/call :count (sql/call :distinct :ac.user_id))]])
+        (order-by (sql/call :min :r._2))
+        (#(if n-max (limit % n-max) (identity %)))
+        do-query)))
+

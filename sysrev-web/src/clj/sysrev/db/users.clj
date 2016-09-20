@@ -2,7 +2,9 @@
   (:require [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now scorify-article]]
             [sysrev.db.articles :refer
-             [get-criteria-id label-confirmed-test]]
+             [get-criteria-id label-confirmed-test
+              get-n-labeled-articles get-unlabeled-articles
+              all-label-conflicts]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -144,26 +146,18 @@
          (apply hash-map))))
 
 (defn get-user-label-tasks [user-id n-max & [above-score]]
-  (let [above-score (or above-score -1.0)]
-    (->>
-     (-> (select :*)
-         (from [:article :a])
-         (join [:article_ranking :r] [:= :a.article_id :r._1])
-         (where
-          [:and
-           [:> :r._2 above-score]
-           [:not
-            [:exists
-             (-> (select :*)
-                 (from [:article_criteria :ac])
-                 (where [:and
-                         [:= :ac.user_id user-id]
-                         [:= :ac.article_id :a.article_id]
-                         [:!= :ac.answer nil]]))]]])
-         (order-by :r._2)
-         (limit n-max)
-         do-query)
-     (mapv scorify-article))))
+  (let [above-score (or above-score -1.0)
+        conflicts (future (get-n-labeled-articles user-id 2 n-max above-score))
+        pending (future (get-n-labeled-articles user-id 1 n-max above-score))]
+    (cond (not= (count @conflicts) 0)
+          (->> @conflicts
+               (map #(assoc % :review-status :conflict)))
+          (not= (count @pending) 0)
+          (->> @pending
+               (map #(assoc % :review-status :single)))
+          :else
+          (->> (get-unlabeled-articles [:*] n-max above-score true)
+               (map #(assoc % :review-status :fresh))))))
 
 (defn get-user-article-labels [user-id article-id]
   (->> (-> (select :criteria_id :answer)
@@ -253,12 +247,24 @@
        do-execute)))
 
 (defn confirm-user-labels
-  "Mark all labels by `user-id` as being confirmed at current time."
+  "Mark all labels by `user-id` as being confirmed at current time,
+  for articles where values for the required labels are set."
   [user-id]
   (do-transaction
-   (-> (sqlh/update :article_criteria)
+   (-> (sqlh/update [:article_criteria :ac1])
        (sset {:confirm_time (sql-now)})
-       (where [:= :user_id user-id])
+       (where [:and
+               [:= :ac1.user_id user-id]
+               [:= :ac1.confirm_time nil]
+               [:exists
+                (-> (select :*)
+                    (from [:article_criteria :ac2])
+                    (join [:criteria :c] [:= :c.criteria_id :ac2.criteria_id])
+                    (where [:and
+                            [:= :ac1.article_id :ac2.article_id]
+                            [:= :ac2.user_id user-id]
+                            [:= :c.name "overall include"]
+                            [:!= :ac2.answer nil]]))]])
        do-execute)))
 
 (defn get-user-info [user-id]

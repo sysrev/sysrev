@@ -32,7 +32,8 @@
           criteria-ids (keys criteria)
           overall-cid (-> @state :data :overall-cid)]
       [:div.ui
-       [article-info-component article-id false]
+       [article-info-component
+        article-id false nil (data :classify-review-status)]
        [label-editor-component
         article-id [:page :classify :label-values]]
        [confirm-modal-box

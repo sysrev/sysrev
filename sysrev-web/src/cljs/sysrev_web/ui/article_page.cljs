@@ -48,7 +48,7 @@
          :unconfirmed
          [:div
           [:div.ui.segment
-           [:h3.ui.green.header
+           [:h3.ui.yellow.header
             [:i.selected.radio.icon.left.floated {:aria-hidden true}]
             "Your labels for this article are not yet confirmed."]]
           [article-info-component article-id false]

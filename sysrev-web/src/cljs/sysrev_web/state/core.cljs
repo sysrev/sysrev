@@ -41,8 +41,9 @@
         (assoc :data {})
         (assoc :page {}))))
 
-(defn set-classify-task [article-id]
+(defn set-classify-task [article-id review-status]
   (fn [s]
     (-> s
         (assoc-in [:data :classify-article-id] article-id)
+        (assoc-in [:data :classify-review-status] review-status)
         (assoc-in [:page :classify :label-values] {}))))

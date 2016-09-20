@@ -169,7 +169,7 @@
                             (map-values first))]
           (swap! state (d/merge-articles articles))
           ;; (notify (str "Fetched " (count result) " more articles"))
-          (handler article-ids))))))
+          (handler result))))))
   ([interval handler]
    (pull-label-tasks interval handler 0.0)))
 
@@ -182,7 +182,9 @@
               (data [:articles current-id :score]))]
         (pull-label-tasks
          1
-         #(swap! state (s/set-classify-task (first %)))
+         #(swap! state (s/set-classify-task
+                        (-> % first :article_id)
+                        (-> % first :review-status)))
          current-score)))))
 
 (defn confirm-labels [article-id label-values on-confirm]
