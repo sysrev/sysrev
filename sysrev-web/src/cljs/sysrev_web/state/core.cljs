@@ -36,7 +36,10 @@
 
 (defn log-out []
   (fn [s]
-    (assoc s :identity nil)))
+    (-> s
+        (assoc :identity nil)
+        (assoc :data {})
+        (assoc :page {}))))
 
 (defn set-classify-task [article-id]
   (fn [s]
