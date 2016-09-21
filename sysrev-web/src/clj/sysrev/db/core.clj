@@ -29,6 +29,12 @@
  (fn [reader]
    (json/read-str reader :key-fn keyword)))
 
+(defn to-jsonb
+  "Converts a Clojure map to a honeysql jsonb string object
+   which can be used in SQL queries."
+  [map]
+  (sql/call :jsonb (clojure.data.json/write-str map)))
+
 (defmacro do-query [sql-map & params-or-opts]
   `(let [conn# (if *conn* *conn* @active-db)]
      (j/query conn# (sql/format ~sql-map ~@params-or-opts)

@@ -16,6 +16,7 @@
             [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [org.httpkit.server :refer [run-server]]
             [sysrev.web.ajax :as ajax :refer [wrap-json]]
+            [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.auth :as auth]
             [sysrev.web.index :as index]
             [sysrev.db.articles :as articles]
@@ -76,6 +77,7 @@
 (def app
   (-> app-routes
       (wrap-file web-filesystem-path {:allow-symlinks? true})
+      (wrap-session {:store (sysrev-session-store)})
       (wrap-authorization sessions-instance)
       (wrap-authentication sessions-instance)
       wrap-keyword-params
@@ -83,14 +85,14 @@
       wrap-params
       wrap-multipart-params
       wrap-flash
-      wrap-cookies
-      wrap-session))
+      wrap-cookies))
 
 (def reloadable-app
   (-> app
       (wrap-reload {:dirs ["src/clj"]})))
 
 (defonce web-server (atom nil))
+(defonce web-port (atom nil))
 
 (defn stop-web-server []
   (when-not (nil? @web-server)
@@ -98,8 +100,14 @@
     (reset! web-server nil)))
 
 (defn run-web [& [port]]
-  (stop-web-server)
-  (reset! web-server
-          (run-server reloadable-app
-                      {:port (if port port 4041)
-                       :join? false})))
+  (let [port (or port @web-port 4041)]
+    (reset! web-port port)
+    (stop-web-server)
+    (reset! web-server
+            (run-server reloadable-app
+                        {:port port
+                         :join? false}))))
+
+;; if web server is running, restart it when this file is reloaded
+(when @web-server
+  (run-web))
