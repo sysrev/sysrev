@@ -4,6 +4,7 @@
             [compojure.handler :refer [site]]
             [ring.middleware.cookies :refer [wrap-cookies]]
             [ring.middleware.session :refer [wrap-session]]
+            [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]]
             [ring.middleware.nested-params :refer [wrap-nested-params]]
@@ -85,6 +86,10 @@
       wrap-cookies
       wrap-session))
 
+(def reloadable-app
+  (-> app
+      (wrap-reload {:dirs ["src/clj"]})))
+
 (defonce web-server (atom nil))
 
 (defn stop-web-server []
@@ -95,5 +100,6 @@
 (defn run-web [& [port]]
   (stop-web-server)
   (reset! web-server
-          (run-server app {:port (if port port 4041)
-                           :join? false})))
+          (run-server reloadable-app
+                      {:port (if port port 4041)
+                       :join? false})))
