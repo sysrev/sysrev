@@ -5,6 +5,26 @@ This has a Scala project for importing articles data and running Spark ML on it,
 
 Both projects share a PostgreSQL database that holds all data.
 
+Project Features
+===
+Checkboxes indicate implemented features:
+
+* :white_large_square: Users can create a new project
+    * Add inclusion / exclusion label types / classifications (Project Phase 1)
+    * Add statistics input types (Project Phase 2)
+    * Upload endnote enlx file
+    * Users can select or define a review strategy, e.g.
+        * Two users minimum for each entity
+        * One more user for resolving disputes
+            * Should that user see what the other user indicated? 
+            * Is the resolver a special user?
+* :white_large_square: Users can invite other users to join the project
+* :white_check_mark: Users can come to the site and classify entities
+    * One entity classified at a time
+    * Classifications made permanent with confirmation
+    * Classifications left provisional before confirmation
+
+
 Structure
 ===
 * Scala (database and ML)
