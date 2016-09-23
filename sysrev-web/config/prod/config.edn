@@ -1,0 +1,8 @@
+{:postgres
+ {:dbname "sysrev"
+  :user "postgres"
+  :password nil
+  :host "localhost"
+  :port 5432}
+ :server
+   {:port 4041}}

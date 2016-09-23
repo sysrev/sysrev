@@ -32,6 +32,8 @@
                  ;; Encryption / Authentication
                  [crypto-random "1.2.0"]
                  [buddy "1.1.0"]
+                 ;; Project config file support
+                 [yogthos/config "0.8"]
 
                  ;; ClojureScript libraries
                  [reagent "0.6.0"]
@@ -90,6 +92,8 @@
              :css-dirs ["resources/public/css"]}
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
+  :profiles {:prod {:resource-paths ["config/prod"]}
+             :dev {:resource-paths ["config/dev"]}}
   :ring {:handler sysrev.web.core/app
          :init sysrev.init/init
          :port 4041})
