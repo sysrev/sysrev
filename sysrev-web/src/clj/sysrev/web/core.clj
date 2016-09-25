@@ -9,7 +9,6 @@
             [ring.middleware.keyword-params :refer [wrap-keyword-params]]
             [ring.middleware.nested-params :refer [wrap-nested-params]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
-            [ring.middleware.file :refer [wrap-file]]
             [ring.middleware.flash :refer [wrap-flash]]
             [buddy.auth :refer [authenticated? throw-unauthorized]]
             [buddy.auth.backends.session :refer [session-backend]]
@@ -21,8 +20,6 @@
             [sysrev.web.index :as index]
             [sysrev.db.articles :as articles]
             [sysrev.util :refer [parse-number]]))
-
-(def web-filesystem-path "/var/www/sysrev/")
 
 (defroutes app-routes
   (GET "/" [] index/index)
@@ -60,7 +57,6 @@
         (wrap-json (ajax/web-set-labels request false)))
   (POST "/api/confirm-labels" request
         (wrap-json (ajax/web-set-labels request true)))
-  (route/files web-filesystem-path)
   (route/not-found index/index))
 
 (defonce sessions-instance
@@ -76,7 +72,6 @@
 
 (def app
   (-> app-routes
-      (wrap-file web-filesystem-path {:allow-symlinks? true})
       (wrap-session {:store (sysrev-session-store)})
       (wrap-authorization sessions-instance)
       (wrap-authentication sessions-instance)
@@ -99,14 +94,14 @@
     (@web-server :timeout 100)
     (reset! web-server nil)))
 
-(defn run-web [& [port]]
+(defn run-web [& [port prod?]]
   (let [port (or port @web-port 4041)]
     (reset! web-port port)
     (stop-web-server)
     (reset! web-server
-            (run-server reloadable-app
+            (run-server (if prod? app reloadable-app)
                         {:port port
-                         :join? false}))))
+                         :join? (if prod? true false)}))))
 
 ;; if web server is running, restart it when this file is reloaded
 (when @web-server

@@ -5,5 +5,5 @@
   :host "localhost"
   :port 5442}
  :server
-   {:port 4041}}
-
+ {:port 4041}
+ :profile :dev}

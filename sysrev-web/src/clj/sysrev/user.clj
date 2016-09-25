@@ -21,11 +21,4 @@
   (require 'sysrev.user :reload))
 
 (defonce started
-  (let [{postgres-config :postgres} env
-        {{postgres-port :port} :postgres
-         {server-port :port} :server} env]
-    (do (set-db-config! postgres-config)
-        (->> postgres-port (format "connected to postgres (port %s)") println)
-        (run-web server-port)
-        (->> server-port (format "web server started (port %s)") println)
-        true)))
+  (init/start-app))
