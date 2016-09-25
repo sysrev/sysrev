@@ -11,12 +11,7 @@
 (defonce ^:dynamic *conn* nil)
 (defonce ^:dynamic *sql-array-results* false)
 
-(defn set-db-config! [& {:keys [dbname user password host port]
-                         :or {dbname "sysrev"
-                              user "postgres"
-                              password nil
-                              host "localhost"
-                              port 5432}}]
+(defn set-db-config! [{:keys [dbname user password host port]}]
   (reset! active-db (pg/pool :dbname dbname
                              :user user
                              :password password

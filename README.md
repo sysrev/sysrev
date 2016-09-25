@@ -16,7 +16,7 @@ Checkboxes indicate implemented features:
     * Users can select or define a review strategy, e.g.
         * Two users minimum for each entity
         * One more user for resolving disputes
-            * Should that user see what the other user indicated? 
+            * Should that user see what the other user indicated?
             * Is the resolver a special user?
 * :white_large_square: Users can invite other users to join the project
 * :white_check_mark: Users can come to the site and classify entities
@@ -37,14 +37,15 @@ Structure
     * Setup and use:
         * In `sysrev-web`, run `sh setup.sh` to do initial setup.
         * Run an nginx server using the `.nginx-site` file to serve static client files and proxy AJAX requests to the Clojure web server.
-        * The database connection settings can be changed by adding arguments to the `(set-db-config!)` call in `user.clj`. The `set-db-config!` function has defaults that connect to localhost on port 5432 with no password, that will work if an SSH tunnel is opened on port 5432 to a machine running the database.
-        * Web server can be run for development with `lein repl` in `sysrev-web` directory.
+        * Database connection settings are kept in `config/*/config.edn`. You can override with a local config by copying config.edn to a `.lein-env` file in `sysrev-web` and changing as needed.
+        * Web server can be run for development with `lein with-profile +dev repl` in `sysrev-web` directory.
             * This will start an NREPL server for CIDER/Cursive, connect to the database and run the web server.
-            * If you make code changes to the `app` definition in `web/core.clj`, changes will not be picked up until you run `(run-web)` to restart the web server.
-            * All other code changes will be picked up immediately when compiled.
-        * Build deployable production JAR for web server with `lein ring uberjar`. Run the web server with `java -jar sysrev-XXXXX-standalone.jar`.
+            * All code changes will be picked up immediately when compiled through REPL/IDE. The web server instance will also be restarted (very quickly) if web/core.clj is reloaded, to pick up any changes in the app definition from that file.
+        * Build deployable production JAR for web server with `lein with-profile +prod ring uberjar`. Run the web server with `java -jar sysrev-XXXXX-standalone.jar`.
         * `lein figwheel` starts a Figwheel NREPL server for the Clojurescript client project.
         * `lein cljsbuild once production` to build client project with production settings. (change `resources/public/out` symlink to `out-production` to use)
+        * Configurations live in `config/{prod,dev}/config.edn`. You should not need to modify these files for your own
+        development purposes. Refer to [this guide](https://github.com/yogthos/config) for details on how local, .gitignored config files or environment variables can be used to override these values for your dev environment.
 
 Outline
 ==========
@@ -67,6 +68,6 @@ Outline
 
             2. vector similarity metric
             3. IBL algorithm
-        2.  
+        2.
     3. Algorithm improvement approach
         1. Human label papers with closest to 50% probability of **Inclusion** = true

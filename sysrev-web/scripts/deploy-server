@@ -5,7 +5,7 @@ echo $SYSREV_HOST > /dev/null
 
 dir=`pwd`
 
-lein ring uberjar
+lein with-profile +prod uberjar
 
 scp ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar ubuntu@"$SYSREV_HOST":/data/sysrev/sysrev-web-standalone.jar
 

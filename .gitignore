@@ -174,3 +174,5 @@ fabric.properties
 /sysrev-web/deploy/
 
 *.org
+
+.lein-env
