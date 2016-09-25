@@ -15,7 +15,8 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
-            [config.core :refer [env]]))
+            [config.core :refer [env]]
+            [clojure.test :refer :all]))
 
 (defn reload []
   (require 'sysrev.user :reload))
