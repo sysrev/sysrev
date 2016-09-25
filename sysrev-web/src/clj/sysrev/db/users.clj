@@ -66,14 +66,10 @@
 
 (defn delete-user [user-id]
   (assert (integer? user-id))
-  (do-transaction
-   (-> (delete-from :article_criteria)
-       (where [:= :user_id user-id])
-       do-execute)
-   (-> (delete-from :web_user)
-       (where [:= :id user-id])
-       do-execute)
-   nil))
+  (-> (delete-from :web_user)
+      (where [:= :id user-id])
+      do-execute)
+  nil)
 
 (defn verify-user-email [verify-code]
   (-> (sqlh/update :web_user)
