@@ -41,7 +41,7 @@ Structure
         * Web server can be run for development with `lein with-profile +dev repl` in `sysrev-web` directory.
             * This will start an NREPL server for CIDER/Cursive, connect to the database and run the web server.
             * All code changes will be picked up immediately when compiled through REPL/IDE. The web server instance will also be restarted (very quickly) if web/core.clj is reloaded, to pick up any changes in the app definition from that file.
-        * Build deployable production JAR for web server with `lein with-profile +prod ring uberjar`. Run the web server with `java -jar sysrev-XXXXX-standalone.jar`.
+        * Build deployable production JAR for web server with `lein with-profile +prod uberjar`. Run the web server with `java -jar sysrev-XXXXX-standalone.jar`.
         * `lein figwheel` starts a Figwheel NREPL server for the Clojurescript client project.
         * `lein cljsbuild once production` to build client project with production settings. (change `resources/public/out` symlink to `out-production` to use)
         * Configurations live in `config/{prod,dev}/config.edn`. You should not need to modify these files for your own
