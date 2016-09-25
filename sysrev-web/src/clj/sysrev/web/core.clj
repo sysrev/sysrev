@@ -104,5 +104,9 @@
                          :join? (if prod? true false)}))))
 
 ;; if web server is running, restart it when this file is reloaded
+;; ---
+;; disabled for now - wrap-reload seems to conflict with this by triggering the
+;; server to restart while processing a request
+#_
 (when @web-server
   (run-web))
