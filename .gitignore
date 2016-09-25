@@ -176,3 +176,5 @@ fabric.properties
 *.org
 
 .lein-env
+
+/flyway.conf

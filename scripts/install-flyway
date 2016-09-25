@@ -10,8 +10,9 @@ wget https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/4.0.1/flyway
 tar zxf flyway-commandline-4.0.1.tar.gz
 ln -s flyway-4.0.1/flyway flyway
 rm -f flyway-commandline-4.0.1.tar.gz
+cp flyway.conf.example flyway.conf
 
 echo "Flyway installed."
 echo " ** ./flyway script created"
-echo " ** SQL schema files are in ./sql"
-echo " ** Edit Flyway config at ./flyway.conf"
+echo " ** SQL schema files are in ./resources/sql"
+echo " ** Edit Flyway config at ./flyway.conf (copied from flyway.conf.example)"
