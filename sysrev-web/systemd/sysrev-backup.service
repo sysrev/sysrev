@@ -1,0 +1,13 @@
+[Unit]
+Description=Run automated backups of sysrev database
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/data/sysrev
+ExecStart=/data/sysrev/scripts/backup-monitor
+Restart=always
+
+[Install]
+WantedBy=default.target

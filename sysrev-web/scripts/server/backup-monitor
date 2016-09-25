@@ -1,0 +1,9 @@
+#!/bin/bash
+
+interval="4h"
+scripts=/data/sysrev/scripts
+
+while true ; do
+    "$scripts"/backup-data
+    sleep "$interval"
+done
