@@ -3,8 +3,8 @@
              [do-query do-execute do-transaction sql-now scorify-article]]
             [sysrev.db.articles :refer
              [get-criteria-id label-confirmed-test
-              get-n-labeled-articles get-unlabeled-articles
-              all-label-conflicts]]
+              get-single-labeled-articles get-conflict-articles
+              get-unlabeled-articles all-label-conflicts]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -143,8 +143,8 @@
 
 (defn get-user-label-tasks [user-id n-max & [above-score]]
   (let [above-score (or above-score -1.0)
-        conflicts (future (get-n-labeled-articles user-id 2 n-max above-score))
-        pending (future (get-n-labeled-articles user-id 1 n-max above-score))]
+        conflicts (future (get-conflict-articles user-id n-max above-score))
+        pending (future (get-single-labeled-articles user-id n-max above-score))]
     (cond (not= (count @conflicts) 0)
           (->> @conflicts
                (map #(assoc % :review-status :conflict)))
@@ -152,7 +152,7 @@
           (->> @pending
                (map #(assoc % :review-status :single)))
           :else
-          (->> (get-unlabeled-articles [:*] n-max above-score true)
+          (->> (get-unlabeled-articles [:*] n-max above-score nil)
                (map #(assoc % :review-status :fresh))))))
 
 (defn get-user-article-labels [user-id article-id]

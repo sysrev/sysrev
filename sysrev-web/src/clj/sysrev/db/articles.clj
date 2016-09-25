@@ -2,7 +2,7 @@
   (:require
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction  scorify-article]]
+    [do-query do-execute do-transaction scorify-article]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -96,6 +96,7 @@
                            (where
                             [:and
                              [:= :ac.article_id :a.article_id]
+                             [:!= :ac.answer nil]
                              (label-confirmed-test confirmed?)]))]]])
              (order-by :r._2)
              (#(if n-max (limit % n-max) (identity %)))
@@ -142,26 +143,86 @@
       (where [:= :ac.article_id article-id])
       do-query))
 
-(defn get-n-labeled-articles
-  "Queries for articles that have confirmed labels from `user-count` distinct
-  users. Excludes articles that have been labeled by `self-id`. Sorts by article
-  ranking score, excluding articles with score <= `above-score`. `n-max` is
-  used in LIMIT clause, or may be nil."
-  [self-id user-count n-max & [above-score]]
+(defn get-single-labeled-articles
+  "The purpose of this function is to find articles that have a confirmed
+  inclusion label from exactly one user that is not `self-id`, to present
+  to `self-id` to label the article a second time.
+
+  Articles which have any labels saved by `self-id` (even unconfirmed) will
+  be excluded from this query.
+
+  If specified, the article score must be > than `above-score`. This is used
+  to pass in the score of the user's current article task, allowing the results
+  of this query to form a queue ordered by score across multiple requests."
+  [self-id n-max & [above-score]]
   (let [above-score (or above-score -1.0)]
     (-> (select :a.* [(sql/call :min :r._2) :score])
         (from [:article :a])
         (join [:article_criteria :ac] [:= :ac.article_id :a.article_id])
+        (merge-join [:criteria :c] [:= :c.criteria_id :ac.criteria_id])
         (merge-join [:article_ranking :r] [:= :a.article_id :r._1])
         (where [:and
+                [:= :c.name "overall include"]
+                [:!= :ac.user_id self-id]
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
                 [:> :r._2 above-score]])
         (group :a.article_id)
         (having [:and
-                 (sql/call :every (sql/raw (str "ac.user_id != " self-id)))
-                 [:= user-count (sql/call :count (sql/call :distinct :ac.user_id))]])
+                 ;; one user found with a confirmed inclusion label
+                 [:= 1 (sql/call :count (sql/call :distinct :ac.user_id))]
+                 ;; and `self-id` has not labeled the article
+                 [:not
+                  [:exists
+                   (-> (select :*)
+                       (from [:article_criteria :ac2])
+                       (where [:and
+                               [:= :ac2.article_id :a.article_id]
+                               [:= :ac2.user_id self-id]
+                               [:!= :ac2.answer nil]]))]]])
         (order-by (sql/call :min :r._2))
         (#(if n-max (limit % n-max) (identity %)))
         do-query)))
 
+(defn get-conflict-articles
+  "The purpose of this function is to find articles with conflicting labels,
+  to present to user `self-id` to resolve the conflict by labeling. These are
+  the first priority in the classify queue.
+
+  Queries for articles with conflicting confirmed inclusion labels from two
+  users who are not `self-id`, and for which the article has no labels saved
+  by `self-id` (even unconfirmed).
+
+  If specified, the article score must be > than `above-score`. This is used
+  to pass in the score of the user's current article task, allowing the results
+  of this query to form a queue ordered by score across multiple requests."
+  [self-id n-max & [above-score]]
+  (let [above-score (or above-score -1.0)]
+    (-> (select :a.* [(sql/call :min :r._2) :score])
+        (from [:article :a])
+        (join [:article_criteria :ac] [:= :ac.article_id :a.article_id])
+        (merge-join [:criteria :c] [:= :c.criteria_id :ac.criteria_id])
+        (merge-join [:article_ranking :r] [:= :a.article_id :r._1])
+        (where [:and
+                [:= :c.name "overall include"]
+                [:!= :ac.user_id self-id]
+                [:!= :ac.answer nil]
+                [:!= :ac.confirm_time nil]
+                [:> :r._2 above-score]])
+        (group :a.article_id)
+        (having [:and
+                 ;; article has two differing inclusion labels
+                 [:= 2 (sql/call :count (sql/call :distinct :ac.user_id))]
+                 [:= 2 (sql/call :count (sql/call :distinct :ac.answer))]
+                 ;; and `self-id` has not labeled the article
+                 [:not
+                  [:exists
+                   (-> (select :*)
+                       (from [:article_criteria :ac2])
+                       (where [:and
+                               [:= :ac2.article_id :a.article_id]
+                               [:= :ac2.user_id self-id]
+                               [:!= :ac2.answer nil]]))]]])
+        (order-by (sql/call :min :r._2))
+        (#(if n-max (limit % n-max) (identity %)))
+        do-query)))
