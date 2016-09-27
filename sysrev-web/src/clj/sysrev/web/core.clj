@@ -19,6 +19,7 @@
             [sysrev.web.auth :as auth]
             [sysrev.web.index :as index]
             [sysrev.db.articles :as articles]
+            [sysrev.db.documents :as docs]
             [sysrev.util :refer [parse-number]]))
 
 (defroutes app-routes
@@ -34,6 +35,7 @@
        (auth/web-get-identity request))
   (GET "/api/criteria" [] (wrap-json (ajax/web-criteria)))
   (GET "/api/all-labels" [] (wrap-json (ajax/web-all-labels)))
+  (GET "/api/article-documents" [] (wrap-json (docs/all-article-document-paths)))
   (GET "/api/project-info" [] (wrap-json (ajax/web-project-summary)))
   (GET "/api/user-info/:user-id" request
        (let [request-user-id (ajax/get-user-id request)

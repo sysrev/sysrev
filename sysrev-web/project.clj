@@ -6,6 +6,7 @@
                  ;;[org.clojure/clojurescript "1.9.93"]
                  [org.clojure/core.async "0.2.391"]
                  [org.clojure/data.json "0.2.6"]
+                 [me.raynes/fs "1.4.6"]
                  ;; REPL
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]

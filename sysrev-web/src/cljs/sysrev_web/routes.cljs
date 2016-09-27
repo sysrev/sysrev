@@ -37,6 +37,7 @@
       [[:criteria]
        [:labels]
        [:articles]
+       [:documents]
        [:sysrev]
        [:ranking]])}
    
@@ -57,6 +58,7 @@
       [[:criteria]
        [:labels]
        [:articles]
+       [:documents]
        [:sysrev]
        (when-let [user-id (with-state s (current-user-id))]
          [:users user-id])
@@ -77,6 +79,7 @@
        [:labels]
        [:articles (-> s :page :article :id)]
        [:article-labels (-> s :page :article :id)]
+       [:documents]
        [:sysrev]
        (when-let [user-id (with-state s (current-user-id))]
          [:users user-id])])
@@ -91,7 +94,9 @@
     (fn [s]
       [[:criteria]
        [:sysrev]
+       [:articles]
        [:labels]
+       [:documents]
        [:users (-> s :page :user-profile :user-id)]])
     :reload
     (fn [old new]

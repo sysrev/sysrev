@@ -100,6 +100,27 @@
                 ": "
                 [:span text]])))])))
 
+(defn article-docs-component [article-id]
+  (let [docs (d/article-documents article-id)]
+    [:div.ui.two.column.grid
+     (doall
+      (->>
+       docs
+       (map (fn [{:keys [document_id file_name]}]
+              ^{:key {:document-link [article-id document_id file_name]}}
+              [:div.ui.column
+               [:a.ui.fluid.labeled.button
+                {:target "_blank"
+                 :href (d/article-document-url
+                        document_id file_name)}
+                [:div.ui.green.button
+                 {:style {:min-width "70px"
+                          :box-sizing "content-box"}}
+                 [:i.file.icon]
+                 "Open"]
+                [:div.ui.fluid.label
+                 (str file_name)]]]))))]))
+
 (defn article-short-info-component
   "Shows a minimal summary of an article with a representation of its match
   quality and how it has been manually classified.
@@ -112,7 +133,8 @@
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [score (:score article)
-            similarity (- 1.0 (Math/abs score))]
+            similarity (- 1.0 (Math/abs score))
+            docs (d/article-documents article-id)]
         [:div.ui.segments
          [:div.ui.top.attached.segment
           [similarity-bar similarity]]
@@ -124,6 +146,10 @@
              (str  " - " journal-name))]
           (when-not (empty? (:authors article))
             [:p (truncated-horizontal-list 5 (:authors article))])]
+         (when (not (empty? docs))
+           [:div.ui.attached.segment
+            [:div {:style {:padding-top "1rem"}}
+             [article-docs-component article-id]]])
          [:div.ui.bottom.attached.segment
           (when (and show-labels
                      ((comp not empty?)
@@ -147,7 +173,8 @@
                         (if user-id
                           (d/user-label-values article-id user-id)
                           (d/article-label-values article-id)))
-            have-labels? (if labels true false)]
+            have-labels? (if labels true false)
+            docs (d/article-documents article-id)]
         [:div
          [:div.ui.top.attached.header.segment.middle.aligned
           [:div.ui
@@ -182,6 +209,9 @@
            (when-not (empty? (:authors article))
              [:p (truncated-horizontal-list 5 (:authors article))])
            [abstract (:abstract article)]
+           (when (not (empty? docs))
+             [:div {:style {:padding-top "1rem"}}
+              [article-docs-component article-id]])
            [:div.content.ui.list
             (->> article :urls
                  (map-indexed

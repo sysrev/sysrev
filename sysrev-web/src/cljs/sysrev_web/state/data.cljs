@@ -35,6 +35,10 @@
   (fn [s]
     (update-in s [:data :articles] #(merge % articles))))
 
+(defn merge-documents [documents]
+  (fn [s]
+    (update-in s [:data :documents] #(merge % documents))))
+
 (defn set-ranking-page [page-num ranked-ids]
   (fn [s]
     (assoc-in s [:data :ranking :pages page-num] ranked-ids)))
@@ -91,3 +95,20 @@
   (when-let [user-id (current-user-id)]
     (merge (data [:article-labels article-id user-id] {})
            (get-in @state labels-path {}))))
+
+(defn article-documents [article-id]
+  (when-let [article (data [:articles article-id])]
+    (let [doc-ids (:document_ids article)]
+      (->> doc-ids
+           (map
+            (fn [doc-id]
+              (let [fnames (data [:documents (js/parseInt doc-id)])]
+                (->> fnames
+                     (map (fn [fname]
+                            {:document_id doc-id
+                             :file_name fname}))))))
+           (apply concat)
+           vec))))
+
+(defn article-document-url [doc-id file-name]
+  (str "/files/PDF/" doc-id "/" file-name))

@@ -2,6 +2,7 @@
   (:use sysrev.util
         sysrev.db.core
         sysrev.db.articles
+        sysrev.db.documents
         sysrev.db.users
         sysrev.db.sysrev
         sysrev.web.core
@@ -16,6 +17,7 @@
             [clojure.java.io :as io]
             [clojure.data.json :as json]
             [config.core :refer [env]]
+            [me.raynes.fs :as fs]
             [clojure.test :refer :all]))
 
 (defn reload []

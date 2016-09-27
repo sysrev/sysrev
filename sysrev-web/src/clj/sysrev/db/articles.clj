@@ -80,7 +80,9 @@
            do-query)
        (group-by :article_id)
        (map-values first)
-       (map-values scorify-article)))
+       (map-values scorify-article)
+       ;; there are some `article` entries with duplicate document_ids
+       (map-values #(update % :document_ids distinct))))
 
 (defn get-unlabeled-articles [fields n-max above-score & [confirmed?]]
   (let [above-score (or above-score -1.0)]

@@ -57,6 +57,7 @@
 (def get-criteria (partial ajax-get "/api/criteria"))
 (defn get-article-labels [article-id handler]
   (ajax-get (str "/api/article-labels/" article-id) handler))
+(def get-article-documents (partial ajax-get "/api/article-documents"))
 (defn get-ranking-page [num handler]
   (ajax-get (str "/api/ranking" num) handler))
 (def get-project-info (partial ajax-get "/api/project-info"))
@@ -102,6 +103,11 @@
    article-id
    (fn [response]
      (swap! state (d/set-article-labels article-id response)))))
+
+(defn pull-article-documents []
+  (get-article-documents
+   (fn [response]
+     (swap! state (d/merge-documents response)))))
 
 (defn pull-all-labels []
   (get-all-labels
@@ -240,4 +246,5 @@
         :article-labels (let [[_ article-id] ks]
                           (pull-article-labels article-id))
         :classify-article-id (fetch-classify-task force?)
+        :documents (pull-article-documents)
         nil))))
