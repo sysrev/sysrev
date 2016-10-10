@@ -92,7 +92,7 @@
             article-id (:article-id fields)
             label-values (:label-values fields)]
         (assert (not (users/user-article-confirmed? user-id article-id)))
-        (users/set-user-article-labels user-id article-id label-values)
+        (users/set-user-article-labels user-id article-id label-values false)
         (when confirm?
           (users/confirm-user-article-labels user-id article-id))
         {:result fields})

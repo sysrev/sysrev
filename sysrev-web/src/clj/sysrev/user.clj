@@ -5,6 +5,7 @@
         sysrev.db.documents
         sysrev.db.users
         sysrev.db.sysrev
+        sysrev.db.endnote
         sysrev.web.core
         sysrev.web.ajax
         sysrev.web.session
@@ -18,7 +19,11 @@
             [clojure.data.json :as json]
             [config.core :refer [env]]
             [me.raynes.fs :as fs]
-            [clojure.test :refer :all]))
+            [clojure.test :refer :all]
+            [clojure.xml :as xml]
+            [clojure.zip :as zip]
+            [clojure.data.xml :as dxml]
+            [clojure.string :as str]))
 
 (defn reload []
   (require 'sysrev.user :reload))

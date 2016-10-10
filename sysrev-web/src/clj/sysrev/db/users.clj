@@ -175,12 +175,13 @@
               [:!= :confirm_time nil]])
       do-query first :count pos?))
 
-(defn set-user-article-labels [user-id article-id label-values]
+(defn set-user-article-labels [user-id article-id label-values imported?]
   (assert (integer? user-id))
   (assert (integer? article-id))
   (assert (map? label-values))
   (do-transaction
-   (let [existing-cids
+   (let [now (sql-now)
+         existing-cids
          (->> (-> (select :criteria_id)
                   (from :article_criteria)
                   (where [:and
@@ -196,19 +197,22 @@
                               {:criteria_id cid
                                :article_id article-id
                                :user_id user-id
-                               :answer (get label-values cid)})))
+                               :answer (get label-values cid)
+                               :confirm_time (if imported? now nil)
+                               :imported imported?})))
          update-futures
          (->> existing-cids
               (map (fn [cid]
                      (future
                        (-> (sqlh/update :article_criteria)
                            (sset {:answer (get label-values cid)
-                                  :updated_time (sql-now)})
+                                  :updated_time now
+                                  :imported imported?})
                            (where [:and
                                    [:= :article_id article-id]
                                    [:= :user_id user-id]
                                    [:= :criteria_id cid]
-                                   [:= :confirm_time nil]])
+                                   [:or imported? [:= :confirm_time nil]]])
                            do-execute)))))
          insert-future (future
                          (when-not (empty? new-entries)

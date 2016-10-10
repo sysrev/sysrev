@@ -7,6 +7,8 @@
                  [org.clojure/core.async "0.2.391"]
                  [org.clojure/data.json "0.2.6"]
                  [me.raynes/fs "1.4.6"]
+                 [org.clojure/data.xml "0.0.8"]
+                 [org.clojure/data.zip "0.1.2"]
                  ;; REPL
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]
@@ -45,8 +47,8 @@
                  [cljsjs/jquery "2.2.2-0"]
                  [cljsjs/semantic-ui "2.2.4-0"]]
   :min-lein-version "2.6.1"
-  :jvm-opts ["-Xms200m"
-             "-Xmx400m"
+  :jvm-opts ["-Xms600m"
+             "-Xmx1000m"
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]

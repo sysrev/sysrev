@@ -178,3 +178,5 @@ fabric.properties
 .lein-env
 
 /flyway.conf
+
+/sysrev-web/resources/public/files/PDF
