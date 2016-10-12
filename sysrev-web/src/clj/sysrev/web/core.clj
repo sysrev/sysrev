@@ -43,6 +43,7 @@
          (wrap-json
           (ajax/web-user-info
            query-user-id (= request-user-id query-user-id)))))
+  #_
   (GET "/api/ranking/:page-idx" [page-idx]
        (let [page-idx (Integer/parseInt page-idx)]
          (wrap-json (articles/get-ranked-articles page-idx))))

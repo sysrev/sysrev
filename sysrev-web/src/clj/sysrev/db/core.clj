@@ -53,10 +53,3 @@
 
 (defn sql-now []
   (-> (j/query @active-db "SELECT LOCALTIMESTAMP") first :timestamp))
-
-(defn scorify-article
-  "Clean up the map structure of an `article` joined with `article_ranking`."
-  [m]
-  (let [score (:_2 m)
-        article (dissoc m :_1 :_2)]
-    (merge article {:score score})))

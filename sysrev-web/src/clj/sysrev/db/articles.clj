@@ -2,7 +2,7 @@
   (:require
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction scorify-article]]
+    [do-query do-execute do-transaction]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -54,56 +54,58 @@
       (where [:= :criteria_id id])
       do-execute))
 
-(defn get-ranked-articles [page-idx]
-  (->> (-> (select :*)
-           (from [:article :a])
-           (join [:article_ranking :r] [:= :a.article_id :r._1])
-           (order-by :r._2)
-           (limit 100)
-           (offset (* page-idx 100))
-           do-query)
-       (group-by :article_id)
-       (map-values first)
-       (map-values scorify-article)))
-
 (defn all-labeled-articles [& [confirmed?]]
-  (->> (-> (select :*)
+  (->> (-> (select :a.* [:lp.val :score])
            (from [:article :a])
-           (join [:article_ranking :r] [:= :a.article_id :r._1])
-           (where [:exists
-                   (-> (select :*)
-                       (from [:article_criteria :ac])
-                       (where
-                        [:and
-                         [:= :ac.article_id :a.article_id]
-                         (label-confirmed-test confirmed?)]))])
+           (join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
+           (merge-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
+           (where [:and
+                   [:= :lp.sim_version_id 1]
+                   [:= :lp.predict_version_id 1]
+                   [:= :c.name "overall include"]
+                   [:= :lp.stage 0]
+                   [:exists
+                    (-> (select :*)
+                        (from [:article_criteria :ac])
+                        (where
+                         [:and
+                          [:= :ac.article_id :a.article_id]
+                          (label-confirmed-test confirmed?)]))]])
            do-query)
        (group-by :article_id)
        (map-values first)
-       (map-values scorify-article)
        ;; there are some `article` entries with duplicate document_ids
        (map-values #(update % :document_ids distinct))))
 
-(defn get-unlabeled-articles [fields n-max above-score & [confirmed?]]
-  (let [above-score (or above-score -1.0)]
-    (->> (-> (apply select :article_id :r._2 fields)
+(defn random-unlabeled-article []
+  (let [article-ids
+        (->>
+         (-> (select :article_id)
              (from [:article :a])
-             (join [:article_ranking :r] [:= :a.article_id :r._1])
-             (where [:and
-                     [:> :r._2 above-score]
-                     [:not
-                      [:exists
-                       (-> (select :*)
-                           (from [:article_criteria :ac])
-                           (where
-                            [:and
-                             [:= :ac.article_id :a.article_id]
-                             [:!= :ac.answer nil]
-                             (label-confirmed-test confirmed?)]))]]])
-             (order-by :r._2)
-             (#(if n-max (limit % n-max) (identity %)))
+             (where [:not
+                     [:exists
+                      (-> (select :*)
+                          (from [:article_criteria :ac])
+                          (where
+                           [:and
+                            [:= :ac.article_id :a.article_id]
+                            [:!= :ac.answer nil]]))]])
+             (limit 500)
              do-query)
-         (map scorify-article))))
+         (map :article_id))
+        random-id (nth article-ids (rand-int (count article-ids)))]
+    (-> (select :a.* [:lp.val :score])
+        (from [:article :a])
+        (join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
+        (merge-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
+        (where [:and
+                [:= :a.article_id random-id]
+                [:= :lp.sim_version_id 1]
+                [:= :lp.predict_version_id 1]
+                [:= :c.name "overall include"]
+                [:= :lp.stage 0]])
+        do-query
+        first)))
 
 (defn all-article-labels [confirmed? & label-keys]
   (let [article-ids (->> (-> (select :article_id)
@@ -153,22 +155,25 @@
   Articles which have any labels saved by `self-id` (even unconfirmed) will
   be excluded from this query.
 
-  If specified, the article score must be > than `above-score`. This is used
+  If specified, the article score must be < than `above-score`. This is used
   to pass in the score of the user's current article task, allowing the results
   of this query to form a queue ordered by score across multiple requests."
   [self-id n-max & [above-score]]
-  (let [above-score (or above-score -1.0)]
-    (-> (select :a.* [(sql/call :min :r._2) :score])
+  (let [above-score (or above-score 1.5)]
+    (-> (select :a.* [(sql/call :max :lp.val) :score])
         (from [:article :a])
         (join [:article_criteria :ac] [:= :ac.article_id :a.article_id])
         (merge-join [:criteria :c] [:= :c.criteria_id :ac.criteria_id])
-        (merge-join [:article_ranking :r] [:= :a.article_id :r._1])
+        (merge-join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
         (where [:and
                 [:= :c.name "overall include"]
                 [:!= :ac.user_id self-id]
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
-                [:> :r._2 above-score]])
+                [:= :lp.sim_version_id 1]
+                [:= :lp.predict_version_id 1]
+                [:= :lp.stage 0]
+                [:< :lp.val above-score]])
         (group :a.article_id)
         (having [:and
                  ;; one user found with a confirmed inclusion label
@@ -182,7 +187,7 @@
                                [:= :ac2.article_id :a.article_id]
                                [:= :ac2.user_id self-id]
                                [:!= :ac2.answer nil]]))]]])
-        (order-by (sql/call :min :r._2))
+        (order-by [(sql/call :max :lp.val) :desc])
         (#(if n-max (limit % n-max) (identity %)))
         do-query)))
 
@@ -195,22 +200,25 @@
   users who are not `self-id`, and for which the article has no labels saved
   by `self-id` (even unconfirmed).
 
-  If specified, the article score must be > than `above-score`. This is used
+  If specified, the article score must be < than `above-score`. This is used
   to pass in the score of the user's current article task, allowing the results
   of this query to form a queue ordered by score across multiple requests."
   [self-id n-max & [above-score]]
-  (let [above-score (or above-score -1.0)]
-    (-> (select :a.* [(sql/call :min :r._2) :score])
+  (let [above-score (or above-score 1.5)]
+    (-> (select :a.* [(sql/call :max :lp.val) :score])
         (from [:article :a])
         (join [:article_criteria :ac] [:= :ac.article_id :a.article_id])
         (merge-join [:criteria :c] [:= :c.criteria_id :ac.criteria_id])
-        (merge-join [:article_ranking :r] [:= :a.article_id :r._1])
+        (merge-join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
         (where [:and
                 [:= :c.name "overall include"]
                 [:!= :ac.user_id self-id]
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
-                [:> :r._2 above-score]])
+                [:= :lp.sim_version_id 1]
+                [:= :lp.predict_version_id 1]
+                [:= :lp.stage 0]
+                [:< :lp.val above-score]])
         (group :a.article_id)
         (having [:and
                  ;; article has two differing inclusion labels
@@ -225,7 +233,7 @@
                                [:= :ac2.article_id :a.article_id]
                                [:= :ac2.user_id self-id]
                                [:!= :ac2.answer nil]]))]]])
-        (order-by (sql/call :min :r._2))
+        (order-by [(sql/call :max :lp.val) :desc])
         (#(if n-max (limit % n-max) (identity %)))
         do-query)))
 

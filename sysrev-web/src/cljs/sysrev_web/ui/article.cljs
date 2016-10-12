@@ -132,8 +132,7 @@
   [article-id & [show-labels user-id]]
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
-      (let [score (:score article)
-            similarity (- 1.0 (Math/abs score))
+      (let [similarity (:score article)
             docs (d/article-documents article-id)]
         [:div.ui.segments
          [:div.ui.top.attached.segment
@@ -167,8 +166,7 @@
   [article-id & [show-labels user-id review-status]]
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
-      (let [score (:score article)
-            similarity (- 1.0 (Math/abs score))
+      (let [similarity (:score article)
             labels (and show-labels
                         (if user-id
                           (d/user-label-values article-id user-id)
@@ -194,7 +192,7 @@
                  {:style {:float "right"}}
                  (str sstr)])))
           [:div {:style {:clear "both"}}]]
-         (when-not (nil? score)
+         (when-not (nil? similarity)
            [:div.ui.attached.segment
             [similarity-bar similarity]])
          [:div.ui
@@ -208,7 +206,8 @@
               (:secondary_title article)])
            (when-not (empty? (:authors article))
              [:p (truncated-horizontal-list 5 (:authors article))])
-           [abstract (:abstract article)]
+           (when (not (empty? (:abstract article)))
+             [abstract (:abstract article)])
            (when (not (empty? docs))
              [:div {:style {:padding-top "1rem"}}
               [article-docs-component article-id]])

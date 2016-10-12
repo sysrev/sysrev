@@ -15,7 +15,7 @@
         criteria (-> @state :data :criteria)
         criteria-ids (keys criteria)
         overall-cid (-> @state :data :overall-cid)]
-    [:div.ui.grid
+    [:div
      (let [user-id (current-user-id)
            confirmed
            (and user-id (get-in @state [:data :users user-id :labels

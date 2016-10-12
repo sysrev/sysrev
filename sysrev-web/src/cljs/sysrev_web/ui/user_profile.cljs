@@ -58,6 +58,6 @@
                            :confirmed confirmed-ids
                            nil)]
          (doall
-          (for [article-id article-ids]
+          (for [article-id (take 25 article-ids)]
             ^{:key {:user-article {:a article-id :u user-id}}}
             [article-short-info-component article-id true user-id])))]]]))

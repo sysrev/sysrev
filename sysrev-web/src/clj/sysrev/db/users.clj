@@ -1,10 +1,10 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now scorify-article]]
+             [do-query do-execute do-transaction sql-now]]
             [sysrev.db.articles :refer
              [get-criteria-id label-confirmed-test
               get-single-labeled-articles get-conflict-articles
-              get-unlabeled-articles all-label-conflicts]]
+              random-unlabeled-article all-label-conflicts]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -142,8 +142,7 @@
          (apply hash-map))))
 
 (defn get-user-label-tasks [user-id n-max & [above-score]]
-  (let [above-score (or above-score -1.0)
-        conflicts (future (get-conflict-articles user-id n-max above-score))
+  (let [conflicts (future (get-conflict-articles user-id n-max above-score))
         pending (future (get-single-labeled-articles user-id n-max above-score))]
     (cond (not= (count @conflicts) 0)
           (->> @conflicts
@@ -152,7 +151,7 @@
           (->> @pending
                (map #(assoc % :review-status :single)))
           :else
-          (->> (get-unlabeled-articles [:*] n-max above-score nil)
+          (->> [(random-unlabeled-article)]
                (map #(assoc % :review-status :fresh))))))
 
 (defn get-user-article-labels [user-id article-id]

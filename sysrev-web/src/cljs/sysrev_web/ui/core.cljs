@@ -90,6 +90,6 @@
         [:div.ui.right.floated.left.aligned.twelve.wide.column
          [menu-component]])]
      [:div.middle.aligned.row
-      [:div.main-content.sixteen.wide.column
+      [:div.sixteen.wide.column
        [current-page-content]]]]]
    [notifier (notify-head) 2000]])
