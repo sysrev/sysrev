@@ -228,3 +228,20 @@
         (order-by (sql/call :min :r._2))
         (#(if n-max (limit % n-max) (identity %)))
         do-query)))
+
+(defn get-confirmed-labels []
+  (->> (-> (select :article_id :answer)
+           (from [:article_criteria :ac])
+           (join [:criteria :c] [:= :c.criteria_id :ac.criteria_id])
+           (where [:and
+                   [:= :c.name "overall include"]
+                   [:!= :confirm_time nil]])
+           do-query)
+       (group-by :article_id)
+       (map-values (fn [xs]
+                     (let [yes-count (->> xs (filter #(true? (:answer %))) count)
+                           no-count (->> xs (filter #(false? (:answer %))) count)
+                           include? (cond (> yes-count no-count) true
+                                          (< yes-count no-count) false
+                                          :else nil)]
+                       {:answer include?})))))

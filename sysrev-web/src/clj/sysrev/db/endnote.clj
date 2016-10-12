@@ -188,7 +188,9 @@
     (fn [[gname gentries]]
       (future
         (let [label-values (group-name-to-label-values gname)]
-          (println (str "label-values = " (pr-str label-values)))
+          (println (format "label-values for '%s' = %s"
+                           gname (pr-str label-values)))
+          (assert (not (empty? label-values)))
           (when ((comp not empty?) label-values)
             (doseq [entry gentries]
               (let [article-id (match-article-id (:title entry)
