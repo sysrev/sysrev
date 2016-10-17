@@ -34,7 +34,6 @@
   (GET "/api/auth/identity" request
        (auth/web-get-identity request))
   (GET "/api/criteria" [] (wrap-json (ajax/web-criteria)))
-  (GET "/api/all-labels" [] (wrap-json (ajax/web-all-labels)))
   (GET "/api/article-documents" [] (wrap-json (docs/all-article-document-paths)))
   (GET "/api/project-info" [] (wrap-json (ajax/web-project-summary)))
   (GET "/api/user-info/:user-id" request
@@ -53,9 +52,9 @@
              above-score (-> request :params :above-score)
              above-score (when above-score (Double/parseDouble above-score))]
          (wrap-json (ajax/web-label-task user-id interval above-score))))
-  (GET "/api/article-labels/:article-id" [article-id]
+  (GET "/api/article-info/:article-id" [article-id]
        (let [article-id (Integer/parseInt article-id)]
-         (wrap-json (ajax/web-article-labels article-id))))
+         (wrap-json (ajax/web-article-info article-id))))
   (POST "/api/set-labels" request
         (wrap-json (ajax/web-set-labels request false)))
   (POST "/api/confirm-labels" request

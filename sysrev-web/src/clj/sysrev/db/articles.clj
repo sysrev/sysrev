@@ -1,8 +1,9 @@
 (ns sysrev.db.articles
   (:require
+   [clojure.java.jdbc :as j]
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction]]
+    [active-db do-query do-execute do-transaction]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -54,29 +55,6 @@
       (where [:= :criteria_id id])
       do-execute))
 
-(defn all-labeled-articles [& [confirmed?]]
-  (->> (-> (select :a.* [:lp.val :score])
-           (from [:article :a])
-           (join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
-           (merge-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
-           (where [:and
-                   [:= :lp.sim_version_id 1]
-                   [:= :lp.predict_version_id 1]
-                   [:= :c.name "overall include"]
-                   [:= :lp.stage 0]
-                   [:exists
-                    (-> (select :*)
-                        (from [:article_criteria :ac])
-                        (where
-                         [:and
-                          [:= :ac.article_id :a.article_id]
-                          (label-confirmed-test confirmed?)]))]])
-           do-query)
-       (group-by :article_id)
-       (map-values first)
-       ;; there are some `article` entries with duplicate document_ids
-       (map-values #(update % :document_ids distinct))))
-
 (defn random-unlabeled-article []
   (let [article-ids
         (->>
@@ -106,40 +84,6 @@
                 [:= :lp.stage 0]])
         do-query
         first)))
-
-(defn all-article-labels [confirmed? & label-keys]
-  (let [article-ids (->> (-> (select :article_id)
-                             (from :article_criteria)
-                             (where
-                              (label-confirmed-test confirmed?))
-                             (modifiers :distinct)
-                             do-query)
-                         (map :article_id))
-        labels (-> (apply select :article_id :confirm_time label-keys)
-                   (from :article_criteria)
-                   (where
-                    (label-confirmed-test confirmed?))
-                   do-query)]
-    (->> article-ids
-         (map (fn [article-id]
-                (let [alabels
-                      (->> labels
-                           (filter #(= (:article_id %) article-id)))
-                      alabels
-                      (if (empty? label-keys)
-                        alabels
-                        (->> alabels
-                             (map #(select-keys
-                                    % (conj label-keys :confirm_time)))))
-                      alabels
-                      (->> alabels
-                           (map
-                            #(assoc % :confirmed
-                                    (not (nil? (:confirm_time %)))))
-                           (map #(dissoc % :confirm_time)))]
-                  [article-id alabels])))
-         (apply concat)
-         (apply hash-map))))
 
 (defn all-labels-for-article [article-id]
   (-> (select :ac.*)
@@ -253,3 +197,46 @@
                                           (< yes-count no-count) false
                                           :else nil)]
                        {:answer include?})))))
+
+(defn fix-duplicate-authors-entries [project-id]
+  (let [conn (j/get-connection @active-db)]
+    (->>
+     (-> (select :article_id :authors)
+         (from :article)
+         (where [:= :project_id project-id])
+         do-query)
+     (pmap
+      (fn [a]
+        (let [authors (:authors a)
+              distinct-authors (vec (distinct authors))]
+          (when (< (count distinct-authors) (count authors))
+            (println (format "fixing authors field for article #%d"
+                             (:article_id a)))
+            (println (pr-str authors))
+            (println (pr-str distinct-authors))
+            (let [sql-authors
+                  (.createArrayOf conn "text"
+                                  (into-array String distinct-authors))]
+              (-> (sqlh/update :article)
+                  (sset {:authors sql-authors})
+                  (where [:= :article_id (:article_id a)])
+                  do-execute))))))
+     doall)
+    true))
+
+(defn get-article [article-id]
+  (-> (select :a.* [:lp.val :score])
+      (from [:article :a])
+      (left-join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
+      (merge-left-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
+      (where [:and
+              [:= :a.article_id article-id]
+              [:or
+               [:= :lp.val nil]
+               [:and
+                [:= :lp.sim_version_id 1]
+                [:= :lp.predict_version_id 1]
+                [:= :c.name "overall include"]
+                [:= :lp.stage 0]]]])
+      do-query
+      first))

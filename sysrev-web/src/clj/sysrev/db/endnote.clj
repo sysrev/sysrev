@@ -184,28 +184,27 @@
   [user-id fname]
   (->>
    (load-endnote-file fname)
-   (mapv
+   (pmap
     (fn [[gname gentries]]
-      (future
-        (let [label-values (group-name-to-label-values gname)]
-          (println (format "label-values for '%s' = %s"
-                           gname (pr-str label-values)))
-          (assert (not (empty? label-values)))
-          (when ((comp not empty?) label-values)
-            (doseq [entry gentries]
-              (let [article-id (match-article-id (:title entry)
-                                                 (:journal entry)
-                                                 (:rdb-name entry))]
-                (println (format "setting labels for article #%s" article-id))
-                (when article-id
-                  (-> (delete-from :article_criteria)
-                      (where [:and
-                              [:= :user_id user-id]
-                              [:= :article_id article-id]])
-                      do-execute)
-                  (users/set-user-article-labels
-                   user-id article-id label-values true))))))
+      (let [label-values (group-name-to-label-values gname)]
+        (println (format "label-values for '%s' = %s"
+                         gname (pr-str label-values)))
+        (assert (not (empty? label-values)))
+        (when ((comp not empty?) label-values)
+          (doseq [entry gentries]
+            (let [article-id (match-article-id (:title entry)
+                                               (:journal entry)
+                                               (:rdb-name entry))]
+              (println (format "setting labels for article #%s" article-id))
+              (when article-id
+                (-> (delete-from :article_criteria)
+                    (where [:and
+                            [:= :user_id user-id]
+                            [:= :article_id article-id]])
+                    do-execute)
+                (users/set-user-article-labels
+                 user-id article-id label-values true)))))
         true)))
-   (mapv deref))
+   doall)
   true)
 

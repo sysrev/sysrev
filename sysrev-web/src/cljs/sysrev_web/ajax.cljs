@@ -53,10 +53,9 @@
    (ajax-post url nil handler)))
 
 (def get-identity (partial ajax-get "/api/auth/identity"))
-(def get-all-labels (partial ajax-get "/api/all-labels"))
 (def get-criteria (partial ajax-get "/api/criteria"))
-(defn get-article-labels [article-id handler]
-  (ajax-get (str "/api/article-labels/" article-id) handler))
+(defn get-article-info [article-id handler]
+  (ajax-get (str "/api/article-info/" article-id) handler))
 (def get-article-documents (partial ajax-get "/api/article-documents"))
 (defn get-ranking-page [num handler]
   (ajax-get (str "/api/ranking" num) handler))
@@ -82,7 +81,16 @@
   (get-user-info
    user-id
    (fn [response]
-     (swap! state (d/set-user-info user-id response)))))
+     (let [new-articles
+           (->> (:articles response)
+                vec
+                (filter
+                 (fn [[article-id article]]
+                   (nil? (data [:articles article-id :abstract]))))
+                (apply concat)
+                (apply hash-map))]
+       (swap! state (d/merge-articles new-articles))
+       (swap! state (d/set-user-info user-id response))))))
 
 (defn pull-identity []
   (get-identity
@@ -98,23 +106,17 @@
      (fn [response]
        (swap! state (d/set-criteria response))))))
 
-(defn pull-article-labels [article-id]
-  (get-article-labels
+(defn pull-article-info [article-id]
+  (get-article-info
    article-id
    (fn [response]
-     (swap! state (d/set-article-labels article-id response)))))
+     (swap! state (d/set-article-labels article-id (:labels response)))
+     (swap! state (d/merge-articles {article-id (:article response)})))))
 
 (defn pull-article-documents []
   (get-article-documents
    (fn [response]
      (swap! state (d/merge-documents response)))))
-
-(defn pull-all-labels []
-  (get-all-labels
-   (fn [response]
-     (swap! state
-            (comp (d/set-all-labels (:labels response))
-                  (d/merge-articles (:articles response)))))))
 
 (defn pull-ranking-page [num]
   (when (nil? (d/data [:ranking :pages num]))
@@ -203,7 +205,7 @@
        (when-not (empty? err) (notify (str "Error: " err)))
        (when-not (empty? res)
          (notify "Labels submitted")
-         (pull-article-labels article-id)
+         (pull-article-info article-id)
          (pull-user-info (s/current-user-id))
          (when (= article-id (data :classify-article-id))
            (fetch-classify-task true))
@@ -233,7 +235,6 @@
     (when (or force? (nil? (d/data ks)))
       (case (first ks)
         :criteria (pull-criteria)
-        :labels (pull-all-labels)
         :sysrev (pull-project-info)
         :users (let [[_ user-id] ks] (pull-user-info user-id))
         :ranking (let [[_ pages page-num] ks]
@@ -242,9 +243,9 @@
                      (pull-ranking-page page-num)))
         :articles (let [[_ article-id] ks]
                     ;; todo - fetch single articles here
-                    nil)
+                    (pull-article-info article-id))
         :article-labels (let [[_ article-id] ks]
-                          (pull-article-labels article-id))
+                          (pull-article-info article-id))
         :classify-article-id (fetch-classify-task force?)
         :documents (pull-article-documents)
         nil))))

@@ -45,16 +45,10 @@
          (apply concat)
          (apply hash-map))))
 
-(defn web-all-labels []
-  (let [labels (future (articles/all-article-labels
-                        nil :criteria_id :user_id :answer))
-        articles (future (articles/all-labeled-articles nil))]
-    {:labels @labels :articles @articles}))
-
 (defn web-project-summary []
-  (let [users (future (users/get-user-summaries))
-        stats (future (sysrev/sr-summary))]
-    {:users @users :stats @stats}))
+  (let [[users stats]
+        (pvalues (users/get-user-summaries) (sysrev/sr-summary))]
+    {:users users :stats stats}))
 
 (defn web-user-info [user-id self?]
   (let [umap (users/get-user-info user-id)]
@@ -68,20 +62,25 @@
               user-id n-max above-score)}
     {:error true}))
 
-(defn web-article-labels [article-id]
-  (let [entries (articles/all-labels-for-article article-id)
-        user-ids (->> entries (map :user_id) distinct)]
-    (->> user-ids
-         (map (fn [user-id]
-                [user-id
-                 (->> entries
-                      (filter #(= (:user_id %) user-id))
-                      (map #(do [(:criteria_id %)
-                                 (:answer %)]))
-                      (apply concat)
-                      (apply hash-map))]))
-         (apply concat)
-         (apply hash-map))))
+(defn web-article-info [article-id]
+  (let [[article raw-labels]
+        (pvalues (articles/get-article article-id)
+                 (articles/all-labels-for-article article-id))
+        user-ids (->> raw-labels (map :user_id) distinct)
+        labels
+        (->> user-ids
+             (map (fn [user-id]
+                    [user-id
+                     (->> raw-labels
+                          (filter #(= (:user_id %) user-id))
+                          (map #(do [(:criteria_id %)
+                                     (:answer %)]))
+                          (apply concat)
+                          (apply hash-map))]))
+             (apply concat)
+             (apply hash-map))]
+    {:article article
+     :labels labels}))
 
 (defn web-set-labels [request confirm?]
   (if-let [user-id (get-user-id request)]

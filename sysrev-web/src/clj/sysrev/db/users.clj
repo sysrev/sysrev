@@ -142,16 +142,18 @@
          (apply hash-map))))
 
 (defn get-user-label-tasks [user-id n-max & [above-score]]
-  (let [conflicts (future (get-conflict-articles user-id n-max above-score))
-        pending (future (get-single-labeled-articles user-id n-max above-score))]
-    (cond (not= (count @conflicts) 0)
-          (->> @conflicts
+  (let [[conflicts pending unlabeled-article]
+        (pvalues (get-conflict-articles user-id n-max above-score)
+                 (get-single-labeled-articles user-id n-max above-score)
+                 (random-unlabeled-article))]
+    (cond (not= (count conflicts) 0)
+          (->> conflicts
                (map #(assoc % :review-status :conflict)))
-          (not= (count @pending) 0)
-          (->> @pending
+          (not= (count pending) 0)
+          (->> pending
                (map #(assoc % :review-status :single)))
           :else
-          (->> [(random-unlabeled-article)]
+          (->> [unlabeled-article]
                (map #(assoc % :review-status :fresh))))))
 
 (defn get-user-article-labels [user-id article-id]
@@ -213,11 +215,12 @@
                                    [:= :criteria_id cid]
                                    [:or imported? [:= :confirm_time nil]]])
                            do-execute)))))
-         insert-future (future
-                         (when-not (empty? new-entries)
-                           (-> (insert-into :article_criteria)
-                               (values new-entries)
-                               do-execute)))]
+         insert-future
+         (future
+           (when-not (empty? new-entries)
+             (-> (insert-into :article_criteria)
+                 (values new-entries)
+                 do-execute)))]
      (doall (map deref update-futures))
      (deref insert-future)
      true)))
@@ -267,20 +270,49 @@
        do-execute)))
 
 (defn get-user-info [user-id]
-  (let [umap (future
-               (-> (select :id :email :verified :name :username :admin)
-                   (from :web_user)
-                   (where [:= :id user-id])
-                   do-query
-                   first))
-        labels (->>
-                (-> (select :article_id :criteria_id :answer :confirm_time)
-                    (from [:article_criteria :ac])
-                    (where [:= :user_id user-id])
-                    do-query)
-                (map #(-> %
-                          (assoc :confirmed (not (nil? (:confirm_time %))))
-                          (dissoc :confirm_time))))
+  (let [[umap labels articles]
+        (pvalues
+         (-> (select :id :email :verified :name :username :admin)
+             (from :web_user)
+             (where [:= :id user-id])
+             do-query
+             first)
+         (->>
+          (-> (select :article_id :criteria_id :answer :confirm_time)
+              (from [:article_criteria :ac])
+              (where [:= :user_id user-id])
+              do-query)
+          (map #(-> %
+                    (assoc :confirmed (not (nil? (:confirm_time %))))
+                    (dissoc :confirm_time))))
+         (->>
+          (-> (select :a.article_id
+                      :a.primary_title
+                      :a.secondary_title
+                      :a.authors
+                      :a.year
+                      :a.remote_database_name
+                      [:lp.val :score])
+              (from [:article :a])
+              (join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
+              (merge-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
+              (where
+               [:and
+                [:exists
+                 (-> (select :*)
+                     (from [:article_criteria :ac])
+                     (where [:and
+                             [:= :ac.user_id user-id]
+                             [:= :ac.article_id :a.article_id]
+                             [:!= :ac.answer nil]]))]
+                [:= :lp.sim_version_id 1]
+                [:= :lp.predict_version_id 1]
+                [:= :c.name "overall include"]
+                [:= :lp.stage 0]])
+              do-query)
+          (group-by :article_id)
+          (map-values first)
+          (map-values #(dissoc % :abstract :urls :notes))))
         labels-map (fn [confirmed?]
                      (->> labels
                           (filter #(= (true? (:confirmed %)) confirmed?))
@@ -293,7 +325,12 @@
                            (fn [[aid cs]]
                              (some (comp not nil? :answer) cs)))
                           (apply concat)
-                          (apply hash-map)))]
-    (assoc @umap :labels
-           {:confirmed (labels-map true)
-            :unconfirmed (labels-map false)})))
+                          (apply hash-map)))
+        [confirmed unconfirmed]
+        (pvalues (labels-map true) (labels-map false))]
+    (assoc umap
+           :labels
+           {:confirmed confirmed
+            :unconfirmed unconfirmed}
+           :articles
+           articles)))

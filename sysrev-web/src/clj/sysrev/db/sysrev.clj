@@ -85,11 +85,12 @@
          (apply hash-map))))
 
 (defn sr-summary []
-  (let [articles (future (sr-article-count))
-        labels (future (sr-label-counts))
-        label-values (future (sr-label-value-counts))
-        conflicts (future (sr-conflict-counts))]
-    {:articles @articles
-     :labels @labels
-     :label-values @label-values
-     :conflicts @conflicts}))
+  (let [[articles labels label-values conflicts]
+        (pvalues (sr-article-count)
+                 (sr-label-counts)
+                 (sr-label-value-counts)
+                 (sr-conflict-counts))]
+    {:articles articles
+     :labels labels
+     :label-values label-values
+     :conflicts conflicts}))

@@ -25,9 +25,8 @@
                   [:= :ac.criteria_id criteria-id]
                   [:!= :ac.confirm_time nil]])
                 do-query)))
-        aboves (future (sims-fn true))
-        belows (future (sims-fn false))
-        sims (->> (concat @aboves @belows)
+        [aboves belows] (pvalues (sims-fn true) (sims-fn false))
+        sims (->> (concat aboves belows)
                   (group-by :article_id))
         answer-sims (fn [answer]
                       (->>
@@ -53,9 +52,8 @@
                        (map :sim)
                        (apply +)
                        (* (/ 1.0 n-closest))))
-        yes (future (answer-sims true))
-        no (future (answer-sims false))]
-    {true @yes false @no}))
+        [yes no] (pvalues (answer-sims true) (answer-sims false))]
+    {true yes false no}))
 
 (defn relative-label-similarity [sim-version-id article-id criteria-id]
   (let [sims (->> (-> (select :answer :max_sim)

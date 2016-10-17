@@ -27,10 +27,6 @@
                                  (= name "overall include")))
                        first first)))))
 
-(defn set-all-labels [labels]
-  (fn [s]
-    (assoc-in s [:data :labels] labels)))
-
 (defn merge-articles [articles]
   (fn [s]
     (update-in s [:data :articles] #(merge % articles))))
@@ -57,7 +53,7 @@
   found for each label will be returned."
   [article-id]
   (let [cids (-> @state :data :criteria keys)
-        labels (get-in @state [:data :labels article-id])
+        labels (get-in @state [:data :article-labels article-id])
         known-value
         (fn [cid]
           (->> labels

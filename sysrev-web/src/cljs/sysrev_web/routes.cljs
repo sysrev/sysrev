@@ -35,8 +35,6 @@
    {:required
     (fn [s]
       [[:criteria]
-       [:labels]
-       [:articles]
        [:documents]
        [:sysrev]
        [:ranking]])}
@@ -45,8 +43,6 @@
    {:required
     (fn [s]
       [[:criteria]
-       [:labels]
-       [:articles]
        [:sysrev]])
     :reload
     (fn [old new]
@@ -56,8 +52,6 @@
    {:required
     (fn [s]
       [[:criteria]
-       [:labels]
-       [:articles]
        [:documents]
        [:sysrev]
        (when-let [user-id (with-state s (current-user-id))]
@@ -76,8 +70,6 @@
    {:required
     (fn [s]
       [[:criteria]
-       [:labels]
-       [:articles (-> s :page :article :id)]
        [:article-labels (-> s :page :article :id)]
        [:documents]
        [:sysrev]
@@ -94,8 +86,6 @@
     (fn [s]
       [[:criteria]
        [:sysrev]
-       [:articles]
-       [:labels]
        [:documents]
        [:users (-> s :page :user-profile :user-id)]])
     :reload
