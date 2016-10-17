@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+date_string=$(date +%F_%H-%M)
+fname="sysrev-predicts-${date_string}.pgdumpc"
+pg_dump -U postgres -Fc -t sim_version -t predict_version -t predict_run -t label_similarity -t label_predicts sysrev > "$fname"
+echo "wrote to $fname"

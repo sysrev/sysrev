@@ -55,7 +55,7 @@
            [:div.progress]]]]
         [:div.ui.four.wide.column
          [:div.right.aligned
-          (str "(" percent "% similarity to included articles)")]]]])))
+          (str "(" percent "% predicted inclusion probability)")]]]])))
 
 (defn truncated-list [num coll]
   (let [show-list (take num coll)]

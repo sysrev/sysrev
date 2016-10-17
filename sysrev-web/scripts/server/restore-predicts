@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+# This will drop and replace the tables contained in the pg_dump file passed
+# as a script argument (eg. all prediction-related tables).
+pg_restore -1 -c -U postgres -d sysrev $*

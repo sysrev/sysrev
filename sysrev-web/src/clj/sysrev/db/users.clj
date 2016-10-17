@@ -5,6 +5,7 @@
              [get-criteria-id label-confirmed-test
               get-single-labeled-articles get-conflict-articles
               random-unlabeled-article all-label-conflicts]]
+            [sysrev.db.predict :refer [latest-predict-run]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -142,10 +143,14 @@
          (apply hash-map))))
 
 (defn get-user-label-tasks [user-id n-max & [above-score]]
-  (let [[conflicts pending unlabeled-article]
-        (pvalues (get-conflict-articles user-id n-max above-score)
-                 (get-single-labeled-articles user-id n-max above-score)
-                 (random-unlabeled-article))]
+  (let [project-id 1
+        predict-run-id (:predict_run_id (latest-predict-run project-id))
+        [conflicts pending unlabeled-article]
+        (pvalues (get-conflict-articles
+                  predict-run-id user-id n-max above-score)
+                 (get-single-labeled-articles
+                  predict-run-id user-id n-max above-score)
+                 (random-unlabeled-article predict-run-id))]
     (cond (not= (count conflicts) 0)
           (->> conflicts
                (map #(assoc % :review-status :conflict)))
@@ -270,7 +275,10 @@
        do-execute)))
 
 (defn get-user-info [user-id]
-  (let [[umap labels articles]
+  (let [project-id 1
+        predict-run-id
+        (:predict_run_id (latest-predict-run project-id))
+        [umap labels articles]
         (pvalues
          (-> (select :id :email :verified :name :username :admin)
              (from :web_user)
@@ -305,10 +313,9 @@
                              [:= :ac.user_id user-id]
                              [:= :ac.article_id :a.article_id]
                              [:!= :ac.answer nil]]))]
-                [:= :lp.sim_version_id 1]
-                [:= :lp.predict_version_id 1]
                 [:= :c.name "overall include"]
-                [:= :lp.stage 0]])
+                [:= :lp.predict_run_id predict-run-id]
+                [:= :lp.stage 1]])
               do-query)
           (group-by :article_id)
           (map-values first)

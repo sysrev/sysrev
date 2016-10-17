@@ -4,6 +4,7 @@
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
     [active-db do-query do-execute do-transaction]]
+   [sysrev.db.predict :refer [latest-predict-run]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -55,7 +56,7 @@
       (where [:= :criteria_id id])
       do-execute))
 
-(defn random-unlabeled-article []
+(defn random-unlabeled-article [predict-run-id]
   (let [article-ids
         (->>
          (-> (select :article_id)
@@ -78,10 +79,9 @@
         (merge-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
         (where [:and
                 [:= :a.article_id random-id]
-                [:= :lp.sim_version_id 1]
-                [:= :lp.predict_version_id 1]
+                [:= :lp.predict_run_id predict-run-id]
                 [:= :c.name "overall include"]
-                [:= :lp.stage 0]])
+                [:= :lp.stage 1]])
         do-query
         first)))
 
@@ -102,7 +102,7 @@
   If specified, the article score must be < than `above-score`. This is used
   to pass in the score of the user's current article task, allowing the results
   of this query to form a queue ordered by score across multiple requests."
-  [self-id n-max & [above-score]]
+  [predict-run-id self-id n-max & [above-score]]
   (let [above-score (or above-score 1.5)]
     (-> (select :a.* [(sql/call :max :lp.val) :score])
         (from [:article :a])
@@ -114,9 +114,8 @@
                 [:!= :ac.user_id self-id]
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
-                [:= :lp.sim_version_id 1]
-                [:= :lp.predict_version_id 1]
-                [:= :lp.stage 0]
+                [:= :lp.predict_run_id predict-run-id]
+                [:= :lp.stage 1]
                 [:< :lp.val above-score]])
         (group :a.article_id)
         (having [:and
@@ -147,7 +146,7 @@
   If specified, the article score must be < than `above-score`. This is used
   to pass in the score of the user's current article task, allowing the results
   of this query to form a queue ordered by score across multiple requests."
-  [self-id n-max & [above-score]]
+  [predict-run-id self-id n-max & [above-score]]
   (let [above-score (or above-score 1.5)]
     (-> (select :a.* [(sql/call :max :lp.val) :score])
         (from [:article :a])
@@ -159,9 +158,8 @@
                 [:!= :ac.user_id self-id]
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
-                [:= :lp.sim_version_id 1]
-                [:= :lp.predict_version_id 1]
-                [:= :lp.stage 0]
+                [:= :lp.predict_run_id predict-run-id]
+                [:= :lp.stage 1]
                 [:< :lp.val above-score]])
         (group :a.article_id)
         (having [:and
@@ -224,19 +222,22 @@
      doall)
     true))
 
-(defn get-article [article-id]
-  (-> (select :a.* [:lp.val :score])
-      (from [:article :a])
-      (left-join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
-      (merge-left-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
-      (where [:and
-              [:= :a.article_id article-id]
-              [:or
-               [:= :lp.val nil]
-               [:and
-                [:= :lp.sim_version_id 1]
-                [:= :lp.predict_version_id 1]
-                [:= :c.name "overall include"]
-                [:= :lp.stage 0]]]])
-      do-query
-      first))
+(defn get-article [article-id & [predict-run-id]]
+  (let [project-id 1
+        predict-run-id
+        (or predict-run-id
+            (:predict_run_id (latest-predict-run project-id)))]
+    (-> (select :a.* [:lp.val :score])
+        (from [:article :a])
+        (left-join [:label_predicts :lp] [:= :a.article_id :lp.article_id])
+        (merge-left-join [:criteria :c] [:= :lp.criteria_id :c.criteria_id])
+        (where [:and
+                [:= :a.article_id article-id]
+                [:or
+                 [:= :lp.val nil]
+                 [:and
+                  [:= :c.name "overall include"]
+                  [:= :lp.predict_run_id predict-run-id]
+                  [:= :lp.stage 1]]]])
+        do-query
+        first)))
