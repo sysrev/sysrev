@@ -17,21 +17,20 @@
       [:div.ui.six.wide.column
        [:a.ui.link {:href (str "/user/" user-id)}
         [:h4.header display-name]]]]
-     [:div.ui.row.attached.segment
-      [:div.ui.six.wide.column
+     [:div.ui.row.bottom.attached.segment.user-card-counts
+      [:div.ui.four.wide.column.user-card-column
        [:span.attention
         (str num-classified)]
-       " articles classified"]
-      [:div.ui.five.wide.column
+       " confirmed"]
+      [:div.ui.four.wide.column.user-card-column
        [:span.attention
         (str num-include)]
        " included"]
-      [:div.ui.five.wide.column
+      [:div.ui.four.wide.column.user-card-column
        [:span.attention
         (str num-exclude)]
-       " excluded"]]
-     [:div.ui.row.bottom.attached.segment
-      [:div.ui.five.wide.column
+       " excluded"]
+      [:div.ui.four.wide.column.user-card-column
        [:span.attention
         (str num-in-progress)]
        " in progress"]]]))

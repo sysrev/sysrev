@@ -33,7 +33,7 @@
           overall-cid (-> @state :data :overall-cid)]
       [:div.ui
        [article-info-component
-        article-id false nil (data :classify-review-status)]
+        article-id false nil (data :classify-review-status) true]
        [label-editor-component
         article-id [:page :classify :label-values]]
        [confirm-modal-box

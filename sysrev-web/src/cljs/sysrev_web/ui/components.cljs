@@ -48,14 +48,23 @@
     (let [percent (Math/round (* 100 similarity))]
       [:div.ui.grid
        [:div.ui.row
-        {:style {:padding-bottom "10px"}}
-        [:div.ui.twelve.wide.column
-         [:div.ui.tiny.blue.progress
+        {:style {:padding-top "5px"
+                 :padding-bottom "5px"}}
+        [:div.ui.thirteen.wide.column
+         {:style {:padding-top "7px"
+                  :padding-bottom "7px"}}
+         [:div.ui.small.blue.progress
+          {:style {:margin-top "6px"
+                   :margin-bottom "6px"}}
           [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
            [:div.progress]]]]
-        [:div.ui.four.wide.column
-         [:div.right.aligned
-          (str "(" percent "% predicted inclusion probability)")]]]])))
+        [:div.ui.three.wide.center.aligned.middle.aligned.column
+         (let [color (cond (>= percent 50) "green"
+                           (>= percent 20) "yellow"
+                           :else "orange")]
+           [:div.ui.center.aligned.middle.aligned.large.label.article-predict
+            {:class color}
+            (str percent "% predicted inclusion")])]]])))
 
 (defn truncated-list [num coll]
   (let [show-list (take num coll)]

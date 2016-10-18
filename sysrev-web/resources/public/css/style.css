@@ -19,13 +19,37 @@
 }
 
 span.attention {
-    font-size: 120%;
+    font-size: 100%;
     font-weight: bold;
     color: green;
-    padding: 2px;
+    padding: 1px;
 }
 
 .auto-margin {
     margin-left: auto !important;
     margin-right: auto !important;
+}
+
+div.ui.row.segment.user-card-counts {
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+div.ui.row div.column.user-card-column {
+    padding-left: 6px;
+    padding-right: 6px;
+}
+
+h4 {
+    margin-bottom: 0.6rem;
+}
+
+.ui.label.article-predict {
+    width: 100% !important;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.no-padding {
+    padding: 0px !important;
 }

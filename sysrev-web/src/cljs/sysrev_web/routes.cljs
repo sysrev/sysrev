@@ -188,9 +188,19 @@
   (do-route-change :register
                    {:email "" :password "" :submit false}))
 
-(defroute project "/project" []
+(defroute project-overview "/project" []
   (do-route-change :project
-                   {}))
+                   {:tab :overview}))
+
+(defroute project-predict "/project/predict" []
+  (do-route-change :project
+                   {:tab :predict}))
+
+(defroute project-predict-cid "/project/predict/:cid" [cid]
+  (let [cid (js/parseInt cid)]
+    (do-route-change :project
+                     {:tab :predict
+                      :active-cid cid})))
 
 (defroute self-profile "/user" []
   (do-route-change :user-profile

@@ -30,7 +30,7 @@
                   :else :confirmed)
             active-tab))]
     [:div.sixteen.wide.column
-     [:div.ui.raised.segments
+     [:div.ui.segments
       [:div.ui.top.attached.header.segment
        [:h3 display-name]]
       [:div.ui.bottom.attached.segment

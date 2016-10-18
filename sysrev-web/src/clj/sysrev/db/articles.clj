@@ -4,7 +4,7 @@
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
     [active-db do-query do-execute do-transaction]]
-   [sysrev.db.predict :refer [latest-predict-run]]
+   [sysrev.predict.core :refer [latest-predict-run]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -115,6 +115,7 @@
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
                 [:= :lp.predict_run_id predict-run-id]
+                [:= :lp.criteria_id :c.criteria_id]
                 [:= :lp.stage 1]
                 [:< :lp.val above-score]])
         (group :a.article_id)
@@ -159,6 +160,7 @@
                 [:!= :ac.answer nil]
                 [:!= :ac.confirm_time nil]
                 [:= :lp.predict_run_id predict-run-id]
+                [:= :lp.criteria_id :c.criteria_id]
                 [:= :lp.stage 1]
                 [:< :lp.val above-score]])
         (group :a.article_id)
@@ -178,23 +180,6 @@
         (order-by [(sql/call :max :lp.val) :desc])
         (#(if n-max (limit % n-max) (identity %)))
         do-query)))
-
-(defn get-confirmed-labels []
-  (->> (-> (select :article_id :answer)
-           (from [:article_criteria :ac])
-           (join [:criteria :c] [:= :c.criteria_id :ac.criteria_id])
-           (where [:and
-                   [:= :c.name "overall include"]
-                   [:!= :confirm_time nil]])
-           do-query)
-       (group-by :article_id)
-       (map-values (fn [xs]
-                     (let [yes-count (->> xs (filter #(true? (:answer %))) count)
-                           no-count (->> xs (filter #(false? (:answer %))) count)
-                           include? (cond (> yes-count no-count) true
-                                          (< yes-count no-count) false
-                                          :else nil)]
-                       {:answer include?})))))
 
 (defn fix-duplicate-authors-entries [project-id]
   (let [conn (j/get-connection @active-db)]

@@ -1,0 +1,42 @@
+upstream sysrev-clj {
+    server 127.0.0.1:4041;
+}
+
+server {
+    listen 80;
+    server_name sysrev.us www.sysrev.us admin.sysrev.us;
+
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443;
+    server_name sysrev.us www.sysrev.us admin.sysrev.us;
+
+    ssl on;
+    ssl_certificate /data/letsencrypt/live/sysrev.us/fullchain.pem;
+    ssl_certificate_key /data/letsencrypt/live/sysrev.us/privkey.pem;
+
+    access_log /var/log/nginx/sysrev.access_log;
+    error_log /var/log/nginx/sysrev.error_log info;
+
+    root /var/www/sysrev;
+
+    location /api/ {
+        proxy_next_upstream error;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_pass http://sysrev-clj;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+    
+    # location / {
+    # proxy_next_upstream error;
+    # proxy_set_header X-Real-IP $remote_addr;
+    # proxy_set_header Host $host;
+    # proxy_pass http://sysrev-lein/;
+    # }
+}

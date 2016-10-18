@@ -1,4 +1,4 @@
-(ns sysrev.db.predict
+(ns sysrev.predict.core
   (:require
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
@@ -6,18 +6,24 @@
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
-(defn create-predict-version [note]
+(defn create-predict-version
+  "Adds a new predict_version entry to database."
+  [note]
   (-> (insert-into :predict_version)
       (values [{:note note}])
       do-execute))
 
-(defn update-predict-version [predict-version-id]
+(defn update-predict-version
+  "Marks a predict_version entry as being updated at current time."
+  [predict-version-id]
   (-> (sqlh/update :predict_version)
       (sset {:update_time (sql-now)})
       (where [:= :predict_version_id predict-version-id])
       do-execute))
 
-(defn get-predict-run [predict-run-id]
+(defn get-predict-run
+  "Gets a predict_run entry by primary key."
+  [predict-run-id]
   (-> (select :*)
       (from :predict_run)
       (where [:= :predict_run_id predict-run-id])
@@ -25,6 +31,7 @@
       first))
 
 (defn latest-predict-run
+  "Gets the most recent predict_run entry matching the arguments."
   ([project-id]
    (-> (select :*)
        (from :predict_run)
@@ -45,7 +52,9 @@
        do-query
        first)))
 
-(defn create-predict-run [project-id sim-version-id predict-version-id]
+(defn create-predict-run
+  "Adds a new predict_run entry to the database, and returns the entry."
+  [project-id sim-version-id predict-version-id]
   (-> (insert-into :predict_run)
       (values [{:project_id project-id
                 :sim_version_id sim-version-id
@@ -53,7 +62,11 @@
       do-execute)
   (latest-predict-run project-id sim-version-id predict-version-id))
 
-(defn label-value-sims [article-id criteria-id predict-run]
+(defn label-value-sims
+  "Creates a map of (label-value -> max-similarity) for each possible value of 
+  `criteria-id`, where max-similarity is the similarity of `article-id` to the
+  closest labeled article whose value for `criteria-id` is label-value."
+  [article-id criteria-id predict-run]
   (let [n-closest 1
         sim-version-id (:sim_version_id predict-run)
         input-time (:input_time predict-run)
@@ -301,6 +314,8 @@
                [:= :lp.criteria_id criteria-id]
                [:= :lp.stage 0]])
              do-query))
+        k-nearest (min k-nearest
+                       (quot (count labeled-rsims) 10))
         sql-entries
         (->> all-rsims
              (pmap

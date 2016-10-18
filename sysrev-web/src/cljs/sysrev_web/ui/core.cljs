@@ -48,7 +48,7 @@
         email (:email ident)
         name (:name ident)
         display-name (or name email)]
-    [:div.ui.menu.right.floated
+    [:div.right.menu
      [menu-link (str "/user/" uid)
       {:class "item"
        :style {:color "rgba(64, 121, 191, 1)"}}
@@ -63,7 +63,7 @@
        "Log out"]]]))
 
 (defn logged-out-menu []
-  [:div.ui.menu.right.floated
+  [:div.right.menu
    [menu-link "/project" "Project"]
    [menu-link "/labels" "Labels"]
    [:div.item
@@ -83,12 +83,14 @@
    [:div.ui.container.main-content
     [:div.ui.grid
      [:div.middle.aligned.row
-      [:div.ui.middle.aligned.four.wide.column
-       [:a.ui.link {:href "/"}
-        [:h1 "Systematic Review"]]]
-      (when (contains? @state :identity)
-        [:div.ui.right.floated.left.aligned.twelve.wide.column
-         [menu-component]])]
+      [:div.ui.sixteen.wide.column
+       (when (contains? @state :identity)
+         [:div.ui.menu
+          [:a.item
+           {:href "/"}
+           [:h2.ui.blue.header
+            "sysrev.us"]]
+          [menu-component]])]]
      [:div.middle.aligned.row
       [:div.sixteen.wide.column
        [current-page-content]]]]]

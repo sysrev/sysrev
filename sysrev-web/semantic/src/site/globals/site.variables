@@ -1,3 +1,14 @@
 /*******************************
      User Global Variables
 *******************************/
+@pageBackground : #e4e4e4;
+
+// copied from chemsim
+//
+// @textColor : rgba(0, 0, 0, 0.925);
+// @primaryColor : @blue;
+// @secondaryColor : #bfbfbf;
+// @lightPrimaryColor : @lightBlue;
+// @lightSecondaryColor : #cccccc;
+// @inputBackground : @secondaryColor;
+

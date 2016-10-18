@@ -19,12 +19,13 @@
                  [postgre-types "0.0.4"]
                  [clj-postgresql "0.4.0"
                   :exclusions
-                  [joda-time
+                  [clj-time
+                   joda-time
                    com.fasterxml.jackson.dataformat/jackson-dataformat-smile
                    com.fasterxml.jackson.core/jackson-core
                    commons-codec
-                   clj-time
                    cheshire]]
+                 [clj-time "0.11.0"]
                  [honeysql "0.8.0"]
                  ;; Web server
                  [compojure "1.5.1"]

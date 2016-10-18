@@ -5,7 +5,11 @@
             [clojure.data.json :as json]
             [postgre-types.json :refer [add-jsonb-type]]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [clj-time.format :as tf]
+            [clj-time.coerce :as tc])
+  (:import java.sql.Timestamp
+           java.sql.Date))
 
 (defonce active-db (atom nil))
 (defonce ^:dynamic *conn* nil)
@@ -53,3 +57,12 @@
 
 (defn sql-now []
   (-> (j/query @active-db "SELECT LOCALTIMESTAMP") first :timestamp))
+
+(defn time-to-string [t & [formatter]]
+  (let [t (cond (= (type t) java.sql.Timestamp)
+                (tc/from-sql-time t)
+                (= (type t) java.sql.Date)
+                (tc/from-sql-date t)
+                :else t)
+        formatter (or formatter :mysql)]
+    (tf/unparse (tf/formatters formatter) t)))

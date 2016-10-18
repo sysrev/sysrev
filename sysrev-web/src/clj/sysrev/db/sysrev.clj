@@ -3,6 +3,8 @@
    [sysrev.db.core :refer [do-query do-execute do-transaction]]
    [sysrev.db.articles :as articles]
    [sysrev.db.users :as users]
+   [sysrev.predict.core :refer [latest-predict-run]]
+   [sysrev.predict.report :refer [predict-summary]]
    [sysrev.util :refer [map-values]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
@@ -85,12 +87,16 @@
          (apply hash-map))))
 
 (defn sr-summary []
-  (let [[articles labels label-values conflicts]
-        (pvalues (sr-article-count)
+  (let [project-id 1
+        [predict articles labels label-values conflicts]
+        (pvalues (predict-summary
+                  (:predict_run_id (latest-predict-run project-id)))
+                 (sr-article-count)
                  (sr-label-counts)
                  (sr-label-value-counts)
                  (sr-conflict-counts))]
     {:articles articles
      :labels labels
      :label-values label-values
-     :conflicts conflicts}))
+     :conflicts conflicts
+     :predict predict}))

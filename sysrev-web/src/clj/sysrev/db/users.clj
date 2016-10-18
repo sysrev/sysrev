@@ -5,7 +5,7 @@
              [get-criteria-id label-confirmed-test
               get-single-labeled-articles get-conflict-articles
               random-unlabeled-article all-label-conflicts]]
-            [sysrev.db.predict :refer [latest-predict-run]]
+            [sysrev.predict.core :refer [latest-predict-run]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

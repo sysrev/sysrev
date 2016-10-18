@@ -66,3 +66,8 @@
   With one argument `coll`, returns the function #(in? coll %)."
   ([coll x] (some #(= x %) coll))
   ([coll] #(in? coll %)))
+
+(defn number-to-word [n]
+  (->> n (nth ["zero" "one" "two" "three" "four" "five" "six"
+               "seven" "eight" "nine" "ten" "eleven" "twelve"
+               "thirteen" "fourteen" "fifteen" "sixteen"])))

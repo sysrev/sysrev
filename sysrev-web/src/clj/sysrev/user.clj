@@ -6,7 +6,9 @@
         sysrev.db.users
         sysrev.db.sysrev
         sysrev.db.endnote
-        sysrev.db.predict
+        sysrev.predict.core
+        sysrev.predict.report
+        sysrev.predict.validate
         sysrev.web.core
         sysrev.web.ajax
         sysrev.web.session

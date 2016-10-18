@@ -163,7 +163,7 @@
   user values for labels on the article.
   `user-id` is optional, if specified then only input from that user will
   be included."
-  [article-id & [show-labels user-id review-status]]
+  [article-id & [show-labels user-id review-status hide-score]]
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [similarity (:score article)
@@ -189,12 +189,16 @@
                         :else nil)]
               (when sstr
                 [:div.ui.large.grey.label
-                 {:style {:float "right"}}
+                 {:style {:float "right"
+                          :margin-top "-3px"
+                          :margin-bottom "-3px"
+                          :margin-right "0px"}}
                  (str sstr)])))
           [:div {:style {:clear "both"}}]]
-         (when-not (nil? similarity)
-           [:div.ui.attached.segment
-            [similarity-bar similarity]])
+         (when-not hide-score
+           (when-not (nil? similarity)
+             [:div.ui.attached.segment
+              [similarity-bar similarity]]))
          [:div.ui
           {:class (if have-labels?
                     "attached segment"
