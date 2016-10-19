@@ -4,7 +4,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.users :as users]
             [sysrev.db.sysrev :as sysrev]
-            [sysrev.util :refer [parse-number]]))
+            [sysrev.util :refer [parse-number integerify-map-keys]]))
 
 (defn wrap-json
   "Create an HTTP response with content of OBJ converted to a JSON string."
@@ -14,25 +14,6 @@
       (r/response)
       (r/header "Content-Type" "application/json; charset=utf-8")
       (r/header "Cache-Control" "no-cache, no-store")))
-
-(defn integerify-map-keys
-  "Maps parsed from JSON with integer keys will have the integers changed 
-  to keywords. This converts any integer keywords back to integers, operating
-  recursively through nested maps."
-  [m]
-  (if (not (map? m))
-    m
-    (->> m
-         (mapv (fn [[k v]]
-                 (let [k-int (-> k name parse-number)
-                       k-new (if (integer? k-int) k-int k)
-                       ;; integerify sub-maps recursively
-                       v-new (if (map? v)
-                               (integerify-map-keys v)
-                               v)]
-                   [k-new v-new])))
-         (apply concat)
-         (apply hash-map))))
 
 (defn get-user-id [request]
   (let [email (-> request :session :identity)]

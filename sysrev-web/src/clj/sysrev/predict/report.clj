@@ -1,8 +1,8 @@
 (ns sysrev.predict.report
   (:require
-   [sysrev.util :refer [map-values]]
+   [sysrev.util :refer [map-values integerify-map-keys]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction sql-now time-to-string]]
+    [do-query do-execute do-transaction sql-now time-to-string to-jsonb]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [sysrev.predict.core :refer [get-predict-run]]))
@@ -109,14 +109,26 @@
      :include include
      :exclude exclude}))
 
-(defn predict-summary [predict-run-id]
-  (->> (-> (select :%distinct.criteria_id)
-           (from :label_predicts)
-           (where [:= :predict_run_id predict-run-id])
-           do-query)
-       (map :criteria_id)
-       (pmap (fn [criteria-id]
-               {criteria-id (predict-summary-for-criteria
-                             predict-run-id criteria-id)}))
-       doall
-       (apply merge)))
+(defn predict-summary [predict-run-id & [force-update]]
+  (let [summary (-> (select :meta)
+                    (from :predict_run)
+                    (where [:= :predict_run_id predict-run-id])
+                    do-query first :meta :summary)]
+    (if (and summary (not force-update))
+      (integerify-map-keys summary)
+      (let [new-summary
+            (->> (-> (select :%distinct.criteria_id)
+                     (from :label_predicts)
+                     (where [:= :predict_run_id predict-run-id])
+                     do-query)
+                 (map :criteria_id)
+                 (pmap (fn [criteria-id]
+                         {criteria-id (predict-summary-for-criteria
+                                       predict-run-id criteria-id)}))
+                 doall
+                 (apply merge))]
+        (-> (sqlh/update :predict_run)
+            (sset {:meta (to-jsonb {:summary new-summary})})
+            (where [:= :predict_run_id predict-run-id])
+            do-execute)
+        new-summary))))

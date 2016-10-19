@@ -126,7 +126,7 @@
      [:table.ui.celled.table
       [:thead
        [:tr
-        [:th "Article count by confidence"]
+        [:th "Article count by label probability"]
         (doall
          (for [percent c-percents]
            ^{:key {:confidence-header [cid percent]}}

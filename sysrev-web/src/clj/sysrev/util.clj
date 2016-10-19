@@ -19,3 +19,22 @@
   With one argument `coll`, returns the function #(in? coll %)."
   ([coll x] (some #(= x %) coll))
   ([coll] #(in? coll %)))
+
+(defn integerify-map-keys
+  "Maps parsed from JSON with integer keys will have the integers changed
+  to keywords. This converts any integer keywords back to integers, operating
+  recursively through nested maps."
+  [m]
+  (if (not (map? m))
+    m
+    (->> m
+         (mapv (fn [[k v]]
+                 (let [k-int (-> k name parse-number)
+                       k-new (if (integer? k-int) k-int k)
+                       ;; integerify sub-maps recursively
+                       v-new (if (map? v)
+                               (integerify-map-keys v)
+                               v)]
+                   [k-new v-new])))
+         (apply concat)
+         (apply hash-map))))
