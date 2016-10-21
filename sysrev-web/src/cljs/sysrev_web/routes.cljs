@@ -1,13 +1,23 @@
 (ns sysrev-web.routes
   (:require
    [sysrev-web.base :refer [state]]
-   [sysrev-web.state.core :refer [on-page? current-page current-user-id]]
+   [sysrev-web.state.core :refer [on-page? current-page current-user-id logged-in?]]
    [sysrev-web.state.data :refer [data]]
    [sysrev-web.ajax :as ajax]
    [sysrev-web.util :refer [nav in?]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
+
+(def public-pages
+  [:login :register :labels])
+
+(defn on-public-page? []
+  (some on-page? public-pages))
+
+(defn page-authorized? [page]
+  (or (some #(= % page) public-pages)
+      (logged-in?)))
 
 ;; This var records the elements of `(:data @state)` that are required by each
 ;; page on the web site.
@@ -101,17 +111,20 @@
   "Test whether all server data required for a page has been received."
   [page]
   (and (contains? @state :identity)
-       (let [required-fn (get-in page-specs [page :required])
-             required-fields (required-fn @state)]
-         (every? #(not= :not-found (data % :not-found))
-                 required-fields))))
+       (or (not (page-authorized? page))
+           (let [required-fn (get-in page-specs [page :required])
+                 required-fields (required-fn @state)]
+             (every? #(not= :not-found (data % :not-found))
+                     required-fields)))))
 
 (defn page-required-data
   ([page-key]
    (page-required-data page-key @state))
   ([page-key state-map]
-   (let [required-fn (get-in page-specs [page-key :required])]
-     (remove nil? (required-fn state-map)))))
+   (if (page-authorized? page-key)
+     (let [required-fn (get-in page-specs [page-key :required])]
+       (remove nil? (required-fn state-map)))
+     [])))
 
 (defn page-reload-data
   ([page-key]
@@ -120,7 +133,9 @@
    (page-reload-data page-key state-map state-map))
   ([page-key old-state-map new-state-map]
    (when-let [reload-fn (get-in page-specs [page-key :reload])]
-     (remove nil? (reload-fn old-state-map new-state-map)))))
+     (if (page-authorized? page-key)
+       (remove nil? (reload-fn old-state-map new-state-map))
+       []))))
 
 (defn do-route-change
   "This should be called in each route handler, to set the page state
@@ -152,7 +167,14 @@
  (fn [k v old new]
    (let [page (with-state new (current-page))
          old-page (with-state old (current-page))]
-     (when (and page old-page (= page old-page))
+     (cond
+
+       ;; Fetch all page data upon login
+       (and (with-state old (not (logged-in?)))
+            (with-state new (logged-in?)))
+       (doall (map ajax/fetch-data (page-required-data page)))
+       
+       (and page old-page (= page old-page))
        (let [reqs (page-required-data page new)
              old-reqs (page-required-data page old)
              fetch-reqs (->> reqs
@@ -164,16 +186,13 @@
                           (remove #(in? old-reload-data %))
                           (remove #(in? fetch-reqs %)))]
          (doall (map ajax/fetch-data fetch-reqs))
-         (doall (map #(ajax/fetch-data % true) reloads)))))))
+         (doall (map #(ajax/fetch-data % true) reloads)))
 
-(def public-pages
-  [:home :login :register :project :labels :user-profile :article])
-
-(defn on-public-page? []
-  (some on-page? public-pages))
+       true nil))))
 
 (defroute home "/" []
-  (nav "/project"))
+  (do-route-change :project
+                   {:tab :overview}))
 
 (defroute ranking "/ranking" []
   (do-route-change :ranking

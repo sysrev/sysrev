@@ -16,8 +16,9 @@
 
 (defn logged-out-content []
   [:div.ui.container
-   [:div.ui.stripe {:style {:padding-top "20px"}}
-    [:h2.ui.header.huge.center.aligned "Please log in or register"]]])
+   [:div.ui.yellow.segment {:style {:padding-top "20px"}}
+    [:h2.ui.header.huge.center.aligned "Immunotherapy Review"]
+    [:h3.ui.header.large.center.aligned "Please log in or register to access project"]]])
 
 (defn current-page-content []
   (cond (not (data-initialized? (current-page))) [loading-screen]

@@ -239,8 +239,16 @@
   (let [criteria (data :criteria)
         label-values (d/active-label-values article-id labels-path)]
     [:div.ui.segments
-     [:h3.ui.top.attached.header.segment
-      "Edit labels"]
+     [:div.ui.top.attached.header
+      [:h3
+       "Edit labels "
+       #_
+       [with-tooltip
+        [:a
+         {:href "/labels"
+          :data-content "View label requirements"
+          :data-position "top left"}
+         [:i.yellow.help.outline.icon]]]]]
      [:div.ui.bottom.attached.segment
       [:div.ui.four.column.grid
        (doall
