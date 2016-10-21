@@ -226,3 +226,76 @@
                   [:= :lp.stage 1]]]])
         do-query
         first)))
+
+;; This finds examples of highly-similar and highly-dissimilar articles
+;; relative to `article-id`.
+(defn find-similarity-examples-for-article [sim-version-id article-id]
+  (let [good
+        (->>
+         (-> (select :*)
+             (from :article_similarity)
+             (where [:and
+                     [:= :sim_version_id sim-version-id]
+                     [:or
+                      [:= :lo_id article-id]
+                      [:= :hi_id article-id]]
+                     [:!= :lo_id :hi_id]
+                     [:> :similarity 0.01]])
+             (order-by [:similarity :asc])
+             (limit 5)
+             do-query)
+         reverse
+         (map (fn [e]
+                (let [other-id (if (= (:lo_id e) article-id)
+                                 (:hi_id e)
+                                 (:lo_id e))
+                      article (-> (select :article_id
+                                          :primary_title
+                                          :secondary_title
+                                          :abstract)
+                                  (from :article)
+                                  (where [:= :article_id other-id])
+                                  do-query first)]
+                  (assoc article :distance (:similarity e)))))
+         (filter #(>= (count (:abstract %)) 200))
+         first)
+        bad
+        (->>
+         (-> (select :*)
+             (from :article_similarity)
+             (where [:and
+                     [:= :sim_version_id sim-version-id]
+                     [:or
+                      [:= :lo_id article-id]
+                      [:= :hi_id article-id]]
+                     [:!= :lo_id :hi_id]
+                     [:> :similarity 0.9]
+                     [:< :similarity 0.98]])
+             (order-by [:similarity :desc])
+             (limit 100)
+             do-query)
+         reverse
+         (map (fn [e]
+                (let [other-id (if (= (:lo_id e) article-id)
+                                 (:hi_id e)
+                                 (:lo_id e))
+                      article (-> (select :article_id
+                                          :primary_title
+                                          :secondary_title
+                                          :abstract)
+                                  (from :article)
+                                  (where [:= :article_id other-id])
+                                  do-query first)]
+                  (assoc article :distance (:similarity e)))))
+         (filter #(>= (count (:abstract %)) 200))
+         first)
+        article (-> (select :article_id
+                            :primary_title
+                            :secondary_title
+                            :abstract)
+                    (from :article)
+                    (where [:= :article_id article-id])
+                    do-query first)]
+    {:article article
+     :similar good
+     :unsimilar bad}))

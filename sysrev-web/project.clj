@@ -9,6 +9,7 @@
                  [me.raynes/fs "1.4.6"]
                  [org.clojure/data.xml "0.0.8"]
                  [org.clojure/data.zip "0.1.2"]
+                 [clojure-csv/clojure-csv "2.0.1"]
                  ;; REPL
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]

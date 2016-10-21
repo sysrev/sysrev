@@ -7,7 +7,8 @@
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.util :refer [map-values]]
    [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+   [clojure-csv.core :refer [write-csv]]))
 
 ;; TODO: use a project_id to support multiple systematic review projects
 
@@ -100,3 +101,37 @@
      :label-values label-values
      :conflicts conflicts
      :predict predict}))
+
+(defn export-label-values-csv [project-id criteria-id path]
+  (let [article-labels
+        (->>
+         (-> (select :ac.article_id :ac.answer)
+             (from [:article_criteria :ac])
+             (join [:article :a]
+                   [:= :a.article_id :ac.article_id])
+             (where [:and
+                     [:= :a.project_id project-id]
+                     [:= :ac.criteria_id criteria-id]
+                     [:!= :ac.answer nil]
+                     [:!= :ac.confirm_time nil]])
+             do-query)
+         (group-by :article_id)
+         (map-values #(map :answer %))
+         (map-values
+          (fn [answers]
+            (->>
+             (distinct answers)
+             (map
+              (fn [answer]
+                {:answer answer
+                 :count (->> answers
+                             (filter #(= % answer))
+                             count)}))
+             (sort-by :count >)
+             first
+             :answer))))]
+    (->> article-labels
+         vec
+         (map #(map str %))
+         write-csv
+         (spit path))))
