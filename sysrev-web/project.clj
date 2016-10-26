@@ -115,8 +115,6 @@
              :dev-spark
              {:resource-paths ["config/dev"]
               :aot :all}
-             :prod-client
-             {}
              :provided
              {:dependencies
               [[org.apache.spark/spark-core_2.11 "2.0.0"]
