@@ -31,12 +31,6 @@
                  [clj-time "0.12.0"
                   :exclusions [joda-time]]
                  [honeysql "0.8.1"]
-                 ;; Spark
-                 [yieldbot/flambo "0.8.0-SNAPSHOT"
-                  :exclusions
-                  [com.google.guava/guava]]
-                 [org.apache.spark/spark-core_2.11 "2.0.0"]
-                 [org.apache.spark/spark-mllib_2.11 "2.0.0"]
                  ;; Web server
                  [compojure "1.5.1"]
                  [javax.servlet/servlet-api "2.5"]
@@ -114,12 +108,14 @@
              {:resource-paths ["config/dev"]}
              :dev-spark
              {:resource-paths ["config/dev"]
-              :aot :all}
-             :provided
-             {:dependencies
-              [[org.apache.spark/spark-core_2.11 "2.0.0"]
+              :dependencies
+              [[yieldbot/flambo "0.8.0-SNAPSHOT"
+                :exclusions
+                [com.google.guava/guava]]
+               [org.apache.spark/spark-core_2.11 "2.0.0"]
+               [org.apache.spark/spark-mllib_2.11 "2.0.0"]
                [org.apache.spark/spark-streaming_2.11 "2.0.0"]
                [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.0.0"]
                [org.apache.spark/spark-sql_2.11 "2.0.0"]
-               [org.apache.spark/spark-hive_2.11 "2.0.0"]
-               [org.apache.spark/spark-mllib_2.11 "2.0.0"]]}})
+               [org.apache.spark/spark-hive_2.11 "2.0.0"]]
+              :aot :all}})

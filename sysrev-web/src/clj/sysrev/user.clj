@@ -6,8 +6,8 @@
         sysrev.db.users
         sysrev.db.sysrev
         sysrev.db.endnote
-        sysrev.spark.core
-        sysrev.spark.similarity
+        ;; sysrev.spark.core
+        ;; sysrev.spark.similarity
         sysrev.predict.core
         sysrev.predict.report
         sysrev.predict.validate
@@ -30,10 +30,11 @@
             [clojure.zip :as zip]
             [clojure.data.xml :as dxml]
             [clojure.string :as str]
-            [flambo.api :as f]
-            [flambo.conf :as fc]
-            [flambo.tuple :as ft]
-            [flambo.sql :as fsql]))
+            ;; [flambo.api :as f]
+            ;; [flambo.conf :as fc]
+            ;; [flambo.tuple :as ft]
+            ;; [flambo.sql :as fsql]
+            ))
 
 (defn reload []
   (require 'sysrev.user :reload))
