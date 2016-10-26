@@ -2,7 +2,7 @@
   (:require
     [honeysql.core :as sql]
     [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-    [honeysql-postgres.format :refer :all]
+    [honeysql-postgres.format :refer :all :exclude [partition-by]]
     [honeysql-postgres.helpers :refer :all]
     [sysrev.db.core :refer [do-query do-execute do-transaction sql-now]]))
 
