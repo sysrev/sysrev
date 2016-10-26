@@ -1,4 +1,5 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
+
   :dependencies [;; Clojure (JVM) libraries
                  ;;
                  [org.clojure/clojure "1.8.0"]
@@ -31,6 +32,7 @@
                  [clj-time "0.12.0"
                   :exclusions [joda-time]]
                  [honeysql "0.8.1"]
+                 [nilenso/honeysql-postgres "0.2.2"]
                  ;; Web server
                  [compojure "1.5.1"]
                  [javax.servlet/servlet-api "2.5"]
@@ -42,6 +44,7 @@
                  [crypto-random "1.2.0"]
                  ;; Project config file support
                  [yogthos/config "0.8"]
+
 
                  ;; ClojureScript libraries
                  [reagent "0.6.0"]
@@ -61,7 +64,6 @@
   :plugins [[lein-cljsbuild "1.1.4"]
             [lein-bower "0.5.2"]
             [lein-ring "0.9.7"]
-            [lein-ancient "0.6.10"]
             [cider/cider-nrepl "0.14.0"]
             [refactor-nrepl "2.2.0"]
             [lein-figwheel "0.5.8"]]
@@ -119,4 +121,8 @@
                [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.0.0"]
                [org.apache.spark/spark-sql_2.11 "2.0.0"]
                [org.apache.spark/spark-hive_2.11 "2.0.0"]]
-              :aot :all}})
+              :aot :all}
+             :test
+               {:resource-paths ["config/test"]
+                :source-paths ["src/clj" "src/cljs" "test/clj"]
+                :test-paths ["test/clj"]}})

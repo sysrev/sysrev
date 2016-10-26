@@ -4,7 +4,7 @@ upstream sysrev-clj {
 
 server {
     listen 80;
-    server_name localhost isysrev.ddns.net;
+    server_name localhost sysrev.dev isysrev.ddns.net;
 
     access_log /var/log/nginx/sysrev.access_log;
     error_log /var/log/nginx/sysrev.error_log info;
