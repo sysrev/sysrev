@@ -6,7 +6,7 @@
   "enqueue a notification"
   [message]
   (swap! state update :notifications #(conj % message))
-  (js/setTimeout #(swap! state update :notifications pop) 2000))
+  (js/setTimeout #(swap! state update :notifications pop) 1250))
 
 (defn notify-pop
   "Removes the oldest notification"

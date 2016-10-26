@@ -1,7 +1,7 @@
 (ns sysrev-web.ui.components
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
-            [sysrev-web.util :refer [url-domain nbsp scroll-top]]
+            [sysrev-web.util :refer [url-domain nbsp scroll-top full-size?]]
             [sysrev-web.base :refer [state]]
             [sysrev-web.ajax :as ajax]
             [sysrev-web.state.data :as d :refer [data]]
@@ -34,14 +34,15 @@
 (defn notifier [head]
   (fn [head]
     (when-not (empty? head)
-      [:div.ui.middle.aligned.large.warning.message
-       {:style {:position "fixed"
-                :bottom "0px"
-                :height "100px"
+      [:div.ui.middle.aligned.large.blue.message
+       {:style {:color "black"
+                :position "fixed"
+                :bottom "5px"
+                :min-height (if (full-size?) "60px" "30px")
                 :width "auto"
-                :right "0px"}}
+                :right "5px"
+                :padding (if (full-size?) "1.2em" "0.6em")}}
        head])))
-
 
 (defn similarity-bar [similarity]
   (fn [similarity]
@@ -50,7 +51,7 @@
        [:div.ui.row
         {:style {:padding-top "5px"
                  :padding-bottom "5px"}}
-        [:div.ui.thirteen.wide.column
+        [:div.ui.ten.wide.mobile.ten.wide.tablet.thirteen.wide.computer.column
          {:style {:padding-top "7px"
                   :padding-bottom "7px"}}
          [:div.ui.small.blue.progress
@@ -58,13 +59,16 @@
                    :margin-bottom "6px"}}
           [:div.bar.middle.aligned {:style {:width (str (max percent 5) "%")}}
            [:div.progress]]]]
-        [:div.ui.three.wide.center.aligned.middle.aligned.column
+        [:div.ui.six.wide.mobile.six.wide.tablet.three.wide.computer.center.aligned.middle.aligned.column
          (let [color (cond (>= percent 50) "green"
                            (>= percent 20) "yellow"
-                           :else "orange")]
-           [:div.ui.center.aligned.middle.aligned.large.label.article-predict
-            {:class color}
-            (str percent "% predicted inclusion")])]]])))
+                           :else "orange")
+               size (if (full-size?) "large" "small")]
+           [:div.ui.center.aligned.middle.aligned.label.article-predict
+            {:class (str color " " size)}
+            (if (full-size?)
+              (str percent "% predicted inclusion")
+              [:span (str percent "% Pr(include)")])])]]])))
 
 (defn truncated-list [num coll]
   (let [show-list (take num coll)]
@@ -92,17 +96,22 @@
    [:i.external.icon]])
 
 (defn radio-button [on-click is-selected child & [is-secondary?]]
-  (let [class (when is-selected
-                (if is-secondary? "grey" "primary"))]
-    [:div.ui.icon.button {:class class :on-click on-click} child]))
+  (let [btype (when is-selected
+                (if is-secondary? "grey" "primary"))
+        size (if (full-size?) "large" "small")
+        class (str "ui " size " " btype " icon button")
+        style {}]
+    [:div {:class class :style style :on-click on-click} child]))
 
 (defn three-state-selection [change-handler curval]
   ;; nil for unset, true, false
   (fn [change-handler curval]
-    [:div.ui.large.buttons
-     [radio-button #(change-handler false) (false? curval) "No"]
-     [radio-button #(change-handler nil) (nil? curval) "?" true]
-     [radio-button #(change-handler true) (true? curval) "Yes"]]))
+    (let [size (if (full-size?) "large" "small")
+          class (str "ui " size " buttons")]
+      [:div {:class class}
+       [radio-button #(change-handler false) (false? curval) "No"]
+       [radio-button #(change-handler nil) (nil? curval) "?" true]
+       [radio-button #(change-handler true) (true? curval) "Yes"]])))
 
 (defn label-value-tag
   "UI component for representing the value of a criteria label.
@@ -161,7 +170,7 @@
              n-total (count criteria)
              label-values (d/active-label-values article-id labels-path)
              n-set (->> label-values vals (remove nil?) count)]
-         [:div.content
+         [:div.content.confirm-modal
           [:h3.ui.header.centered
            (str "You have set "
                 n-set " of " n-total

@@ -12,25 +12,24 @@
         num-exclude (-> u :articles :excludes count)
         num-classified (+ num-include num-exclude)
         num-in-progress (-> u :in-progress)]
-    [:div.ui.grid.padded.user-card
-     [:div.ui.row.top.attached.segment
-      [:div.ui.six.wide.column
-       [:a.ui.link {:href (str "/user/" user-id)}
-        [:h4.header display-name]]]]
-     [:div.ui.row.bottom.attached.segment.user-card-counts
-      [:div.ui.four.wide.column.user-card-column
-       [:span.attention
-        (str num-classified)]
-       " confirmed"]
-      [:div.ui.four.wide.column.user-card-column
-       [:span.attention
-        (str num-include)]
-       " included"]
-      [:div.ui.four.wide.column.user-card-column
-       [:span.attention
-        (str num-exclude)]
-       " excluded"]
-      [:div.ui.four.wide.column.user-card-column
-       [:span.attention
-        (str num-in-progress)]
-       " in progress"]]]))
+    [:div
+     {:style {:margin-bottom "14px"}}
+     [:div.ui.top.attached.header.segment
+      {:style {:padding-left "0.7em"
+               :padding-right "0.7em"}}
+      [:a {:href (str "/user/" user-id)}
+       [:h4 display-name]]]
+     [:table.ui.bottom.attached.unstackable.table
+      {:style {:margin-left "-1px"}}
+      [:thead
+       [:tr
+        [:th "Confirmed"]
+        [:th "Included"]
+        [:th "Excluded"]
+        [:th "In progress"]]]
+      [:tbody
+       [:tr
+        [:td [:span.attention (str num-classified)]]
+        [:td [:span.attention (str num-include)]]
+        [:td [:span.attention (str num-exclude)]]
+        [:td [:span.attention (str num-in-progress)]]]]]]))

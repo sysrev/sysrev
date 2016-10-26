@@ -2,7 +2,7 @@
   (:require [sysrev-web.base :refer [state]]))
 
 (defn labels-page []
-  [:table.ui.celled.table
+  [:table.ui.celled.unstackable.table
    [:thead
     [:tr
      [:th "Name"]

@@ -29,7 +29,7 @@
         error-msg (fn [k] (when (k validation) [:div.ui.warning.message (k validation)]))
         form-class (when-not (empty? validation) "warning")]
     [:div.ui.padded.segments.auto-margin
-     {:style {:width "40%" :margin-top "15px"}}
+     {:style {:max-width "450px" :margin-top "10px"}}
      [:h2.ui.top.attached.header
       (if is-register? "Register" "Login")]
      [:div.ui.bottom.attached.segment

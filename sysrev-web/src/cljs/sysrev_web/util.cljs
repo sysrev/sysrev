@@ -71,3 +71,12 @@
   (->> n (nth ["zero" "one" "two" "three" "four" "five" "six"
                "seven" "eight" "nine" "ten" "eleven" "twelve"
                "thirteen" "fourteen" "fifteen" "sixteen"])))
+
+(defn viewport-width []
+  (-> (js/$ js/window) (.width)))
+
+(defn mobile? []
+  (<= (viewport-width) 800))
+
+(defn full-size? []
+  (>= (viewport-width) 1150))

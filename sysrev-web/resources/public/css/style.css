@@ -53,3 +53,35 @@ h4 {
 .no-padding {
     padding: 0px !important;
 }
+
+.blue-text {
+    color: rgba(64, 121, 191, 1) !important;
+}
+
+div.user-info .ui.table thead tr th,
+div.user-info .ui.table tbody tr td
+{
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+@media only screen and (max-width: 1000px) {
+    .ui.segment {
+        padding: 0.5em;
+    }
+
+    .ui.menu .item,
+    .ui.menu .menu .item {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .ui.table.mobile-table thead tr th,
+    .ui.table.mobile-table tbody tr td {
+        padding: 0.4em;
+    }
+
+    .content.confirm-modal h3 {
+        font-size: 1.0em;
+    }
+}

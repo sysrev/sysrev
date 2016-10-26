@@ -7,7 +7,7 @@
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-value-tag
      with-tooltip three-state-selection]]
-   [sysrev-web.util :refer [re-pos map-values]]
+   [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
 
 (defn label-values-component [article-id & [user-id]]
@@ -242,34 +242,46 @@
      [:div.ui.top.attached.header
       [:h3
        "Edit labels "
-       #_
        [with-tooltip
         [:a
          {:href "/labels"
-          :data-content "View label requirements"
+          :data-content "View label information"
           :data-position "top left"}
          [:i.yellow.help.outline.icon]]]]]
-     [:div.ui.bottom.attached.segment
-      [:div.ui.four.column.grid
-       (doall
-        (->>
-         criteria
-         (map
-          (fn [[cid criterion]]
-            ^{:key {:article-label cid}}
-            [with-tooltip
-             [:div.ui.column
-              {:data-content (:question criterion)
-               :data-position "top left"
-               :style (if (= (:name criterion) "overall include")
-                        {:background-color "rgba(200,200,200,1)"}
-                        {})}
-              [:div.ui.two.column.middle.aligned.grid
-               [:div.right.aligned.column
-                {:style {:padding-left "0px"}}
-                (str (:short_label criterion) "?")]
-               [:div.left.aligned.column
-                {:style {:padding-left "0px"}}
+     [:div.ui.bottom.attached.grid.segment
+      {:class (if (full-size?)
+                "four column"
+                "three column")
+       :style {:padding "0px"}}
+      (doall
+       (->>
+        criteria
+        (map
+         (fn [[cid criterion]]
+           ^{:key {:article-label cid}}
+           [with-tooltip
+            [:div.ui.column
+             {:data-content (:question criterion)
+              :data-position "top left"
+              :style {:background-color
+                      (if (= (:name criterion) "overall include")
+                        "rgba(200,200,200,1)"
+                        nil)
+                      :padding "0px"}}
+             [:div.ui.middle.aligned.grid
+              {:style {:margin "0px"}}
+              [:div.ui.row
+               {:style {:padding-bottom "0px"
+                        :text-align "center"}}
+               [:span
+                {:style {:width "100%"}}
+                (str (:short_label criterion) "?")]]
+              [:div.ui.row
+               {:style {:padding-top "8px"
+                        :padding-bottom "18px"}}
+               [:div
+                {:style {:margin-left "auto"
+                         :margin-right "auto"}}
                 [three-state-selection
                  (fn [new-value]
                    (swap! state assoc-in
@@ -278,4 +290,4 @@
                    (ajax/send-labels
                     article-id
                     (d/active-label-values article-id labels-path)))
-                 (get label-values cid)]]]]]))))]]]))
+                 (get label-values cid)]]]]]]))))]]))
