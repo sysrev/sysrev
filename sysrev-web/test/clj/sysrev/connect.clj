@@ -3,23 +3,28 @@
             [config.core :refer [env]]
             [honeysql.core :as sql]
             [sysrev.db.core :refer [do-query do-execute do-transaction]]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [clojure.tools.logging :as log]))
 
-
-(defn config-fixture [f]
+(defn config-fixture
+  "Validates configuration, tries to ensure we're running
+   the tests on a test database"
+  [f]
   (let [{{postgres-port :port
           dbname :dbname} :postgres
          profile :profile} env
         validators [["Test profile must be loaded"
-                       #(= (profile :test))]
+                       #(= profile :test)]
                     ["Cannot run tests with pg on port 5432"
                        #(not (= postgres-port 5432))]
                     ["Db name must include _test in configuration"
                        #(clojure.string/includes? dbname "_test")]]
-        error (->> validators (remove #(-> % second (apply []))) first first)]
+        validates #(-> % second (apply []))
+        error (->> validators (remove validates) first first)]
     (if error
-      (println error)
+      (log/error "config-fixture: " error)
       (f))))
+
 
 (use-fixtures :once config-fixture)
 

@@ -44,8 +44,10 @@
                  [crypto-random "1.2.0"]
                  ;; Project config file support
                  [yogthos/config "0.8"]
-
-
+                 ;; Logging
+                 [org.clojure/tools.logging "0.3.1"]
+                 [org.slf4j/slf4j-log4j12 "1.7.21"]
+                 [log4j/log4j "1.2.17"]
                  ;; ClojureScript libraries
                  [reagent "0.6.0"]
                  [secretary "1.2.3"]
