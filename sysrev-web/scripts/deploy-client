@@ -7,7 +7,7 @@ dir=`pwd`
 
 mkdir -p $dir/deploy
 
-lein cljsbuild once production
+lein with-profile prod-client cljsbuild once production
 
 cd ./resources/public
 
