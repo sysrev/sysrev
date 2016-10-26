@@ -7,11 +7,14 @@
 
 
 (defn config-fixture [f]
-  (let [{{postgres-port :port} :postgres
+  (let [{{postgres-port :port
+          dbname :dbname} :postgres
          profile :profile} env]
     (if (= profile :test)
       (if (not (= postgres-port 5432))
-        (f)
+        (if (clojure.string/includes? dbname "_test")
+          (f)
+          (println "Db name must include _test"))
         (println "Cannot run test with pg on port 5432"))
       (println ":test profile not loaded"))))
 

@@ -1,4 +1,5 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
+
   :dependencies [;; Clojure (JVM) libraries
                  ;;
                  [org.clojure/clojure "1.8.0"]
