@@ -107,7 +107,8 @@
              :dev
              {:resource-paths ["config/dev"]}
              :dev-spark
-             {:resource-paths ["config/dev"]
+             {:source-paths ["src/clj" "src-spark" "script"]
+              :resource-paths ["config/dev"]
               :dependencies
               [[yieldbot/flambo "0.8.0-SNAPSHOT"
                 :exclusions
