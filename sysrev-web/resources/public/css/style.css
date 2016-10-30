@@ -65,6 +65,17 @@ div.user-info .ui.table tbody tr td
     padding-bottom: 0.5em;
 }
 
+.ui.horizontal.divided.list > .item.label-tag-list
+{
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.ui.label.small {
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
 @media only screen and (max-width: 1000px) {
     .ui.segment {
         padding: 0.5em;

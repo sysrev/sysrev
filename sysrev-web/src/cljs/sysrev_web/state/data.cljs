@@ -47,6 +47,11 @@
   (fn [s]
     (assoc-in s [:data :article-labels article-id] lmap)))
 
+(defn get-article-labels [article-id & [user-id]]
+  (if user-id
+    (get-in @state [:data :article-labels article-id user-id])
+    (get-in @state [:data :article-labels article-id])))
+
 (defn article-label-values
   "Looks up label values for `article-id` from all users on the project.
   If multiple users have stored a value for a label, only the first value
@@ -82,7 +87,8 @@
                  (get-in lmap [:unconfirmed article-id]))]
     (->> amap
          (group-by :criteria_id)
-         (map-values first))))
+         (map-values first)
+         (map-values :answer))))
 
 (defn active-label-values
   "Get the active label values for `article-id` by taking the values
@@ -108,3 +114,6 @@
 
 (defn article-document-url [doc-id file-name]
   (str "/files/PDF/" doc-id "/" file-name))
+
+(defn project-user-info [user-id]
+  (data [:sysrev :users user-id]))

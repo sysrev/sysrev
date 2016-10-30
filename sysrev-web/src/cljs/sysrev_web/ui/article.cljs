@@ -10,28 +10,28 @@
    [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
 
-(defn label-values-component [article-id & [user-id]]
+(defn label-values-component [article-id user-id]
   (fn [article-id & [user-id]]
     (let [cids (-> @state :data :criteria keys sort)
-          values (if (nil? user-id)
-                   (d/article-label-values article-id)
-                   (d/user-label-values article-id user-id))]
-      [:div.ui.header.content
+          values (d/user-label-values article-id user-id)
+          values (if-not (empty? values)
+                   values
+                   (d/get-article-labels article-id user-id))]
+      [:div.ui.content
        [:div.ui.horizontal.divided.list
         (doall
          (->>
           cids
           (map #(do [% (get values %)]))
-          ;;(remove (fn [[k v]] (or (nil? v) (nil? (:answer v)))))
           (map
-           (fn [[cid {answer :answer}]]
+           (fn [[cid answer]]
              (let [criteria-name
                    (get-in @state [:data :criteria cid :name])
                    answer-str (if (nil? answer)
                                 "unknown"
                                 (str answer))]
                ^{:key {:label-value (str cid "_" article-id)}}
-               [:div.item {:style {:padding-left "0px"}}
+               [:div.item.label-tag-list
                 [:div.content
                  [label-value-tag cid answer]]])))))]])))
 
@@ -163,14 +163,14 @@
   user values for labels on the article.
   `user-id` is optional, if specified then only input from that user will
   be included."
-  [article-id & [show-labels user-id review-status hide-score]]
+  [article-id & [show-labels user-id review-status classify?]]
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [similarity (:score article)
+            all-labels (d/get-article-labels article-id)
             labels (and show-labels
-                        (if user-id
-                          (d/user-label-values article-id user-id)
-                          (d/article-label-values article-id)))
+                        user-id
+                        (d/user-label-values article-id user-id))
             have-labels? (if labels true false)
             docs (d/article-documents article-id)]
         [:div
@@ -186,21 +186,46 @@
                         "Reviewed by one other user"
                         (= review-status "fresh")
                         "Not yet reviewed"
-                        :else nil)]
+                        :else nil)
+                  color
+                  (cond (= review-status "conflict") "purple"
+                        :else "grey")]
               (when sstr
-                [:div.ui.large.grey.label
-                 {:style {:float "right"
+                [:div.ui.large.label
+                 {:class color
+                  :style {:float "right"
                           :margin-top "-3px"
                           :margin-bottom "-3px"
                           :margin-right "0px"}}
                  (str sstr)])))
           [:div {:style {:clear "both"}}]]
-         (when-not hide-score
+         (when (and classify?
+                    (= review-status "conflict")
+                    (not (empty? all-labels))
+                    (not (= (keys all-labels) [user-id])))
+           (doall
+            (for [label-user-id (keys all-labels)]
+              (when (and
+                     (not= label-user-id user-id)
+                     (not (empty?
+                           (->> (get all-labels label-user-id)
+                                vals
+                                (filter (comp not nil?))))))
+                ^{:key {:classify-existing-labels [article-id label-user-id]}}
+                [:div.ui.attached.segment.middle.aligned
+                 [:h3
+                  {:style {:margin-bottom "7px"}}
+                  [:a
+                   {:href (str "/user/" label-user-id)}
+                   (str (-> label-user-id d/project-user-info :user :email))]
+                  " saved labels"]
+                 [label-values-component article-id label-user-id true]]))))
+         (when-not classify?
            (when-not (nil? similarity)
              [:div.ui.attached.segment
               [similarity-bar similarity]]))
          [:div.ui
-          {:class (if have-labels?
+          {:class (if (and show-labels have-labels?)
                     "attached segment"
                     "bottom attached segment")}
           [:div.content
@@ -223,7 +248,7 @@
                                           :url-idx idx}}}
                     [out-link url]))
                  doall)]]]
-         (when have-labels?
+         (when (and show-labels have-labels?)
            [:div.ui.bottom.attached.segment
             [:div.content
              [label-values-component article-id user-id]]])]))))
@@ -245,9 +270,9 @@
        [with-tooltip
         [:a
          {:href "/labels"
-          :data-content "View label information"
+          :data-content "View label definitions"
           :data-position "top left"}
-         [:i.yellow.help.outline.icon]]]]]
+         [:i.large.yellow.help.circle.icon]]]]]
      [:div.ui.bottom.attached.grid.segment
       {:class (if (full-size?)
                 "four column"

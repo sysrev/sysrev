@@ -34,6 +34,13 @@
   (fn [s]
     (assoc s :identity imap)))
 
+(defn set-active-project-id [project-id]
+  (fn [s]
+    (assoc s :active-project-id project-id)))
+
+(defn active-project-id []
+  (get @state :active-project-id))
+
 (defn log-out []
   (fn [s]
     (-> s

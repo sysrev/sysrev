@@ -1,5 +1,6 @@
 (ns sysrev-web.ui.labels
-  (:require [sysrev-web.base :refer [state]]))
+  (:require [sysrev-web.base :refer [state]]
+            [sysrev-web.ui.components :refer [true-false-nil-tag]]))
 
 (defn labels-page []
   [:table.ui.celled.unstackable.table
@@ -7,7 +8,7 @@
     [:tr
      [:th "Name"]
      [:th "Question Text"]
-     [:th "Required for inclusion"]]]
+     [:th "Required value"]]]
    [:tbody
     (doall
      (->>
@@ -18,4 +19,16 @@
          [:tr
           [:td (:name criteria)]
           [:td (:question criteria)]
-          [:td (if (true? (:is_inclusion criteria))  "Yes" "No")]]))))]])
+          [:td
+           (let [style {:margin-top "-4px"
+                        :margin-bottom "-4px"}]
+             (cond (true? (:is_inclusion criteria))
+                   [true-false-nil-tag
+                    "large" style true "Yes" true]
+                   (false? (:is_inclusion criteria))
+                   [true-false-nil-tag
+                    "large" style true "No" false]
+                   :else
+                   [true-false-nil-tag
+                    "large" style false
+                    "Extra" nil]))]]))))]])

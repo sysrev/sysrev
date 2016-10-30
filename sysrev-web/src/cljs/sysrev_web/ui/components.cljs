@@ -113,19 +113,32 @@
        [radio-button #(change-handler nil) (nil? curval) "?" true]
        [radio-button #(change-handler true) (true? curval) "Yes"]])))
 
+(defn true-false-nil-tag
+  "UI component for representing an optional boolean value.
+  `value` is one of true, false, nil."
+  [size style show-icon? label value]
+  (let [[vclass iclass]
+        (case value
+          true ["green" "add circle icon"]
+          false ["orange" "minus circle icon"]
+          nil ["grey" "help circle icon"])]
+    [:div.ui.label
+     {:class (str vclass " " size)
+      :style style}
+     (str label " ")
+     (when (and iclass show-icon?)
+       [:i {:class iclass
+            :aria-hidden true
+            :style {:margin-left "0.25em"
+                    :margin-right "0"}}])]))
+
 (defn label-value-tag
   "UI component for representing the value of a criteria label.
   `value` is one of true, false, nil."
   [criteria-id value]
-  (let [[vclass iclass] (case value
-                          true ["green" "fa-check-circle-o"]
-                          false ["orange" "fa-times-circle-o"]
-                          nil ["grey" "fa-question-circle-o"])
-        label (get-in @state [:data :criteria criteria-id :short_label])]
-    [:div.ui.small.label {:class vclass}
-     (str label "? ")
-     (when iclass
-       [:i.fa.fa-lg {:class iclass :aria-hidden true}])]))
+  (let [label
+        (get-in @state [:data :criteria criteria-id :short_label])]
+    [true-false-nil-tag "medium" {} true (str label "?") value]))
 
 (defn with-tooltip [content]
   (r/create-class
