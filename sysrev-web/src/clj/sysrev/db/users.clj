@@ -146,8 +146,9 @@
   (let [project-id 1
         predict-run-id (:predict_run_id (latest-predict-run project-id))
         [conflicts pending unlabeled-article]
-        (pvalues (get-conflict-articles
-                  predict-run-id user-id n-max above-score)
+        (pvalues nil ;; TODO - assign conflicts to project leaders
+                 #_ (get-conflict-articles
+                     predict-run-id user-id n-max above-score)
                  (get-single-labeled-articles
                   predict-run-id user-id n-max above-score)
                  (random-unlabeled-article predict-run-id))]
