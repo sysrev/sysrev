@@ -4,3 +4,5 @@ set -eu
 dir=/data/sysrev
 
 tar zxf $dir/deploy/client.tgz -C $dir/web-root
+
+sudo systemctl restart nginx

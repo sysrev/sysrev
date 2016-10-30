@@ -22,6 +22,8 @@ server {
 
     root /var/www/sysrev;
 
+    sendfile off;
+
     location /api/ {
         proxy_next_upstream error;
         proxy_set_header X-Real-IP $remote_addr;
@@ -35,9 +37,10 @@ server {
     }
 
     location / {
+        expires -1;
         try_files $uri /index.html;
     }
-
+    
     # location / {
     # proxy_next_upstream error;
     # proxy_set_header X-Real-IP $remote_addr;

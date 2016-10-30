@@ -6,6 +6,7 @@ echo $SYSREV_HOST > /dev/null
 dir=`pwd`
 
 mkdir -p $dir/deploy
+rm -f $dir/deploy/client.tgz
 
 lein cljsbuild once production
 
