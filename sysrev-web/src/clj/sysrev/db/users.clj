@@ -27,7 +27,7 @@
 (defn get-user-by-id [user-id]
   (-> (select :*)
       (from :web_user)
-      (where [:= :id user-id])
+      (where [:= :user_id user-id])
       do-query
       first))
 
@@ -47,7 +47,7 @@
                ;; TODO: implement email verification
                :verified true
                :date_created now}
-        entry (if (nil? id) entry (assoc entry :id id))]
+        entry (if (nil? id) entry (assoc entry :user_id id))]
     (-> (insert-into :web_user)
         (values [entry])
         do-execute)))
@@ -68,7 +68,7 @@
 (defn delete-user [user-id]
   (assert (integer? user-id))
   (-> (delete-from :web_user)
-      (where [:= :id user-id])
+      (where [:= :user_id user-id])
       do-execute)
   nil)
 
@@ -80,8 +80,8 @@
 
 (defn change-user-id [current-id new-id]
   (-> (sqlh/update :web_user)
-      (sset {:id new-id})
-      (where [:= :id current-id])
+      (sset {:user_id new-id})
+      (where [:= :user_id current-id])
       do-execute))
 
 (defn get-user-labels
@@ -118,7 +118,7 @@
 
 (defn get-user-summaries []
   (let [users (->> (all-users)
-                   (group-by :id)
+                   (group-by :user_id)
                    (map-values first))
         inclusions (all-user-inclusions true)
         in-progress
@@ -281,9 +281,9 @@
         (:predict_run_id (latest-predict-run project-id))
         [umap labels articles]
         (pvalues
-         (-> (select :id :email :verified :name :username :admin)
+         (-> (select :user_id :email :verified :name :username :admin)
              (from :web_user)
-             (where [:= :id user-id])
+             (where [:= :user_id user-id])
              do-query
              first)
          (->>

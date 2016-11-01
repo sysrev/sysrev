@@ -8,7 +8,7 @@
   (let [session (:session request)
         fields (-> request :body slurp (json/read-str :key-fn keyword))
         user (users/get-user-by-email (:email fields))
-        auth-session (assoc session :identity (:email user) :user-id (:id user))
+        auth-session (assoc session :identity (:email user) :user-id (:user_id user))
         valid-pw (users/valid-password? (:email fields) (:password fields))
         verified (and valid-pw (true? (:verified user)))
         success? (and valid-pw verified)

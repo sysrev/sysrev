@@ -17,7 +17,7 @@
 
 (defn get-user-id [request]
   (let [email (-> request :session :identity)]
-    (and email (:id (users/get-user-by-email email)))))
+    (and email (:user_id (users/get-user-by-email email)))))
 
 (defn web-criteria []
   (let [cs (articles/all-criteria)]
