@@ -10,7 +10,7 @@
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [clojure-csv.core :refer [write-csv]]))
 
-;; TODO: use a project_id to support multiple systematic review projects
+;; TODO: use a project-id to support multiple systematic review projects
 
 (defn sr-article-count []
   (-> (select :%count.*)
@@ -45,19 +45,19 @@
   []
   (let [entries
         (->>
-         (-> (select :article_id :criteria_id :user_id :answer)
-             (from [:article_criteria :ac])
+         (-> (select :article-id :criteria-id :user-id :answer)
+             (from [:article-criteria :ac])
              (where [:and
                      [:!= :answer nil]
-                     [:!= :confirm_time nil]])
+                     [:!= :confirm-time nil]])
              do-query)
-         (group-by :user_id)
+         (group-by :user-id)
          (map-values
           (fn [uentries]
-            (->> (group-by :article_id uentries)
+            (->> (group-by :article-id uentries)
                  (map-values
                   #(map-values (comp first (partial map :answer))
-                               (group-by :criteria_id %)))))))
+                               (group-by :criteria-id %)))))))
         user-articles (->> (keys entries)
                            (map
                             (fn [user-id]
@@ -65,7 +65,7 @@
                                      [user-id article-id])
                                    (keys (get entries user-id)))))
                            (apply concat))
-        criteria-ids (map :criteria_id (articles/all-criteria))
+        criteria-ids (map :criteria-id (articles/all-criteria))
         ua-label-value
         (fn [user-id article-id criteria-id]
           (get-in entries [user-id article-id criteria-id]))
@@ -91,7 +91,7 @@
   (let [project-id 1
         [predict articles labels label-values conflicts]
         (pvalues (predict-summary
-                  (:predict_run_id (latest-predict-run project-id)))
+                  (:predict-run-id (latest-predict-run project-id)))
                  (sr-article-count)
                  (sr-label-counts)
                  (sr-label-value-counts)
@@ -105,17 +105,17 @@
 (defn export-label-values-csv [project-id criteria-id path]
   (let [article-labels
         (->>
-         (-> (select :ac.article_id :ac.answer)
-             (from [:article_criteria :ac])
+         (-> (select :ac.article-id :ac.answer)
+             (from [:article-criteria :ac])
              (join [:article :a]
-                   [:= :a.article_id :ac.article_id])
+                   [:= :a.article-id :ac.article-id])
              (where [:and
-                     [:= :a.project_id project-id]
-                     [:= :ac.criteria_id criteria-id]
+                     [:= :a.project-id project-id]
+                     [:= :ac.criteria-id criteria-id]
                      [:!= :ac.answer nil]
-                     [:!= :ac.confirm_time nil]])
+                     [:!= :ac.confirm-time nil]])
              do-query)
-         (group-by :article_id)
+         (group-by :article-id)
          (map-values #(map :answer %))
          (map-values
           (fn [answers]

@@ -7,7 +7,8 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [clj-time.format :as tf]
-            [clj-time.coerce :as tc])
+            [clj-time.coerce :as tc]
+            [clojure.string :as str])
   (:import java.sql.Timestamp
            java.sql.Date
            java.util.UUID))
@@ -60,9 +61,13 @@
       (.createArrayOf @active-conn sql-type
                       (into-array elts)))))
 
+(defn format-column-name [col]
+  (-> col str/lower-case (str/replace "_" "-")))
+
 (defmacro do-query [sql-map & params-or-opts]
   `(let [conn# (if *conn* *conn* @active-db)]
      (j/query conn# (sql/format ~sql-map ~@params-or-opts)
+              :identifiers format-column-name
               :as-arrays? *sql-array-results*)))
 
 (defmacro with-debug-sql [& body]

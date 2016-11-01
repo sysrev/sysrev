@@ -35,12 +35,12 @@
 (defn set-user-project-permissions
   "Change the permissions for a project member."
   [project-id user-id permissions]
-  (-> (sqlh/update :project_member)
+  (-> (sqlh/update :project-member)
       (sset {:permissions (to-sql-array "text" permissions)})
       (where [:and
-              [:= :project_id project-id]
-              [:= :user_id user-id]])
-      (returning :user_id :permissions)
+              [:= :project-id project-id]
+              [:= :user-id user-id]])
+      (returning :user-id :permissions)
       do-query))
 
 (defn create-project
@@ -48,10 +48,10 @@
   [project-name]
   (let [project {:name project-name
                  :enabled true
-                 :project_uuid (UUID/randomUUID)}
+                 :project-uuid (UUID/randomUUID)}
         project-id (-> (insert-into :project)
                        (values [project])
-                       (returning :project_id)
+                       (returning :project-id)
                        do-query
                        first)]
     project-id))
@@ -61,7 +61,7 @@
   ON DELETE CASCADE constraints in Postgres."
   [project-id]
   (-> (delete-from :project)
-      (where [:= :project_id project-id])
+      (where [:= :project-id project-id])
       do-execute))
 
 (defn get-project-summaries
@@ -71,30 +71,30 @@
         (->> (-> (select :*)
                  (from :project)
                  do-query)
-             (group-by :project_id)
+             (group-by :project-id)
              (map-values first))
         members
-        (->> (-> (select :u.user_id :u.email :m.permissions :m.project_id)
-                 (from [:project_member :m])
-                 (join [:web_user :u]
-                       [:= :u.user_id :m.user_id])
+        (->> (-> (select :u.user-id :u.email :m.permissions :m.project-id)
+                 (from [:project-member :m])
+                 (join [:web-user :u]
+                       [:= :u.user-id :m.user-id])
                  do-query)
-             (group-by :project_id)
+             (group-by :project-id)
              (map-values
               (fn [pmembers]
                 (->> pmembers
-                     (mapv #(dissoc % :project_id))))))]
+                     (mapv #(dissoc % :project-id))))))]
     (->> projects
          (map-values
           #(assoc % :members
-                  (get members (:project_id %) []))))))
+                  (get members (:project-id %) []))))))
 
 (defn get-default-project
   "Selects a fallback project to use as a default. Intended only for dev use."
   []
   (-> (select :*)
       (from :project)
-      (order-by [:project_id :asc])
+      (order-by [:project-id :asc])
       (limit 1)
       do-query
       first))
@@ -105,79 +105,79 @@
   [& [project-id]]
   (let [project-id
         (or project-id
-            (:project_id (get-default-project)))
+            (:project-id (get-default-project)))
         user-ids
         (->>
-         (-> (select :u.user_id)
-             (from [:web_user :u])
+         (-> (select :u.user-id)
+             (from [:web-user :u])
              (where
               [:not
                [:exists
                 (-> (select :*)
-                    (from [:project_member :m])
-                    (where [:= :m.user_id :u.user_id]))]])
+                    (from [:project-member :m])
+                    (where [:= :m.user-id :u.user-id]))]])
              do-query)
-         (map :user_id))]
+         (map :user-id))]
     (->> user-ids
          (mapv #(add-user-to-project project-id %)))))
 
 (defn ensure-user-default-project-ids
-  "Ensures that a default_project_id value is set for all users which belong to
+  "Ensures that a default-project-id value is set for all users which belong to
   at least one project. ensure-user-member-entries should be run before this."
   []
   (let [user-ids
         (->>
-         (-> (select :u.user_id)
-             (from [:web_user :u])
+         (-> (select :u.user-id)
+             (from [:web-user :u])
              (where
               [:and
-               [:= :u.default_project_id nil]
+               [:= :u.default-project-id nil]
                [:exists
                 (-> (select :*)
-                    (from [:project_member :m])
-                    (where [:= :m.user_id :u.user_id]))]])
+                    (from [:project-member :m])
+                    (where [:= :m.user-id :u.user-id]))]])
              do-query)
-         (map :user_id))]
+         (map :user-id))]
     (doall
      (for [user-id user-ids]
        (let [project-id
-             (-> (select :project_id)
-                 (from [:project_member :m])
-                 (where [:= :m.user_id user-id])
-                 (order-by [:join_date :asc])
+             (-> (select :project-id)
+                 (from [:project-member :m])
+                 (where [:= :m.user-id user-id])
+                 (order-by [:join-date :asc])
                  (limit 1)
                  do-query
                  first
-                 :project_id)]
-         (-> (sqlh/update :web_user)
-             (sset {:default_project_id project-id})
-             (where [:= :user_id user-id])
+                 :project-id)]
+         (-> (sqlh/update :web-user)
+             (sset {:default-project-id project-id})
+             (where [:= :user-id user-id])
              do-execute))))))
 
 (defn ensure-entry-uuids
   "Creates uuid values for database entries with none set."
   []
   (let [project-ids
-        (->> (-> (select :project_id)
+        (->> (-> (select :project-id)
                  (from :project)
-                 (where [:= :project_uuid nil])
+                 (where [:= :project-uuid nil])
                  do-query)
-             (map :project_id))
+             (map :project-id))
         user-ids
-        (->> (-> (select :user_id)
-                 (from :web_user)
-                 (where [:= :user_uuid nil])
+        (->> (-> (select :user-id)
+                 (from :web-user)
+                 (where [:= :user-uuid nil])
                  do-query)
-             (map :user_id))]
+             (map :user-id))]
     (->> project-ids
          (mapv
           #(-> (sqlh/update :project)
-               (sset {:project_uuid (UUID/randomUUID)})
-               (where [:= :project_id %])
+               (sset {:project-uuid (UUID/randomUUID)})
+               (where [:= :project-id %])
                do-execute)))
     (->> user-ids
          (mapv
-          #(-> (sqlh/update :web_user)
-               (sset {:user_uuid (UUID/randomUUID)})
-               (where [:= :user_id %])
+          #(-> (sqlh/update :web-user)
+               (sset {:user-uuid (UUID/randomUUID)})
+               (where [:= :user-id %])
                do-execute)))))

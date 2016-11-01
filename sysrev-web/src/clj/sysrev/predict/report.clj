@@ -12,20 +12,20 @@
   `criteria-id` will have a value of `true`."
   [predict-run-id criteria-id]
   (-> (select :%sum.lp.val :%count.lp.val)
-      (from [:label_predicts :lp])
+      (from [:label-predicts :lp])
       (where [:and
-              [:= :predict_run_id predict-run-id]
-              [:= :criteria_id criteria-id]
+              [:= :predict-run-id predict-run-id]
+              [:= :criteria-id criteria-id]
               [:= :stage 1]])
       do-query
       first))
 
 (defn article-count-by-label-prob [predict-run-id criteria-id cutoff greater?]
   (-> (select :%count.*)
-      (from [:label_predicts :lp])
+      (from [:label-predicts :lp])
       (where [:and
-              [:= :predict_run_id predict-run-id]
-              [:= :criteria_id criteria-id]
+              [:= :predict-run-id predict-run-id]
+              [:= :criteria-id criteria-id]
               [:= :stage 1]
               (if greater?
                 [:>= :val cutoff]
@@ -36,26 +36,26 @@
 
 (defn predict-run-article-count [predict-run-id criteria-id & [labeled? answer]]
   (-> (select :%count.*)
-      (from [:label_predicts :lp])
-      (join [:predict_run :pr]
-            [:= :pr.predict_run_id :lp.predict_run_id])
+      (from [:label-predicts :lp])
+      (join [:predict-run :pr]
+            [:= :pr.predict-run-id :lp.predict-run-id])
       (where [:and
-              [:= :lp.predict_run_id predict-run-id]
-              [:= :lp.criteria_id criteria-id]
+              [:= :lp.predict-run-id predict-run-id]
+              [:= :lp.criteria-id criteria-id]
               [:= :lp.stage 1]
               (let [label-exists
                     [:exists
                      (-> (select :*)
-                         (from [:article_criteria :ac])
+                         (from [:article-criteria :ac])
                          (where [:and
-                                 [:= :ac.article_id :lp.article_id]
-                                 [:= :ac.criteria_id criteria-id]
+                                 [:= :ac.article-id :lp.article-id]
+                                 [:= :ac.criteria-id criteria-id]
                                  [:!= :ac.answer nil]
                                  (if (nil? answer)
                                    true
                                    [:= :ac.answer answer])
-                                 [:!= :ac.confirm_time nil]
-                                 [:<= :ac.confirm_time :pr.input_time]]))]]
+                                 [:!= :ac.confirm-time nil]
+                                 [:<= :ac.confirm-time :pr.input-time]]))]]
                 (case labeled?
                   true label-exists
                   false [:not label-exists]
@@ -99,7 +99,7 @@
                    (article-count-by-label-prob
                     predict-run-id criteria-id (- 1.0 prob) false)}))
                (apply merge))})]
-    {:update-time (-> predict-run :create_time time-to-string (str " UTC"))
+    {:update-time (-> predict-run :create-time time-to-string (str " UTC"))
      :counts {:total total-count
               :labeled labeled-count
               :include-label include-count
@@ -111,24 +111,24 @@
 
 (defn predict-summary [predict-run-id & [force-update]]
   (let [summary (-> (select :meta)
-                    (from :predict_run)
-                    (where [:= :predict_run_id predict-run-id])
+                    (from :predict-run)
+                    (where [:= :predict-run-id predict-run-id])
                     do-query first :meta :summary)]
     (if (and summary (not force-update))
       (integerify-map-keys summary)
       (let [new-summary
-            (->> (-> (select :%distinct.criteria_id)
-                     (from :label_predicts)
-                     (where [:= :predict_run_id predict-run-id])
+            (->> (-> (select :%distinct.criteria-id)
+                     (from :label-predicts)
+                     (where [:= :predict-run-id predict-run-id])
                      do-query)
-                 (map :criteria_id)
+                 (map :criteria-id)
                  (pmap (fn [criteria-id]
                          {criteria-id (predict-summary-for-criteria
                                        predict-run-id criteria-id)}))
                  doall
                  (apply merge))]
-        (-> (sqlh/update :predict_run)
+        (-> (sqlh/update :predict-run)
             (sset {:meta (to-jsonb {:summary new-summary})})
-            (where [:= :predict_run_id predict-run-id])
+            (where [:= :predict-run-id predict-run-id])
             do-execute)
         new-summary))))

@@ -175,9 +175,9 @@
     above-score
     (fn [response]
       (when-let [result (:result response)]
-        (let [article-ids (map :article_id result)
+        (let [article-ids (map :article-id result)
               articles (->> result
-                            (group-by :article_id)
+                            (group-by :article-id)
                             (map-values first))]
           (swap! state (d/merge-articles articles))
           ;; (notify (str "Fetched " (count result) " more articles"))
@@ -195,7 +195,7 @@
         (pull-label-tasks
          1
          #(swap! state (s/set-classify-task
-                        (-> % first :article_id)
+                        (-> % first :article-id)
                         (-> % first :review-status)))
          current-score)))))
 

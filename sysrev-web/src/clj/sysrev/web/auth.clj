@@ -10,7 +10,7 @@
         user (users/get-user-by-email (:email fields))
         auth-session (assoc session
                             :identity (:email user)
-                            :user-id (:user_id user))
+                            :user-id (:user-id user))
         valid-pw (users/valid-password? (:email fields) (:password fields))
         verified (and valid-pw (true? (:verified user)))
         success? (and valid-pw verified)
@@ -57,7 +57,7 @@
                       "Verify new Datapub account"
                       (str "An account was created for your email address at https://datapub.io.
 If you created the account, follow this link to verify ownership: "
-                           "https://datapub.io/verify/" (-> entry :verify_code)))]
+                           "https://datapub.io/verify/" (-> entry :verify-code)))]
                  (assert result)
                  (assert (= (:code result) 0))
                  true)

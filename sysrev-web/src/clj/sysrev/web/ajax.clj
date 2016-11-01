@@ -18,12 +18,12 @@
 
 (defn get-user-id [request]
   (let [email (-> request :session :identity)]
-    (and email (:user_id (users/get-user-by-email email)))))
+    (and email (:user-id (users/get-user-by-email email)))))
 
 (defn web-criteria []
   (let [cs (articles/all-criteria)]
     (->> cs
-         (map #(vector (:criteria_id %) (dissoc % :criteria_id)))
+         (map #(vector (:criteria-id %) (dissoc % :criteria-id)))
          (apply concat)
          (apply hash-map))))
 
@@ -48,14 +48,14 @@
   (let [[article raw-labels]
         (pvalues (articles/get-article article-id)
                  (articles/all-labels-for-article article-id))
-        user-ids (->> raw-labels (map :user_id) distinct)
+        user-ids (->> raw-labels (map :user-id) distinct)
         labels
         (->> user-ids
              (map (fn [user-id]
                     [user-id
                      (->> raw-labels
-                          (filter #(= (:user_id %) user-id))
-                          (map #(do [(:criteria_id %)
+                          (filter #(= (:user-id %) user-id))
+                          (map #(do [(:criteria-id %)
                                      (:answer %)]))
                           (apply concat)
                           (apply hash-map))]))

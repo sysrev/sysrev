@@ -12,7 +12,7 @@
   "Loads and replaces the database entries for article PDF files based on the
   files present in directory `pdfs-path`."
   [pdfs-path]
-  (let [doc-type "article_pdf"
+  (let [doc-type "article-pdf"
         doc-files (->> (fs/list-dir pdfs-path)
                        (map (fn [doc-id-path]
                               (let [doc-id (fs/base-name doc-id-path)
@@ -25,31 +25,31 @@
                                (->> files
                                     (map #(when (fs/file? %)
                                             (let [fname (fs/base-name %)]
-                                              {:document_id doc-id
-                                               :document_type doc-type
-                                               :fs_path fname})))
+                                              {:document-id doc-id
+                                               :document-type doc-type
+                                               :fs-path fname})))
                                     (remove nil?))))
                         (apply concat))]
     (do
       (do-transaction
        (-> (delete-from :document)
-           (where [:= :document_type doc-type])
+           (where [:= :document-type doc-type])
            do-execute)
        (-> (insert-into :document)
            (values db-entries)
            do-execute))
       (let [dcount (-> (select :%count.*)
                        (from :document)
-                       (where [:= :document_type doc-type])
+                       (where [:= :document-type doc-type])
                        do-query first :count)]
         (->> dcount (format "loaded %s article documents") println))
       nil)))
 
 (defn all-article-document-paths []
   (->>
-   (-> (select :document_id :fs_path)
+   (-> (select :document-id :fs-path)
        (from :document)
-       (where [:= :document_type "article_pdf"])
+       (where [:= :document-type "article-pdf"])
        do-query)
-   (group-by :document_id)
-   (map-values #(mapv :fs_path %))))
+   (group-by :document-id)
+   (map-values #(mapv :fs-path %))))
