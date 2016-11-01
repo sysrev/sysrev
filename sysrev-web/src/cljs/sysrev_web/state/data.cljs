@@ -43,6 +43,10 @@
   (fn [s]
     (assoc-in s [:data :sysrev] pmap)))
 
+(defn set-all-projects [pmap]
+  (fn [s]
+    (assoc-in s [:data :all-projects] pmap)))
+
 (defn set-article-labels [article-id lmap]
   (fn [s]
     (assoc-in s [:data :article-labels article-id] lmap)))

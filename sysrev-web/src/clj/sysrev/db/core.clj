@@ -9,18 +9,24 @@
             [clj-time.format :as tf]
             [clj-time.coerce :as tc])
   (:import java.sql.Timestamp
-           java.sql.Date))
+           java.sql.Date
+           java.util.UUID))
 
 (defonce active-db (atom nil))
+(defonce active-conn (atom nil))
 (defonce ^:dynamic *conn* nil)
 (defonce ^:dynamic *sql-array-results* false)
+
+(defn reset-active-conn []
+  (reset! active-conn (j/get-connection @active-db)))
 
 (defn set-db-config! [{:keys [dbname user password host port]}]
   (reset! active-db (pg/pool :dbname dbname
                              :user user
                              :password password
                              :host host
-                             :port port)))
+                             :port port))
+  (reset-active-conn))
 
 (add-jsonb-type
  (fn [writer]
@@ -34,10 +40,37 @@
   [map]
   (sql/call :jsonb (clojure.data.json/write-str map)))
 
+(defmacro with-retry-conn
+  "Wrap a `body` that attempts to use `active-conn` with an exception handler
+  to reset `active-conn` and try running `body` again in case of failure."
+  [& body]
+  `(try
+     (do ~@body)
+     (catch Exception e#
+       (do (reset-active-conn)
+           ~@body))))
+
+(defn to-sql-array
+  "Convert a Clojure sequence to a PostgreSQL array object.
+  `sql-type` is the SQL type of the array elements."
+  [sql-type elts]
+  (if-not (sequential? elts)
+    elts
+    (with-retry-conn
+      (.createArrayOf @active-conn sql-type
+                      (into-array elts)))))
+
 (defmacro do-query [sql-map & params-or-opts]
   `(let [conn# (if *conn* *conn* @active-db)]
      (j/query conn# (sql/format ~sql-map ~@params-or-opts)
               :as-arrays? *sql-array-results*)))
+
+(defmacro with-debug-sql [& body]
+  `(try
+     (do ~@body)
+     (catch Exception e#
+       (.printStackTrace (.getNextException e#)))))
+
 (defmacro do-execute [sql-map & params-or-opts]
   `(let [conn# (if *conn* *conn* @active-db)]
      (j/execute! conn# (sql/format ~sql-map ~@params-or-opts))))
@@ -66,3 +99,17 @@
                 :else t)
         formatter (or formatter :mysql)]
     (tf/unparse (tf/formatters formatter) t)))
+
+(defn- write-timestamp [x out]
+  (json/write (time-to-string x) out))
+
+(defn- write-object-str [x out]
+  (json/write (str x) out))
+
+(extend java.sql.Timestamp
+  json/JSONWriter
+  {:-write write-timestamp})
+
+(extend java.util.UUID
+  json/JSONWriter
+  {:-write write-object-str})

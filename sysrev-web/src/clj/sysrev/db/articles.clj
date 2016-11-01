@@ -3,7 +3,7 @@
    [clojure.java.jdbc :as j]
    [sysrev.util :refer [map-values]]
    [sysrev.db.core :refer
-    [active-db do-query do-execute do-transaction]]
+    [active-db do-query do-execute do-transaction to-sql-array]]
    [sysrev.predict.core :refer [latest-predict-run]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
@@ -182,30 +182,28 @@
         do-query)))
 
 (defn fix-duplicate-authors-entries [project-id]
-  (let [conn (j/get-connection @active-db)]
-    (->>
-     (-> (select :article_id :authors)
-         (from :article)
-         (where [:= :project_id project-id])
-         do-query)
-     (pmap
-      (fn [a]
-        (let [authors (:authors a)
-              distinct-authors (vec (distinct authors))]
-          (when (< (count distinct-authors) (count authors))
-            (println (format "fixing authors field for article #%d"
-                             (:article_id a)))
-            (println (pr-str authors))
-            (println (pr-str distinct-authors))
-            (let [sql-authors
-                  (.createArrayOf conn "text"
-                                  (into-array String distinct-authors))]
-              (-> (sqlh/update :article)
-                  (sset {:authors sql-authors})
-                  (where [:= :article_id (:article_id a)])
-                  do-execute))))))
-     doall)
-    true))
+  (->>
+   (-> (select :article_id :authors)
+       (from :article)
+       (where [:= :project_id project-id])
+       do-query)
+   (pmap
+    (fn [a]
+      (let [authors (:authors a)
+            distinct-authors (vec (distinct authors))]
+        (when (< (count distinct-authors) (count authors))
+          (println (format "fixing authors field for article #%d"
+                           (:article_id a)))
+          (println (pr-str authors))
+          (println (pr-str distinct-authors))
+          (let [sql-authors
+                (to-sql-array "text" distinct-authors)]
+            (-> (sqlh/update :article)
+                (sset {:authors sql-authors})
+                (where [:= :article_id (:article_id a)])
+                do-execute))))))
+   doall)
+  true)
 
 (defn get-article [article-id & [predict-run-id]]
   (let [project-id 1

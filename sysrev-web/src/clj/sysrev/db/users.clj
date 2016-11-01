@@ -1,16 +1,20 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now]]
+             [do-query do-execute do-transaction sql-now to-sql-array]]
             [sysrev.db.articles :refer
              [get-criteria-id label-confirmed-test
               get-single-labeled-articles get-conflict-articles
               random-unlabeled-article all-label-conflicts]]
+            [sysrev.db.project :refer [get-default-project]]
             [sysrev.predict.core :refer [latest-predict-run]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             buddy.hashers
-            crypto.random))
+            crypto.random)
+  (:import java.util.UUID))
 
 (defn all-users []
   (-> (select :*)
@@ -27,7 +31,7 @@
 (defn get-user-by-id [user-id]
   (-> (select :*)
       (from :web_user)
-      (where [:= :id user-id])
+      (where [:= :user_id user-id])
       do-query
       first))
 
@@ -37,19 +41,25 @@
              :iterations 6
              :salt (crypto.random/bytes 16)}))
 
-(defn create-user [email password & [id]]
-  (let [now (sql-now)
-        encrypted-password (encrypt-password password)
-        verify-code (crypto.random/hex 16)
-        entry {:email email
-               :pw_encrypted_buddy encrypted-password
-               :verify_code verify-code
+(defn create-user [email password &
+                   {:keys [project-id user-id permissions]
+                    :or {permissions ["user"]}}]
+  (let [entry {:email email
+               :pw_encrypted_buddy (encrypt-password password)
+               :verify_code (crypto.random/hex 16)
+               :default_project_id
+               (or project-id
+                   (:project_id (get-default-project)))
                ;; TODO: implement email verification
                :verified true
-               :date_created now}
-        entry (if (nil? id) entry (assoc entry :id id))]
+               :date_created (sql-now)
+               :user_uuid (UUID/randomUUID)}
+        entry (if-not (nil? user-id)
+                (assoc entry :user_id user-id)
+                entry)]
     (-> (insert-into :web_user)
         (values [entry])
+        (returning :user_id)
         do-execute)))
 
 (defn set-user-password [email new-password]
@@ -68,7 +78,7 @@
 (defn delete-user [user-id]
   (assert (integer? user-id))
   (-> (delete-from :web_user)
-      (where [:= :id user-id])
+      (where [:= :user_id user-id])
       do-execute)
   nil)
 
@@ -80,8 +90,8 @@
 
 (defn change-user-id [current-id new-id]
   (-> (sqlh/update :web_user)
-      (sset {:id new-id})
-      (where [:= :id current-id])
+      (sset {:user_id new-id})
+      (where [:= :user_id current-id])
       do-execute))
 
 (defn get-user-labels
@@ -118,7 +128,7 @@
 
 (defn get-user-summaries []
   (let [users (->> (all-users)
-                   (group-by :id)
+                   (group-by :user_id)
                    (map-values first))
         inclusions (all-user-inclusions true)
         in-progress
@@ -281,9 +291,15 @@
         (:predict_run_id (latest-predict-run project-id))
         [umap labels articles]
         (pvalues
-         (-> (select :id :email :verified :name :username :admin)
+         (-> (select :user_id
+                     :email
+                     :verified
+                     :name
+                     :username
+                     :admin
+                     :permissions)
              (from :web_user)
-             (where [:= :id user-id])
+             (where [:= :user_id user-id])
              do-query
              first)
          (->>

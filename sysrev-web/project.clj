@@ -1,5 +1,4 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-
   :dependencies [;; Clojure (JVM) libraries
                  ;;
                  [org.clojure/clojure "1.8.0"]
@@ -125,6 +124,6 @@
                [org.apache.spark/spark-hive_2.11 "2.0.0"]]
               :aot :all}
              :test
-               {:resource-paths ["config/test"]
-                :source-paths ["src/clj" "src/cljs" "test/clj"]
-                :test-paths ["test/clj"]}})
+             {:resource-paths ["config/test"]
+              :source-paths ["src/clj" "src/cljs" "test/clj"]
+              :test-paths ["test/clj"]}})

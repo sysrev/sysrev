@@ -12,6 +12,12 @@
 (def public-pages
   [:login :register :labels])
 
+(def public-data-fields
+  [[:all-projects]])
+
+(defn public-data? [data-key]
+  (some #(= % data-key) public-data-fields))
+
 (defn on-public-page? []
   (some on-page? public-pages))
 
@@ -34,25 +40,18 @@
   {:login
    {:required
     (fn [s]
-      [])}
+      [[:all-projects]])}
 
    :register
    {:required
     (fn [s]
-      [])}
-   
-   :ranking
-   {:required
-    (fn [s]
-      [[:criteria]
-       [:documents]
-       [:sysrev]
-       [:ranking]])}
+      [[:all-projects]])}
    
    :project
    {:required
     (fn [s]
-      [[:criteria]
+      [[:all-projects]
+       [:criteria]
        [:sysrev]])
     :reload
     (fn [old new]
@@ -61,7 +60,8 @@
    :classify
    {:required
     (fn [s]
-      [[:criteria]
+      [[:all-projects]
+       [:criteria]
        [:documents]
        [:sysrev]
        (when-let [user-id (with-state s (current-user-id))]
@@ -79,7 +79,8 @@
    :article
    {:required
     (fn [s]
-      [[:criteria]
+      [[:all-projects]
+       [:criteria]
        [:article-labels (-> s :page :article :id)]
        [:documents]
        [:sysrev]
@@ -94,7 +95,8 @@
    :user-profile
    {:required
     (fn [s]
-      [[:criteria]
+      [[:all-projects]
+       [:criteria]
        [:sysrev]
        [:documents]
        [:users (-> s :page :user-profile :user-id)]])
@@ -105,26 +107,32 @@
    :labels
    {:required
     (fn [s]
-      [[:criteria]])}})
+      [[:all-projects]
+       [:criteria]])}})
 
 (defn data-initialized?
   "Test whether all server data required for a page has been received."
   [page]
   (and (contains? @state :identity)
-       (or (not (page-authorized? page))
-           (let [required-fn (get-in page-specs [page :required])
-                 required-fields (required-fn @state)]
-             (every? #(not= :not-found (data % :not-found))
-                     required-fields)))))
+       (let [required-fn (get-in page-specs [page :required])
+             required-fields
+             (as-> (required-fn @state) fields
+               (if (page-authorized? page)
+                 fields
+                 (filter public-data? fields)))]
+         (every? #(not= :not-found (data % :not-found))
+                 required-fields))))
 
 (defn page-required-data
   ([page-key]
    (page-required-data page-key @state))
   ([page-key state-map]
-   (if (page-authorized? page-key)
-     (let [required-fn (get-in page-specs [page-key :required])]
-       (remove nil? (required-fn state-map)))
-     [])))
+   (let [required-fn (get-in page-specs [page-key :required])]
+     (as-> (required-fn state-map) fields
+       (remove nil? fields)
+       (if (page-authorized? page-key)
+         fields
+         (filter public-data? fields))))))
 
 (defn page-reload-data
   ([page-key]
@@ -133,9 +141,11 @@
    (page-reload-data page-key state-map state-map))
   ([page-key old-state-map new-state-map]
    (when-let [reload-fn (get-in page-specs [page-key :reload])]
-     (if (page-authorized? page-key)
-       (remove nil? (reload-fn old-state-map new-state-map))
-       []))))
+     (as-> (reload-fn old-state-map new-state-map) fields
+       (remove nil? fields)
+       (if (page-authorized? page-key)
+         fields
+         (filter public-data? fields))))))
 
 (defn do-route-change
   "This should be called in each route handler, to set the page state
@@ -193,11 +203,6 @@
 (defroute home "/" []
   (do-route-change :project
                    {:tab :overview}))
-
-(defroute ranking "/ranking" []
-  (do-route-change :ranking
-                   {:ranking-page 0
-                    :filters {}}))
 
 (defroute login "/login" []
   (do-route-change :login

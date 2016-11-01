@@ -60,6 +60,7 @@
 (defn get-ranking-page [num handler]
   (ajax-get (str "/api/ranking" num) handler))
 (def get-project-info (partial ajax-get "/api/project-info"))
+(def get-all-projects (partial ajax-get "/api/all-projects"))
 (defn get-user-info [user-id handler]
   (ajax-get (str "/api/user-info/" user-id) handler))
 (defn post-login [data handler] (ajax-post "/api/auth/login" data handler))
@@ -75,7 +76,6 @@
   ([interval handler] (get-label-tasks interval nil handler)))
 (defn post-set-labels [data handler] (ajax-post "/api/set-labels" data handler))
 (defn post-confirm-labels [data handler] (ajax-post "/api/confirm-labels" data handler))
-
 
 (defn pull-user-info [user-id]
   (get-user-info
@@ -133,6 +133,10 @@
 (defn pull-project-info []
   (get-project-info
    #(swap! state (d/set-project-info %))))
+
+(defn pull-all-projects []
+  (get-all-projects
+   #(swap! state (d/set-all-projects %))))
 
 (defn do-post-login [email password]
   (post-login
@@ -236,6 +240,7 @@
       (case (first ks)
         :criteria (pull-criteria)
         :sysrev (pull-project-info)
+        :all-projects (pull-all-projects)
         :users (let [[_ user-id] ks] (pull-user-info user-id))
         :ranking (let [[_ pages page-num] ks]
                    (when (and (= pages :pages)

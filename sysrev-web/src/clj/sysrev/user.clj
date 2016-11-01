@@ -5,6 +5,7 @@
         sysrev.db.documents
         sysrev.db.users
         sysrev.db.sysrev
+        sysrev.db.project
         sysrev.db.endnote
         ;; sysrev.spark.core
         ;; sysrev.spark.similarity

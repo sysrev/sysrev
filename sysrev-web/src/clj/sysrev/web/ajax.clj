@@ -4,6 +4,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.users :as users]
             [sysrev.db.sysrev :as sysrev]
+            [sysrev.db.project :as project]
             [sysrev.util :refer [parse-number integerify-map-keys]]))
 
 (defn wrap-json
@@ -17,7 +18,7 @@
 
 (defn get-user-id [request]
   (let [email (-> request :session :identity)]
-    (and email (:id (users/get-user-by-email email)))))
+    (and email (:user_id (users/get-user-by-email email)))))
 
 (defn web-criteria []
   (let [cs (articles/all-criteria)]
@@ -80,3 +81,6 @@
         (println e)
         {:error "database error"}))
     {:error "not logged in"}))
+
+(defn web-all-projects []
+  (project/get-project-summaries))

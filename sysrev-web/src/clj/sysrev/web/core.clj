@@ -34,6 +34,8 @@
   (GET "/api/auth/identity" request
        (auth/web-get-identity request))
   (GET "/api/criteria" [] (wrap-json (ajax/web-criteria)))
+  (GET "/api/all-projects" []
+       (wrap-json (ajax/web-all-projects)))
   (GET "/api/article-documents" [] (wrap-json (docs/all-article-document-paths)))
   (GET "/api/project-info" [] (wrap-json (ajax/web-project-summary)))
   (GET "/api/user-info/:user-id" request
