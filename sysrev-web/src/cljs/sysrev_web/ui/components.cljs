@@ -137,7 +137,7 @@
   `value` is one of true, false, nil."
   [criteria-id value]
   (let [label
-        (get-in @state [:data :criteria criteria-id :short_label])]
+        (get-in @state [:data :criteria criteria-id :short-label])]
     [true-false-nil-tag "medium" {} true (str label "?") value]))
 
 (defn with-tooltip [content]

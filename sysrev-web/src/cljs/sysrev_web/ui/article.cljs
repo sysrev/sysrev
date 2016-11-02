@@ -30,7 +30,7 @@
                    answer-str (if (nil? answer)
                                 "unknown"
                                 (str answer))]
-               ^{:key {:label-value (str cid "_" article-id)}}
+               ^{:key {:label-value (str cid "-" article-id)}}
                [:div.item.label-tag-list
                 [:div.content
                  [label-value-tag cid answer]]])))))]])))
@@ -106,20 +106,20 @@
      (doall
       (->>
        docs
-       (map (fn [{:keys [document_id file_name]}]
-              ^{:key {:document-link [article-id document_id file_name]}}
+       (map (fn [{:keys [document-id file-name]}]
+              ^{:key {:document-link [article-id document-id file-name]}}
               [:div.ui.column
                [:a.ui.fluid.labeled.button
                 {:target "_blank"
                  :href (d/article-document-url
-                        document_id file_name)}
+                        document-id file-name)}
                 [:div.ui.green.button
                  {:style {:min-width "70px"
                           :box-sizing "content-box"}}
                  [:i.file.icon]
                  "Open"]
                 [:div.ui.fluid.label
-                 (str file_name)]]]))))]))
+                 (str file-name)]]]))))]))
 
 (defn article-short-info-component
   "Shows a minimal summary of an article with a representation of its match
@@ -140,8 +140,8 @@
          [:div.ui.attached.segment
           [:h3.header
            [:a.ui.link {:href (str "/article/" article-id)}
-            (:primary_title article)]
-           (when-let [journal-name (:secondary_title article)]
+            (:primary-title article)]
+           (when-let [journal-name (:secondary-title article)]
              (str  " - " journal-name))]
           (when-not (empty? (:authors article))
             [:p (truncated-horizontal-list 5 (:authors article))])]
@@ -229,10 +229,10 @@
                     "attached segment"
                     "bottom attached segment")}
           [:div.content
-           [:h3.header (:primary_title article)]
-           (when-not (empty? (:secondary_title article))
+           [:h3.header (:primary-title article)]
+           (when-not (empty? (:secondary-title article))
              [:h3.header {:style {:margin-top "0px"}}
-              (:secondary_title article)])
+              (:secondary-title article)])
            (when-not (empty? (:authors article))
              [:p (truncated-horizontal-list 5 (:authors article))])
            (when (not (empty? (:abstract article)))
@@ -300,7 +300,7 @@
                         :text-align "center"}}
                [:span
                 {:style {:width "100%"}}
-                (str (:short_label criterion) "?")]]
+                (str (:short-label criterion) "?")]]
               [:div.ui.row
                {:style {:padding-top "8px"
                         :padding-bottom "18px"}}

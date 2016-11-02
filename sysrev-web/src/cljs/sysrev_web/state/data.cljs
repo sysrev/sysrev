@@ -35,13 +35,13 @@
   (fn [s]
     (update-in s [:data :documents] #(merge % documents))))
 
-(defn set-ranking-page [page-num ranked-ids]
-  (fn [s]
-    (assoc-in s [:data :ranking :pages page-num] ranked-ids)))
-
 (defn set-project-info [pmap]
   (fn [s]
     (assoc-in s [:data :sysrev] pmap)))
+
+(defn set-all-projects [pmap]
+  (fn [s]
+    (assoc-in s [:data :all-projects] pmap)))
 
 (defn set-article-labels [article-id lmap]
   (fn [s]
@@ -62,13 +62,13 @@
         known-value
         (fn [cid]
           (->> labels
-               (filter #(and (= (:criteria_id %) cid)
+               (filter #(and (= (:criteria-id %) cid)
                              (not (nil? (:answer %)))))
                first))
         any-value
         (fn [cid]
           (->> labels
-               (filter #(= (:criteria_id %) cid))
+               (filter #(= (:criteria-id %) cid))
                first))]
     (->> cids
          (mapv
@@ -86,7 +86,7 @@
         amap (or (get-in lmap [:confirmed article-id])
                  (get-in lmap [:unconfirmed article-id]))]
     (->> amap
-         (group-by :criteria_id)
+         (group-by :criteria-id)
          (map-values first)
          (map-values :answer))))
 
@@ -100,15 +100,15 @@
 
 (defn article-documents [article-id]
   (when-let [article (data [:articles article-id])]
-    (let [doc-ids (:document_ids article)]
+    (let [doc-ids (:document-ids article)]
       (->> doc-ids
            (map
             (fn [doc-id]
               (let [fnames (data [:documents (js/parseInt doc-id)])]
                 (->> fnames
                      (map (fn [fname]
-                            {:document_id doc-id
-                             :file_name fname}))))))
+                            {:document-id doc-id
+                             :file-name fname}))))))
            (apply concat)
            vec))))
 

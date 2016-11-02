@@ -20,7 +20,7 @@
       (create-user email password)
       (f)
       (let [user (get-user-by-email email)]
-        (delete-user (:id user)))
+        (delete-user (:user_id user)))
       (is (nil? (get-user-by-email email))))))
 
 
@@ -31,9 +31,8 @@
     (is (thrown? BatchUpdateException
                  (create-user email password)))))
 
-
 (deftest create-project-test
   (let [{email :email} user
         dbuser (get-user-by-email email)]
-    (let [query-result (create-project (:id dbuser) "test")]
+    (let [query-result (create-project "test")]
       (is (integer? (:project_id query-result))))))

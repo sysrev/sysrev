@@ -22,10 +22,10 @@
           [:td
            (let [style {:margin-top "-4px"
                         :margin-bottom "-4px"}]
-             (cond (true? (:is_inclusion criteria))
+             (cond (true? (:is-inclusion criteria))
                    [true-false-nil-tag
                     "large" style true "Yes" true]
-                   (false? (:is_inclusion criteria))
+                   (false? (:is-inclusion criteria))
                    [true-false-nil-tag
                     "large" style true "No" false]
                    :else

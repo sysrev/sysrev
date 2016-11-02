@@ -4,6 +4,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.users :as users]
             [sysrev.db.sysrev :as sysrev]
+            [sysrev.db.project :as project]
             [sysrev.util :refer [parse-number integerify-map-keys]]))
 
 (defn wrap-json
@@ -16,13 +17,12 @@
       (r/header "Cache-Control" "no-cache, no-store")))
 
 (defn get-user-id [request]
-  (let [email (-> request :session :identity)]
-    (and email (:user_id (users/get-user-by-email email)))))
+  (-> request :session :identity :user-id))
 
 (defn web-criteria []
   (let [cs (articles/all-criteria)]
     (->> cs
-         (map #(vector (:criteria_id %) (dissoc % :criteria_id)))
+         (map #(vector (:criteria-id %) (dissoc % :criteria-id)))
          (apply concat)
          (apply hash-map))))
 
@@ -47,14 +47,14 @@
   (let [[article raw-labels]
         (pvalues (articles/get-article article-id)
                  (articles/all-labels-for-article article-id))
-        user-ids (->> raw-labels (map :user_id) distinct)
+        user-ids (->> raw-labels (map :user-id) distinct)
         labels
         (->> user-ids
              (map (fn [user-id]
                     [user-id
                      (->> raw-labels
-                          (filter #(= (:user_id %) user-id))
-                          (map #(do [(:criteria_id %)
+                          (filter #(= (:user-id %) user-id))
+                          (map #(do [(:criteria-id %)
                                      (:answer %)]))
                           (apply concat)
                           (apply hash-map))]))
@@ -80,3 +80,6 @@
         (println e)
         {:error "database error"}))
     {:error "not logged in"}))
+
+(defn web-all-projects []
+  (project/get-project-summaries))

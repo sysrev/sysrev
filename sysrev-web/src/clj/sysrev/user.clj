@@ -5,6 +5,7 @@
         sysrev.db.documents
         sysrev.db.users
         sysrev.db.sysrev
+        sysrev.db.project
         sysrev.db.endnote
         ;; sysrev.spark.core
         ;; sysrev.spark.similarity
@@ -41,3 +42,25 @@
 
 (defonce started
   (init/start-app))
+
+(defn ensure-updated-db
+  "Runs everything to update from pre-multiproject database entries."
+  []
+  (assert (get-default-project))
+  (ensure-user-member-entries)
+  (ensure-user-default-project-ids)
+  (ensure-entry-uuids)
+  (ensure-permissions-set)
+  (let [admins ["wonghuili@gmail.com"
+                "jeff.workman@gmail.com"
+                "tomluec@gmail.com"
+                "pattersonzak@gmail.com"]]
+    (doseq [email admins]
+      (when-let [user (get-user-by-email email)]
+        (set-user-permissions (:user-id user) ["user" "admin"]))))
+  (let [admins ["wonghuili@gmail.com"]]
+    (doseq [email admins]
+      (when-let [user (get-user-by-email email)]
+        (set-member-permissions (:default-project-id user)
+                                (:user-id user)
+                                ["member" "admin" "resolve"])))))

@@ -26,54 +26,54 @@
       io/file io/reader dxml/parse))
 
 (defn match-article-id
-  "Attempt to find an article_id in the database which is the best match
+  "Attempt to find an article-id in the database which is the best match
   for the given fields. Requires an exact match on title and journal fields,
-  allows for differences in remote_database_name and attempts to select an 
+  allows for differences in remote-database-name and attempts to select an 
   appropriate match."
   [title journal rdb-name]
-  (let [results (-> (select :article_id :remote_database_name)
+  (let [results (-> (select :article-id :remote-database-name)
                     (from :article)
                     (where [:and
-                            [:= :primary_title title]
-                            [:= :secondary_title journal]])
-                    (order-by :article_id)
+                            [:= :primary-title title]
+                            [:= :secondary-title journal]])
+                    (order-by :article-id)
                     do-query)]
     (if (empty? results)
       (do (println (format "no article match: '%s' '%s' '%s'"
                            title journal rdb-name))
           nil)
       ;; Attempt a few different ways of finding the best match based
-      ;; on remote_database_name.
+      ;; on remote-database-name.
       (or
        ;; exact match
        (->> results
-            (filter #(= (:remote_database_name %) rdb-name))
+            (filter #(= (:remote-database-name %) rdb-name))
             first
-            :article_id)
+            :article-id)
        ;; case-insensitive match
        (->> results
-            (filter #(and (string? (:remote_database_name %))
+            (filter #(and (string? (:remote-database-name %))
                           (string? rdb-name)
-                          (= (-> % :remote_database_name str/lower-case)
+                          (= (-> % :remote-database-name str/lower-case)
                              (-> rdb-name str/lower-case))))
             first
-            :article_id)
+            :article-id)
        ;; prefer embase
        (->> results
-            (filter #(and (string? (:remote_database_name %))
-                          (= (-> % :remote_database_name str/lower-case)
+            (filter #(and (string? (:remote-database-name %))
+                          (= (-> % :remote-database-name str/lower-case)
                              "embase")))
             first
-            :article_id)
+            :article-id)
        ;; then prefer medline
        (->> results
-            (filter #(and (string? (:remote_database_name %))
-                          (= (-> % :remote_database_name str/lower-case)
+            (filter #(and (string? (:remote-database-name %))
+                          (= (-> % :remote-database-name str/lower-case)
                              "medline")))
             first
-            :article_id)
+            :article-id)
        ;; otherwise use earliest inserted article match
-       (-> results first :article_id)))))
+       (-> results first :article-id)))))
 
 (defn load-endnote-file
   "Parse the Endnote XML file into a map containing the fields we're
@@ -101,12 +101,12 @@
   "Creates a label-values map from a label group string (from the XML export)."
   [gname]
   (let [cid (fn [cname]
-              (-> (select :criteria_id)
+              (-> (select :criteria-id)
                   (from :criteria)
                   (where [:= :name cname])
                   do-query
                   first
-                  :criteria_id))]
+                  :criteria-id))]
     (->>
      (cond
        (= gname "io vaccine/virus")
@@ -197,10 +197,10 @@
                                                (:rdb-name entry))]
               (println (format "setting labels for article #%s" article-id))
               (when article-id
-                (-> (delete-from :article_criteria)
+                (-> (delete-from :article-criteria)
                     (where [:and
-                            [:= :user_id user-id]
-                            [:= :article_id article-id]])
+                            [:= :user-id user-id]
+                            [:= :article-id article-id]])
                     do-execute)
                 (users/set-user-article-labels
                  user-id article-id label-values true)))))

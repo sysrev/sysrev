@@ -44,7 +44,7 @@
 (defn label-counts-box []
   (let [stats (-> @state :data :sysrev :stats)
         cid (selected-criteria-id)
-        clabel (data [:criteria cid :short_label])]
+        clabel (data [:criteria cid :short-label])]
     [:table.ui.celled.unstackable.table.grey.raised.segment
      [:thead
       [:tr
@@ -55,7 +55,7 @@
      [:tbody
       (doall
        (for [cid (-> stats :label-values keys)]
-         (let [clabel (get-in @state [:data :criteria cid :short_label])
+         (let [clabel (get-in @state [:data :criteria cid :short-label])
                counts (get-in stats [:label-values cid])]
            ^{:key {:label-stats cid}}
            [:tr
@@ -101,7 +101,7 @@
 
 (defn train-input-summary-box []
   (let [cid (selected-criteria-id)
-        clabel (data [:criteria cid :short_label])
+        clabel (data [:criteria cid :short-label])
         counts (data [:sysrev :stats :predict cid :counts])]
     [:table.ui.celled.unstackable.table.grey.segment.mobile-table
      [:thead
@@ -165,7 +165,7 @@
               [:div.ui.small.blue.dropdown.button
                {:style {:margin-left "5px"}}
                [:input {:type "hidden" :name "menu-dropdown"}]
-               [:label (data [:criteria active-cid :short_label])]
+               [:label (data [:criteria active-cid :short-label])]
                [:i.chevron.down.right.icon]
                [:div.menu
                 (doall
@@ -175,7 +175,7 @@
                      [:a.item
                       {:href (str "/project/predict/" cid)
                        :class (if active "default active" "")}
-                      (data [:criteria cid :short_label])])))]])]
+                      (data [:criteria cid :short-label])])))]])]
         [dropdown])]]))
 
 (defn project-predict-report-box []

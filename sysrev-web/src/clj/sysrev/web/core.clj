@@ -24,7 +24,6 @@
 
 (defroutes app-routes
   (GET "/" [] index/index)
-  ;; (GET "/ajax/user/:id" [id] (wrap-json "response"))
   (POST "/api/auth/login" request
         (auth/web-login-handler request))
   (POST "/api/auth/logout" request
@@ -34,6 +33,8 @@
   (GET "/api/auth/identity" request
        (auth/web-get-identity request))
   (GET "/api/criteria" [] (wrap-json (ajax/web-criteria)))
+  (GET "/api/all-projects" []
+       (wrap-json (ajax/web-all-projects)))
   (GET "/api/article-documents" [] (wrap-json (docs/all-article-document-paths)))
   (GET "/api/project-info" [] (wrap-json (ajax/web-project-summary)))
   (GET "/api/user-info/:user-id" request
@@ -42,10 +43,6 @@
          (wrap-json
           (ajax/web-user-info
            query-user-id (= request-user-id query-user-id)))))
-  #_
-  (GET "/api/ranking/:page-idx" [page-idx]
-       (let [page-idx (Integer/parseInt page-idx)]
-         (wrap-json (articles/get-ranked-articles page-idx))))
   (GET "/api/label-task/:interval" request
        (let [user-id (ajax/get-user-id request)
              interval (-> request :params :interval Integer/parseInt)
