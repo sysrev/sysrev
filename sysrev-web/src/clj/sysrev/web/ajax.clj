@@ -17,8 +17,7 @@
       (r/header "Cache-Control" "no-cache, no-store")))
 
 (defn get-user-id [request]
-  (let [email (-> request :session :identity)]
-    (and email (:user-id (users/get-user-by-email email)))))
+  (-> request :session :identity :user-id))
 
 (defn web-criteria []
   (let [cs (articles/all-criteria)]

@@ -1,6 +1,6 @@
 (ns sysrev-web.ui.classify
   (:require
-   [sysrev-web.base :refer [state]]
+   [sysrev-web.base :refer [state ga-event]]
    [sysrev-web.state.core :refer [current-user-id current-page]]
    [sysrev-web.util :refer [scroll-top nav-scroll-top nbsp full-size?]]
    [sysrev-web.routes :refer [data-initialized?]]
@@ -16,6 +16,7 @@
 (defn classify-page []
   (when-let [article-id (data :classify-article-id)]
     (let [user-id (current-user-id)
+          email (-> @state :identity :email)
           criteria (-> @state :data :criteria)
           criteria-ids (keys criteria)
           overall-cid (-> @state :data :overall-cid)]
@@ -45,9 +46,11 @@
              "Confirm labels"
              [:i.check.circle.outline.icon]]
             [:div.ui.right.labeled.icon.button
-             {:on-click #(do (ajax/fetch-classify-task true)
-                             (ajax/pull-user-info user-id)
-                             (scroll-top))}
+             {:on-click
+              #(do (ga-event "labels" "next_article")
+                   (ajax/fetch-classify-task true)
+                   (ajax/pull-user-info user-id)
+                   (scroll-top))}
              "Next article"
              [:i.right.circle.arrow.icon]]]
            (let [n-unconfirmed

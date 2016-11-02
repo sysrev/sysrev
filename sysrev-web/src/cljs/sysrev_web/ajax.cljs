@@ -1,7 +1,7 @@
 (ns sysrev-web.ajax
   (:require
    [ajax.core :refer [GET POST]]
-   [sysrev-web.base :refer [state]]
+   [sysrev-web.base :refer [state ga ga-event]]
    [sysrev-web.state.core :as s]
    [sysrev-web.state.data :as d :refer [data]]
    [sysrev-web.util :refer [nav scroll-top nav-scroll-top map-values]]
@@ -57,8 +57,6 @@
 (defn get-article-info [article-id handler]
   (ajax-get (str "/api/article-info/" article-id) handler))
 (def get-article-documents (partial ajax-get "/api/article-documents"))
-(defn get-ranking-page [num handler]
-  (ajax-get (str "/api/ranking" num) handler))
 (def get-project-info (partial ajax-get "/api/project-info"))
 (def get-all-projects (partial ajax-get "/api/all-projects"))
 (defn get-user-info [user-id handler]
@@ -66,7 +64,6 @@
 (defn post-login [data handler] (ajax-post "/api/auth/login" data handler))
 (defn post-register [data handler] (ajax-post "/api/auth/register" data handler))
 (defn post-logout [handler] (ajax-post "/api/auth/logout" handler))
-(defn post-submit-tag [data handler] (ajax-post "/api/tag" data handler))
 (defn get-label-tasks
   ([interval above-score handler]
    (ajax-get
@@ -118,18 +115,6 @@
    (fn [response]
      (swap! state (d/merge-documents response)))))
 
-(defn pull-ranking-page [num]
-  (when (nil? (d/data [:ranking :pages num]))
-    (get-ranking-page
-     num
-     (fn [response]
-       (let [ranked-ids (->> response
-                             (sort-by (comp :score second))
-                             (mapv first))]
-         (swap! state
-                (comp (d/set-ranking-page num ranked-ids)
-                      (d/merge-articles response))))))))
-
 (defn pull-project-info []
   (get-project-info
    #(swap! state (d/set-project-info %))))
@@ -144,29 +129,33 @@
    (fn [response]
      (if (:valid response)
        (do
+         (ga-event "auth" "login_success")
          (pull-identity)
          (nav-scroll-top "/"))
-       (swap! state assoc-in [:page :login :err] (:err response))))))
+       (do
+         (ga-event "auth" "login_failure")
+         (swap! state assoc-in [:page :login :err] (:err response)))))))
 
 (defn do-post-register [email password]
   (post-register
    {:email email :password password}
    ;; if register succeeds, send login request
-   (fn [_] (do-post-login email password))))
+   (fn [response]
+     (if (:success response)
+       (do (ga-event "auth" "register_success")
+           (do-post-login email password))
+       (do (ga-event "auth" "register_failure")
+           (swap! state assoc-in [:page :register :err] (:error response)))))))
 
 (defn do-post-logout []
   (post-logout
-   (fn [_]
+   (fn [response]
+     (if (:success response)
+       (ga-event "auth" "logout_success")
+       (ga-event "auth" "logout_failure"))
      (swap! state (s/log-out))
      (nav-scroll-top "/")
      (notify "Logged out."))))
-
-(defn submit-tag [{:keys [article-id criteria-id value]}]
-  (post-submit-tag
-   {:article-id article-id
-    :criteria-id criteria-id
-    :value value}
-   (fn [_] (notify "Tag saved"))))
 
 (defn pull-label-tasks
   ([interval handler above-score]
@@ -205,9 +194,13 @@
     :label-values label-values}
    (fn [response]
      (let [err (:error response)
-           res (:result response)]
-       (when-not (empty? err) (notify (str "Error: " err)))
+           res (:result response)
+           event-label (str "article-id = " article-id)]
+       (when-not (empty? err)
+         (ga-event "labels" "confirm_failure" event-label)
+         (notify (str "Error: " err)))
        (when-not (empty? res)
+         (ga-event "labels" "confirm_success" event-label)
          (notify "Labels submitted")
          (pull-article-info article-id)
          (pull-user-info (s/current-user-id))
@@ -227,9 +220,14 @@
     :label-values criteria-values}
    (fn [response]
      (let [err (:error response)
-           res (:result response)]
-       (when-not (empty? err) (notify (str "Error: " err)))
-       (when-not (empty? res) (notify "Labels saved"))))))
+           res (:result response)
+           event-label (str "article-id = " article-id)]
+       (when-not (empty? err)
+         (ga-event "labels" "send_failure" event-label)
+         (notify (str "Error: " err)))
+       (when-not (empty? res)
+         (ga-event "labels" "send_success" event-label)
+         (notify "Labels saved"))))))
 
 (defn fetch-data
   "Fetches the data value under path `ks` in (:data @state) if it does
@@ -242,10 +240,6 @@
         :sysrev (pull-project-info)
         :all-projects (pull-all-projects)
         :users (let [[_ user-id] ks] (pull-user-info user-id))
-        :ranking (let [[_ pages page-num] ks]
-                   (when (and (= pages :pages)
-                              (integer? page-num))
-                     (pull-ranking-page page-num)))
         :articles (let [[_ article-id] ks]
                     ;; todo - fetch single articles here
                     (pull-article-info article-id))

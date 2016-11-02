@@ -35,10 +35,6 @@
   (fn [s]
     (update-in s [:data :documents] #(merge % documents))))
 
-(defn set-ranking-page [page-num ranked-ids]
-  (fn [s]
-    (assoc-in s [:data :ranking :pages page-num] ranked-ids)))
-
 (defn set-project-info [pmap]
   (fn [s]
     (assoc-in s [:data :sysrev] pmap)))

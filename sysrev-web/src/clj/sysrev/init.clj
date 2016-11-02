@@ -3,12 +3,13 @@
             [sysrev.web.core :refer [run-web]]
             [config.core :refer [env]]))
 
-(defn start-app []
+(defn start-app [& [postgres-overrides]]
   (let [{profile :profile} env
         prod? (= profile :prod)
         {postgres-config :postgres} env
-        {{postgres-port :port} :postgres
-         {server-port :port} :server} env]
+        postgres-config (merge postgres-config postgres-overrides)
+        postgres-port (:port postgres-config)
+        {{server-port :port} :server} env]
     (do (set-db-config! postgres-config)
         (->> postgres-port (format "connected to postgres (port %s)") println)
         (run-web server-port prod?)

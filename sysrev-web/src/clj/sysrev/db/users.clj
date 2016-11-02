@@ -47,6 +47,7 @@
   (let [entry {:email email
                :pw-encrypted-buddy (encrypt-password password)
                :verify-code (crypto.random/hex 16)
+               :permissions (to-sql-array "text" permissions)
                :default-project-id
                (or project-id
                    (:project-id (get-default-project)))
@@ -60,13 +61,22 @@
     (-> (insert-into :web-user)
         (values [entry])
         (returning :user-id)
-        do-execute)))
+        do-query)))
 
 (defn set-user-password [email new-password]
   (-> (sqlh/update :web-user)
       (sset {:pw-encrypted-buddy (encrypt-password new-password)})
       (where [:= :email email])
       do-execute))
+
+(defn set-user-permissions
+  "Change the site permissions for a user account."
+  [user-id permissions]
+  (-> (sqlh/update :web-user)
+      (sset {:permissions (to-sql-array "text" permissions)})
+      (where [:= :user-id user-id])
+      (returning :user-id :permissions)
+      do-query))
 
 (defn valid-password? [email password-attempt]
   (let [entry (get-user-by-email email)

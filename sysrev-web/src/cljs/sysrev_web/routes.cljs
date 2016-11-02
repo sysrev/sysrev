@@ -179,9 +179,14 @@
          old-page (with-state old (current-page))]
      (cond
 
-       ;; Fetch all page data upon login
-       (and (with-state old (not (logged-in?)))
-            (with-state new (logged-in?)))
+       ;; Fetch all page data upon login or logout
+       (or
+        ;; login
+        (and (with-state old (not (logged-in?)))
+             (with-state new (logged-in?)))
+        ;; logout
+        (and (with-state old (logged-in?))
+             (with-state new (not (logged-in?)))))
        (doall (map ajax/fetch-data (page-required-data page)))
        
        (and page old-page (= page old-page))

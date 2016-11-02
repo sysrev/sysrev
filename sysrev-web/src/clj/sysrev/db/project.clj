@@ -32,7 +32,7 @@
               [:= :user-id user-id]])
       do-execute))
 
-(defn set-user-project-permissions
+(defn set-member-permissions
   "Change the permissions for a project member."
   [project-id user-id permissions]
   (-> (sqlh/update :project-member)
@@ -181,3 +181,18 @@
                (sset {:user-uuid (UUID/randomUUID)})
                (where [:= :user-id %])
                do-execute)))))
+
+(defn ensure-permissions-set
+  "Sets default permissions values for entries with null value."
+  []
+  (let [user-defaults (to-sql-array "text" ["user"])
+        member-defaults (to-sql-array "text" ["member"])]
+    (-> (sqlh/update :web-user)
+        (sset {:permissions user-defaults})
+        (where [:= :permissions nil])
+        do-execute)
+    (-> (sqlh/update :project-member)
+        (sset {:permissions member-defaults})
+        (where [:= :permissions nil])
+        do-execute)
+    nil))
