@@ -76,7 +76,7 @@
   (-> (js/$ js/window) (.width)))
 
 (defn mobile? []
-  (<= (viewport-width) 800))
+  (< (viewport-width) 768))
 
 (defn full-size? []
-  (>= (viewport-width) 1150))
+  (>= (viewport-width) 900))

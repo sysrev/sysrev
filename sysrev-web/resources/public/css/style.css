@@ -82,7 +82,7 @@ div.ui.segment.label-section-header {
     padding-bottom: 0.5em;
 }
 
-@media only screen and (max-width: 1000px) {
+@media only screen and (max-width: 900px) {
     .ui.segment {
         padding: 0.5em;
     }
