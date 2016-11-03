@@ -262,7 +262,52 @@
   in `state` where the label values set by the user will be stored."
   [article-id labels-path]
   (let [criteria (data :criteria)
-        label-values (d/active-label-values article-id labels-path)]
+        label-values (d/active-label-values article-id labels-path)
+        core-ids (->> (keys criteria)
+                      (remove #(-> (get criteria %) :is-inclusion nil?)))
+        extra-ids (->> (keys criteria)
+                       (filter #(-> (get criteria %) :is-inclusion nil?)))
+        make-cid-columns
+        (fn [cids]
+          (doall
+           (->>
+            cids
+            (map
+             (fn [cid]
+               (let [criterion (get criteria cid)]
+                 ^{:key {:article-label cid}}
+                 [with-tooltip
+                  [:div.ui.column
+                   {:data-content (:question criterion)
+                    :data-position "top left"
+                    :style {:background-color
+                            (if (= (:name criterion) "overall include")
+                              "rgba(200,200,200,1)"
+                              nil)
+                            :padding "0px"}}
+                   [:div.ui.middle.aligned.grid
+                    {:style {:margin "0px"}}
+                    [:div.ui.row
+                     {:style {:padding-bottom "0px"
+                              :text-align "center"}}
+                     [:span
+                      {:style {:width "100%"}}
+                      (str (:short-label criterion) "?")]]
+                    [:div.ui.row
+                     {:style {:padding-top "8px"
+                              :padding-bottom "18px"}}
+                     [:div
+                      {:style {:margin-left "auto"
+                               :margin-right "auto"}}
+                      [three-state-selection
+                       (fn [new-value]
+                         (swap! state assoc-in
+                                (concat labels-path [cid])
+                                new-value)
+                         (ajax/send-labels
+                          article-id
+                          (d/active-label-values article-id labels-path)))
+                       (get label-values cid)]]]]]]))))))]
     [:div.ui.segments
      [:div.ui.top.attached.header
       [:h3
@@ -273,46 +318,19 @@
           :data-content "View label definitions"
           :data-position "top left"}
          [:i.large.yellow.help.circle.icon]]]]]
+     [:div.ui.attached.segment.label-section-header
+      [:h4 "Inclusion criteria"]]
+     [:div.ui.attached.grid.segment
+      {:class (if (full-size?)
+                "four column"
+                "three column")
+       :style {:padding "0px"}}
+      (make-cid-columns core-ids)]
+     [:div.ui.attached.segment.label-section-header
+      [:h4 "Extra labels"]]
      [:div.ui.bottom.attached.grid.segment
       {:class (if (full-size?)
                 "four column"
                 "three column")
        :style {:padding "0px"}}
-      (doall
-       (->>
-        criteria
-        (map
-         (fn [[cid criterion]]
-           ^{:key {:article-label cid}}
-           [with-tooltip
-            [:div.ui.column
-             {:data-content (:question criterion)
-              :data-position "top left"
-              :style {:background-color
-                      (if (= (:name criterion) "overall include")
-                        "rgba(200,200,200,1)"
-                        nil)
-                      :padding "0px"}}
-             [:div.ui.middle.aligned.grid
-              {:style {:margin "0px"}}
-              [:div.ui.row
-               {:style {:padding-bottom "0px"
-                        :text-align "center"}}
-               [:span
-                {:style {:width "100%"}}
-                (str (:short-label criterion) "?")]]
-              [:div.ui.row
-               {:style {:padding-top "8px"
-                        :padding-bottom "18px"}}
-               [:div
-                {:style {:margin-left "auto"
-                         :margin-right "auto"}}
-                [three-state-selection
-                 (fn [new-value]
-                   (swap! state assoc-in
-                          (concat labels-path [cid])
-                          new-value)
-                   (ajax/send-labels
-                    article-id
-                    (d/active-label-values article-id labels-path)))
-                 (get label-values cid)]]]]]]))))]]))
+      (make-cid-columns extra-ids)]]))

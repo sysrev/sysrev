@@ -8,7 +8,7 @@
     [:tr
      [:th "Name"]
      [:th "Question Text"]
-     [:th "Required value"]]]
+     [:th "Required value for inclusion"]]]
    [:tbody
     (doall
      (->>
@@ -31,4 +31,4 @@
                    :else
                    [true-false-nil-tag
                     "large" style false
-                    "Extra" nil]))]]))))]])
+                    "Extra label" nil]))]]))))]])
