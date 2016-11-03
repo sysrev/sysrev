@@ -154,8 +154,9 @@
     (->> (keys users)
          (mapv (fn [user-id]
                  [user-id
-                  {:user (-> (get users user-id)
-                             (select-keys [:email]))
+                  {:user (let [user (get users user-id)]
+                           {:email (:email user)
+                            :site-permissions (:permissions user)})
                    :articles (get inclusions user-id)
                    :in-progress (if-let [count (get in-progress user-id)]
                                   count 0)}]))

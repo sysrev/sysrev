@@ -65,7 +65,16 @@
             [:td (str (:unknown counts))]])))]]))
 
 (defn user-list-box []
-  (let [user-ids (-> @state :data :sysrev :users keys)]
+  (let [users (-> @state :data :sysrev :users)
+        user-ids
+        (->> (keys users)
+             (filter
+              (fn [user-id]
+                (not
+                 (some (partial = "admin")
+                       (-> (get users user-id)
+                           :user
+                           :site-permissions))))))]
     [:div.ui.raised.grey.segment
      [:h4 "Project members"]
      (doall

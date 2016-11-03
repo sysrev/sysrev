@@ -51,16 +51,19 @@
   (ensure-user-default-project-ids)
   (ensure-entry-uuids)
   (ensure-permissions-set)
-  (let [admins ["wonghuili@gmail.com"
-                "jeff.workman@gmail.com"
-                "tomluec@gmail.com"
-                "pattersonzak@gmail.com"]]
-    (doseq [email admins]
+  (let [site-admins ["jeff.workman@gmail.com"
+                     "tomluec@gmail.com"
+                     "pattersonzak@gmail.com"]]
+    (doseq [email site-admins]
       (when-let [user (get-user-by-email email)]
-        (set-user-permissions (:user-id user) ["user" "admin"]))))
-  (let [admins ["wonghuili@gmail.com"]]
-    (doseq [email admins]
+        (set-user-permissions (:user-id user) ["user" "admin"])
+        (set-member-permissions (:default-project-id user)
+                                (:user-id user)
+                                ["member"]))))
+  (let [project-admins ["wonghuili@gmail.com"]]
+    (doseq [email project-admins]
       (when-let [user (get-user-by-email email)]
+        (set-user-permissions (:user-id user) ["user"])
         (set-member-permissions (:default-project-id user)
                                 (:user-id user)
                                 ["member" "admin" "resolve"])))))
