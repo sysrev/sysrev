@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.sysrev
-  (:require [sysrev-web.base :refer [state]]
+  (:require [sysrev-web.base :refer [state build-profile]]
             [sysrev-web.state.data :refer [data]]
             [sysrev-web.util :refer
              [nav number-to-word full-size?]]
@@ -69,12 +69,14 @@
         user-ids
         (->> (keys users)
              (filter
-              (fn [user-id]
-                (not
-                 (some (partial = "admin")
-                       (-> (get users user-id)
-                           :user
-                           :site-permissions))))))]
+              (if (= build-profile :dev)
+                (fn [_] true)
+                (fn [user-id]
+                  (not
+                   (some (partial = "admin")
+                         (-> (get users user-id)
+                             :user
+                             :site-permissions)))))))]
     [:div.ui.raised.grey.segment
      [:h4 "Project members"]
      (doall

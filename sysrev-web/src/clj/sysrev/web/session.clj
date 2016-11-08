@@ -16,7 +16,12 @@
 (deftype SysrevSessionStore []
   SessionStore
   (read-session [_ key]
-    (:sdata (get-session key)))
+    (let [data (:sdata (get-session key))]
+      (-> data
+          (assoc (keyword "ring.middleware.anti-forgery"
+                          "anti-forgery-token")
+                 (:anti-forgery-token data))
+          (dissoc :anti-forgery-token))))
   (write-session [_ key data]
     (let [key (or key (str (UUID/randomUUID)))
           data (or data {})]

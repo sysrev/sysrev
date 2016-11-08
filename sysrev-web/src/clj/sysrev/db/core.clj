@@ -47,7 +47,7 @@
   [& body]
   `(try
      (do ~@body)
-     (catch Exception e#
+     (catch Throwable e#
        (do (reset-active-conn)
            ~@body))))
 
@@ -73,7 +73,7 @@
 (defmacro with-debug-sql [& body]
   `(try
      (do ~@body)
-     (catch Exception e#
+     (catch Throwable e#
        (.printStackTrace (.getNextException e#)))))
 
 (defmacro do-execute [sql-map & params-or-opts]

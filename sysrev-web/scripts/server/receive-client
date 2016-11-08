@@ -3,6 +3,16 @@ set -eu
 
 dir=/data/sysrev
 
-tar zxf $dir/deploy/client.tgz -C $dir/web-root
+rm -rf $dir/web-root-new
+mkdir -p $dir/web-root-new
+tar zxf $dir/deploy/client.tgz -C $dir/web-root-new
+cd $dir/web-root-new
+mkdir files
+cd files
+ln -s ../../PDF .
+cd $dir
+rm -rf web-root-old
+mv web-root web-root-old
+mv web-root-new web-root
 
 sudo systemctl restart nginx

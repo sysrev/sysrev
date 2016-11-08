@@ -4,7 +4,7 @@
    [sysrev-web.util :refer [full-size?]]
    [sysrev-web.state.core :refer [current-page on-page? logged-in?]]
    [sysrev-web.routes :refer [data-initialized? on-public-page?]]
-   [sysrev-web.notify :refer [notify-head]]
+   [sysrev-web.notify :refer [active-notification]]
    [sysrev-web.ui.components :refer [loading-screen notifier]]
    [sysrev-web.ui.sysrev :refer [project-page]]
    [sysrev-web.ui.labels :refer [labels-page]]
@@ -28,7 +28,8 @@
     "Please log in or register to access project"]])
 
 (defn current-page-content []
-  (cond (not (data-initialized? (current-page))) [loading-screen]
+  (cond (nil? (current-page)) [:div [:h1 "Route not found"]]
+        (not (data-initialized? (current-page))) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
         (on-page? :project) [project-page]
@@ -38,7 +39,7 @@
         (on-page? :user-profile) [user-profile-page]
         (on-page? :classify) [classify-page]
         (on-page? :article) [article-page]
-        true [:div "Route not found"]))
+        true [:div [:h1 "Route not found"]]))
 
 (defn header-menu-full []
   [:div.ui.menu
@@ -143,4 +144,4 @@
      [:div.middle.aligned.row
       [:div.sixteen.wide.column
        [current-page-content]]]]]
-   [notifier (notify-head) 2000]])
+   [notifier (active-notification)]])

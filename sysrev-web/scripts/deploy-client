@@ -15,7 +15,6 @@ cd ./resources/public
 mkdir tmp
 cp -R ./out-production ./tmp/out
 cp ./ga.js ./tmp/ga.js
-cp ./index.html ./tmp/
 cp -R ./css/ ./tmp/
 cp ./favicon.ico ./tmp
 cp -R ../../semantic/dist ./tmp/semantic

@@ -7,16 +7,7 @@
             [sysrev.db.project :as project]
             [sysrev.util :refer [parse-number integerify-map-keys]]))
 
-(defn wrap-json
-  "Create an HTTP response with content of OBJ converted to a JSON string."
-  [obj]
-  (-> obj
-      (json/write-str)
-      (r/response)
-      (r/header "Content-Type" "application/json; charset=utf-8")
-      (r/header "Cache-Control" "no-cache, no-store")))
-
-(defn get-user-id [request]
+(defn current-user-id [request]
   (-> request :session :identity :user-id))
 
 (defn web-criteria []
@@ -38,10 +29,9 @@
       (assoc-in umap [:labels :unconfirmed] nil))))
 
 (defn web-label-task [user-id n-max & [above-score]]
-  (if user-id
-    {:result (users/get-user-label-tasks
-              user-id n-max above-score)}
-    {:error true}))
+  (assert (integer? user-id))
+  {:result (users/get-user-label-tasks
+            user-id n-max above-score)})
 
 (defn web-article-info [article-id]
   (let [[article raw-labels]
@@ -64,22 +54,15 @@
      :labels labels}))
 
 (defn web-set-labels [request confirm?]
-  (if-let [user-id (get-user-id request)]
-    (try
-      (let [fields (-> request :body slurp
-                       (json/read-str :key-fn keyword)
-                       integerify-map-keys)
-            article-id (:article-id fields)
-            label-values (:label-values fields)]
-        (assert (not (users/user-article-confirmed? user-id article-id)))
-        (users/set-user-article-labels user-id article-id label-values false)
-        (when confirm?
-          (users/confirm-user-article-labels user-id article-id))
-        {:result fields})
-      (catch Exception e
-        (println e)
-        {:error "database error"}))
-    {:error "not logged in"}))
+  (if-let [user-id (current-user-id request)]
+    (let [fields (-> request :body integerify-map-keys)
+          {:keys [article-id label-values]} fields]
+      (assert (not (users/user-article-confirmed? user-id article-id)))
+      (users/set-user-article-labels user-id article-id label-values false)
+      (when confirm?
+        (users/confirm-user-article-labels user-id article-id))
+      {:result fields})
+    {:error {:message "not logged in"}}))
 
 (defn web-all-projects []
   (project/get-project-summaries))

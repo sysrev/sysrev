@@ -54,3 +54,10 @@
         (assoc-in [:data :classify-article-id] article-id)
         (assoc-in [:data :classify-review-status] review-status)
         (assoc-in [:page :classify :label-values] {}))))
+
+(defn set-csrf-token [csrf-token]
+  (fn [s]
+    (assoc s :csrf-token csrf-token)))
+
+(defn csrf-token []
+  (get @state :csrf-token))

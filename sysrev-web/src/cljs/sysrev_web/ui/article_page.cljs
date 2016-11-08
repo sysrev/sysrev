@@ -55,7 +55,7 @@
           [label-editor-component
            article-id [:page :article :label-values]]
           [confirm-modal-box
-           article-id
+           #(-> @state :page :article :id)
            [:page :article :label-values]
            (fn [] (scroll-top))]
           [:div.ui.grid

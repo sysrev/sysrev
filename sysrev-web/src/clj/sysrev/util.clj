@@ -38,3 +38,6 @@
                    [k-new v-new])))
          (apply concat)
          (apply hash-map))))
+
+(defn should-never-happen-exception []
+  (ex-info "this should never happen" {:type :should-never-happen}))

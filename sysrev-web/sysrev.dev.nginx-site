@@ -4,28 +4,27 @@ upstream sysrev-clj {
 
 server {
     listen 80;
-    server_name localhost sysrev.dev isysrev.ddns.net;
+    server_name localhost insilica;
 
     access_log /var/log/nginx/sysrev.access_log;
     error_log /var/log/nginx/sysrev.error_log info;
 
     root /var/www/sysrev;
 
-    location /api/ {
+    sendfile off;
+
+    location @clj-site {
         proxy_next_upstream error;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
         proxy_pass http://sysrev-clj;
     }
 
-    location / {
-        try_files $uri /index.html;
+    location /files {
     }
-    
-    # location / {
-    # proxy_next_upstream error;
-    # proxy_set_header X-Real-IP $remote_addr;
-    # proxy_set_header Host $host;
-    # proxy_pass http://sysrev-lein/;
-    # }
+
+    location / {
+        expires -1;
+        try_files $uri @clj-site;
+    }
 }

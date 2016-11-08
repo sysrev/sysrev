@@ -26,7 +26,7 @@
        [label-editor-component
         article-id [:page :classify :label-values]]
        [confirm-modal-box
-        article-id
+        #(data :classify-article-id)
         [:page :classify :label-values]
         (fn [] (scroll-top))]
        (if (full-size?)

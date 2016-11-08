@@ -4,6 +4,9 @@
             [pushy.core :as pushy]
             [cljs.pprint :refer [pprint]]))
 
+(defonce build-profile
+  (if js/goog.DEBUG :dev :prod))
+
 ;; Contains all app state and data pulled from server
 (defonce ^:dynamic state (r/atom {}))
 
@@ -22,6 +25,8 @@
 (defn ga-event
   "Send a Google Analytics event."
   [category action & [label]]
+  (ga "set" "userId"
+      (-> @state :identity :user-uuid str))
   (ga "send" "event" category action label))
 
 ;; used to detect route changes and run (ga) hook
@@ -42,5 +47,3 @@
 
 (defn history-init []
   (pushy/start! history))
-
-

@@ -31,18 +31,21 @@
    [:div.ui.stripe {:style {:padding-top "20px"}}
     [:h1.ui.header.huge.center.aligned "Loading data..."]]])
 
-(defn notifier [head]
-  (fn [head]
-    (when-not (empty? head)
-      [:div.ui.middle.aligned.large.blue.message
-       {:style {:color "black"
-                :position "fixed"
-                :bottom "5px"
-                :min-height (if (full-size?) "60px" "30px")
-                :width "auto"
-                :right "5px"
-                :padding (if (full-size?) "1.2em" "0.6em")}}
-       head])))
+(defn notifier [{:keys [message class]
+                 :as entry}]
+  (when-not (empty? entry)
+    [:div.ui.middle.aligned.large.message
+     (cond->
+         {:style {:color "black"
+                  :font-size (when (full-size?) "125%")
+                  :position "fixed"
+                  :bottom "5px"
+                  :min-height (if (full-size?) "60px" "30px")
+                  :width "auto"
+                  :right "5px"
+                  :padding (if (full-size?) "1.0em" "0.6em")}}
+       class (assoc :class class))
+     message]))
 
 (defn similarity-bar [similarity]
   (fn [similarity]
@@ -157,7 +160,7 @@
 
   `on-confirm` is a function that will be run when the AJAX confirm request
   succeeds."
-  [article-id labels-path on-confirm]
+  [article-id-fn labels-path on-confirm]
   (r/create-class
    {:component-did-mount
     (fn [e]
@@ -168,18 +171,20 @@
          ;; semantic and reagent in managing DOM
          :detachable false
          :onApprove
-         #(ajax/confirm-labels
-           article-id
-           (d/active-label-values article-id labels-path)
-           on-confirm)}))
+         #(let [article-id (article-id-fn)]
+            (ajax/confirm-labels
+             article-id
+             (d/active-label-values article-id labels-path)
+             on-confirm))}))
       (.modal
        (js/$ (r/dom-node e))
        "setting" "transition" "fade up"))
     :reagent-render
-    (fn [article-id labels-path on-confirm]
+    (fn [article-id-fn labels-path on-confirm]
       [:div.ui.small.modal
        [:div.header "Confirm article labels?"]
-       (let [criteria (data :criteria)
+       (let [article-id (article-id-fn)
+             criteria (data :criteria)
              n-total (count criteria)
              label-values (d/active-label-values article-id labels-path)
              n-set (->> label-values vals (remove nil?) count)]

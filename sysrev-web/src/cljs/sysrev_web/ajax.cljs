@@ -26,6 +26,12 @@
          (apply concat)
          (apply hash-map))))
 
+(defn request-error [url message data]
+  (ga-event "error" "ajax_error" url)
+  (notify message {:class "red" :display-ms 2000})
+  (println (str url " - " message))
+  (println (pr-str data)))
+
 (defn ajax-get
   "Performs an AJAX GET call with proper JSON handling.
   Calls function `handler` on the response map."
@@ -34,8 +40,16 @@
         :format :json
         :response-format :json
         :keywords? true
+        :headers (when-let [csrf-token (s/csrf-token)]
+                   {"x-csrf-token" csrf-token})
         :params content
-        :handler #(handler (integerify-map-keys %))))
+        :handler #(do
+                    (when (contains? % :csrf-token)
+                      (swap! state (s/set-csrf-token (:csrf-token %))))
+                    (if (contains? % :result)
+                      (-> % :result integerify-map-keys handler)
+                      (request-error url "Server error (empty result from request)" %)))
+        :error-handler #(request-error url "Server error (request failed)" %)))
   ([url handler]
    (ajax-get url nil handler)))
 
@@ -47,8 +61,16 @@
          :format :json
          :response-format :json
          :keywords? true
+         :headers (when-let [csrf-token (s/csrf-token)]
+                    {"x-csrf-token" csrf-token})
          :params content
-         :handler #(handler (integerify-map-keys %))))
+         :handler #(do
+                     (when (contains? % :csrf-token)
+                       (swap! state (s/set-csrf-token (:csrf-token %))))
+                     (if (contains? % :result)
+                       (-> % :result integerify-map-keys handler)
+                       (request-error url "Server error (action had empty result)" %)))
+         :error-handler #(request-error url "Server error (action failed)" %)))
   ([url handler]
    (ajax-post url nil handler)))
 
@@ -130,11 +152,12 @@
      (if (:valid response)
        (do
          (ga-event "auth" "login_success")
+         (notify "Logged in" {:class "green"})
          (pull-identity)
          (nav-scroll-top "/"))
        (do
          (ga-event "auth" "login_failure")
-         (swap! state assoc-in [:page :login :err] (:err response)))))))
+         (swap! state assoc-in [:page :login :err] (:message response)))))))
 
 (defn do-post-register [email password]
   (post-register
@@ -143,9 +166,10 @@
    (fn [response]
      (if (:success response)
        (do (ga-event "auth" "register_success")
+           (notify "Account created" {:class "green"})
            (do-post-login email password))
        (do (ga-event "auth" "register_failure")
-           (swap! state assoc-in [:page :register :err] (:error response)))))))
+           (swap! state assoc-in [:page :register :err] (:message response)))))))
 
 (defn do-post-logout []
   (post-logout
@@ -155,22 +179,21 @@
        (ga-event "auth" "logout_failure"))
      (swap! state (s/log-out))
      (nav-scroll-top "/")
-     (notify "Logged out."))))
+     (notify "Logged out"))))
 
 (defn pull-label-tasks
   ([interval handler above-score]
    (get-label-tasks
     interval
     above-score
-    (fn [response]
-      (when-let [result (:result response)]
-        (let [article-ids (map :article-id result)
-              articles (->> result
-                            (group-by :article-id)
-                            (map-values first))]
-          (swap! state (d/merge-articles articles))
-          ;; (notify (str "Fetched " (count result) " more articles"))
-          (handler result))))))
+    (fn [result]
+      (let [article-ids (map :article-id result)
+            articles (->> result
+                          (group-by :article-id)
+                          (map-values first))]
+        (swap! state (d/merge-articles articles))
+        (notify "Fetched next article")
+        (handler result)))))
   ([interval handler]
    (pull-label-tasks interval handler 0.0)))
 
@@ -192,21 +215,15 @@
   (post-confirm-labels
    {:article-id article-id
     :label-values label-values}
-   (fn [response]
-     (let [err (:error response)
-           res (:result response)
-           event-label (str "article-id = " article-id)]
-       (when-not (empty? err)
-         (ga-event "labels" "confirm_failure" event-label)
-         (notify (str "Error: " err)))
-       (when-not (empty? res)
-         (ga-event "labels" "confirm_success" event-label)
-         (notify "Labels submitted")
-         (pull-article-info article-id)
-         (pull-user-info (s/current-user-id))
-         (when (= article-id (data :classify-article-id))
-           (fetch-classify-task true))
-         (on-confirm))))))
+   (fn [result]
+     (ga-event "labels" "confirm_success"
+               (str "article-id = " article-id))
+     (notify "Labels submitted" {:class "green"})
+     (pull-article-info article-id)
+     (pull-user-info (s/current-user-id))
+     (when (= article-id (data :classify-article-id))
+       (fetch-classify-task true))
+     (on-confirm))))
 
 (defn send-labels
   "Update the database with user label values for `article-id`.
@@ -218,16 +235,8 @@
   (post-set-labels
    {:article-id article-id
     :label-values criteria-values}
-   (fn [response]
-     (let [err (:error response)
-           res (:result response)
-           event-label (str "article-id = " article-id)]
-       (when-not (empty? err)
-         (ga-event "labels" "send_failure" event-label)
-         (notify (str "Error: " err)))
-       (when-not (empty? res)
-         (ga-event "labels" "send_success" event-label)
-         (notify "Labels saved"))))))
+   (fn [result]
+     (notify "Labels saved" {:display-ms 800}))))
 
 (defn fetch-data
   "Fetches the data value under path `ks` in (:data @state) if it does

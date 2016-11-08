@@ -81,9 +81,10 @@
 (defn valid-password? [email password-attempt]
   (let [entry (get-user-by-email email)
         encrypted-password (:pw-encrypted-buddy entry)]
-    (and entry
-         encrypted-password
-         (buddy.hashers/check password-attempt encrypted-password))))
+    (boolean
+     (and entry
+          encrypted-password
+          (buddy.hashers/check password-attempt encrypted-password)))))
 
 (defn delete-user [user-id]
   (assert (integer? user-id))

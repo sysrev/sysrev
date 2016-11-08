@@ -24,13 +24,16 @@ server {
 
     sendfile off;
 
-    location /api/ {
+    location @clj-site {
         proxy_next_upstream error;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
         proxy_pass http://sysrev-clj;
     }
 
+    location /files {
+    }
+    
     location /robots.txt {
         add_header Content-Type text/plain;
         return 200 "User-agent: *\nDisallow: /\n";
@@ -38,13 +41,6 @@ server {
 
     location / {
         expires -1;
-        try_files $uri /index.html;
+        try_files $uri @clj-site;
     }
-    
-    # location / {
-    # proxy_next_upstream error;
-    # proxy_set_header X-Real-IP $remote_addr;
-    # proxy_set_header Host $host;
-    # proxy_pass http://sysrev-lein/;
-    # }
 }
