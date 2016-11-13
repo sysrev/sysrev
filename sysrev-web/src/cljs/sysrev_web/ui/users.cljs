@@ -1,8 +1,9 @@
 (ns sysrev-web.ui.users
-  (:require [sysrev-web.base :refer [state]]))
+  (:require [sysrev-web.base :refer [state]]
+            [sysrev-web.state.data :as d]))
 
 (defn user-info-card [user-id]
-  (let [users (-> @state :data :sysrev :users)
+  (let [users (d/project :users)
         u (get users user-id)
         email (-> u :user :email)
         name (-> u :user :name)

@@ -3,7 +3,7 @@
    [clojure.core.reducers :refer [fold]]
    [clojure.string :refer [capitalize]]
    [sysrev-web.base :refer [state]]
-   [sysrev-web.state.data :as d :refer [data]]
+   [sysrev-web.state.data :as d]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-value-tag
      with-tooltip three-state-selection]]
@@ -12,7 +12,7 @@
 
 (defn label-values-component [article-id user-id]
   (fn [article-id & [user-id]]
-    (let [cids (-> @state :data :criteria keys sort)
+    (let [cids (-> (d/project :criteria) keys sort)
           values (d/user-label-values article-id user-id)
           values (if-not (empty? values)
                    values
@@ -26,7 +26,7 @@
           (map
            (fn [[cid answer]]
              (let [criteria-name
-                   (get-in @state [:data :criteria cid :name])
+                   (d/project [:criteria cid :name])
                    answer-str (if (nil? answer)
                                 "unknown"
                                 (str answer))]
@@ -261,7 +261,7 @@
   `labels-path` is a sequence of keys specifying the path
   in `state` where the label values set by the user will be stored."
   [article-id labels-path]
-  (let [criteria (data :criteria)
+  (let [criteria (d/project :criteria)
         label-values (d/active-label-values article-id labels-path)
         core-ids (->> (keys criteria)
                       (remove #(-> (get criteria %) :is-inclusion nil?)))

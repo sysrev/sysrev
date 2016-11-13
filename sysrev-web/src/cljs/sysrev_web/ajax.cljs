@@ -86,15 +86,21 @@
 (defn post-login [data handler] (ajax-post "/api/auth/login" data handler))
 (defn post-register [data handler] (ajax-post "/api/auth/register" data handler))
 (defn post-logout [handler] (ajax-post "/api/auth/logout" handler))
-(defn get-label-tasks
-  ([interval above-score handler]
-   (ajax-get
-    (str "/api/label-task/" interval)
-    (when-not (nil? above-score) {:above-score above-score})
-    handler))
-  ([interval handler] (get-label-tasks interval nil handler)))
+(defn get-label-task [handler]
+  (ajax-get "/api/label-task" handler))
 (defn post-set-labels [data handler] (ajax-post "/api/set-labels" data handler))
-(defn post-confirm-labels [data handler] (ajax-post "/api/confirm-labels" data handler))
+(defn post-select-project [project-id handler]
+  (ajax-post "/api/select-project"
+             {:project-id project-id}
+             handler))
+
+(defn select-project [project-id]
+  (post-select-project
+   project-id
+   (fn [result]
+     (notify "Project selected")
+     (swap! state (s/change-project project-id))
+     (nav-scroll-top "/"))))
 
 (defn pull-user-info [user-id]
   (get-user-info
@@ -115,15 +121,12 @@
   (get-identity
    (fn [response]
      (swap! state (s/set-identity (:identity response)))
+     (swap! state (s/set-active-project-id (:active-project response)))
      (when-let [user-id (s/current-user-id)]
        (when-not (d/user-info user-id)
-         (pull-user-info user-id))))))
-
-(defn pull-criteria []
-  (when (nil? (d/data :criteria))
-    (get-criteria
-     (fn [response]
-       (swap! state (d/set-criteria response))))))
+         (pull-user-info user-id)))
+     (when-let [project-id (s/active-project-id)]
+       (pull-project-info)))))
 
 (defn pull-article-info [article-id]
   (get-article-info
@@ -181,22 +184,6 @@
      (nav-scroll-top "/")
      (notify "Logged out"))))
 
-(defn pull-label-tasks
-  ([interval handler above-score]
-   (get-label-tasks
-    interval
-    above-score
-    (fn [result]
-      (let [article-ids (map :article-id result)
-            articles (->> result
-                          (group-by :article-id)
-                          (map-values first))]
-        (swap! state (d/merge-articles articles))
-        (notify "Fetched next article")
-        (handler result)))))
-  ([interval handler]
-   (pull-label-tasks interval handler 0.0)))
-
 (defn fetch-classify-task [& [force?]]
   (let [current-id (data :classify-article-id)]
     (when (or force? (nil? current-id))
@@ -204,17 +191,34 @@
             (if (nil? current-id)
               nil
               (data [:articles current-id :score]))]
-        (pull-label-tasks
-         1
-         #(swap! state (s/set-classify-task
-                        (-> % first :article-id)
-                        (-> % first :review-status)))
-         current-score)))))
+        (get-label-task
+         (fn [result]
+           (swap! state (d/merge-article result))
+           (swap! state (s/set-classify-task
+                         (:article-id result)
+                         (:review-status result)))
+           (notify "Fetched next article")))))))
 
-(defn confirm-labels [article-id label-values on-confirm]
-  (post-confirm-labels
+(defn send-labels
+  "Update the database with user label values for `article-id`.
+  `criteria-values` is a map of criteria-ids to booleans.
+  Any unset criteria-ids will be unset on the server.
+  Will fail on server if user is not logged in."
+  [article-id label-values]
+  (post-set-labels
    {:article-id article-id
-    :label-values label-values}
+    :label-values label-values
+    :confirm false}
+   (fn [result]
+     (notify "Labels saved" {:display-ms 800}))))
+
+(defn confirm-labels
+  "Same as `send-labels` but also marks the labels as confirmed."
+  [article-id label-values on-confirm]
+  (post-set-labels
+   {:article-id article-id
+    :label-values label-values
+    :confirm true}
    (fn [result]
      (ga-event "labels" "confirm_success"
                (str "article-id = " article-id))
@@ -225,19 +229,6 @@
        (fetch-classify-task true))
      (on-confirm))))
 
-(defn send-labels
-  "Update the database with user label values for `article-id`.
-  `criteria-values` is a map of criteria-ids to booleans.
-  Any unset criteria-ids will be unset on the server.
-  Will fail on server if user is not logged in.
-  If `confirm?` is true, will also mark these labels as confirmed."
-  [article-id criteria-values]
-  (post-set-labels
-   {:article-id article-id
-    :label-values criteria-values}
-   (fn [result]
-     (notify "Labels saved" {:display-ms 800}))))
-
 (defn fetch-data
   "Fetches the data value under path `ks` in (:data @state) if it does
   not already exist (or if `force?` is true)."
@@ -245,7 +236,6 @@
   (let [ks (if (keyword? ks) [ks] ks)]
     (when (or force? (nil? (d/data ks)))
       (case (first ks)
-        :criteria (pull-criteria)
         :sysrev (pull-project-info)
         :all-projects (pull-all-projects)
         :users (let [[_ user-id] ks] (pull-user-info user-id))

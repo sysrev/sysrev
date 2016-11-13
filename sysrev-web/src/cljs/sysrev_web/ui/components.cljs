@@ -4,6 +4,7 @@
             [sysrev-web.util :refer [url-domain nbsp scroll-top full-size?]]
             [sysrev-web.base :refer [state]]
             [sysrev-web.ajax :as ajax]
+            [sysrev-web.state.core :as s]
             [sysrev-web.state.data :as d :refer [data]]
             [reagent.core :as r]
             [cljsjs.jquery]
@@ -140,7 +141,7 @@
   `value` is one of true, false, nil."
   [criteria-id value]
   (let [label
-        (get-in @state [:data :criteria criteria-id :short-label])]
+        (d/project [:criteria criteria-id :short-label])]
     [true-false-nil-tag "medium" {} true (str label "?") value]))
 
 (defn with-tooltip [content]
@@ -184,7 +185,7 @@
       [:div.ui.small.modal
        [:div.header "Confirm article labels?"]
        (let [article-id (article-id-fn)
-             criteria (data :criteria)
+             criteria (d/project :criteria)
              n-total (count criteria)
              label-values (d/active-label-values article-id labels-path)
              n-set (->> label-values vals (remove nil?) count)]
@@ -200,3 +201,13 @@
        [:div.ui.actions
         [:div.ui.button.cancel "Cancel"]
         [:div.ui.button.ok "Confirm"]]])}))
+
+(defn project-wrapper-div [content]
+  [:div
+   {:style {:margin-top "-1.0em"}}
+   [:div.ui.middle.aligned.center.aligned.segment
+    {:style {:margin-top "0"
+             :padding-top "0.5em"
+             :padding-bottom "0.5em"}}
+    [:h4 (d/data [:all-projects (s/active-project-id) :name])]]
+   content])

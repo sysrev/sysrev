@@ -5,7 +5,7 @@
      ~@body))
 
 (defmacro with-mount-hook [on-mount content]
-  `(r/create-class
+  `(reagent.core/create-class
     {:component-did-mount
      ~on-mount
      :reagent-render

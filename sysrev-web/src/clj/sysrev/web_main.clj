@@ -1,4 +1,4 @@
-(ns sysrev.web.main
+(ns sysrev.web-main
   (:gen-class)
   (:require [sysrev.init :as init]))
 

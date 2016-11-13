@@ -1,6 +1,7 @@
 (ns sysrev-web.ui.sysrev
   (:require [sysrev-web.base :refer [state build-profile]]
-            [sysrev-web.state.data :refer [data]]
+            [sysrev-web.state.core :as s]
+            [sysrev-web.state.data :as d]
             [sysrev-web.util :refer
              [nav number-to-word full-size?]]
             [sysrev-web.ui.users :as users]
@@ -9,10 +10,10 @@
 
 (defn selected-criteria-id []
   (or (-> @state :page :project :active-cid)
-      (data [:overall-cid])))
+      (d/project :overall-cid)))
 
 (defn project-summary-box []
-  (let [stats (-> @state :data :sysrev :stats)]
+  (let [stats (d/project :stats)]
     [:div.ui.grey.raised.segment
      [:div.ui.three.column.grid.project-stats
       [:div.ui.row
@@ -42,9 +43,7 @@
         " awaiting extra review"]]]]))
 
 (defn label-counts-box []
-  (let [stats (-> @state :data :sysrev :stats)
-        cid (selected-criteria-id)
-        clabel (data [:criteria cid :short-label])]
+  (let [stats (d/project :stats)]
     [:table.ui.celled.unstackable.table.grey.raised.segment
      [:thead
       [:tr
@@ -55,7 +54,7 @@
      [:tbody
       (doall
        (for [cid (-> stats :label-values keys)]
-         (let [clabel (get-in @state [:data :criteria cid :short-label])
+         (let [clabel (d/project [:criteria cid :short-label])
                counts (get-in stats [:label-values cid])]
            ^{:key {:label-stats cid}}
            [:tr
@@ -65,7 +64,7 @@
             [:td (str (:unknown counts))]])))]]))
 
 (defn user-list-box []
-  (let [users (-> @state :data :sysrev :users)
+  (let [users (d/project :users)
         user-ids
         (->> (keys users)
              (filter
@@ -112,8 +111,8 @@
 
 (defn train-input-summary-box []
   (let [cid (selected-criteria-id)
-        clabel (data [:criteria cid :short-label])
-        counts (data [:sysrev :stats :predict cid :counts])]
+        clabel (d/project [:criteria cid :short-label])
+        counts (d/project [:stats :predict cid :counts])]
     [:table.ui.celled.unstackable.table.grey.segment.mobile-table
      [:thead
       [:tr
@@ -130,8 +129,8 @@
 
 (defn value-confidence-box []
   (let [cid (selected-criteria-id)
-        c-include (data [:sysrev :stats :predict cid :include :confidence])
-        c-exclude (data [:sysrev :stats :predict cid :exclude :confidence])
+        c-include (d/project [:stats :predict cid :include :confidence])
+        c-exclude (d/project [:stats :predict cid :exclude :confidence])
         c-percents (-> c-include keys sort)]
     [:div.ui.grid
      [:div.ui.sixteen.wide.column
@@ -164,7 +163,7 @@
               [:td (str n-articles)])))]]]]]))
 
 (defn predict-report-criteria-menu []
-  (let [cids (keys (data [:sysrev :stats :predict]))
+  (let [cids (keys (d/project [:stats :predict]))
         ncols (-> cids count number-to-word)
         active-cid (selected-criteria-id)]
     [:div.ui.top.attached.segment
@@ -176,7 +175,7 @@
               [:div.ui.small.blue.dropdown.button
                {:style {:margin-left "5px"}}
                [:input {:type "hidden" :name "menu-dropdown"}]
-               [:label (data [:criteria active-cid :short-label])]
+               [:label (d/project [:criteria active-cid :short-label])]
                [:i.chevron.down.right.icon]
                [:div.menu
                 (doall
@@ -186,7 +185,7 @@
                      [:a.item
                       {:href (str "/project/predict/" cid)
                        :class (if active "default active" "")}
-                      (data [:criteria cid :short-label])])))]])]
+                      (d/project [:criteria cid :short-label])])))]])]
         [dropdown])]]))
 
 (defn project-predict-report-box []
@@ -197,7 +196,7 @@
       [train-input-summary-box]
       [value-confidence-box]]
      [:div.ui.secondary.segment
-      [:h4 (str "Last updated: " (data [:sysrev :stats :predict cid :update-time]))]]]))
+      [:h4 (str "Last updated: " (d/project [:stats :predict cid :update-time]))]]]))
 
 (defn project-page []
   [:div

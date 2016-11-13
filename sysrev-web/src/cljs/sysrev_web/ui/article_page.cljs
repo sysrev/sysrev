@@ -12,9 +12,9 @@
 
 (defn article-page []
   (let [article-id (-> @state :page :article :id)
-        criteria (-> @state :data :criteria)
+        criteria (d/project :criteria)
         criteria-ids (keys criteria)
-        overall-cid (-> @state :data :overall-cid)]
+        overall-cid (d/project :overall-cid)]
     [:div
      (let [user-id (current-user-id)
            confirmed

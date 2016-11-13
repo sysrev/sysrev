@@ -41,10 +41,17 @@
 (defn active-project-id []
   (get @state :active-project-id))
 
+(defn change-project [project-id]
+  (fn [s]
+    (-> s
+        (assoc :active-project-id project-id)
+        (assoc :data {}))))
+
 (defn log-out []
   (fn [s]
     (-> s
         (assoc :identity nil)
+        (assoc :active-project-id nil)
         (assoc :data {})
         (assoc :page {}))))
 

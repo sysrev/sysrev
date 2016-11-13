@@ -1,6 +1,7 @@
 (ns sysrev-web.ui.labels
   (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.ui.components :refer [true-false-nil-tag]]))
+            [sysrev-web.ui.components :refer [true-false-nil-tag]]
+            [sysrev-web.state.data :as d]))
 
 (defn labels-page []
   [:table.ui.celled.unstackable.table
@@ -12,7 +13,7 @@
    [:tbody
     (doall
      (->>
-      (-> @state :data :criteria)
+      (d/project :criteria)
       (map
        (fn [[id criteria]]
          ^{:key {:label-entry id}}

@@ -1,31 +1,19 @@
 (ns sysrev.web.core
   (:require [compojure.core :refer :all]
+            [compojure.route :refer [not-found]]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
-            [buddy.auth :refer [authenticated? throw-unauthorized]]
-            [buddy.auth.backends.session :refer [session-backend]]
-            [buddy.auth.middleware :refer [wrap-authentication wrap-authorization]]
             [org.httpkit.server :refer [run-server]]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [sysrev.web.session :refer [sysrev-session-store]]
-            [sysrev.web.app :as app]))
-
-(defonce sessions-instance
-  (atom nil))
-
-(defn- create-sessions-instance []
-  (reset!
-   sessions-instance
-   (session-backend
-    {:unauthorized-handler
-     (fn [request metadata]
-       (if-not (authenticated? request)
-         (app/not-authenticated-response request)
-         (app/not-authorized-response request)))})))
+            [sysrev.web.index :as index]
+            [sysrev.web.routes.auth :refer [auth-routes]]
+            [sysrev.web.routes.project :refer [project-routes]]
+            [sysrev.web.app :refer [wrap-sysrev-api not-found-response]]))
 
 (defn- wrap-no-cache [handler]
   #(-> (handler %)
@@ -43,15 +31,26 @@
          (assoc-in response [:body :csrf-token] *anti-forgery-token*)
          response))))
 
+(def app-routes
+  (routes
+   (GET "/" [] index/index)
+   auth-routes
+   project-routes
+   (GET "*" {:keys [uri] :as request}
+        (if (-> uri (str/split #"/") last (str/index-of \.))
+          ;; Fail if request appears to be for a static file
+          (not-found-response request)
+          ;; Otherwise serve index.html
+          (index/index request)))
+   (not-found (index/not-found nil))))
+
 (defn sysrev-app [& [reloadable?]]
   (let [config
         (-> default/site-defaults
             (assoc-in [:session :store] (sysrev-session-store)))]
-    (-> app/app-routes
-        app/wrap-sysrev-api
+    (-> app-routes
+        wrap-sysrev-api
         wrap-add-anti-forgery-token
-        (wrap-authorization @sessions-instance)
-        (wrap-authentication @sessions-instance)
         wrap-json-response
         (#(if reloadable?
             (identity %)
@@ -72,7 +71,6 @@
   (let [port (or port @web-port 4041)]
     (reset! web-port port)
     (stop-web-server)
-    (create-sessions-instance)
     (reset! web-server
             (run-server (sysrev-app (if prod? false true))
                         {:port port

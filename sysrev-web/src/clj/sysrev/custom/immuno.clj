@@ -1,4 +1,8 @@
-(ns sysrev.db.endnote
+;;
+;; This code is mostly specific to the Immunotherapy project.
+;;
+
+(ns sysrev.custom.immuno
   (:require [clojure.xml :as xml]
             [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
@@ -7,19 +11,9 @@
             [sysrev.db.core :refer
              [do-query do-execute do-transaction]]
             [sysrev.db.users :as users]
+            [sysrev.db.labels :as labels]
+            [sysrev.util :refer [xml-find]]
             [clojure.string :as str]))
-
-(defn xml-find [roots path]
-  (if (empty? path)
-    roots
-    (xml-find
-     (flatten
-      (mapv (fn [root]
-              (filterv (fn [child]
-                         (= (:tag child) (first path)))
-                       (:content root)))
-            roots))
-     (rest path))))
 
 (defn parse-endnote-file [fname]
   (-> fname
@@ -30,10 +24,11 @@
   for the given fields. Requires an exact match on title and journal fields,
   allows for differences in remote-database-name and attempts to select an 
   appropriate match."
-  [title journal rdb-name]
+  [project-id title journal rdb-name]
   (let [results (-> (select :article-id :remote-database-name)
                     (from :article)
                     (where [:and
+                            [:= :project-id project-id]
                             [:= :primary-title title]
                             [:= :secondary-title journal]])
                     (order-by :article-id)
@@ -99,11 +94,13 @@
 
 (defn group-name-to-label-values
   "Creates a label-values map from a label group string (from the XML export)."
-  [gname]
+  [project-id gname]
   (let [cid (fn [cname]
               (-> (select :criteria-id)
                   (from :criteria)
-                  (where [:= :name cname])
+                  (where [:and
+                          [:= :project-id project-id]
+                          [:= :name cname]])
                   do-query
                   first
                   :criteria-id))]
@@ -181,18 +178,19 @@
 (defn store-endnote-labels
   "Records all the labels contained in Endnote XML export file `fname` as
   being set and confirmed by user `user-id`."
-  [user-id fname]
+  [project-id user-id fname]
   (->>
    (load-endnote-file fname)
    (pmap
     (fn [[gname gentries]]
-      (let [label-values (group-name-to-label-values gname)]
+      (let [label-values (group-name-to-label-values project-id gname)]
         (println (format "label-values for '%s' = %s"
                          gname (pr-str label-values)))
         (assert (not (empty? label-values)))
         (when ((comp not empty?) label-values)
           (doseq [entry gentries]
-            (let [article-id (match-article-id (:title entry)
+            (let [article-id (match-article-id project-id
+                                               (:title entry)
                                                (:journal entry)
                                                (:rdb-name entry))]
               (println (format "setting labels for article #%s" article-id))
@@ -202,7 +200,7 @@
                             [:= :user-id user-id]
                             [:= :article-id article-id]])
                     do-execute)
-                (users/set-user-article-labels
+                (labels/set-user-article-labels
                  user-id article-id label-values true)))))
         true)))
    doall)

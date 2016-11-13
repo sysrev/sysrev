@@ -1,8 +1,9 @@
 (ns sysrev-web.routes
   (:require
    [sysrev-web.base :refer [state]]
-   [sysrev-web.state.core :refer [on-page? current-page current-user-id logged-in?]]
-   [sysrev-web.state.data :refer [data]]
+   [sysrev-web.state.core :as s :refer
+    [on-page? current-page current-user-id logged-in? active-project-id]]
+   [sysrev-web.state.data :as d :refer [data]]
    [sysrev-web.ajax :as ajax]
    [sysrev-web.util :refer [nav in?]]
    [secretary.core :include-macros true :refer-macros [defroute]]
@@ -40,30 +41,32 @@
   {:login
    {:required
     (fn [s]
-      [[:all-projects]])}
+      [])}
 
    :register
    {:required
     (fn [s]
-      [[:all-projects]])}
+      [])}
+
+   :select-project
+   {:required
+    (fn [s]
+      [])}
    
    :project
    {:required
     (fn [s]
-      [[:all-projects]
-       [:criteria]
-       [:sysrev]])
+      [])
     :reload
     (fn [old new]
-      [[:sysrev]])}
+      (with-state new
+        (when-let [project-id (active-project-id)]
+          [[:sysrev project-id]])))}
    
    :classify
    {:required
     (fn [s]
-      [[:all-projects]
-       [:criteria]
-       [:documents]
-       [:sysrev]
+      [[:documents]
        (when-let [user-id (with-state s (current-user-id))]
          [:users user-id])
        [:classify-article-id]
@@ -79,26 +82,20 @@
    :article
    {:required
     (fn [s]
-      [[:all-projects]
-       [:criteria]
+      [[:documents]
        [:article-labels (-> s :page :article :id)]
-       [:documents]
-       [:sysrev]
        (when-let [user-id (with-state s (current-user-id))]
          [:users user-id])])
     :reload
     (fn [old new]
-      [(when-let [user-id (with-state new (current-user-id))]
-         [:users user-id])
-       [:article-labels (-> new :page :article :id)]])}
+      [[:article-labels (-> new :page :article :id)]
+       (when-let [user-id (with-state new (current-user-id))]
+         [:users user-id])])}
    
    :user-profile
    {:required
     (fn [s]
-      [[:all-projects]
-       [:criteria]
-       [:sysrev]
-       [:documents]
+      [[:documents]
        [:users (-> s :page :user-profile :user-id)]])
     :reload
     (fn [old new]
@@ -107,32 +104,35 @@
    :labels
    {:required
     (fn [s]
-      [[:all-projects]
-       [:criteria]])}})
+      [])}})
 
-(defn data-initialized?
-  "Test whether all server data required for a page has been received."
-  [page]
-  (and (contains? @state :identity)
-       (let [required-fn (get-in page-specs [page :required])
-             required-fields
-             (as-> (required-fn @state) fields
-               (if (page-authorized? page)
-                 fields
-                 (filter public-data? fields)))]
-         (every? #(not= :not-found (data % :not-found))
-                 required-fields))))
+(defn global-required-data [s]
+  (with-state s
+    (concat
+     [[:all-projects]]
+     (when-let [project-id (active-project-id)]
+       [[:sysrev project-id]]))))
 
 (defn page-required-data
   ([page-key]
    (page-required-data page-key @state))
   ([page-key state-map]
    (let [required-fn (get-in page-specs [page-key :required])]
-     (as-> (required-fn state-map) fields
+     (as-> (concat (required-fn state-map)
+                   (global-required-data state-map))
+         fields
        (remove nil? fields)
        (if (page-authorized? page-key)
          fields
          (filter public-data? fields))))))
+
+(defn data-initialized?
+  "Test whether all server data required for a page has been received."
+  [page]
+  (and (contains? @state :identity)
+       (let [required-fields (page-required-data page)]
+         (every? #(not= :not-found (data % :not-found))
+                 required-fields))))
 
 (defn page-reload-data
   ([page-key]
@@ -216,6 +216,10 @@
 (defroute register "/register" []
   (do-route-change :register
                    {:email "" :password "" :submit false}))
+
+(defroute select-project "/select-project" []
+  (do-route-change :select-project
+                   {:selected nil}))
 
 (defroute project-overview "/project" []
   (do-route-change :project

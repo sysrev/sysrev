@@ -1,0 +1,118 @@
+(ns sysrev.misc
+  (:require [sysrev.db.core :refer
+             [do-query do-execute do-transaction *active-project*]]
+            [clojure-csv.core :refer [write-csv]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+
+(defn export-label-values-csv [project-id criteria-id path]
+  (let [article-labels
+        (->>
+         (-> (select :ac.article-id :ac.answer)
+             (from [:article-criteria :ac])
+             (join [:article :a]
+                   [:= :a.article-id :ac.article-id])
+             (where [:and
+                     [:= :a.project-id project-id]
+                     [:= :ac.criteria-id criteria-id]
+                     [:!= :ac.answer nil]
+                     [:!= :ac.confirm-time nil]])
+             do-query)
+         (group-by :article-id)
+         (map-values #(map :answer %))
+         (map-values
+          (fn [answers]
+            (->>
+             (distinct answers)
+             (map
+              (fn [answer]
+                {:answer answer
+                 :count (->> answers
+                             (filter #(= % answer))
+                             count)}))
+             (sort-by :count >)
+             first
+             :answer))))]
+    (->> article-labels
+         vec
+         (map #(map str %))
+         write-csv
+         (spit path))))
+
+;; This finds examples of highly-similar and highly-dissimilar articles
+;; relative to `article-id`.
+;;
+;; *** Not updated for multiple projects in db ***
+#_
+(defn find-similarity-examples-for-article [project-id sim-version-id article-id]
+  (let [good
+        (->>
+         (-> (select :*)
+             (from :article-similarity)
+             (where [:and
+                     [:= :sim-version-id sim-version-id]
+                     [:or
+                      [:= :lo-id article-id]
+                      [:= :hi-id article-id]]
+                     [:!= :lo-id :hi-id]
+                     [:> :similarity 0.01]])
+             (order-by [:similarity :asc])
+             (limit 5)
+             do-query)
+         reverse
+         (map (fn [e]
+                (let [other-id (if (= (:lo-id e) article-id)
+                                 (:hi-id e)
+                                 (:lo-id e))
+                      article (-> (select :article-id
+                                          :primary-title
+                                          :secondary-title
+                                          :abstract)
+                                  (from :article)
+                                  (where [:= :article-id other-id])
+                                  do-query first)]
+                  (assoc article :distance (:similarity e)))))
+         (filter #(>= (count (:abstract %)) 200))
+         first)
+        bad
+        (->>
+         (-> (select :*)
+             (from :article-similarity)
+             (where [:and
+                     [:= :sim-version-id sim-version-id]
+                     [:or
+                      [:= :lo-id article-id]
+                      [:= :hi-id article-id]]
+                     [:!= :lo-id :hi-id]
+                     [:> :similarity 0.9]
+                     [:< :similarity 0.98]])
+             (order-by [:similarity :desc])
+             (limit 100)
+             do-query)
+         reverse
+         (map (fn [e]
+                (let [other-id (if (= (:lo-id e) article-id)
+                                 (:hi-id e)
+                                 (:lo-id e))
+                      article (-> (select :article-id
+                                          :primary-title
+                                          :secondary-title
+                                          :abstract)
+                                  (from :article)
+                                  (where [:= :article-id other-id])
+                                  do-query first)]
+                  (assoc article :distance (:similarity e)))))
+         (filter #(>= (count (:abstract %)) 200))
+         first)
+        article (-> (select :article-id
+                            :primary-title
+                            :secondary-title
+                            :abstract)
+                    (from :article)
+                    (where [:= :article-id article-id])
+                    do-query first)]
+    {:article article
+     :similar good
+     :unsimilar bad}))

@@ -17,9 +17,9 @@
   (when-let [article-id (data :classify-article-id)]
     (let [user-id (current-user-id)
           email (-> @state :identity :email)
-          criteria (-> @state :data :criteria)
+          criteria (d/project :criteria)
           criteria-ids (keys criteria)
-          overall-cid (-> @state :data :overall-cid)]
+          overall-cid (d/project :overall-cid)]
       [:div.ui
        [article-info-component
         article-id false user-id (data :classify-review-status) true]

@@ -1,7 +1,7 @@
 (ns sysrev-web.state.data
   (:require [sysrev-web.base :refer [state]]
             [sysrev-web.util :refer [map-values]]
-            [sysrev-web.state.core :refer [current-user-id]]))
+            [sysrev-web.state.core :refer [current-user-id active-project-id]]))
 
 (defn data
   ([ks]
@@ -10,6 +10,16 @@
    (let [ks (if (keyword? ks) [ks] ks)]
      (get-in @state (concat [:data] ks) not-found))))
 
+(defn project
+  ([ks not-found]
+   (let [ks (if (keyword? ks) [ks] ks)]
+     (when-let [project-id (active-project-id)]
+       (data (concat [:sysrev (active-project-id)] ks) not-found))))
+  ([ks]
+   (project ks nil))
+  ([]
+   (project [] nil)))
+
 (defn set-user-info [user-id umap]
   (fn [s]
     (assoc-in s [:data :users user-id] umap)))
@@ -17,15 +27,10 @@
 (defn user-info [user-id]
   (data [:users user-id]))
 
-(defn set-criteria [criteria]
+(defn merge-article [article]
   (fn [s]
-    (-> s
-        (assoc-in [:data :criteria] criteria)
-        (assoc-in [:data :overall-cid]
-                  (->> criteria
-                       (filter (fn [[cid {:keys [name]}]]
-                                 (= name "overall include")))
-                       first first)))))
+    (update-in s [:data :articles]
+               #(assoc % (:article-id article) article))))
 
 (defn merge-articles [articles]
   (fn [s]
@@ -37,7 +42,14 @@
 
 (defn set-project-info [pmap]
   (fn [s]
-    (assoc-in s [:data :sysrev] pmap)))
+    (let [pmap
+          (assoc pmap :overall-cid
+                 (->> (:criteria pmap)
+                      (filter (fn [[cid {:keys [name]}]]
+                                (= name "overall include")))
+                      first first))]
+      (assert (:project-id pmap))
+      (assoc-in s [:data :sysrev (:project-id pmap)] pmap))))
 
 (defn set-all-projects [pmap]
   (fn [s]
@@ -57,7 +69,7 @@
   If multiple users have stored a value for a label, only the first value
   found for each label will be returned."
   [article-id]
-  (let [cids (-> @state :data :criteria keys)
+  (let [cids (-> (project :criteria) keys)
         labels (get-in @state [:data :article-labels article-id])
         known-value
         (fn [cid]
@@ -82,7 +94,7 @@
          (apply hash-map))))
 
 (defn user-label-values [article-id user-id]
-  (let [lmap (get-in @state [:data :users user-id :labels])
+  (let [lmap (data [:users user-id :labels])
         amap (or (get-in lmap [:confirmed article-id])
                  (get-in lmap [:unconfirmed article-id]))]
     (->> amap
@@ -116,4 +128,4 @@
   (str "/files/PDF/" doc-id "/" file-name))
 
 (defn project-user-info [user-id]
-  (data [:sysrev :users user-id]))
+  (project [:users user-id]))

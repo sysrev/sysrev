@@ -41,6 +41,8 @@
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
                  [buddy "1.1.0"]
+                 ;; Web client
+                 [clj-http "3.3.0"]
                  [crypto-random "1.2.0"]
                  ;; Project config file support
                  [yogthos/config "0.8"]
@@ -106,8 +108,8 @@
                  :init-ns sysrev.user}
   :profiles {:prod
              {:resource-paths ["config/prod"]
-              :main sysrev.web.main
-              :aot [sysrev.web.main]}
+              :main sysrev.web-main
+              :aot [sysrev.web-main]}
              :dev
              {:resource-paths ["config/dev"]}
              :dev-spark

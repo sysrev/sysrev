@@ -1,16 +1,18 @@
 (ns sysrev.web.app
   (:require [compojure.core :refer :all]
-            [compojure.route :as route]
+            [compojure.route :refer [not-found]]
             [compojure.response :refer [Renderable]]
             [ring.util.response :as r]
             [clojure.string :as str]
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.web.index :as index]
-            [sysrev.web.ajax :as ajax]
-            [sysrev.web.auth :as auth]
-            [sysrev.db.articles :as articles]
-            [sysrev.db.documents :as docs]
-            [sysrev.util :refer [parse-number]]))
+            [sysrev.db.core :refer [*active-project*]]
+            [sysrev.db.users :refer [get-user-by-id]]
+            [sysrev.db.project :refer [project-member]]
+            [sysrev.util :refer [in? integerify-map-keys]]))
+
+(defn current-user-id [request]
+  (-> request :session :identity :user-id))
 
 (defn make-error-response
   [http-code etype emessage & [exception response]]
@@ -36,49 +38,93 @@
 
 (defn wrap-sysrev-api [handler]
   (fn [request]
-    (try
-      (let [{{{:keys [status type message exception]
-               :or {status 500
-                    type :api
-                    message "Error processing request"}
-               :as error} :error
-              result :result :as body} :body
-             :as response} (handler request)
-            response
-            (cond->
-                (cond
-                  ;; Return error if body has :error field
-                  error (do (when exception
-                              (println "************************")
-                              (println (pr-str request))
-                              (print-cause-trace exception)
-                              (println "************************"))
-                            (make-error-response
-                             status type message exception response))
-                  ;; Otherwise return result if body has :result field
-                  result response
-                  ;; If no :error or :result key, wrap the value in :result
-                  (map? body) (update response :body #(hash-map :result %))
-                  ;;
-                  (empty? body) (make-error-response
-                                 500 :empty "Server error (no data returned)"
-                                 nil response)
-                  :else response))
-            session-meta (-> body meta :session)]
-        ;; If the request handler attached a :session meta value to the result,
-        ;; set that session value in the response.
-        (cond-> response
-          session-meta (assoc :session session-meta)))
-      (catch Throwable e
-        (println "************************")
-        (println (pr-str request))
-        (print-cause-trace e)
-        (println "************************")
-        (make-error-response
-         500 :unknown "Unexpected error processing request" e)))))
+    (binding [*active-project* (-> request :session :active-project)]
+      (try
+        (let [{{{:keys [status type message exception]
+                 :or {status 500
+                      type :api
+                      message "Error processing request"}
+                 :as error} :error
+                result :result :as body} :body
+               :as response} (handler request)
+              response
+              (cond->
+                  (cond
+                    ;; Return error if body has :error field
+                    error (do (when exception
+                                (println "************************")
+                                (println (pr-str request))
+                                (print-cause-trace exception)
+                                (println "************************"))
+                              (make-error-response
+                               status type message exception response))
+                    ;; Otherwise return result if body has :result field
+                    result response
+                    ;; If no :error or :result key, wrap the value in :result
+                    (map? body) (update response :body #(hash-map :result %))
+                    ;;
+                    (empty? body) (make-error-response
+                                   500 :empty "Server error (no data returned)"
+                                   nil response)
+                    :else response))
+              session-meta (-> body meta :session)]
+          ;; If the request handler attached a :session meta value to the result,
+          ;; set that session value in the response.
+          (cond-> response
+            session-meta (assoc :session session-meta)))
+        (catch Throwable e
+          (println "************************")
+          (println (pr-str request))
+          (print-cause-trace e)
+          (println "************************")
+          (make-error-response
+           500 :unknown "Unexpected error processing request" e))))))
 
-;; Overriding this to allow route handler functions to return results as
-;; map values with the value being placed in response :body here.
+(defmacro wrap-permissions
+  "Wrap request handler body to check if user is authorized to perform the
+  request. If authorized then runs body and returns result; if not authorized,
+  returns an error without running body."
+  [request required-perms & body]
+  `(let [request# ~request
+         required-perms# ~required-perms
+         user-id# (current-user-id request#)
+         member# (and user-id#
+                      *active-project*
+                      (project-member *active-project* user-id#))
+         user# (and user-id# (get-user-by-id user-id#))
+         member-perms# (:permissions member#)
+         site-admin?# (in? (:permissions user#) "admin")
+         body-fn# #(do ~@body)]
+     (cond
+       (not (integer? user-id#))
+       {:error {:status 401
+                :type :authentication
+                :message "Not logged in"}}
+
+       (empty? required-perms#)
+       (body-fn#)
+       
+       (and (not (empty? required-perms#))
+            (not (integer? *active-project*)))
+       {:error {:status 403
+                :type :project
+                :message "No project selected"}}
+       
+       (nil? member#)
+       {:error {:status 403
+                :type :member
+                :message "Not authorized (project)"}}
+
+       (not (every? (in? member-perms#) required-perms#))
+       {:error {:status 403
+                :type :permissions
+                :message "Not authorized"}}
+
+       true
+       (body-fn#))))
+
+;; Overriding this to allow route handler functions to return result as
+;; map value with the value being placed in response :body here.
 (extend-protocol Renderable
   clojure.lang.APersistentMap
   (render [resp-map _]
@@ -86,48 +132,3 @@
            (if (contains? resp-map :body)
              resp-map
              {:body resp-map}))))
-
-(defroutes app-routes
-  (GET "/" [] index/index)
-  (POST "/api/auth/login" request
-        (auth/web-login-handler request))
-  (POST "/api/auth/logout" request
-        (auth/web-logout-handler request))
-  (POST "/api/auth/register" request
-        (auth/web-create-account-handler request))
-  (GET "/api/auth/identity" request
-       (auth/web-get-identity request))
-  (GET "/api/criteria" request
-       (ajax/web-criteria))
-  (GET "/api/all-projects" []
-       (ajax/web-all-projects))
-  (GET "/api/article-documents" []
-       (docs/all-article-document-paths))
-  (GET "/api/project-info" []
-       (ajax/web-project-summary))
-  (GET "/api/user-info/:user-id" request
-       (let [request-user-id (ajax/current-user-id request)
-             query-user-id (-> request :params :user-id Integer/parseInt)]
-         (ajax/web-user-info
-          query-user-id (= request-user-id query-user-id))))
-  (GET "/api/label-task/:interval" request
-       (let [user-id (ajax/current-user-id request)
-             interval (-> request :params :interval Integer/parseInt)
-             above-score (-> request :params :above-score)
-             above-score (when above-score (Double/parseDouble above-score))]
-         (ajax/web-label-task user-id interval above-score)))
-  (GET "/api/article-info/:article-id" [article-id]
-       (let [article-id (Integer/parseInt article-id)]
-         (ajax/web-article-info article-id)))
-  (POST "/api/set-labels" request
-        (ajax/web-set-labels request false))
-  (POST "/api/confirm-labels" request
-        (ajax/web-set-labels request true))
-  ;; Match
-  (GET "*" {:keys [uri] :as request}
-       (if (-> uri (str/split #"/") last (str/index-of \.))
-         ;; Fail if request appears to be for a static file
-         (not-found-response request)
-         ;; Otherwise serve index.html
-         (index/index request)))
-  (route/not-found (index/not-found nil)))

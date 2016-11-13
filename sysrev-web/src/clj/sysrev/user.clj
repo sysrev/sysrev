@@ -4,19 +4,23 @@
         sysrev.db.articles
         sysrev.db.documents
         sysrev.db.users
-        sysrev.db.sysrev
+        sysrev.db.labels
         sysrev.db.project
-        sysrev.db.endnote
+        sysrev.db.migration
         ;; sysrev.spark.core
         ;; sysrev.spark.similarity
+        sysrev.import.pubmed
         sysrev.predict.core
         sysrev.predict.report
         sysrev.predict.validate
         sysrev.web.core
-        sysrev.web.ajax
         sysrev.web.session
-        sysrev.web.auth
-        sysrev.web.index)
+        sysrev.web.index
+        sysrev.web.app
+        sysrev.web.routes.auth
+        sysrev.web.routes.project
+        sysrev.web.routes.summaries
+        sysrev.custom.immuno)
   (:require [sysrev.init :as init]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
@@ -37,33 +41,5 @@
             ;; [flambo.sql :as fsql]
             ))
 
-(defn reload []
-  (require 'sysrev.user :reload))
-
 (defonce started
   (init/start-app))
-
-(defn ensure-updated-db
-  "Runs everything to update from pre-multiproject database entries."
-  []
-  (assert (get-default-project))
-  (ensure-user-member-entries)
-  (ensure-user-default-project-ids)
-  (ensure-entry-uuids)
-  (ensure-permissions-set)
-  (let [site-admins ["jeff.workman@gmail.com"
-                     "tomluec@gmail.com"
-                     "pattersonzak@gmail.com"]]
-    (doseq [email site-admins]
-      (when-let [user (get-user-by-email email)]
-        (set-user-permissions (:user-id user) ["user" "admin"])
-        (set-member-permissions (:default-project-id user)
-                                (:user-id user)
-                                ["member"]))))
-  (let [project-admins ["wonghuili@gmail.com"]]
-    (doseq [email project-admins]
-      (when-let [user (get-user-by-email email)]
-        (set-user-permissions (:user-id user) ["user"])
-        (set-member-permissions (:default-project-id user)
-                                (:user-id user)
-                                ["member" "admin" "resolve"])))))

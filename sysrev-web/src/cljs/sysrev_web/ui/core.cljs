@@ -5,7 +5,7 @@
    [sysrev-web.state.core :refer [current-page on-page? logged-in?]]
    [sysrev-web.routes :refer [data-initialized? on-public-page?]]
    [sysrev-web.notify :refer [active-notification]]
-   [sysrev-web.ui.components :refer [loading-screen notifier]]
+   [sysrev-web.ui.components :refer [loading-screen notifier project-wrapper-div]]
    [sysrev-web.ui.sysrev :refer [project-page]]
    [sysrev-web.ui.labels :refer [labels-page]]
    [sysrev-web.ui.login :refer [login-register-page]]
@@ -13,32 +13,43 @@
    [sysrev-web.ajax :as ajax]
    [sysrev-web.ui.classify :refer [classify-page]]
    [sysrev-web.ui.article-page :refer [article-page]]
-   [reagent.core :as r])
+   [sysrev-web.ui.select-project :refer [select-project-page]]
+   [reagent.core :as r]
+   [sysrev-web.state.data :as d])
   (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
 
 (defn logged-out-content []
-  [:div.ui.yellow.segment
-   {:style {:padding-top "20px"
-            :padding-bottom "20px"}}
-   [:h2.ui.header.center.aligned
-    {:class (if (full-size?) "huge" "large")}
-    "Immunotherapy Review"]
-   [:h3.ui.header.center.aligned
-    {:class (if (full-size?) "large" "medium")}
-    "Please log in or register to access project"]])
+  [:div.ui.segments
+   [:div.ui.top.attached.header.segment
+    [:h2.ui.center.aligned
+     "Please log in or register to access a project"]]
+   [:div.ui.bottom.attached.segment
+    [:div.ui.large.list
+     (doall
+      (->>
+       (d/data :all-projects)
+       (map (fn [[project-id project]]
+              ^{:key {:project-list project-id}}
+              [:div.item
+               {:style {:padding-top "0.3em"
+                        :padding-bottom "0.3em"}}
+               [:i.book.middle.aligned.icon]
+               [:div.middle.aligned.content
+                (:name project)]]))))]]])
 
 (defn current-page-content []
   (cond (nil? (current-page)) [:div [:h1 "Route not found"]]
         (not (data-initialized? (current-page))) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
-        (on-page? :project) [project-page]
-        (on-page? :labels) [labels-page]
+        (on-page? :project) [project-wrapper-div [project-page]]
+        (on-page? :select-project) [select-project-page]
+        (on-page? :labels) [project-wrapper-div [labels-page]]
         (on-page? :login) [login-register-page false]
         (on-page? :register) [login-register-page true]
-        (on-page? :user-profile) [user-profile-page]
-        (on-page? :classify) [classify-page]
-        (on-page? :article) [article-page]
+        (on-page? :user-profile) [project-wrapper-div [user-profile-page]]
+        (on-page? :classify) [project-wrapper-div [classify-page]]
+        (on-page? :article) [project-wrapper-div [article-page]]
         true [:div [:h1 "Route not found"]]))
 
 (defn header-menu-full []
@@ -62,11 +73,14 @@
         [:a.item {:href "/labels"} "Labels"]
         [:a.item {:href "/classify"} "Classify"]
         [:div.item
+         [:a.ui.button {:href "/select-project"}
+          "Change project"]]
+        [:div.item
          [:a.ui.button {:on-click ajax/do-post-logout}
           "Log out"]]])
      [:div.right.menu
-      [:a.item {:href "/project"} "Project"]
-      [:a.item {:href "/labels"} "Labels"]
+      #_ [:a.item {:href "/project"} "Project"]
+      #_ [:a.item {:href "/labels"} "Labels"]
       [:div.item
        [:a.ui.button {:href "/login"}
         "Log in"]]
@@ -103,6 +117,9 @@
         [:a.item.blue-text {:href (str "/user/" uid)}
          [:i.large.blue.user.icon {:style {:margin "0px"}}]]
         [:div.item
+         [:a.ui.button {:href "/select-project"}
+          "Change project"]]
+        [:div.item
          [:a.ui.button {:on-click ajax/do-post-logout}
           "Log out"]]]])
     [:div.ui.menu
@@ -111,6 +128,7 @@
       [:h3.ui.blue.header
        "sysrev.us"]]
      [:div.right.menu
+      #_
       [:div.item
        (let [dropdown
              (with-mount-hook
@@ -128,7 +146,7 @@
         "Log in"]]
       [:div.item
        [:a.ui.button {:href "/register"}
-        "Register"]]]] ))
+        "Register"]]]]))
 
 (defn main-content []
   [:div

@@ -5,12 +5,21 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction
-     sql-now to-sql-array with-debug-sql]]
-   [sysrev.util :refer [map-values]])
+    [do-query do-execute do-transaction sql-now to-sql-array]]
+   [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
 
-(defn add-user-to-project
+(defn all-projects
+  "Returns seq of short info on all projects, for interactive use."
+  []
+  (-> (select :p.project-id :p.name [:%count.article-id :n-articles])
+      (from [:project :p])
+      (join [:article :a] [:= :a.project-id :p.project-id])
+      (group :p.project-id)
+      (order-by :p.date-created)
+      do-query))
+
+(defn add-project-member
   "Add a user to the list of members of a project."
   [project-id user-id &
    {:keys [permissions]
@@ -46,15 +55,13 @@
 (defn create-project
   "Create a new project entry."
   [project-name]
-  (let [project {:name project-name
-                 :enabled true
-                 :project-uuid (UUID/randomUUID)}
-        project-id (-> (insert-into :project)
-                       (values [project])
-                       (returning :project-id)
-                       do-query
-                       first)]
-    project-id))
+  (-> (insert-into :project)
+      (values [{:name project-name
+                :enabled true
+                :project-uuid (UUID/randomUUID)}])
+      (returning :project-id)
+      do-query
+      first))
 
 (defn delete-project
   "Deletes a project entry. All dependent entries should be deleted also by
@@ -64,135 +71,46 @@
       (where [:= :project-id project-id])
       do-execute))
 
-(defn get-project-summaries
-  "Returns a sequence of summary maps for every project."
-  []
-  (let [projects
-        (->> (-> (select :*)
-                 (from :project)
-                 do-query)
-             (group-by :project-id)
-             (map-values first))
-        members
-        (->> (-> (select :u.user-id :u.email :m.permissions :m.project-id)
-                 (from [:project-member :m])
-                 (join [:web-user :u]
-                       [:= :u.user-id :m.user-id])
-                 do-query)
-             (group-by :project-id)
-             (map-values
-              (fn [pmembers]
-                (->> pmembers
-                     (mapv #(dissoc % :project-id))))))]
-    (->> projects
-         (map-values
-          #(assoc % :members
-                  (get members (:project-id %) []))))))
+(defn project-contains-public-id
+  "Test if project contains an article with given `public-id` value."
+  [public-id project-id]
+  (-> (select :%count.*)
+      (from :article)
+      (where [:and
+              [:= :project-id project-id]
+              [:= :public-id (str public-id)]])
+      do-query first :count pos?))
 
-(defn get-default-project
-  "Selects a fallback project to use as a default. Intended only for dev use."
-  []
+(defn project-article-count
+  "Return number of articles in project."
+  [project-id]
+  (-> (select :%count.*)
+      (from :article)
+      (where [:= :project-id project-id])
+      do-query first :count))
+
+(defn delete-project-articles
+  "Delete all articles from project."
+  [project-id]
+  (-> (delete-from :article)
+      (where [:= :project-id project-id])
+      do-execute))
+
+(defn project-criteria [project-id]
+  (->>
+   (-> (select :*)
+       (from :criteria)
+       (where [:= :project-id project-id])
+       (order-by :criteria-id)
+       do-query)
+   (group-by :criteria-id)
+   (map-values first)))
+
+(defn project-member [project-id user-id]
   (-> (select :*)
-      (from :project)
-      (order-by [:project-id :asc])
-      (limit 1)
+      (from :project-member)
+      (where [:and
+              [:= :project-id project-id]
+              [:= :user-id user-id]])
       do-query
       first))
-
-(defn ensure-user-member-entries
-  "Ensures that each user account is a member of at least one project, by
-  adding project-less users to `project-id` or default project."
-  [& [project-id]]
-  (let [project-id
-        (or project-id
-            (:project-id (get-default-project)))
-        user-ids
-        (->>
-         (-> (select :u.user-id)
-             (from [:web-user :u])
-             (where
-              [:not
-               [:exists
-                (-> (select :*)
-                    (from [:project-member :m])
-                    (where [:= :m.user-id :u.user-id]))]])
-             do-query)
-         (map :user-id))]
-    (->> user-ids
-         (mapv #(add-user-to-project project-id %)))))
-
-(defn ensure-user-default-project-ids
-  "Ensures that a default-project-id value is set for all users which belong to
-  at least one project. ensure-user-member-entries should be run before this."
-  []
-  (let [user-ids
-        (->>
-         (-> (select :u.user-id)
-             (from [:web-user :u])
-             (where
-              [:and
-               [:= :u.default-project-id nil]
-               [:exists
-                (-> (select :*)
-                    (from [:project-member :m])
-                    (where [:= :m.user-id :u.user-id]))]])
-             do-query)
-         (map :user-id))]
-    (doall
-     (for [user-id user-ids]
-       (let [project-id
-             (-> (select :project-id)
-                 (from [:project-member :m])
-                 (where [:= :m.user-id user-id])
-                 (order-by [:join-date :asc])
-                 (limit 1)
-                 do-query
-                 first
-                 :project-id)]
-         (-> (sqlh/update :web-user)
-             (sset {:default-project-id project-id})
-             (where [:= :user-id user-id])
-             do-execute))))))
-
-(defn ensure-entry-uuids
-  "Creates uuid values for database entries with none set."
-  []
-  (let [project-ids
-        (->> (-> (select :project-id)
-                 (from :project)
-                 (where [:= :project-uuid nil])
-                 do-query)
-             (map :project-id))
-        user-ids
-        (->> (-> (select :user-id)
-                 (from :web-user)
-                 (where [:= :user-uuid nil])
-                 do-query)
-             (map :user-id))]
-    (->> project-ids
-         (mapv
-          #(-> (sqlh/update :project)
-               (sset {:project-uuid (UUID/randomUUID)})
-               (where [:= :project-id %])
-               do-execute)))
-    (->> user-ids
-         (mapv
-          #(-> (sqlh/update :web-user)
-               (sset {:user-uuid (UUID/randomUUID)})
-               (where [:= :user-id %])
-               do-execute)))))
-
-(defn ensure-permissions-set
-  "Sets default permissions values for entries with null value."
-  []
-  (let [user-defaults (to-sql-array "text" ["user"])
-        member-defaults (to-sql-array "text" ["member"])]
-    (-> (sqlh/update :web-user)
-        (sset {:permissions user-defaults})
-        (where [:= :permissions nil])
-        do-execute)
-    (-> (sqlh/update :project-member)
-        (sset {:permissions member-defaults})
-        (where [:= :permissions nil])
-        do-execute)
-    nil))
