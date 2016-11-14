@@ -7,26 +7,16 @@
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])
         user (get-in @state [:data :users user-id])
-        display-name (or (:username user) (:name user) (:email user))
-        overall-cid (d/project :overall-cid)
-        unconfirmed-ids (->> user :labels :unconfirmed keys)
-        completed-ids
-        (->> unconfirmed-ids
-             (filter #((comp not nil?)
-                       (get-in (d/user-label-values % user-id)
-                               [overall-cid :answer]))))
-        incomplete-ids
-        (->> unconfirmed-ids
-             (filter #(nil?
-                       (get-in (d/user-label-values % user-id)
-                               [overall-cid :answer]))))
-        confirmed-ids (->> user :labels :confirmed keys)
+        display-name (or (:name user) (:email user))
+        unconfirmed-ids (-> (d/member-labels user-id)
+                            :unconfirmed keys)
+        confirmed-ids (->> (d/member-labels user-id)
+                           :confirmed keys)
         active-tab
         (as-> (get-in @state [:page :user-profile :articles-tab])
             active-tab
           (if (= active-tab :default)
-            (cond (not= 0 (count completed-ids)) :completed
-                  (not= 0 (count incomplete-ids)) :incomplete
+            (cond (not= 0 (count unconfirmed-ids)) :unconfirmed
                   :else :confirmed)
             active-tab))]
     [:div.sixteen.wide.column
@@ -34,18 +24,15 @@
       [:div.ui.top.attached.header.segment
        [:h3 display-name]]
       [:div.ui.bottom.attached.segment
-       [:div.ui.secondary.pointing.large.three.item.menu
+       [:div.ui.secondary.pointing.large.two.item.menu
         [:a.item
-         {:class (if (= active-tab :completed) "active" "")
+         {:class (if (= active-tab :unconfirmed) "active" "")
           :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
-                            :completed)}
-         (str (count completed-ids) " awaiting confirmation")]
-        [:a.item
-         {:class (if (= active-tab :incomplete) "active" "")
-          :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
-                            :incomplete)}
-         (str (count incomplete-ids) " unfinished article"
-              (if (= 1 (count incomplete-ids)) "" "s"))]
+                            :unconfirmed)}
+         (str (count unconfirmed-ids)
+              " article"
+              (if (= 1 (count unconfirmed-ids)) "" "s")
+              " in progress")]
         [:a.item
          {:class (if (= active-tab :confirmed) "active" "")
           :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
@@ -53,8 +40,7 @@
          (str (count confirmed-ids) " confirmed article"
               (if (= 1 (count confirmed-ids)) "" "s"))]]
        (let [article-ids (case active-tab
-                           :completed completed-ids
-                           :incomplete incomplete-ids
+                           :unconfirmed unconfirmed-ids
                            :confirmed confirmed-ids
                            nil)]
          (doall

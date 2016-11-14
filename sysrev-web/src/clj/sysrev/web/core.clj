@@ -3,7 +3,6 @@
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
-            [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [org.httpkit.server :refer [run-server]]
@@ -12,29 +11,17 @@
             [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.index :as index]
             [sysrev.web.routes.auth :refer [auth-routes]]
+            [sysrev.web.routes.site :refer [site-routes]]
             [sysrev.web.routes.project :refer [project-routes]]
-            [sysrev.web.app :refer [wrap-sysrev-api not-found-response]]))
+            [sysrev.web.app :refer
+             [wrap-no-cache wrap-add-anti-forgery-token
+              wrap-sysrev-api not-found-response]]))
 
-(defn- wrap-no-cache [handler]
-  #(-> (handler %)
-       (r/header "Cache-Control" "no-cache, no-store")))
-
-(defn- wrap-add-anti-forgery-token
-  "Attach csrf token value to response if request did not contain it."
-  [handler]
-  #(let [response (handler %)]
-     (let [req-csrf (get-in % [:headers "x-csrf-token"])
-           csrf-match (and req-csrf (= req-csrf *anti-forgery-token*))]
-       (if (and *anti-forgery-token*
-                (map? (:body response))
-                (not csrf-match))
-         (assoc-in response [:body :csrf-token] *anti-forgery-token*)
-         response))))
-
-(def app-routes
+(defn app-routes []
   (routes
    (GET "/" [] index/index)
    auth-routes
+   site-routes
    project-routes
    (GET "*" {:keys [uri] :as request}
         (if (-> uri (str/split #"/") last (str/index-of \.))
@@ -48,7 +35,7 @@
   (let [config
         (-> default/site-defaults
             (assoc-in [:session :store] (sysrev-session-store)))]
-    (-> app-routes
+    (-> (app-routes)
         wrap-sysrev-api
         wrap-add-anti-forgery-token
         wrap-json-response

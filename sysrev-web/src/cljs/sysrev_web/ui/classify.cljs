@@ -49,13 +49,13 @@
              {:on-click
               #(do (ga-event "labels" "next_article")
                    (ajax/fetch-classify-task true)
-                   (ajax/pull-user-info user-id)
+                   (ajax/pull-member-labels user-id)
                    (scroll-top))}
              "Next article"
              [:i.right.circle.arrow.icon]]]
            (let [n-unconfirmed
                  (count
-                  (get-in @state [:data :users user-id :labels :unconfirmed]))
+                  (d/project [:labels user-id :unconfirmed]))
                  n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
              [:div.ui.five.wide.column
               [:div.ui.buttons.right.floated
@@ -83,7 +83,7 @@
              [:i.small.check.circle.outline.right.icon]]
             [:div.ui.small.button
              {:on-click #(do (ajax/fetch-classify-task true)
-                             (ajax/pull-user-info user-id)
+                             (ajax/pull-member-labels user-id)
                              (scroll-top))}
              "Next"
              [:i.small.right.circle.arrow.icon]]]
@@ -91,7 +91,7 @@
             {:style {:padding-right "0px"}}
             (let [n-unconfirmed
                   (count
-                   (get-in @state [:data :users user-id :labels :unconfirmed]))
+                   (d/project [:labels user-id :unconfirmed]))
                   n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
               [:div.ui.small.green.icon.button.middle.aligned
                {:on-click #(nav-scroll-top (str "/user/" user-id))

@@ -2,7 +2,8 @@
   (:require [compojure.core :refer :all]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.util :refer [should-never-happen-exception]]))
+            [sysrev.util :refer [should-never-happen-exception]]
+            [sysrev.web.routes.site :refer [user-info]]))
 
 (defroutes auth-routes
   (POST "/api/auth/login" request
@@ -64,10 +65,8 @@
             :else (throw (should-never-happen-exception)))))
   
   (GET "/api/auth/identity" request
-       (let [{{{:keys [user-id user-uuid email] :as identity} :identity
+       (let [{{{:keys [user-id] :as identity} :identity
                active-project :active-project
                :as session} :session} request]
-         {:identity (if (and user-id user-uuid email)
-                      {:id user-id :user-uuid user-uuid :email email}
-                      nil)
+         {:identity (user-info user-id true)
           :active-project active-project})))

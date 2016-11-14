@@ -2,7 +2,8 @@
   (:require
    [sysrev-web.base :refer [state]]
    [sysrev-web.util :refer [full-size?]]
-   [sysrev-web.state.core :refer [current-page on-page? logged-in?]]
+   [sysrev-web.state.core :refer
+    [current-page on-page? logged-in? active-project-id]]
    [sysrev-web.routes :refer [data-initialized? on-public-page?]]
    [sysrev-web.notify :refer [active-notification]]
    [sysrev-web.ui.components :refer [loading-screen notifier project-wrapper-div]]
@@ -24,24 +25,21 @@
     [:h2.ui.center.aligned
      "Please log in or register to access a project"]]
    [:div.ui.bottom.attached.segment
-    [:div.ui.large.list
-     (doall
-      (->>
-       (d/data :all-projects)
-       (map (fn [[project-id project]]
-              ^{:key {:project-list project-id}}
-              [:div.item
-               {:style {:padding-top "0.3em"
-                        :padding-bottom "0.3em"}}
-               [:i.book.middle.aligned.icon]
-               [:div.middle.aligned.content
-                (:name project)]]))))]]])
+    (doall
+     (->>
+      (d/data :all-projects)
+      (map (fn [[project-id project]]
+             ^{:key {:project-list project-id}}
+             [:div.ui.blue.segment
+              [:h4 (:name project)]]))))]])
 
 (defn current-page-content []
   (cond (nil? (current-page)) [:div [:h1 "Route not found"]]
         (not (data-initialized? (current-page))) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
+        (and (logged-in?)
+             (nil? (active-project-id))) [select-project-page]
         (on-page? :project) [project-wrapper-div [project-page]]
         (on-page? :select-project) [select-project-page]
         (on-page? :labels) [project-wrapper-div [labels-page]]
@@ -59,13 +57,10 @@
     [:h2.ui.blue.header
      "sysrev.us"]]
    (if (logged-in?)
-     (let [ident (-> @state :identity)
-           uid (:id ident)
-           email (:email ident)
-           name (:name ident)
+     (let [{:keys [user-id email name]} (-> @state :identity)
            display-name (or name email)]
        [:div.right.menu
-        [:a.item.blue-text {:href (str "/user/" uid)}
+        [:a.item.blue-text {:href (str "/user/" user-id)}
          [:div
           [:i.blue.user.icon]
           display-name]]
@@ -90,10 +85,7 @@
 
 (defn header-menu-mobile []
   (if (logged-in?)
-    (let [ident (-> @state :identity)
-          uid (:id ident)
-          email (:email ident)
-          name (:name ident)
+    (let [{:keys [user-id email name]} (-> @state :identity)
           display-name (or name email)]
       [:div.ui.menu
        [:a.item
@@ -114,7 +106,7 @@
                   [:a.item {:href "/labels"} "Labels"]]])]
           [dropdown])]
        [:div.right.menu
-        [:a.item.blue-text {:href (str "/user/" uid)}
+        [:a.item.blue-text {:href (str "/user/" user-id)}
          [:i.large.blue.user.icon {:style {:margin "0px"}}]]
         [:div.item
          [:a.ui.button {:href "/select-project"}

@@ -6,6 +6,7 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
     [do-query do-execute do-transaction sql-now to-sql-array]]
+   [sysrev.predict.core :refer [latest-predict-run]]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
 
@@ -114,3 +115,70 @@
               [:= :user-id user-id]])
       do-query
       first))
+
+(defn project-member-article-labels
+  "Returns a map of labels saved by `user-id` in `project-id`,
+  and a map of entries for all articles referenced in the labels."
+  [project-id user-id]
+  (let [predict-run-id
+        (:predict-run-id (latest-predict-run project-id))
+        [labels articles]
+        (pvalues
+         (->>
+          (-> (select :ac.article-id :criteria-id :answer :confirm-time)
+              (from [:article-criteria :ac])
+              (join [:article :a] [:= :a.article-id :ac.article-id])
+              (where [:and
+                      [:= :a.project-id project-id]
+                      [:= :ac.user-id user-id]])
+              do-query)
+          (map
+           #(-> %
+                (assoc :confirmed (not (nil? (:confirm-time %))))
+                (dissoc :confirm-time))))
+         (->>
+          (-> (select :a.article-id
+                      :a.primary-title
+                      :a.secondary-title
+                      :a.authors
+                      :a.year
+                      :a.remote-database-name
+                      [:lp.val :score])
+              (from [:article :a])
+              (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+              (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+              (where
+               [:and
+                [:= :a.project-id project-id]
+                [:exists
+                 (-> (select :*)
+                     (from [:article-criteria :ac])
+                     (where [:and
+                             [:= :ac.user-id user-id]
+                             [:= :ac.article-id :a.article-id]
+                             [:!= :ac.answer nil]]))]
+                [:= :c.name "overall include"]
+                [:= :lp.predict-run-id predict-run-id]
+                [:= :lp.stage 1]])
+              do-query)
+          (group-by :article-id)
+          (map-values first)
+          (map-values #(dissoc % :abstract :urls :notes))))
+        labels-map (fn [confirmed?]
+                     (->> labels
+                          (filter #(= (true? (:confirmed %)) confirmed?))
+                          (group-by :article-id)
+                          (map-values
+                           #(map (fn [m]
+                                   (dissoc m :article-id :confirmed))
+                                 %))
+                          (filter
+                           (fn [[aid cs]]
+                             (some (comp not nil? :answer) cs)))
+                          (apply concat)
+                          (apply hash-map)))
+        [confirmed unconfirmed]
+        (pvalues (labels-map true) (labels-map false))]
+    {:labels {:confirmed confirmed
+              :unconfirmed unconfirmed}
+     :articles articles}))

@@ -81,8 +81,10 @@
 (def get-article-documents (partial ajax-get "/api/article-documents"))
 (def get-project-info (partial ajax-get "/api/project-info"))
 (def get-all-projects (partial ajax-get "/api/all-projects"))
-(defn get-user-info [user-id handler]
-  (ajax-get (str "/api/user-info/" user-id) handler))
+#_ (defn get-user-info [user-id handler]
+     (ajax-get (str "/api/user-info/" user-id) handler))
+(defn get-member-labels [user-id handler]
+  (ajax-get (str "/api/member-labels/" user-id) handler))
 (defn post-login [data handler] (ajax-post "/api/auth/login" data handler))
 (defn post-register [data handler] (ajax-post "/api/auth/register" data handler))
 (defn post-logout [handler] (ajax-post "/api/auth/logout" handler))
@@ -93,40 +95,28 @@
   (ajax-post "/api/select-project"
              {:project-id project-id}
              handler))
+(defn post-join-project [project-id handler]
+  (ajax-post "/api/join-project"
+             {:project-id project-id}
+             handler))
 
-(defn select-project [project-id]
-  (post-select-project
-   project-id
-   (fn [result]
-     (notify "Project selected")
-     (swap! state (s/change-project project-id))
-     (nav-scroll-top "/"))))
 
-(defn pull-user-info [user-id]
-  (get-user-info
+
+(defn pull-member-labels [user-id]
+  (get-member-labels
    user-id
-   (fn [response]
-     (let [new-articles
-           (->> (:articles response)
-                vec
-                (filter
-                 (fn [[article-id article]]
-                   (nil? (data [:articles article-id :abstract]))))
-                (apply concat)
-                (apply hash-map))]
-       (swap! state (d/merge-articles new-articles))
-       (swap! state (d/set-user-info user-id response))))))
+   (fn [result]
+     (->>
+      (comp
+       (d/merge-articles (:articles result))
+       (d/set-member-labels user-id (:labels result)))
+      (swap! state)))))
 
 (defn pull-identity []
   (get-identity
    (fn [response]
      (swap! state (s/set-identity (:identity response)))
-     (swap! state (s/set-active-project-id (:active-project response)))
-     (when-let [user-id (s/current-user-id)]
-       (when-not (d/user-info user-id)
-         (pull-user-info user-id)))
-     (when-let [project-id (s/active-project-id)]
-       (pull-project-info)))))
+     (swap! state (s/set-active-project-id (:active-project response))))))
 
 (defn pull-article-info [article-id]
   (get-article-info
@@ -142,7 +132,11 @@
 
 (defn pull-project-info []
   (get-project-info
-   #(swap! state (d/set-project-info %))))
+   (fn [result]
+     (->>
+      (comp (d/set-project-info (:project result))
+            (d/merge-users (:users result)))
+      (swap! state)))))
 
 (defn pull-all-projects []
   (get-all-projects
@@ -184,6 +178,23 @@
      (nav-scroll-top "/")
      (notify "Logged out"))))
 
+(defn select-project [project-id]
+  (post-select-project
+   project-id
+   (fn [result]
+     (notify "Project selected")
+     (swap! state (s/change-project project-id))
+     (nav-scroll-top "/"))))
+
+(defn join-project [project-id]
+  (post-join-project
+   project-id
+   (fn [result]
+     (notify "Joined project" {:class "green" :display-ms 2000})
+     (swap! state (s/change-project project-id))
+     (pull-identity)
+     (nav-scroll-top "/"))))
+
 (defn fetch-classify-task [& [force?]]
   (let [current-id (data :classify-article-id)]
     (when (or force? (nil? current-id))
@@ -224,7 +235,7 @@
                (str "article-id = " article-id))
      (notify "Labels submitted" {:class "green"})
      (pull-article-info article-id)
-     (pull-user-info (s/current-user-id))
+     (pull-member-labels (s/current-user-id))
      (when (= article-id (data :classify-article-id))
        (fetch-classify-task true))
      (on-confirm))))
@@ -236,9 +247,14 @@
   (let [ks (if (keyword? ks) [ks] ks)]
     (when (or force? (nil? (d/data ks)))
       (case (first ks)
-        :sysrev (pull-project-info)
+        :project (cond
+                   (<= (count ks) 2)
+                   (pull-project-info)
+                   (and (= (nth ks 2) :labels)
+                        (integer? (nth ks 3)))
+                   (pull-member-labels (nth ks 3)))
         :all-projects (pull-all-projects)
-        :users (let [[_ user-id] ks] (pull-user-info user-id))
+        ;; :users (let [[_ user-id] ks] (pull-user-info user-id))
         :articles (let [[_ article-id] ks]
                     ;; todo - fetch single articles here
                     (pull-article-info article-id))

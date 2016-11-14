@@ -3,10 +3,11 @@
             [compojure.route :refer [not-found]]
             [compojure.response :refer [Renderable]]
             [ring.util.response :as r]
+            [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [clojure.string :as str]
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.web.index :as index]
-            [sysrev.db.core :refer [*active-project*]]
+            [sysrev.db.core :refer [*active-project* with-project]]
             [sysrev.db.users :refer [get-user-by-id]]
             [sysrev.db.project :refer [project-member]]
             [sysrev.util :refer [in? integerify-map-keys]]))
@@ -28,17 +29,25 @@
       (r/header "Content-Type" "text/html; charset=utf-8")
       (cond-> (= (:request-method request) :head) (assoc :body nil))))
 
-(defn not-authenticated-response [request]
-  (make-error-response
-   401 :authentication "Not logged in"))
+(defn wrap-no-cache [handler]
+  #(-> (handler %)
+       (r/header "Cache-Control" "no-cache, no-store")))
 
-(defn not-authorized-response [request]
-  (make-error-response
-   403 :permissions "Not authorized to perform request"))
+(defn wrap-add-anti-forgery-token
+  "Attach csrf token value to response if request did not contain it."
+  [handler]
+  #(let [response (handler %)]
+     (let [req-csrf (get-in % [:headers "x-csrf-token"])
+           csrf-match (and req-csrf (= req-csrf *anti-forgery-token*))]
+       (if (and *anti-forgery-token*
+                (map? (:body response))
+                (not csrf-match))
+         (assoc-in response [:body :csrf-token] *anti-forgery-token*)
+         response))))
 
 (defn wrap-sysrev-api [handler]
   (fn [request]
-    (binding [*active-project* (-> request :session :active-project)]
+    (with-project (-> request :session :active-project)
       (try
         (let [{{{:keys [status type message exception]
                  :or {status 500

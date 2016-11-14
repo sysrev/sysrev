@@ -3,7 +3,7 @@
             [sysrev-web.state.core :as s]
             [sysrev-web.state.data :as d]
             [sysrev-web.util :refer
-             [nav number-to-word full-size?]]
+             [nav number-to-word full-size? in?]]
             [sysrev-web.ui.users :as users]
             [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
@@ -63,19 +63,17 @@
             [:td (str (:false counts))]
             [:td (str (:unknown counts))]])))]]))
 
-(defn user-list-box []
-  (let [users (d/project :users)
+(defn member-list-box []
+  (let [members (d/project :members)
         user-ids
-        (->> (keys users)
+        (->> (keys members)
              (filter
               (if (= build-profile :dev)
                 (fn [_] true)
                 (fn [user-id]
-                  (not
-                   (some (partial = "admin")
-                         (-> (get users user-id)
-                             :user
-                             :site-permissions)))))))]
+                  (let [permissions
+                        (d/data [:users user-id :permissions])]
+                    (not (in? permissions "admin")))))))]
     [:div.ui.raised.grey.segment
      [:h4 "Project members"]
      (doall
@@ -107,7 +105,7 @@
      [project-summary-box]
      [label-counts-box]]
     [:div.ui.column
-     [user-list-box]]]])
+     [member-list-box]]]])
 
 (defn train-input-summary-box []
   (let [cid (selected-criteria-id)

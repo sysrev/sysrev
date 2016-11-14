@@ -18,11 +18,11 @@
     [:div
      (let [user-id (current-user-id)
            confirmed
-           (and user-id (get-in @state [:data :users user-id :labels
-                                        :confirmed article-id]))
+           (and user-id (get-in (d/member-labels user-id)
+                                [:confirmed article-id]))
            unconfirmed
-           (and user-id (get-in @state [:data :users user-id :labels
-                                        :unconfirmed article-id]))
+           (and user-id (get-in (d/member-labels user-id)
+                                [:unconfirmed article-id]))
            status (cond (nil? user-id) :logged-out
                         confirmed :confirmed
                         unconfirmed :unconfirmed

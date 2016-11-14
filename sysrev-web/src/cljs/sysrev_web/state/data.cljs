@@ -14,7 +14,7 @@
   ([ks not-found]
    (let [ks (if (keyword? ks) [ks] ks)]
      (when-let [project-id (active-project-id)]
-       (data (concat [:sysrev (active-project-id)] ks) not-found))))
+       (data (concat [:project (active-project-id)] ks) not-found))))
   ([ks]
    (project ks nil))
   ([]
@@ -27,6 +27,13 @@
 (defn user-info [user-id]
   (data [:users user-id]))
 
+(defn set-member-labels [user-id lmap]
+  (fn [s]
+    (assoc-in s [:data :project (active-project-id) :labels user-id] lmap)))
+
+(defn member-labels [user-id]
+  (project [:labels user-id]))
+
 (defn merge-article [article]
   (fn [s]
     (update-in s [:data :articles]
@@ -34,22 +41,30 @@
 
 (defn merge-articles [articles]
   (fn [s]
-    (update-in s [:data :articles] #(merge % articles))))
+    (update-in s [:data :articles] #(merge-with merge % articles))))
 
 (defn merge-documents [documents]
   (fn [s]
     (update-in s [:data :documents] #(merge % documents))))
 
+(defn merge-users [users]
+  (fn [s]
+    (update-in s [:data :users] #(merge % users))))
+
 (defn set-project-info [pmap]
   (fn [s]
-    (let [pmap
-          (assoc pmap :overall-cid
+    (let [old-labels (data [:project (:project-id pmap) :labels])
+          new-labels (:labels pmap)
+          pmap
+          (assoc pmap
+                 :overall-cid
                  (->> (:criteria pmap)
                       (filter (fn [[cid {:keys [name]}]]
                                 (= name "overall include")))
-                      first first))]
+                      first first)
+                 :labels (merge old-labels new-labels))]
       (assert (:project-id pmap))
-      (assoc-in s [:data :sysrev (:project-id pmap)] pmap))))
+      (assoc-in s [:data :project (:project-id pmap)] pmap))))
 
 (defn set-all-projects [pmap]
   (fn [s]
@@ -94,7 +109,7 @@
          (apply hash-map))))
 
 (defn user-label-values [article-id user-id]
-  (let [lmap (data [:users user-id :labels])
+  (let [lmap (project [:labels user-id])
         amap (or (get-in lmap [:confirmed article-id])
                  (get-in lmap [:unconfirmed article-id]))]
     (->> amap

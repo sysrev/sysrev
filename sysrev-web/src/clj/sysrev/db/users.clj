@@ -13,10 +13,15 @@
             crypto.random)
   (:import java.util.UUID))
 
-(defn all-users []
-  (-> (select :*)
-      (from :web-user)
-      do-query))
+(defn all-users
+  "Returns seq of short info on all users, for interactive use."
+  []
+  (->>
+   (-> (select :*)
+       (from :web-user)
+       do-query)
+   (map
+    #(select-keys % [:user-id :email :permissions]))))
 
 (defn get-user-by-email [email]
   (-> (select :*)
@@ -106,119 +111,3 @@
       (sset {:user-id new-id})
       (where [:= :user-id current-id])
       do-execute))
-
-;;
-;; Web queries
-;;
-
-(defn get-member-summaries []
-  (let [users (->> (-> (select :u.* [:m.permissions :project-permissions])
-                       (from [:web-user :u])
-                       (join [:project-member :m]
-                             [:= :m.user-id :u.user-id])
-                       (where [:= :m.project-id *active-project*])
-                       do-query)
-                   (group-by :user-id)
-                   (map-values first))
-        inclusions (all-user-inclusions true)
-        in-progress
-        (->> (-> (select :user-id :%count.%distinct.ac.article-id)
-                 (from [:article-criteria :ac])
-                 (join [:article :a] [:= :a.article-id :ac.article-id])
-                 (group :user-id)
-                 (where [:and
-                         [:= :a.project-id *active-project*]
-                         [:!= :answer nil]
-                         [:= :confirm-time nil]])
-                 do-query)
-             (group-by :user-id)
-             (map-values (comp :count first)))]
-    (->> (keys users)
-         (mapv (fn [user-id]
-                 [user-id
-                  {:user (let [user (get users user-id)]
-                           {:email (:email user)
-                            :site-permissions (:permissions user)
-                            :project-permissions (:project-permissions user)})
-                   :articles (get inclusions user-id)
-                   :in-progress (if-let [count (get in-progress user-id)]
-                                  count 0)}]))
-         (apply concat)
-         (apply hash-map))))
-
-(defn get-user-info [user-id]
-  (let [predict-run-id
-        (:predict-run-id (latest-predict-run *active-project*))
-        [umap labels articles]
-        (pvalues
-         (-> (select :user-id
-                     :email
-                     :verified
-                     :name
-                     :username
-                     :admin
-                     :permissions)
-             (from :web-user)
-             (where [:= :user-id user-id])
-             do-query
-             first)
-         (->>
-          (-> (select :ac.article-id :criteria-id :answer :confirm-time)
-              (from [:article-criteria :ac])
-              (join [:article :a] [:= :a.article-id :ac.article-id])
-              (where [:and
-                      [:= :a.project-id *active-project*]
-                      [:= :ac.user-id user-id]])
-              do-query)
-          (map #(-> %
-                    (assoc :confirmed (not (nil? (:confirm-time %))))
-                    (dissoc :confirm-time))))
-         (->>
-          (-> (select :a.article-id
-                      :a.primary-title
-                      :a.secondary-title
-                      :a.authors
-                      :a.year
-                      :a.remote-database-name
-                      [:lp.val :score])
-              (from [:article :a])
-              (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-              (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-              (where
-               [:and
-                [:= :a.project-id *active-project*]
-                [:exists
-                 (-> (select :*)
-                     (from [:article-criteria :ac])
-                     (where [:and
-                             [:= :ac.user-id user-id]
-                             [:= :ac.article-id :a.article-id]
-                             [:!= :ac.answer nil]]))]
-                [:= :c.name "overall include"]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :lp.stage 1]])
-              do-query)
-          (group-by :article-id)
-          (map-values first)
-          (map-values #(dissoc % :abstract :urls :notes))))
-        labels-map (fn [confirmed?]
-                     (->> labels
-                          (filter #(= (true? (:confirmed %)) confirmed?))
-                          (group-by :article-id)
-                          (map-values
-                           #(map (fn [m]
-                                   (dissoc m :article-id :confirmed))
-                                 %))
-                          (filter
-                           (fn [[aid cs]]
-                             (some (comp not nil? :answer) cs)))
-                          (apply concat)
-                          (apply hash-map)))
-        [confirmed unconfirmed]
-        (pvalues (labels-map true) (labels-map false))]
-    (assoc umap
-           :labels
-           {:confirmed confirmed
-            :unconfirmed unconfirmed}
-           :articles
-           articles)))

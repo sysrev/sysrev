@@ -24,7 +24,13 @@
 
 (defn page-authorized? [page]
   (or (some #(= % page) public-pages)
-      (logged-in?)))
+      (and (logged-in?)
+           (active-project-id))))
+
+(defn user-labels-path [user-id]
+  (when user-id
+    (when-let [project-id (active-project-id)]
+      [:project project-id :labels user-id])))
 
 ;; This var records the elements of `(:data @state)` that are required by each
 ;; page on the web site.
@@ -61,45 +67,47 @@
     (fn [old new]
       (with-state new
         (when-let [project-id (active-project-id)]
-          [[:sysrev project-id]])))}
+          [[:project project-id]])))}
    
    :classify
    {:required
     (fn [s]
-      [[:documents]
-       (when-let [user-id (with-state s (current-user-id))]
-         [:users user-id])
-       [:classify-article-id]
-       (when-let [article-id (-> s :data :classify-article-id)]
-         [:article-labels article-id])])
+      (with-state s
+        [[:documents]
+         (user-labels-path (current-user-id))
+         [:classify-article-id]
+         (when-let [article-id (-> s :data :classify-article-id)]
+           [:article-labels article-id])]))
     :reload
     (fn [old new]
-      [(when-let [user-id (with-state new (current-user-id))]
-         [:users user-id])
-       (when-let [article-id (-> new :data :classify-article-id)]
-         [:article-labels article-id])])}
+      (with-state new
+        [(user-labels-path (current-user-id))
+         (when-let [article-id (-> new :data :classify-article-id)]
+           [:article-labels article-id])]))}
    
    :article
    {:required
     (fn [s]
-      [[:documents]
-       [:article-labels (-> s :page :article :id)]
-       (when-let [user-id (with-state s (current-user-id))]
-         [:users user-id])])
+      (with-state s
+        [[:documents]
+         [:article-labels (-> s :page :article :id)]
+         (user-labels-path (current-user-id))]))
     :reload
     (fn [old new]
-      [[:article-labels (-> new :page :article :id)]
-       (when-let [user-id (with-state new (current-user-id))]
-         [:users user-id])])}
+      (with-state new
+        [[:article-labels (-> new :page :article :id)]
+         (user-labels-path (current-user-id))]))}
    
    :user-profile
    {:required
     (fn [s]
-      [[:documents]
-       [:users (-> s :page :user-profile :user-id)]])
+      (with-state s
+        [[:documents]
+         (user-labels-path (-> s :page :user-profile :user-id))]))
     :reload
     (fn [old new]
-      [[:users (-> new :page :user-profile :user-id)]])}
+      (with-state new
+        [(user-labels-path (-> new :page :user-profile :user-id))]))}
    
    :labels
    {:required
@@ -111,7 +119,7 @@
     (concat
      [[:all-projects]]
      (when-let [project-id (active-project-id)]
-       [[:sysrev project-id]]))))
+       [[:project project-id]]))))
 
 (defn page-required-data
   ([page-key]
@@ -179,14 +187,17 @@
          old-page (with-state old (current-page))]
      (cond
 
-       ;; Fetch all page data upon login or logout
+       ;; Fetch all page data upon login or logout or project change
        (or
         ;; login
         (and (with-state old (not (logged-in?)))
              (with-state new (logged-in?)))
         ;; logout
         (and (with-state old (logged-in?))
-             (with-state new (not (logged-in?)))))
+             (with-state new (not (logged-in?))))
+        ;; project change
+        (not= (with-state old (active-project-id))
+              (with-state new (active-project-id))))
        (doall (map ajax/fetch-data (page-required-data page)))
        
        (and page old-page (= page old-page))

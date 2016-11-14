@@ -29,6 +29,10 @@
 ;; Web requests will bind this to the user's active project-id.
 (defonce ^:dynamic *active-project* nil)
 
+(defmacro with-project [project-id & body]
+  `(binding [*active-project* ~project-id]
+     ~@body))
+
 (defn set-default-project
   "Set a default value for *active-project*, for use in REPL."
   [project-id]

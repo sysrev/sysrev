@@ -3,16 +3,12 @@
             [sysrev-web.state.data :as d]))
 
 (defn user-info-card [user-id]
-  (let [users (d/project :users)
-        u (get users user-id)
-        email (-> u :user :email)
-        name (-> u :user :name)
+  (let [{:keys [email name]} (d/data [:users user-id])
         display-name (or name email)
-        articles (-> u :articles)
-        num-include (-> u :articles :includes count)
-        num-exclude (-> u :articles :excludes count)
-        num-classified (+ num-include num-exclude)
-        num-in-progress (-> u :in-progress)]
+        {:keys [articles in-progress]} (get (d/project :members) user-id)
+        num-include (-> articles :includes count)
+        num-exclude (-> articles :excludes count)
+        num-classified (+ num-include num-exclude)]
     [:div
      {:style {:margin-bottom "14px"}}
      [:div.ui.top.attached.header.segment
@@ -33,4 +29,4 @@
         [:td [:span.attention (str num-classified)]]
         [:td [:span.attention (str num-include)]]
         [:td [:span.attention (str num-exclude)]]
-        [:td [:span.attention (str num-in-progress)]]]]]]))
+        [:td [:span.attention (str in-progress)]]]]]]))

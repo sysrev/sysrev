@@ -205,7 +205,7 @@
 (defn project-wrapper-div [content]
   [:div
    {:style {:margin-top "-1.0em"}}
-   [:div.ui.middle.aligned.center.aligned.segment
+   [:div.ui.middle.aligned.center.aligned.blue.segment
     {:style {:margin-top "0"
              :padding-top "0.5em"
              :padding-bottom "0.5em"}}

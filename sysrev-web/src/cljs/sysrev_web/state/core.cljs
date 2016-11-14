@@ -21,7 +21,7 @@
   (= (current-page) page-key))
 
 (defn current-user-id []
-  (-> @state :identity :id))
+  (-> @state :identity :user-id))
 
 (defn logged-in? []
   (integer? (current-user-id)))
