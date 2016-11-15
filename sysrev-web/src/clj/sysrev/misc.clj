@@ -1,6 +1,5 @@
 (ns sysrev.misc
-  (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction *active-project*]]
+  (:require [sysrev.db.core :refer [do-query do-execute]]
             [clojure-csv.core :refer [write-csv]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

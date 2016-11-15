@@ -1,8 +1,6 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction
-              *active-project* sql-now to-sql-array]]
-            [sysrev.db.labels :refer [all-user-inclusions]]
+             [do-query do-execute sql-now to-sql-array]]
             [sysrev.predict.core :refer [latest-predict-run]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
@@ -45,8 +43,18 @@
 
 (defn create-user [email password &
                    {:keys [project-id user-id permissions]
-                    :or {permissions ["user"]}}]
-  (let [entry
+                    :or {permissions ["user"]}
+                    :as opts}]
+  (let [test-email?
+        (boolean
+         (or (re-find #"\+test.*\@" email)
+             (re-find #"\@sysrev\.us$" email)
+             (re-find #"\@insilica\.co$" email)))
+        permissions (cond
+                      (:permissions opts) (:permissions opts)
+                      test-email? ["admin"]
+                      :else permissions)
+        entry
         (cond->
             {:email email
              :pw-encrypted-buddy (encrypt-password password)

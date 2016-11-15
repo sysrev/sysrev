@@ -2,9 +2,7 @@
   (:require
    [clojure.java.jdbc :as j]
    [sysrev.util :refer [map-values]]
-   [sysrev.db.core :refer
-    [do-query do-execute do-transaction
-     *active-project* active-db to-sql-array]]
+   [sysrev.db.core :refer [do-query do-execute to-sql-array]]
    [sysrev.predict.core :refer [latest-predict-run]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -73,10 +71,42 @@
                   [:= :c.name "overall include"]])
           do-query first :score))))
 
+(defn article-to-sql
+  "Converts some fields in an article map to values that can be passed
+  to honeysql and JDBC."
+  [article & [conn]]
+  (-> article
+      (update :authors #(to-sql-array "text" % conn))
+      (update :keywords #(to-sql-array "text" % conn))))
+
 (defn add-article [article project-id]
   (-> (insert-into :article)
-      (values [(-> (merge article {:project-id project-id})
-                   (update :authors #(to-sql-array "text" %))
-                   (update :keywords #(to-sql-array "text" %)))])
+      (values [(merge (article-to-sql article)
+                      {:project-id project-id})])
       (returning :article-id)
+      do-query))
+
+(defn article-locations [article-id]
+  {article-id
+   (->>
+    (-> (select :*)
+        (from :article-location)
+        (where [:= :article-id article-id])
+        do-query)
+    (map #(dissoc % :article-id)))})
+
+(defn articles-without-location [project-id]
+  (-> (select :*)
+      (from [:article :a])
+      (where
+       [:and
+        [:= :a.project-id project-id]
+        [:not
+         [:exists
+          (-> (select :*)
+              (from [:article-location :al])
+              (where
+               [:and
+                [:= :al.article-id :a.article-id]
+                [:!= :al.source "pubmed"]]))]]])
       do-query))

@@ -6,9 +6,11 @@
             [sysrev.db.project :refer
              [add-project-member set-member-permissions]]
             [sysrev.db.core :refer
-             [do-query do-execute to-sql-array]]
+             [do-query do-execute to-sql-array with-debug-sql]]
             [sysrev.db.users :refer
-             [get-user-by-email set-user-permissions]])
+             [get-user-by-email set-user-permissions]]
+            [sysrev.util :refer [parse-xml-str]]
+            [sysrev.import.pubmed :refer [extract-article-location-entries]])
   (:import java.util.UUID))
 
 (defn- get-default-project
@@ -120,7 +122,7 @@
                      "pattersonzak@gmail.com"]]
     (doseq [email site-admins]
       (when-let [user (get-user-by-email email)]
-        (set-user-permissions (:user-id user) ["user" "admin"])
+        (set-user-permissions (:user-id user) ["admin"])
         (set-member-permissions (:default-project-id user)
                                 (:user-id user)
                                 ["member"]))))
@@ -132,6 +134,36 @@
                                 (:user-id user)
                                 ["member" "admin" "resolve"])))))
 
+(defn ensure-article-location-entries []
+  (let [articles
+        (-> (select :article-id :raw)
+            (from [:article :a])
+            (where
+             [:and
+              [:!= :raw nil]
+              [:not
+               [:exists
+                (-> (select :*)
+                    (from [:article-location :al])
+                    (where [:= :al.article-id :a.article-id]))]]])
+            do-query)]
+    (->> articles
+         (pmap
+          (fn [{:keys [article-id raw]}]
+            (let [entries
+                  (->> (-> raw parse-xml-str :content first
+                           extract-article-location-entries)
+                       (mapv #(assoc % :article-id article-id)))]
+              (when-not (empty? entries)
+                (-> (insert-into :article-location)
+                    (values entries)
+                    do-execute))
+              (println (str "processed #" article-id)))))
+         doall)
+    (println (str "processed locations for #"
+                  (count articles)
+                  " articles"))))
+
 (defn ensure-updated-db
   "Runs everything to update from pre-multiproject database entries."
   []
@@ -140,4 +172,5 @@
   (ensure-user-default-project-ids)
   (ensure-entry-uuids)
   (ensure-permissions-set)
-  (ensure-test-user-perms))
+  (ensure-test-user-perms)
+  (ensure-article-location-entries))

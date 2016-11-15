@@ -1,8 +1,10 @@
 (ns sysrev-web.ui.user-profile
   (:require [sysrev-web.base :refer [state]]
+            [sysrev-web.state.core :as s]
             [sysrev-web.state.data :as d]
             [sysrev-web.ui.components :refer [debug-box]]
-            [sysrev-web.ui.article :refer [article-short-info-component]]))
+            [sysrev-web.ui.article :refer [article-short-info-component]]
+            [sysrev-web.ajax :as ajax]))
 
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])
@@ -20,6 +22,18 @@
                   :else :confirmed)
             active-tab))]
     [:div.sixteen.wide.column
+     (when (and (= user-id (s/current-user-id))
+                (d/admin-user? user-id))
+       [:div.ui.segment
+        [:div.ui.two.column.grid
+         [:div.ui.column
+          [:a.ui.fluid.button
+           {:on-click ajax/do-post-delete-user}
+           "Delete account"]]
+         [:div.ui.column
+          [:a.ui.fluid.button
+           {:on-click ajax/do-post-delete-member-labels}
+           "Delete user labels"]]]])
      [:div.ui.segments
       [:div.ui.top.attached.header.segment
        [:h3 display-name]]

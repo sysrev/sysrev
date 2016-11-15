@@ -4,10 +4,10 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer [do-query *active-project*]]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.util :refer [map-values in?]]
+            [sysrev.util :refer [map-values in? should-never-happen-exception]]
             [sysrev.web.app :refer [wrap-permissions current-user-id]]))
 
 ;; Functions defined after defroutes form
@@ -19,19 +19,10 @@
   (GET "/api/all-projects" request
        (public-project-summaries))
 
-  ;; Returns global info on user.
-  ;; Requires only user to be logged in.
-  #_
-  (GET "/api/user-info/:user-id" request
-       (wrap-permissions
-        request []
-        (let [query-user-id (-> request :params :user-id Integer/parseInt)]
-          (user-info query-user-id))))
-
   ;; Sets the active project for the session
   (POST "/api/select-project" request
         (wrap-permissions
-         request []
+         request [] []
          (let [user-id (current-user-id request)
                project-id (-> request :body :project-id)]
            (if (nil? (project/project-member project-id user-id))
@@ -44,7 +35,22 @@
                (users/set-user-default-project user-id project-id)
                (with-meta
                  {:result {:project-id project-id}}
-                 {:session session})))))))
+                 {:session session}))))))
+
+  (POST "/api/delete-user" request
+        (wrap-permissions
+         request ["admin"] []
+         (let [{{:keys [verify-user-id]
+                 :as body} :body} request
+               user-id (current-user-id request)
+               {:keys [permissions]} (user-info user-id)]
+           (assert (= user-id verify-user-id) "verify-user-id mismatch")
+           (when-not (in? permissions "admin")
+             (throw (should-never-happen-exception)))
+           (users/delete-user user-id)
+           (with-meta
+             {:success true}
+             {:session {}})))))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

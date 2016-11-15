@@ -5,7 +5,7 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction sql-now to-sql-array]]
+    [do-query do-execute to-sql-array sql-cast]]
    [sysrev.predict.core :refer [latest-predict-run]]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
@@ -13,12 +13,29 @@
 (defn all-projects
   "Returns seq of short info on all projects, for interactive use."
   []
-  (-> (select :p.project-id :p.name [:%count.article-id :n-articles])
+  (-> (select :p.project-id
+              :p.name
+              :p.project-uuid
+              [:%count.article-id :n-articles])
       (from [:project :p])
       (join [:article :a] [:= :a.project-id :p.project-id])
       (group :p.project-id)
       (order-by :p.date-created)
       do-query))
+
+(defn get-project-by-id [project-id]
+  (-> (select :*)
+      (from :project)
+      (where [:= :project-id project-id])
+      do-query
+      first))
+
+(defn get-project-by-uuid [project-uuid & [conn]]
+  (-> (select :*)
+      (from :project)
+      (where [:= (sql-cast :project-uuid :text) (str project-uuid)])
+      (do-query conn)
+      first))
 
 (defn add-project-member
   "Add a user to the list of members of a project."
@@ -60,7 +77,7 @@
       (values [{:name project-name
                 :enabled true
                 :project-uuid (UUID/randomUUID)}])
-      (returning :project-id)
+      (returning :*)
       do-query
       first))
 
@@ -182,3 +199,31 @@
     {:labels {:confirmed confirmed
               :unconfirmed unconfirmed}
      :articles articles}))
+
+;; TODO - finish/use this?
+(defn project-email-domains
+  [project-id]
+  (let [emails (->>
+                (-> (select :u.email)
+                    (from [:web-user :u])
+                    (join [:project-member :m]
+                          [:= :m.user-id :u.user-id])
+                    (where [:= :m.project-id project-id])
+                    do-query)
+                (mapv :email))]
+    emails))
+
+(defn delete-member-labels
+  "Deletes all labels saved in `project-id` by `user-id`."
+  [project-id user-id]
+  (-> (delete-from [:article-criteria :ac])
+      (where [:and
+              [:= :ac.user-id user-id]
+              [:exists
+               (-> (select :*)
+                   (from [:article :a])
+                   (where
+                    [:and
+                     [:= :a.project-id project-id]
+                     [:= :a.article-id :ac.article-id]]))]])
+      do-execute))

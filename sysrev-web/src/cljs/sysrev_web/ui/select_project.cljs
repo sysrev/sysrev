@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.select-project
-  (:require [sysrev-web.base :refer [state build-profile]]
+  (:require [sysrev-web.base :refer [state]]
             [sysrev-web.state.core :as s]
             [sysrev-web.state.data :as d]
             [sysrev-web.ajax :as ajax]
@@ -11,9 +11,7 @@
         projects (d/data :all-projects)
         active-id (or (s/page-state :selected)
                       (s/active-project-id))
-        self-projects (-> @state :identity :projects)
-        permissions (d/data [:users user-id :permissions])
-        admin? (in? permissions "admin")]
+        self-projects (-> @state :identity :projects)]
     [:div
      (when (empty? self-projects)
        [:div.ui.green.segment
@@ -58,8 +56,7 @@
                 [:div.ui.three.wide.column
                  [:div.ui.blue.right.floated.button
                   {:on-click #(ajax/join-project project-id)
-                   :class (if (or admin?
-                                  (= build-profile :dev)
+                   :class (if (or (d/admin-user? user-id)
                                   (empty? self-projects))
                             "" "disabled")}
                   "Join"]]]])))))]]]))

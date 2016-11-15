@@ -2,7 +2,7 @@
   (:require
    [sysrev.util :refer [map-values integerify-map-keys]]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction sql-now time-to-string to-jsonb]]
+    [do-query do-execute sql-now time-to-string to-jsonb]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [sysrev.predict.core :refer [get-predict-run]]))

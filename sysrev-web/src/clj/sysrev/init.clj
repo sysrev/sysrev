@@ -1,5 +1,5 @@
 (ns sysrev.init
-  (:require [sysrev.db.core :refer [set-db-config!]]
+  (:require [sysrev.db.core :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
             [config.core :refer [env]]))
 
@@ -10,7 +10,7 @@
         postgres-config (merge postgres-config postgres-overrides)
         postgres-port (:port postgres-config)
         {{server-port :port} :server} env]
-    (do (set-db-config! postgres-config)
+    (do (set-active-db! (make-db-config postgres-config))
         (->> postgres-port (format "connected to postgres (port %s)") println)
         (run-web server-port prod?)
         (->> server-port (format "web server started (port %s)") println)

@@ -27,6 +27,28 @@
                                      (map #(str % "."))
                                      (str/join " "))))))))
 
+(defn extract-article-location-entries
+  "Extracts entries for article_location from parsed PubMed API XML article."
+  [pxml]
+  (distinct
+   (concat
+    (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
+         (map (fn [{tag :tag
+                    {source :EIdType} :attrs
+                    content :content}]
+                (map #(do {:source source
+                           :external-id %})
+                     content)))
+         (apply concat))
+    (->> (xml-find pxml [:PubmedData :ArticleIdList :ArticleId])
+         (map (fn [{tag :tag
+                    {source :IdType} :attrs
+                    content :content}]
+                (map #(do {:source source
+                           :external-id %})
+                     content)))
+         (apply concat)))))
+
 (defn fetch-pmid-entry [pmid]
   (try
     (let [xml-str (fetch-pmid-xml pmid)
@@ -37,7 +59,7 @@
           authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
                       parse-pubmed-author-names)
           keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
-          elocation-ids (-> (xml-find [pxml] [:MedlineCitation :Article :ELocationID]))
+          locations (extract-article-location-entries pxml)
           year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
                    first :content first parse-integer)]
       (assert (not (empty? title)))
@@ -49,7 +71,8 @@
        :authors authors
        :year year
        :keywords keywords
-       :public-id (str pmid)})
+       :public-id (str pmid)
+       :locations locations})
     (catch Throwable e
       (println (format "exception in (fetch-pmid-entry %s)" pmid))
       (println (.getMessage e)))))

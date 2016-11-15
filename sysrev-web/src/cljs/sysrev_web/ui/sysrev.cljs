@@ -1,5 +1,5 @@
 (ns sysrev-web.ui.sysrev
-  (:require [sysrev-web.base :refer [state build-profile]]
+  (:require [sysrev-web.base :refer [state]]
             [sysrev-web.state.core :as s]
             [sysrev-web.state.data :as d]
             [sysrev-web.util :refer
@@ -68,12 +68,10 @@
         user-ids
         (->> (keys members)
              (filter
-              (if (= build-profile :dev)
-                (fn [_] true)
-                (fn [user-id]
-                  (let [permissions
-                        (d/data [:users user-id :permissions])]
-                    (not (in? permissions "admin")))))))]
+              (fn [user-id]
+                (let [permissions
+                      (d/data [:users user-id :permissions])]
+                  (not (in? permissions "admin"))))))]
     [:div.ui.raised.grey.segment
      [:h4 "Project members"]
      (doall

@@ -7,13 +7,15 @@
             [clojure.string :as str]
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.web.index :as index]
-            [sysrev.db.core :refer [*active-project* with-project]]
             [sysrev.db.users :refer [get-user-by-id]]
             [sysrev.db.project :refer [project-member]]
             [sysrev.util :refer [in? integerify-map-keys]]))
 
 (defn current-user-id [request]
   (-> request :session :identity :user-id))
+
+(defn active-project [request]
+  (-> request :session :active-project))
 
 (defn make-error-response
   [http-code etype emessage & [exception response]]
@@ -47,62 +49,65 @@
 
 (defn wrap-sysrev-api [handler]
   (fn [request]
-    (with-project (-> request :session :active-project)
-      (try
-        (let [{{{:keys [status type message exception]
-                 :or {status 500
-                      type :api
-                      message "Error processing request"}
-                 :as error} :error
-                result :result :as body} :body
-               :as response} (handler request)
-              response
-              (cond->
-                  (cond
-                    ;; Return error if body has :error field
-                    error (do (when exception
-                                (println "************************")
-                                (println (pr-str request))
-                                (print-cause-trace exception)
-                                (println "************************"))
-                              (make-error-response
-                               status type message exception response))
-                    ;; Otherwise return result if body has :result field
-                    result response
-                    ;; If no :error or :result key, wrap the value in :result
-                    (map? body) (update response :body #(hash-map :result %))
-                    ;;
-                    (empty? body) (make-error-response
-                                   500 :empty "Server error (no data returned)"
-                                   nil response)
-                    :else response))
-              session-meta (-> body meta :session)]
-          ;; If the request handler attached a :session meta value to the result,
-          ;; set that session value in the response.
-          (cond-> response
-            session-meta (assoc :session session-meta)))
-        (catch Throwable e
-          (println "************************")
-          (println (pr-str request))
-          (print-cause-trace e)
-          (println "************************")
-          (make-error-response
-           500 :unknown "Unexpected error processing request" e))))))
+    (try
+      (let [{{{:keys [status type message exception]
+               :or {status 500
+                    type :api
+                    message "Error processing request"}
+               :as error} :error
+              result :result :as body} :body
+             :as response} (handler request)
+            response
+            (cond->
+                (cond
+                  ;; Return error if body has :error field
+                  error (do (when exception
+                              (println "************************")
+                              (println (pr-str request))
+                              (print-cause-trace exception)
+                              (println "************************"))
+                            (make-error-response
+                             status type message exception response))
+                  ;; Otherwise return result if body has :result field
+                  result response
+                  ;; If no :error or :result key, wrap the value in :result
+                  (map? body) (update response :body #(hash-map :result %))
+                  ;;
+                  (empty? body) (make-error-response
+                                 500 :empty "Server error (no data returned)"
+                                 nil response)
+                  :else response))
+            session-meta (-> body meta :session)]
+        ;; If the request handler attached a :session meta value to the result,
+        ;; set that session value in the response.
+        (cond-> response
+          session-meta (assoc :session session-meta)))
+      (catch Throwable e
+        (println "************************")
+        (println (pr-str request))
+        (print-cause-trace e)
+        (println "************************")
+        (make-error-response
+         500 :unknown "Unexpected error processing request" e)))))
 
 (defmacro wrap-permissions
   "Wrap request handler body to check if user is authorized to perform the
   request. If authorized then runs body and returns result; if not authorized,
   returns an error without running body."
-  [request required-perms & body]
+  [request uperms-required mperms-required & body]
+  (assert ((comp not empty?) body)
+          "wrap-permissions: missing body form")
   `(let [request# ~request
-         required-perms# ~required-perms
+         uperms-required# ~uperms-required
+         mperms-required# ~mperms-required
          user-id# (current-user-id request#)
-         member# (and user-id#
-                      *active-project*
-                      (project-member *active-project* user-id#))
+         project-id# (active-project request#)
          user# (and user-id# (get-user-by-id user-id#))
-         member-perms# (:permissions member#)
-         site-admin?# (in? (:permissions user#) "admin")
+         member# (and user-id#
+                      project-id#
+                      (project-member project-id# user-id#))
+         uperms# (:permissions user#)
+         mperms# (:permissions member#)
          body-fn# #(do ~@body)]
      (cond
        (not (integer? user-id#))
@@ -110,23 +115,30 @@
                 :type :authentication
                 :message "Not logged in"}}
 
-       (empty? required-perms#)
+       (not (every? (in? uperms#) uperms-required#))
+       {:error {:status 403
+                :type :user
+                :message "Not authorized"}}
+       
+       (and (empty? uperms-required#)
+            (empty? mperms-required#))
        (body-fn#)
        
-       (and (not (empty? required-perms#))
-            (not (integer? *active-project*)))
+       (and (not (empty? mperms-required#))
+            (not (integer? project-id#)))
        {:error {:status 403
                 :type :project
                 :message "No project selected"}}
        
-       (nil? member#)
+       (and (not (empty? mperms-required#))
+            (nil? member#))
        {:error {:status 403
                 :type :member
                 :message "Not authorized (project)"}}
-
-       (not (every? (in? member-perms#) required-perms#))
+       
+       (not (every? (in? mperms#) mperms-required#))
        {:error {:status 403
-                :type :permissions
+                :type :project
                 :message "Not authorized"}}
 
        true

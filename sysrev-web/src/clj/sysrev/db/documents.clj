@@ -32,6 +32,7 @@
                         (apply concat))]
     (do
       (do-transaction
+       nil
        (-> (delete-from :document)
            (where [:= :document-type doc-type])
            do-execute)

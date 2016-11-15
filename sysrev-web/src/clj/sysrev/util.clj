@@ -1,5 +1,6 @@
 (ns sysrev.util
-  (:require [clojure.xml]))
+  (:require [clojure.xml])
+  (:import (javax.xml.parsers SAXParser SAXParserFactory)))
 
 (defn map-values
   "Map a function over the values of a collection of pairs (vector of vectors,
@@ -71,8 +72,18 @@
        (mapv #(-> % :content first))))
 
 (defn parse-xml-str [s]
-  (clojure.xml/parse
-   (java.io.ByteArrayInputStream. (.getBytes s))))
+  (let [;; Create parser instance with DTD loading disabled.
+        ;; Without this, parser may make HTTP requests to DTD locations
+        ;; referenced in the XML string.
+        startparse-no-dtd
+        (fn [s ch]
+          (let [factory (SAXParserFactory/newInstance)]
+            (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
+            (let [^SAXParser parser (.newSAXParser factory)]
+              (.parse parser s ch))))]
+    (clojure.xml/parse
+     (java.io.ByteArrayInputStream. (.getBytes s))
+     startparse-no-dtd)))
 
 (defn all-project-ns []
   (->> (all-ns)
@@ -93,3 +104,8 @@
 
 (defn reload-all []
   (require 'sysrev.user :reload-all))
+
+(defn map-to-arglist
+  "Converts a map to a vector of function keyword arguments."
+  [m]
+  (->> m (mapv identity) (apply concat) vec))

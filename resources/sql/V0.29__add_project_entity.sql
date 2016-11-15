@@ -3,8 +3,6 @@ create table project (
   name text not null
 );
 
-insert into project (project_id, name) values (1, 'Cancer Review');
-
 create table project_member (
   project_id integer references project on delete cascade not null,
   user_id integer references web_user (id) on delete cascade not null,

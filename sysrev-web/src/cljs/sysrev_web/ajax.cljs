@@ -99,6 +99,14 @@
   (ajax-post "/api/join-project"
              {:project-id project-id}
              handler))
+(defn post-delete-user [handler]
+  (ajax-post "/api/delete-user"
+             {:verify-user-id (s/current-user-id)}
+             handler))
+(defn post-delete-member-labels [handler]
+  (ajax-post "/api/delete-member-labels"
+             {:verify-user-id (s/current-user-id)}
+             handler))
 
 
 
@@ -177,6 +185,21 @@
      (swap! state (s/log-out))
      (nav-scroll-top "/")
      (notify "Logged out"))))
+
+(defn do-post-delete-user []
+  (post-delete-user
+   (fn [result]
+     (swap! state (s/log-out))
+     (nav-scroll-top "/")
+     (notify "Account deleted")
+     (notify "Logged out"))))
+
+(defn do-post-delete-member-labels []
+  (post-delete-member-labels
+   (fn [result]
+     (swap! state assoc :data {}())
+     (nav-scroll-top "/")
+     (notify "Labels deleted"))))
 
 (defn select-project [project-id]
   (post-select-project

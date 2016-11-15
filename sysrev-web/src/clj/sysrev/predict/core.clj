@@ -1,8 +1,7 @@
 (ns sysrev.predict.core
   (:require
    [sysrev.util :refer [map-values]]
-   [sysrev.db.core :refer
-    [do-query do-execute do-transaction sql-now]]
+   [sysrev.db.core :refer [do-query do-execute sql-now]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
 
@@ -51,6 +50,15 @@
        (limit 1)
        do-query
        first)))
+
+(defn latest-predict-run-id
+  ":predict-run-id of (latest-predict-run ...)"
+  ([project-id]
+   (:predict-run-id
+    (latest-predict-run project-id)))
+  ([project-id sim-version-id predict-version-id]
+   (:predict-run-id
+    (latest-predict-run project-id sim-version-id predict-version-id))))
 
 (defn create-predict-run
   "Adds a new predict-run entry to the database, and returns the entry."

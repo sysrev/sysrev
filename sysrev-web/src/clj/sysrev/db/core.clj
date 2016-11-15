@@ -1,5 +1,6 @@
 (ns sysrev.db.core
-  (:require [clojure.java.jdbc :as j]
+  (:require [sysrev.util :refer [map-to-arglist]]
+            [clojure.java.jdbc :as j]
             [clj-postgresql.core :as pg]
             [jdbc.pool.c3p0 :as pool]
             [clojure.data.json :as json]
@@ -8,6 +9,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
+            [config.core :refer [env]]
             [clojure.string :as str])
   (:import java.sql.Timestamp
            java.sql.Date
@@ -16,40 +18,22 @@
 ;; Active database connection pool object
 (defonce active-db (atom nil))
 
-;; Connection object to active database connection.
-;; Need one of this available directly for some Java API calls.
-(defonce active-conn (atom nil))
-
 ;; This is used to bind a transaction connection in do-transaction.
 (defonce ^:dynamic *conn* nil)
 
-;; Option controlling result format of do-query.
-(defonce ^:dynamic *sql-array-results* false)
+(defn make-db-config
+  "Creates a Postgres db pool object to use with JDBC.
 
-;; Web requests will bind this to the user's active project-id.
-(defonce ^:dynamic *active-project* nil)
+  Defaults to the configuration contained in `(:postgres env)`,
+  overriding with any field values passed in `postgres-overrides`."
+  [{:keys [dbname user password host port] :as postgres-overrides}]
+  (let [postgres-defaults (:postgres env)
+        postgres-config (merge postgres-defaults postgres-overrides)]
+    (apply pg/pool (map-to-arglist postgres-config))))
 
-(defmacro with-project [project-id & body]
-  `(binding [*active-project* ~project-id]
-     ~@body))
-
-(defn set-default-project
-  "Set a default value for *active-project*, for use in REPL."
-  [project-id]
-  (alter-var-root #'*active-project* (fn [_] project-id)))
-
-(defn reset-active-conn []
-  (reset! active-conn (j/get-connection @active-db)))
-
-(defn set-db-config!
-  "Sets the connection parameters for Postgres."
-  [{:keys [dbname user password host port]}]
-  (reset! active-db (pg/pool :dbname dbname
-                             :user user
-                             :password password
-                             :host host
-                             :port port))
-  (reset-active-conn))
+(defn set-active-db!
+  [db]
+  (reset! active-db db))
 
 ;; Add JDBC conversion methods for Postgres jsonb type
 (add-jsonb-type
@@ -64,36 +48,30 @@
   [map]
   (sql/call :jsonb (clojure.data.json/write-str map)))
 
-(defmacro with-retry-conn
-  "Wrap a `body` that attempts to use `active-conn` with an exception handler
-  to reset `active-conn` and try running `body` again in case of failure."
-  [& body]
-  `(try
-     (do ~@body)
-     (catch Throwable e#
-       (do (reset-active-conn)
-           ~@body))))
+(defn sql-cast [field sql-type]
+  (sql/call :cast field sql-type))
 
 (defn to-sql-array
   "Convert a Clojure sequence to a PostgreSQL array object.
   `sql-type` is the SQL type of the array elements."
-  [sql-type elts]
+  [sql-type elts & [conn]]
   (if-not (sequential? elts)
     elts
-    (with-retry-conn
-      (.createArrayOf @active-conn sql-type
-                      (into-array elts)))))
+    (if conn
+      (.createArrayOf (:connection conn) sql-type (into-array elts))
+      (j/with-db-connection [conn (or *conn* @active-db)]
+        (.createArrayOf (:connection conn) sql-type (into-array elts))))))
 
 (defn format-column-name [col]
   (-> col str/lower-case (str/replace "_" "-")))
 
-(defmacro do-query
+(defn do-query
   "Run SQL query defined by honeysql SQL map."
-  [sql-map & params-or-opts]
-  `(let [conn# (if *conn* *conn* @active-db)]
-     (j/query conn# (sql/format ~sql-map ~@params-or-opts)
-              :identifiers format-column-name
-              :as-arrays? *sql-array-results*)))
+  [sql-map & [conn]]
+  (j/query (or conn *conn* @active-db)
+           (sql/format sql-map)
+           :identifiers format-column-name
+           :result-set-fn vec))
 
 (defmacro with-debug-sql
   "Runs body with exception handler to print SQL error details."
@@ -103,37 +81,29 @@
      (catch Throwable e#
        (.printStackTrace (.getNextException e#)))))
 
-(defmacro do-execute
+(defn do-execute
   "Execute SQL command defined by honeysql SQL map."
-  [sql-map & params-or-opts]
-  `(let [conn# (if *conn* *conn* @active-db)]
-     (j/execute! conn# (sql/format ~sql-map ~@params-or-opts))))
+  [sql-map & [conn]]
+  (j/execute! (or conn *conn* @active-db)
+              (sql/format sql-map)
+              :transaction? false))
 
 (defmacro do-transaction
-  "Run body wrapped in an SQL transaction, or if already executing inside a
-  transaction then run body unmodified."
-  [& body]
-  (let [helper (fn [f]
-                 (if-not (nil? *conn*)
-                   ;; Already running inside a transaction, don't start a new one
-                   (apply f [])
-                   (j/with-db-transaction [conn @active-db]
-                     (binding [*conn* conn]
-                       (apply f [])))))]
-    `(apply ~helper [(fn [] ~@body)])))
+  "Run body wrapped in an SQL transaction.
 
-(defmacro with-sql-array-results
-  "Run body with option set for do-query to return rows in array format."
-  [& body]
-  (let [helper (fn [f]
-                 (binding [*sql-array-results* true]
-                   (apply f [])))]
-    `(apply ~helper [(fn [] ~@body)])))
+  Uses thread-local dynamic binding to hold transaction connection value, so
+  `body` must not make any SQL calls in spawned threads."
+  [db & body]
+  `(do (assert (nil? *conn*))
+       (j/with-db-transaction [conn# (or ~db @active-db)]
+         (binding [*conn* conn#]
+           (do ~@body)))))
 
 (defn sql-now
   "Query current time from database."
-  []
-  (-> (j/query @active-db "SELECT LOCALTIMESTAMP") first :timestamp))
+  [& [conn]]
+  (-> (j/query (or conn *conn* @active-db) "SELECT LOCALTIMESTAMP")
+      first :timestamp))
 
 (defn time-to-string
   "Print time object to formatted time string."

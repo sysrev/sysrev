@@ -5,7 +5,7 @@ host=$(hostname)
 backup_dir=/data/sysrev/backups
 date_string=$(date +%F_%H-%M-%S)
 fname="sysrev-${date_string}.pgdumpc"
-options="--exclude-table-data=article_similarity"
+options="-T article_similarity -T schema_version"
 
 cd "$backup_dir"
 pg_dump -U postgres -Fc $options sysrev > "$fname"

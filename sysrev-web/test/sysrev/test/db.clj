@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [sysrev.user :refer [started]]
             [sysrev.test.core :refer [completes?]]
-            [sysrev.db.core :refer [do-query do-execute do-transaction]]
+            [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.articles :as articles]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

@@ -8,8 +8,7 @@
             [clojure.data.xml :as dxml]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer
-             [do-query do-execute do-transaction]]
+            [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.users :as users]
             [sysrev.db.labels :as labels]
             [sysrev.util :refer [xml-find]]

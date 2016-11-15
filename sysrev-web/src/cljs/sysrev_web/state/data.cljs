@@ -1,6 +1,6 @@
 (ns sysrev-web.state.data
   (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.util :refer [map-values]]
+            [sysrev-web.util :refer [map-values in?]]
             [sysrev-web.state.core :refer [current-user-id active-project-id]]))
 
 (defn data
@@ -144,3 +144,9 @@
 
 (defn project-user-info [user-id]
   (project [:users user-id]))
+
+(defn real-user? [user-id]
+  (in? (:permissions (user-info user-id)) "user"))
+
+(defn admin-user? [user-id]
+  (in? (:permissions (user-info user-id)) "admin"))

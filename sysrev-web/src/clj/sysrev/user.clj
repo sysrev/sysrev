@@ -7,6 +7,7 @@
         sysrev.db.labels
         sysrev.db.project
         sysrev.db.migration
+        sysrev.db.transfer
         ;; sysrev.spark.core
         ;; sysrev.spark.similarity
         sysrev.import.pubmed
@@ -20,9 +21,9 @@
         sysrev.web.routes.site
         sysrev.web.routes.auth
         sysrev.web.routes.project
-        sysrev.custom.immuno)
-  (:require [sysrev.init :as init]
-            [clojure.math.numeric-tower :as math]
+        sysrev.custom.immuno
+        sysrev.init)
+  (:require [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -44,4 +45,4 @@
             ))
 
 (defonce started
-  (init/start-app))
+  (sysrev.init/start-app))

@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [config.core :refer [env]]
             [honeysql.core :as sql]
-            [sysrev.db.core :refer [do-query do-execute do-transaction]]
+            [sysrev.db.core :refer [do-query do-execute]]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [clojure.tools.logging :as log]))
 
