@@ -12,14 +12,18 @@
 (defn login-register-page [is-register?]
   (let [page (if is-register? :register :login)
         validator #(validate (-> @state :page page) login-validation)
-        on-submit (fn []
+        on-submit (fn [event]
                     (let [errors (validator)]
                       (swap! state assoc-in [:page page :submit] true)
                       (when (empty? errors)
                         (let [{:keys [email password]} (-> @state :page page)]
                           (if is-register?
                             (ajax/do-post-register email password)
-                            (ajax/do-post-login email password))))))
+                            (ajax/do-post-login email password)))))
+                    (when (.-preventDefault event)
+                      (.preventDefault event))
+                    (set! (.-returnValue event) false)
+                    false)
         input-change (fn [field-key]
                        #(swap! state assoc-in [:page page field-key]
                                (-> % .-target .-value)))
@@ -33,23 +37,22 @@
      [:h2.ui.top.attached.header
       (if is-register? "Register" "Login")]
      [:div.ui.bottom.attached.segment
-      [:form.ui.form {:class form-class}
+      [:form.ui.form {:class form-class :on-submit on-submit}
        [:div.field {:class (error-class :email)}
         [:label "Email"]
         [:input {:type "email"
-                 :autocomplete "on"
+                 :name "email"
                  :value (-> @state :page page :email)
                  :on-change (input-change :email)}]]
        [:div.field {:class (error-class :password)}
         [:label "Password"]
         [:input {:type "password"
+                 :name "password"
                  :value (-> @state :page page :password)
                  :on-change (input-change :password)}]]
        [error-msg :user]
        [error-msg :password]
        [:div.ui.divider]
-       [:div.ui.primary.button
-        {:type "button" :on-click on-submit}
-        "Submit"]
+       [:button.ui.button {:type "submit" :name "submit"} "Submit"]
        (when-let [err (-> @state :page page :err)]
          [:div.ui.negative.message err])]]]))
