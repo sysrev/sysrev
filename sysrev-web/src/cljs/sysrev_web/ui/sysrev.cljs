@@ -187,6 +187,8 @@
 (defn project-predict-report-box []
   (let [cid (selected-criteria-id)]
     [:div
+     [:div.ui.secondary.yellow.center.aligned.segment
+      [:h3 "Under development"]]
      [predict-report-criteria-menu]
      [:div.ui.bottom.attached.segment
       [train-input-summary-box]

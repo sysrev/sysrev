@@ -21,17 +21,22 @@
 
 (defn logged-out-content []
   [:div.ui.segments
-   [:div.ui.top.attached.header.segment
-    [:h2.ui.center.aligned
-     "Please log in or register to access a project"]]
+   [:div.ui.top.attached.center.aligned.header.segment
+    [:h2 "Please log in or register to access a project"]]
    [:div.ui.bottom.attached.segment
-    (doall
-     (->>
-      (d/data :all-projects)
-      (map (fn [[project-id project]]
-             ^{:key {:project-list project-id}}
-             [:div.ui.blue.segment
-              [:h4 (:name project)]]))))]])
+    [:div
+     {:style (if (full-size?)
+               {:width "80%"
+                :margin-left "auto"
+                :margin-right "auto"}
+               {})}
+     (doall
+      (->>
+       (d/data :all-projects)
+       (map (fn [[project-id project]]
+              ^{:key {:project-list project-id}}
+              [:div.ui.blue.segment
+               [:h4 (:name project)]]))))]]])
 
 (defn current-page-content []
   (cond (nil? (current-page)) [:div [:h1 "Route not found"]]

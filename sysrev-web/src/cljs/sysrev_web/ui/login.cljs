@@ -33,20 +33,23 @@
      [:h2.ui.top.attached.header
       (if is-register? "Register" "Login")]
      [:div.ui.bottom.attached.segment
-      [:div.ui.form {:class form-class}
-       [:div.ui.field {:class (error-class :email)}
+      [:form.ui.form {:class form-class}
+       [:div.field {:class (error-class :email)}
         [:label "Email"]
-        [:input.input {:type "text"
-                       :value (-> @state :page page :email)
-                       :on-change (input-change :email)}]]
-       [:div.ui.field {:class (error-class :password)}
+        [:input {:type "email"
+                 :autocomplete "on"
+                 :value (-> @state :page page :email)
+                 :on-change (input-change :email)}]]
+       [:div.field {:class (error-class :password)}
         [:label "Password"]
         [:input {:type "password"
                  :value (-> @state :page page :password)
                  :on-change (input-change :password)}]]
        [error-msg :user]
        [error-msg :password]
-       [:div
-        [:button.ui.primary.button {:type "button" :on-click on-submit} "Submit"]
-        (when-let [err (-> @state :page page :err)]
-          [:div.ui.negative.message err])]]]]))
+       [:div.ui.divider]
+       [:div.ui.primary.button
+        {:type "button" :on-click on-submit}
+        "Submit"]
+       (when-let [err (-> @state :page page :err)]
+         [:div.ui.negative.message err])]]]))
