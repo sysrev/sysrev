@@ -21,6 +21,12 @@
 
 (defn logged-out-content []
   [:div.ui.segments
+   [:div.ui.center.aligned.header.segment
+    [:h2 "Please log in or register to access a project"]]])
+
+#_
+(defn logged-out-content []
+  [:div.ui.segments
    [:div.ui.top.attached.center.aligned.header.segment
     [:h2 "Please log in or register to access a project"]]
    [:div.ui.bottom.attached.segment
