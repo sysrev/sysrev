@@ -4,7 +4,68 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.util :refer [map-values]]))
+
+(defn delete-user-article-labels [user-id article-id]
+  (assert (integer? user-id))
+  (assert (integer? article-id))
+  (-> (delete-from :article-criteria)
+      (where [:and
+              [:= :article-id article-id]
+              [:= :user-id user-id]])
+      do-execute))
+
+(defn delete-recent-user-labels [user-id interval-string]
+  (->
+   ;;(select :%count.*) (from [:article-criteria :ac])
+   (delete-from [:article-criteria :ac])
+   (where [:and
+           [:= :user-id user-id]
+           [:>= :updated-time
+            (sql/raw (format "now() - interval '%s'" interval-string))]])
+   do-execute))
+
+;; finds articles where user has unconfirmed labels
+(defn user-unconfirmed-articles [project-id user-id]
+  (->>
+   (-> (select :a.article-id)
+       (from [:article-criteria :ac])
+       (join [:article :a]
+             [:= :a.article-id :ac.article-id])
+       (merge-join [:project :p]
+                   [:= :a.project-id :p.project-id])
+       (where [:and
+               [:= :p.project-id project-id]
+               [:= :ac.user-id user-id]
+               [:= :ac.confirm-time nil]])
+       do-query)
+   (mapv :article-id)))
+
+;; finds labeled articles with no label by `user-id`
+(defn articles-labeled-not-by-user [project-id user-id fields]
+  (-> (apply select fields)
+      (from [:article :a])
+      (where
+       [:and
+        [:exists
+         (-> (select :*)
+             (from [:article-criteria :ac1])
+             (where
+              [:and
+               [:!= :ac1.confirm-time nil]
+               [:= :ac1.article-id :a.article-id]
+               [:!= :ac1.user-id user-id]]))]
+        [:not
+         [:exists
+          (-> (select :*)
+              (from [:article-criteria :ac2])
+              (where
+               [:and
+                [:!= :ac2.confirm-time nil]
+                [:= :ac2.article-id :a.article-id]
+                [:= :ac2.user-id user-id]]))]]])
+      do-query))
 
 (defn export-label-values-csv [project-id criteria-id path]
   (let [article-labels

@@ -6,7 +6,8 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [clojure.math.numeric-tower :as math]))
 
 (defn criteria-id-from-name [project-id name]
   (-> (select :criteria-id)
@@ -87,6 +88,52 @@
          (apply concat)
          (apply hash-map))))
 
+(defn ideal-unlabeled-article [project-id & [predict-run-id]]
+  (let [predict-run-id
+        (or predict-run-id (latest-predict-run-id project-id))
+        articles
+        (->>
+         (-> (select :a.article-id [:lp.val :score])
+             (from [:article :a])
+             (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+             (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+             (where
+              [:and
+               [:= :a.project-id project-id]
+               [:= :lp.predict-run-id predict-run-id]
+               [:= :c.name "overall include"]
+               [:= :lp.stage 1]
+               [:not
+                [:exists
+                 (-> (select :*)
+                     (from [:article-criteria :ac])
+                     (where
+                      [:and
+                       [:= :ac.article-id :a.article-id]
+                       [:!= :ac.answer nil]]))]]])
+             ;; (order-by [:lp.val :asc])
+             do-query))
+        _ (assert (= (->> articles (mapv :article-id) distinct count)
+                     (count articles)))
+        n-closest (max 5 (quot (count articles) 20))
+        article-id (->> articles
+                        (sort-by #(math/abs (- (:score %) 0.5)) <)
+                        (take n-closest)
+                        rand-nth
+                        :article-id)]
+    (-> (select :a.* [:lp.val :score])
+        (from [:article :a])
+        (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+        (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+        (where [:and
+                [:= :a.article-id article-id]
+                [:= :lp.predict-run-id predict-run-id]
+                [:= :c.name "overall include"]
+                [:= :lp.stage 1]])
+        do-query
+        first)))
+
+#_
 (defn random-unlabeled-article [project-id & [predict-run-id]]
   (let [predict-run-id
         (or predict-run-id (latest-predict-run-id project-id))
@@ -121,6 +168,66 @@
         do-query
         first)))
 
+(defn ideal-single-labeled-article
+  "The purpose of this function is to find articles that have a confirmed
+  inclusion label from exactly one user that is not `self-id`, to present
+  to `self-id` to label the article a second time.
+
+  Articles which have any labels saved by `self-id` (even unconfirmed) will
+  be excluded from this query."
+  [project-id self-id & [predict-run-id]]
+  (let [predict-run-id
+        (or predict-run-id (latest-predict-run-id project-id))
+        articles
+        (-> (select :a.article-id [(sql/call :max :lp.val) :score])
+            (from [:article :a])
+            (join [:article-criteria :ac] [:= :ac.article-id :a.article-id])
+            (merge-join [:criteria :c] [:= :c.criteria-id :ac.criteria-id])
+            (merge-join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+            (where [:and
+                    [:= :a.project-id project-id]
+                    [:= :c.name "overall include"]
+                    [:!= :ac.user-id self-id]
+                    [:!= :ac.answer nil]
+                    [:!= :ac.confirm-time nil]
+                    [:= :lp.predict-run-id predict-run-id]
+                    [:= :lp.criteria-id :c.criteria-id]
+                    [:= :lp.stage 1]])
+            (group :a.article-id)
+            (having [:and
+                     ;; one user found with a confirmed inclusion label
+                     [:= 1 (sql/call :count (sql/call :distinct :ac.user-id))]
+                     ;; and `self-id` has not labeled the article
+                     [:not
+                      [:exists
+                       (-> (select :*)
+                           (from [:article-criteria :ac2])
+                           (where [:and
+                                   [:= :ac2.article-id :a.article-id]
+                                   [:= :ac2.user-id self-id]
+                                   [:!= :ac2.answer nil]]))]]])
+            do-query)
+        _ (assert (= (->> articles (mapv :article-id) distinct count)
+                     (count articles)))
+        n-closest (max 5 (quot (count articles) 20))
+        article-id (->> articles
+                        (sort-by #(math/abs (- (:score %) 0.5)) <)
+                        (take n-closest)
+                        rand-nth
+                        :article-id)]
+    (-> (select :a.* [:lp.val :score])
+        (from [:article :a])
+        (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+        (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+        (where [:and
+                [:= :a.article-id article-id]
+                [:= :lp.predict-run-id predict-run-id]
+                [:= :c.name "overall include"]
+                [:= :lp.stage 1]])
+        do-query
+        first)))
+
+#_
 (defn random-single-labeled-article
   "The purpose of this function is to find articles that have a confirmed
   inclusion label from exactly one user that is not `self-id`, to present
@@ -209,12 +316,12 @@
 (defn get-user-label-task [project-id user-id]
   (let [[pending unlabeled]
         (pvalues
-         (random-single-labeled-article project-id user-id)
-         (random-unlabeled-article project-id))
+         (ideal-single-labeled-article project-id user-id)
+         (ideal-unlabeled-article project-id))
         [article status]
         (cond
-          false #_ (and pending unlabeled)
-          (if (<= (rand) 0.5) [pending :single] [unlabeled :fresh])
+          (and pending unlabeled)
+          (if (<= (rand) 0.75) [unlabeled :fresh] [pending :single])
           pending [pending :single]
           unlabeled [unlabeled :fresh]
           :else nil)]

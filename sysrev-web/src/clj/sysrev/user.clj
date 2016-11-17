@@ -22,6 +22,7 @@
         sysrev.web.routes.auth
         sysrev.web.routes.project
         sysrev.custom.immuno
+        sysrev.misc
         sysrev.init)
   (:require [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]

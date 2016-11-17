@@ -167,6 +167,7 @@
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [similarity (:score article)
+            percent (Math/round (* 100 similarity))
             all-labels (d/get-article-labels article-id)
             labels (and show-labels
                         user-id
@@ -191,13 +192,20 @@
                   (cond (= review-status "conflict") "purple"
                         :else "grey")]
               (when sstr
-                [:div.ui.large.label
-                 {:class color
-                  :style {:float "right"
-                          :margin-top "-3px"
-                          :margin-bottom "-3px"
-                          :margin-right "0px"}}
-                 (str sstr)])))
+                [:div {:style {:float "right"}}
+                 [:div.ui.large.label
+                  {:class color
+                   :style {:margin-top "-3px"
+                           :margin-bottom "-3px"
+                           :margin-right "0px"}}
+                  (str sstr)]
+                 (when (= review-status "fresh")
+                   [:div.ui.large.label
+                    {:class "grey"
+                     :style {:margin-top "-3px"
+                             :margin-bottom "-3px"
+                             :margin-right "0px"}}
+                    (str percent "% predicted inclusion")])])))
           [:div {:style {:clear "both"}}]]
          (when (and classify?
                     (= review-status "conflict")
