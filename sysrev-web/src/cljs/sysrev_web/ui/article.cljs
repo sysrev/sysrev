@@ -199,6 +199,7 @@
                            :margin-bottom "-3px"
                            :margin-right "0px"}}
                   (str sstr)]
+                 #_
                  (when (= review-status "fresh")
                    [:div.ui.large.label
                     {:class "grey"
