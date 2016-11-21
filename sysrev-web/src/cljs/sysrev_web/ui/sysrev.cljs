@@ -24,12 +24,12 @@
        [:div.ui.column
         [:span.attention
          (str (-> stats :labels :any))]
-        " reviewed"]
+        " total reviewed"]
        [:div.ui.column
         [:span.attention
          (str (- (-> stats :labels :any)
                  (-> stats :labels :single)))]
-        " double reviewed"]]]
+        " reviewed twice"]]]
      [:div.ui.two.column.grid.project-stats
       [:div.ui.row
        {:style {:padding-top "0px"}}
