@@ -122,17 +122,25 @@
                     (take n-closest)
                     (#(when-not (empty? %) (rand-nth %)))
                     :article-id)]
-      (-> (select :a.* [:lp.val :score])
-          (from [:article :a])
-          (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-          (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-          (where [:and
-                  [:= :a.article-id article-id]
-                  [:= :lp.predict-run-id predict-run-id]
-                  [:= :c.name "overall include"]
-                  [:= :lp.stage 1]])
-          do-query
-          first))))
+      (let [[article locations]
+            (pvalues
+             (-> (select :a.* [:lp.val :score])
+                 (from [:article :a])
+                 (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+                 (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+                 (where [:and
+                         [:= :a.article-id article-id]
+                         [:= :lp.predict-run-id predict-run-id]
+                         [:= :c.name "overall include"]
+                         [:= :lp.stage 1]])
+                 do-query
+                 first)
+             (->> (-> (select :source :external_id)
+                      (from [:article-location :al])
+                      (where [:= :al.article-id article-id])
+                      do-query)
+                  (group-by :source)))]
+        (assoc article :locations locations)))))
 
 #_
 (defn random-unlabeled-article [project-id & [predict-run-id]]
@@ -217,17 +225,25 @@
                     (take n-closest)
                     (#(when-not (empty? %) (rand-nth %)))
                     :article-id)]
-      (-> (select :a.* [:lp.val :score])
-          (from [:article :a])
-          (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-          (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-          (where [:and
-                  [:= :a.article-id article-id]
-                  [:= :lp.predict-run-id predict-run-id]
-                  [:= :c.name "overall include"]
-                  [:= :lp.stage 1]])
-          do-query
-          first))))
+      (let [[article locations]
+            (pvalues
+             (-> (select :a.* [:lp.val :score])
+                 (from [:article :a])
+                 (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+                 (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+                 (where [:and
+                         [:= :a.article-id article-id]
+                         [:= :lp.predict-run-id predict-run-id]
+                         [:= :c.name "overall include"]
+                         [:= :lp.stage 1]])
+                 do-query
+                 first)
+             (->> (-> (select :source :external_id)
+                      (from [:article-location :al])
+                      (where [:= :al.article-id article-id])
+                      do-query)
+                  (group-by :source)))]
+        (assoc article :locations locations)))))
 
 #_
 (defn random-single-labeled-article
@@ -328,7 +344,9 @@
           unlabeled [unlabeled :fresh]
           :else nil)]
     (when (and article status)
-      (assoc article :review-status status))))
+      (-> article
+          (assoc :review-status status)
+          (dissoc :raw)))))
 
 (defn all-labels-for-article [article-id]
   (-> (select :ac.*)

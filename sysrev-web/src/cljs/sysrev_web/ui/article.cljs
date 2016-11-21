@@ -249,14 +249,17 @@
            (when (not (empty? docs))
              [:div {:style {:padding-top "1rem"}}
               [article-docs-component article-id]])
-           [:div.content.ui.list
-            (->> article :urls
-                 (map-indexed
-                  (fn [idx url]
-                    ^{:key {:article-url {:aid article-id
-                                          :url-idx idx}}}
-                    [out-link url]))
-                 doall)]]]
+           (let [urls
+                 (concat (-> article :urls)
+                         (-> article :locations d/article-location-urls))]
+             [:div.content.ui.list
+              (->> urls
+                   (map-indexed
+                    (fn [idx url]
+                      ^{:key {:article-url {:aid article-id
+                                            :url-idx idx}}}
+                      [out-link url]))
+                   doall)])]]
          (when (and show-labels have-labels?)
            [:div.ui.bottom.attached.segment
             [:div.content

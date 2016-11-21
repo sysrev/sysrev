@@ -88,7 +88,9 @@
                 [score user-labels]
                 (pvalues (articles/article-predict-score article)
                          (labels/article-user-labels-map article-id))]
-            {:article (assoc article :score score)
+            {:article (-> article
+                          (assoc :score score)
+                          (dissoc :raw))
              :labels user-labels}))))
 
   (POST "/api/delete-member-labels" request

@@ -150,3 +150,21 @@
 
 (defn admin-user? [user-id]
   (in? (:permissions (user-info user-id)) "admin"))
+
+(defn article-location-urls [locations]
+  (let [sources [:pubmed :doi :pii]]
+    (->>
+     sources
+     (map
+      (fn [source]
+        (let [entries (get locations source)]
+          (->>
+           entries
+           (map
+            (fn [{:keys [external-id]}]
+              (case source
+                :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
+                :doi (str "https://dx.doi.org/" external-id)
+                nil)))))))
+     (apply concat)
+     (filter identity))))
