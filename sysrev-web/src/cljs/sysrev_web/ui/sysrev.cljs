@@ -23,13 +23,13 @@
         " total articles"]
        [:div.ui.column
         [:span.attention
-         (str (- (-> stats :labels :any)
-                 (-> stats :labels :single)))]
-        " fully reviewed"]
+         (str (-> stats :labels :any))]
+        " reviewed"]
        [:div.ui.column
         [:span.attention
-         (str (-> stats :labels :single))]
-        " reviewed once"]]]
+         (str (- (-> stats :labels :any)
+                 (-> stats :labels :single)))]
+        " double reviewed"]]]
      [:div.ui.two.column.grid.project-stats
       [:div.ui.row
        {:style {:padding-top "0px"}}
