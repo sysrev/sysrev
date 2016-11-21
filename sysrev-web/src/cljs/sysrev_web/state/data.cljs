@@ -165,6 +165,7 @@
               (case source
                 :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
                 :doi (str "https://dx.doi.org/" external-id)
+                :pmc (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" external-id "/")
                 nil)))))))
      (apply concat)
      (filter identity))))
