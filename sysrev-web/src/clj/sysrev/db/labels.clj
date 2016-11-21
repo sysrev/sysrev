@@ -115,23 +115,24 @@
              do-query))
         _ (assert (= (->> articles (mapv :article-id) distinct count)
                      (count articles)))
-        n-closest (max 5 (quot (count articles) 20))
-        article-id (->> articles
-                        (sort-by #(math/abs (- (:score %) 0.5)) <)
-                        (take n-closest)
-                        rand-nth
-                        :article-id)]
-    (-> (select :a.* [:lp.val :score])
-        (from [:article :a])
-        (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-        (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-        (where [:and
-                [:= :a.article-id article-id]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :c.name "overall include"]
-                [:= :lp.stage 1]])
-        do-query
-        first)))
+        n-closest (max 5 (quot (count articles) 20))]
+    (when-let [article-id
+               (->> articles
+                    (sort-by #(math/abs (- (:score %) 0.5)) <)
+                    (take n-closest)
+                    (#(when-not (empty? %) (rand-nth %)))
+                    :article-id)]
+      (-> (select :a.* [:lp.val :score])
+          (from [:article :a])
+          (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+          (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+          (where [:and
+                  [:= :a.article-id article-id]
+                  [:= :lp.predict-run-id predict-run-id]
+                  [:= :c.name "overall include"]
+                  [:= :lp.stage 1]])
+          do-query
+          first))))
 
 #_
 (defn random-unlabeled-article [project-id & [predict-run-id]]
@@ -209,23 +210,24 @@
             do-query)
         _ (assert (= (->> articles (mapv :article-id) distinct count)
                      (count articles)))
-        n-closest (max 5 (quot (count articles) 20))
-        article-id (->> articles
-                        (sort-by #(math/abs (- (:score %) 0.5)) <)
-                        (take n-closest)
-                        rand-nth
-                        :article-id)]
-    (-> (select :a.* [:lp.val :score])
-        (from [:article :a])
-        (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-        (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-        (where [:and
-                [:= :a.article-id article-id]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :c.name "overall include"]
-                [:= :lp.stage 1]])
-        do-query
-        first)))
+        n-closest (max 5 (quot (count articles) 20))]
+    (when-let [article-id
+               (->> articles
+                    (sort-by #(math/abs (- (:score %) 0.5)) <)
+                    (take n-closest)
+                    (#(when-not (empty? %) (rand-nth %)))
+                    :article-id)]
+      (-> (select :a.* [:lp.val :score])
+          (from [:article :a])
+          (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
+          (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
+          (where [:and
+                  [:= :a.article-id article-id]
+                  [:= :lp.predict-run-id predict-run-id]
+                  [:= :c.name "overall include"]
+                  [:= :lp.stage 1]])
+          do-query
+          first))))
 
 #_
 (defn random-single-labeled-article
