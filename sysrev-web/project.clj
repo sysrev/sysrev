@@ -44,6 +44,8 @@
                  ;; Web client
                  [clj-http "3.3.0"]
                  [crypto-random "1.2.0"]
+                 ;; Browser automation
+                 [clj-webdriver "0.7.2"]
                  ;; Project config file support
                  [yogthos/config "0.8"]
                  ;; Logging
@@ -129,4 +131,6 @@
              :test
              {:resource-paths ["config/test"]
               :source-paths ["src/clj" "src/cljs" "test/clj"]
-              :test-paths ["test/clj"]}})
+              :test-paths ["test/clj"]}
+             :autotest
+             {:dependencies {}}})

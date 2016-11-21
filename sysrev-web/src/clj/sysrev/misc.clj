@@ -5,7 +5,25 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.util :refer [map-values]]))
+            [sysrev.util :refer [map-values]]
+            [clojure.string :as str]))
+
+(defn articles-matching-regex [project-id field-name regexs select-fields]
+  (-> (apply select select-fields)
+      (from :article)
+      (where [:and
+              [:= :project-id project-id]
+              (sql/raw
+               (str "( "
+                    (->>
+                     (mapv (fn [regex]
+                             (format " (%s ~ '%s') "
+                                     (first (sql/format field-name))
+                                     regex))
+                           regexs)
+                     (str/join " OR "))
+                    " )"))])
+      do-query))
 
 (defn delete-user-article-labels [user-id article-id]
   (assert (integer? user-id))
