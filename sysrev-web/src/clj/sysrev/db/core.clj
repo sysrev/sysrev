@@ -133,3 +133,35 @@
 (extend java.util.UUID
   json/JSONWriter
   {:-write write-object-str})
+
+;;
+;; Facility for caching query results that shouldn't change often
+;;
+(defonce query-cache (atom {}))
+
+(defmacro with-query-cache [field-path form]
+  `(let [field-path# ~field-path
+         field-path# (if (keyword? field-path#)
+                       [field-path#] field-path#)
+         cache-val# (get-in @query-cache field-path# :not-found)]
+     (if (= cache-val# :not-found)
+       (let [new-val# (do ~form)]
+         (swap! query-cache assoc-in field-path# new-val#)
+         new-val#)
+       cache-val#)))
+
+(defmacro with-project-cache [project-id field-path form]
+  `(let [project-id# ~project-id
+         field-path# ~field-path
+         field-path# (if (keyword? field-path#)
+                       [field-path#] field-path#)
+         full-path# (concat [project-id#] field-path#)]
+     (with-query-cache full-path# ~form)))
+
+(defn clear-query-cache []
+  (reset! query-cache {}))
+
+(defn clear-project-cache [& [project-id]]
+  (if project-id
+    (swap! query-cache assoc-in [:project project-id] {})
+    (swap! query-cache assoc :project {})))

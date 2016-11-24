@@ -5,7 +5,7 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
-    [do-query do-execute to-sql-array sql-cast]]
+    [do-query do-execute to-sql-array sql-cast with-project-cache]]
    [sysrev.predict.core :refer [latest-predict-run]]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
@@ -115,14 +115,26 @@
       do-execute))
 
 (defn project-criteria [project-id]
-  (->>
-   (-> (select :*)
-       (from :criteria)
-       (where [:= :project-id project-id])
-       (order-by :criteria-id)
-       do-query)
-   (group-by :criteria-id)
-   (map-values first)))
+  (with-project-cache
+    project-id :criteria
+    (->>
+     (-> (select :*)
+         (from :criteria)
+         (where [:= :project-id project-id])
+         (order-by :criteria-id)
+         do-query)
+     (group-by :criteria-id)
+     (map-values first))))
+
+(defn project-overall-cid [project-id]
+  (with-project-cache
+    project-id :overall-cid
+    (->> (project-criteria project-id)
+         (filter
+          (fn [[cid fields]]
+            (= (:name fields) "overall include")))
+         (map first)
+         first)))
 
 (defn project-member [project-id user-id]
   (-> (select :*)

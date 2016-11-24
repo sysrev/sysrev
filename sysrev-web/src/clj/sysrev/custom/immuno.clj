@@ -70,10 +70,12 @@
        (-> results first :article-id)))))
 
 (defn load-endnote-file
-  "Parse the Endnote XML file into a map containing the fields we're
-  interested in."
-  [fname]
-  (let [x (parse-endnote-file fname)]
+  "Parse the Endnote XML file into a map containing the fields we're interested
+  in. `group-field` should be a keyword with the name of the Endnote reference
+  field used to attach the group name to each entry (defaults to :custom1)."
+  [fname & [group-field]]
+  (let [group-field (or group-field :custom1)
+        x (parse-endnote-file fname)]
     (let [entries (xml-find [x] [:records :record])]
       (->> entries
            (map (fn [e]
@@ -83,7 +85,7 @@
                                     first :content first)
                         rdb-name (-> (xml-find [e] [:remote-database-name :style])
                                      first :content first)
-                        group (-> (xml-find [e] [:custom1 :style])
+                        group (-> (xml-find [e] [group-field :style])
                                   first :content first)]
                     {:title title
                      :journal journal
@@ -105,6 +107,9 @@
                   :criteria-id))]
     (->>
      (cond
+       ;;;;
+       ;;;; these are the group labels from the Huili export
+       ;;;;
        (= gname "io vaccine/virus")
        {"overall include" true
         "is cancer" true
@@ -167,6 +172,56 @@
        {"overall include" false
         "is immunotherapy" true
         "is clinical trial" false}
+       ;;;; above are the group labels from Huili export
+       ;;;;
+       ;;;; now, group labels from Daphne/Amy export
+       (= gname "IMMUNO-MONOTHERAPY")
+       {"overall include" true
+        "is cancer" true
+        "is human" true
+        "is clinical trial" true
+        "is phase 1" true
+        "is immunotherapy" true
+        "conference abstract" false
+        "combination trial" false
+        "single agent trial" true
+        "vaccine or virus study" false}
+       (= gname "IMMUNO-VACCINE/VIRUS")
+       {"overall include" true
+        "is cancer" true
+        "is human" true
+        "is clinical trial" true
+        "is phase 1" true
+        "is immunotherapy" true
+        "conference abstract" false
+        "combination trial" false
+        "single agent trial" false
+        "vaccine or virus study" true}
+       (= gname "Not cancer related")
+       {"overall include" false
+        "is cancer" false}
+       (= gname "Not clinical trial paper")
+       {"overall include" false
+        "is clinical trial" false
+        "is phase 1" false}
+       (= gname "Not immunotherapy related")
+       {"overall include" false
+        "is immunotherapy" false}
+       (= gname "pediatrics")
+       {"overall include" false}
+       (= gname "phase III")
+       {"overall include" false
+        "is phase 1" false}
+       (= gname "Preclinical")
+       {"overall include" false
+        "is human" false
+        "is clinical trial" false
+        "is phase 1" false}
+       (= gname "Transplant")
+       {"overall include" false}
+       (= gname "Phase I/phase 1/clinical trial")
+       {"is phase 1" true
+        "is clinical trial" true}
        :else
        nil)
      (map (fn [[name val]]
@@ -177,31 +232,35 @@
 (defn store-endnote-labels
   "Records all the labels contained in Endnote XML export file `fname` as
   being set and confirmed by user `user-id`."
-  [project-id user-id fname]
-  (->>
-   (load-endnote-file fname)
-   (pmap
-    (fn [[gname gentries]]
-      (let [label-values (group-name-to-label-values project-id gname)]
-        (println (format "label-values for '%s' = %s"
-                         gname (pr-str label-values)))
-        (assert (not (empty? label-values)))
-        (when ((comp not empty?) label-values)
-          (doseq [entry gentries]
-            (let [article-id (match-article-id project-id
-                                               (:title entry)
-                                               (:journal entry)
-                                               (:rdb-name entry))]
-              (println (format "setting labels for article #%s" article-id))
-              (when article-id
-                (-> (delete-from :article-criteria)
-                    (where [:and
-                            [:= :user-id user-id]
-                            [:= :article-id article-id]])
-                    do-execute)
-                (labels/set-user-article-labels
-                 user-id article-id label-values true)))))
-        true)))
-   doall)
+  [project-id user-ids fname & [group-field]]
+  (let [user-ids (if (integer? user-ids) [user-ids] user-ids)]
+    (->>
+     (load-endnote-file fname group-field)
+     (pmap
+      (fn [[gname gentries]]
+        (let [label-values (group-name-to-label-values project-id gname)]
+          (println (format "label-values for '%s' = %s"
+                           gname (pr-str label-values)))
+          (assert ((comp not empty?) label-values))
+          (->>
+           gentries
+           (map
+            (fn [entry]
+              (let [article-id (match-article-id project-id
+                                                 (:title entry)
+                                                 (:journal entry)
+                                                 (:rdb-name entry))]
+                (println (format "setting labels for article #%s" article-id))
+                (doseq [user-id user-ids]
+                  (when article-id
+                    (-> (delete-from :article-criteria)
+                        (where [:and
+                                [:= :user-id user-id]
+                                [:= :article-id article-id]])
+                        do-execute)
+                    (labels/set-user-article-labels
+                     user-id article-id label-values true))))))
+           doall))))
+     doall))
   true)
 

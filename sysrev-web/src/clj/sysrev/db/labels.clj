@@ -1,6 +1,7 @@
 (ns sysrev.db.labels
   (:require [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now to-sql-array]]
+            [sysrev.db.project :refer [project-overall-cid]]
             [sysrev.predict.core :refer [latest-predict-run-id]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
@@ -396,7 +397,17 @@
   (assert (map? label-values))
   (do-transaction
    nil
-   (let [now (sql-now)
+   (let [[now project-id]
+         (pvalues
+          (sql-now)
+          (-> (select :project-id)
+              (from :article)
+              (where [:= :article-id article-id])
+              do-query first :project-id))
+         overall-cid (project-overall-cid project-id)
+         confirm? (and imported?
+                       ((comp not nil?)
+                        (get label-values overall-cid)))
          existing-cids
          (->> (-> (select :criteria-id)
                   (from :article-criteria)
@@ -414,7 +425,7 @@
                                :article-id article-id
                                :user-id user-id
                                :answer (get label-values cid)
-                               :confirm-time (if imported? now nil)
+                               :confirm-time (if confirm? now nil)
                                :imported imported?})))]
      (doseq [cid existing-cids]
        (-> (sqlh/update :article-criteria)
