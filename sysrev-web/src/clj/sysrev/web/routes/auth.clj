@@ -3,7 +3,10 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.util :refer [should-never-happen-exception]]
-            [sysrev.web.routes.site :refer [user-info]]))
+            [sysrev.web.routes.site :refer [user-info]]
+            [sysrev.mail.core :refer [send-email]]))
+
+(declare send-password-reset-email)
 
 (defroutes auth-routes
   (POST "/api/auth/login" request
@@ -69,4 +72,45 @@
                active-project :active-project
                :as session} :session} request]
          {:identity (user-info user-id true)
-          :active-project active-project})))
+          :active-project active-project}))
+
+  (GET "/api/auth/lookup-reset-code" request
+       (let [{{:keys [reset-code] :as params}
+              :params} request
+             {:keys [email]} (users/get-user-by-reset-code reset-code)]
+         {:email email}))
+
+  (POST "/api/auth/request-password-reset" request
+        (let [{{:keys [email] :as body}
+               :body} request
+              {:keys [user-id]
+               :as user} (users/get-user-by-email email)]
+          (if (nil? user)
+            {:result
+             {:success false
+              :exists false}}
+            (do
+              (send-password-reset-email user-id)
+              {:success true
+               :exists true}))))
+
+  (POST "/api/auth/reset-password" request
+        (let [{{:keys [reset-code password] :as body}
+               :body} request
+              {:keys [email user-id]
+               :as user} (users/get-user-by-reset-code reset-code)]
+          (assert user-id "No user account found for reset code")
+          (users/set-user-password email password)
+          (users/clear-password-reset-code user-id)
+          {:success true})))
+
+(defn send-password-reset-email [user-id]
+  (let [{:keys [email] :as user}
+        (users/get-user-by-id user-id)]
+    (users/create-password-reset-code user-id)
+    (send-email
+     email "SysRev.us Password Reset Requested"
+     (with-out-str
+       (printf "A password reset has been requested for email address %s on https://sysrev.us\n\n" email)
+       (printf "If you made this request, follow this link to reset your password: %s\n\n"
+               (users/user-password-reset-url user-id))))))

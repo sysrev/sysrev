@@ -24,7 +24,7 @@
 (defn get-user-by-email [email]
   (-> (select :*)
       (from :web-user)
-      (where [:= :email email])
+      (where [:= (sql/call :lower :email) (sql/call :lower email)])
       do-query
       first))
 
@@ -32,6 +32,14 @@
   (-> (select :*)
       (from :web-user)
       (where [:= :user-id user-id])
+      do-query
+      first))
+
+(defn get-user-by-reset-code [reset-code]
+  (assert (string? reset-code))
+  (-> (select :*)
+      (from :web-user)
+      (where [:= :reset-code reset-code])
       do-query
       first))
 
@@ -74,7 +82,7 @@
 (defn set-user-password [email new-password]
   (-> (sqlh/update :web-user)
       (sset {:pw-encrypted-buddy (encrypt-password new-password)})
-      (where [:= :email email])
+      (where [:= (sql/call :lower :email) (sql/call :lower email)])
       do-execute))
 
 (defn set-user-permissions
@@ -119,3 +127,23 @@
       (sset {:user-id new-id})
       (where [:= :user-id current-id])
       do-execute))
+
+(defn create-password-reset-code [user-id]
+  (-> (sqlh/update :web-user)
+      (sset {:reset-code (crypto.random/hex 16)})
+      (where [:= :user-id user-id])
+      do-execute))
+
+(defn clear-password-reset-code [user-id]
+  (-> (sqlh/update :web-user)
+      (sset {:reset-code nil})
+      (where [:= :user-id user-id])
+      do-execute))
+
+(defn user-password-reset-url [user-id]
+  (when-let [reset-code
+             (-> (select :reset-code)
+                 (from :web-user)
+                 (where [:= :user-id user-id])
+                 do-query first :reset-code)]
+    (format "https://sysrev.us/reset-password/%s" reset-code)))

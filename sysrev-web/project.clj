@@ -44,6 +44,8 @@
                  ;; Web client
                  [clj-http "3.3.0"]
                  [crypto-random "1.2.0"]
+                 ;; Email
+                 [com.draines/postal "2.0.2"]
                  ;; Browser automation
                  [clj-webdriver "0.7.2"]
                  ;; Project config file support

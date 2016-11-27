@@ -169,3 +169,10 @@
                 nil)))))))
      (apply concat)
      (filter identity))))
+
+(defn reset-code-info [reset-code]
+  (data [:reset-code reset-code]))
+
+(defn set-reset-code-info [reset-code rmap]
+  (fn [s]
+    (assoc-in s [:data :reset-code reset-code] rmap)))

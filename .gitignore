@@ -180,3 +180,6 @@ fabric.properties
 /flyway.conf
 
 /sysrev-web/resources/public/files/PDF
+/sysrev-web/resources/smtp-config.edn
+
+*.pgdumpc

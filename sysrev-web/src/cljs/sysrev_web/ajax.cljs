@@ -78,6 +78,10 @@
 (def get-criteria (partial ajax-get "/api/criteria"))
 (defn get-article-info [article-id handler]
   (ajax-get (str "/api/article-info/" article-id) handler))
+(defn get-reset-code-info [reset-code handler]
+  (ajax-get "/api/auth/lookup-reset-code"
+            {:reset-code reset-code}
+            handler))
 (def get-article-documents (partial ajax-get "/api/article-documents"))
 (def get-project-info (partial ajax-get "/api/project-info"))
 (def get-all-projects (partial ajax-get "/api/all-projects"))
@@ -87,6 +91,9 @@
   (ajax-get (str "/api/member-labels/" user-id) handler))
 (defn post-login [data handler] (ajax-post "/api/auth/login" data handler))
 (defn post-register [data handler] (ajax-post "/api/auth/register" data handler))
+(defn post-reset-password [data handler] (ajax-post "/api/auth/reset-password" data handler))
+(defn post-request-password-reset [data handler]
+  (ajax-post "/api/auth/request-password-reset" data handler))
 (defn post-logout [handler] (ajax-post "/api/auth/logout" handler))
 (defn get-label-task [handler]
   (ajax-get "/api/label-task" handler))
@@ -133,6 +140,12 @@
      (swap! state (d/set-article-labels article-id (:labels response)))
      (swap! state (d/merge-articles {article-id (:article response)})))))
 
+(defn pull-reset-code-info [reset-code]
+  (get-reset-code-info
+   reset-code
+   (fn [response]
+     (swap! state (d/set-reset-code-info reset-code response)))))
+
 (defn pull-article-documents []
   (get-article-documents
    (fn [response]
@@ -175,6 +188,32 @@
            (do-post-login email password))
        (do (ga-event "auth" "register_failure")
            (swap! state assoc-in [:page :register :err] (:message response)))))))
+
+(defn do-post-reset-password [reset-code password]
+  (post-reset-password
+   {:reset-code reset-code :password password}
+   (fn [response]
+     (if (:success response)
+       (do (ga-event "auth" "password_reset_success")
+           (notify "Password reset" {:class "green"})
+           (swap! state (s/log-out))
+           (nav-scroll-top "/login"))
+       (do (ga-event "error" "password_reset_failure")
+           (swap! state assoc-in [:page :reset-password :err]
+                  (or (:message response) "Request failed")))))))
+
+(defn do-post-request-password-reset [email]
+  (post-request-password-reset
+   {:email email}
+   (fn [response]
+     (if (:success response)
+       (swap! state assoc-in
+              [:page :request-password-reset :sent] true)
+       (do
+         (swap! state assoc-in
+                [:page :request-password-reset :sent] false)
+         (swap! state assoc-in [:page :request-password-reset :err]
+                "No account found for this email address."))))))
 
 (defn do-post-logout []
   (post-logout
@@ -276,6 +315,8 @@
                    (and (= (nth ks 2) :labels)
                         (integer? (nth ks 3)))
                    (pull-member-labels (nth ks 3)))
+        :reset-code (let [[_ reset-code] ks]
+                      (pull-reset-code-info reset-code))
         :all-projects (pull-all-projects)
         ;; :users (let [[_ user-id] ks] (pull-user-info user-id))
         :articles (let [[_ article-id] ks]

@@ -1,9 +1,7 @@
 (ns sysrev-web.ui.login
   (:require [sysrev-web.base :refer [state]]
             [sysrev-web.ajax :as ajax]
-            [reagent.core :as r]
-            [sysrev-web.util :refer [validate]]
-            [sysrev-web.ui.components :refer [debug-box]]))
+            [sysrev-web.util :refer [validate]]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
@@ -40,19 +38,30 @@
       [:form.ui.form {:class form-class :on-submit on-submit}
        [:div.field {:class (error-class :email)}
         [:label "Email"]
-        [:input {:type "email"
-                 :name "email"
-                 :value (-> @state :page page :email)
-                 :on-change (input-change :email)}]]
+        [:input.ui.input
+         {:type "email"
+          :name "email"
+          :value (-> @state :page page :email)
+          :on-change (input-change :email)}]]
        [:div.field {:class (error-class :password)}
         [:label "Password"]
-        [:input {:type "password"
-                 :name "password"
-                 :value (-> @state :page page :password)
-                 :on-change (input-change :password)}]]
-       [error-msg :user]
+        [:input.ui.input
+         {:type "password"
+          :name "password"
+          :value (-> @state :page page :password)
+          :on-change (input-change :password)}]]
+       [error-msg :email]
        [error-msg :password]
        [:div.ui.divider]
        [:button.ui.button {:type "submit" :name "submit"} "Submit"]
        (when-let [err (-> @state :page page :err)]
-         [:div.ui.negative.message err])]]]))
+         [:div.ui.negative.message err])]
+      [:div.ui.divider]
+      (when (= page :register)
+        [:div.center.aligned
+         [:a {:href "/login"}
+          "Already have an account?"]])
+      (when (= page :login)
+        [:div.center.aligned
+         [:a {:href "/request-password-reset"}
+          "Forgot password?"]])]]))

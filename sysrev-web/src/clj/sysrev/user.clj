@@ -21,6 +21,7 @@
         sysrev.web.routes.site
         sysrev.web.routes.auth
         sysrev.web.routes.project
+        sysrev.mail.core
         sysrev.custom.immuno
         sysrev.misc
         sysrev.init)

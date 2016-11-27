@@ -15,6 +15,8 @@
    [sysrev-web.ui.classify :refer [classify-page]]
    [sysrev-web.ui.article-page :refer [article-page]]
    [sysrev-web.ui.select-project :refer [select-project-page]]
+   [sysrev-web.ui.password-reset :refer
+    [password-reset-page request-password-reset-page]]
    [reagent.core :as r]
    [sysrev-web.state.data :as d])
   (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
@@ -23,26 +25,6 @@
   [:div.ui.segments
    [:div.ui.center.aligned.header.segment
     [:h2 "Please log in or register to access a project"]]])
-
-#_
-(defn logged-out-content []
-  [:div.ui.segments
-   [:div.ui.top.attached.center.aligned.header.segment
-    [:h2 "Please log in or register to access a project"]]
-   [:div.ui.bottom.attached.segment
-    [:div
-     {:style (if (full-size?)
-               {:width "80%"
-                :margin-left "auto"
-                :margin-right "auto"}
-               {})}
-     (doall
-      (->>
-       (d/data :all-projects)
-       (map (fn [[project-id project]]
-              ^{:key {:project-list project-id}}
-              [:div.ui.blue.segment
-               [:h4 (:name project)]]))))]]])
 
 (defn current-page-content []
   (cond (nil? (current-page)) [:div [:h1 "Route not found"]]
@@ -56,6 +38,8 @@
         (on-page? :labels) [project-wrapper-div [labels-page]]
         (on-page? :login) [login-register-page false]
         (on-page? :register) [login-register-page true]
+        (on-page? :request-password-reset) [request-password-reset-page]
+        (on-page? :reset-password) [password-reset-page]
         (on-page? :user-profile) [project-wrapper-div [user-profile-page]]
         (on-page? :classify) [project-wrapper-div [classify-page]]
         (on-page? :article) [project-wrapper-div [article-page]]

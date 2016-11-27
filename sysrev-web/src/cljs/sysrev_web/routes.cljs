@@ -11,7 +11,7 @@
   (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 (def public-pages
-  [:login :register :labels])
+  [:login :register :request-password-reset :reset-password :labels])
 
 (def public-data-fields
   [[:all-projects]])
@@ -53,6 +53,18 @@
    {:required
     (fn [s]
       [])}
+
+   :request-password-reset
+   {:required
+    (fn [s]
+      [])}
+
+   :reset-password
+   {:required
+    (fn [s]
+      [[:reset-code
+        (-> s :page :reset-password :reset-code)
+        :email]])}
 
    :select-project
    {:required
@@ -227,6 +239,15 @@
 (defroute register "/register" []
   (do-route-change :register
                    {:email "" :password "" :submit false}))
+
+(defroute request-password-reset "/request-password-reset" []
+  (do-route-change :request-password-reset
+                   {:email "" :submit false :sent nil}))
+
+(defroute reset-password "/reset-password/:reset-code" [reset-code]
+  (do-route-change :reset-password
+                   {:password ""
+                    :reset-code reset-code}))
 
 (defroute select-project "/select-project" []
   (do-route-change :select-project
