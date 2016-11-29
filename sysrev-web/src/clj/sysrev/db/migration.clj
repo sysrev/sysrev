@@ -3,14 +3,19 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.db.project :refer
              [add-project-member set-member-permissions]]
             [sysrev.db.core :refer
-             [do-query do-execute to-sql-array with-debug-sql]]
+             [do-query do-execute do-transaction active-db
+              to-sql-array with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions]]
-            [sysrev.util :refer [parse-xml-str]]
-            [sysrev.import.pubmed :refer [extract-article-location-entries]])
+            [sysrev.db.labels :refer [add-label-entry-boolean]]
+            [sysrev.util :refer [parse-xml-str map-values]]
+            [sysrev.import.pubmed :refer [extract-article-location-entries]]
+            [clojure.data.json :as json]
+            [sysrev.db.queries :as q])
   (:import java.util.UUID))
 
 (defn- get-default-project
@@ -160,12 +165,135 @@
                     do-execute))
               (println (str "processed #" article-id)))))
          doall)
-    (println (str "processed locations for #"
-                  (count articles)
-                  " articles"))))
+    (when (not= 0 (count articles))
+      (println
+       (str "processed locations for " (count articles) " articles")))))
+
+(defn ensure-new-label-entries []
+  (let [project-ids (->> (-> (select :project-id)
+                             (from :project)
+                             (order-by [:date-created :asc])
+                             do-query)
+                         (map :project-id))]
+    (doseq [project-id project-ids]
+      (when (zero? (-> (select :%count.*)
+                       (from :label)
+                       (where [:= :project-id project-id])
+                       do-query first :count))
+        (try
+          (let [project-criteria
+                (-> (select :*)
+                    (from :criteria)
+                    (where [:= :project-id project-id])
+                    (order-by [:criteria-id :asc])
+                    do-query)]
+            (doseq [criteria project-criteria]
+              (add-label-entry-boolean
+               project-id (merge
+                           (->> [:name :question :short-label]
+                                (select-keys criteria))
+                           {:inclusion-value (:is-inclusion criteria)
+                            :required (:is-required criteria)}))))
+          (catch Throwable e
+            (println
+             (str "error creating `label` entries from `criteria`: " e))
+            (print-cause-trace e)))))))
+
+(defn ensure-new-label-value-entries []
+  (let [project-ids (->> (-> (select :project-id)
+                             (from :project)
+                             (order-by [:date-created :asc])
+                             do-query)
+                         (map :project-id))]
+    (doseq [project-id project-ids]
+      (when (zero? (-> (q/select-project-articles project-id [:%count.*])
+                       (q/join-article-labels)
+                       do-query first :count))
+        (try
+          (let [old-entries
+                (-> (select :ac.* :c.name)
+                    (from [:article-criteria :ac])
+                    (join [:article :a]
+                          [:= :a.article-id :ac.article-id])
+                    (merge-join [:criteria :c]
+                                [:= :c.criteria-id :ac.criteria-id])
+                    (where [:= :a.project-id project-id])
+                    (order-by [:ac.article-criteria-id :asc])
+                    do-query)
+                project-labels
+                (->> (-> (q/select-label-where project-id true [:*])
+                         do-query)
+                     (group-by :name)
+                     (map-values first))
+                new-entries
+                (->>
+                 old-entries
+                 (mapv
+                  (fn [entry]
+                    {:article-id (:article-id entry)
+                     :label-id (->> entry :name (get project-labels) :label-id)
+                     :user-id (:user-id entry)
+                     :answer (some-> (:answer entry) to-jsonb)
+                     :added-time (:added-time entry)
+                     :updated-time (:updated-time entry)
+                     :confirm-time (:confirm-time entry)
+                     :imported (:imported entry)})))]
+            (when (not= 0 (count new-entries))
+              (println (format "inserting %d label values" (count new-entries))))
+            (->>
+             new-entries
+             (partition-all 50)
+             (mapv
+              #(-> (insert-into :article-label)
+                   (values %)
+                   do-execute))))
+          (catch Throwable e
+            (println
+             (str "error creating new label value entries: " e))
+            (print-cause-trace e)))))))
+
+(defn ensure-predict-label-ids []
+  (do-transaction
+   nil
+   (doseq [{:keys [criteria-id project-id name]}
+           (-> (select :criteria-id :project-id :name)
+               (from :criteria)
+               do-query)]
+     (let [label-id
+           (-> (select :label-id)
+               (from :label)
+               (where [:and
+                       [:= :project-id project-id]
+                       [:= :name name]])
+               do-query first :label-id)]
+       (assert label-id "label entry not found")
+       (let [result
+             (-> (sqlh/update :label-similarity)
+                 (where [:and
+                         [:= :criteria-id criteria-id]
+                         [:= :label-id nil]])
+                 (sset {:label-id label-id})
+                 do-execute)]
+         (when (not= result '(0))
+           (println
+            (format "updated label_similarity [%d, '%s'] : %s rows changed"
+                    project-id name
+                    (pr-str result)))))
+       (let [result
+             (-> (sqlh/update :label-predicts)
+                 (where [:and
+                         [:= :criteria-id criteria-id]
+                         [:= :label-id nil]])
+                 (sset {:label-id label-id})
+                 do-execute)]
+         (when (not= result '(0))
+           (println
+            (format "updated label_predicts [%d, '%s'] : %s rows changed"
+                    project-id name
+                    (pr-str result)))))))))
 
 (defn ensure-updated-db
-  "Runs everything to update from pre-multiproject database entries."
+  "Runs everything to update database entries to latest format."
   []
   (assert (get-default-project))
   (ensure-user-member-entries)
@@ -173,4 +301,7 @@
   (ensure-entry-uuids)
   (ensure-permissions-set)
   (ensure-test-user-perms)
-  (ensure-article-location-entries))
+  (ensure-article-location-entries)
+  (ensure-new-label-entries)
+  (ensure-new-label-value-entries)
+  (ensure-predict-label-ids))

@@ -194,3 +194,9 @@
     {:article article
      :similar good
      :unsimilar bad}))
+
+(defn alter-label [id values]
+  (-> (sqlh/update :label)
+      (sset values)
+      (where [:= :label-id id])
+      do-execute))

@@ -9,12 +9,6 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
 
-(defn alter-criteria [id values]
-  (-> (sqlh/update :criteria)
-      (sset values)
-      (where [:= :criteria-id id])
-      do-execute))
-
 (defn fix-duplicate-authors-entries [project-id]
   (->>
    (-> (select :article-id :authors)

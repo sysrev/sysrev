@@ -42,14 +42,11 @@
  (fn [reader]
    (json/read-str reader :key-fn keyword)))
 
-(defn to-jsonb
-  "Converts a Clojure map to a honeysql jsonb string object
-   which can be used in SQL queries."
-  [map]
-  (sql/call :jsonb (clojure.data.json/write-str map)))
+(defn sql-cast [x sql-type]
+  (sql/call :cast x sql-type))
 
-(defn sql-cast [field sql-type]
-  (sql/call :cast field sql-type))
+(defn to-jsonb [x]
+  (sql-cast (clojure.data.json/write-str x) :jsonb))
 
 (defn to-sql-array
   "Convert a Clojure sequence to a PostgreSQL array object.
@@ -94,6 +91,7 @@
   Uses thread-local dynamic binding to hold transaction connection value, so
   `body` must not make any SQL calls in spawned threads."
   [db & body]
+  (assert body "do-transaction: body must not be empty")
   `(do (assert (nil? *conn*))
        (j/with-db-transaction [conn# (or ~db @active-db)]
          (binding [*conn* conn#]
@@ -155,7 +153,7 @@
          field-path# ~field-path
          field-path# (if (keyword? field-path#)
                        [field-path#] field-path#)
-         full-path# (concat [project-id#] field-path#)]
+         full-path# (concat [:project project-id#] field-path#)]
      (with-query-cache full-path# ~form)))
 
 (defn clear-query-cache []

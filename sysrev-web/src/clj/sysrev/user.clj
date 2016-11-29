@@ -1,6 +1,7 @@
 (ns sysrev.user
   (:use sysrev.util
         sysrev.db.core
+        sysrev.db.queries
         sysrev.db.articles
         sysrev.db.documents
         sysrev.db.users

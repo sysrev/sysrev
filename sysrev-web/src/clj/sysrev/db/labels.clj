@@ -1,6 +1,8 @@
 (ns sysrev.db.labels
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now to-sql-array]]
+             [do-query do-execute do-transaction sql-now
+              to-sql-array to-jsonb]]
+            [sysrev.db.queries :as q]
             [sysrev.db.project :refer [project-overall-cid]]
             [sysrev.predict.core :refer [latest-predict-run-id]]
             [sysrev.util :refer [in? map-values]]
@@ -10,84 +12,52 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.math.numeric-tower :as math]))
 
-(defn criteria-id-from-name [project-id name]
-  (-> (select :criteria-id)
-      (from :criteria)
-      (where [:and
-              [:= :project-id project-id]
-              [:= :name name]])
-      do-query
-      first
-      :criteria-id))
+(def valid-label-categories
+  ["inclusion criteria" "extra"])
+(def valid-label-value-types
+  ["boolean"])
 
-(defn add-criteria
-  [project-id {:keys [name question short-label is-inclusion]
+(defn add-label-entry
+  [project-id {:keys [name question short-label
+                      category required value-type definition]}]
+  (assert (in? valid-label-categories category))
+  (assert (in? valid-label-value-types value-type))
+  (do-transaction
+   nil
+   (let [next-project-ordering
+         (->> (q/query-project-labels project-id [:project-ordering])
+              (mapv :project-ordering)
+              (apply max -1)
+              inc)]
+     (-> (insert-into :label)
+         (values [{:project-id project-id
+                   :project-ordering next-project-ordering
+                   :value-type value-type
+                   :name name
+                   :question question
+                   :short-label short-label
+                   :required required
+                   :category category
+                   :definition (to-jsonb definition)
+                   :enabled true}])
+         do-execute))))
+
+(defn add-label-entry-boolean
+  [project-id {:keys [name question short-label
+                      inclusion-value required custom-category]
                :as entry-values}]
-  (-> (insert-into :criteria)
-      (values [{:project-id project-id
-                :name name
-                :question question
-                :short-label short-label
-                :is-inclusion is-inclusion
-                :is-required (= name "overall include")}])
-      (returning :*)
-      do-query))
-
-(defn label-confirmed-test [confirmed?]
-  (case confirmed?
-    true [:!= :confirm-time nil]
-    false [:= :confirm-time nil]
-    true))
-
-(defn all-overall-labels [project-id]
-  (->>
-   (-> (select :a.article-id :ac.user-id :ac.answer)
-       (from [:article :a])
-       (join [:article-criteria :ac]
-             [:= :ac.article-id :a.article-id])
-       (merge-join [:criteria :c]
-                   [:= :ac.criteria-id :c.criteria-id])
-       (where [:and
-               [:= :a.project-id project-id]
-               [:= :c.name "overall include"]
-               [:!= :ac.confirm-time nil]
-               [:!= :ac.answer nil]])
-       do-query)
-   (group-by :article-id)))
-
-(defn all-label-conflicts [project-id]
-  (->> (all-overall-labels project-id)
-       (filter (fn [[aid labels]]
-                 (< 1 (->> labels (map :answer) distinct count))))
-       (apply concat)
-       (apply hash-map)))
-
-(defn all-user-inclusions [project-id & [confirmed?]]
-  (let [overall-include-id
-        (criteria-id-from-name project-id "overall include")]
-    (->> (-> (select :ac.article-id :user-id :answer)
-             (from [:article-criteria :ac])
-             (join [:article :a] [:= :a.article-id :ac.article-id])
-             (where [:and
-                     [:= :a.project-id project-id]
-                     [:= :criteria-id overall-include-id]
-                     [:!= :answer nil]
-                     (label-confirmed-test confirmed?)])
-             do-query)
-         (group-by :user-id)
-         (mapv (fn [[user-id entries]]
-                 (let [includes
-                       (->> entries
-                            (filter (comp true? :answer))
-                            (mapv :article-id))
-                       excludes
-                       (->> entries
-                            (filter (comp false? :answer))
-                            (mapv :article-id))]
-                   [user-id {:includes includes
-                             :excludes excludes}])))
-         (apply concat)
-         (apply hash-map))))
+  (add-label-entry
+   project-id
+   (merge
+    (->> [:name :question :short-label :required]
+         (select-keys entry-values))
+    {:category (or custom-category
+                   (if (nil? inclusion-value)
+                     "extra" "inclusion criteria"))
+     :value-type "boolean"
+     :definition (if (nil? inclusion-value)
+                   nil
+                   {:inclusion-values [inclusion-value]})})))
 
 (defn ideal-unlabeled-article [project-id & [predict-run-id]]
   (let [predict-run-id
@@ -142,41 +112,6 @@
                       do-query)
                   (group-by :source)))]
         (assoc article :locations locations)))))
-
-#_
-(defn random-unlabeled-article [project-id & [predict-run-id]]
-  (let [predict-run-id
-        (or predict-run-id (latest-predict-run-id project-id))
-        article-ids
-        (->>
-         (-> (select :article-id)
-             (from [:article :a])
-             (where
-              [:and
-               [:= :a.project-id project-id]
-               [:not
-                [:exists
-                 (-> (select :*)
-                     (from [:article-criteria :ac])
-                     (where
-                      [:and
-                       [:= :ac.article-id :a.article-id]
-                       [:!= :ac.answer nil]]))]]])
-             (limit 500)
-             do-query)
-         (map :article-id))
-        random-id (rand-nth article-ids)]
-    (-> (select :a.* [:lp.val :score])
-        (from [:article :a])
-        (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-        (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-        (where [:and
-                [:= :a.article-id random-id]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :c.name "overall include"]
-                [:= :lp.stage 1]])
-        do-query
-        first)))
 
 (defn ideal-single-labeled-article
   "The purpose of this function is to find articles that have a confirmed
@@ -245,49 +180,6 @@
                       do-query)
                   (group-by :source)))]
         (assoc article :locations locations)))))
-
-#_
-(defn random-single-labeled-article
-  "The purpose of this function is to find articles that have a confirmed
-  inclusion label from exactly one user that is not `self-id`, to present
-  to `self-id` to label the article a second time.
-
-  Articles which have any labels saved by `self-id` (even unconfirmed) will
-  be excluded from this query."
-  [project-id self-id & [predict-run-id]]
-  (let [predict-run-id
-        (or predict-run-id (latest-predict-run-id project-id))]
-    (-> (select :a.* [(sql/call :max :lp.val) :score])
-        (from [:article :a])
-        (join [:article-criteria :ac] [:= :ac.article-id :a.article-id])
-        (merge-join [:criteria :c] [:= :c.criteria-id :ac.criteria-id])
-        (merge-join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-        (where [:and
-                [:= :a.project-id project-id]
-                [:= :c.name "overall include"]
-                [:!= :ac.user-id self-id]
-                [:!= :ac.answer nil]
-                [:!= :ac.confirm-time nil]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :lp.criteria-id :c.criteria-id]
-                [:= :lp.stage 1]])
-        (group :a.article-id)
-        (having [:and
-                 ;; one user found with a confirmed inclusion label
-                 [:= 1 (sql/call :count (sql/call :distinct :ac.user-id))]
-                 ;; and `self-id` has not labeled the article
-                 [:not
-                  [:exists
-                   (-> (select :*)
-                       (from [:article-criteria :ac2])
-                       (where [:and
-                               [:= :ac2.article-id :a.article-id]
-                               [:= :ac2.user-id self-id]
-                               [:!= :ac2.answer nil]]))]]])
-        (order-by :%random)
-        (limit 1)
-        do-query
-        first)))
 
 (defn get-conflict-articles
   "The purpose of this function is to find articles with conflicting labels,

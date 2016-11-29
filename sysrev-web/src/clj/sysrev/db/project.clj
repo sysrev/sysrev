@@ -6,6 +6,7 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache]]
+   [sysrev.db.queries :as q]
    [sysrev.predict.core :refer [latest-predict-run]]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))

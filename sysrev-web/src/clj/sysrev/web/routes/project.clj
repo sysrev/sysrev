@@ -2,6 +2,7 @@
   (:require
    [sysrev.web.app :refer [wrap-permissions current-user-id active-project]]
    [sysrev.db.core :refer [do-query do-execute]]
+   [sysrev.db.queries :as q]
    [sysrev.db.users :as users]
    [sysrev.db.project :refer
     [project-member project-criteria project-article-count]]
@@ -103,6 +104,43 @@
            (project/delete-member-labels project-id user-id)
            {:result {:success true}}))))
 
+(defn project-include-labels [project-id]
+  (->>
+   (-> (q/select-project-article-labels
+        project-id true
+        [:a.article-id :al.user-id :al.answer])
+       (q/filter-overall-label)
+       do-query)
+   (group-by :article-id)))
+
+(defn project-include-label-conflicts [project-id]
+  (->> (project-include-labels project-id)
+       (filter (fn [[aid labels]]
+                 (< 1 (->> labels (map :answer) distinct count))))
+       (apply concat)
+       (apply hash-map)))
+
+(defn project-user-inclusions [project-id]
+  (->>
+   (-> (q/select-project-article-labels
+        project-id true [:al.article-id :user-id :answer])
+       (q/filter-overall-label)
+       do-query)
+   (group-by :user-id)
+   (mapv (fn [[user-id entries]]
+           (let [includes
+                 (->> entries
+                      (filter (comp true? :answer))
+                      (mapv :article-id))
+                 excludes
+                 (->> entries
+                      (filter (comp false? :answer))
+                      (mapv :article-id))]
+             [user-id {:includes includes
+                       :excludes excludes}])))
+   (apply concat)
+   (apply hash-map)))
+
 (defn project-members-info [project-id]
   (let [users (->> (-> (select :u.* [:m.permissions :project-permissions])
                        (from [:web-user :u])
@@ -112,7 +150,7 @@
                        do-query)
                    (group-by :user-id)
                    (map-values first))
-        inclusions (labels/all-user-inclusions project-id true)
+        inclusions (project-user-inclusions project-id)
         in-progress
         (->> (-> (select :user-id :%count.%distinct.ac.article-id)
                  (from [:article-criteria :ac])
@@ -148,7 +186,7 @@
         #(select-keys % [:user-id :user-uuid :email :verified :permissions]))))
 
 (defn project-conflict-counts [project-id]
-  (let [conflicts (labels/all-label-conflicts project-id)
+  (let [conflicts (project-include-label-conflicts project-id)
         resolved? (fn [[aid labels :as conflict]]
                     (> (count labels) 2))
         n-total (count conflicts)
@@ -159,7 +197,7 @@
      :resolved n-resolved}))
 
 (defn project-label-counts [project-id]
-  (let [labels (labels/all-overall-labels project-id)
+  (let [labels (project-include-labels project-id)
         counts (->> labels vals (map count))]
     {:any (count labels)
      :single (->> counts (filter #(= % 1)) count)
