@@ -3,7 +3,7 @@
             [sysrev.db.project :as project]
             [sysrev.util :refer
              [parse-xml-str parse-integer
-              xml-find xml-find-value xml-find-vector ]]
+              xml-find xml-find-value xml-find-vector]]
             [clj-http.client :as http]
             [clojure-csv.core :as csv]
             [clojure.java.io :as io]
@@ -49,30 +49,48 @@
                      content)))
          (apply concat)))))
 
+(defn parse-abstract [abstract-texts]
+  (let [sections (map (fn [sec]
+                        {:header  (-> sec :attrs :Label)
+                         :content (:content sec)})
+                      abstract-texts)
+        parse-section (fn [section]
+                        (let [header (:header section)
+                              content (-> section :content first)]
+                          (if-not (empty? header)
+                            (str header ": " content)
+                            content)))
+        paragraphs (map parse-section sections)]
+    (str/join "\n\n" paragraphs)))
+
+
+(defn parse-pmid-xml [xml-str]
+  (let [pxml (-> xml-str parse-xml-str :content first)
+        title (xml-find-value pxml [:MedlineCitation :Article :ArticleTitle])
+        journal (xml-find-value pxml [:MedlineCitation :Article :Journal :Title])
+        abstract (-> (xml-find pxml [:MedlineCitation :Article :Abstract :AbstractText]) parse-abstract)
+        authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
+                    parse-pubmed-author-names)
+        pmid (xml-find-value pxml [:PMID])
+        keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
+        locations (extract-article-location-entries pxml)
+        year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
+                 first :content first parse-integer)]
+       {:raw xml-str
+        :remote-database-name "MEDLINE"
+        :primary-title title
+        :secondary-title journal
+        :abstract abstract
+        :authors authors
+        :year year
+        :keywords keywords
+        :public-id (str pmid)
+        :locations locations}))
+
+
 (defn fetch-pmid-entry [pmid]
   (try
-    (let [xml-str (fetch-pmid-xml pmid)
-          pxml (-> xml-str parse-xml-str :content first)
-          title (xml-find-value pxml [:MedlineCitation :Article :ArticleTitle])
-          journal (xml-find-value pxml [:MedlineCitation :Article :Journal :Title])
-          abstract (xml-find-value pxml [:MedlineCitation :Article :Abstract :AbstractText])
-          authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
-                      parse-pubmed-author-names)
-          keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
-          locations (extract-article-location-entries pxml)
-          year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
-                   first :content first parse-integer)]
-      (assert (not (empty? title)))
-      {:raw xml-str
-       :remote-database-name "MEDLINE"
-       :primary-title title
-       :secondary-title journal
-       :abstract abstract
-       :authors authors
-       :year year
-       :keywords keywords
-       :public-id (str pmid)
-       :locations locations})
+    (-> pmid fetch-pmid-xml parse-pmid-xml)
     (catch Throwable e
       (println (format "exception in (fetch-pmid-entry %s)" pmid))
       (println (.getMessage e)))))
