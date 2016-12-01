@@ -1,12 +1,12 @@
 (ns sysrev-web.ui.article
   (:require
    [clojure.core.reducers :refer [fold]]
-   [clojure.string :refer [capitalize]]
+   [clojure.string :refer [capitalize trim]]
    [sysrev-web.base :refer [state]]
    [sysrev-web.state.data :as d]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-value-tag
-     with-tooltip three-state-selection]]
+     with-tooltip three-state-selection dangerous]]
    [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
 
@@ -37,7 +37,7 @@
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
-  (let [group-header #"([A-Z][ /A-Za-z]+):"
+  (let [group-header #"(^|\s)([A-Za-z][A-Za-z /]+):"
         groups (re-pos group-header text)
         ;; remove the colon:
         headers (map-values #(. % (slice 0 -1)) (sorted-map) groups)
@@ -96,7 +96,7 @@
              (fn [idx [name text]]
                ^{:key {:abstract-section {:name name :idx idx}}}
                [:p
-                [:strong (capitalize name)]
+                [:strong (-> name trim capitalize)]
                 ": "
                 [:span text]])))])))
 
