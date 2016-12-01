@@ -37,7 +37,7 @@
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
-  (let [group-header #"([A-Z][ A-Za-z]+):"
+  (let [group-header #"([A-Z][ /A-Za-z]+):"
         groups (re-pos group-header text)
         ;; remove the colon:
         headers (map-values #(. % (slice 0 -1)) (sorted-map) groups)
