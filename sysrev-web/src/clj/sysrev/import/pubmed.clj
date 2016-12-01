@@ -1,9 +1,14 @@
 (ns sysrev.import.pubmed
-  (:require [sysrev.db.articles :as articles]
+  (:require [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.util :refer
              [parse-xml-str parse-integer
               xml-find xml-find-value xml-find-vector]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clj-http.client :as http]
             [clojure-csv.core :as csv]
             [clojure.java.io :as io]
@@ -76,16 +81,16 @@
         locations (extract-article-location-entries pxml)
         year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
                  first :content first parse-integer)]
-       {:raw xml-str
-        :remote-database-name "MEDLINE"
-        :primary-title title
-        :secondary-title journal
-        :abstract abstract
-        :authors authors
-        :year year
-        :keywords keywords
-        :public-id (str pmid)
-        :locations locations}))
+    {:raw xml-str
+     :remote-database-name "MEDLINE"
+     :primary-title title
+     :secondary-title journal
+     :abstract abstract
+     :authors authors
+     :year year
+     :keywords keywords
+     :public-id (str pmid)
+     :locations locations}))
 
 
 (defn fetch-pmid-entry [pmid]
@@ -109,6 +114,33 @@
                     (and (coll? v) (empty? v)))
             (println (format "* field `%s` is empty" (pr-str k)))))
         (articles/add-article article project-id)))))
+
+(defn reload-project-abstracts [project-id]
+  (let [articles
+        (-> (select :article-id :raw)
+            (from [:article :a])
+            (where
+             [:and
+              [:!= :raw nil]
+              [:= :project-id project-id]])
+            do-query)]
+    (->>
+     articles
+     (pmap
+      (fn [{:keys [article-id raw]}]
+        (let [pxml (-> raw parse-xml-str :content first)
+              abstract
+              (-> (xml-find
+                   pxml [:MedlineCitation :Article :Abstract :AbstractText])
+                  parse-abstract)]
+          (when-not (empty? abstract)
+            (-> (sqlh/update :article)
+                (sset {:abstract abstract})
+                (where [:= :article-id article-id])
+                do-execute))
+          (println (str "processed #" article-id)))))
+     doall)
+    (println (str "updated " (count articles) " articles"))))
 
 (defn load-pmids-file
   "Loads a list of integer PubMed IDs from a linebreak-separated text file."
