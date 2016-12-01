@@ -24,23 +24,18 @@
   (assert (in? valid-label-value-types value-type))
   (do-transaction
    nil
-   (let [next-project-ordering
-         (->> (q/query-project-labels project-id [:project-ordering])
-              (mapv :project-ordering)
-              (apply max -1)
-              inc)]
-     (-> (insert-into :label)
-         (values [{:project-id project-id
-                   :project-ordering next-project-ordering
-                   :value-type value-type
-                   :name name
-                   :question question
-                   :short-label short-label
-                   :required required
-                   :category category
-                   :definition (to-jsonb definition)
-                   :enabled true}])
-         do-execute))))
+   (-> (insert-into :label)
+       (values [{:project-id project-id
+                 :project-ordering (q/next-label-project-ordering project-id)
+                 :value-type value-type
+                 :name name
+                 :question question
+                 :short-label short-label
+                 :required required
+                 :category category
+                 :definition (to-jsonb definition)
+                 :enabled true}])
+       do-execute)))
 
 (defn add-label-entry-boolean
   [project-id {:keys [name question short-label

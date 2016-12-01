@@ -27,6 +27,14 @@
               [:= :enabled true]])
       (merge-where where-clause)))
 
+(defn next-label-project-ordering [project-id]
+  (let [max
+        (-> (select [:%max.project-ordering :max])
+            (from :label)
+            (where [:= :project-id project-id])
+            do-query first :max)]
+    (if max (inc max) 0)))
+
 (defn query-label-by-name [project-id label-name & [fields]]
   (-> (select-label-where project-id [:= :name label-name] (or fields [:*]))
       do-query first))
