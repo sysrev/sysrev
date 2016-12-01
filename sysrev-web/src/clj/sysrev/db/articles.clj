@@ -40,11 +40,17 @@
   true)
 
 (defn get-article [article-id]
-  (-> (select :*)
-      (from :article)
-      (where [:= :article-id article-id])
-      do-query
-      first))
+  (let [article (-> (select :*)
+                    (from :article)
+                    (where [:= :article-id article-id])
+                    do-query
+                    first)
+        locations (->> (-> (select :source :external_id)
+                           (from [:article-location :al])
+                           (where [:= :al.article-id article-id])
+                           do-query)
+                       (group-by :source))]
+    (assoc article :locations locations)))
 
 (defn to-article [article-or-id]
   (cond (integer? article-or-id)
