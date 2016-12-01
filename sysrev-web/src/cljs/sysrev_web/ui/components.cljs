@@ -211,3 +211,13 @@
              :padding-bottom "0.5em"}}
     [:h4 (d/data [:all-projects (s/active-project-id) :name])]]
    content])
+
+
+(defn dangerous
+  "Produces a react component using dangerouslySetInnerHTML
+   Ex: (dangerous :div (:abstract record))
+  "
+  ([comp content]
+   (dangerous comp nil content))
+  ([comp props content]
+   [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))

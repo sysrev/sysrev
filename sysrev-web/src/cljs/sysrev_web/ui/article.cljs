@@ -98,7 +98,7 @@
                [:p
                 [:strong (-> name trim capitalize)]
                 ": "
-                [:span text]])))])))
+                (dangerous :span text)])))])))
 
 (defn article-docs-component [article-id]
   (let [docs (d/article-documents article-id)]
