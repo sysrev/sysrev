@@ -90,7 +90,7 @@
   (fn [text]
     (let [secs (sections text)]
       [:div
-       [:p (first secs)]
+       [:p (dangerous :span (first secs))]
        (->> (rest secs)
             (map-indexed
              (fn [idx [name text]]
