@@ -6,7 +6,8 @@
             [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now
               to-sql-array to-jsonb sql-field]]
-            [sysrev.db.queries :as q]))
+            [sysrev.db.queries :as q]
+            [sysrev.util :refer [in?]]))
 
 ;;;
 ;;; articles
@@ -30,6 +31,18 @@
       (select-project-articles project-id fields opts)
     (and (not (nil? where-clause))
          (not (true? where-clause))) (merge-where where-clause)))
+
+(defn set-article-enabled-where
+  [enabled? where-clause & [project-id]]
+  (assert (in? [true false] enabled?))
+  (-> (sqlh/update [:article :a])
+      (sset {:enabled enabled?})
+      (where [:and
+              where-clause
+              (if project-id
+                [:= :a.project-id project-id]
+                true)])
+      do-execute))
 
 (defn select-article-by-id
   [article-id fields & [{:keys [include-disabled? tname project-id]

@@ -8,12 +8,13 @@
             [clojure.data.xml :as dxml]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.core :refer [do-query do-query-map do-execute]]
             [sysrev.db.users :as users]
             [sysrev.db.labels :as labels]
             [sysrev.util :refer [xml-find]]
             [clojure.string :as str]
-            [sysrev.db.queries :as q]))
+            [sysrev.db.queries :as q]
+            [sysrev.misc :refer [articles-matching-regex-clause]]))
 
 (defn parse-endnote-file [fname]
   (-> fname
@@ -256,3 +257,28 @@
      doall))
   true)
 
+(defn match-conference-titles-clause []
+  [:and
+   (articles-matching-regex-clause
+    :secondary-title
+    [".*\\. Conference.?$" ".*Conference: .*"])
+   [:not
+    [:exists
+     (-> (q/select-article-by-id
+          :a.article-id [:*] {:tname :a2})
+         (q/join-article-labels {:tname-a :a2})
+         (q/filter-valid-article-label true))]]])
+
+(defn find-conference-titles [project-id]
+  (-> (q/select-article-where
+       project-id
+       (match-conference-titles-clause)
+       [:secondary-title]
+       {:include-disabled? false})
+      (do-query-map :secondary-title)))
+
+(defn disable-conference-titles [project-id]
+  (q/set-article-enabled-where
+   false
+   (match-conference-titles-clause)
+   project-id))
