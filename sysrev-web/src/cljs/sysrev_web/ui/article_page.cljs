@@ -11,63 +11,61 @@
   (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 (defn article-page []
-  (let [article-id (-> @state :page :article :id)
-        criteria (d/project :criteria)
-        criteria-ids (keys criteria)
-        overall-cid (d/project :overall-cid)]
-    [:div
-     (let [user-id (current-user-id)
-           confirmed
-           (and user-id (get-in (d/member-labels user-id)
-                                [:confirmed article-id]))
-           unconfirmed
-           (and user-id (get-in (d/member-labels user-id)
-                                [:unconfirmed article-id]))
-           status (cond (nil? user-id) :logged-out
-                        confirmed :confirmed
-                        unconfirmed :unconfirmed
-                        :else :none)]
-       (case status
-         :logged-out
-         [:div
-          [article-info-component article-id false]]
-         :none
-         [:div
-          [:div.ui.segment
-           [:h3.ui.grey.header
-            [:i.remove.circle.outline.icon.left.floated {:aria-hidden true}]
-            "This article has not been selected for you to label."]]
-          [article-info-component article-id false]]
-         :confirmed
-         [:div
-          [:div.ui.segment
-           [:h3.ui.green.header
-            [:i.check.circle.outline.icon.left.floated {:aria-hidden true}]
-            "You have already confirmed your labels for this article."]]
-          [article-info-component article-id true user-id]]
-         :unconfirmed
-         [:div
-          [:div.ui.segment
-           [:h3.ui.yellow.header
-            [:i.selected.radio.icon.left.floated {:aria-hidden true}]
-            "Your labels for this article are not yet confirmed."]]
-          [article-info-component article-id false]
-          [label-editor-component
-           article-id [:page :article :label-values]]
-          [confirm-modal-box
-           #(-> @state :page :article :id)
-           [:page :article :label-values]
-           (fn [] (scroll-top))]
-          [:div.ui.grid
-           [:div.ui.sixteen.wide.column.center.aligned
-            [:div.ui.primary.right.labeled.icon.button
-             {:class
-              (if (nil?
-                   (get (d/active-label-values
-                         article-id [:page :article :label-values])
-                        overall-cid))
-                "disabled"
-                "")
-              :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
-             "Confirm labels"
-             [:i.check.circle.outline.icon]]]]]))]))
+  [:div
+   (let [article-id (-> @state :page :article :id)
+         overall-label-id (d/project :overall-label-id)
+         user-id (current-user-id)
+         confirmed
+         (and user-id (get-in (d/member-labels user-id)
+                              [:confirmed article-id]))
+         unconfirmed
+         (and user-id (get-in (d/member-labels user-id)
+                              [:unconfirmed article-id]))
+         status (cond (nil? user-id) :logged-out
+                      confirmed :confirmed
+                      unconfirmed :unconfirmed
+                      :else :none)]
+     (case status
+       :logged-out
+       [:div
+        [article-info-component article-id false]]
+       :none
+       [:div
+        [:div.ui.segment
+         [:h3.ui.grey.header
+          [:i.remove.circle.outline.icon.left.floated {:aria-hidden true}]
+          "This article has not been selected for you to label."]]
+        [article-info-component article-id false]]
+       :confirmed
+       [:div
+        [:div.ui.segment
+         [:h3.ui.green.header
+          [:i.check.circle.outline.icon.left.floated {:aria-hidden true}]
+          "You have already confirmed your labels for this article."]]
+        [article-info-component article-id true user-id]]
+       :unconfirmed
+       [:div
+        [:div.ui.segment
+         [:h3.ui.yellow.header
+          [:i.selected.radio.icon.left.floated {:aria-hidden true}]
+          "Your labels for this article are not yet confirmed."]]
+        [article-info-component article-id false]
+        [label-editor-component
+         article-id [:page :article :label-values]]
+        [confirm-modal-box
+         #(-> @state :page :article :id)
+         [:page :article :label-values]
+         (fn [] (scroll-top))]
+        [:div.ui.grid
+         [:div.ui.sixteen.wide.column.center.aligned
+          [:div.ui.primary.right.labeled.icon.button
+           {:class
+            (if (nil?
+                 (get (d/active-label-values
+                       article-id [:page :article :label-values])
+                      overall-label-id))
+              "disabled"
+              "")
+            :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+           "Confirm labels"
+           [:i.check.circle.outline.icon]]]]]))])

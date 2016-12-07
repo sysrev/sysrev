@@ -13,23 +13,24 @@
    [:tbody
     (doall
      (->>
-      (d/project :criteria)
+      (d/project-labels-ordered)
       (map
-       (fn [[id criteria]]
-         ^{:key {:label-entry id}}
-         [:tr
-          [:td (:name criteria)]
-          [:td (:question criteria)]
-          [:td
-           (let [style {:margin-top "-4px"
-                        :margin-bottom "-4px"}]
-             (cond (true? (:is-inclusion criteria))
+       (fn [{:keys [label-id name question definition]}]
+         (let [[inclusion-value] (-> definition :inclusion-values)
+               style {:margin-top "-4px"
+                      :margin-bottom "-4px"}]
+           ^{:key {:label-entry label-id}}
+           [:tr
+            [:td name]
+            [:td question]
+            [:td
+             (cond (true? inclusion-value)
                    [true-false-nil-tag
                     "large" style true "Yes" true]
-                   (false? (:is-inclusion criteria))
+                   (false? inclusion-value)
                    [true-false-nil-tag
                     "large" style true "No" false]
                    :else
                    [true-false-nil-tag
                     "large" style false
-                    "Extra label" nil]))]]))))]])
+                    "Extra label" nil])]])))))]])

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+set -eu
+
+echo $BACKUP_HOST > /dev/null
+echo $SYSREV_PORT > /dev/null
+echo $SYSREV_DB > /dev/null
+
+if [[ $BACKUP_HOST == "localhost" ]] ; then
+    fname=`ls /data/backups/sysrev | tail -n1`
+    cp /data/backups/sysrev/$fname .
+else
+    fname=`ssh -i ~/.ssh/id_rsa.insilica insilica@"$BACKUP_HOST" "ls /data/backups/sysrev | tail -n1"`
+    scp $BACKUP_HOST:/data/backups/sysrev/$fname ./
+fi
+
+opts=( '--data-only'
+       '--disable-triggers'
+       '--single-transaction'
+       "--dbname=$SYSREV_DB"
+       '--format=custom'
+       '--no-owner'
+       '--username=postgres'
+       '--host=localhost'
+       "--port=$SYSREV_PORT"
+       '--no-password')
+
+opts=$(printf " %s" "${opts[@]}")                                                                            
+opts=${opts:1}
+
+echo "loading data:"
+echo "pg_restore $opts $fname"
+
+pg_restore $opts $fname

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -eu
+
+echo $SYSREV_PORT > /dev/null
+echo $SYSREV_DB > /dev/null
+
+echo "checking that ./flyway exists..."
+ls ./flyway
+
+echo "checking that ./flyway.conf exists..."
+ls ./flyway.conf
+
+echo "checking that ./flyway.conf connection parameters match..."
+grep "localhost:$SYSREV_PORT/$SYSREV_DB" flyway.conf
+
+echo "dropping database (if exists)..."
+dropdb -h localhost -p $SYSREV_PORT -U postgres $SYSREV_DB || true
+
+echo "creating database..."
+createdb -h localhost -p $SYSREV_PORT -U postgres -T template0 $SYSREV_DB
+
+echo "running flyway migrations..."
+./flyway migrate

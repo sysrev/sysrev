@@ -5,14 +5,14 @@
    [sysrev.db.queries :as q]
    [sysrev.db.users :as users]
    [sysrev.db.project :refer
-    [project-member project-criteria project-article-count]]
+    [project-labels project-member project-article-count]]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
-   [sysrev.predict.core :refer [latest-predict-run-id]]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.util :refer
-    [should-never-happen-exception map-values integerify-map-keys]]
+    [should-never-happen-exception map-values
+     integerify-map-keys uuidify-map-keys]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -64,7 +64,7 @@
          request [] ["member"]
          (let [user-id (current-user-id request)
                {:keys [article-id label-values confirm] :as body}
-               (-> request :body integerify-map-keys)]
+               (-> request :body integerify-map-keys uuidify-map-keys)]
            (assert (not (labels/user-article-confirmed? user-id article-id)))
            (labels/set-user-article-labels user-id article-id label-values false)
            (when confirm
@@ -85,13 +85,10 @@
        (wrap-permissions
         request [] ["member"]
         (let [article-id (-> request :params :article-id Integer/parseInt)]
-          (let [article (articles/get-article article-id)
-                [score user-labels]
-                (pvalues (articles/article-predict-score article)
+          (let [[article user-labels]
+                (pvalues (q/query-article-by-id-full article-id)
                          (labels/article-user-labels-map article-id))]
-            {:article (-> article
-                          (assoc :score score)
-                          (dissoc :raw))
+            {:article (dissoc article :raw)
              :labels user-labels}))))
 
   (POST "/api/delete-member-labels" request
@@ -142,24 +139,18 @@
    (apply hash-map)))
 
 (defn project-members-info [project-id]
-  (let [users (->> (-> (select :u.* [:m.permissions :project-permissions])
-                       (from [:web-user :u])
-                       (join [:project-member :m]
-                             [:= :m.user-id :u.user-id])
-                       (where [:= :m.project-id project-id])
+  (let [users (->> (-> (q/select-project-members
+                        project-id [:u.* [:m.permissions :project-permissions]])
                        do-query)
                    (group-by :user-id)
                    (map-values first))
         inclusions (project-user-inclusions project-id)
         in-progress
-        (->> (-> (select :user-id :%count.%distinct.ac.article-id)
-                 (from [:article-criteria :ac])
-                 (join [:article :a] [:= :a.article-id :ac.article-id])
-                 (group :user-id)
-                 (where [:and
-                         [:= :a.project-id project-id]
-                         [:!= :answer nil]
-                         [:= :confirm-time nil]])
+        (->> (-> (q/select-project-articles
+                  project-id [:al.user-id :%count.%distinct.al.article-id])
+                 (q/join-article-labels)
+                 (q/filter-valid-article-label false)
+                 (group :al.user-id)
                  do-query)
              (group-by :user-id)
              (map-values (comp :count first)))]
@@ -174,11 +165,7 @@
          (apply hash-map))))
 
 (defn project-users-info [project-id]
-  (->> (-> (select :u.*)
-           (from [:project-member :m])
-           (join [:web-user :u]
-                 [:= :u.user-id :m.user-id])
-           (where [:= :m.project-id project-id])
+  (->> (-> (q/select-project-members project-id [:u.*])
            do-query)
        (group-by :user-id)
        (map-values first)
@@ -205,20 +192,18 @@
      :multi (->> counts (filter #(> % 2)) count)}))
 
 (defn project-label-value-counts
-  "Returns counts of [true, false, unknown] label values for each criteria.
+  "Returns counts of [true, false, unknown] label values for each label.
   true/false can be counted by the labels saved by all users.
   'unknown' values are counted when the user has set a value for at least one
   label on the article."
   [project-id]
   (let [entries
         (->>
-         (-> (select :ac.article-id :criteria-id :user-id :answer)
-             (from [:article-criteria :ac])
-             (join [:article :a] [:= :a.article-id :ac.article-id])
-             (where [:and
-                     [:= :a.project-id project-id]
-                     [:!= :answer nil]
-                     [:!= :confirm-time nil]])
+         (-> (q/select-project-articles
+              project-id [:al.article-id :l.label-id :al.user-id :al.answer])
+             (q/join-article-labels)
+             (q/join-article-label-defs)
+             (q/filter-valid-article-label true)
              do-query)
          (group-by :user-id)
          (map-values
@@ -226,7 +211,7 @@
             (->> (group-by :article-id uentries)
                  (map-values
                   #(map-values (comp first (partial map :answer))
-                               (group-by :criteria-id %)))))))
+                               (group-by :label-id %)))))))
         user-articles (->> (keys entries)
                            (map
                             (fn [user-id]
@@ -234,31 +219,31 @@
                                      [user-id article-id])
                                    (keys (get entries user-id)))))
                            (apply concat))
-        criteria-ids (keys (project-criteria project-id))
+        label-ids (keys (project-labels project-id))
         ua-label-value
-        (fn [user-id article-id criteria-id]
-          (get-in entries [user-id article-id criteria-id]))
+        (fn [user-id article-id label-id]
+          (get-in entries [user-id article-id label-id]))
         answer-count
-        (fn [criteria-id answer]
+        (fn [label-id answer]
           (->> user-articles
                (filter
                 (fn [[user-id article-id]]
                   (= answer (ua-label-value
-                             user-id article-id criteria-id))))
+                             user-id article-id label-id))))
                count))]
-    (->> criteria-ids
+    (->> label-ids
          (map
-          (fn [criteria-id]
-            [criteria-id
-             {:true (answer-count criteria-id true)
-              :false (answer-count criteria-id false)
-              :unknown (answer-count criteria-id nil)}]))
+          (fn [label-id]
+            [label-id
+             {:true (answer-count label-id true)
+              :false (answer-count label-id false)
+              :unknown (answer-count label-id nil)}]))
          (apply concat)
          (apply hash-map))))
 
 (defn project-info [project-id]
   (let [[predict articles labels label-values conflicts members users]
-        (pvalues (predict-summary (latest-predict-run-id project-id))
+        (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
                  (project-label-value-counts project-id)
@@ -272,5 +257,5 @@
                        :label-values label-values
                        :conflicts conflicts
                        :predict predict}
-               :criteria (project-criteria project-id)}
+               :labels (project-labels project-id)}
      :users users}))

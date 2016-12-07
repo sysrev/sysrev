@@ -13,5 +13,5 @@
 (deftest db-connected
   (is (completes?
        (-> (select :%count.*)
-           (from :criteria)
+           (from :label)
            do-query))))

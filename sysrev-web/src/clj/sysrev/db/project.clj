@@ -7,7 +7,6 @@
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache]]
    [sysrev.db.queries :as q]
-   [sysrev.predict.core :refer [latest-predict-run]]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
 
@@ -23,20 +22,6 @@
       (group :p.project-id)
       (order-by :p.date-created)
       do-query))
-
-(defn get-project-by-id [project-id]
-  (-> (select :*)
-      (from :project)
-      (where [:= :project-id project-id])
-      do-query
-      first))
-
-(defn get-project-by-uuid [project-uuid & [conn]]
-  (-> (select :*)
-      (from :project)
-      (where [:= (sql-cast :project-uuid :text) (str project-uuid)])
-      (do-query conn)
-      first))
 
 (defn add-project-member
   "Add a user to the list of members of a project."
@@ -93,19 +78,14 @@
 (defn project-contains-public-id
   "Test if project contains an article with given `public-id` value."
   [public-id project-id]
-  (-> (select :%count.*)
-      (from :article)
-      (where [:and
-              [:= :project-id project-id]
-              [:= :public-id (str public-id)]])
+  (-> (q/select-article-where
+       project-id [:= :a.public-id (str public-id)] [:%count.*])
       do-query first :count pos?))
 
 (defn project-article-count
   "Return number of articles in project."
   [project-id]
-  (-> (select :%count.*)
-      (from :article)
-      (where [:= :project-id project-id])
+  (-> (q/select-project-articles project-id [:%count.*])
       do-query first :count))
 
 (defn delete-project-articles
@@ -115,27 +95,20 @@
       (where [:= :project-id project-id])
       do-execute))
 
-(defn project-criteria [project-id]
+(defn project-labels [project-id]
   (with-project-cache
-    project-id :criteria
+    project-id :labels
     (->>
-     (-> (select :*)
-         (from :criteria)
-         (where [:= :project-id project-id])
-         (order-by :criteria-id)
+     (-> (q/select-label-where project-id true [:*])
          do-query)
-     (group-by :criteria-id)
+     (group-by :label-id)
      (map-values first))))
 
-(defn project-overall-cid [project-id]
+(defn project-overall-label-id [project-id]
   (with-project-cache
-    project-id :overall-cid
-    (->> (project-criteria project-id)
-         (filter
-          (fn [[cid fields]]
-            (= (:name fields) "overall include")))
-         (map first)
-         first)))
+    project-id :overall-label-id
+    (:label-id
+     (q/query-label-by-name project-id "overall include" [:label-id]))))
 
 (defn project-member [project-id user-id]
   (-> (select :*)
@@ -150,50 +123,32 @@
   "Returns a map of labels saved by `user-id` in `project-id`,
   and a map of entries for all articles referenced in the labels."
   [project-id user-id]
-  (let [predict-run-id
-        (:predict-run-id (latest-predict-run project-id))
+  (let [predict-run-id (q/project-latest-predict-run-id project-id)
         [labels articles]
         (pvalues
          (->>
-          (-> (select :ac.article-id :criteria-id :answer :confirm-time)
-              (from [:article-criteria :ac])
-              (join [:article :a] [:= :a.article-id :ac.article-id])
-              (where [:and
-                      [:= :a.project-id project-id]
-                      [:= :ac.user-id user-id]])
+          (-> (q/select-project-article-labels
+               project-id nil
+               [:al.article-id :al.label-id :al.answer :al.confirm-time])
+              (q/filter-label-user user-id)
               do-query)
           (map
            #(-> %
                 (assoc :confirmed (not (nil? (:confirm-time %))))
                 (dissoc :confirm-time))))
          (->>
-          (-> (select :a.article-id
-                      :a.primary-title
-                      :a.secondary-title
-                      :a.authors
-                      :a.year
-                      :a.remote-database-name
-                      [:lp.val :score])
-              (from [:article :a])
-              (join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-              (merge-join [:criteria :c] [:= :lp.criteria-id :c.criteria-id])
-              (where
-               [:and
-                [:= :a.project-id project-id]
-                [:exists
-                 (-> (select :*)
-                     (from [:article-criteria :ac])
-                     (where [:and
-                             [:= :ac.user-id user-id]
-                             [:= :ac.article-id :a.article-id]
-                             [:!= :ac.answer nil]]))]
-                [:= :c.name "overall include"]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :lp.stage 1]])
+          (-> (q/select-project-articles
+               project-id
+               [:a.article-id :a.primary-title :a.secondary-title :a.authors
+                :a.year :a.remote-database-name])
+              (q/with-article-predict-score predict-run-id)
+              (merge-where
+               [:exists
+                (q/select-user-article-labels
+                 user-id :a.article-id nil [:*])])
               do-query)
           (group-by :article-id)
-          (map-values first)
-          (map-values #(dissoc % :abstract :urls :notes))))
+          (map-values first)))
         labels-map (fn [confirmed?]
                      (->> labels
                           (filter #(= (true? (:confirmed %)) confirmed?))
@@ -229,14 +184,12 @@
 (defn delete-member-labels
   "Deletes all labels saved in `project-id` by `user-id`."
   [project-id user-id]
-  (-> (delete-from [:article-criteria :ac])
-      (where [:and
-              [:= :ac.user-id user-id]
-              [:exists
-               (-> (select :*)
-                   (from [:article :a])
-                   (where
-                    [:and
-                     [:= :a.project-id project-id]
-                     [:= :a.article-id :ac.article-id]]))]])
+  (assert (integer? project-id))
+  (assert (integer? user-id))
+  (-> (delete-from [:article-label :al])
+      (q/filter-label-user user-id)
+      (merge-where
+       [:exists
+        (q/select-article-where
+         project-id [:= :a.article-id :al.article-id] [:*])])
       do-execute))

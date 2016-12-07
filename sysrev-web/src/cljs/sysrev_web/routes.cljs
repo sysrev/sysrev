@@ -30,7 +30,7 @@
 (defn user-labels-path [user-id]
   (when user-id
     (when-let [project-id (active-project-id)]
-      [:project project-id :labels user-id])))
+      [:project project-id :member-labels user-id])))
 
 ;; This var records the elements of `(:data @state)` that are required by each
 ;; page on the web site.
@@ -261,11 +261,10 @@
   (do-route-change :project
                    {:tab :predict}))
 
-(defroute project-predict-cid "/project/predict/:cid" [cid]
-  (let [cid (js/parseInt cid)]
-    (do-route-change :project
-                     {:tab :predict
-                      :active-cid cid})))
+(defroute project-predict-label-id "/project/predict/:label-id" [label-id]
+  (do-route-change :project
+                   {:tab :predict
+                    :active-label-id label-id}))
 
 (defroute self-profile "/user" []
   (do-route-change :user-profile

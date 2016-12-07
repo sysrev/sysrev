@@ -16,11 +16,36 @@
     m
     (->> m
          (mapv (fn [[k v]]
-                 (let [k-int (js/parseInt (name k))
+                 (let [k-int (and (re-matches #"^\d+$" (name k))
+                                  (js/parseInt (name k)))
                        k-new (if (integer? k-int) k-int k)
                        ;; integerify sub-maps recursively
                        v-new (if (map? v)
                                (integerify-map-keys v)
+                               v)]
+                   [k-new v-new])))
+         (apply concat)
+         (apply hash-map))))
+
+(defn uuidify-map-keys
+  "Maps parsed from JSON with UUID keys will have the UUID string values changed
+  to keywords. This converts any UUID keywords to string values, operating
+  recursively through nested maps."
+  [m]
+  (if (not (map? m))
+    m
+    (->> m
+         (mapv (fn [[k v]]
+                 (let [k-uuid
+                       (and (keyword? k)
+                            (re-matches
+                             #"^[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+$"
+                             (name k))
+                            (name k))
+                       k-new (if (string? k-uuid) k-uuid k)
+                       ;; uuidify sub-maps recursively
+                       v-new (if (map? v)
+                               (uuidify-map-keys v)
                                v)]
                    [k-new v-new])))
          (apply concat)
@@ -47,7 +72,7 @@
                     (when (contains? % :csrf-token)
                       (swap! state (s/set-csrf-token (:csrf-token %))))
                     (if (contains? % :result)
-                      (-> % :result integerify-map-keys handler)
+                      (-> % :result integerify-map-keys uuidify-map-keys handler)
                       (request-error url "Server error (empty result from request)" %)))
         :error-handler #(request-error url "Server error (request failed)" %)))
   ([url handler]
@@ -68,14 +93,13 @@
                      (when (contains? % :csrf-token)
                        (swap! state (s/set-csrf-token (:csrf-token %))))
                      (if (contains? % :result)
-                       (-> % :result integerify-map-keys handler)
+                       (-> % :result integerify-map-keys uuidify-map-keys handler)
                        (request-error url "Server error (action had empty result)" %)))
          :error-handler #(request-error url "Server error (action failed)" %)))
   ([url handler]
    (ajax-post url nil handler)))
 
 (def get-identity (partial ajax-get "/api/auth/identity"))
-(def get-criteria (partial ajax-get "/api/criteria"))
 (defn get-article-info [article-id handler]
   (ajax-get (str "/api/article-info/" article-id) handler))
 (defn get-reset-code-info [reset-code handler]
@@ -274,8 +298,8 @@
 
 (defn send-labels
   "Update the database with user label values for `article-id`.
-  `criteria-values` is a map of criteria-ids to booleans.
-  Any unset criteria-ids will be unset on the server.
+  `label-values` is a map of label-ids to booleans.
+  Any unset label values will be unset on the server.
   Will fail on server if user is not logged in."
   [article-id label-values]
   (post-set-labels
@@ -312,7 +336,7 @@
         :project (cond
                    (<= (count ks) 2)
                    (pull-project-info)
-                   (and (= (nth ks 2) :labels)
+                   (and (= (nth ks 2) :member-labels)
                         (integer? (nth ks 3)))
                    (pull-member-labels (nth ks 3)))
         :reset-code (let [[_ reset-code] ks]

@@ -17,9 +17,7 @@
   (when-let [article-id (data :classify-article-id)]
     (let [user-id (current-user-id)
           email (-> @state :identity :email)
-          criteria (d/project :criteria)
-          criteria-ids (keys criteria)
-          overall-cid (d/project :overall-cid)]
+          overall-label-id (d/project :overall-label-id)]
       [:div.ui
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
@@ -39,7 +37,7 @@
               (if (nil?
                    (get (d/active-label-values
                          article-id [:page :classify :label-values])
-                        overall-cid))
+                        overall-label-id))
                 "disabled"
                 "")
               :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
@@ -55,7 +53,7 @@
              [:i.right.circle.arrow.icon]]]
            (let [n-unconfirmed
                  (count
-                  (d/project [:labels user-id :unconfirmed]))
+                  (d/project [:member-labels user-id :unconfirmed]))
                  n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
              [:div.ui.five.wide.column
               [:div.ui.buttons.right.floated
@@ -75,7 +73,7 @@
               (if (nil?
                    (get (d/active-label-values
                          article-id [:page :classify :label-values])
-                        overall-cid))
+                        overall-label-id))
                 "disabled"
                 "")
               :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
@@ -91,7 +89,7 @@
             {:style {:padding-right "0px"}}
             (let [n-unconfirmed
                   (count
-                   (d/project [:labels user-id :unconfirmed]))
+                   (d/project [:member-labels user-id :unconfirmed]))
                   n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
               [:div.ui.small.green.icon.button.middle.aligned
                {:on-click #(nav-scroll-top (str "/user/" user-id))

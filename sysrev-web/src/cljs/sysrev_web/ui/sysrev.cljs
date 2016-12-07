@@ -8,9 +8,9 @@
             [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
 
-(defn selected-criteria-id []
-  (or (-> @state :page :project :active-cid)
-      (d/project :overall-cid)))
+(defn selected-label-id []
+  (or (-> @state :page :project :active-label-id)
+      (d/project :overall-label-id)))
 
 (defn project-summary-box []
   (let [stats (d/project :stats)]
@@ -53,12 +53,12 @@
        [:th [:code "unknown"]]]]
      [:tbody
       (doall
-       (for [cid (-> stats :label-values keys)]
-         (let [clabel (d/project [:criteria cid :short-label])
-               counts (get-in stats [:label-values cid])]
-           ^{:key {:label-stats cid}}
+       (for [{:keys [label-id short-label]}
+             (d/project-labels-ordered)]
+         (let [counts (get-in stats [:label-values label-id])]
+           ^{:key {:label-stats label-id}}
            [:tr
-            [:td clabel]
+            [:td short-label]
             [:td (str (:true counts))]
             [:td (str (:false counts))]
             [:td (str (:unknown counts))]])))]]))
@@ -106,9 +106,9 @@
      [member-list-box]]]])
 
 (defn train-input-summary-box []
-  (let [cid (selected-criteria-id)
-        clabel (d/project [:criteria cid :short-label])
-        counts (d/project [:stats :predict cid :counts])]
+  (let [label-id (selected-label-id)
+        short-label (d/project [:labels label-id :short-label])
+        counts (d/project [:stats :predict label-id :counts])]
     [:table.ui.celled.unstackable.table.grey.segment.mobile-table
      [:thead
       [:tr
@@ -124,9 +124,9 @@
        [:td (:exclude-label counts)]]]]))
 
 (defn value-confidence-box []
-  (let [cid (selected-criteria-id)
-        c-include (d/project [:stats :predict cid :include :confidence])
-        c-exclude (d/project [:stats :predict cid :exclude :confidence])
+  (let [label-id (selected-label-id)
+        c-include (d/project [:stats :predict label-id :include :confidence])
+        c-exclude (d/project [:stats :predict label-id :exclude :confidence])
         c-percents (-> c-include keys sort)]
     [:div.ui.grid
      [:div.ui.sixteen.wide.column
@@ -138,7 +138,7 @@
          [:th]
          (doall
           (for [percent c-percents]
-            ^{:key {:confidence-header [cid percent]}}
+            ^{:key {:confidence-header [label-id percent]}}
             [:th (str ">= " percent "%")]))]]
        [:tbody
         [:tr
@@ -147,7 +147,7 @@
          (doall
           (for [percent c-percents]
             (let [n-articles (get c-include percent)]
-              ^{:key {:confidence-count [:include cid percent]}}
+              ^{:key {:confidence-count [:include label-id percent]}}
               [:td (str n-articles)])))]
         [:tr
          [:td
@@ -155,13 +155,16 @@
          (doall
           (for [percent c-percents]
             (let [n-articles (get c-exclude percent)]
-              ^{:key {:confidence-count [:exclude cid percent]}}
+              ^{:key {:confidence-count [:exclude label-id percent]}}
               [:td (str n-articles)])))]]]]]))
 
-(defn predict-report-criteria-menu []
-  (let [cids (keys (d/project [:stats :predict]))
-        ncols (-> cids count number-to-word)
-        active-cid (selected-criteria-id)]
+(defn predict-report-labels-menu []
+  (let [predict-ids (keys (d/project [:stats :predict]))
+        label-ids (->> (d/project-labels-ordered)
+                       (map :label-id)
+                       (filter (in? predict-ids)))
+        ncols (-> label-ids count number-to-word)
+        active-label-id (selected-label-id)]
     [:div.ui.top.attached.segment
      [:h4
       "Select label: "
@@ -171,30 +174,30 @@
               [:div.ui.small.blue.dropdown.button
                {:style {:margin-left "5px"}}
                [:input {:type "hidden" :name "menu-dropdown"}]
-               [:label (d/project [:criteria active-cid :short-label])]
+               [:label (d/project [:labels active-label-id :short-label])]
                [:i.chevron.down.right.icon]
                [:div.menu
                 (doall
-                 (for [cid cids]
-                   (let [active (= cid active-cid)]
-                     ^{:key {:predict-menu-cid cid}}
+                 (for [label-id label-ids]
+                   (let [active (= label-id active-label-id)]
+                     ^{:key {:predict-menu-label label-id}}
                      [:a.item
-                      {:href (str "/project/predict/" cid)
+                      {:href (str "/project/predict/" (name label-id))
                        :class (if active "default active" "")}
-                      (d/project [:criteria cid :short-label])])))]])]
+                      (d/project [:labels label-id :short-label])])))]])]
         [dropdown])]]))
 
 (defn project-predict-report-box []
-  (let [cid (selected-criteria-id)]
+  (let [label-id (selected-label-id)]
     [:div
      [:div.ui.secondary.yellow.center.aligned.segment
       [:h3 "Under development"]]
-     [predict-report-criteria-menu]
+     [predict-report-labels-menu]
      [:div.ui.bottom.attached.segment
       [train-input-summary-box]
       [value-confidence-box]]
      [:div.ui.secondary.segment
-      [:h4 (str "Last updated: " (d/project [:stats :predict cid :update-time]))]]]))
+      [:h4 (str "Last updated: " (d/project [:stats :predict label-id :update-time]))]]]))
 
 (defn project-page []
   [:div

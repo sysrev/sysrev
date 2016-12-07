@@ -1,6 +1,7 @@
 (ns sysrev.init
   (:require [sysrev.db.core :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
+            [sysrev.predict.report :refer [clear-predict-summary-cache]]
             [config.core :refer [env]]))
 
 (defn start-app [& [postgres-overrides]]
@@ -14,4 +15,5 @@
         (->> postgres-port (format "connected to postgres (port %s)") println)
         (run-web server-port prod?)
         (->> server-port (format "web server started (port %s)") println)
+        (clear-predict-summary-cache)
         true)))

@@ -9,7 +9,7 @@
             [sysrev.web.index :as index]
             [sysrev.db.users :refer [get-user-by-id]]
             [sysrev.db.project :refer [project-member]]
-            [sysrev.util :refer [in? integerify-map-keys]]))
+            [sysrev.util :refer [in?]]))
 
 (defn current-user-id [request]
   (-> request :session :identity :user-id))

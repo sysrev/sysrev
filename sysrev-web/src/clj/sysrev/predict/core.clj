@@ -1,9 +1,12 @@
 (ns sysrev.predict.core
   (:require
    [sysrev.util :refer [map-values]]
-   [sysrev.db.core :refer [do-query do-execute sql-now]]
+   [sysrev.db.core :refer [do-query do-query-map do-execute sql-now]]
    [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]))
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+   [honeysql-postgres.format :refer :all]
+   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+   [sysrev.db.queries :as q]))
 
 (defn create-predict-version
   "Adds a new predict-version entry to database."
@@ -20,46 +23,6 @@
       (where [:= :predict-version-id predict-version-id])
       do-execute))
 
-(defn get-predict-run
-  "Gets a predict-run entry by primary key."
-  [predict-run-id]
-  (-> (select :*)
-      (from :predict-run)
-      (where [:= :predict-run-id predict-run-id])
-      do-query
-      first))
-
-(defn latest-predict-run
-  "Gets the most recent predict-run entry matching the arguments."
-  ([project-id]
-   (-> (select :*)
-       (from :predict-run)
-       (where [:= :project-id project-id])
-       (order-by [:create-time :desc])
-       (limit 1)
-       do-query
-       first))
-  ([project-id sim-version-id predict-version-id]
-   (-> (select :*)
-       (from :predict-run)
-       (where [:and
-               [:= :project-id project-id]
-               [:= :sim-version-id sim-version-id]
-               [:= :predict-version-id predict-version-id]])
-       (order-by [:create-time :desc])
-       (limit 1)
-       do-query
-       first)))
-
-(defn latest-predict-run-id
-  ":predict-run-id of (latest-predict-run ...)"
-  ([project-id]
-   (:predict-run-id
-    (latest-predict-run project-id)))
-  ([project-id sim-version-id predict-version-id]
-   (:predict-run-id
-    (latest-predict-run project-id sim-version-id predict-version-id))))
-
 (defn create-predict-run
   "Adds a new predict-run entry to the database, and returns the entry."
   [project-id sim-version-id predict-version-id]
@@ -67,14 +30,14 @@
       (values [{:project-id project-id
                 :sim-version-id sim-version-id
                 :predict-version-id predict-version-id}])
-      do-execute)
-  (latest-predict-run project-id sim-version-id predict-version-id))
+      (returning :*)
+      do-query first))
 
 (defn label-value-sims
   "Creates a map of (label-value -> max-similarity) for each possible value of 
-  `criteria-id`, where max-similarity is the similarity of `article-id` to the
-  closest labeled article whose value for `criteria-id` is label-value."
-  [article-id criteria-id predict-run]
+  `label-id`, where max-similarity is the similarity of `article-id` to the
+  closest labeled article whose value for `label-id` is label-value."
+  [article-id label-id predict-run]
   (let [n-closest 1
         sim-version-id (:sim-version-id predict-run)
         input-time (:input-time predict-run)
@@ -82,17 +45,17 @@
         (fn [above?]
           (let [other-id (if above? :lo-id :hi-id)
                 this-id (if above? :hi-id :lo-id)]
-            (-> (select [other-id :article-id] [:similarity :distance] :ac.answer)
+            (-> (select [other-id :article-id] [:similarity :distance] :al.answer)
                 (from [:article-similarity :s])
-                (join [:article-criteria :ac]
-                      [:= :ac.article-id other-id])
+                (join [:article-label :al]
+                      [:= :al.article-id other-id])
                 (where
                  [:and
                   [:> :similarity 0.01]
                   [:!= other-id this-id]
                   [:= :s.sim-version-id sim-version-id]
                   [:= this-id article-id]
-                  [:= :ac.criteria-id criteria-id]
+                  [:= :al.label-id label-id]
                   [:!= :ac.confirm-time nil]
                   [:<= :ac.confirm-time input-time]])
                 do-query)))
@@ -126,31 +89,27 @@
         [yes no] (pvalues (answer-sims true) (answer-sims false))]
     {true yes false no}))
 
-(defn cache-label-similarities [predict-run-id criteria-id]
-  (let [predict-run (get-predict-run predict-run-id)
+(defn cache-label-similarities [predict-run-id label-id]
+  (let [predict-run (q/query-predict-run-by-id predict-run-id [:*])
         project-id (:project-id predict-run)
         article-ids
-        (->> (-> (select :article-id)
-                 (from [:article :a])
-                 (where
-                  [:and
-                   [:= :project-id project-id]
-                   [:not
-                    [:exists
-                     (-> (select :*)
-                         (from [:label-similarity :ls])
-                         (where
-                          [:and
-                           [:= :ls.article-id :a.article-id]
-                           [:= :ls.predict-run-id predict-run-id]
-                           [:= :ls.criteria-id criteria-id]]))]]])
-                 do-query)
-             (map :article-id))]
+        (-> (q/select-project-articles project-id [:a.article-id])
+            (merge-where
+             [:not
+              [:exists
+               (-> (select :*)
+                   (from [:label-similarity :ls])
+                   (where
+                    [:and
+                     [:= :ls.article-id :a.article-id]
+                     [:= :ls.predict-run-id predict-run-id]
+                     [:= :ls.label-id label-id]]))]])
+            (do-query-map :article-id))]
     (->> article-ids
          (pmap
           (fn [article-id]
             (let [sims (label-value-sims
-                        article-id criteria-id predict-run)]
+                        article-id label-id predict-run)]
               (println (format "storing for %d: %s" article-id (pr-str sims)))
               (-> (insert-into :label-similarity)
                   (values
@@ -159,19 +118,19 @@
                          (fn [answer]
                            {:predict-run-id predict-run-id
                             :article-id article-id
-                            :criteria-id criteria-id
+                            :label-id label-id
                             :answer answer
                             :max-sim (get sims answer)}))))
                   do-execute))))
          doall)
     true))
 
-(defn relative-label-similarity [predict-run-id criteria-id article-id]
+(defn relative-label-similarity [predict-run-id label-id article-id]
   (let [sims (->> (-> (select :answer :max-sim)
                       (from :label-similarity)
                       (where [:and
                               [:= :predict-run-id predict-run-id]
-                              [:= :criteria-id criteria-id]
+                              [:= :label-id label-id]
                               [:= :article-id article-id]])
                       do-query)
                   (group-by :answer)
@@ -183,38 +142,34 @@
       0.0
       (/ true-sim sum))))
 
-(defn cache-relative-similarities [predict-run-id criteria-id]
+(defn cache-relative-similarities [predict-run-id label-id]
   (let [stage 0
-        predict-run (get-predict-run predict-run-id)
+        predict-run (q/query-predict-run-by-id predict-run-id [:*])
         project-id (:project-id predict-run)
         article-ids
-        (->> (-> (select :article-id)
-                 (from [:article :a])
-                 (where
-                  [:and
-                   [:= :project-id project-id]
-                   [:not
-                    [:exists
-                     (-> (select :*)
-                         (from [:label-predicts :lp])
-                         (where
-                          [:and
-                           [:= :lp.article-id :a.article-id]
-                           [:= :lp.predict-run-id predict-run-id]
-                           [:= :lp.criteria-id criteria-id]
-                           [:= :lp.stage stage]]))]]])
-                 do-query)
-             (map :article-id))
+        (-> (q/select-project-articles project-id [:a.article-id])
+            (merge-where
+             [:not
+              [:exists
+               (-> (select :*)
+                   (from [:label-predicts :lp])
+                   (where
+                    [:and
+                     [:= :lp.article-id :a.article-id]
+                     [:= :lp.predict-run-id predict-run-id]
+                     [:= :lp.label-id label-id]
+                     [:= :lp.stage stage]]))]])
+            (do-query-map :article-id))
         sql-entries
         (->> article-ids
              (pmap
               (fn [article-id]
                 (let [rsim (relative-label-similarity
-                            predict-run-id criteria-id article-id)]
+                            predict-run-id label-id article-id)]
                   (println (format "calculated rsim %.4f" rsim))
                   {:predict-run-id predict-run-id
                    :article-id article-id
-                   :criteria-id criteria-id
+                   :label-id label-id
                    :stage stage
                    :val rsim})))
              doall)]
@@ -231,22 +186,22 @@
          doall)
     true))
 
-(defn partition-predict-vals [predict-run-id stage criteria-id n-groups]
-  (let [predict-run (get-predict-run predict-run-id)
+(defn partition-predict-vals [predict-run-id stage label-id n-groups]
+  (let [predict-run (q/query-predict-run-by-id predict-run-id [:*])
         pvals
         (->>
-         (-> (select :lp.article-id :lp.val :ac.answer)
+         (-> (select :lp.article-id :lp.val :al.answer)
              (from [:label-predicts :lp])
-             (join [:article-criteria :ac]
-                   [:= :ac.article-id :lp.article-id])
+             (join [:article-label :al]
+                   [:= :al.article-id :lp.article-id])
              (where
               [:and
-               [:!= :ac.confirm-time nil]
-               [:<= :ac.confirm-time (:input-time predict-run)]
-               [:!= :ac.answer nil]
-               [:= :ac.criteria-id criteria-id]
+               [:!= :al.confirm-time nil]
+               [:<= :al.confirm-time (:input-time predict-run)]
+               [:!= :al.answer nil]
+               [:= :al.label-id label-id]
                [:= :lp.predict-run-id predict-run-id]
-               [:= :lp.criteria-id criteria-id]
+               [:= :lp.label-id label-id]
                [:= :lp.stage stage]])
              do-query)
          (group-by :article-id))
@@ -304,22 +259,20 @@
          (apply merge))]
     answer-probs))
 
-(defn cache-predict-probs [predict-run-id criteria-id k-nearest]
-  (let [predict-run (get-predict-run predict-run-id)
+(defn cache-predict-probs [predict-run-id label-id k-nearest]
+  (let [predict-run (q/query-predict-run-by-id predict-run-id [:*])
         project-id (:project-id predict-run)
         [[labeled-rsims] all-rsims]
         (pvalues
          (partition-predict-vals
-          predict-run-id 0 criteria-id 1)
-         (-> (select :lp.article-id :lp.val)
-             (from [:label-predicts :lp])
-             (join [:article :a]
-                   [:= :a.article-id :lp.article-id])
+          predict-run-id 0 label-id 1)
+         (-> (q/select-project-articles project-id [:lp.article-id :lp.val])
+             (merge-join [:label-predicts :lp]
+                         [:= :lp.article-id :a.article-id])
              (where
               [:and
-               [:= :a.project-id project-id]
                [:= :lp.predict-run-id predict-run-id]
-               [:= :lp.criteria-id criteria-id]
+               [:= :lp.label-id label-id]
                [:= :lp.stage 0]])
              do-query))
         k-nearest (min k-nearest
@@ -335,14 +288,14 @@
                   (println (format "predicted %.4f" prob))
                   {:predict-run-id predict-run-id
                    :article-id (:article-id entry)
-                   :criteria-id criteria-id
+                   :label-id label-id
                    :stage 1
                    :val prob})))
              doall)]
     (-> (delete-from :label-predicts)
         (where [:and
                 [:= :predict-run-id predict-run-id]
-                [:= :criteria-id criteria-id]
+                [:= :label-id label-id]
                 [:= :stage 1]])
         do-execute)
     (->> sql-entries
@@ -358,8 +311,8 @@
          doall)
     true))
 
-(defn do-predict-run [predict-run-id criteria-id]
+(defn do-predict-run [predict-run-id label-id]
   (let [k-nearest 50]
-    (cache-label-similarities predict-run-id criteria-id)
-    (cache-relative-similarities predict-run-id criteria-id)
-    (cache-predict-probs predict-run-id criteria-id k-nearest)))
+    (cache-label-similarities predict-run-id label-id)
+    (cache-relative-similarities predict-run-id label-id)
+    (cache-predict-probs predict-run-id label-id k-nearest)))

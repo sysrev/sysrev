@@ -12,7 +12,7 @@
 
 (defn label-values-component [article-id user-id]
   (fn [article-id & [user-id]]
-    (let [cids (-> (d/project :criteria) keys sort)
+    (let [labels (d/project-labels-ordered)
           values (d/user-label-values article-id user-id)
           values (if-not (empty? values)
                    values
@@ -21,19 +21,20 @@
        [:div.ui.horizontal.divided.list
         (doall
          (->>
-          cids
+          labels
+          (map :label-id)
           (map #(do [% (get values %)]))
-          (map
-           (fn [[cid answer]]
-             (let [criteria-name
-                   (d/project [:criteria cid :name])
+          (map-indexed
+           (fn [i [label-id answer]]
+             (let [label-name
+                   (d/project [:labels label-id :name])
                    answer-str (if (nil? answer)
                                 "unknown"
                                 (str answer))]
-               ^{:key {:label-value (str cid "-" article-id)}}
+               ^{:key {:label-value (str i "__" article-id)}}
                [:div.item.label-tag-list
                 [:div.content
-                 [label-value-tag cid answer]]])))))]])))
+                 [label-value-tag label-id answer]]])))))]])))
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
@@ -273,53 +274,57 @@
   `labels-path` is a sequence of keys specifying the path
   in `state` where the label values set by the user will be stored."
   [article-id labels-path]
-  (let [criteria (d/project :criteria)
+  (let [labels (d/project :labels)
+        ordered-label-ids (->> (d/project-labels-ordered)
+                               (map :label-id))
         label-values (d/active-label-values article-id labels-path)
-        core-ids (->> (keys criteria)
-                      (remove #(-> (get criteria %) :is-inclusion nil?)))
-        extra-ids (->> (keys criteria)
-                       (filter #(-> (get criteria %) :is-inclusion nil?)))
-        make-cid-columns
-        (fn [cids]
+        core-ids (->> ordered-label-ids
+                      (filter #(= "inclusion criteria"
+                                  (-> (get labels %) :category))))
+        extra-ids (->> ordered-label-ids
+                       (remove #(= "inclusion criteria"
+                                   (-> (get labels %) :category))))
+        make-label-columns
+        (fn [label-ids]
           (doall
            (->>
-            cids
+            label-ids
             (map
-             (fn [cid]
-               (let [criterion (get criteria cid)]
-                 ^{:key {:article-label cid}}
-                 [with-tooltip
-                  [:div.ui.column
-                   {:data-content (:question criterion)
-                    :data-position "top left"
-                    :style {:background-color
-                            (if (= (:name criterion) "overall include")
-                              "rgba(200,200,200,1)"
-                              nil)
-                            :padding "0px"}}
-                   [:div.ui.middle.aligned.grid
-                    {:style {:margin "0px"}}
+             (fn [label-id]
+               (let [label (get labels label-id)]
+                 ^{:key {:article-label label-id}}
+                 [:div.ui.column
+                  {:style {:background-color
+                           (if (= (:name label) "overall include")
+                             "rgba(200,200,200,1)"
+                             nil)
+                           :padding "0px"}}
+                  [:div.ui.middle.aligned.grid
+                   {:style {:margin "0px"}}
+                   [with-tooltip
                     [:div.ui.row
-                     {:style {:padding-bottom "0px"
+                     {:data-content (:question label)
+                      :data-position "top left"
+                      :style {:padding-bottom "0px"
                               :text-align "center"}}
                      [:span
                       {:style {:width "100%"}}
-                      (str (:short-label criterion) "?")]]
-                    [:div.ui.row
-                     {:style {:padding-top "8px"
-                              :padding-bottom "18px"}}
-                     [:div
-                      {:style {:margin-left "auto"
-                               :margin-right "auto"}}
-                      [three-state-selection
-                       (fn [new-value]
-                         (swap! state assoc-in
-                                (concat labels-path [cid])
-                                new-value)
-                         (ajax/send-labels
-                          article-id
-                          (d/active-label-values article-id labels-path)))
-                       (get label-values cid)]]]]]]))))))]
+                      (str (:short-label label) "?")]]]
+                   [:div.ui.row
+                    {:style {:padding-top "8px"
+                             :padding-bottom "18px"}}
+                    [:div
+                     {:style {:margin-left "auto"
+                              :margin-right "auto"}}
+                     [three-state-selection
+                      (fn [new-value]
+                        (swap! state assoc-in
+                               (concat labels-path [label-id])
+                               new-value)
+                        (ajax/send-labels
+                         article-id
+                         (d/active-label-values article-id labels-path)))
+                      (get label-values label-id)]]]]]))))))]
     [:div.ui.segments
      [:div.ui.top.attached.header
       [:h3
@@ -337,7 +342,7 @@
                 "four column"
                 "three column")
        :style {:padding "0px"}}
-      (make-cid-columns core-ids)]
+      (make-label-columns core-ids)]
      [:div.ui.attached.segment.label-section-header
       [:h4 "Extra labels"]]
      [:div.ui.bottom.attached.grid.segment
@@ -345,4 +350,4 @@
                 "four column"
                 "three column")
        :style {:padding "0px"}}
-      (make-cid-columns extra-ids)]]))
+      (make-label-columns extra-ids)]]))

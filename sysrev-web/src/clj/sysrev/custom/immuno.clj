@@ -12,7 +12,8 @@
             [sysrev.db.users :as users]
             [sysrev.db.labels :as labels]
             [sysrev.util :refer [xml-find]]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [sysrev.db.queries :as q]))
 
 (defn parse-endnote-file [fname]
   (-> fname
@@ -96,138 +97,129 @@
 (defn group-name-to-label-values
   "Creates a label-values map from a label group string (from the XML export)."
   [project-id gname]
-  (let [cid (fn [cname]
-              (-> (select :criteria-id)
-                  (from :criteria)
-                  (where [:and
-                          [:= :project-id project-id]
-                          [:= :name cname]])
-                  do-query
-                  first
-                  :criteria-id))]
-    (->>
-     (cond
+  (->>
+   (cond
        ;;;;
        ;;;; these are the group labels from the Huili export
        ;;;;
-       (= gname "io vaccine/virus")
-       {"overall include" true
-        "is cancer" true
-        "is human" true
-        "is clinical trial" true
-        "is phase 1" true
-        "is immunotherapy" true
-        "conference abstract" false
-        "combination trial" false
-        "single agent trial" false
-        "vaccine or virus study" true}
-       (= gname "immunotherapy - preclinical")
-       {"overall include" false
-        "is immunotherapy" true
-        "is clinical trial" false}
-       (= gname "io combination")
-       {"overall include" true
-        "is cancer" true
-        "is human" true
-        "is clinical trial" true
-        "is phase 1" true
-        "is immunotherapy" true
-        "conference abstract" false
-        "combination trial" true
-        "single agent trial" false
-        "vaccine or virus study" false}
-       (= gname "immunotherapy - review article")
-       {"overall include" false
-        "is immunotherapy" true
-        "is clinical trial" false}
-       (= gname "immunotherapy (other)")
-       {"overall include" false
-        "is immunotherapy" false}
-       (= gname "not cancer")
-       {"overall include" false
-        "is cancer" false}
-       (= gname "io monotherapy")
-       {"overall include" true
-        "is cancer" true
-        "is human" true
-        "is clinical trial" true
-        "is phase 1" true
-        "is immunotherapy" true
-        "conference abstract" false
-        "combination trial" false
-        "single agent trial" true
-        "vaccine or virus study" false}
-       (= gname "not clinical trial paper")
-       {"overall include" false
-        "is clinical trial" false}
-       (= gname "immunotherapy - not phase 1")
-       {"overall include" false
-        "is immunotherapy" true
-        "is clinical trial" true
-        "is phase 1" false}
-       (= gname "not immunotherapy")
-       {"overall include" false
-        "is immunotherapy" false}
-       (= gname "immunotherapy - case reports")
-       {"overall include" false
-        "is immunotherapy" true
-        "is clinical trial" false}
+     (= gname "io vaccine/virus")
+     {"overall include" true
+      "is cancer" true
+      "is human" true
+      "is clinical trial" true
+      "is phase 1" true
+      "is immunotherapy" true
+      "conference abstract" false
+      "combination trial" false
+      "single agent trial" false
+      "vaccine or virus study" true}
+     (= gname "immunotherapy - preclinical")
+     {"overall include" false
+      "is immunotherapy" true
+      "is clinical trial" false}
+     (= gname "io combination")
+     {"overall include" true
+      "is cancer" true
+      "is human" true
+      "is clinical trial" true
+      "is phase 1" true
+      "is immunotherapy" true
+      "conference abstract" false
+      "combination trial" true
+      "single agent trial" false
+      "vaccine or virus study" false}
+     (= gname "immunotherapy - review article")
+     {"overall include" false
+      "is immunotherapy" true
+      "is clinical trial" false}
+     (= gname "immunotherapy (other)")
+     {"overall include" false
+      "is immunotherapy" false}
+     (= gname "not cancer")
+     {"overall include" false
+      "is cancer" false}
+     (= gname "io monotherapy")
+     {"overall include" true
+      "is cancer" true
+      "is human" true
+      "is clinical trial" true
+      "is phase 1" true
+      "is immunotherapy" true
+      "conference abstract" false
+      "combination trial" false
+      "single agent trial" true
+      "vaccine or virus study" false}
+     (= gname "not clinical trial paper")
+     {"overall include" false
+      "is clinical trial" false}
+     (= gname "immunotherapy - not phase 1")
+     {"overall include" false
+      "is immunotherapy" true
+      "is clinical trial" true
+      "is phase 1" false}
+     (= gname "not immunotherapy")
+     {"overall include" false
+      "is immunotherapy" false}
+     (= gname "immunotherapy - case reports")
+     {"overall include" false
+      "is immunotherapy" true
+      "is clinical trial" false}
        ;;;; above are the group labels from Huili export
        ;;;;
        ;;;; now, group labels from Daphne/Amy export
-       (= gname "IMMUNO-MONOTHERAPY")
-       {"overall include" true
-        "is cancer" true
-        "is human" true
-        "is clinical trial" true
-        "is phase 1" true
-        "is immunotherapy" true
-        "conference abstract" false
-        "combination trial" false
-        "single agent trial" true
-        "vaccine or virus study" false}
-       (= gname "IMMUNO-VACCINE/VIRUS")
-       {"overall include" true
-        "is cancer" true
-        "is human" true
-        "is clinical trial" true
-        "is phase 1" true
-        "is immunotherapy" true
-        "conference abstract" false
-        "combination trial" false
-        "single agent trial" false
-        "vaccine or virus study" true}
-       (= gname "Not cancer related")
-       {"overall include" false
-        "is cancer" false}
-       (= gname "Not clinical trial paper")
-       {"overall include" false
-        "is clinical trial" false
-        "is phase 1" false}
-       (= gname "Not immunotherapy related")
-       {"overall include" false
-        "is immunotherapy" false}
-       (= gname "pediatrics")
-       {"overall include" false}
-       (= gname "phase III")
-       {"overall include" false
-        "is phase 1" false}
-       (= gname "Preclinical")
-       {"overall include" false
-        "is human" false
-        "is clinical trial" false
-        "is phase 1" false}
-       (= gname "Transplant")
-       {"overall include" false}
-       (= gname "Phase I/phase 1/clinical trial")
-       {"is phase 1" true
-        "is clinical trial" true}
-       :else
-       nil)
-     (map (fn [[name val]]
-            [(cid name) val]))
-     (apply concat)
-     (apply hash-map))))
+     (= gname "IMMUNO-MONOTHERAPY")
+     {"overall include" true
+      "is cancer" true
+      "is human" true
+      "is clinical trial" true
+      "is phase 1" true
+      "is immunotherapy" true
+      "conference abstract" false
+      "combination trial" false
+      "single agent trial" true
+      "vaccine or virus study" false}
+     (= gname "IMMUNO-VACCINE/VIRUS")
+     {"overall include" true
+      "is cancer" true
+      "is human" true
+      "is clinical trial" true
+      "is phase 1" true
+      "is immunotherapy" true
+      "conference abstract" false
+      "combination trial" false
+      "single agent trial" false
+      "vaccine or virus study" true}
+     (= gname "Not cancer related")
+     {"overall include" false
+      "is cancer" false}
+     (= gname "Not clinical trial paper")
+     {"overall include" false
+      "is clinical trial" false
+      "is phase 1" false}
+     (= gname "Not immunotherapy related")
+     {"overall include" false
+      "is immunotherapy" false}
+     (= gname "pediatrics")
+     {"overall include" false}
+     (= gname "phase III")
+     {"overall include" false
+      "is phase 1" false}
+     (= gname "Preclinical")
+     {"overall include" false
+      "is human" false
+      "is clinical trial" false
+      "is phase 1" false}
+     (= gname "Transplant")
+     {"overall include" false}
+     (= gname "Phase I/phase 1/clinical trial")
+     {"is phase 1" true
+      "is clinical trial" true}
+     :else
+     nil)
+   (map (fn [[name val]]
+          [(q/label-id-from-name project-id name) val]))
+   (apply concat)
+   (apply hash-map)))
 
 (defn store-endnote-labels
   "Records all the labels contained in Endnote XML export file `fname` as
@@ -253,7 +245,7 @@
                 (println (format "setting labels for article #%s" article-id))
                 (doseq [user-id user-ids]
                   (when article-id
-                    (-> (delete-from :article-criteria)
+                    (-> (delete-from :article-label)
                         (where [:and
                                 [:= :user-id user-id]
                                 [:= :article-id article-id]])

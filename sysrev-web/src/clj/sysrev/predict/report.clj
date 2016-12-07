@@ -1,31 +1,32 @@
 (ns sysrev.predict.report
   (:require
-   [sysrev.util :refer [map-values integerify-map-keys]]
+   [sysrev.util :refer [map-values integerify-map-keys uuidify-map-keys]]
    [sysrev.db.core :refer
     [do-query do-execute sql-now time-to-string to-jsonb]]
+   [sysrev.db.queries :as q]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [sysrev.predict.core :refer [get-predict-run]]))
+   [sysrev.predict.core :refer []]))
 
 (defn estimate-articles-with-value
   "Calculates an estimate of the number of project articles for which
-  `criteria-id` will have a value of `true`."
-  [predict-run-id criteria-id]
+  `label-id` will have a value of `true`."
+  [predict-run-id label-id]
   (-> (select :%sum.lp.val :%count.lp.val)
       (from [:label-predicts :lp])
       (where [:and
               [:= :predict-run-id predict-run-id]
-              [:= :criteria-id criteria-id]
+              [:= :label-id label-id]
               [:= :stage 1]])
       do-query
       first))
 
-(defn article-count-by-label-prob [predict-run-id criteria-id cutoff greater?]
+(defn article-count-by-label-prob [predict-run-id label-id cutoff greater?]
   (-> (select :%count.*)
       (from [:label-predicts :lp])
       (where [:and
               [:= :predict-run-id predict-run-id]
-              [:= :criteria-id criteria-id]
+              [:= :label-id label-id]
               [:= :stage 1]
               (if greater?
                 [:>= :val cutoff]
@@ -34,28 +35,28 @@
       first
       :count))
 
-(defn predict-run-article-count [predict-run-id criteria-id & [labeled? answer]]
+(defn predict-run-article-count [predict-run-id label-id & [labeled? answer]]
   (-> (select :%count.*)
       (from [:label-predicts :lp])
       (join [:predict-run :pr]
             [:= :pr.predict-run-id :lp.predict-run-id])
       (where [:and
               [:= :lp.predict-run-id predict-run-id]
-              [:= :lp.criteria-id criteria-id]
+              [:= :lp.label-id label-id]
               [:= :lp.stage 1]
               (let [label-exists
                     [:exists
                      (-> (select :*)
-                         (from [:article-criteria :ac])
+                         (from [:article-label :al])
                          (where [:and
-                                 [:= :ac.article-id :lp.article-id]
-                                 [:= :ac.criteria-id criteria-id]
-                                 [:!= :ac.answer nil]
+                                 [:= :al.article-id :lp.article-id]
+                                 [:= :al.label-id label-id]
+                                 [:!= :al.answer nil]
                                  (if (nil? answer)
                                    true
-                                   [:= :ac.answer answer])
-                                 [:!= :ac.confirm-time nil]
-                                 [:<= :ac.confirm-time :pr.input-time]]))]]
+                                   [:= :al.answer (to-jsonb answer)])
+                                 [:!= :al.confirm-time nil]
+                                 [:<= :al.confirm-time :pr.input-time]]))]]
                 (case labeled?
                   true label-exists
                   false [:not label-exists]
@@ -64,7 +65,7 @@
       first
       :count))
 
-(defn predict-summary-for-criteria [predict-run-id criteria-id]
+(defn predict-summary-for-label [predict-run-id label-id]
   (let [confidence-probs [0.5 0.75 0.9 0.95]
         [predict-run
          total-count
@@ -76,20 +77,20 @@
          include
          exclude]
         (pvalues
-         (get-predict-run predict-run-id)
-         (predict-run-article-count predict-run-id criteria-id nil)
-         (predict-run-article-count predict-run-id criteria-id true)
-         (predict-run-article-count predict-run-id criteria-id true true)
-         (predict-run-article-count predict-run-id criteria-id true false)
-         (predict-run-article-count predict-run-id criteria-id false)
-         (:sum (estimate-articles-with-value predict-run-id criteria-id))
+         (q/query-predict-run-by-id predict-run-id [:*])
+         (predict-run-article-count predict-run-id label-id nil)
+         (predict-run-article-count predict-run-id label-id true)
+         (predict-run-article-count predict-run-id label-id true true)
+         (predict-run-article-count predict-run-id label-id true false)
+         (predict-run-article-count predict-run-id label-id false)
+         (:sum (estimate-articles-with-value predict-run-id label-id))
          {:confidence
           (->> confidence-probs
                (map
                 (fn [prob]
                   {(Math/round (* prob 100))
                    (article-count-by-label-prob
-                    predict-run-id criteria-id prob true)}))
+                    predict-run-id label-id prob true)}))
                (apply merge))}
          {:confidence
           (->> confidence-probs
@@ -97,7 +98,7 @@
                 (fn [prob]
                   {(Math/round (* prob 100))
                    (article-count-by-label-prob
-                    predict-run-id criteria-id (- 1.0 prob) false)}))
+                    predict-run-id label-id (- 1.0 prob) false)}))
                (apply merge))})]
     {:update-time (-> predict-run :create-time time-to-string (str " UTC"))
      :counts {:total total-count
@@ -110,21 +111,21 @@
      :exclude exclude}))
 
 (defn predict-summary [predict-run-id & [force-update]]
-  (let [summary (-> (select :meta)
-                    (from :predict-run)
-                    (where [:= :predict-run-id predict-run-id])
-                    do-query first :meta :summary)]
+  (let [summary (-> (q/query-predict-run-by-id predict-run-id [:meta])
+                    :meta :summary)]
     (if (and summary (not force-update))
-      (integerify-map-keys summary)
+      (-> summary
+          integerify-map-keys
+          uuidify-map-keys)
       (let [new-summary
-            (->> (-> (select :%distinct.criteria-id)
+            (->> (-> (select :%distinct.label-id)
                      (from :label-predicts)
                      (where [:= :predict-run-id predict-run-id])
                      do-query)
-                 (map :criteria-id)
-                 (pmap (fn [criteria-id]
-                         {criteria-id (predict-summary-for-criteria
-                                       predict-run-id criteria-id)}))
+                 (map :label-id)
+                 (pmap (fn [label-id]
+                         {label-id (predict-summary-for-label
+                                    predict-run-id label-id)}))
                  doall
                  (apply merge))]
         (-> (sqlh/update :predict-run)
@@ -132,3 +133,8 @@
             (where [:= :predict-run-id predict-run-id])
             do-execute)
         new-summary))))
+
+(defn clear-predict-summary-cache []
+  (-> (sqlh/update :predict-run)
+      (sset {:meta (to-jsonb {})})
+      do-execute))

@@ -20,6 +20,11 @@
   ([]
    (project [] nil)))
 
+(defn project-labels-ordered []
+  (->> (project [:labels])
+       vals
+       (sort-by :project-ordering <)))
+
 (defn set-user-info [user-id umap]
   (fn [s]
     (assoc-in s [:data :users user-id] umap)))
@@ -29,10 +34,10 @@
 
 (defn set-member-labels [user-id lmap]
   (fn [s]
-    (assoc-in s [:data :project (active-project-id) :labels user-id] lmap)))
+    (assoc-in s [:data :project (active-project-id) :member-labels user-id] lmap)))
 
 (defn member-labels [user-id]
-  (project [:labels user-id]))
+  (project [:member-labels user-id]))
 
 (defn merge-article [article]
   (fn [s]
@@ -53,16 +58,19 @@
 
 (defn set-project-info [pmap]
   (fn [s]
-    (let [old-labels (data [:project (:project-id pmap) :labels])
-          new-labels (:labels pmap)
+    (let [;; need to merge in :member-labels field because it's loaded from a
+          ;; separate request (/api/member-labels)
+          old-member-labels (data [:project (:project-id pmap) :member-labels])
+          new-member-labels (:member-labels pmap)
           pmap
           (assoc pmap
-                 :overall-cid
-                 (->> (:criteria pmap)
-                      (filter (fn [[cid {:keys [name]}]]
+                 :overall-label-id
+                 (->> (:labels pmap)
+                      (filter (fn [[label-id {:keys [name]}]]
                                 (= name "overall include")))
                       first first)
-                 :labels (merge old-labels new-labels))]
+                 :member-labels
+                 (merge old-member-labels new-member-labels))]
       (assert (:project-id pmap))
       (assoc-in s [:data :project (:project-id pmap)] pmap))))
 
@@ -84,36 +92,36 @@
   If multiple users have stored a value for a label, only the first value
   found for each label will be returned."
   [article-id]
-  (let [cids (-> (project :criteria) keys)
+  (let [label-ids (-> (project :labels) keys)
         labels (get-in @state [:data :article-labels article-id])
         known-value
-        (fn [cid]
+        (fn [label-id]
           (->> labels
-               (filter #(and (= (:criteria-id %) cid)
+               (filter #(and (= (:label-id %) label-id)
                              (not (nil? (:answer %)))))
                first))
         any-value
-        (fn [cid]
+        (fn [label-id]
           (->> labels
-               (filter #(= (:criteria-id %) cid))
+               (filter #(= (:label-id %) label-id))
                first))]
-    (->> cids
+    (->> label-ids
          (mapv
-          (fn [cid]
-            (if-let [label (known-value cid)]
-              [cid label]
-              (if-let [label (any-value cid)]
-                [cid label]
+          (fn [label-id]
+            (if-let [label-val (known-value label-id)]
+              [label-id label-val]
+              (if-let [label-val (any-value label-id)]
+                [label-id label-val]
                 nil))))
          (apply concat)
          (apply hash-map))))
 
 (defn user-label-values [article-id user-id]
-  (let [lmap (project [:labels user-id])
+  (let [lmap (project [:member-labels user-id])
         amap (or (get-in lmap [:confirmed article-id])
                  (get-in lmap [:unconfirmed article-id]))]
     (->> amap
-         (group-by :criteria-id)
+         (group-by :label-id)
          (map-values first)
          (map-values :answer))))
 

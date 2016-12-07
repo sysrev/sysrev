@@ -137,12 +137,12 @@
                     :margin-right "0"}}])]))
 
 (defn label-value-tag
-  "UI component for representing the value of a criteria label.
+  "UI component for representing the value of a label.
   `value` is one of true, false, nil."
-  [criteria-id value]
-  (let [label
-        (d/project [:criteria criteria-id :short-label])]
-    [true-false-nil-tag "medium" {} true (str label "?") value]))
+  [label-id value]
+  (let [short-label
+        (d/project [:labels label-id :short-label])]
+    [true-false-nil-tag "medium" {} true (str short-label "?") value]))
 
 (defn with-tooltip [content]
   (r/create-class
@@ -185,8 +185,8 @@
       [:div.ui.small.modal
        [:div.header "Confirm article labels?"]
        (let [article-id (article-id-fn)
-             criteria (d/project :criteria)
-             n-total (count criteria)
+             labels (d/project :labels)
+             n-total (count labels)
              label-values (d/active-label-values article-id labels-path)
              n-set (->> label-values vals (remove nil?) count)]
          [:div.content.confirm-modal
@@ -211,7 +211,6 @@
              :padding-bottom "0.5em"}}
     [:h4 (d/data [:all-projects (s/active-project-id) :name])]]
    content])
-
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML

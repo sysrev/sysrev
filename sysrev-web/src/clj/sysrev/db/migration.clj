@@ -259,13 +259,8 @@
            (-> (select :criteria-id :project-id :name)
                (from :criteria)
                do-query)]
-     (let [label-id
-           (-> (select :label-id)
-               (from :label)
-               (where [:and
-                       [:= :project-id project-id]
-                       [:= :name name]])
-               do-query first :label-id)]
+     (let [{:keys [label-id]}
+           (q/query-label-by-name project-id name [:label-id])]
        (assert label-id "label entry not found")
        (let [result
              (-> (sqlh/update :label-similarity)

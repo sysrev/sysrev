@@ -1,6 +1,9 @@
 (ns sysrev.util
-  (:require [clojure.xml])
-  (:import (javax.xml.parsers SAXParser SAXParserFactory)))
+  (:require [clojure.xml]
+            [crypto.random]
+            [clojure.math.numeric-tower :as math])
+  (:import (javax.xml.parsers SAXParser SAXParserFactory)
+           java.util.UUID))
 
 (defn map-values
   "Map a function over the values of a collection of pairs (vector of vectors,
@@ -38,11 +41,37 @@
     m
     (->> m
          (mapv (fn [[k v]]
-                 (let [k-int (-> k name parse-number)
+                 (let [k-int (and (keyword? k)
+                                  (re-matches #"^\d+$" (name k))
+                                  (parse-number (name k)))
                        k-new (if (integer? k-int) k-int k)
                        ;; integerify sub-maps recursively
                        v-new (if (map? v)
                                (integerify-map-keys v)
+                               v)]
+                   [k-new v-new])))
+         (apply concat)
+         (apply hash-map))))
+
+(defn uuidify-map-keys
+  "Maps parsed from JSON with UUID keys will have the UUID values changed
+  to keywords. This converts any UUID keywords back to UUID values, operating
+  recursively through nested maps."
+  [m]
+  (if (not (map? m))
+    m
+    (->> m
+         (mapv (fn [[k v]]
+                 (let [k-uuid
+                       (and (keyword? k)
+                            (re-matches
+                             #"^[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+\-[\da-f]+$"
+                             (name k))
+                            (UUID/fromString (name k)))
+                       k-new (if (= UUID (type k-uuid)) k-uuid k)
+                       ;; uuidify sub-maps recursively
+                       v-new (if (map? v)
+                               (uuidify-map-keys v)
                                v)]
                    [k-new v-new])))
          (apply concat)
@@ -109,3 +138,17 @@
   "Converts a map to a vector of function keyword arguments."
   [m]
   (->> m (mapv identity) (apply concat) vec))
+
+(defn crypto-rand []
+  (let [size 4
+        n-max (math/expt 256 size)
+        n-rand (BigInteger. 1 (crypto.random/bytes size))]
+    (double (/ n-rand n-max))))
+
+(defn crypto-rand-int [n]
+  (let [size 4
+        n-rand (BigInteger. 1 (crypto.random/bytes size))]
+    (int (mod n-rand n))))
+
+(defn crypto-rand-nth [coll]
+  (nth coll (crypto-rand-int (count coll))))

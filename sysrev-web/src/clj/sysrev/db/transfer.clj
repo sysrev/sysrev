@@ -7,8 +7,8 @@
    [clojure.java.jdbc :as j]
    [sysrev.db.core :refer
     [do-query do-execute do-transaction make-db-config]]
+   [sysrev.db.queries :as q]
    [sysrev.db.articles :refer [article-to-sql]]
-   [sysrev.db.project :refer [get-project-by-uuid]]
    [sysrev.util :refer [map-values in?]]
    [clojure.pprint :as pprint]))
 
@@ -19,18 +19,18 @@
   (let [src-db (make-db-config src-postgres-overrides)
         dest-db (make-db-config dest-postgres-overrides)]
     (assert (nil?
-             (get-project-by-uuid project-uuid dest-db))
+             (q/query-project-by-uuid project-uuid [:*] dest-db))
             "project already exists on destination server")
     (assert ((comp not nil?)
-             (get-project-by-uuid project-uuid src-db))
+             (q/query-project-by-uuid project-uuid [:*] src-db))
             "project does not exist on source server")
     (let [{src-project-id :project-id
            project-name :name
-           :as src-project} (get-project-by-uuid project-uuid src-db)
+           :as src-project} (q/query-project-by-uuid project-uuid [:*] src-db)
           _ (println (format "transferring project data for '%s'" project-name))
-          [src-criteria src-articles src-locations]
+          [src-labels src-articles src-locations]
           [(-> (select :*)
-               (from :criteria)
+               (from :label)
                (where [:= :project-id src-project-id])
                (do-query src-db))
            (-> (select :*)
@@ -55,18 +55,18 @@
                  (returning :project-id)
                  do-query first :project-id)
              _ (println "created project entry")
-             dest-criteria
-             (-> (insert-into :criteria)
+             dest-labels
+             (-> (insert-into :label)
                  (values
                   (->>
-                   src-criteria
+                   src-labels
                    (mapv
                     #(-> %
-                         (dissoc :criteria-id)
+                         (dissoc :label-id-local)
                          (assoc :project-id dest-project-id)))))
                  (returning :*)
                  do-query)
-             _ (println "created criteria entries")
+             _ (println "created label entries")
              dest-article-ids
              (zipmap
               (mapv :article-id src-articles)
@@ -119,8 +119,8 @@
          ;;(println (str "dest-article-ids = " (pr-str dest-article-ids)))
          (println "----------------------------------")
          (println
-          (format "criteria : [%d, %d]"
-                  (count src-criteria) (count dest-criteria)))
+          (format "labels : [%d, %d]"
+                  (count src-labels) (count dest-labels)))
          (println
           (format "articles : [%d, %d]"
                   (count src-articles) (count dest-article-ids)))

@@ -70,6 +70,12 @@
            :identifiers format-column-name
            :result-set-fn vec))
 
+(defn do-query-map
+  "(->> (do-query ...) (map map-fn))"
+  [sql-map map-fn & [conn]]
+  (->> (do-query sql-map conn)
+       (map map-fn)))
+
 (defmacro with-debug-sql
   "Runs body with exception handler to print SQL error details."
   [& body]
@@ -163,3 +169,6 @@
   (if project-id
     (swap! query-cache assoc-in [:project project-id] {})
     (swap! query-cache assoc :project {})))
+
+(defn sql-field [table-name field-name]
+  (keyword (str (name table-name) "." (name field-name))))

@@ -4,28 +4,68 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now to-sql-array to-jsonb]]))
+             [do-query do-execute do-transaction sql-now
+              to-sql-array to-jsonb sql-field]]
+            [sysrev.db.queries :as q]))
 
 ;;;
 ;;; articles
 ;;;
 
-(defn select-project-articles [project-id & [fields]]
+(defn select-project-articles
+  [project-id fields & [{:keys [include-disabled? tname]
+                         :or {include-disabled? false
+                              tname :a}
+                         :as opts}]]
+  (cond->
+      (-> (apply select fields)
+          (from [:article tname]))
+    project-id (merge-where [:= (sql-field tname :project-id) project-id])
+    (not include-disabled?) (merge-where [:= (sql-field tname :enabled) true])))
+
+(defn select-article-where
+  [project-id where-clause fields & [{:keys [include-disabled? tname]
+                                      :as opts}]]
+  (cond->
+      (select-project-articles project-id fields opts)
+    (and (not (nil? where-clause))
+         (not (true? where-clause))) (merge-where where-clause)))
+
+(defn select-article-by-id
+  [article-id fields & [{:keys [include-disabled? tname project-id]
+                         :or {include-disabled? true
+                              tname :a
+                              project-id nil}
+                         :as opts}]]
+  (select-article-where
+   project-id
+   [:= (sql-field tname :article-id) article-id] fields opts))
+
+(defn query-article-by-id [article-id fields]
+  (-> (select-article-by-id article-id fields)
+      do-query first))
+
+(defn query-article-locations-by-id [article-id fields]
   (-> (apply select fields)
-      (from [:article :a])
-      (where [:= :a.project-id project-id])))
+      (from [:article-location :al])
+      (where [:= :al.article-id article-id])
+      do-query))
 
 ;;;
 ;;; labels
 ;;;
 
-(defn select-label-where [project-id where-clause & [fields]]
-  (-> (apply select fields)
-      (from :label)
-      (where [:and
-              [:= :project-id project-id]
-              [:= :enabled true]])
-      (merge-where where-clause)))
+(defn select-label-where
+  [project-id where-clause fields & [{:keys [include-disabled?]
+                                      :or {include-disabled? false}
+                                      :as opts}]]
+  (cond->
+      (-> (apply select fields)
+          (from [:label :l]))
+    (and (not (nil? where-clause))
+         (not (true? where-clause))) (merge-where where-clause)
+    project-id (merge-where [:= :project-id project-id])
+    (not include-disabled?) (merge-where [:= :enabled true])))
 
 (defn next-label-project-ordering [project-id]
   (let [max
@@ -35,8 +75,8 @@
             do-query first :max)]
     (if max (inc max) 0)))
 
-(defn query-label-by-name [project-id label-name & [fields]]
-  (-> (select-label-where project-id [:= :name label-name] (or fields [:*]))
+(defn query-label-by-name [project-id label-name fields & [opts]]
+  (-> (select-label-where project-id [:= :name label-name] fields opts)
       do-query first))
 
 (defn query-label-id-where [project-id where-clause]
@@ -46,8 +86,8 @@
 (defn label-id-from-name [project-id label-name]
   (query-label-id-where project-id [:= :name label-name]))
 
-(defn query-project-labels [project-id & [fields]]
-  (-> (select-label-where project-id true (or fields [:*]))
+(defn query-project-labels [project-id fields]
+  (-> (select-label-where project-id true fields)
       do-query))
 
 (defn label-confirmed-test [confirmed?]
@@ -56,9 +96,13 @@
     false [:= :confirm-time nil]
     true))
 
-(defn join-article-labels [m]
-  (-> m (merge-join [:article-label :al]
-                    [:= :al.article-id :a.article-id])))
+(defn join-article-labels [m & [{:keys [tname-a tname-al]
+                                 :or {tname-a :a
+                                      tname-al :al}}]]
+  (-> m (merge-join [:article-label tname-al]
+                    [:=
+                     (sql-field tname-al :article-id)
+                     (sql-field tname-a :article-id)])))
 
 (defn join-article-label-defs [m]
   (-> m (merge-join [:label :l]
@@ -69,28 +113,135 @@
                       (label-confirmed-test confirmed?)
                       [:!= :al.answer nil]])))
 
+(defn filter-label-user [m user-id]
+  (-> m (merge-where [:= :al.user-id user-id])))
+
 (defn filter-label-name [m label-name]
   (-> m (merge-where [:= :l.name label-name])))
 
 (defn filter-overall-label [m]
   (-> m (filter-label-name "overall include")))
 
-(defn select-project-article-labels [project-id confirmed? & [fields]]
+(defn select-project-article-labels [project-id confirmed? fields]
   (-> (select-project-articles project-id fields)
       (join-article-labels)
       (join-article-label-defs)
       (filter-valid-article-label confirmed?)))
 
-;;;;
-;;;; predict values
-;;;;
+(defn select-user-article-labels
+  [user-id article-id confirmed? fields]
+  (-> (apply select fields)
+      (from [:article-label :al])
+      (where [:and
+              [:= :al.user-id user-id]
+              [:= :al.article-id article-id]])
+      (filter-valid-article-label confirmed?)))
 
-(defn join-article-predict-values [m]
-  (-> m
-      (merge-join [:label-predicts :lp]
-                  [:= :lp.article-id :a.article-id])))
+;;;
+;;; projects
+;;;
+
+(defn select-project-where [where-clause fields]
+  (cond->
+      (-> (apply select fields)
+          (from [:project :p]))
+    (and (not (nil? where-clause))
+         (not (true? where-clause))) (merge-where where-clause)))
+
+(defn query-project-by-id [project-id fields]
+  (-> (select-project-where [:= :p.project-id project-id] fields)
+      do-query first))
+
+(defn query-project-by-uuid [project-uuid fields & [conn]]
+  (-> (select-project-where [:= :p.project-uuid project-uuid] fields)
+      (do-query conn)))
+
+;;;
+;;; users
+;;;
+
+(defn select-project-members [project-id fields]
+  (-> (apply select fields)
+      (from [:project-member :m])
+      (join [:web-user :u]
+            [:= :u.user-id :m.user-id])
+      (where [:= :m.project-id project-id])))
+
+;;;
+;;; predict values
+;;;
+
+(defn select-predict-run-where [where-clause fields]
+  (cond-> (-> (apply select fields)
+              (from [:predict-run :pr]))
+    (and (not (nil? where-clause))
+         (not (true? where-clause))) (merge-where where-clause)))
+
+(defn query-predict-run-by-id [predict-run-id fields]
+  (-> (select-predict-run-where
+       [:= :predict-run-id predict-run-id] fields)
+      do-query first))
+
+(defn join-article-predict-values [m & [predict-run-id stage]]
+  (cond-> m
+    true (merge-join [:label-predicts :lp]
+                     [:= :lp.article-id :a.article-id])
+    predict-run-id (merge-where [:= :lp.predict-run-id predict-run-id])
+    stage (merge-where [:= :lp.stage stage])))
 
 (defn join-predict-labels [m]
   (-> m
       (merge-join [:label :l]
                   [:= :l.label-id :lp.label-id])))
+
+(defn select-latest-predict-run [fields]
+  (-> (apply select fields)
+      (from [:predict-run :pr])
+      (order-by [:pr.create-time :desc])
+      (limit 1)))
+
+(defn project-latest-predict-run-id
+  "Gets the most recent predict-run ID for a project."
+  ([project-id]
+   (-> (select-latest-predict-run [:predict-run-id])
+       (merge-where [:= :project-id project-id])
+       do-query first :predict-run-id)))
+
+(defn article-latest-predict-run-id
+  "Gets the most recent predict-run ID for the project of an article."
+  ([article-id]
+   (-> (select-latest-predict-run [:predict-run-id])
+       (merge-join [:project :p]
+                   [:= :p.project-id :pr.project-id])
+       (merge-join [:article :a]
+                   [:= :a.project-id :p.project-id])
+       (merge-where [:= :a.article-id article-id])
+       do-query first :predict-run-id)))
+
+;;;
+;;; combined
+;;;
+
+(defn with-article-predict-score [m predict-run-id]
+  (-> m
+      (join-article-predict-values predict-run-id 1)
+      (join-predict-labels)
+      (filter-overall-label)
+      (merge-select [:lp.val :score])))
+
+(defn query-article-by-id-full
+  "Queries for an article ID with data from other tables included."
+  [article-id & [{:keys [predict-run-id include-disabled?]
+                  :or {include-disabled? false}}]]
+  (->>
+   (pvalues
+    (-> (select-article-by-id
+         article-id [:a.*] {:include-disabled? include-disabled?})
+        (with-article-predict-score
+          (or predict-run-id (article-latest-predict-run-id article-id)))
+        do-query first)
+    {:locations
+     (->> (q/query-article-locations-by-id
+           article-id [:source :external-id])
+          (group-by :source))})
+   (apply merge)))
