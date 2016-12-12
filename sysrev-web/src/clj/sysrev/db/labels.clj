@@ -223,6 +223,55 @@
           (map-values first)
           (map-values :answer)))))
 
+(defn merge-article-labels [article-ids]
+  (let [labels
+        (->> article-ids
+             (mapv (fn [article-id]
+                     (->>
+                      (-> (q/select-article-by-id article-id [:al.*])
+                          (q/join-article-labels)
+                          do-query))))
+             (apply concat)
+             (group-by :user-id)
+             (map-values #(group-by :article-id %))
+             (map-values vec)
+             (map-values #(sort-by (comp count second) > %)))]
+    (doseq [[user-id ulabels] labels]
+      (let [confirmed-labels
+            (->> ulabels
+                 (filter
+                  (fn [[article-id alabels]]
+                    (some #(not= (:confirm-time %) nil)
+                          alabels))))
+            keep-labels
+            (cond (not (empty? confirmed-labels))
+                  (second (first confirmed-labels))
+                  :else
+                  (second (first ulabels)))]
+        (when (not (empty? keep-labels))
+          (println
+           (format "keeping %d labels for user=%s"
+                   (count keep-labels) user-id))
+          (do-transaction
+           nil
+           (doseq [article-id article-ids]
+             (-> (delete-from :article-label)
+                 (where [:and
+                         [:= :article-id article-id]
+                         [:= :user-id user-id]])
+                 do-execute)
+             (-> (insert-into :article-label)
+                 (values
+                  (->> keep-labels
+                       (map
+                        #(-> %
+                             (assoc :article-id article-id)
+                             (update :answer to-jsonb)
+                             (dissoc :article-label-id)
+                             (dissoc :article-label-local-id)))))
+                 do-execute))))))
+    true))
+
 (defn get-user-article-labels [user-id article-id]
   (->>
    (-> (q/select-article-by-id

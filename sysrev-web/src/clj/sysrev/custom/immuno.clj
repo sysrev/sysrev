@@ -14,7 +14,8 @@
             [sysrev.util :refer [xml-find]]
             [clojure.string :as str]
             [sysrev.db.queries :as q]
-            [sysrev.misc :refer [articles-matching-regex-clause]]))
+            [sysrev.misc :refer [articles-matching-regex-clause]]
+            [clojure.java.jdbc :as j]))
 
 (defn parse-endnote-file [fname]
   (-> fname
@@ -274,7 +275,7 @@
        project-id
        (match-conference-titles-clause)
        [:secondary-title]
-       {:include-disabled? false})
+       {:include-disabled? true})
       (do-query-map :secondary-title)))
 
 (defn disable-conference-titles [project-id]
@@ -282,3 +283,50 @@
    false
    (match-conference-titles-clause)
    project-id))
+
+(defn find-duplicate-article-pairs [project-id]
+  ;; raw SQL string because couldn't get Honeysql to output multiple "JOIN"
+  ;; rather than "INNER JOIN" (invalid syntax error from Postgres)
+  (-> (sql/raw
+       (format
+        "select a_lo.article_id as article_id_1, a_hi.article_id as article_id_2,
+                similarity
+     from article_similarity sim
+     join article a_lo on a_lo.article_id=sim.lo_id
+     join article a_hi on a_hi.article_id=sim.hi_id
+     where a_lo.project_id='%s' and a_hi.project_id='%s' and
+           (a_lo.enabled=true and a_hi.enabled=true)
+     order by similarity desc"
+        project-id project-id))
+      do-query))
+
+(defn merge-duplicate-articles [article-ids]
+  (when-not (empty? article-ids)
+    (let [articles
+          (->> article-ids
+               (pmap #(q/query-article-by-id % [:*]))
+               doall)
+          single-id
+          (->> articles
+               (sort-by #(vector (-> % :urls count)
+                                 (-> % :locations count)
+                                 (-> % :abstract count)))
+               reverse
+               first
+               :article-id)]
+      (when (every? :enabled articles)
+        (assert single-id)
+        (labels/merge-article-labels article-ids)
+        (doseq [article-id article-ids]
+          (q/set-article-enabled-where
+           (= article-id single-id)
+           [:= :article-id article-id]))
+        (println
+         (format "using article '%s' from '%s'" single-id (pr-str article-ids)))))))
+
+(defn merge-all-duplicates [project-id]
+  (let [pairs (find-duplicate-article-pairs project-id)]
+    (println (format "found %d pairs" (count pairs)))
+    (doseq [entry pairs]
+      (merge-duplicate-articles [(:article-id-1 entry)
+                                 (:article-id-2 entry)]))))

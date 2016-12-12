@@ -6,7 +6,6 @@
             [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now
               to-sql-array to-jsonb sql-field]]
-            [sysrev.db.queries :as q]
             [sysrev.util :refer [in?]]))
 
 ;;;
@@ -52,7 +51,10 @@
                          :as opts}]]
   (select-article-where
    project-id
-   [:= (sql-field tname :article-id) article-id] fields opts))
+   [:= (sql-field tname :article-id) article-id]
+   fields
+   {:include-disabled? include-disabled?
+    :tname tname}))
 
 (defn query-article-by-id [article-id fields]
   (-> (select-article-by-id article-id fields)
@@ -254,7 +256,7 @@
           (or predict-run-id (article-latest-predict-run-id article-id)))
         do-query first)
     {:locations
-     (->> (q/query-article-locations-by-id
+     (->> (query-article-locations-by-id
            article-id [:source :external-id])
           (group-by :source))})
    (apply merge)))
