@@ -228,66 +228,66 @@
 
        true nil))))
 
-(defroute home "/" []
+(defroute home-route "/" []
   (do-route-change :project
                    {:tab :overview}))
 
-(defroute login "/login" []
+(defroute login-route "/login" []
   (do-route-change :login
                    {:email "" :password "" :submit false}))
 
-(defroute register "/register" []
+(defroute register-route "/register" []
   (do-route-change :register
                    {:email "" :password "" :submit false}))
 
-(defroute request-password-reset "/request-password-reset" []
+(defroute request-password-reset-route "/request-password-reset" []
   (do-route-change :request-password-reset
                    {:email "" :submit false :sent nil}))
 
-(defroute reset-password "/reset-password/:reset-code" [reset-code]
+(defroute reset-password-route "/reset-password/:reset-code" [reset-code]
   (do-route-change :reset-password
                    {:password ""
                     :reset-code reset-code}))
 
-(defroute select-project "/select-project" []
+(defroute select-project-route "/select-project" []
   (do-route-change :select-project
                    {:selected nil}))
 
-(defroute project-overview "/project" []
+(defroute project-overview-route "/project" []
   (do-route-change :project
                    {:tab :overview}))
 
-(defroute project-predict "/project/predict" []
+(defroute project-predict-route "/project/predict" []
   (do-route-change :project
                    {:tab :predict}))
 
-(defroute project-predict-label-id "/project/predict/:label-id" [label-id]
+(defroute project-predict-label-id-route "/project/predict/:label-id" [label-id]
   (do-route-change :project
                    {:tab :predict
                     :active-label-id label-id}))
 
-(defroute self-profile "/user" []
+(defroute self-profile-route "/user" []
   (do-route-change :user-profile
                    {:self true
                     :user-id (current-user-id)
                     :articles-tab :default}))
 
-(defroute user-profile "/user/:id" [id]
+(defroute user-profile-route "/user/:id" [id]
   (let [id (js/parseInt id)]
     (do-route-change :user-profile
                      {:self false
                       :user-id id
                       :articles-tab :default})))
 
-(defroute article "/article/:article-id" [article-id]
+(defroute article-route "/article/:article-id" [article-id]
   (let [article-id (js/parseInt article-id)]
     (do-route-change :article
                      {:id article-id
                       :label-values {}})))
 
-(defroute classify "/classify" []
+(defroute classify-route "/classify" []
   (do-route-change :classify
                    {:label-values {}}))
 
-(defroute labels "/labels" []
+(defroute labels-route "/labels" []
   (do-route-change :labels {}))
