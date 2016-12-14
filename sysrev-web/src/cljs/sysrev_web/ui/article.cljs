@@ -305,13 +305,14 @@
                     [:div.ui.row
                      {:data-content (:question label)
                       :data-position "top left"
-                      :style {:padding-bottom "0px"
+                      :style {:padding-bottom "8px"
+                              :padding-top "12px"
                               :text-align "center"}}
                      [:span
                       {:style {:width "100%"}}
                       (str (:short-label label) "?")]]]
                    [:div.ui.row
-                    {:style {:padding-top "8px"
+                    {:style {:padding-top "0px"
                              :padding-bottom "18px"}}
                     [:div
                      {:style {:margin-left "auto"
