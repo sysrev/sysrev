@@ -5,7 +5,8 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
-    [do-query do-execute to-sql-array sql-cast with-project-cache]]
+    [do-query do-execute to-sql-array sql-cast with-project-cache
+     clear-project-cache clear-query-cache cached-project-ids]]
    [sysrev.db.queries :as q]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
@@ -28,6 +29,7 @@
   [project-id user-id &
    {:keys [permissions]
     :or {permissions ["member"]}}]
+  (clear-project-cache project-id)
   (let [entry {:project-id project-id
                :user-id user-id
                :permissions (to-sql-array "text" permissions)}]
@@ -39,6 +41,7 @@
 (defn remove-project-member
   "Remove a user from a project."
   [project-id user-id]
+  (clear-project-cache project-id)
   (-> (delete-from :project-member)
       (where [:and
               [:= :project-id project-id]
@@ -48,6 +51,7 @@
 (defn set-member-permissions
   "Change the permissions for a project member."
   [project-id user-id permissions]
+  (clear-project-cache project-id)
   (-> (sqlh/update :project-member)
       (sset {:permissions (to-sql-array "text" permissions)})
       (where [:and
@@ -59,6 +63,7 @@
 (defn create-project
   "Create a new project entry."
   [project-name]
+  (clear-query-cache)
   (-> (insert-into :project)
       (values [{:name project-name
                 :enabled true
@@ -71,6 +76,7 @@
   "Deletes a project entry. All dependent entries should be deleted also by
   ON DELETE CASCADE constraints in Postgres."
   [project-id]
+  (clear-query-cache)
   (-> (delete-from :project)
       (where [:= :project-id project-id])
       do-execute))
@@ -85,19 +91,22 @@
 (defn project-article-count
   "Return number of articles in project."
   [project-id]
-  (-> (q/select-project-articles project-id [:%count.*])
-      do-query first :count))
+  (with-project-cache
+    project-id [:articles :count]
+    (-> (q/select-project-articles project-id [:%count.*])
+        do-query first :count)))
 
 (defn delete-project-articles
   "Delete all articles from project."
   [project-id]
+  (clear-query-cache)
   (-> (delete-from :article)
       (where [:= :project-id project-id])
       do-execute))
 
 (defn project-labels [project-id]
   (with-project-cache
-    project-id :labels
+    project-id [:labels :all]
     (->>
      (-> (q/select-label-where project-id true [:*])
          do-query)
@@ -106,67 +115,71 @@
 
 (defn project-overall-label-id [project-id]
   (with-project-cache
-    project-id :overall-label-id
+    project-id [:labels :overall-label-id]
     (:label-id
      (q/query-label-by-name project-id "overall include" [:label-id]))))
 
 (defn project-member [project-id user-id]
-  (-> (select :*)
-      (from :project-member)
-      (where [:and
-              [:= :project-id project-id]
-              [:= :user-id user-id]])
-      do-query
-      first))
+  (with-project-cache
+    project-id [:users user-id :member]
+    (-> (select :*)
+        (from :project-member)
+        (where [:and
+                [:= :project-id project-id]
+                [:= :user-id user-id]])
+        do-query
+        first)))
 
 (defn project-member-article-labels
   "Returns a map of labels saved by `user-id` in `project-id`,
   and a map of entries for all articles referenced in the labels."
   [project-id user-id]
-  (let [predict-run-id (q/project-latest-predict-run-id project-id)
-        [labels articles]
-        (pvalues
-         (->>
-          (-> (q/select-project-article-labels
-               project-id nil
-               [:al.article-id :al.label-id :al.answer :al.confirm-time])
-              (q/filter-label-user user-id)
-              do-query)
-          (map
-           #(-> %
-                (assoc :confirmed (not (nil? (:confirm-time %))))
-                (dissoc :confirm-time))))
-         (->>
-          (-> (q/select-project-articles
-               project-id
-               [:a.article-id :a.primary-title :a.secondary-title :a.authors
-                :a.year :a.remote-database-name])
-              (q/with-article-predict-score predict-run-id)
-              (merge-where
-               [:exists
-                (q/select-user-article-labels
-                 user-id :a.article-id nil [:*])])
-              do-query)
-          (group-by :article-id)
-          (map-values first)))
-        labels-map (fn [confirmed?]
-                     (->> labels
-                          (filter #(= (true? (:confirmed %)) confirmed?))
-                          (group-by :article-id)
-                          (map-values
-                           #(map (fn [m]
-                                   (dissoc m :article-id :confirmed))
-                                 %))
-                          (filter
-                           (fn [[aid cs]]
-                             (some (comp not nil? :answer) cs)))
-                          (apply concat)
-                          (apply hash-map)))
-        [confirmed unconfirmed]
-        (pvalues (labels-map true) (labels-map false))]
-    {:labels {:confirmed confirmed
-              :unconfirmed unconfirmed}
-     :articles articles}))
+  (with-project-cache
+    project-id [:users user-id :labels :member-labels]
+    (let [predict-run-id (q/project-latest-predict-run-id project-id)
+          [labels articles]
+          (pvalues
+           (->>
+            (-> (q/select-project-article-labels
+                 project-id nil
+                 [:al.article-id :al.label-id :al.answer :al.confirm-time])
+                (q/filter-label-user user-id)
+                do-query)
+            (map
+             #(-> %
+                  (assoc :confirmed (not (nil? (:confirm-time %))))
+                  (dissoc :confirm-time))))
+           (->>
+            (-> (q/select-project-articles
+                 project-id
+                 [:a.article-id :a.primary-title :a.secondary-title :a.authors
+                  :a.year :a.remote-database-name])
+                (q/with-article-predict-score predict-run-id)
+                (merge-where
+                 [:exists
+                  (q/select-user-article-labels
+                   user-id :a.article-id nil [:*])])
+                do-query)
+            (group-by :article-id)
+            (map-values first)))
+          labels-map (fn [confirmed?]
+                       (->> labels
+                            (filter #(= (true? (:confirmed %)) confirmed?))
+                            (group-by :article-id)
+                            (map-values
+                             #(map (fn [m]
+                                     (dissoc m :article-id :confirmed))
+                                   %))
+                            (filter
+                             (fn [[aid cs]]
+                               (some (comp not nil? :answer) cs)))
+                            (apply concat)
+                            (apply hash-map)))
+          [confirmed unconfirmed]
+          (pvalues (labels-map true) (labels-map false))]
+      {:labels {:confirmed confirmed
+                :unconfirmed unconfirmed}
+       :articles articles})))
 
 ;; TODO - finish/use this?
 (defn project-email-domains
@@ -186,6 +199,7 @@
   [project-id user-id]
   (assert (integer? project-id))
   (assert (integer? user-id))
+  (clear-project-cache project-id)
   (-> (delete-from [:article-label :al])
       (q/filter-label-user user-id)
       (merge-where

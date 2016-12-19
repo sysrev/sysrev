@@ -4,7 +4,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer [do-query]]
+            [sysrev.db.core :refer [do-query with-query-cache]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.util :refer [map-values in? should-never-happen-exception]]
@@ -55,45 +55,49 @@
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."
   []
-  (let [projects
-        (->> (-> (select :*)
-                 (from :project)
-                 do-query)
-             (group-by :project-id)
-             (map-values first))
-        admins
-        (->> (-> (select :u.user-id :u.email :m.permissions :m.project-id)
-                 (from [:project-member :m])
-                 (join [:web-user :u]
-                       [:= :u.user-id :m.user-id])
-                 do-query)
-             (group-by :project-id)
-             (map-values
-              (fn [pmembers]
-                (->> pmembers
-                     (filter #(in? (:permissions %) "admin"))
-                     (mapv #(dissoc % :project-id))))))]
-    (->> projects
-         (map-values
-          #(assoc % :admins
-                  (get admins (:project-id %) []))))))
+  (with-query-cache
+    [:public-project-summaries]
+    (let [projects
+          (->> (-> (select :*)
+                   (from :project)
+                   do-query)
+               (group-by :project-id)
+               (map-values first))
+          admins
+          (->> (-> (select :u.user-id :u.email :m.permissions :m.project-id)
+                   (from [:project-member :m])
+                   (join [:web-user :u]
+                         [:= :u.user-id :m.user-id])
+                   do-query)
+               (group-by :project-id)
+               (map-values
+                (fn [pmembers]
+                  (->> pmembers
+                       (filter #(in? (:permissions %) "admin"))
+                       (mapv #(dissoc % :project-id))))))]
+      (->> projects
+           (map-values
+            #(assoc % :admins
+                    (get admins (:project-id %) [])))))))
 
 (defn user-info [user-id & [self?]]
-  (let [[user project-ids]
-        (pvalues
-         (-> (select :user-id
-                     :user-uuid
-                     :email
-                     :verified
-                     :permissions)
-             (from :web-user)
-             (where [:= :user-id user-id])
-             do-query
-             first)
-         (->>
-          (-> (select :project-id)
-              (from :project-member)
-              (where [:= :user-id user-id])
-              do-query)
-          (mapv :project-id)))]
-    (assoc user :projects project-ids)))
+  (with-query-cache
+    [:users user-id [:user-info self?]]
+    (let [[user project-ids]
+          (pvalues
+           (-> (select :user-id
+                       :user-uuid
+                       :email
+                       :verified
+                       :permissions)
+               (from :web-user)
+               (where [:= :user-id user-id])
+               do-query
+               first)
+           (->>
+            (-> (select :project-id)
+                (from :project-member)
+                (where [:= :user-id user-id])
+                do-query)
+            (mapv :project-id)))]
+      (assoc user :projects project-ids))))

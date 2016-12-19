@@ -2,7 +2,7 @@
   (:require
    [clojure.java.jdbc :as j]
    [sysrev.util :refer [map-values]]
-   [sysrev.db.core :refer [do-query do-execute to-sql-array]]
+   [sysrev.db.core :as db :refer [do-query do-execute to-sql-array]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -30,6 +30,7 @@
                 (where [:= :article-id (:article-id a)])
                 do-execute))))))
    doall)
+  (db/clear-project-cache project-id)
   true)
 
 (defn article-to-sql

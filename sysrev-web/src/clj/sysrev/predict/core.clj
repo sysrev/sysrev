@@ -1,7 +1,10 @@
 (ns sysrev.predict.core
   (:require
    [sysrev.util :refer [map-values]]
-   [sysrev.db.core :refer [do-query do-query-map do-execute sql-now]]
+   [sysrev.db.core :refer
+    [do-query do-query-map do-execute sql-now
+     with-query-cache clear-query-cache
+     with-project-cache clear-project-cache cached-project-ids]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]

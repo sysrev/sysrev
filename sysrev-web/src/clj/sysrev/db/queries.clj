@@ -5,7 +5,9 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-execute do-transaction sql-now
-              to-sql-array to-jsonb sql-field]]
+              to-sql-array to-jsonb sql-field
+              with-project-cache clear-project-cache
+              with-query-cache clear-query-cache]]
             [sysrev.util :refer [in?]]))
 
 ;;;
@@ -217,21 +219,25 @@
 
 (defn project-latest-predict-run-id
   "Gets the most recent predict-run ID for a project."
-  ([project-id]
-   (-> (select-latest-predict-run [:predict-run-id])
-       (merge-where [:= :project-id project-id])
-       do-query first :predict-run-id)))
+  [project-id]
+  (with-project-cache
+    project-id [:predict :latest-predict-run-id]
+    (-> (select-latest-predict-run [:predict-run-id])
+        (merge-where [:= :project-id project-id])
+        do-query first :predict-run-id)))
 
 (defn article-latest-predict-run-id
   "Gets the most recent predict-run ID for the project of an article."
-  ([article-id]
-   (-> (select-latest-predict-run [:predict-run-id])
-       (merge-join [:project :p]
-                   [:= :p.project-id :pr.project-id])
-       (merge-join [:article :a]
-                   [:= :a.project-id :p.project-id])
-       (merge-where [:= :a.article-id article-id])
-       do-query first :predict-run-id)))
+  [article-id]
+  (with-query-cache
+    [:predict :article article-id :latest-predict-run-id]
+    (-> (select-latest-predict-run [:predict-run-id])
+        (merge-join [:project :p]
+                    [:= :p.project-id :pr.project-id])
+        (merge-join [:article :a]
+                    [:= :a.project-id :p.project-id])
+        (merge-where [:= :a.article-id article-id])
+        do-query first :predict-run-id)))
 
 ;;;
 ;;; combined
@@ -248,15 +254,17 @@
   "Queries for an article ID with data from other tables included."
   [article-id & [{:keys [predict-run-id include-disabled?]
                   :or {include-disabled? false}}]]
-  (->>
-   (pvalues
-    (-> (select-article-by-id
-         article-id [:a.*] {:include-disabled? include-disabled?})
-        (with-article-predict-score
-          (or predict-run-id (article-latest-predict-run-id article-id)))
-        do-query first)
-    {:locations
-     (->> (query-article-locations-by-id
-           article-id [:source :external-id])
-          (group-by :source))})
-   (apply merge)))
+  (with-query-cache
+    [:article article-id :full [predict-run-id include-disabled?]]
+    (->>
+     (pvalues
+      (-> (select-article-by-id
+           article-id [:a.*] {:include-disabled? include-disabled?})
+          (with-article-predict-score
+            (or predict-run-id (article-latest-predict-run-id article-id)))
+          do-query first)
+      {:locations
+       (->> (query-article-locations-by-id
+             article-id [:source :external-id])
+            (group-by :source))})
+     (apply merge))))

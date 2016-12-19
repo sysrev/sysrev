@@ -1,8 +1,9 @@
 (ns sysrev.db.labels
-  (:require [sysrev.db.core :refer
+  (:require [sysrev.db.core :as db :refer
              [do-query do-query-map do-execute do-transaction
               sql-now to-sql-array to-jsonb
-              with-query-cache clear-query-cache]]
+              with-query-cache clear-query-cache
+              with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer [project-labels project-overall-label-id]]
             [sysrev.util :refer [in? map-values crypto-rand crypto-rand-nth]]
@@ -24,9 +25,6 @@
          do-query)
      (group-by :label-id)
      (map-values first))))
-
-(defn clear-labels-cache []
-  (clear-query-cache [:all-labels]))
 
 (defn add-label-entry
   "Creates an entry for a label definition.
@@ -51,7 +49,8 @@
                  :definition (to-jsonb definition)
                  :enabled true}])
        do-execute))
-  (clear-labels-cache)
+  (db/clear-labels-cache project-id)
+  (db/clear-project-cache project-id)
   true)
 
 (defn add-label-entry-boolean
@@ -116,60 +115,64 @@
                   :multi? (boolean multi?)}})))
 
 (defn unlabeled-articles [project-id & [predict-run-id]]
-  (let [predict-run-id
-        (or predict-run-id (q/project-latest-predict-run-id project-id))
-        articles
-        (->>
-         (-> (q/select-project-articles project-id [:a.article-id])
-             (q/with-article-predict-score predict-run-id)
-             (merge-where
-              [:not
-               [:exists
-                (-> (q/select-article-by-id
-                     :a.article-id
-                     [:a2.article-id]
-                     {:tname :a2
-                      :project-id project-id})
-                    (q/join-article-labels {:tname-a :a2})
-                    (q/filter-valid-article-label nil))]])
-             do-query))
-        _ (assert (= (->> articles (mapv :article-id) distinct count)
-                     (count articles)))]
-    articles))
+  (with-project-cache
+    project-id [:label-values :saved :unlabeled-articles]
+    (let [predict-run-id
+          (or predict-run-id (q/project-latest-predict-run-id project-id))
+          articles
+          (->>
+           (-> (q/select-project-articles project-id [:a.article-id])
+               (q/with-article-predict-score predict-run-id)
+               (merge-where
+                [:not
+                 [:exists
+                  (-> (q/select-article-by-id
+                       :a.article-id
+                       [:a2.article-id]
+                       {:tname :a2
+                        :project-id project-id})
+                      (q/join-article-labels {:tname-a :a2})
+                      (q/filter-valid-article-label nil))]])
+               do-query))
+          _ (assert (= (->> articles (mapv :article-id) distinct count)
+                       (count articles)))]
+      articles)))
 
 (defn single-labeled-articles [project-id self-id & [predict-run-id]]
-  (let [predict-run-id
-        (or predict-run-id (q/project-latest-predict-run-id project-id))
-        articles
-        (-> (q/select-project-articles
-             project-id [:a.article-id [(sql/call :max :lp.val) :score]])
-            (q/join-article-labels)
-            (q/join-article-label-defs)
-            (q/filter-overall-label)
-            (q/filter-valid-article-label true)
-            (q/join-article-predict-values predict-run-id 1)
-            (merge-where
-             [:and
-              [:= :lp.label-id :l.label-id]
-              [:!= :al.user-id self-id]])
-            (group :a.article-id)
-            (having
-             [:and
-              ;; one user found with a confirmed inclusion label
-              [:= 1 (sql/call :count (sql/call :distinct :al.user-id))]
-              ;; and `self-id` has not labeled the article
-              [:not
-               [:exists
-                (-> (select :*)
-                    (from [:article-label :al2])
-                    (where [:and
-                            [:= :al2.article-id :a.article-id]
-                            [:= :al2.user-id self-id]
-                            [:!= :al2.answer nil]]))]]])
-            do-query)
-        _ (assert (= (->> articles (mapv :article-id) distinct count)
-                     (count articles)))]
-    articles))
+  (with-project-cache
+    project-id [:label-values :saved :single-labeled-articles]
+    (let [predict-run-id
+          (or predict-run-id (q/project-latest-predict-run-id project-id))
+          articles
+          (-> (q/select-project-articles
+               project-id [:a.article-id [(sql/call :max :lp.val) :score]])
+              (q/join-article-labels)
+              (q/join-article-label-defs)
+              (q/filter-overall-label)
+              (q/filter-valid-article-label true)
+              (q/join-article-predict-values predict-run-id 1)
+              (merge-where
+               [:and
+                [:= :lp.label-id :l.label-id]
+                [:!= :al.user-id self-id]])
+              (group :a.article-id)
+              (having
+               [:and
+                ;; one user found with a confirmed inclusion label
+                [:= 1 (sql/call :count (sql/call :distinct :al.user-id))]
+                ;; and `self-id` has not labeled the article
+                [:not
+                 [:exists
+                  (-> (select :*)
+                      (from [:article-label :al2])
+                      (where [:and
+                              [:= :al2.article-id :a.article-id]
+                              [:= :al2.user-id self-id]
+                              [:!= :al2.answer nil]]))]]])
+              do-query)
+          _ (assert (= (->> articles (mapv :article-id) distinct count)
+                       (count articles)))]
+      articles)))
 
 (defn- pick-ideal-article
   "Used by the classify task functions to select an article from the candidates.
@@ -273,17 +276,19 @@
           (assoc :review-status status)
           (dissoc :raw)))))
 
-(defn article-user-labels-map [article-id]
-  (->>
-   (-> (q/select-article-by-id article-id [:al.*])
-       (q/join-article-labels)
-       do-query)
-   (group-by :user-id)
-   (map-values
-    #(->> %
-          (group-by :label-id)
-          (map-values first)
-          (map-values :answer)))))
+(defn article-user-labels-map [project-id article-id]
+  (with-project-cache
+    project-id [:article article-id :labels :user-labels-map]
+    (->>
+     (-> (q/select-article-by-id article-id [:al.*])
+         (q/join-article-labels)
+         do-query)
+     (group-by :user-id)
+     (map-values
+      #(->> %
+            (group-by :label-id)
+            (map-values first)
+            (map-values :answer))))))
 
 (defn merge-article-labels [article-ids]
   (let [labels
@@ -453,6 +458,9 @@
        (-> (insert-into :article-label)
            (values new-entries)
            do-execute))
+     (db/clear-project-label-values-cache project-id confirm? user-id)
+     (db/clear-project-member-cache project-id user-id)
+     (db/clear-project-article-cache project-id article-id)
      true)))
 
 (defn confirm-user-article-labels
@@ -462,17 +470,23 @@
   (do-transaction
    nil
    ;; TODO - does this check that all required labels are set?
-   (let [required (-> (q/select-article-by-id article-id [:al.answer])
+   (let [project-id (:project-id
+                     (q/query-article-by-id article-id [:project-id]))
+         required (-> (q/select-article-by-id article-id [:al.answer])
                       (q/join-article-labels)
                       (q/join-article-label-defs)
                       (q/filter-label-user user-id)
                       (merge-where [:= :l.required true])
                       (do-query-map :answer))]
      (assert ((comp not empty?) required))
-     (assert (every? (comp not nil?) required)))
-   (-> (sqlh/update :article-label)
-       (sset {:confirm-time (sql-now)})
-       (where [:and
-               [:= :user-id user-id]
-               [:= :article-id article-id]])
-       do-execute)))
+     (assert (every? (comp not nil?) required))
+     (-> (sqlh/update :article-label)
+         (sset {:confirm-time (sql-now)})
+         (where [:and
+                 [:= :user-id user-id]
+                 [:= :article-id article-id]])
+         do-execute)
+     (db/clear-project-label-values-cache project-id true user-id)
+     (db/clear-project-member-cache project-id user-id)
+     (db/clear-project-article-cache project-id article-id)
+     true)))

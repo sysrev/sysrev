@@ -2,7 +2,8 @@
   (:require
    [sysrev.util :refer [map-values integerify-map-keys uuidify-map-keys]]
    [sysrev.db.core :refer
-    [do-query do-execute sql-now time-to-string to-jsonb]]
+    [do-query do-execute sql-now time-to-string to-jsonb
+     with-query-cache clear-predict-cache]]
    [sysrev.db.queries :as q]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -111,30 +112,29 @@
      :exclude exclude}))
 
 (defn predict-summary [predict-run-id & [force-update]]
-  (let [summary (-> (q/query-predict-run-by-id predict-run-id [:meta])
-                    :meta :summary)]
-    (if (and summary (not force-update))
-      (-> summary
-          integerify-map-keys
-          uuidify-map-keys)
-      (let [new-summary
-            (->> (-> (select :%distinct.label-id)
-                     (from :label-predicts)
-                     (where [:= :predict-run-id predict-run-id])
-                     do-query)
-                 (map :label-id)
-                 (pmap (fn [label-id]
-                         {label-id (predict-summary-for-label
-                                    predict-run-id label-id)}))
-                 doall
-                 (apply merge))]
-        (-> (sqlh/update :predict-run)
-            (sset {:meta (to-jsonb {:summary new-summary})})
-            (where [:= :predict-run-id predict-run-id])
-            do-execute)
-        new-summary))))
-
-(defn clear-predict-summary-cache []
-  (-> (sqlh/update :predict-run)
-      (sset {:meta (to-jsonb {})})
-      do-execute))
+  (when force-update
+    (clear-predict-cache))
+  (with-query-cache
+    [:predict :predict-run predict-run-id :summary]
+    (let [summary (-> (q/query-predict-run-by-id predict-run-id [:meta])
+                      :meta :summary)]
+      (if (and summary (not force-update))
+        (-> summary
+            integerify-map-keys
+            uuidify-map-keys)
+        (let [new-summary
+              (->> (-> (select :%distinct.label-id)
+                       (from :label-predicts)
+                       (where [:= :predict-run-id predict-run-id])
+                       do-query)
+                   (map :label-id)
+                   (pmap (fn [label-id]
+                           {label-id (predict-summary-for-label
+                                      predict-run-id label-id)}))
+                   doall
+                   (apply merge))]
+          (-> (sqlh/update :predict-run)
+              (sset {:meta (to-jsonb {:summary new-summary})})
+              (where [:= :predict-run-id predict-run-id])
+              do-execute)
+          new-summary)))))

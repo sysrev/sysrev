@@ -162,6 +162,9 @@
          full-path# (concat [:project project-id#] field-path#)]
      (with-query-cache full-path# ~form)))
 
+(defn cached-project-ids []
+  (keys (get @query-cache :project)))
+
 (defn clear-query-cache [& [field-path]]
   (if (nil? field-path)
     (reset! query-cache {})
@@ -173,10 +176,62 @@
                           (butlast field-path)
                           #(dissoc % (last field-path))))))))
 
-(defn clear-project-cache [& [project-id]]
-  (if project-id
+(defn clear-project-cache [& [project-id field-path]]
+  (cond
+    (and project-id field-path)
+    (clear-query-cache (concat [:project project-id] field-path))
+
+    project-id
     (swap! query-cache assoc-in [:project project-id] {})
+
+    :else
     (swap! query-cache assoc :project {})))
+
+(defn clear-project-label-values-cache [project-id clear-confirmed? & [user-id]]
+  (when user-id
+    (clear-project-cache project-id [:users user-id :labels]))
+  (clear-project-cache project-id [:label-values :saved])
+  (clear-project-cache project-id [:members-info])
+  (when clear-confirmed?
+    (clear-project-cache project-id [:label-values :confirmed])))
+
+(defn clear-labels-cache [project-id]
+  (clear-query-cache [:all-labels])
+  (when project-id
+    (clear-project-cache project-id [:labels])))
+
+(defn clear-project-member-cache [project-id user-id]
+  (clear-project-cache project-id [:users user-id])
+  (clear-project-cache project-id [:members-info])
+  (clear-project-cache project-id [:users-info])
+  (clear-query-cache [:public-project-summaries])
+  (clear-query-cache [:users user-id]))
+
+(defn clear-user-cache [user-id]
+  (doseq [project-id (cached-project-ids)]
+    (clear-project-cache project-id [:users user-id])
+    (clear-project-cache project-id [:members-info])
+    (clear-project-cache project-id [:users-info]))
+  (clear-query-cache [:public-project-summaries])
+  (clear-query-cache [:users user-id]))
+
+(defn clear-project-article-cache [project-id article-id]
+  (clear-project-cache project-id [:article article-id]))
+
+(defn clear-project-users-cache [project-id]
+  (clear-project-cache project-id)
+  (clear-query-cache [:public-project-summaries])
+  (clear-query-cache [:users])
+  #_ (clear-project-cache project-id [:members-info])
+  #_ (clear-project-cache project-id [:users-info]))
+
+(defn clear-predict-cache []
+  (-> (sqlh/update :predict-run)
+      (sset {:meta (to-jsonb {})})
+      do-execute)
+  (clear-query-cache)
+  #_ (clear-query-cache [:predict])
+  #_ (clear-query-cache [:article]))
 
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))

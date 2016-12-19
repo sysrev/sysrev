@@ -4,7 +4,8 @@
             [sysrev.db.project :as project]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.web.routes.site :refer [user-info]]
-            [sysrev.mail.core :refer [send-email]]))
+            [sysrev.mail.core :refer [send-email]]
+            [sysrev.db.core :as db]))
 
 (declare send-password-reset-email)
 
@@ -102,12 +103,14 @@
           (assert user-id "No user account found for reset code")
           (users/set-user-password email password)
           (users/clear-password-reset-code user-id)
+          (db/clear-user-cache user-id)
           {:success true})))
 
 (defn send-password-reset-email [user-id]
   (let [{:keys [email] :as user}
         (users/get-user-by-id user-id)]
     (users/create-password-reset-code user-id)
+    (db/clear-user-cache user-id)
     (send-email
      email "SysRev.us Password Reset Requested"
      (with-out-str
