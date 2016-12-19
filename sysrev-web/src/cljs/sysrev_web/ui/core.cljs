@@ -91,15 +91,15 @@
        [:div.item
         (let [dropdown
               (with-mount-hook
-                #(.dropdown (js/$ (r/dom-node %)))
-                [:div.ui.dropdown
-                 [:input {:type "hidden" :name "menu-dropdown"}]
-                 [:i.chevron.down.icon
-                  {:style {:margin "0px"}}]
-                 [:div.menu
-                  [:a.item {:href "/project"} "Project"]
-                  [:a.item {:href "/labels"} "Labels"]]])]
-          [dropdown])]
+                #(.dropdown (js/$ (r/dom-node %))))]
+          [dropdown
+           [:div.ui.dropdown
+            [:input {:type "hidden" :name "menu-dropdown"}]
+            [:i.chevron.down.icon
+             {:style {:margin "0px"}}]
+            [:div.menu
+             [:a.item {:href "/project"} "Project"]
+             [:a.item {:href "/labels"} "Labels"]]]])]
        [:div.right.menu
         [:a.item.blue-text {:href (str "/user/" user-id)}
          [:i.large.blue.user.icon {:style {:margin "0px"}}]]
@@ -115,19 +115,6 @@
       [:h3.ui.blue.header
        "sysrev.us"]]
      [:div.right.menu
-      #_
-      [:div.item
-       (let [dropdown
-             (with-mount-hook
-               #(.dropdown (js/$ (r/dom-node %)))
-               [:div.ui.dropdown
-                [:input {:type "hidden" :name "menu-dropdown"}]
-                [:i.chevron.down.icon
-                 {:style {:margin "0px"}}]
-                [:div.menu
-                 [:a.item {:href "/project"} "Project"]
-                 [:a.item {:href "/labels"} "Labels"]]])]
-         [dropdown])]
       [:div.item
        [:a.ui.button {:href "/login"}
         "Log in"]]

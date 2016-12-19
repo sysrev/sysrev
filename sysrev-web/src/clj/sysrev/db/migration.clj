@@ -7,7 +7,7 @@
             [sysrev.db.project :refer
              [add-project-member set-member-permissions]]
             [sysrev.db.core :refer
-             [do-query do-execute do-transaction active-db
+             [do-query do-query-map do-execute do-transaction active-db
               to-sql-array with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions]]
@@ -15,7 +15,8 @@
             [sysrev.util :refer [parse-xml-str map-values]]
             [sysrev.import.pubmed :refer [extract-article-location-entries]]
             [clojure.data.json :as json]
-            [sysrev.db.queries :as q])
+            [sysrev.db.queries :as q]
+            [sysrev.db.labels :as labels])
   (:import java.util.UUID))
 
 (defn- get-default-project
@@ -287,6 +288,43 @@
                     project-id name
                     (pr-str result)))))))))
 
+(defn ensure-label-inclusion-values [& [force?]]
+  (let [project-ids
+        (-> (select :project-id)
+            (from [:project :p])
+            (where
+             [:or
+              (true? force?)
+              [:not
+               [:exists
+                (-> (q/select-project-articles :p.project-id [:*])
+                    (q/join-article-labels)
+                    (merge-where
+                     [:!= :al.inclusion nil]))]]])
+            (do-query-map :project-id))]
+    (doseq [project-id project-ids]
+      (let [alabels
+            (-> (q/select-project-articles
+                 project-id [:al.*])
+                (q/join-article-labels)
+                (merge-where [:= :al.inclusion nil])
+                do-query)]
+        (println
+         (format "updating inclusion fields for %d rows"
+                 (count alabels)))
+        (doall
+         (->>
+          alabels
+          (pmap
+           (fn [alabel]
+             (let [inclusion (labels/label-answer-inclusion
+                              (:label-id alabel) (:answer alabel))]
+               (-> (sqlh/update [:article-label :al])
+                   (sset {:inclusion inclusion})
+                   (where
+                    [:= :al.article-label-id (:article-label-id alabel)])
+                   do-execute))))))))))
+
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
@@ -299,4 +337,5 @@
   (ensure-article-location-entries)
   (ensure-new-label-entries)
   (ensure-new-label-value-entries)
-  (ensure-predict-label-ids))
+  (ensure-predict-label-ids)
+  (ensure-label-inclusion-values))

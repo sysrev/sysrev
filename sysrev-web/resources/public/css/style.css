@@ -3,6 +3,7 @@
 .main-content > .grid {
     padding-top: 10px;
     padding-bottom: 20px;
+    margin-bottom: 120px;
 }
 
 .grid.project-stats {

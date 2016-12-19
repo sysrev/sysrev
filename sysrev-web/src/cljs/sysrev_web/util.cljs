@@ -80,3 +80,9 @@
 
 (defn full-size? []
   (>= (viewport-width) 900))
+
+(defn dissoc-in [m ks]
+  (assert (sequential? ks) "dissoc-in: invalid ks")
+  (if (= 1 (count ks))
+    (dissoc m (last ks))
+    (update-in m (butlast ks) #(dissoc % (last ks)))))

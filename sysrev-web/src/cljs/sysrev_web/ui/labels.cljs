@@ -9,14 +9,14 @@
     [:tr
      [:th "Name"]
      [:th "Question Text"]
-     [:th "Required value for inclusion"]]]
+     [:th "Values allowed for inclusion"]]]
    [:tbody
     (doall
      (->>
       (d/project-labels-ordered)
       (map
        (fn [{:keys [label-id name question definition]}]
-         (let [[inclusion-value] (-> definition :inclusion-values)
+         (let [inclusion-values (-> definition :inclusion-values)
                style {:margin-top "-4px"
                       :margin-bottom "-4px"}]
            ^{:key {:label-entry label-id}}
@@ -24,13 +24,23 @@
             [:td name]
             [:td question]
             [:td
-             (cond (true? inclusion-value)
+             (cond (= inclusion-values [true])
                    [true-false-nil-tag
                     "large" style true "Yes" true]
-                   (false? inclusion-value)
+                   (= inclusion-values [false])
                    [true-false-nil-tag
                     "large" style true "No" false]
-                   :else
+                   (empty? inclusion-values)
                    [true-false-nil-tag
                     "large" style false
-                    "Extra label" nil])]])))))]])
+                    "[Extra]" nil]
+                   :else
+                   [:div
+                    (doall
+                     (->>
+                      inclusion-values
+                      (map
+                       (fn [v]
+                         ^{:key {:label-value [label-id v]}}
+                         [true-false-nil-tag
+                          "large" style false (str v) nil]))))])]])))))]])

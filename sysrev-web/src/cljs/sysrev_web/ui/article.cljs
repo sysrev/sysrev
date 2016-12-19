@@ -6,7 +6,7 @@
    [sysrev-web.state.data :as d]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-value-tag
-     with-tooltip three-state-selection dangerous]]
+     with-tooltip three-state-selection multi-choice-selection dangerous]]
    [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
 
@@ -273,59 +273,117 @@
 
   `labels-path` is a sequence of keys specifying the path
   in `state` where the label values set by the user will be stored."
-  [article-id labels-path]
+  [article-id labels-path label-values]
   (let [labels (d/project :labels)
         ordered-label-ids (->> (d/project-labels-ordered)
                                (map :label-id))
-        label-values (d/active-label-values article-id labels-path)
         core-ids (->> ordered-label-ids
                       (filter #(= "inclusion criteria"
                                   (-> (get labels %) :category))))
         extra-ids (->> ordered-label-ids
                        (remove #(= "inclusion criteria"
                                    (-> (get labels %) :category))))
+        make-boolean-column
+        (fn [label-id]
+          (let [label (get labels label-id)]
+            ^{:key {:article-label label-id}}
+            [:div.ui.column
+             {:style {:background-color
+                      (if (:required label)
+                        "rgba(200,200,200,1)"
+                        nil)
+                      :padding "0px"}}
+             [:div.ui.middle.aligned.grid
+              {:style {:margin "0px"}}
+              [with-tooltip
+               [:div.ui.row
+                {:data-content (:question label)
+                 :data-position "top left"
+                 :style {:padding-bottom "8px"
+                         :padding-top "12px"
+                         :text-align "center"}}
+                [:span
+                 {:style {:width "100%"}}
+                 (str (:short-label label) "?")]]]
+              [:div.ui.row
+               {:style {:padding-top "0px"
+                        :padding-bottom "18px"}}
+               [:div
+                {:style {:margin-left "auto"
+                         :margin-right "auto"}}
+                [three-state-selection
+                 (fn [new-value]
+                   (swap! state assoc-in
+                          (concat labels-path [label-id])
+                          new-value)
+                   (ajax/send-labels
+                    article-id
+                    (d/active-label-values article-id labels-path)))
+                 (get label-values label-id)]]]]]))
+        make-categorical-column
+        (fn [label-id]
+          (let [label (get labels label-id)]
+            ^{:key {:article-label label-id}}
+            [:div.ui.column
+             {:style {:background-color
+                      (if (:required label)
+                        "rgba(200,200,200,1)"
+                        nil)
+                      :padding "0px"}}
+             [:div.ui.middle.aligned.grid
+              {:style {:margin "0px"}}
+              [with-tooltip
+               [:div.ui.row
+                {:data-content (:question label)
+                 :data-position "top left"
+                 :style {:padding-bottom "8px"
+                         :padding-top "12px"
+                         :text-align "center"}}
+                [:span
+                 {:style {:width "100%"}}
+                 (:short-label label)]]]
+              [:div.ui.row
+               {:style {:padding-top "0px"
+                        :padding-bottom "18px"}}
+               (let [current-values
+                     (get label-values label-id)]
+                 [multi-choice-selection
+                  label-id
+                  (-> label :definition :all-values)
+                  current-values
+                  (fn [v t]
+                    (swap! state assoc-in
+                           (concat labels-path [label-id])
+                           (conj
+                            (get
+                             (d/active-label-values article-id labels-path)
+                             label-id)
+                            v))
+                    (ajax/send-labels
+                     article-id
+                     (d/active-label-values article-id labels-path)))
+                  (fn [v t]
+                    (swap! state assoc-in
+                           (concat labels-path [label-id])
+                           (remove
+                            (partial = v)
+                            (get
+                             (d/active-label-values article-id labels-path)
+                             label-id)))
+                    (ajax/send-labels
+                     article-id
+                     (d/active-label-values article-id labels-path)))])]]]))
+        make-column
+        (fn [label-id]
+          (let [{:keys [value-type]
+                 :as label} (get labels label-id)]
+            (case value-type
+              "boolean" (make-boolean-column label-id)
+              "categorical" (make-categorical-column label-id)
+              nil)))
         make-label-columns
         (fn [label-ids]
-          (doall
-           (->>
-            label-ids
-            (map
-             (fn [label-id]
-               (let [label (get labels label-id)]
-                 ^{:key {:article-label label-id}}
-                 [:div.ui.column
-                  {:style {:background-color
-                           (if (= (:name label) "overall include")
-                             "rgba(200,200,200,1)"
-                             nil)
-                           :padding "0px"}}
-                  [:div.ui.middle.aligned.grid
-                   {:style {:margin "0px"}}
-                   [with-tooltip
-                    [:div.ui.row
-                     {:data-content (:question label)
-                      :data-position "top left"
-                      :style {:padding-bottom "8px"
-                              :padding-top "12px"
-                              :text-align "center"}}
-                     [:span
-                      {:style {:width "100%"}}
-                      (str (:short-label label) "?")]]]
-                   [:div.ui.row
-                    {:style {:padding-top "0px"
-                             :padding-bottom "18px"}}
-                    [:div
-                     {:style {:margin-left "auto"
-                              :margin-right "auto"}}
-                     [three-state-selection
-                      (fn [new-value]
-                        (swap! state assoc-in
-                               (concat labels-path [label-id])
-                               new-value)
-                        (ajax/send-labels
-                         article-id
-                         (d/active-label-values article-id labels-path)))
-                      (get label-values label-id)]]]]]))))))]
+          (doall (map make-column label-ids)))]
     [:div.ui.segments
      [:div.ui.top.attached.header
       [:h3

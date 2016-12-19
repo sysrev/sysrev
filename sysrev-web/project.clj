@@ -81,7 +81,7 @@
    [{:id "dev"
      :source-paths ["src/cljs" "script"]
      :figwheel true
-     :compiler {:main "sysrev-web.main"
+     :compiler {:main "sysrev-web.user"
                 :output-to "resources/public/out-dev/sysrev_web.js"
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out"

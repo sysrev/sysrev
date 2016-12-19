@@ -17,15 +17,17 @@
   (when-let [article-id (data :classify-article-id)]
     (let [user-id (current-user-id)
           email (-> @state :identity :email)
-          overall-label-id (d/project :overall-label-id)]
+          overall-label-id (d/project :overall-label-id)
+          labels-path [:page :classify :label-values]
+          label-values (d/active-label-values article-id labels-path)]
       [:div.ui
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
        [label-editor-component
-        article-id [:page :classify :label-values]]
+        article-id labels-path label-values]
        [confirm-modal-box
         #(data :classify-article-id)
-        [:page :classify :label-values]
+        labels-path
         (fn [] (scroll-top))]
        (if (full-size?)
          [:div.ui.grid
@@ -35,9 +37,7 @@
             [:div.ui.primary.right.labeled.icon.button
              {:class
               (if (nil?
-                   (get (d/active-label-values
-                         article-id [:page :classify :label-values])
-                        overall-label-id))
+                   (get label-values overall-label-id))
                 "disabled"
                 "")
               :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
@@ -71,9 +71,7 @@
             [:div.ui.primary.small.button
              {:class
               (if (nil?
-                   (get (d/active-label-values
-                         article-id [:page :classify :label-values])
-                        overall-label-id))
+                   (get label-values overall-label-id))
                 "disabled"
                 "")
               :on-click #(do (.modal (js/$ ".ui.modal") "show"))}

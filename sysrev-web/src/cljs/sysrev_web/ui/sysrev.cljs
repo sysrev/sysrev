@@ -5,6 +5,7 @@
             [sysrev-web.util :refer
              [nav number-to-word full-size? in?]]
             [sysrev-web.ui.users :as users]
+            [sysrev-web.ui.components :refer [true-false-nil-tag]]
             [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
 
@@ -48,20 +49,21 @@
      [:thead
       [:tr
        [:th "Label counts"]
-       [:th [:code "true"]]
-       [:th [:code "false"]]
-       [:th [:code "unknown"]]]]
+       [:th (true-false-nil-tag "medium" nil true "Include" true)]
+       [:th (true-false-nil-tag "medium" nil true "Exclude" false)]
+       [:th (true-false-nil-tag "medium" nil false "Not labeled" nil)]]]
      [:tbody
       (doall
-       (for [{:keys [label-id short-label]}
+       (for [{:keys [label-id short-label category]}
              (d/project-labels-ordered)]
-         (let [counts (get-in stats [:label-values label-id])]
-           ^{:key {:label-stats label-id}}
-           [:tr
-            [:td short-label]
-            [:td (str (:true counts))]
-            [:td (str (:false counts))]
-            [:td (str (:unknown counts))]])))]]))
+         (when (= category "inclusion criteria")
+           (let [counts (get-in stats [:inclusion-values label-id])]
+             ^{:key {:label-stats label-id}}
+             [:tr
+              [:td short-label]
+              [:td (str (get counts :true))]
+              [:td (str (get counts :false))]
+              [:td (str (get counts :nil))]]))))]]))
 
 (defn member-list-box []
   (let [members (d/project :members)
@@ -170,22 +172,22 @@
       "Select label: "
       (let [dropdown
             (with-mount-hook
-              #(.dropdown (js/$ (r/dom-node %)))
-              [:div.ui.small.blue.dropdown.button
-               {:style {:margin-left "5px"}}
-               [:input {:type "hidden" :name "menu-dropdown"}]
-               [:label (d/project [:labels active-label-id :short-label])]
-               [:i.chevron.down.right.icon]
-               [:div.menu
-                (doall
-                 (for [label-id label-ids]
-                   (let [active (= label-id active-label-id)]
-                     ^{:key {:predict-menu-label label-id}}
-                     [:a.item
-                      {:href (str "/project/predict/" (name label-id))
-                       :class (if active "default active" "")}
-                      (d/project [:labels label-id :short-label])])))]])]
-        [dropdown])]]))
+              #(.dropdown (js/$ (r/dom-node %))))]
+        [dropdown
+         [:div.ui.small.blue.dropdown.button
+          {:style {:margin-left "5px"}}
+          [:input {:type "hidden" :name "menu-dropdown"}]
+          [:label (d/project [:labels active-label-id :short-label])]
+          [:i.chevron.down.right.icon]
+          [:div.menu
+           (doall
+            (for [label-id label-ids]
+              (let [active (= label-id active-label-id)]
+                ^{:key {:predict-menu-label label-id}}
+                [:a.item
+                 {:href (str "/project/predict/" (name label-id))
+                  :class (if active "default active" "")}
+                 (d/project [:labels label-id :short-label])])))]]])]]))
 
 (defn project-predict-report-box []
   (let [label-id (selected-label-id)]

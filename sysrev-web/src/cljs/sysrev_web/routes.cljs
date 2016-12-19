@@ -5,7 +5,7 @@
     [on-page? current-page current-user-id logged-in? active-project-id]]
    [sysrev-web.state.data :as d :refer [data]]
    [sysrev-web.ajax :as ajax]
-   [sysrev-web.util :refer [nav in?]]
+   [sysrev-web.util :refer [nav in? dissoc-in]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
@@ -171,16 +171,24 @@
   "This should be called in each route handler, to set the page state
   and fetch data according to the page's entry in `page-specs`."
   [page-key page-map]
-  (let [old-state @state]
-    (swap! state #(-> %
-                      (assoc-in [:page page-key] page-map)
-                      (assoc :active-page page-key)))
+  (let [reload-data (page-reload-data
+                     page-key
+                     @state
+                     (-> @state
+                         (assoc-in [:page page-key] page-map)
+                         (assoc :active-page page-key)))]
+    (swap! state
+           (comp
+            ;; remove existing data for all `reload-data` entries
+            (->> reload-data
+                 (map (fn [reload-ks]
+                        #(dissoc-in % (concat [:data] reload-ks))))
+                 (apply comp))
+            ;; update page state
+            #(assoc-in % [:page page-key] page-map)
+            #(assoc % :active-page page-key)))
     (when-not (contains? @state :identity)
       (ajax/pull-identity))
-    (let [reload-data (page-reload-data page-key old-state @state)]
-      (doseq [ks reload-data]
-        (when (not= :not-found (data ks :not-found))
-          (ajax/fetch-data ks true))))
     (doall (map ajax/fetch-data (page-required-data page-key)))))
 
 ;; This monitors for changes in the data requirements of the current page.

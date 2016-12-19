@@ -11,7 +11,7 @@
    [sysrev.db.labels :as labels]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.util :refer
-    [should-never-happen-exception map-values
+    [should-never-happen-exception map-values in?
      integerify-map-keys uuidify-map-keys]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -192,10 +192,8 @@
      :multi (->> counts (filter #(> % 2)) count)}))
 
 (defn project-label-value-counts
-  "Returns counts of [true, false, unknown] label values for each label.
-  true/false can be counted by the labels saved by all users.
-  'unknown' values are counted when the user has set a value for at least one
-  label on the article."
+  "Returns counts of all possible values for each label. `nil` values are
+  counted when the user has set a value for at least one label on the article."
   [project-id]
   (let [entries
         (->>
@@ -220,32 +218,92 @@
                                    (keys (get entries user-id)))))
                            (apply concat))
         label-ids (keys (project-labels project-id))
-        ua-label-value
+        ual-answer
         (fn [user-id article-id label-id]
           (get-in entries [user-id article-id label-id]))
-        answer-count
-        (fn [label-id answer]
+        value-count
+        (fn [label-id value]
           (->> user-articles
                (filter
                 (fn [[user-id article-id]]
-                  (= answer (ua-label-value
-                             user-id article-id label-id))))
+                  (let [answer (ual-answer
+                                user-id article-id label-id)]
+                    (if (sequential? answer)
+                      (in? answer value)
+                      (= answer value)))))
+               count))]
+    (->> label-ids
+         (map
+          (fn [label-id]
+            (let [lvalues
+                  (conj (labels/label-possible-values label-id) nil)]
+              {label-id
+               (->>
+                lvalues
+                (map
+                 (fn [value]
+                   {(pr-str value)
+                    (value-count label-id value)}))
+                (apply merge))})))
+         (apply merge))))
+
+(defn project-inclusion-value-counts
+  "Returns counts of [true, false, unknown] inclusion values for each label.
+  true/false can be counted by the labels saved by all users.
+  'unknown' values are counted when the user has set a value for at least one
+  label on the article."
+  [project-id]
+  (let [entries
+        (->>
+         (-> (q/select-project-articles
+              project-id [:al.article-id :l.label-id :al.user-id :al.inclusion])
+             (q/join-article-labels)
+             (q/join-article-label-defs)
+             (q/filter-valid-article-label true)
+             do-query)
+         (group-by :user-id)
+         (map-values
+          (fn [uentries]
+            (->> (group-by :article-id uentries)
+                 (map-values
+                  #(map-values (comp first (partial map :inclusion))
+                               (group-by :label-id %)))))))
+        user-articles (->> (keys entries)
+                           (map
+                            (fn [user-id]
+                              (map (fn [article-id]
+                                     [user-id article-id])
+                                   (keys (get entries user-id)))))
+                           (apply concat))
+        label-ids (keys (project-labels project-id))
+        ual-inclusion
+        (fn [user-id article-id label-id]
+          (get-in entries [user-id article-id label-id]))
+        inclusion-count
+        (fn [label-id inclusion]
+          (->> user-articles
+               (filter
+                (fn [[user-id article-id]]
+                  (= inclusion (ual-inclusion
+                                user-id article-id label-id))))
                count))]
     (->> label-ids
          (map
           (fn [label-id]
             [label-id
-             {:true (answer-count label-id true)
-              :false (answer-count label-id false)
-              :unknown (answer-count label-id nil)}]))
+             {"true" (inclusion-count label-id true)
+              "false" (inclusion-count label-id false)
+              "nil" (inclusion-count label-id nil)}]))
          (apply concat)
          (apply hash-map))))
 
 (defn project-info [project-id]
-  (let [[predict articles labels label-values conflicts members users]
+  (let [[predict articles labels inclusion-values label-values
+         conflicts members users]
         (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
+                 (project-inclusion-value-counts project-id)
                  (project-label-value-counts project-id)
                  (project-conflict-counts project-id)
                  (project-members-info project-id)
@@ -254,6 +312,7 @@
                :members members
                :stats {:articles articles
                        :labels labels
+                       :inclusion-values inclusion-values
                        :label-values label-values
                        :conflicts conflicts
                        :predict predict}

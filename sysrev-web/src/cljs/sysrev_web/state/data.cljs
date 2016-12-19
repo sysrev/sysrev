@@ -184,3 +184,20 @@
 (defn set-reset-code-info [reset-code rmap]
   (fn [s]
     (assoc-in s [:data :reset-code reset-code] rmap)))
+
+(defn label-answer-inclusion [label-id answer]
+  (let [{:keys [definition value-type]} (project [:labels label-id])
+        ivals (-> definition :inclusion-values)]
+    (case value-type
+      "boolean"
+      (cond
+        (empty? ivals) nil
+        (nil? answer) nil
+        :else (boolean (in? ivals answer)))
+      "categorical"
+      (cond
+        (empty? ivals) nil
+        (nil? answer) nil
+        (empty? answer) nil
+        :else (boolean (some (in? ivals) answer)))
+      nil)))

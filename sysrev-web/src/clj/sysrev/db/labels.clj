@@ -1,7 +1,8 @@
 (ns sysrev.db.labels
   (:require [sysrev.db.core :refer
              [do-query do-query-map do-execute do-transaction
-              sql-now to-sql-array to-jsonb]]
+              sql-now to-sql-array to-jsonb
+              with-query-cache clear-query-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer [project-labels project-overall-label-id]]
             [sysrev.util :refer [in? map-values crypto-rand crypto-rand-nth]]
@@ -14,9 +15,24 @@
 (def valid-label-categories
   ["inclusion criteria" "extra"])
 (def valid-label-value-types
-  ["boolean"])
+  ["boolean" "categorical"])
+
+(defn all-labels-cached []
+  (with-query-cache [:all-labels]
+    (->>
+     (-> (q/select-label-where nil true [:*])
+         do-query)
+     (group-by :label-id)
+     (map-values first))))
+
+(defn clear-labels-cache []
+  (clear-query-cache [:all-labels]))
 
 (defn add-label-entry
+  "Creates an entry for a label definition.
+
+  Ordinarily this will be directly called only by one of the type-specific 
+  label creation functions."
   [project-id {:keys [name question short-label
                       category required value-type definition]}]
   (assert (in? valid-label-categories category))
@@ -34,24 +50,70 @@
                  :category category
                  :definition (to-jsonb definition)
                  :enabled true}])
-       do-execute)))
+       do-execute))
+  (clear-labels-cache)
+  true)
 
 (defn add-label-entry-boolean
-  [project-id {:keys [name question short-label
-                      inclusion-value required custom-category]
-               :as entry-values}]
+  "Creates an entry for a boolean label definition.
+
+  `name` `question` `short-label` are strings describing the label.
+
+  `inclusion-value` may be `true` or `false` to set that value as required
+  for overall inclusion, or may be `nil` for no inclusion requirement.
+
+  `custom-category` is optional, unless specified the label category will be
+  determined from the value of `inclusion-value`."
+  [project-id
+   {:keys [name question short-label inclusion-value required
+           custom-category]
+    :as entry-values}]
   (add-label-entry
    project-id
    (merge
     (->> [:name :question :short-label :required]
          (select-keys entry-values))
-    {:category (or custom-category
+    {:value-type "boolean"
+     :category (or custom-category
                    (if (nil? inclusion-value)
                      "extra" "inclusion criteria"))
-     :value-type "boolean"
      :definition (if (nil? inclusion-value)
                    nil
                    {:inclusion-values [inclusion-value]})})))
+
+(defn add-label-entry-categorical
+  "Creates an entry for a categorical label definition.
+
+  `name` `question` `short-label` are strings describing the label.
+
+  `inclusion-values` should be a sequence of the values that are acceptable
+  for inclusion. If `inclusion-values` is empty, answers for this label
+  are treated as having no relationship to inclusion. If `inclusion-values` is
+  not empty, answers are treated as implying inclusion if any of the answer
+  values is present in `inclusion-values`; non-empty answers for which none of
+  the values is present in `inclusion-values` are treated as implying 
+  exclusion.
+
+  `custom-category` is optional, unless specified the label category will be
+  determined from the value of `inclusion-value`."
+  [project-id
+   {:keys [name question short-label all-values inclusion-values
+           required multi? custom-category]
+    :as entry-values}]
+  (assert (sequential? all-values))
+  (assert (sequential? inclusion-values))
+  (add-label-entry
+   project-id
+   (merge
+    (->> [:name :question :short-label :required]
+         (select-keys entry-values))
+    {:value-type "categorical"
+     :category (or custom-category
+                   (if (empty? inclusion-values)
+                     "extra" "inclusion criteria"))
+     :definition {:all-values all-values
+                  :inclusion-values inclusion-values
+                  :multi? (boolean multi?)}})))
 
 (defn unlabeled-articles [project-id & [predict-run-id]]
   (let [predict-run-id
@@ -292,6 +354,46 @@
       (merge-where [:!= :al.confirm-time nil])
       do-query first :count pos?))
 
+(defn label-answer-valid? [label-id answer]
+  (let [label (get (all-labels-cached) label-id)]
+    (boolean
+     (case (:value-type label)
+       "boolean"
+       (in? [true false nil] answer)
+       "categorical"
+       (cond (nil? answer)
+             true
+             (sequential? answer)
+             (let [allowed (-> label :definition :all-values)]
+               (every? (in? allowed) answer))
+             :else false)
+       false))))
+
+(defn label-answer-inclusion [label-id answer]
+  (let [label (get (all-labels-cached) label-id)
+        ivals (-> label :definition :inclusion-values)]
+    (case (:value-type label)
+      "boolean"
+      (cond
+        (empty? ivals) nil
+        (nil? answer) nil
+        :else (boolean (in? ivals answer)))
+      "categorical"
+      (cond
+        (empty? ivals) nil
+        (nil? answer) nil
+        (empty? answer) nil
+        :else (boolean (some (in? ivals) answer)))
+      nil)))
+
+(defn label-possible-values [label-id]
+  (let [label (get (all-labels-cached) label-id)]
+    (case (:value-type label)
+      "boolean"
+      [true false]
+      "categorical"
+      (-> label :definition :all-values))))
+
 (defn set-user-article-labels [user-id article-id label-values imported?]
   (assert (integer? user-id))
   (assert (integer? article-id))
@@ -317,23 +419,36 @@
          new-entries
          (->> new-label-ids
               (map (fn [label-id]
-                     {:label-id label-id
-                      :article-id article-id
-                      :user-id user-id
-                      :answer (to-jsonb (get label-values label-id))
-                      :confirm-time (if confirm? now nil)
-                      :imported imported?})))]
+                     (let [answer (get label-values label-id)
+                           valid (label-answer-valid? label-id answer)
+                           inclusion
+                           (when valid
+                             (label-answer-inclusion label-id answer))]
+                       (assert valid "invalid label value submitted")
+                       {:label-id label-id
+                        :article-id article-id
+                        :user-id user-id
+                        :answer (to-jsonb answer)
+                        :confirm-time (if confirm? now nil)
+                        :imported imported?
+                        :inclusion inclusion}))))]
      (doseq [label-id existing-label-ids]
-       (-> (sqlh/update :article-label)
-           (sset {:answer (to-jsonb (get label-values label-id))
-                  :updated-time now
-                  :imported imported?})
-           (where [:and
-                   [:= :article-id article-id]
-                   [:= :user-id user-id]
-                   [:= :label-id label-id]
-                   [:or imported? [:= :confirm-time nil]]])
-           do-execute))
+       (let [answer (get label-values label-id)
+             valid (label-answer-valid? label-id answer)
+             inclusion
+             (when valid
+               (label-answer-inclusion label-id answer))]
+         (-> (sqlh/update :article-label)
+             (sset {:answer (to-jsonb answer)
+                    :updated-time now
+                    :imported imported?
+                    :inclusion inclusion})
+             (where [:and
+                     [:= :article-id article-id]
+                     [:= :user-id user-id]
+                     [:= :label-id label-id]
+                     [:or imported? [:= :confirm-time nil]]])
+             do-execute)))
      (when-not (empty? new-entries)
        (-> (insert-into :article-label)
            (values new-entries)

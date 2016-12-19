@@ -13,6 +13,8 @@
 (defn article-page []
   [:div
    (let [article-id (-> @state :page :article :id)
+         labels-path [:page :article :label-values]
+         label-values (d/active-label-values article-id labels-path)
          overall-label-id (d/project :overall-label-id)
          user-id (current-user-id)
          confirmed
@@ -51,19 +53,17 @@
           "Your labels for this article are not yet confirmed."]]
         [article-info-component article-id false]
         [label-editor-component
-         article-id [:page :article :label-values]]
+         article-id labels-path label-values]
         [confirm-modal-box
          #(-> @state :page :article :id)
-         [:page :article :label-values]
+         labels-path
          (fn [] (scroll-top))]
         [:div.ui.grid
          [:div.ui.sixteen.wide.column.center.aligned
           [:div.ui.primary.right.labeled.icon.button
            {:class
             (if (nil?
-                 (get (d/active-label-values
-                       article-id [:page :article :label-values])
-                      overall-label-id))
+                 (get label-values overall-label-id))
               "disabled"
               "")
             :on-click #(do (.modal (js/$ ".ui.modal") "show"))}

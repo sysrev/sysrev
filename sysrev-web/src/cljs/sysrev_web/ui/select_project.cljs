@@ -3,8 +3,7 @@
             [sysrev-web.state.core :as s]
             [sysrev-web.state.data :as d]
             [sysrev-web.ajax :as ajax]
-            [sysrev-web.util :refer [full-size? in?]])
-  (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
+            [sysrev-web.util :refer [full-size? in?]]))
 
 (defn select-project-page []
   (let [user-id (s/current-user-id)

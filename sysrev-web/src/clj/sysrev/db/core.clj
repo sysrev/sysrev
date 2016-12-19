@@ -89,7 +89,7 @@
   [sql-map & [conn]]
   (j/execute! (or conn *conn* @active-db)
               (sql/format sql-map)
-              :transaction? false))
+              :transaction? (nil? (or conn *conn*))))
 
 (defmacro do-transaction
   "Run body wrapped in an SQL transaction.
@@ -162,8 +162,16 @@
          full-path# (concat [:project project-id#] field-path#)]
      (with-query-cache full-path# ~form)))
 
-(defn clear-query-cache []
-  (reset! query-cache {}))
+(defn clear-query-cache [& [field-path]]
+  (if (nil? field-path)
+    (reset! query-cache {})
+    (swap! query-cache
+           (fn [cache-state]
+             (if (= 1 (count field-path))
+               (dissoc cache-state (first field-path))
+               (update-in cache-state
+                          (butlast field-path)
+                          #(dissoc % (last field-path))))))))
 
 (defn clear-project-cache [& [project-id]]
   (if project-id

@@ -43,3 +43,5 @@
   (import-vars 'sysrev-web.ui.select-project)
   (import-vars 'sysrev-web.ui.classify)
   true)
+
+(populate-user-ns)

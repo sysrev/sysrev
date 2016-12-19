@@ -5,12 +5,13 @@
   `(binding [sysrev-web.base/state (reagent.core/atom ~state-map)]
      ~@body))
 
-(defmacro with-mount-hook [on-mount content]
-  `(reagent.core/create-class
-    {:component-did-mount
-     ~on-mount
-     :reagent-render
-     (fn [] ~content)}))
+(defmacro with-mount-hook [on-mount]
+  `(fn [content#]
+     (reagent.core/create-class
+      {:component-did-mount
+       ~on-mount
+       :reagent-render
+       (fn [content#] content#)})))
 
 (defmacro import-vars [[_quote ns]]
   `(do

@@ -94,10 +94,11 @@
     (str display extra)))
 
 (defn out-link [url]
-  [:a.item {:target "_blank" :href url}
-   (url-domain url)
-   nbsp
-   [:i.external.icon]])
+  [:div.item
+   [:a {:target "_blank" :href url}
+    (url-domain url)
+    nbsp
+    [:i.external.icon]]])
 
 (defn radio-button [on-click is-selected child & [is-secondary?]]
   (let [btype (when is-selected
@@ -117,6 +118,33 @@
        [radio-button #(change-handler nil) (nil? curval) "?" true]
        [radio-button #(change-handler true) (true? curval) "Yes"]])))
 
+(defn multi-choice-selection [label-id all-values current-values on-add on-remove]
+  (r/create-class
+   {:component-did-mount
+    #(.dropdown
+      (js/$ (r/dom-node %))
+      (clj->js
+       {:onAdd on-add
+        :onRemove on-remove}))
+    :reagent-render
+    (fn [label-id all-values current-values]
+      [:div.ui.large.fluid.multiple.selection.dropdown
+       {:style {:margin-left "6px"
+                :margin-right "6px"}}
+       [:input
+        {:name (str "label-edit(" label-id ")")
+         :value (str/join "," current-values)
+         :type "hidden"}]
+       [:i.dropdown.icon]
+       [:div.default.text "No answer selected"]
+       [:div.menu
+        (doall
+         (for [lval all-values]
+           ^{:key {:label-option (str label-id " - " lval)}}
+           [:div.item
+            {:data-value (str lval)}
+            (str lval)]))]])}))
+
 (defn true-false-nil-tag
   "UI component for representing an optional boolean value.
   `value` is one of true, false, nil."
@@ -125,7 +153,7 @@
         (case value
           true ["green" "add circle icon"]
           false ["orange" "minus circle icon"]
-          nil ["grey" "help circle icon"])]
+          nil ["" "help circle icon"])]
     [:div.ui.label
      {:class (str vclass " " size)
       :style style}
@@ -140,9 +168,25 @@
   "UI component for representing the value of a label.
   `value` is one of true, false, nil."
   [label-id value]
-  (let [short-label
-        (d/project [:labels label-id :short-label])]
-    [true-false-nil-tag "medium" {} true (str short-label "?") value]))
+  (let [{:keys [short-label value-type category]}
+        (d/project [:labels label-id])]
+    (case value-type
+      "boolean"
+      [true-false-nil-tag "medium" {} true
+       (str short-label "?") value]
+      "categorical"
+      (if (= category "inclusion criteria")
+        (let [inclusion (d/label-answer-inclusion label-id value)]
+          [true-false-nil-tag "medium" {} true
+           (str short-label
+                (if (empty? value)
+                  ""
+                  (str " ("
+                       (str/join "; " value)
+                       ")")))
+           inclusion])
+        [:div])
+      [:div])))
 
 (defn with-tooltip [content]
   (r/create-class

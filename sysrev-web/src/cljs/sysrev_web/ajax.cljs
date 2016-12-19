@@ -4,7 +4,8 @@
    [sysrev-web.base :refer [state ga ga-event]]
    [sysrev-web.state.core :as s]
    [sysrev-web.state.data :as d :refer [data]]
-   [sysrev-web.util :refer [nav scroll-top nav-scroll-top map-values]]
+   [sysrev-web.util :refer
+    [nav scroll-top nav-scroll-top map-values dissoc-in]]
    [sysrev-web.notify :refer [notify]]))
 
 (defn integerify-map-keys
@@ -284,6 +285,7 @@
 (defn fetch-classify-task [& [force?]]
   (let [current-id (data :classify-article-id)]
     (when (or force? (nil? current-id))
+      (swap! state dissoc-in [:data :classify-article-id])
       (let [current-score
             (if (nil? current-id)
               nil
