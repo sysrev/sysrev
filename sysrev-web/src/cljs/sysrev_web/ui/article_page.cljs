@@ -7,7 +7,8 @@
    [sysrev-web.ajax :as ajax]
    [sysrev-web.ui.article :refer
     [article-info-component label-editor-component]]
-   [sysrev-web.ui.components :refer [confirm-modal-box]])
+   [sysrev-web.ui.components :refer
+    [confirm-modal-box with-tooltip inconsistent-answers-notice]])
   (:require-macros [sysrev-web.macros :refer [with-state]]))
 
 (defn article-page []
@@ -34,38 +35,44 @@
        :none
        [:div
         [:div.ui.segment
-         [:h3.ui.grey.header
-          [:i.remove.circle.outline.icon.left.floated {:aria-hidden true}]
+         [:h3.ui.grey.header.middle.aligned {:style {:margin "-5px"}}
+          [:i.info.circle.icon {:aria-hidden true}]
           "This article has not been selected for you to label."]]
         [article-info-component article-id false]]
        :confirmed
        [:div
         [:div.ui.segment
-         [:h3.ui.green.header
-          [:i.check.circle.outline.icon.left.floated {:aria-hidden true}]
-          "You have already confirmed your labels for this article."]]
+         [:h3.ui.green.header.middle.aligned {:style {:margin "-5px"}}
+          [:i.info.circle.icon {:aria-hidden true}]
+          "You have confirmed your labels for this article."]]
         [article-info-component article-id true user-id]]
        :unconfirmed
        [:div
+        {:style {:margin-bottom "40px"}}
         [:div.ui.segment
-         [:h3.ui.yellow.header
-          [:i.selected.radio.icon.left.floated {:aria-hidden true}]
+         [:h3.ui.yellow.header.middle.aligned {:style {:margin "-5px"}}
+          [:i.info.circle.icon {:aria-hidden true}]
           "Your labels for this article are not yet confirmed."]]
         [article-info-component article-id false]
         [label-editor-component
          article-id labels-path label-values]
+        [inconsistent-answers-notice label-values]
         [confirm-modal-box
          #(-> @state :page :article :id)
          labels-path
          (fn [] (scroll-top))]
-        [:div.ui.grid
-         [:div.ui.sixteen.wide.column.center.aligned
-          [:div.ui.primary.right.labeled.icon.button
-           {:class
-            (if (nil?
-                 (get label-values overall-label-id))
-              "disabled"
-              "")
-            :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
-           "Confirm labels"
-           [:i.check.circle.outline.icon]]]]]))])
+        (let [missing (d/required-answers-missing label-values)
+              disabled? ((comp not empty?) missing)
+              confirm-button
+              [:div.ui.primary.right.labeled.icon.button
+               {:class (if disabled? "disabled" "")
+                :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+               "Confirm labels"
+               [:i.check.circle.outline.icon]]]
+          [:div.ui.grid.centered
+           [:div.row
+            (if disabled?
+              [with-tooltip [:div confirm-button]]
+              confirm-button)
+            [:div.ui.inverted.popup.top.left.transition.hidden
+             "Answer missing for a required label"]]])]))])

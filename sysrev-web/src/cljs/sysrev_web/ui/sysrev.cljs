@@ -48,10 +48,14 @@
     [:table.ui.celled.unstackable.table.grey.raised.segment
      [:thead
       [:tr
-       [:th "Label counts"]
-       [:th (true-false-nil-tag "medium" nil true "Include" true)]
-       [:th (true-false-nil-tag "medium" nil true "Exclude" false)]
-       [:th (true-false-nil-tag "medium" nil false "Not labeled" nil)]]]
+       [:th "Criteria label counts"]
+       [:th (true-false-nil-tag
+             "large" nil true "Include" true false)]
+       [:th (true-false-nil-tag
+             "large" nil true "Exclude" false false)]
+       #_
+       [:th (true-false-nil-tag
+             "large" nil false "Unknown" nil false)]]]
      [:tbody
       (doall
        (for [{:keys [label-id short-label category]}
@@ -63,7 +67,7 @@
               [:td short-label]
               [:td (str (get counts :true))]
               [:td (str (get counts :false))]
-              [:td (str (get counts :nil))]]))))]]))
+              #_ [:td (str (get counts :nil))]]))))]]))
 
 (defn member-list-box []
   (let [members (d/project :members)
@@ -75,7 +79,8 @@
                       (d/data [:users user-id :permissions])]
                   (not (in? permissions "admin"))))))]
     [:div.ui.raised.grey.segment
-     [:h4 "Project members"]
+     [:h4 {:style {:margin-bottom "0px"}}
+      "Project members"]
      (doall
       (->> user-ids
            (map
@@ -92,7 +97,7 @@
      [:a
       {:class (make-class :overview)
        :href "/project"}
-      [:h3.ui.blue.header "Progress overview"]]
+      [:h3.ui.blue.header "Project overview"]]
      [:a
       {:class (make-class :predict)
        :href "/project/predict"}

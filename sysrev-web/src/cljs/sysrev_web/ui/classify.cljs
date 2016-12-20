@@ -5,7 +5,8 @@
    [sysrev-web.util :refer [scroll-top nav-scroll-top nbsp full-size?]]
    [sysrev-web.routes :refer [data-initialized?]]
    [sysrev-web.ui.components :refer
-    [three-state-selection with-tooltip confirm-modal-box]]
+    [three-state-selection with-tooltip confirm-modal-box
+     inconsistent-answers-notice]]
    [sysrev-web.ui.article :refer
     [article-info-component label-editor-component]]
    [sysrev-web.ajax :as ajax]
@@ -21,10 +22,12 @@
           labels-path [:page :classify :label-values]
           label-values (d/active-label-values article-id labels-path)]
       [:div.ui
+       {:style {:margin-bottom "40px"}}
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
        [label-editor-component
         article-id labels-path label-values]
+       [inconsistent-answers-notice label-values]
        [confirm-modal-box
         #(data :classify-article-id)
         labels-path
@@ -34,23 +37,29 @@
           [:div.ui.row
            [:div.ui.five.wide.column]
            [:div.ui.six.wide.column.center.aligned
-            [:div.ui.primary.right.labeled.icon.button
-             {:class
-              (if (nil?
-                   (get label-values overall-label-id))
-                "disabled"
-                "")
-              :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
-             "Confirm labels"
-             [:i.check.circle.outline.icon]]
-            [:div.ui.right.labeled.icon.button
-             {:on-click
-              #(do (ga-event "labels" "next_article")
-                   (ajax/fetch-classify-task true)
-                   (ajax/pull-member-labels user-id)
-                   (scroll-top))}
-             "Next article"
-             [:i.right.circle.arrow.icon]]]
+            [:div.ui.grid.centered
+             [:div.row
+              (let [missing (d/required-answers-missing label-values)
+                    disabled? ((comp not empty?) missing)
+                    confirm-button
+                    [:div.ui.primary.right.labeled.icon.button
+                     {:class (if disabled? "disabled" "")
+                      :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+                     "Confirm labels"
+                     [:i.check.circle.outline.icon]]]
+                (if disabled?
+                  [with-tooltip [:div confirm-button]]
+                  confirm-button))
+              [:div.ui.inverted.popup.top.left.transition.hidden
+               "Answer missing for a required label"]
+              [:div.ui.right.labeled.icon.button
+               {:on-click
+                #(do (ga-event "labels" "next_article")
+                     (ajax/fetch-classify-task true)
+                     (ajax/pull-member-labels user-id)
+                     (scroll-top))}
+               "Next article"
+               [:i.right.circle.arrow.icon]]]]]
            (let [n-unconfirmed
                  (count
                   (d/project [:member-labels user-id :unconfirmed]))

@@ -1,8 +1,8 @@
 (ns sysrev.db.core
-  (:require [sysrev.util :refer [map-to-arglist]]
+  (:require [sysrev.util :refer [map-to-arglist map-values in?]]
             [clojure.java.jdbc :as j]
             [clj-postgresql.core :as pg]
-            [jdbc.pool.c3p0 :as pool]
+            [jdbc.pool.c3p0]
             [clojure.data.json :as json]
             [postgre-types.json :refer [add-jsonb-type]]
             [honeysql.core :as sql]
@@ -46,7 +46,15 @@
   (sql/call :cast x sql-type))
 
 (defn to-jsonb [x]
-  (sql-cast (clojure.data.json/write-str x) :jsonb))
+  ;; unfortunately to-jsonb itself returns a map, so
+  ;; make sure `x` hasn't already been passed through to-jsonb
+  (if (and (map? x)
+           (= (:name x) :cast)
+           (contains? x :args)
+           (seq? (:args x))
+           (in? (:args x) :jsonb))
+    x
+    (sql-cast (clojure.data.json/write-str x) :jsonb)))
 
 (defn to-sql-array
   "Convert a Clojure sequence to a PostgreSQL array object.
@@ -62,11 +70,23 @@
 (defn format-column-name [col]
   (-> col str/lower-case (str/replace "_" "-")))
 
+(defn prepare-honeysql-map
+  "Converts map values to jsonb strings as needed."
+  [m]
+  (let [mapvals-to-json
+        (partial map-values
+                 #(if (map? %) (to-jsonb %) %))]
+    (cond-> m
+      (contains? m :set)
+      (update :set mapvals-to-json)
+      (contains? m :values)
+      (update :values (partial mapv mapvals-to-json)))))
+
 (defn do-query
   "Run SQL query defined by honeysql SQL map."
   [sql-map & [conn]]
   (j/query (or conn *conn* @active-db)
-           (sql/format sql-map)
+           (-> sql-map prepare-honeysql-map sql/format)
            :identifiers format-column-name
            :result-set-fn vec))
 
@@ -88,7 +108,7 @@
   "Execute SQL command defined by honeysql SQL map."
   [sql-map & [conn]]
   (j/execute! (or conn *conn* @active-db)
-              (sql/format sql-map)
+              (-> sql-map prepare-honeysql-map sql/format)
               :transaction? (nil? (or conn *conn*))))
 
 (defmacro do-transaction
@@ -227,7 +247,7 @@
 
 (defn clear-predict-cache []
   (-> (sqlh/update :predict-run)
-      (sset {:meta (to-jsonb {})})
+      (sset {:meta {}})
       do-execute)
   (clear-query-cache)
   #_ (clear-query-cache [:predict])

@@ -128,7 +128,9 @@
 (defn filter-valid-article-label [m confirmed?]
   (-> m (merge-where [:and
                       (label-confirmed-test confirmed?)
-                      [:!= :al.answer nil]])))
+                      [:!= :al.answer nil]
+                      [:!= :al.answer (to-jsonb [])]
+                      [:!= :al.answer (to-jsonb {})]])))
 
 (defn filter-label-user [m user-id]
   (-> m (merge-where [:= :al.user-id user-id])))
@@ -183,6 +185,17 @@
       (join [:web-user :u]
             [:= :u.user-id :m.user-id])
       (where [:= :m.project-id project-id])))
+
+(defn join-users [m user-id]
+  (-> m
+      (merge-join [:web-user :u]
+                  [:= :u.user-id user-id])))
+
+(defn join-user-member-entries [m project-id]
+  (-> m
+      (merge-join [:project-member :m]
+                  [:= :m.user-id :u.user-id])
+      (merge-where [:= :m.project-id project-id])))
 
 ;;;
 ;;; predict values

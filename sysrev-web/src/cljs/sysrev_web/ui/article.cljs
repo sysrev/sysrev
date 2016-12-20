@@ -3,9 +3,10 @@
    [clojure.core.reducers :refer [fold]]
    [clojure.string :refer [capitalize trim]]
    [sysrev-web.base :refer [state]]
+   [sysrev-web.state.core :as s]
    [sysrev-web.state.data :as d]
    [sysrev-web.ui.components :refer
-    [similarity-bar truncated-horizontal-list out-link label-value-tag
+    [similarity-bar truncated-horizontal-list out-link label-answer-tag
      with-tooltip three-state-selection multi-choice-selection dangerous]]
    [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
@@ -17,24 +18,24 @@
           values (if-not (empty? values)
                    values
                    (d/get-article-labels article-id user-id))]
-      [:div.ui.content
-       [:div.ui.horizontal.divided.list
-        (doall
-         (->>
-          labels
-          (map :label-id)
-          (map #(do [% (get values %)]))
-          (map-indexed
-           (fn [i [label-id answer]]
-             (let [label-name
-                   (d/project [:labels label-id :name])
-                   answer-str (if (nil? answer)
-                                "unknown"
-                                (str answer))]
-               ^{:key {:label-value (str i "__" article-id)}}
-               [:div.item.label-tag-list
-                [:div.content
-                 [label-value-tag label-id answer]]])))))]])))
+      [:div {:style {:margin-top "-8px"
+                     :margin-bottom "-9px"
+                     :margin-left "-6px"
+                     :margin-right "-6px"}}
+       (doall
+        (->>
+         labels
+         (map :label-id)
+         (map #(do [% (get values %)]))
+         (map-indexed
+          (fn [i [label-id answer]]
+            (let [label-name
+                  (d/project [:labels label-id :name])
+                  answer-str (if (nil? answer)
+                               "unknown"
+                               (str answer))]
+              ^{:key {:label-value (str i "__" article-id)}}
+              [label-answer-tag label-id answer])))))])))
 
 ;; First pass over text, just breaks apart into groups of "Groupname: grouptext"
 (defn- sections' [text]
@@ -134,11 +135,25 @@
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [similarity (:score article)
+            show-similarity?
+            (and similarity
+                 (d/project [:member-labels
+                             (s/current-user-id)
+                             :confirmed article-id])
+                 (some->>
+                  (d/project [:stats :predict
+                              (d/project :overall-label-id)
+                              :counts :labeled])
+                  (not= 0)))
             docs (d/article-documents article-id)]
         [:div.ui.segments
-         [:div.ui.top.attached.segment
-          [similarity-bar similarity]]
-         [:div.ui.attached.segment
+         (when show-similarity?
+           [:div.ui.top.attached.segment
+            [similarity-bar similarity]])
+         [:div.ui
+          {:class (if show-similarity?
+                    "attached segment"
+                    "top attached segment")}
           [:h3.header
            [:a.ui.link {:href (str "/article/" article-id)}
             (:primary-title article)]
@@ -168,6 +183,16 @@
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
       (let [similarity (:score article)
+            show-similarity?
+            (and similarity
+                 (d/project [:member-labels
+                             (s/current-user-id)
+                             :confirmed article-id])
+                 (some->>
+                  (d/project [:stats :predict
+                              (d/project :overall-label-id)
+                              :counts :labeled])
+                  (not= 0)))
             percent (Math/round (* 100 similarity))
             all-labels (d/get-article-labels article-id)
             labels (and show-labels
@@ -191,7 +216,7 @@
                         :else nil)
                   color
                   (cond (= review-status "conflict") "purple"
-                        :else "grey")]
+                        :else "")]
               (when sstr
                 [:div {:style {:float "right"}}
                  [:div.ui.large.label
@@ -199,15 +224,7 @@
                    :style {:margin-top "-3px"
                            :margin-bottom "-3px"
                            :margin-right "0px"}}
-                  (str sstr)]
-                 #_
-                 (when (= review-status "fresh")
-                   [:div.ui.large.label
-                    {:class "grey"
-                     :style {:margin-top "-3px"
-                             :margin-bottom "-3px"
-                             :margin-right "0px"}}
-                    (str percent "% predicted inclusion")])])))
+                  (str sstr)]])))
           [:div {:style {:clear "both"}}]]
          (when (and classify?
                     (= review-status "conflict")
@@ -230,10 +247,9 @@
                    (str (-> label-user-id d/project-user-info :user :email))]
                   " saved labels"]
                  [label-values-component article-id label-user-id true]]))))
-         (when-not classify?
-           (when-not (nil? similarity)
-             [:div.ui.attached.segment
-              [similarity-bar similarity]]))
+         (when show-similarity?
+           [:div.ui.attached.segment
+            [similarity-bar similarity]])
          [:div.ui
           {:class (if (and show-labels have-labels?)
                     "attached segment"
@@ -283,6 +299,24 @@
         extra-ids (->> ordered-label-ids
                        (remove #(= "inclusion criteria"
                                    (-> (get labels %) :category))))
+        make-inclusion-tag
+        (fn [label-id]
+          (when (= "inclusion criteria"
+                   (:category (get labels label-id)))
+            (let [current-answer (get label-values label-id)
+                  inclusion (d/label-answer-inclusion
+                             label-id current-answer)
+                  color (case inclusion
+                          true "green"
+                          false "orange"
+                          nil "")
+                  iclass (case inclusion
+                           true "plus circle icon"
+                           false "minus circle icon"
+                           nil "help circle icon")]
+              [:div.ui.left.corner.label
+               {:class (str color)}
+               [:i {:class (str iclass)}]])))
         make-boolean-column
         (fn [label-id]
           (let [label (get labels label-id)]
@@ -290,21 +324,22 @@
             [:div.ui.column
              {:style {:background-color
                       (if (:required label)
-                        "rgba(200,200,200,1)"
+                        "rgba(215,215,215,1)"
                         nil)
                       :padding "0px"}}
              [:div.ui.middle.aligned.grid
               {:style {:margin "0px"}}
               [with-tooltip
                [:div.ui.row
-                {:data-content (:question label)
-                 :data-position "top left"
-                 :style {:padding-bottom "8px"
+                {:style {:padding-bottom "8px"
                          :padding-top "12px"
                          :text-align "center"}}
+                (make-inclusion-tag label-id)
                 [:span
                  {:style {:width "100%"}}
                  (str (:short-label label) "?")]]]
+              [:div.ui.inverted.popup.top.left.transition.hidden
+               (:question label)]
               [:div.ui.row
                {:style {:padding-top "0px"
                         :padding-bottom "18px"}}
@@ -327,24 +362,25 @@
             [:div.ui.column
              {:style {:background-color
                       (if (:required label)
-                        "rgba(200,200,200,1)"
+                        "rgba(215,215,215,1)"
                         nil)
                       :padding "0px"}}
              [:div.ui.middle.aligned.grid
               {:style {:margin "0px"}}
               [with-tooltip
                [:div.ui.row
-                {:data-content (:question label)
-                 :data-position "top left"
-                 :style {:padding-bottom "8px"
+                {:style {:padding-bottom "8px"
                          :padding-top "12px"
                          :text-align "center"}}
+                (make-inclusion-tag label-id)
                 [:span
                  {:style {:width "100%"}}
                  (:short-label label)]]]
+              [:div.ui.inverted.popup.top.left.transition.hidden
+               (:question label)]
               [:div.ui.row
-               {:style {:padding-top "0px"
-                        :padding-bottom "18px"}}
+               {:style {:padding-top "8px"
+                        :padding-bottom "10px"}}
                (let [current-values
                      (get label-values label-id)]
                  [multi-choice-selection
@@ -389,11 +425,10 @@
       [:h3
        "Edit labels "
        [with-tooltip
-        [:a
-         {:href "/labels"
-          :data-content "View label definitions"
-          :data-position "top left"}
-         [:i.large.yellow.help.circle.icon]]]]]
+        [:a {:href "/labels"}
+         [:i.medium.yellow.info.circle.icon]]]
+       [:div.ui.inverted.popup.top.left.transition.hidden
+        "View label definitions"]]]
      [:div.ui.attached.segment.label-section-header
       [:h4 "Inclusion criteria"]]
      [:div.ui.attached.grid.segment

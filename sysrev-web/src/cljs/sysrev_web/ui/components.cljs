@@ -128,32 +128,53 @@
         :onRemove on-remove}))
     :reagent-render
     (fn [label-id all-values current-values]
-      [:div.ui.large.fluid.multiple.selection.dropdown
-       {:style {:margin-left "6px"
-                :margin-right "6px"}}
-       [:input
-        {:name (str "label-edit(" label-id ")")
-         :value (str/join "," current-values)
-         :type "hidden"}]
-       [:i.dropdown.icon]
-       [:div.default.text "No answer selected"]
-       [:div.menu
-        (doall
-         (for [lval all-values]
-           ^{:key {:label-option (str label-id " - " lval)}}
-           [:div.item
-            {:data-value (str lval)}
-            (str lval)]))]])}))
+      (let [dom-id (str "label-edit-" label-id)]
+        [:div.ui.large.fluid.multiple.selection.dropdown
+         {:id dom-id
+          :style {:margin-left "6px"
+                  :margin-right "6px"}
+          ;; hide dropdown on click anywhere in main dropdown box
+          :on-click #(when (or (= dom-id (-> % .-target .-id))
+                               (-> (js/$ (-> % .-target))
+                                   (.hasClass "default"))
+                               (-> (js/$ (-> % .-target))
+                                   (.hasClass "label")))
+                       (let [dd (js/$ (str "#" dom-id))]
+                         (when (.dropdown dd "is visible")
+                           (.dropdown dd "hide"))))}
+         [:input
+          {:name (str "label-edit(" label-id ")")
+           :value (str/join "," current-values)
+           :type "hidden"}]
+         [:i.dropdown.icon]
+         (if (d/project [:labels label-id :required])
+           [:div.default.text
+            "No answer selected "
+            [:span.default {:style {:font-weight "bold"}}
+             "(required)"]]
+           [:div.default.text "No answer selected"])
+         [:div.menu
+          (doall
+           (for [lval all-values]
+             ^{:key {:label-option (str label-id " - " lval)}}
+             [:div.item
+              {:data-value (str lval)}
+              (str lval)]))]]))}))
 
 (defn true-false-nil-tag
   "UI component for representing an optional boolean value.
   `value` is one of true, false, nil."
-  [size style show-icon? label value]
-  (let [[vclass iclass]
-        (case value
-          true ["green" "add circle icon"]
-          false ["orange" "minus circle icon"]
-          nil ["" "help circle icon"])]
+  [size style show-icon? label value color?]
+  (let [vclass (cond
+                 (not color?) ""
+                 (true? value) "green"
+                 (false? value) "orange"
+                 (string? value) value
+                 :else "")
+        iclass (case value
+                 true "add circle icon"
+                 false "minus circle icon"
+                 "help circle icon")]
     [:div.ui.label
      {:class (str vclass " " size)
       :style style}
@@ -164,34 +185,49 @@
             :style {:margin-left "0.25em"
                     :margin-right "0"}}])]))
 
-(defn label-value-tag
-  "UI component for representing the value of a label.
-  `value` is one of true, false, nil."
-  [label-id value]
+(defn label-answer-tag
+  "UI component for representing a label answer."
+  [label-id answer]
   (let [{:keys [short-label value-type category]}
-        (d/project [:labels label-id])]
-    (case value-type
-      "boolean"
-      [true-false-nil-tag "medium" {} true
-       (str short-label "?") value]
-      "categorical"
-      (if (= category "inclusion criteria")
-        (let [inclusion (d/label-answer-inclusion label-id value)]
-          [true-false-nil-tag "medium" {} true
-           (str short-label
-                (if (empty? value)
-                  ""
-                  (str " ("
-                       (str/join "; " value)
-                       ")")))
-           inclusion])
-        [:div])
-      [:div])))
+        (d/project [:labels label-id])
+        inclusion (d/label-answer-inclusion label-id answer)
+        color (case inclusion
+                true "green"
+                false "orange"
+                nil "")
+        values (case value-type
+                 "boolean" (if (boolean? answer)
+                             [answer] [])
+                 "categorical" answer)
+        display-label (case value-type
+                        "boolean" (str short-label "?")
+                        short-label)
+        style {:margin-left "4px"
+               :margin-right "4px"
+               :margin-top "3px"
+               :margin-bottom "4px"}]
+    [:div.ui.labeled.button
+     {:style style}
+     [:div.ui.small.button
+      {:class color}
+      (str display-label " ")]
+     [:div.ui.basic.label
+      (if (empty? values)
+        [:i.grey.help.circle.icon
+         {:style {:margin-right "0"}
+          :aria-hidden true}]
+        (str/join ", " values))]]))
 
 (defn with-tooltip [content]
   (r/create-class
    {:component-did-mount
-    #(.popup (js/$ (r/dom-node %)))
+    #(.popup (js/$ (r/dom-node %))
+             (clj->js
+              {:inline true
+               :hoverable true
+               :position "top center"
+               :delay {:show 500
+                       :hide 100}}))
     :reagent-render
     (fn [content] content)}))
 
@@ -232,7 +268,10 @@
              labels (d/project :labels)
              n-total (count labels)
              label-values (d/active-label-values article-id labels-path)
-             n-set (->> label-values vals (remove nil?) count)]
+             n-set (->> (vals label-values)
+                        (remove nil?)
+                        (remove (every-pred coll? empty?))
+                        count)]
          [:div.content.confirm-modal
           [:h3.ui.header.centered
            (str "You have set "
@@ -255,6 +294,27 @@
              :padding-bottom "0.5em"}}
     [:h4 (d/data [:all-projects (s/active-project-id) :name])]]
    content])
+
+(defn inconsistent-answers-notice [label-values]
+  (let [labels (d/find-inconsistent-answers label-values)]
+    (when ((comp not empty?) labels)
+      [:div.ui.yellow.secondary.segment
+       ;; {:style {:padding-top "0px"}}
+       {:style {:padding-top "5px"
+                :padding-bottom "5px"
+                :padding-left "8px"
+                :padding-right "8px"}}
+       [:div.ui.horizontal.divided.list
+        [:div.item
+         [:div.ui.large.label
+          [:i.yellow.info.circle.icon]
+          "Labels inconsistent with positive inclusion value"]]
+        [:div.item
+         [:div.ui.horizontal.list
+          (doall
+           (for [label labels]
+             [:div.item
+              [:div.ui.large.label (:short-label label)]]))]]]])))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML

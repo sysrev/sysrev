@@ -7,7 +7,7 @@
             [sysrev.db.project :refer
              [add-project-member set-member-permissions]]
             [sysrev.db.core :refer
-             [do-query do-query-map do-execute do-transaction active-db
+             [do-query do-query-map do-execute do-transaction
               to-sql-array with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions]]

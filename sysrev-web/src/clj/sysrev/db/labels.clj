@@ -114,6 +114,16 @@
                   :inclusion-values inclusion-values
                   :multi? (boolean multi?)}})))
 
+(defn alter-label-entry [project-id label-id values-map]
+  (db/clear-labels-cache project-id)
+  (db/clear-project-cache project-id)
+  (-> (sqlh/update :label)
+      (sset values-map)
+      (where [:and
+              [:= :label-id label-id]
+              [:= :project-id project-id]])
+      do-execute))
+
 (defn unlabeled-articles [project-id & [predict-run-id]]
   (with-project-cache
     project-id [:label-values :saved :unlabeled-articles]

@@ -10,7 +10,8 @@
         num-exclude (-> articles :excludes count)
         num-classified (+ num-include num-exclude)]
     [:div
-     {:style {:margin-bottom "14px"}}
+     {:style {:margin-top "10px"
+              :margin-bottom "0px"}}
      [:div.ui.top.attached.header.segment
       {:style {:padding-left "0.7em"
                :padding-right "0.7em"}}

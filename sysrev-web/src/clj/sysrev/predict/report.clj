@@ -7,7 +7,7 @@
    [sysrev.db.queries :as q]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [sysrev.predict.core :refer []]))
+   [sysrev.predict.core]))
 
 (defn estimate-articles-with-value
   "Calculates an estimate of the number of project articles for which
@@ -134,7 +134,7 @@
                    doall
                    (apply merge))]
           (-> (sqlh/update :predict-run)
-              (sset {:meta (to-jsonb {:summary new-summary})})
+              (sset {:meta {:summary new-summary}})
               (where [:= :predict-run-id predict-run-id])
               do-execute)
           new-summary)))))

@@ -6,7 +6,9 @@
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;;[org.clojure/clojurescript "1.9.93"]
                  [org.clojure/core.async "0.2.395"]
+                 ;; Data formats
                  [org.clojure/data.json "0.2.6"]
+                 ;; [cheshire "5.6.3"]
                  [me.raynes/fs "1.4.6"]
                  [org.clojure/data.xml "0.0.8"]
                  [org.clojure/data.zip "0.1.2"]

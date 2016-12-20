@@ -20,10 +20,36 @@
   ([]
    (project [] nil)))
 
-(defn project-labels-ordered []
-  (->> (project [:labels])
-       vals
-       (sort-by :project-ordering <)))
+(defn filter-labels
+  [labels {:keys [category value-type]}]
+  (cond->> labels
+    category (filter #(= (:category %) category))
+    value-type (filter #(= (:value-type %) value-type))))
+
+(defn project-labels-ordered
+  "Return label definition entries ordered first by category/type and then
+  by project-ordering value."
+  []
+  (let [group-idx
+        (fn [{:keys [required category value-type]}]
+          (let [spec [required category value-type]]
+            (cond
+              (= spec [true "inclusion criteria" "boolean"]) -10
+              (and required (= category "inclusion criteria")) -9
+              (and required (= value-type "boolean")) -8
+              required -7
+              (= spec ["inclusion criteria" "boolean"]) 0
+              (= spec ["inclusion criteria" "categorical"]) 1
+              (= category "inclusion criteria") 2
+              (= spec ["extra" "boolean"]) 3
+              (= spec ["extra" "categorical"]) 4
+              (= category "extra") 5
+              :else 6)))]
+    (->> (project [:labels])
+         vals
+         (sort-by #(vector
+                    (group-idx %) (:project-ordering %))
+                  <))))
 
 (defn set-user-info [user-id umap]
   (fn [s]
@@ -201,3 +227,21 @@
         (empty? answer) nil
         :else (boolean (some (in? ivals) answer)))
       nil)))
+
+(defn required-answers-missing [label-values]
+  (->> (project-labels-ordered)
+       (filter :required)
+       (filter (fn [label]
+                 (let [answer (get label-values (:label-id label))]
+                   (or (nil? answer)
+                       (and (coll? answer)
+                            (empty? answer))))))))
+
+(defn find-inconsistent-answers [label-values]
+  (let [overall-inclusion (get label-values (project :overall-label-id))]
+    (when (true? overall-inclusion)
+      (->> (project-labels-ordered)
+           (filter (fn [{:keys [label-id] :as label}]
+                     (let [answer (get label-values label-id)
+                           inclusion (label-answer-inclusion label-id answer)]
+                       (false? inclusion))))))))
