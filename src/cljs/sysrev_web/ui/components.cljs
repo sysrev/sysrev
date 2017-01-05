@@ -313,6 +313,7 @@
          [:div.ui.horizontal.list
           (doall
            (for [label labels]
+             ^{:key {:lval-warning (:label-id label)}} 
              [:div.item
               [:div.ui.large.label (:short-label label)]]))]]]])))
 
