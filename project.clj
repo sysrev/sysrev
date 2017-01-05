@@ -70,7 +70,7 @@
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
-  :source-paths ["src/clj" "script"]
+  :source-paths ["src/clj" "src/scripts"]
   :plugins [[lein-cljsbuild "1.1.4"]
             [lein-bower "0.5.2"]
             [lein-ring "0.9.7"]
@@ -81,7 +81,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs" "script"]
+     :source-paths ["src/cljs" "src/scripts"]
      :figwheel true
      :compiler {:main "sysrev-web.user"
                 :output-to "resources/public/out-dev/sysrev_web.js"
@@ -119,7 +119,7 @@
              :dev
              {:resource-paths ["config/dev"]}
              :dev-spark
-             {:source-paths ["src/clj" "src-spark" "script"]
+             {:source-paths ["src/clj" "src-spark" "src/scripts"]
               :resource-paths ["config/dev"]
               :dependencies
               [[yieldbot/flambo "0.8.0-SNAPSHOT"
