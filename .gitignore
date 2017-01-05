@@ -1,25 +1,41 @@
+#############################
+
 target/
-.idea/
-.ensime*
 
+/out/
 /flyway-4.0.1/
-
 /flyway
+/flyway.conf
+/deploy/
 
-# sysrev-web
-/sysrev-web/node_modules
+/node_modules
+!/semantic
+/semantic/*
+!/semantic/src/
+/semantic/src/*
+!/semantic/src/site/
 
-/sysrev-web/resources/public/out-dev
-/sysrev-web/resources/public/vendor
-
-!/sysrev-web/semantic
-/sysrev-web/semantic/*
-!/sysrev-web/semantic/src/
-/sysrev-web/semantic/src/*
-!/sysrev-web/semantic/src/site/
+/resources/public/out-dev
+/resources/public/out-production
+/resources/public/vendor
+/resources/public/files/PDF
+/resources/smtp-config.edn
 
 figwheel_server.log
+/.cljs_rhino_repl/
+.lein-env
 
+/sysrev.sublime-project
+/sysrev.sublime-workspace
+/sysrev-web.iml
+.idea/
+
+*.org
+
+.ensime*
+*.pgdumpc
+
+#############################
 
 # Created by https://www.gitignore.io/api/scala,emacs,clojure,intellij
 
@@ -157,29 +173,3 @@ fabric.properties
 # *.ipr
 
 
-/sysrev-web/.cljs_rhino_repl/
-
-/sysrev-web/out/
-
-/sysrev-web/repl/
-
-/sysrev-web/sysrev.sublime-project
-
-/sysrev-web/sysrev.sublime-workspace
-
-/sysrev-web/resources/public/out-production/
-
-/sysrev-web/sysrev-web.iml
-
-/sysrev-web/deploy/
-
-*.org
-
-.lein-env
-
-/flyway.conf
-
-/sysrev-web/resources/public/files/PDF
-/sysrev-web/resources/smtp-config.edn
-
-*.pgdumpc
