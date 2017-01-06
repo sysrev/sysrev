@@ -7,7 +7,7 @@
    [sysrev-web.state.data :as d]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
-     with-tooltip three-state-selection multi-choice-selection]]
+     with-tooltip three-state-selection multi-choice-selection dangerous]]
    [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
 
@@ -109,7 +109,7 @@
       (and unformatted?
            (>= (count secs-text) (* (count text) 0.9)))
       [:div
-       [:p [:span (first secs)]]
+       [:p (dangerous :span (first secs))]
        (doall
         (->> (rest secs)
              (map-indexed
@@ -118,7 +118,7 @@
                 [:p
                  [:strong (-> name str/trim str/capitalize)]
                  ": "
-                 [:span text]]))))]
+                 (dangerous :span text)]))))]
       :else
       ;; otherwise show the text using existing linebreaks for formatting
       (let [secs (str/split text #"\n")]
@@ -128,7 +128,7 @@
                (map-indexed
                 (fn [idx stext]
                   ^{:key {:abstract-section idx}}
-                  [:p [:span stext]]))))]))))
+                  [:p (dangerous :span stext)]))))]))))
 
 (defn article-docs-component [article-id]
   (let [docs (d/article-documents article-id)]
