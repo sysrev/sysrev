@@ -1,13 +1,13 @@
 (ns sysrev-web.ui.article
   (:require
    [clojure.core.reducers :refer [fold]]
-   [clojure.string :refer [capitalize trim]]
+   [clojure.string :as str]
    [sysrev-web.base :refer [state]]
    [sysrev-web.state.core :as s]
    [sysrev-web.state.data :as d]
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
-     with-tooltip three-state-selection multi-choice-selection dangerous]]
+     with-tooltip three-state-selection multi-choice-selection]]
    [sysrev-web.util :refer [re-pos map-values full-size?]]
    [sysrev-web.ajax :as ajax]))
 
@@ -88,19 +88,47 @@
                    :else (conj (vec (butlast acc))
                                [lastsecname (str lastsec ": " sec)]))))))))))
 
+(defn sections-to-text
+  "Take a result from `sections` function and return something close to the
+  original abstract text."
+  [sections]
+  (->> sections
+       (map (fn [s]
+              (if (string? s)
+                s
+                (str/join ": " s))))
+       (str/join " ")))
+
 (defn abstract [text]
-  (fn [text]
-    (let [secs (sections text)]
+  (let [unformatted? (nil? (str/index-of text "\n"))
+        secs (and unformatted? (sections text))
+        secs-text (and secs (sections-to-text secs))]
+    (cond
+      ;; use section splitting code if existing text has no linebreaks,
+      ;; and the result isn't losing content
+      (and unformatted?
+           (>= (count secs-text) (* (count text) 0.9)))
       [:div
-       [:p (dangerous :span (first secs))]
-       (->> (rest secs)
-            (map-indexed
-             (fn [idx [name text]]
-               ^{:key {:abstract-section {:name name :idx idx}}}
-               [:p
-                [:strong (-> name trim capitalize)]
-                ": "
-                (dangerous :span text)])))])))
+       [:p [:span (first secs)]]
+       (doall
+        (->> (rest secs)
+             (map-indexed
+              (fn [idx [name text]]
+                ^{:key {:abstract-section {:name name :idx idx}}}
+                [:p
+                 [:strong (-> name str/trim str/capitalize)]
+                 ": "
+                 [:span text]]))))]
+      :else
+      ;; otherwise show the text using existing linebreaks for formatting
+      (let [secs (str/split text #"\n")]
+        [:div
+         (doall
+          (->> secs
+               (map-indexed
+                (fn [idx stext]
+                  ^{:key {:abstract-section idx}}
+                  [:p [:span stext]]))))]))))
 
 (defn article-docs-component [article-id]
   (let [docs (d/article-documents article-id)]

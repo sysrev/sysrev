@@ -18,7 +18,8 @@
             sysrev-web.ui.user-profile
             sysrev-web.ui.users
             sysrev-web.ui.select-project
-            sysrev-web.ui.classify)
+            sysrev-web.ui.classify
+            [clojure.string :as str])
   (:require-macros [sysrev-web.macros :refer [import-vars]]))
 
 (defn populate-user-ns []
