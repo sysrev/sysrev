@@ -14,9 +14,9 @@
             [clojure.math.numeric-tower :as math]))
 
 (def valid-label-categories
-  ["inclusion criteria" "extra"])
+  ["inclusion criteria" "extra" "note"])
 (def valid-label-value-types
-  ["boolean" "categorical"])
+  ["boolean" "categorical" "text-box"])
 
 (defn all-labels-cached []
   (with-query-cache [:all-labels]
@@ -35,23 +35,37 @@
                       category required value-type definition]}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
-  (do-transaction
-   nil
-   (-> (insert-into :label)
-       (values [{:project-id project-id
-                 :project-ordering (q/next-label-project-ordering project-id)
-                 :value-type value-type
-                 :name name
-                 :question question
-                 :short-label short-label
-                 :required required
-                 :category category
-                 :definition (to-jsonb definition)
-                 :enabled true}])
-       do-execute))
-  (db/clear-labels-cache project-id)
-  (db/clear-project-cache project-id)
+  (let [query
+        (-> (insert-into :label)
+            (values [{:project-id project-id
+                      :project-ordering (q/next-label-project-ordering project-id)
+                      :value-type value-type
+                      :name name
+                      :question question
+                      :short-label short-label
+                      :required required
+                      :category category
+                      :definition (to-jsonb definition)
+                      :enabled true}]))]
+    (do-transaction nil (do-execute query))
+    (db/clear-labels-cache project-id)
+    (db/clear-project-cache project-id))
   true)
+
+(defn add-label-entry-text-box
+  "Creates an entry for a label taking input from a multiline text input form."
+  [project-id
+   {:keys [name question short-label custom-category form-size]
+    :as entry-values}]
+  (add-label-entry
+   project-id
+   (merge
+    (->> [:name :question :short-label]
+         (select-keys entry-values))
+    {:value-type "text-box"
+     :category (or custom-category "extra")
+     :required false
+     :definition {:form-size form-size}})))
 
 (defn add-label-entry-boolean
   "Creates an entry for a boolean label definition.
@@ -382,6 +396,7 @@
              (let [allowed (-> label :definition :all-values)]
                (every? (in? allowed) answer))
              :else false)
+       "text-box" (or (string? answer) (nil? answer))
        false))))
 
 (defn label-answer-inclusion [label-id answer]
@@ -407,7 +422,9 @@
       "boolean"
       [true false]
       "categorical"
-      (-> label :definition :all-values))))
+      (-> label :definition :all-values)
+      "text-box" nil
+      nil)))
 
 (defn set-user-article-labels [user-id article-id label-values imported?]
   (assert (integer? user-id))

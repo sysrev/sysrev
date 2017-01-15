@@ -81,17 +81,20 @@
   (ex-info "this should never happen" {:type :should-never-happen}))
 
 (defn xml-find [roots path]
-  (let [roots (if (map? roots) [roots] roots)]
-    (if (empty? path)
-      roots
-      (xml-find
-       (flatten
-        (mapv (fn [root]
-                (filterv (fn [child]
-                           (= (:tag child) (first path)))
-                         (:content root)))
-              roots))
-       (rest path)))))
+  (try
+    (let [roots (if (map? roots) [roots] roots)]
+      (if (empty? path)
+        roots
+        (xml-find
+         (flatten
+          (mapv (fn [root]
+                  (filterv (fn [child]
+                             (= (:tag child) (first path)))
+                           (:content root)))
+                roots))
+         (rest path))))
+    (catch Throwable e
+      nil)))
 
 (defn xml-find-value [roots path]
   (-> (xml-find roots path) first :content first))

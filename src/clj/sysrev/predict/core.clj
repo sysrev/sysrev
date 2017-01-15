@@ -5,6 +5,7 @@
     [do-query do-query-map do-execute sql-now
      with-query-cache clear-query-cache
      with-project-cache clear-project-cache cached-project-ids]]
+   [sysrev.db.project :refer [project-overall-label-id]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -319,3 +320,29 @@
     (cache-label-similarities predict-run-id label-id)
     (cache-relative-similarities predict-run-id label-id)
     (cache-predict-probs predict-run-id label-id k-nearest)))
+
+(defn create-placeholder-predict-values [project-id & [label-id]]
+  (let [label-id (or label-id (project-overall-label-id project-id))
+        predict-run-id (q/project-latest-predict-run-id project-id)
+        article-ids (-> (q/select-project-articles project-id [:a.article-id])
+                        (do-query-map :article-id))
+        sql-entries (->> article-ids
+                         (mapv
+                          (fn [article-id]
+                            {:predict-run-id predict-run-id
+                             :article-id article-id
+                             :label-id label-id
+                             :stage 1
+                             :val 0.0})))]
+    (println (format "storing %d placeholder probabilities... "
+                     (count sql-entries)))
+    (->> sql-entries
+         (partition-all 100)
+         (pmap
+          (fn [sql-group]
+            (-> (insert-into :label-predicts)
+                (values (vec sql-group))
+                do-execute)))
+         doall)
+    (println "done")
+    true))

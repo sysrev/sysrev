@@ -125,7 +125,10 @@
       (js/$ (r/dom-node %))
       (clj->js
        {:onAdd on-add
-        :onRemove on-remove}))
+        :onRemove on-remove
+        :onChange (fn [_] (.dropdown
+                           (js/$ (r/dom-node %))
+                           "hide"))}))
     :reagent-render
     (fn [label-id all-values current-values]
       (let [dom-id (str "label-edit-" label-id)]
@@ -198,7 +201,8 @@
         values (case value-type
                  "boolean" (if (boolean? answer)
                              [answer] [])
-                 "categorical" answer)
+                 "categorical" answer
+                 "text-box" (if (empty? answer) [] ["..."]))
         display-label (case value-type
                         "boolean" (str short-label "?")
                         short-label)
@@ -274,13 +278,11 @@
                         count)]
          [:div.content.confirm-modal
           [:h3.ui.header.centered
-           (str "You have set "
-                n-set " of " n-total
-                " possible labels for this article.")]
+           (str
+            n-set " of " n-total
+            " possible labels saved for this article.")]
           [:h3.ui.header.centered
-           "Click 'Confirm' to finalize and submit these labels."]
-          [:h3.ui.header.centered
-           "You will not be able to edit them later."]])
+           "Click 'Confirm' to finalize and submit these labels."]])
        [:div.ui.actions
         [:div.ui.button.cancel "Cancel"]
         [:div.ui.button.ok "Confirm"]]])}))

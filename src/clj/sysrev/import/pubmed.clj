@@ -22,15 +22,18 @@
       :body))
 
 (defn parse-pubmed-author-names [authors]
-  (->> authors
-       (mapv
-        (fn [entry]
-          (let [last-name (xml-find-value entry [:LastName])
-                initials (xml-find-value entry [:Initials])]
-            (str last-name ", " (->> initials
-                                     (#(str/split % #" "))
-                                     (map #(str % "."))
-                                     (str/join " "))))))))
+  (when-not (empty? authors)
+    (->> authors
+         (mapv
+          (fn [entry]
+            (let [last-name (xml-find-value entry [:LastName])
+                  initials (xml-find-value entry [:Initials])]
+              (if (string? initials)
+                (str last-name ", " (->> initials
+                                         (#(str/split % #" "))
+                                         (map #(str % "."))
+                                         (str/join " ")))
+                last-name)))))))
 
 (defn extract-article-location-entries
   "Extracts entries for article_location from parsed PubMed API XML article."
@@ -55,19 +58,19 @@
          (apply concat)))))
 
 (defn parse-abstract [abstract-texts]
-  (let [sections (map (fn [sec]
-                        {:header  (-> sec :attrs :Label)
-                         :content (:content sec)})
-                      abstract-texts)
-        parse-section (fn [section]
-                        (let [header (:header section)
-                              content (-> section :content first)]
-                          (if-not (empty? header)
-                            (str header ": " content)
-                            content)))
-        paragraphs (map parse-section sections)]
-    (str/join "\n\n" paragraphs)))
-
+  (when-not (empty? abstract-texts)
+    (let [sections (map (fn [sec]
+                          {:header  (-> sec :attrs :Label)
+                           :content (:content sec)})
+                        abstract-texts)
+          parse-section (fn [section]
+                          (let [header (:header section)
+                                content (-> section :content first)]
+                            (if-not (empty? header)
+                              (str header ": " content)
+                              content)))
+          paragraphs (map parse-section sections)]
+      (str/join "\n\n" paragraphs))))
 
 (defn parse-pmid-xml [xml-str]
   (let [pxml (-> xml-str parse-xml-str :content first)
@@ -92,7 +95,6 @@
      :public-id (str pmid)
      :locations locations}))
 
-
 (defn fetch-pmid-entry [pmid]
   (try
     (-> pmid fetch-pmid-xml parse-pmid-xml)
@@ -113,7 +115,8 @@
           (when (or (nil? v)
                     (and (coll? v) (empty? v)))
             (println (format "* field `%s` is empty" (pr-str k)))))
-        (articles/add-article article project-id)))))
+        (articles/add-article (dissoc article :locations)
+                              project-id)))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

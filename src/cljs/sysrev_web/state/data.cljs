@@ -26,25 +26,37 @@
     category (filter #(= (:category %) category))
     value-type (filter #(= (:value-type %) value-type))))
 
+(defn project-label [label-id]
+  (get (project [:labels]) label-id))
+
+(defn project-keywords []
+  (project [:keywords]))
+
 (defn project-labels-ordered
   "Return label definition entries ordered first by category/type and then
   by project-ordering value."
   []
   (let [group-idx
         (fn [{:keys [required category value-type]}]
-          (let [spec [required category value-type]]
+          (let [inclusion? (= category "inclusion criteria")
+                extra? (= category "extra")
+                note? (= category "note")
+                boolean? (= value-type "boolean")
+                categorical? (= value-type "categorical")
+                text-box? (= value-type "text-box")]
             (cond
-              (= spec [true "inclusion criteria" "boolean"]) -10
-              (and required (= category "inclusion criteria")) -9
-              (and required (= value-type "boolean")) -8
+              (and required inclusion? boolean?) -10
+              (and required inclusion?) -9
+              (and required boolean?) -8
               required -7
-              (= spec ["inclusion criteria" "boolean"]) 0
-              (= spec ["inclusion criteria" "categorical"]) 1
-              (= category "inclusion criteria") 2
-              (= spec ["extra" "boolean"]) 3
-              (= spec ["extra" "categorical"]) 4
-              (= category "extra") 5
-              :else 6)))]
+              (and inclusion? boolean?) 0
+              (and inclusion? categorical?) 1
+              inclusion? 2
+              (and extra? boolean?) 3
+              (and extra? categorical?) 4
+              extra? 5
+              (not note?) 6
+              :else 7)))]
     (->> (project [:labels])
          vals
          (sort-by #(vector

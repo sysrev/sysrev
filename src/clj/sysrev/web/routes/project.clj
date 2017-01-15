@@ -6,7 +6,7 @@
    [sysrev.db.queries :as q]
    [sysrev.db.users :as users]
    [sysrev.db.project :refer
-    [project-labels project-member project-article-count]]
+    [project-labels project-member project-article-count project-keywords]]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
@@ -319,7 +319,7 @@
 
 (defn project-info [project-id]
   (let [[predict articles labels inclusion-values label-values
-         conflicts members users]
+         conflicts members users keywords]
         (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
@@ -327,7 +327,8 @@
                  (project-label-value-counts project-id)
                  (project-conflict-counts project-id)
                  (project-members-info project-id)
-                 (project-users-info project-id))]
+                 (project-users-info project-id)
+                 (project-keywords project-id))]
     {:project {:project-id project-id
                :members members
                :stats {:articles articles
@@ -336,5 +337,6 @@
                        :label-values label-values
                        :conflicts conflicts
                        :predict predict}
-               :labels (project-labels project-id)}
+               :labels (project-labels project-id)
+               :keywords keywords}
      :users users}))

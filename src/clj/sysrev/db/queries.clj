@@ -176,6 +176,14 @@
       (do-query conn)))
 
 ;;;
+;;; keywords
+;;;
+(defn select-project-keywords [project-id fields]
+  (-> (apply select fields)
+      (from [:project-keyword :pkw])
+      (where [:= :pkw.project-id project-id])))
+
+;;;
 ;;; users
 ;;;
 

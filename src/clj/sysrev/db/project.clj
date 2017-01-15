@@ -6,7 +6,7 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache
-     clear-project-cache clear-query-cache cached-project-ids]]
+     clear-project-cache clear-query-cache cached-project-ids to-jsonb]]
    [sysrev.db.queries :as q]
    [sysrev.util :refer [map-values in?]])
   (:import java.util.UUID))
@@ -19,7 +19,7 @@
               :p.project-uuid
               [:%count.article-id :n-articles])
       (from [:project :p])
-      (join [:article :a] [:= :a.project-id :p.project-id])
+      (left-join [:article :a] [:= :a.project-id :p.project-id])
       (group :p.project-id)
       (order-by :p.date-created)
       do-query))
@@ -207,3 +207,27 @@
         (q/select-article-where
          project-id [:= :a.article-id :al.article-id] [:*])])
       do-execute))
+
+(defn add-project-keyword
+  "Creates an entry in `project-keyword` table, to be used by web client
+  to highlight important words and link them to labels."
+  [project-id text category
+   & [{:keys [user-id label-id label-value color]}
+      :as optionals]]
+  (-> (insert-into :project-keyword)
+      (values [(cond->
+                   {:project-id project-id
+                    :value text
+                    :category category}
+                 user-id (assoc :user-id user-id)
+                 label-id (assoc :label-id label-id)
+                 label-value (assoc :label-value (to-jsonb label-value))
+                 color (assoc :color color))])
+      (returning :*)
+      do-query))
+
+(defn project-keywords
+  "Returns a vector with all `project-keyword` entries for the project."
+  [project-id]
+  (-> (q/select-project-keywords project-id [:*])
+      do-query))

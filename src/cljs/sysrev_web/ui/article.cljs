@@ -13,7 +13,8 @@
 
 (defn label-values-component [article-id user-id]
   (fn [article-id & [user-id]]
-    (let [labels (d/project-labels-ordered)
+    (let [labels (->> (d/project-labels-ordered)
+                      (remove #(= (:category %) "note")))
           values (d/user-label-values article-id user-id)
           values (if-not (empty? values)
                    values
@@ -326,7 +327,14 @@
                                   (-> (get labels %) :category))))
         extra-ids (->> ordered-label-ids
                        (remove #(= "inclusion criteria"
-                                   (-> (get labels %) :category))))
+                                   (-> (get labels %) :category)))
+                       (remove #(= "text-box"
+                                   (-> (get labels %) :value-type))))
+        text-box-ids (->> ordered-label-ids
+                          (remove #(= "inclusion criteria"
+                                      (-> (get labels %) :category)))
+                          (filter #(= "text-box"
+                                      (-> (get labels %) :value-type))))
         make-inclusion-tag
         (fn [label-id]
           (when (= "inclusion criteria"
@@ -467,9 +475,43 @@
       (make-label-columns core-ids)]
      [:div.ui.attached.segment.label-section-header
       [:h4 "Extra labels"]]
-     [:div.ui.bottom.attached.grid.segment
-      {:class (if (full-size?)
-                "four column"
-                "three column")
+     [:div.ui.grid.segment
+      {:class (str (if (full-size?)
+                     "four column"
+                     "three column")
+                   " "
+                   (if (empty? text-box-ids)
+                     "bottom attached"
+                     "attached"))
        :style {:padding "0px"}}
-      (make-label-columns extra-ids)]]))
+      (make-label-columns extra-ids)]
+     #_
+     (doall
+      (->>
+       text-box-ids
+       (map-indexed
+        (fn [i label-id]
+          (let [label (get labels label-id)
+                current-answer (get label-values label-id)
+                last? (= (+ i 1) (count text-box-ids))]
+            [
+             ^{:key {:text-box-header i}}
+             [:div.ui.attached.segment.label-section-header
+              [:h4 (:short-label label)]]
+             ^{:key {:text-box-div i}}
+             [:div.ui.segment
+              {:class (if last? "bottom attached" "attached")}
+              [:div.ui.fluid.input
+               [:input
+                {:type "text"
+                 :name (:name label)
+                 :value current-answer
+                 :on-change
+                 #(do (swap! state assoc-in
+                             (concat labels-path [label-id])
+                             (-> % .-target .-value))
+                      (ajax/send-labels
+                       article-id
+                       (d/active-label-values article-id labels-path))
+                      true)}]]]])))
+       (apply concat)))]))
