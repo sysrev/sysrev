@@ -14,9 +14,9 @@
             [clojure.math.numeric-tower :as math]))
 
 (def valid-label-categories
-  ["inclusion criteria" "extra" "note"])
+  ["inclusion criteria" "extra"])
 (def valid-label-value-types
-  ["boolean" "categorical" "text-box"])
+  ["boolean" "categorical"])
 
 (defn all-labels-cached []
   (with-query-cache [:all-labels]
@@ -51,21 +51,6 @@
     (db/clear-labels-cache project-id)
     (db/clear-project-cache project-id))
   true)
-
-(defn add-label-entry-text-box
-  "Creates an entry for a label taking input from a multiline text input form."
-  [project-id
-   {:keys [name question short-label custom-category form-size]
-    :as entry-values}]
-  (add-label-entry
-   project-id
-   (merge
-    (->> [:name :question :short-label]
-         (select-keys entry-values))
-    {:value-type "text-box"
-     :category (or custom-category "extra")
-     :required false
-     :definition {:form-size form-size}})))
 
 (defn add-label-entry-boolean
   "Creates an entry for a boolean label definition.
@@ -396,7 +381,6 @@
              (let [allowed (-> label :definition :all-values)]
                (every? (in? allowed) answer))
              :else false)
-       "text-box" (or (string? answer) (nil? answer))
        false))))
 
 (defn label-answer-inclusion [label-id answer]
@@ -423,7 +407,6 @@
       [true false]
       "categorical"
       (-> label :definition :all-values)
-      "text-box" nil
       nil)))
 
 (defn set-user-article-labels [user-id article-id label-values imported?]

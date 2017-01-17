@@ -40,10 +40,8 @@
         (fn [{:keys [required category value-type]}]
           (let [inclusion? (= category "inclusion criteria")
                 extra? (= category "extra")
-                note? (= category "note")
                 boolean? (= value-type "boolean")
-                categorical? (= value-type "categorical")
-                text-box? (= value-type "text-box")]
+                categorical? (= value-type "categorical")]
             (cond
               (and required inclusion? boolean?) -10
               (and required inclusion?) -9
@@ -55,8 +53,7 @@
               (and extra? boolean?) 3
               (and extra? categorical?) 4
               extra? 5
-              (not note?) 6
-              :else 7)))]
+              :else 6)))]
     (->> (project [:labels])
          vals
          (sort-by #(vector

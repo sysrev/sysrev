@@ -201,8 +201,7 @@
         values (case value-type
                  "boolean" (if (boolean? answer)
                              [answer] [])
-                 "categorical" answer
-                 "text-box" (if (empty? answer) [] ["..."]))
+                 "categorical" answer)
         display-label (case value-type
                         "boolean" (str short-label "?")
                         short-label)
