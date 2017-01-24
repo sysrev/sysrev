@@ -241,7 +241,7 @@
                      (if (and kw show-tooltip (d/editing-article-labels?))
                        [[with-tooltip content
                          {:delay {:show 50
-                                  :hide 150}
+                                  :hide 0}
                           :hoverable false
                           :transition "fade up"
                           :distanceAway 8
