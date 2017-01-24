@@ -18,16 +18,7 @@
          label-values (d/active-label-values article-id labels-path)
          overall-label-id (d/project :overall-label-id)
          user-id (current-user-id)
-         confirmed
-         (and user-id (get-in (d/member-labels user-id)
-                              [:confirmed article-id]))
-         unconfirmed
-         (and user-id (get-in (d/member-labels user-id)
-                              [:unconfirmed article-id]))
-         status (cond (nil? user-id) :logged-out
-                      confirmed :confirmed
-                      unconfirmed :unconfirmed
-                      :else :none)]
+         status (d/user-article-status article-id)]
      (case status
        :logged-out
        [:div

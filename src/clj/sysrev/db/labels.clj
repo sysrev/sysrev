@@ -188,7 +188,7 @@
 
   Randomly picks from the top 5% of article entries sorted by `sort-keyfn`."
   [articles sort-keyfn & [predict-run-id]]
-  (let [n-closest (max 50 (quot (count articles) 20))]
+  (let [n-closest (max 200 (quot (count articles) 20))]
     (when-let [article-id
                (->> articles
                     (sort-by sort-keyfn <)

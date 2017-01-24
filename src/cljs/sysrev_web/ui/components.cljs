@@ -130,7 +130,7 @@
                            (js/$ (r/dom-node %))
                            "hide"))}))
     :reagent-render
-    (fn [label-id all-values current-values]
+    (fn [label-id all-values current-values on-add on-remove]
       (let [dom-id (str "label-edit-" label-id)]
         [:div.ui.large.fluid.multiple.selection.dropdown
          {:id dom-id
@@ -221,16 +221,19 @@
           :aria-hidden true}]
         (str/join ", " values))]]))
 
-(defn with-tooltip [content]
+(defn with-tooltip [content & [popup-options]]
   (r/create-class
    {:component-did-mount
     #(.popup (js/$ (r/dom-node %))
              (clj->js
-              {:inline true
-               :hoverable true
-               :position "top center"
-               :delay {:show 500
-                       :hide 100}}))
+              (merge
+               {:inline true
+                :hoverable true
+                :position "top center"
+                :delay {:show 400
+                        :hide 100}
+                :transition "fade up"}
+               (or popup-options {}))))
     :reagent-render
     (fn [content] content)}))
 

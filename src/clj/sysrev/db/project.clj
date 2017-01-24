@@ -231,3 +231,13 @@
   [project-id]
   (-> (q/select-project-keywords project-id [:*])
       do-query))
+
+(defn disable-missing-abstracts [project-id min-length]
+  (-> (sqlh/update [:article :a])
+      (sset {:enabled false})
+      (where [:and
+              [:= :a.project-id project-id]
+              [:or
+               [:= :a.abstract nil]
+               [:< (sql/call :char_length :a.abstract) min-length]]])
+      do-execute))

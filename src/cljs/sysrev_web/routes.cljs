@@ -103,7 +103,8 @@
       (with-state s
         [[:documents]
          [:article-labels (-> s :page :article :id)]
-         (user-labels-path (current-user-id))]))
+         (user-labels-path (current-user-id))
+         [:project (active-project-id) :keywords]]))
     :reload
     (fn [old new]
       (with-state new

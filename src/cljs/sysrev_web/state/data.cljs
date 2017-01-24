@@ -1,7 +1,9 @@
 (ns sysrev-web.state.data
   (:require [sysrev-web.base :refer [state]]
             [sysrev-web.util :refer [map-values in?]]
-            [sysrev-web.state.core :refer [current-user-id active-project-id]]))
+            [sysrev-web.state.core :refer
+             [current-user-id active-project-id current-page]]
+            [clojure.string :as str]))
 
 (defn data
   ([ks]
@@ -30,7 +32,13 @@
   (get (project [:labels]) label-id))
 
 (defn project-keywords []
-  (project [:keywords]))
+  (->> (project [:keywords])
+       (map
+        (fn [kw]
+          (assoc kw :toks
+                 (str/split (:value kw) #" "))))
+       (group-by :keyword-id)
+       (map-values first)))
 
 (defn project-labels-ordered
   "Return label definition entries ordered first by category/type and then
@@ -254,3 +262,25 @@
                      (let [answer (get label-values label-id)
                            inclusion (label-answer-inclusion label-id answer)]
                        (false? inclusion))))))))
+
+(defn user-article-status [article-id]
+  (let [user-id (current-user-id)
+        confirmed
+        (and user-id (get-in (member-labels user-id)
+                             [:confirmed article-id]))
+        unconfirmed
+        (and user-id (get-in (member-labels user-id)
+                             [:unconfirmed article-id]))]
+    (cond (nil? user-id) :logged-out
+          confirmed :confirmed
+          unconfirmed :unconfirmed
+          :else :none)))
+
+(defn editing-article-labels? []
+  (boolean
+   (and (current-user-id)
+        (or (and (= (current-page) :classify)
+                 (data :classify-article-id))
+            (and (= (current-page) :article)
+                 (= (user-article-status (-> @state :page :article :id))
+                    :unconfirmed))))))

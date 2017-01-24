@@ -8,8 +8,37 @@
    [sysrev-web.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
      with-tooltip three-state-selection multi-choice-selection dangerous]]
-   [sysrev-web.util :refer [re-pos map-values full-size?]]
-   [sysrev-web.ajax :as ajax]))
+   [sysrev-web.util :refer [re-pos map-values full-size? in?]]
+   [sysrev-web.ajax :as ajax]
+   [reagent.core :as r]))
+
+(defn active-labels-path []
+  (case (s/current-page)
+    :classify [:page :classify :label-values]
+    :article [:page :article :label-values]
+    nil))
+
+(defn enable-label-value [article-id label-id label-value]
+  (let [labels-path (active-labels-path)
+        {:keys [value-type]} (d/project-label label-id)
+        active-values (d/active-label-values article-id labels-path)]
+    (cond (= value-type "boolean")
+          (swap! state assoc-in
+                 (concat labels-path [label-id])
+                 label-value)
+          (= value-type "categorical")
+          (do
+            (.dropdown
+             (js/$ (str "#label-edit-" label-id))
+             "set selected"
+             label-value)
+            (swap! state assoc-in
+                   (concat labels-path [label-id])
+                   (-> (conj (get
+                              (d/active-label-values article-id labels-path)
+                              label-id)
+                             label-value)
+                       distinct vec))))))
 
 (defn label-values-component [article-id user-id]
   (fn [article-id & [user-id]]
@@ -99,36 +128,180 @@
                 (str/join ": " s))))
        (str/join " ")))
 
-(defn abstract [text]
-  (let [unformatted? (nil? (str/index-of text "\n"))
-        secs (and unformatted? (sections text))
-        secs-text (and secs (sections-to-text secs))]
-    (cond
-      ;; use section splitting code if existing text has no linebreaks,
-      ;; and the result isn't losing content
-      (and unformatted?
-           (>= (count secs-text) (* (count text) 0.9)))
-      [:div
-       [:p (dangerous :span (first secs))]
-       (doall
-        (->> (rest secs)
+(defn strip-symbols [s]
+  (reduce (fn [result sym]
+            (str/replace result sym ""))
+          s
+          ["(" ")" "[" "]" "." "," "!"]))
+
+(defn canonical-keyword [s]
+  (-> s strip-symbols str/lower-case))
+
+(defn toks-match-count [keyword-toks next-toks]
+  (let [match-toks
+        (->> next-toks
              (map-indexed
-              (fn [idx [name text]]
-                ^{:key {:abstract-section {:name name :idx idx}}}
-                [:p
-                 [:strong (-> name str/trim str/capitalize)]
-                 ": "
-                 (dangerous :span text)]))))]
-      :else
-      ;; otherwise show the text using existing linebreaks for formatting
-      (let [secs (str/split text #"\n")]
-        [:div
-         (doall
-          (->> secs
-               (map-indexed
-                (fn [idx stext]
-                  ^{:key {:abstract-section idx}}
-                  [:p (dangerous :span stext)]))))]))))
+              (fn [i tok]
+                (->> (str/split (:canon tok) #"\-")
+                     (map (fn [subtok]
+                            {:idx i :str subtok})))))
+             (apply concat)
+             (take (count keyword-toks)))]
+    (when (= keyword-toks
+             (map :str match-toks))
+      (->> match-toks last :idx (+ 1)))))
+
+(defn match-toks-keyword [kmatch-vals next-toks]
+  (let [kw
+        (->> kmatch-vals
+             (map
+              (fn [{kw-toks :toks :as kw}]
+                (assoc kw :match-count
+                       (toks-match-count kw-toks next-toks))))
+             (filter (comp not nil? :match-count))
+             (map #(select-keys % [:keyword-id :toks :match-count]))
+             first)]
+    (if (nil? kw)
+      nil
+      {:keyword-id (:keyword-id kw)
+       :keyword-toks (take (:match-count kw) next-toks)
+       :rest-toks (drop (:match-count kw) next-toks)})))
+
+(defn split-abstract-elts [kmatch-vals result pending rest-toks]
+  (if (empty? rest-toks)
+    (if (empty? pending)
+      result
+      (concat result [{:keyword-id nil :toks pending}]))
+    (let [kw-match (match-toks-keyword kmatch-vals rest-toks)]
+      (if (nil? kw-match)
+        (split-abstract-elts kmatch-vals
+                             result
+                             (conj pending (first rest-toks))
+                             (rest rest-toks))
+        (split-abstract-elts kmatch-vals
+                             (concat result
+                                     [{:keyword-id nil
+                                       :toks pending}]
+                                     [{:keyword-id (:keyword-id kw-match)
+                                       :toks (:keyword-toks kw-match)}])
+                             []
+                             (:rest-toks kw-match))))))
+
+(defn tokenize-article-text [text]
+  (->> (str/split text #" ")
+       (mapv (fn [s]
+               {:raw s
+                :canon (canonical-keyword s)}))))
+
+(defn render-abstract-keywords
+  "Takes as input a string of content from an abstract (possibly contains
+   HTML from the original abstract text), and returns a [:span] element containing
+   the text content with any keyword terms wrapped in elements to provide
+   highlighting."
+  [article-id text & [{:keys [label-class show-tooltip]
+                       :or {label-class "small button"
+                            show-tooltip true}}]]
+  (let [keywords (d/project-keywords)
+        kmatch-vals (->> (vals (d/project-keywords))
+                         (map #(select-keys % [:keyword-id :toks]))
+                         (map #(assoc % :n-toks (count (:toks %))))
+                         (sort-by :n-toks >))
+        toks (tokenize-article-text text)]
+    (vec
+     (concat
+      [:span]
+      (->> (split-abstract-elts kmatch-vals [] [] toks)
+           (mapv (fn [tgroup]
+                   (let [kw (and (:keyword-id tgroup)
+                                 (get keywords (:keyword-id tgroup)))
+                         label (and kw (d/project-label (:label-id kw)))
+                         label-value (and kw (:label-value kw))
+                         class (cond
+                                 (nil? kw)
+                                 ""
+                                 (= (:category kw) "include")
+                                 (str "ui keyword include-label green basic " label-class) 
+                                 (= (:category kw) "exclude")
+                                 (str "ui keyword exclude-label orange basic " label-class)
+                                 :else
+                                 "")
+                         content
+                         (->> (:toks tgroup)
+                              (map :raw)
+                              (str/join " ")
+                              (dangerous
+                               :span
+                               {:class class
+                                :on-click
+                                (when (and (d/editing-article-labels?)
+                                           kw label label-value)
+                                  (fn []
+                                    (enable-label-value
+                                     article-id (:label-id label) label-value)))}))]
+                     (if (and kw show-tooltip (d/editing-article-labels?))
+                       [[with-tooltip content
+                         {:delay {:show 50
+                                  :hide 150}
+                          :hoverable false
+                          :transition "fade up"
+                          :distanceAway 8
+                          :variation "basic"}]
+                        [:div.ui.inverted.grid.popup.transition.hidden.keyword-popup
+                         [:div.middle.aligned.center.aligned.row.keyword-popup-header
+                          [:div.ui.sixteen.wide.column
+                           [:span "Set label"]]]
+                         [:div.middle.aligned.center.aligned.row
+                          [:div.middle.aligned.center.aligned.three.wide.column.keyword-side
+                           [:i.fitted.large.grey.exchange.icon]]
+                          [:div.thirteen.wide.column.keyword-popup
+                           [:div.ui.center.aligned.grid.keyword-popup
+                            [:div.ui.row.label-name
+                             (str (:name label))]
+                            [:div.ui.row.label-separator]
+                            [:div.ui.row.label-value
+                             (str label-value)]]]]]]
+                       [content]))))
+           (apply concat)
+           vec)))))
+
+(defn render-abstract [article-id]
+  (let [cached (d/data [:abstract-renders article-id])]
+    (if cached
+      cached
+      (let [text (d/data [:articles article-id :abstract])
+            unformatted? (nil? (str/index-of text "\n"))
+            secs (and unformatted? (sections text))
+            secs-text (and secs (sections-to-text secs))
+            result
+            (cond
+              ;; use section splitting code if existing text has no linebreaks,
+              ;; and the result isn't losing content
+              (and unformatted?
+                   (>= (count secs-text) (* (count text) 0.9)))
+              [:div
+               [:div (render-abstract-keywords article-id (first secs))]
+               (doall
+                (->> (rest secs)
+                     (map-indexed
+                      (fn [idx [name text]]
+                        ^{:key {:abstract-section {:name name :idx idx}}}
+                        [:div
+                         [:strong (-> name str/trim str/capitalize)]
+                         ": "
+                         (render-abstract-keywords article-id text)]))))]
+              :else
+              ;; otherwise show the text using existing linebreaks for formatting
+              (let [secs (str/split text #"\n")]
+                [:div
+                 (doall
+                  (->> secs
+                       (map-indexed
+                        (fn [idx stext]
+                          ^{:key {:abstract-section idx}}
+                          [:div (render-abstract-keywords article-id stext)]))))]))]
+        (swap! state assoc-in
+               [:data :abstract-renders article-id] result)
+        result))))
 
 (defn article-docs-component [article-id]
   (let [docs (d/article-documents article-id)]
@@ -188,7 +361,8 @@
            (when-let [journal-name (:secondary-title article)]
              (str  " - " journal-name))]
           (when-not (empty? (:authors article))
-            [:p (truncated-horizontal-list 5 (:authors article))])]
+            [:h5.header {:style {:margin-top "0px"}}
+             (truncated-horizontal-list 5 (:authors article))])]
          (when (not (empty? docs))
            [:div.ui.attached.segment
             [:div {:style {:padding-top "1rem"}}
@@ -283,14 +457,20 @@
                     "attached segment"
                     "bottom attached segment")}
           [:div.content
-           [:h3.header (:primary-title article)]
+           [:h3.header
+            (render-abstract-keywords
+             article-id (:primary-title article)
+             {:label-class "large button"})]
            (when-not (empty? (:secondary-title article))
              [:h3.header {:style {:margin-top "0px"}}
-              (:secondary-title article)])
+              (render-abstract-keywords
+               article-id (:secondary-title article)
+               {:label-class "large button"})])
            (when-not (empty? (:authors article))
-             [:p (truncated-horizontal-list 5 (:authors article))])
+             [:h5.header {:style {:margin-top "0px"}}
+              (truncated-horizontal-list 5 (:authors article))])
            (when (not (empty? (:abstract article)))
-             [abstract (:abstract article)])
+             [render-abstract article-id])
            (when (not (empty? docs))
              [:div {:style {:padding-top "1rem"}}
               [article-docs-component article-id]])
@@ -418,11 +598,11 @@
                   (fn [v t]
                     (swap! state assoc-in
                            (concat labels-path [label-id])
-                           (conj
-                            (get
-                             (d/active-label-values article-id labels-path)
-                             label-id)
-                            v))
+                           (-> (conj (get
+                                      (d/active-label-values article-id labels-path)
+                                      label-id)
+                                     v)
+                               distinct vec))
                     (ajax/send-labels
                      article-id
                      (d/active-label-values article-id labels-path)))
