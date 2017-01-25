@@ -1,6 +1,6 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
-             [do-query do-execute sql-now to-sql-array]]
+             [do-query do-execute sql-now to-sql-array do-transaction]]
             [sysrev.util :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -8,7 +8,9 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             buddy.hashers
             crypto.random
-            [sysrev.db.core :as db])
+            [sysrev.db.core :as db]
+            [sysrev.db.queries :as q]
+            [sysrev.db.project :refer [add-project-member]])
   (:import java.util.UUID))
 
 (defn all-users
@@ -74,10 +76,16 @@
              :date-created (sql-now)
              :user-uuid (UUID/randomUUID)}
           user-id (assoc :user-id user-id))]
-    (-> (insert-into :web-user)
-        (values [entry])
-        (returning :user-id)
-        do-query)
+    (when project-id
+      (assert (-> (q/query-project-by-id project-id [:project-id])
+                  :project-id)))
+    (let [user-id (-> (insert-into :web-user)
+                      (values [entry])
+                      (returning :user-id)
+                      do-query
+                      first :user-id)]
+      (when project-id
+        (add-project-member project-id user-id)))
     (db/clear-query-cache)
     true))
 

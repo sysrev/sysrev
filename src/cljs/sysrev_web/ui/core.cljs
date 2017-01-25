@@ -36,8 +36,8 @@
         (on-page? :project) [project-wrapper-div [project-page]]
         (on-page? :select-project) [select-project-page]
         (on-page? :labels) [project-wrapper-div [labels-page]]
-        (on-page? :login) [login-register-page false]
-        (on-page? :register) [login-register-page true]
+        (on-page? :login) [login-register-page {:register? false}]
+        (on-page? :register) [login-register-page {:register? true}]
         (on-page? :request-password-reset) [request-password-reset-page]
         (on-page? :reset-password) [password-reset-page]
         (on-page? :user-profile) [project-wrapper-div [user-profile-page]]
@@ -62,9 +62,10 @@
         [:a.item {:href "/project"} "Project"]
         [:a.item {:href "/labels"} "Labels"]
         [:a.item {:href "/classify"} "Classify"]
-        [:div.item
-         [:a.ui.button {:href "/select-project"}
-          "Change project"]]
+        (when (d/admin-user? user-id)
+          [:div.item
+           [:a.ui.button {:href "/select-project"}
+            "Change project"]])
         [:div.item
          [:a.ui.button {:on-click ajax/do-post-logout}
           "Log out"]]])
@@ -99,13 +100,12 @@
              {:style {:margin "0px"}}]
             [:div.menu
              [:a.item {:href "/project"} "Project"]
-             [:a.item {:href "/labels"} "Labels"]]]])]
+             [:a.item {:href "/labels"} "Labels"]
+             (when (d/admin-user? user-id)
+               [:a.item {:href "/select-project"} "Change project"])]]])]
        [:div.right.menu
         [:a.item.blue-text {:href (str "/user/" user-id)}
          [:i.large.blue.user.icon {:style {:margin "0px"}}]]
-        [:div.item
-         [:a.ui.button {:href "/select-project"}
-          "Change project"]]
         [:div.item
          [:a.ui.button {:on-click ajax/do-post-logout}
           "Log out"]]]])

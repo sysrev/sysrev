@@ -1,22 +1,27 @@
 (ns sysrev-web.ui.login
   (:require [sysrev-web.base :refer [state]]
             [sysrev-web.ajax :as ajax]
-            [sysrev-web.util :refer [validate]]))
+            [sysrev-web.util :refer [validate]]
+            [sysrev-web.state.data :as d]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
    :password [#(>= (count %) 6) (str "Password must be at least six characters")]})
 
-(defn login-register-page [is-register?]
-  (let [page (if is-register? :register :login)
+(defn login-register-page
+  [& [{:keys [register?]
+       :or {register? false}}]]
+  (let [page (if register? :register :login)
+        project-hash (-> @state :page page :project-hash)
+        project-id (and project-hash (d/project-id-from-hash project-hash))
         validator #(validate (-> @state :page page) login-validation)
         on-submit (fn [event]
                     (let [errors (validator)]
                       (swap! state assoc-in [:page page :submit] true)
                       (when (empty? errors)
                         (let [{:keys [email password]} (-> @state :page page)]
-                          (if is-register?
-                            (ajax/do-post-register email password)
+                          (if register?
+                            (ajax/do-post-register email password project-id)
                             (ajax/do-post-login email password)))))
                     (when (.-preventDefault event)
                       (.preventDefault event))
@@ -31,9 +36,15 @@
         error-msg (fn [k] (when (k validation) [:div.ui.warning.message (k validation)]))
         form-class (when-not (empty? validation) "warning")]
     [:div.ui.padded.segments.auto-margin
-     {:style {:max-width "450px" :margin-top "10px"}}
+     {:style {:max-width "550px" :margin-top "10px"}}
      [:h2.ui.top.attached.header
-      (if is-register? "Register" "Login")]
+      (cond
+        project-id "Register for project"
+        register? "Register"
+        :else "Login")]
+     (when project-id
+       [:div.ui.attached.segment
+        [:h4 (str (d/data [:all-projects project-id :name]))]])
      [:div.ui.bottom.attached.segment
       [:form.ui.form {:class form-class :on-submit on-submit}
        [:div.field {:class (error-class :email)}

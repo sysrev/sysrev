@@ -249,6 +249,11 @@
   (do-route-change :register
                    {:email "" :password "" :submit false}))
 
+(defroute register-project-route "/register/:project-hash" [project-hash]
+  (do-route-change :register
+                   {:email "" :password "" :submit false
+                    :project-hash project-hash}))
+
 (defroute request-password-reset-route "/request-password-reset" []
   (do-route-change :request-password-reset
                    {:email "" :submit false :sent nil}))

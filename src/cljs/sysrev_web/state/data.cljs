@@ -1,6 +1,6 @@
 (ns sysrev-web.state.data
   (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.util :refer [map-values in?]]
+            [sysrev-web.util :refer [map-values in? short-uuid]]
             [sysrev-web.state.core :refer
              [current-user-id active-project-id current-page]]
             [clojure.string :as str]))
@@ -284,3 +284,10 @@
             (and (= (current-page) :article)
                  (= (user-article-status (-> @state :page :article :id))
                     :unconfirmed))))))
+
+(defn project-id-from-hash [project-hash]
+  (->> (data [:all-projects])
+       vals
+       (filter #(= project-hash
+                   (-> % :project-uuid short-uuid)))
+       first :project-id))

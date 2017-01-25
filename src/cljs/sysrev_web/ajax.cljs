@@ -8,6 +8,8 @@
     [nav scroll-top nav-scroll-top map-values dissoc-in]]
    [sysrev-web.notify :refer [notify]]))
 
+(declare join-project)
+
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed 
   to keywords. This converts any integer keywords back to integers, operating
@@ -202,9 +204,9 @@
          (ga-event "auth" "login_failure")
          (swap! state assoc-in [:page :login :err] (:message response)))))))
 
-(defn do-post-register [email password]
+(defn do-post-register [email password & [join-project-id]]
   (post-register
-   {:email email :password password}
+   {:email email :password password :project-id join-project-id}
    ;; if register succeeds, send login request
    (fn [response]
      (if (:success response)

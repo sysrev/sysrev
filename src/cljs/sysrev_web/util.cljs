@@ -1,7 +1,7 @@
 (ns sysrev-web.util
   (:require [pushy.core :as pushy]
             [sysrev-web.base :refer [history]]
-            [clojure.string :refer [split join]]
+            [clojure.string :as str :refer [split join]]
             [goog.string :refer [unescapeEntities]]))
 
 (defn scroll-top []
@@ -86,3 +86,6 @@
   (if (= 1 (count ks))
     (dissoc m (last ks))
     (update-in m (butlast ks) #(dissoc % (last ks)))))
+
+(defn short-uuid [uuid-str]
+  (last (str/split uuid-str #"\-")))
