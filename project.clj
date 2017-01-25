@@ -70,7 +70,7 @@
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
-  :source-paths ["src/clj" "src/scripts"]
+  :source-paths ["src/clj" "src/cljc" "src/scripts"]
   :plugins [[lein-cljsbuild "1.1.4"]
             [lein-bower "0.5.2"]
             [lein-ring "0.9.7"]
@@ -81,7 +81,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs" "src/scripts"]
+     :source-paths ["src/cljs" "src/cljc" "src/scripts"]
      :figwheel true
      :compiler {:main "sysrev.user"
                 :output-to "resources/public/out-dev/sysrev.js"
