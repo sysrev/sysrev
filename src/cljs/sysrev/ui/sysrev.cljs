@@ -1,13 +1,13 @@
-(ns sysrev-web.ui.sysrev
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.state.core :as s]
-            [sysrev-web.state.data :as d]
-            [sysrev-web.util :refer
+(ns sysrev.ui.sysrev
+  (:require [sysrev.base :refer [state]]
+            [sysrev.state.core :as s]
+            [sysrev.state.data :as d]
+            [sysrev.util :refer
              [nav number-to-word full-size? in?]]
-            [sysrev-web.ui.users :as users]
-            [sysrev-web.ui.components :refer [true-false-nil-tag]]
+            [sysrev.ui.users :as users]
+            [sysrev.ui.components :refer [true-false-nil-tag]]
             [reagent.core :as r])
-  (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
+  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn selected-label-id []
   (or (-> @state :page :project :active-label-id)

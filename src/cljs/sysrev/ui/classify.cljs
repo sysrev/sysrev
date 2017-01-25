@@ -1,18 +1,18 @@
-(ns sysrev-web.ui.classify
+(ns sysrev.ui.classify
   (:require
-   [sysrev-web.base :refer [state ga-event]]
-   [sysrev-web.state.core :refer [current-user-id current-page]]
-   [sysrev-web.util :refer [scroll-top nav-scroll-top nbsp full-size?]]
-   [sysrev-web.routes :refer [data-initialized?]]
-   [sysrev-web.ui.components :refer
+   [sysrev.base :refer [state ga-event]]
+   [sysrev.state.core :refer [current-user-id current-page]]
+   [sysrev.util :refer [scroll-top nav-scroll-top nbsp full-size?]]
+   [sysrev.routes :refer [data-initialized?]]
+   [sysrev.ui.components :refer
     [three-state-selection with-tooltip confirm-modal-box
      inconsistent-answers-notice]]
-   [sysrev-web.ui.article :refer
+   [sysrev.ui.article :refer
     [article-info-component label-editor-component]]
-   [sysrev-web.ajax :as ajax]
-   [sysrev-web.state.data :as d :refer [data]]
+   [sysrev.ajax :as ajax]
+   [sysrev.state.data :as d :refer [data]]
    [reagent.core :as r])
-  (:require-macros [sysrev-web.macros :refer [with-state]]))
+  (:require-macros [sysrev.macros :refer [with-state]]))
 
 (defn classify-page []
   (when-let [article-id (data :classify-article-id)]

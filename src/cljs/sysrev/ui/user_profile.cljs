@@ -1,10 +1,10 @@
-(ns sysrev-web.ui.user-profile
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.state.core :as s]
-            [sysrev-web.state.data :as d]
-            [sysrev-web.ui.components :refer [debug-box]]
-            [sysrev-web.ui.article :refer [article-short-info-component]]
-            [sysrev-web.ajax :as ajax]))
+(ns sysrev.ui.user-profile
+  (:require [sysrev.base :refer [state]]
+            [sysrev.state.core :as s]
+            [sysrev.state.data :as d]
+            [sysrev.ui.components :refer [debug-box]]
+            [sysrev.ui.article :refer [article-short-info-component]]
+            [sysrev.ajax :as ajax]))
 
 (defn user-profile-page []
   (let [user-id (get-in @state [:page :user-profile :user-id])

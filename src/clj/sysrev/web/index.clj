@@ -17,7 +17,7 @@
       [:div.ui.stripe {:style "padding-top: 20px;"}
        [:h1.ui.header.huge.center.aligned
         "Loading app..."]]]]
-    (page/include-js "/out/sysrev_web.js")]))
+    (page/include-js "/out/sysrev.js")]))
 
 #_
 (defn not-found [& [request]]

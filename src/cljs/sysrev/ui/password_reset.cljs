@@ -1,8 +1,8 @@
-(ns sysrev-web.ui.password-reset
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.ajax :as ajax]
-            [sysrev-web.util :refer [validate]]
-            [sysrev-web.state.data :as d]))
+(ns sysrev.ui.password-reset
+  (:require [sysrev.base :refer [state]]
+            [sysrev.ajax :as ajax]
+            [sysrev.util :refer [validate]]
+            [sysrev.state.data :as d]))
 
 (def pass-reset-validation
   {:password [#(>= (count %) 6) (str "Password must be at least six characters")]})

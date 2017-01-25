@@ -1,8 +1,8 @@
-(ns sysrev-web.ui.login
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.ajax :as ajax]
-            [sysrev-web.util :refer [validate]]
-            [sysrev-web.state.data :as d]))
+(ns sysrev.ui.login
+  (:require [sysrev.base :refer [state]]
+            [sysrev.ajax :as ajax]
+            [sysrev.util :refer [validate]]
+            [sysrev.state.data :as d]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]

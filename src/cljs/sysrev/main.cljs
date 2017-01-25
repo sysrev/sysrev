@@ -1,8 +1,8 @@
-(ns sysrev-web.main
-  (:require [sysrev-web.base :refer [history-init]]
-            [sysrev-web.state.core :refer [init-state]]
-            [sysrev-web.routes :as routes]
-            [sysrev-web.ui.core :refer [main-content]]
+(ns sysrev.main
+  (:require [sysrev.base :refer [history-init]]
+            [sysrev.state.core :refer [init-state]]
+            [sysrev.routes :as routes]
+            [sysrev.ui.core :refer [main-content]]
             [reagent.core :as r]))
 
 (defn ^:export run []

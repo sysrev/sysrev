@@ -1,7 +1,7 @@
-(ns sysrev-web.state.data
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.util :refer [map-values in? short-uuid]]
-            [sysrev-web.state.core :refer
+(ns sysrev.state.data
+  (:require [sysrev.base :refer [state]]
+            [sysrev.util :refer [map-values in? short-uuid]]
+            [sysrev.state.core :refer
              [current-user-id active-project-id current-page]]
             [clojure.string :as str]))
 

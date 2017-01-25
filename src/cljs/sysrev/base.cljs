@@ -1,4 +1,4 @@
-(ns sysrev-web.base
+(ns sysrev.base
   (:require [reagent.core :as r]
             [secretary.core :as secretary :include-macros true]
             [pushy.core :as pushy]

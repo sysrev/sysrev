@@ -1,8 +1,8 @@
-(ns sysrev-web.macros
+(ns sysrev.macros
   (:require [cljs.analyzer.api :as ana-api]))
 
 (defmacro with-state [state-map & body]
-  `(binding [sysrev-web.base/state (reagent.core/atom ~state-map)]
+  `(binding [sysrev.base/state (reagent.core/atom ~state-map)]
      ~@body))
 
 (defmacro with-mount-hook [on-mount]

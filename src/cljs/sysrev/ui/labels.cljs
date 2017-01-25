@@ -1,7 +1,7 @@
-(ns sysrev-web.ui.labels
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.ui.components :refer [true-false-nil-tag]]
-            [sysrev-web.state.data :as d]))
+(ns sysrev.ui.labels
+  (:require [sysrev.base :refer [state]]
+            [sysrev.ui.components :refer [true-false-nil-tag]]
+            [sysrev.state.data :as d]))
 
 (defn labels-page []
   [:table.ui.celled.unstackable.table

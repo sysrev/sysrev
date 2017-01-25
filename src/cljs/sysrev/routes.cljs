@@ -1,14 +1,14 @@
-(ns sysrev-web.routes
+(ns sysrev.routes
   (:require
-   [sysrev-web.base :refer [state]]
-   [sysrev-web.state.core :as s :refer
+   [sysrev.base :refer [state]]
+   [sysrev.state.core :as s :refer
     [on-page? current-page current-user-id logged-in? active-project-id]]
-   [sysrev-web.state.data :as d :refer [data]]
-   [sysrev-web.ajax :as ajax]
-   [sysrev-web.util :refer [nav in? dissoc-in]]
+   [sysrev.state.data :as d :refer [data]]
+   [sysrev.ajax :as ajax]
+   [sysrev.util :refer [nav in? dissoc-in]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
-  (:require-macros [sysrev-web.macros :refer [with-state]]))
+  (:require-macros [sysrev.macros :refer [with-state]]))
 
 (def public-pages
   [:login :register :request-password-reset :reset-password :labels])

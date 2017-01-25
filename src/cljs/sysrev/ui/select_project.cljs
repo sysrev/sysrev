@@ -1,9 +1,9 @@
-(ns sysrev-web.ui.select-project
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.state.core :as s]
-            [sysrev-web.state.data :as d]
-            [sysrev-web.ajax :as ajax]
-            [sysrev-web.util :refer [full-size? in?]]))
+(ns sysrev.ui.select-project
+  (:require [sysrev.base :refer [state]]
+            [sysrev.state.core :as s]
+            [sysrev.state.data :as d]
+            [sysrev.ajax :as ajax]
+            [sysrev.util :refer [full-size? in?]]))
 
 (defn select-project-page []
   (let [user-id (s/current-user-id)

@@ -1,6 +1,6 @@
-(ns sysrev-web.ui.users
-  (:require [sysrev-web.base :refer [state]]
-            [sysrev-web.state.data :as d]))
+(ns sysrev.ui.users
+  (:require [sysrev.base :refer [state]]
+            [sysrev.state.data :as d]))
 
 (defn user-info-card [user-id]
   (let [{:keys [email name]} (d/data [:users user-id])

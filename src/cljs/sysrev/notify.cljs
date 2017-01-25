@@ -1,6 +1,6 @@
-(ns sysrev-web.notify
+(ns sysrev.notify
   (:require
-   [sysrev-web.base :refer [state]]))
+   [sysrev.base :refer [state]]))
 
 (defn active-notification []
   (-> @state :notifications first))

@@ -1,12 +1,12 @@
-(ns sysrev-web.ajax
+(ns sysrev.ajax
   (:require
    [ajax.core :refer [GET POST]]
-   [sysrev-web.base :refer [state ga ga-event]]
-   [sysrev-web.state.core :as s]
-   [sysrev-web.state.data :as d :refer [data]]
-   [sysrev-web.util :refer
+   [sysrev.base :refer [state ga ga-event]]
+   [sysrev.state.core :as s]
+   [sysrev.state.data :as d :refer [data]]
+   [sysrev.util :refer
     [nav scroll-top nav-scroll-top map-values dissoc-in]]
-   [sysrev-web.notify :refer [notify]]))
+   [sysrev.notify :refer [notify]]))
 
 (declare join-project)
 

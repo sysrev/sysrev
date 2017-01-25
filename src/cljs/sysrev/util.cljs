@@ -1,6 +1,6 @@
-(ns sysrev-web.util
+(ns sysrev.util
   (:require [pushy.core :as pushy]
-            [sysrev-web.base :refer [history]]
+            [sysrev.base :refer [history]]
             [clojure.string :as str :refer [split join]]
             [goog.string :refer [unescapeEntities]]))
 

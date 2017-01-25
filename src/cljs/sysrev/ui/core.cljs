@@ -1,25 +1,25 @@
-(ns sysrev-web.ui.core
+(ns sysrev.ui.core
   (:require
-   [sysrev-web.base :refer [state]]
-   [sysrev-web.util :refer [full-size?]]
-   [sysrev-web.state.core :refer
+   [sysrev.base :refer [state]]
+   [sysrev.util :refer [full-size?]]
+   [sysrev.state.core :refer
     [current-page on-page? logged-in? active-project-id]]
-   [sysrev-web.routes :refer [data-initialized? on-public-page?]]
-   [sysrev-web.notify :refer [active-notification]]
-   [sysrev-web.ui.components :refer [loading-screen notifier project-wrapper-div]]
-   [sysrev-web.ui.sysrev :refer [project-page]]
-   [sysrev-web.ui.labels :refer [labels-page]]
-   [sysrev-web.ui.login :refer [login-register-page]]
-   [sysrev-web.ui.user-profile :refer [user-profile-page]]
-   [sysrev-web.ajax :as ajax]
-   [sysrev-web.ui.classify :refer [classify-page]]
-   [sysrev-web.ui.article-page :refer [article-page]]
-   [sysrev-web.ui.select-project :refer [select-project-page]]
-   [sysrev-web.ui.password-reset :refer
+   [sysrev.routes :refer [data-initialized? on-public-page?]]
+   [sysrev.notify :refer [active-notification]]
+   [sysrev.ui.components :refer [loading-screen notifier project-wrapper-div]]
+   [sysrev.ui.sysrev :refer [project-page]]
+   [sysrev.ui.labels :refer [labels-page]]
+   [sysrev.ui.login :refer [login-register-page]]
+   [sysrev.ui.user-profile :refer [user-profile-page]]
+   [sysrev.ajax :as ajax]
+   [sysrev.ui.classify :refer [classify-page]]
+   [sysrev.ui.article-page :refer [article-page]]
+   [sysrev.ui.select-project :refer [select-project-page]]
+   [sysrev.ui.password-reset :refer
     [password-reset-page request-password-reset-page]]
    [reagent.core :as r]
-   [sysrev-web.state.data :as d])
-  (:require-macros [sysrev-web.macros :refer [with-mount-hook]]))
+   [sysrev.state.data :as d])
+  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn logged-out-content []
   [:div.ui.segments

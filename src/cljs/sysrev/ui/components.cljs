@@ -1,11 +1,11 @@
-(ns sysrev-web.ui.components
+(ns sysrev.ui.components
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
-            [sysrev-web.util :refer [url-domain nbsp scroll-top full-size?]]
-            [sysrev-web.base :refer [state]]
-            [sysrev-web.ajax :as ajax]
-            [sysrev-web.state.core :as s]
-            [sysrev-web.state.data :as d :refer [data]]
+            [sysrev.util :refer [url-domain nbsp scroll-top full-size?]]
+            [sysrev.base :refer [state]]
+            [sysrev.ajax :as ajax]
+            [sysrev.state.core :as s]
+            [sysrev.state.data :as d :refer [data]]
             [reagent.core :as r]
             [cljsjs.jquery]
             [cljsjs.semantic-ui]))

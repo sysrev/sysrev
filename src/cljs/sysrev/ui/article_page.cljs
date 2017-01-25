@@ -1,15 +1,15 @@
-(ns sysrev-web.ui.article-page
+(ns sysrev.ui.article-page
   (:require
-   [sysrev-web.base :refer [state]]
-   [sysrev-web.util :refer [scroll-top]]
-   [sysrev-web.state.core :refer [current-page current-user-id on-page?]]
-   [sysrev-web.state.data :as d]
-   [sysrev-web.ajax :as ajax]
-   [sysrev-web.ui.article :refer
+   [sysrev.base :refer [state]]
+   [sysrev.util :refer [scroll-top]]
+   [sysrev.state.core :refer [current-page current-user-id on-page?]]
+   [sysrev.state.data :as d]
+   [sysrev.ajax :as ajax]
+   [sysrev.ui.article :refer
     [article-info-component label-editor-component]]
-   [sysrev-web.ui.components :refer
+   [sysrev.ui.components :refer
     [confirm-modal-box with-tooltip inconsistent-answers-notice]])
-  (:require-macros [sysrev-web.macros :refer [with-state]]))
+  (:require-macros [sysrev.macros :refer [with-state]]))
 
 (defn article-page []
   [:div

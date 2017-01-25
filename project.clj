@@ -83,8 +83,8 @@
    [{:id "dev"
      :source-paths ["src/cljs" "src/scripts"]
      :figwheel true
-     :compiler {:main "sysrev-web.user"
-                :output-to "resources/public/out-dev/sysrev_web.js"
+     :compiler {:main "sysrev.user"
+                :output-to "resources/public/out-dev/sysrev.js"
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out"
                 ;; :preloads      [devtools.preload]
@@ -94,14 +94,14 @@
                 :source-map-timestamp true}}
     {:id "production"
      :source-paths ["src/cljs"]
-     :compiler {:main "sysrev-web.main"
-                :output-to "resources/public/out-production/sysrev_web.js"
+     :compiler {:main "sysrev.main"
+                :output-to "resources/public/out-production/sysrev.js"
                 :output-dir "resources/public/out-production"
                 :asset-path "/out"
                 :closure-defines {goog.DEBUG false}
                 :optimizations :advanced
                 :pretty-print false
-                :source-map "resources/public/out-production/sysrev_web.js.map"
+                :source-map "resources/public/out-production/sysrev.js.map"
                 :source-map-timestamp true}}]}
   :figwheel {:nrepl-port 7888
              :server-port 3449

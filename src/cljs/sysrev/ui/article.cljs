@@ -1,15 +1,15 @@
-(ns sysrev-web.ui.article
+(ns sysrev.ui.article
   (:require
    [clojure.core.reducers :refer [fold]]
    [clojure.string :as str]
-   [sysrev-web.base :refer [state]]
-   [sysrev-web.state.core :as s]
-   [sysrev-web.state.data :as d]
-   [sysrev-web.ui.components :refer
+   [sysrev.base :refer [state]]
+   [sysrev.state.core :as s]
+   [sysrev.state.data :as d]
+   [sysrev.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
      with-tooltip three-state-selection multi-choice-selection dangerous]]
-   [sysrev-web.util :refer [re-pos map-values full-size? in?]]
-   [sysrev-web.ajax :as ajax]
+   [sysrev.util :refer [re-pos map-values full-size? in?]]
+   [sysrev.ajax :as ajax]
    [reagent.core :as r]))
 
 (defn active-labels-path []

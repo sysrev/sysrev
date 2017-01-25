@@ -1,5 +1,5 @@
-(ns sysrev-web.state.core
-  (:require [sysrev-web.base :refer [state]]
+(ns sysrev.state.core
+  (:require [sysrev.base :refer [state]]
             [reagent.core :as r]))
 
 (defn init-state []
