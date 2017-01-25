@@ -172,7 +172,7 @@
                        (filter (in? predict-ids)))
         ncols (-> label-ids count number-to-word)
         active-label-id (selected-label-id)]
-    [:div.ui.top.attached.segment
+    [:div.ui.top.attached.disabled.segment
      [:h4
       "Select label: "
       (let [dropdown
@@ -200,9 +200,10 @@
      [:div.ui.secondary.yellow.center.aligned.segment
       [:h3 "Under development"]]
      [predict-report-labels-menu]
-     [:div.ui.bottom.attached.segment
+     [:div.ui.bottom.attached.disabled.segment
       [train-input-summary-box]
       [value-confidence-box]]
+     #_
      [:div.ui.secondary.segment
       [:h4 (str "Last updated: " (d/project [:stats :predict label-id :update-time]))]]]))
 
