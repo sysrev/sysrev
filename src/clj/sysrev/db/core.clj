@@ -1,5 +1,6 @@
 (ns sysrev.db.core
-  (:require [sysrev.util :refer [map-to-arglist map-values in?]]
+  (:require [sysrev.shared.util :refer [map-values]]
+            [sysrev.util :refer [map-to-arglist in?]]
             [clojure.java.jdbc :as j]
             [clj-postgresql.core :as pg]
             [jdbc.pool.c3p0]

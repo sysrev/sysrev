@@ -8,7 +8,10 @@
     [do-query do-execute to-sql-array sql-cast with-project-cache
      clear-project-cache clear-query-cache cached-project-ids to-jsonb]]
    [sysrev.db.queries :as q]
-   [sysrev.util :refer [map-values in?]])
+   [sysrev.shared.util :refer [map-values]]
+   [sysrev.shared.keywords :refer [canonical-keyword]]
+   [sysrev.util :refer [in?]]
+   [clojure.string :as str])
   (:import java.util.UUID))
 
 (defn all-projects
@@ -229,8 +232,15 @@
 (defn project-keywords
   "Returns a vector with all `project-keyword` entries for the project."
   [project-id]
-  (-> (q/select-project-keywords project-id [:*])
-      do-query))
+  (->> (q/select-project-keywords project-id [:*])
+       do-query
+       (map
+        (fn [kw]
+          (assoc kw :toks
+                 (->> (str/split (:value kw) #" ")
+                      (mapv canonical-keyword)))))
+       (group-by :keyword-id)
+       (map-values first)))
 
 (defn disable-missing-abstracts [project-id min-length]
   (-> (sqlh/update [:article :a])

@@ -1,6 +1,7 @@
 (ns sysrev.predict.report
   (:require
-   [sysrev.util :refer [map-values integerify-map-keys uuidify-map-keys]]
+   [sysrev.shared.util :refer [map-values]]
+   [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
    [sysrev.db.core :refer
     [do-query do-execute sql-now time-to-string to-jsonb
      with-query-cache clear-predict-cache]]

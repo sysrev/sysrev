@@ -1,6 +1,6 @@
 (ns sysrev.predict.validate
   (:require
-   [sysrev.util :refer [map-values]]
+   [sysrev.shared.util :refer [map-values]]
    [sysrev.db.core :refer
     [do-query do-execute sql-now]]
    [honeysql.core :as sql]

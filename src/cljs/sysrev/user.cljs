@@ -19,6 +19,8 @@
             sysrev.ui.users
             sysrev.ui.select-project
             sysrev.ui.classify
+            sysrev.shared.util
+            sysrev.shared.keywords
             [clojure.string :as str])
   (:require-macros [sysrev.macros :refer [import-vars]]))
 
@@ -43,6 +45,8 @@
   (import-vars 'sysrev.ui.users)
   (import-vars 'sysrev.ui.select-project)
   (import-vars 'sysrev.ui.classify)
+  (import-vars 'sysrev.shared.util)
+  (import-vars 'sysrev.shared.keywords)
   true)
 
 (populate-user-ns)

@@ -9,7 +9,8 @@
     [do-query do-execute do-transaction make-db-config]]
    [sysrev.db.queries :as q]
    [sysrev.db.articles :refer [article-to-sql]]
-   [sysrev.util :refer [map-values in?]]
+   [sysrev.shared.util :refer [map-values]]
+   [sysrev.util :refer [in?]]
    [clojure.pprint :as pprint]))
 
 (defn transfer-project

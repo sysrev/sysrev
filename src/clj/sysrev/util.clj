@@ -5,14 +5,6 @@
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
            java.util.UUID))
 
-(defn map-values
-  "Map a function over the values of a collection of pairs (vector of vectors,
-  hash-map, etc.) Optionally accept a result collection to put values into."
-  ([f rescoll m]
-   (into rescoll (->> m (map (fn [[k v]] [k (f v)])))))
-  ([f m]
-   (map-values f {} m)))
-
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
   [s]

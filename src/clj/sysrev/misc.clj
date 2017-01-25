@@ -5,7 +5,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.util :refer [map-values]]
+            [sysrev.shared.util :refer [map-values]]
             [clojure.string :as str]
             [sysrev.db.queries :as q]))
 

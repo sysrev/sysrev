@@ -4,8 +4,9 @@
    [sysrev.base :refer [state ga ga-event]]
    [sysrev.state.core :as s]
    [sysrev.state.data :as d :refer [data]]
+   [sysrev.shared.util :refer [map-values]]
    [sysrev.util :refer
-    [nav scroll-top nav-scroll-top map-values dissoc-in]]
+    [nav scroll-top nav-scroll-top dissoc-in]]
    [sysrev.notify :refer [notify]]))
 
 (declare join-project)

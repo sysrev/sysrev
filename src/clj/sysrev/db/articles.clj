@@ -1,7 +1,7 @@
 (ns sysrev.db.articles
   (:require
    [clojure.java.jdbc :as j]
-   [sysrev.util :refer [map-values]]
+   [sysrev.shared.util :refer [map-values]]
    [sysrev.db.core :as db :refer [do-query do-execute to-sql-array]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]

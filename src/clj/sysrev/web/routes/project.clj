@@ -11,8 +11,10 @@
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
    [sysrev.predict.report :refer [predict-summary]]
+   [sysrev.shared.util :refer [map-values]]
+   [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.util :refer
-    [should-never-happen-exception map-values in?
+    [should-never-happen-exception in?
      integerify-map-keys uuidify-map-keys]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -87,10 +89,25 @@
         request [] ["member"]
         (let [project-id (active-project request)
               article-id (-> request :params :article-id Integer/parseInt)]
-          (let [[article user-labels]
+          (let [[{:keys [abstract primary-title secondary-title]
+                  :as article}
+                 user-labels
+                 keywords]
                 (pvalues (q/query-article-by-id-full article-id)
-                         (labels/article-user-labels-map project-id article-id))]
-            {:article (dissoc article :raw)
+                         (labels/article-user-labels-map project-id article-id)
+                         (project/project-keywords project-id))]
+            {:article
+             (cond-> article
+               true (dissoc :raw)
+               abstract
+               (assoc :abstract-render
+                      (format-abstract abstract keywords))
+               primary-title
+               (assoc :title-render
+                      (process-keywords primary-title keywords))
+               secondary-title
+               (assoc :journal-render
+                      (process-keywords secondary-title keywords)))
              :labels user-labels}))))
 
   (POST "/api/delete-member-labels" request

@@ -1,6 +1,7 @@
 (ns sysrev.state.data
   (:require [sysrev.base :refer [state]]
-            [sysrev.util :refer [map-values in? short-uuid]]
+            [sysrev.shared.util :refer [map-values]]
+            [sysrev.util :refer [in? short-uuid]]
             [sysrev.state.core :refer
              [current-user-id active-project-id current-page]]
             [clojure.string :as str]))
@@ -29,16 +30,10 @@
     value-type (filter #(= (:value-type %) value-type))))
 
 (defn project-label [label-id]
-  (get (project [:labels]) label-id))
+  (project [:labels label-id]))
 
 (defn project-keywords []
-  (->> (project [:keywords])
-       (map
-        (fn [kw]
-          (assoc kw :toks
-                 (str/split (:value kw) #" "))))
-       (group-by :keyword-id)
-       (map-values first)))
+  (project [:keywords]))
 
 (defn project-labels-ordered
   "Return label definition entries ordered first by category/type and then

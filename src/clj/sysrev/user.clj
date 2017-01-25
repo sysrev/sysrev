@@ -25,7 +25,9 @@
         sysrev.mail.core
         sysrev.custom.immuno
         sysrev.misc
-        sysrev.init)
+        sysrev.init
+        sysrev.shared.util
+        sysrev.shared.keywords)
   (:require [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
             [honeysql.core :as sql]

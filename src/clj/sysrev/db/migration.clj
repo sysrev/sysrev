@@ -12,7 +12,8 @@
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
-            [sysrev.util :refer [parse-xml-str map-values]]
+            [sysrev.shared.util :refer [map-values]]
+            [sysrev.util :refer [parse-xml-str]]
             [sysrev.import.pubmed :refer [extract-article-location-entries]]
             [clojure.data.json :as json]
             [sysrev.db.queries :as q]
