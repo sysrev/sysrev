@@ -9,7 +9,7 @@
    [sysrev.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
      with-tooltip three-state-selection multi-choice-selection dangerous]]
-   [sysrev.util :refer [full-size? in?]]
+   [sysrev.util :refer [full-size? mobile? in?]]
    [sysrev.ajax :as ajax]
    [reagent.core :as r]
    [sysrev.state.data :as d]))
@@ -483,17 +483,17 @@
      [:div.ui.attached.segment.label-section-header
       [:h4 "Inclusion criteria"]]
      [:div.ui.attached.grid.segment
-      {:class (if (full-size?)
-                "four column"
-                "three column")
+      {:class (cond (full-size?) "four column"
+                    (mobile?) "two column"
+                    :else "three column")
        :style {:padding "0px"}}
       (make-label-columns core-ids)]
      [:div.ui.attached.segment.label-section-header
       [:h4 "Extra labels"]]
      [:div.ui.grid.segment
-      {:class (str (if (full-size?)
-                     "four column"
-                     "three column")
+      {:class (str (cond (full-size?) "four column"
+                         (mobile?) "two column"
+                         :else "three column")
                    " "
                    (if true ;; test if project has notes inputs below this
                      "bottom attached"
