@@ -24,6 +24,7 @@
    [sysrev.db.project :as project]))
 
 (declare project-info)
+(declare prepare-article-response)
 
 (defroutes project-routes
   ;; Returns full information for active project
@@ -58,8 +59,9 @@
        (wrap-permissions
         request [] ["member"]
         {:result
-         (labels/get-user-label-task
-          (active-project request) (current-user-id request))}))
+         (prepare-article-response
+          (labels/get-user-label-task
+           (active-project request) (current-user-id request)))}))
 
   ;; Sets and optionally confirms label values for an article
   (POST "/api/set-labels" request
@@ -89,25 +91,10 @@
         request [] ["member"]
         (let [project-id (active-project request)
               article-id (-> request :params :article-id Integer/parseInt)]
-          (let [[{:keys [abstract primary-title secondary-title]
-                  :as article}
-                 user-labels
-                 keywords]
+          (let [[article user-labels]
                 (pvalues (q/query-article-by-id-full article-id)
-                         (labels/article-user-labels-map project-id article-id)
-                         (project/project-keywords project-id))]
-            {:article
-             (cond-> article
-               true (dissoc :raw)
-               abstract
-               (assoc :abstract-render
-                      (format-abstract abstract keywords))
-               primary-title
-               (assoc :title-render
-                      (process-keywords primary-title keywords))
-               secondary-title
-               (assoc :journal-render
-                      (process-keywords secondary-title keywords)))
+                         (labels/article-user-labels-map project-id article-id))]
+            {:article (prepare-article-response article)
              :labels user-labels}))))
 
   (POST "/api/delete-member-labels" request
@@ -119,6 +106,21 @@
            (assert (= user-id verify-user-id) "verify-user-id mismatch")
            (project/delete-member-labels project-id user-id)
            {:result {:success true}}))))
+
+(defn prepare-article-response
+  [{:keys [abstract primary-title secondary-title] :as article}]
+  (let [keywords (project/project-keywords (:project-id article))]
+    (cond-> article
+      true (dissoc :raw)
+      abstract
+      (assoc :abstract-render
+             (format-abstract abstract keywords))
+      primary-title
+      (assoc :title-render
+             (process-keywords primary-title keywords))
+      secondary-title
+      (assoc :journal-render
+             (process-keywords secondary-title keywords)))))
 
 (defn project-include-labels [project-id]
   (with-project-cache
