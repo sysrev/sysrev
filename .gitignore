@@ -174,4 +174,5 @@ fabric.properties
 # .idea/misc.xml
 # *.ipr
 
-
+# Semantic build directory
+resources/public/semantic
