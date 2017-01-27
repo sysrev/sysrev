@@ -1,0 +1,64 @@
+#!/bin/bash
+
+function phelp {
+	echo "Usage:         **script requires tmux and rlwrap installed **"
+	echo "./dev          (open tmux sessions, start repl and figwheel)"
+	echo "./dev figwheel (attach to existing figwheel session)"
+	echo "./dev repl     (attach to existing repl session)"
+	echo "./dev quit     (close tmux sessions, killing dev processes)"
+}
+
+function checkstatus {
+	tmux capture-pane -pS -100 -t sysrev_figwheel | grep "Results: Stored in" | wc -l
+}
+
+function run {
+	tmux new -d -s sysrev_repl
+	tmux new -d -s sysrev_figwheel
+	tmux send-keys -t sysrev_figwheel "rlwrap lein with-profile +dev figwheel dev" Enter
+	tmux send-keys -t sysrev_repl "rlwrap lein with-profile +dev repl" Enter
+
+	ready=false
+
+	echo "Checking for successful launch ..."
+	
+	while [ 1 ] ; do
+		if [ -z $fwready ]; then 
+			fwres=$(tmux capture-pane -pS -100 -t sysrev_figwheel | grep "Results: Stored in" | wc -l | xargs echo -n)
+			if [ "$fwres" -eq "1" ] ; then 
+				echo "Figwheel ready"
+				fwready=1
+			fi
+		fi
+		if [ -z $rpready ] ; then
+			rpres=$(tmux capture-pane -pS -100 -t sysrev_figwheel | grep "Results: Stored in" | wc -l | xargs echo -n)
+			if [ "$rpres" -eq "1" ] ; then 
+				echo "Repl ready"
+				rpready=1
+			fi
+		fi
+		if [ -z $rpready -o -z $fwready ] ; then
+			sleep 1
+		else 
+			break
+		fi
+	done
+}
+
+function quit {
+	tmux kill-session -t sysrev_repl
+	tmux kill-session -t sysrev_figwheel
+}
+
+if [ "$#" -ne 0 ]; then
+	case "$1" in 
+		repl) tmux a -t sysrev_repl;;
+		figwheel) tmux a -t sysrev_figwheel;;
+		fig) tmux a -t sysrev_figwheel;;
+		quit) quit;;
+		help) phelp;;
+		*) phelp;;
+	esac
+else
+	run
+fi
