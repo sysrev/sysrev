@@ -13,6 +13,13 @@ function checkstatus {
 }
 
 function run {
+	running=$(tmux ls 2> /dev/null | grep sysrev_figwheel | wc -l | xargs echo -n)
+
+	if [ "$running" -ne "0" ]; then
+		echo "Sessions already running"
+		return
+	fi
+
 	tmux new -d -s sysrev_repl
 	tmux new -d -s sysrev_figwheel
 	tmux send-keys -t sysrev_figwheel "rlwrap lein with-profile +dev figwheel dev" Enter
@@ -21,25 +28,25 @@ function run {
 	ready=false
 
 	echo "Checking for successful launch ..."
-	
+
 	while [ 1 ] ; do
-		if [ -z $fwready ]; then 
+		if [ -z $fwready ]; then
 			fwres=$(tmux capture-pane -pS -100 -t sysrev_figwheel | grep "Results: Stored in" | wc -l | xargs echo -n)
-			if [ "$fwres" -eq "1" ] ; then 
+			if [ "$fwres" -eq "1" ] ; then
 				echo "Figwheel ready"
 				fwready=1
 			fi
 		fi
 		if [ -z $rpready ] ; then
 			rpres=$(tmux capture-pane -pS -100 -t sysrev_figwheel | grep "Results: Stored in" | wc -l | xargs echo -n)
-			if [ "$rpres" -eq "1" ] ; then 
+			if [ "$rpres" -eq "1" ] ; then
 				echo "Repl ready"
 				rpready=1
 			fi
 		fi
 		if [ -z $rpready -o -z $fwready ] ; then
 			sleep 1
-		else 
+		else
 			break
 		fi
 	done
@@ -51,7 +58,7 @@ function quit {
 }
 
 if [ "$#" -ne 0 ]; then
-	case "$1" in 
+	case "$1" in
 		repl) tmux a -t sysrev_repl;;
 		figwheel) tmux a -t sysrev_figwheel;;
 		fig) tmux a -t sysrev_figwheel;;
