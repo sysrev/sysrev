@@ -21,7 +21,8 @@
             sysrev.ui.classify
             sysrev.shared.util
             sysrev.shared.keywords
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [cljs-time.core :as t])
   (:require-macros [sysrev.macros :refer [import-vars]]))
 
 (defn populate-user-ns []

@@ -126,6 +126,8 @@
 (defn get-label-task [handler]
   (ajax-get "/api/label-task" handler))
 (defn post-set-labels [data handler] (ajax-post "/api/set-labels" data handler))
+(defn post-set-article-note [data handler]
+  (ajax-post "/api/set-article-note" data handler))
 (defn post-select-project [project-id handler]
   (ajax-post "/api/select-project"
              {:project-id project-id}
@@ -152,7 +154,8 @@
      (->>
       (comp
        (d/merge-articles (:articles result))
-       (d/set-member-labels user-id (:labels result)))
+       (d/set-member-labels user-id (:labels result))
+       (d/ensure-user-note-fields user-id (:notes result)))
       (swap! state)))))
 
 (defn pull-identity []
@@ -166,7 +169,9 @@
    article-id
    (fn [response]
      (swap! state (d/set-article-labels article-id (:labels response)))
-     (swap! state (d/merge-articles {article-id (:article response)})))))
+     (swap! state (d/merge-articles {article-id (:article response)}))
+     (swap! state (d/ensure-article-note-fields
+                   article-id (:notes response))))))
 
 (defn pull-reset-code-info [reset-code]
   (get-reset-code-info
@@ -313,6 +318,16 @@
     :confirm false}
    (fn [result]
      (notify "Labels saved" {:display-ms 800}))))
+
+(defn send-article-note
+  [article-id note-name content]
+  (post-set-article-note
+   {:article-id article-id
+    :name note-name
+    :content content}
+   (fn [result]
+     (swap! state
+            (d/update-note-saved article-id note-name content)))))
 
 (defn confirm-labels
   "Same as `send-labels` but also marks the labels as confirmed."

@@ -171,6 +171,12 @@ div.ui.segment.label-section-header {
     padding: 2px;
 }
 
+.flex-center-children {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+
 @media only screen and (max-width: 900px) {
     .ui.segment {
         padding: 0.5em;

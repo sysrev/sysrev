@@ -4,7 +4,8 @@
             [sysrev.util :refer [in? short-uuid]]
             [sysrev.state.core :refer
              [current-user-id active-project-id current-page]]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [cljs-time.core :as t]))
 
 (defn data
   ([ks]
@@ -34,6 +35,9 @@
 
 (defn project-keywords []
   (project [:keywords]))
+
+(defn project-notes []
+  (project [:notes]))
 
 (defn project-labels-ordered
   "Return label definition entries ordered first by category/type and then
@@ -286,3 +290,85 @@
        (filter #(= project-hash
                    (-> % :project-uuid short-uuid)))
        first :project-id))
+
+(defn project-hash-from-id [project-id]
+  (short-uuid (data [:all-projects project-id :project-uuid])))
+
+(defn project-invite-url [project-id]
+  (str "https://sysrev.us/register/" (project-hash-from-id project-id)))
+
+(defn get-note-field [article-id user-id note-name]
+  (data [:notes :article article-id user-id note-name]))
+
+(defn init-note-field [article-id user-id note-name init-content]
+  (fn [s]
+    (assoc-in s [:data :notes :article article-id user-id note-name]
+              {:saved init-content
+               :active init-content
+               :update-time ((t/default-ms-fn))})))
+
+(defn ensure-note-field [article-id user-id note-name init-content]
+  (if (nil? (data [:notes :article article-id user-id note-name]))
+    (init-note-field article-id user-id note-name init-content)
+    identity))
+
+(defn note-field-synced? [article-id note-name]
+  (when-let [user-id (current-user-id)]
+    (if (map? (data [:notes :article article-id user-id note-name]))
+      (let [{:keys [saved active]}
+            (data [:notes :article article-id user-id note-name])]
+        (= saved active))
+      true)))
+
+(defn update-note-field [article-id note-name content]
+  (let [user-id (current-user-id)]
+    (cond
+      (nil? user-id) identity
+      (map? (data [:notes :article article-id user-id note-name]))
+      (fn [s]
+        (update-in s [:data :notes :article article-id user-id note-name]
+                   #(merge % {:active content
+                              :update-time ((t/default-ms-fn))})))
+      :else (init-note-field article-id user-id note-name content))))
+
+(defn update-note-saved [article-id note-name saved-content]
+  (let [user-id (current-user-id)]
+    (cond
+      (nil? user-id) identity
+      (map? (data [:notes :article article-id user-id note-name]))
+      (fn [s]
+        (update-in s [:data :notes :article article-id user-id note-name]
+                   #(merge % {:saved saved-content})))
+      :else (init-note-field article-id user-id note-name saved-content))))
+
+(defn ensure-article-note-fields [article-id nmap]
+  (assert article-id)
+  (assert (map? nmap))
+  (fn [s]
+    (reduce
+     (fn [s user-id]
+       (reduce
+        (fn [s [note-name content]]
+          (let [note-name (name note-name)]
+            ((ensure-note-field article-id user-id note-name content)
+             s)))
+        s
+        (vec (get nmap user-id))))
+     s
+     (keys nmap))))
+
+(defn ensure-user-note-fields [user-id nmap]
+  (assert user-id)
+  (assert (map? nmap))
+  (fn [s]
+    (reduce
+     (fn [s article-id]
+       (reduce
+        (fn [s [note-name content]]
+          (let [note-name (name note-name)]
+            ((ensure-note-field article-id user-id note-name content)
+             s)))
+        s
+        (vec (get nmap article-id))))
+     s
+     (keys nmap))))

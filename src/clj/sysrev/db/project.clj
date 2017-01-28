@@ -197,8 +197,8 @@
                 (mapv :email))]
     emails))
 
-(defn delete-member-labels
-  "Deletes all labels saved in `project-id` by `user-id`."
+(defn delete-member-labels-notes
+  "Deletes all labels and notes saved in `project-id` by `user-id`."
   [project-id user-id]
   (assert (integer? project-id))
   (assert (integer? user-id))
@@ -209,7 +209,19 @@
        [:exists
         (q/select-article-where
          project-id [:= :a.article-id :al.article-id] [:*])])
-      do-execute))
+      do-execute)
+  (-> (delete-from [:article-note :an])
+      (merge-where
+       [:and
+        [:= :an.user-id user-id]
+        [:exists
+         (-> (select :*)
+             (from [:project-note :pn])
+             (where [:and
+                     [:= :pn.project-note-id :an.project-note-id]
+                     [:= :pn.project-id project-id]]))]])
+      do-execute)
+  true)
 
 (defn add-project-keyword
   "Creates an entry in `project-keyword` table, to be used by web client
@@ -251,3 +263,45 @@
                [:= :a.abstract nil]
                [:< (sql/call :char_length :a.abstract) min-length]]])
       do-execute))
+
+(defn add-project-note
+  "Defines an entry for a note type that can be saved by users on articles
+  in the project.
+  The default `name` of \"default\" is used for a generic free-text field
+  shown alongside article labels during editing."
+  [project-id {:keys [name description max-length ordering]
+               :as fields}]
+  (clear-project-cache project-id)
+  (-> (sqlh/insert-into :project-note)
+      (values [(merge {:project-id project-id
+                       :name "default"
+                       :description "Notes"
+                       :max-length 1000}
+                      fields)])
+      (returning :*)
+      do-query first))
+
+(defn project-notes
+  "Returns a vector with all `project-note` entries for the project."
+  [project-id]
+  (->> (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
+           (q/with-project-note)
+           do-query)
+       (group-by :name)
+       (map-values first)))
+
+(defn project-member-article-notes
+  "Returns a map of article notes saved by `user-id` in `project-id`."
+  [project-id user-id]
+  (with-project-cache
+    project-id [:users user-id :notes]
+    (->>
+     (-> (q/select-project-articles
+          project-id [:an.article-id :an.content :pn.name])
+         (merge-join [:project :p]
+                     [:= :p.project-id :a.project-id])
+         (q/with-article-note nil user-id)
+         do-query)
+     (group-by :article-id)
+     (map-values (partial group-by :name))
+     (map-values (partial map-values (comp :content first))))))

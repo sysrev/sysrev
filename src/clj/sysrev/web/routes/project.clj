@@ -6,7 +6,8 @@
    [sysrev.db.queries :as q]
    [sysrev.db.users :as users]
    [sysrev.db.project :refer
-    [project-labels project-member project-article-count project-keywords]]
+    [project-labels project-member project-article-count project-keywords
+     project-notes]]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
@@ -76,14 +77,25 @@
              (labels/confirm-user-article-labels user-id article-id))
            {:result body})))
 
+  (POST "/api/set-article-note" request
+        (wrap-permissions
+         request [] ["member"]
+         (let [user-id (current-user-id request)
+               {:keys [article-id name content] :as body}
+               (-> request :body integerify-map-keys uuidify-map-keys)]
+           (articles/set-user-article-note article-id user-id name content)
+           {:result body})))
+
   (GET "/api/member-labels/:user-id" request
        (wrap-permissions
         request [] ["member"]
         (let [user-id (-> request :params :user-id Integer/parseInt)
               project-id (active-project request)]
           {:result
-           (project/project-member-article-labels
-            project-id user-id)})))
+           (merge
+            (project/project-member-article-labels project-id user-id)
+            {:notes
+             (project/project-member-article-notes project-id user-id)})})))
   
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
@@ -91,11 +103,14 @@
         request [] ["member"]
         (let [project-id (active-project request)
               article-id (-> request :params :article-id Integer/parseInt)]
-          (let [[article user-labels]
-                (pvalues (q/query-article-by-id-full article-id)
-                         (labels/article-user-labels-map project-id article-id))]
+          (let [[article user-labels user-notes]
+                (pvalues
+                 (q/query-article-by-id-full article-id)
+                 (labels/article-user-labels-map project-id article-id)
+                 (articles/article-user-notes-map project-id article-id))]
             {:article (prepare-article-response article)
-             :labels user-labels}))))
+             :labels user-labels
+             :notes user-notes}))))
 
   (POST "/api/delete-member-labels" request
         (wrap-permissions
@@ -104,7 +119,7 @@
                project-id (active-project request)
                {:keys [verify-user-id]} (:body request)]
            (assert (= user-id verify-user-id) "verify-user-id mismatch")
-           (project/delete-member-labels project-id user-id)
+           (project/delete-member-labels-notes project-id user-id)
            {:result {:success true}}))))
 
 (defn prepare-article-response
@@ -338,7 +353,7 @@
 
 (defn project-info [project-id]
   (let [[predict articles labels inclusion-values label-values
-         conflicts members users keywords]
+         conflicts members users keywords notes]
         (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
@@ -347,7 +362,8 @@
                  (project-conflict-counts project-id)
                  (project-members-info project-id)
                  (project-users-info project-id)
-                 (project-keywords project-id))]
+                 (project-keywords project-id)
+                 (project-notes project-id))]
     {:project {:project-id project-id
                :members members
                :stats {:articles articles
@@ -357,5 +373,6 @@
                        :conflicts conflicts
                        :predict predict}
                :labels (project-labels project-id)
-               :keywords keywords}
+               :keywords keywords
+               :notes notes}
      :users users}))

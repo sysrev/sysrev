@@ -12,7 +12,8 @@
    [sysrev.util :refer [full-size? mobile? in?]]
    [sysrev.ajax :as ajax]
    [reagent.core :as r]
-   [sysrev.state.data :as d]))
+   [sysrev.state.data :as d])
+  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn active-labels-path []
   (case (s/current-page)
@@ -186,7 +187,9 @@
                               (d/project :overall-label-id)
                               :counts :labeled])
                   (not= 0)))
-            docs (d/article-documents article-id)]
+            docs (d/article-documents article-id)
+            unote (and user-id (d/get-note-field article-id user-id "default"))
+            note-content (and unote (:active unote))]
         [:div.ui.segments
          (when show-similarity?
            [:div.ui.top.attached.segment
@@ -207,11 +210,28 @@
            [:div.ui.attached.segment
             [:div {:style {:padding-top "1rem"}}
              [article-docs-component article-id]]])
-         [:div.ui.bottom.attached.segment
+         [:div.ui.segment
+          {:class (if (empty? note-content) "bottom attached" "attached")}
           (when (and show-labels
                      ((comp not empty?)
                       (d/user-label-values article-id user-id)))
-            [label-values-component article-id user-id])]]))))
+            [label-values-component article-id user-id])]
+         (when-not (empty? note-content)
+           [:div.ui.bottom.attached.segment
+            {:style {:padding-top "0.2em"
+                     :padding-bottom "0.2em"
+                     :padding-left "0.5em"
+                     :padding-right "0.5em"}}
+            [:div.ui.labeled.button
+             {:style {:margin-left "4px"
+                      :margin-right "4px"
+                      :margin-top "3px"
+                      :margin-bottom "4px"}}
+             [:div.ui.small.blue.button.flex-center-children
+              [:div "Notes"]]
+             [:div.ui.basic.label
+              {:style {:text-align "justify"}}
+              note-content]]])]))))
 
 (defn article-info-component
   "Shows an article with a representation of its match quality and how it
@@ -224,7 +244,10 @@
   [article-id & [show-labels user-id review-status classify?]]
   (fn [article-id & [show-labels user-id]]
     (when-let [article (get-in @state [:data :articles article-id])]
-      (let [keywords (d/project-keywords)
+      (let [unote (and user-id (d/get-note-field
+                                article-id user-id "default"))
+            note-content (and unote (:active unote))
+            keywords (d/project-keywords)
             similarity (:score article)
             show-similarity?
             (and similarity
@@ -329,9 +352,63 @@
                       [out-link url]))
                    doall)])]]
          (when (and show-labels have-labels?)
-           [:div.ui.bottom.attached.segment
+           [:div.ui.segment
+            {:class (if (empty? note-content)
+                      "bottom attached" "attached")}
             [:div.content
-             [label-values-component article-id user-id]]])]))))
+             [label-values-component article-id user-id]]])
+         (when (and show-labels ((comp not empty?) note-content))
+           [:div.ui.bottom.attached.segment
+            {:style {:padding "0.5em"}}
+            [:div.ui.labeled.button
+             {:style {:margin-left "4px"
+                      :margin-right "4px"
+                      :margin-top "3px"
+                      :margin-bottom "4px"}}
+             [:div.ui.small.blue.button.flex-center-children
+              [:div "Notes"]]
+             [:div.ui.basic.label
+              {:style {:text-align "justify"}}
+              note-content]]])]))))
+
+(defn note-input-element [article-id]
+  (let [user-id (s/current-user-id)
+        pnote (d/project [:notes :default])
+        anote (d/get-note-field
+               article-id user-id (:name pnote))]
+    (when pnote
+      [:div.ui.segment
+       {:style {:padding-top "0.4em"
+                :padding-bottom "0.6em"
+                :padding-left "1.0em"
+                :padding-right "1.0em"}
+        :class (if true "bottom attached" "attached")}
+       [:div.ui.middle.aligned.form
+        [:div.middle.aligned.field
+         [:label.middle.aligned
+          {:style {:margin-bottom "0.25em"}}
+          (:description pnote)
+          [:i.large.middle.aligned.icon
+           {:style {:margin-left "0.25em"
+                    :margin-bottom "0.2em"}
+            :class
+            (cond
+              (not (d/note-field-synced? article-id (:name pnote)))
+              "blue asterisk loading"
+              (empty? (:active anote))
+              "grey write"
+              :else
+              "green check circle outline")}]]
+         [:textarea
+          {:type "text"
+           :rows 2
+           :name (:name pnote)
+           :default-value (or (:active anote) "")
+           :on-change
+           #(swap! state
+                   (d/update-note-field
+                    article-id (:name pnote)
+                    (-> % .-target .-value)))}]]]])))
 
 (defn label-editor-component
   "UI component for editing label values on an article.
@@ -341,7 +418,9 @@
   `labels-path` is a sequence of keys specifying the path
   in `state` where the label values set by the user will be stored."
   [article-id labels-path label-values]
-  (let [labels (d/project :labels)
+  (let [pnote (d/project [:notes :default])
+        user-id (s/current-user-id)
+        labels (d/project :labels)
         ordered-label-ids (->> (d/project-labels-ordered)
                                (map :label-id))
         core-ids (->> ordered-label-ids
@@ -495,8 +574,8 @@
                          (mobile?) "two column"
                          :else "three column")
                    " "
-                   (if true ;; test if project has notes inputs below this
-                     "bottom attached"
-                     "attached"))
+                   (if (nil? pnote) "bottom attached" "attached"))
        :style {:padding "0px"}}
-      (make-label-columns extra-ids)]]))
+      (make-label-columns extra-ids)]
+     [note-input-element article-id]]))
+

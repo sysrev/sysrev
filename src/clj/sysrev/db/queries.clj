@@ -260,6 +260,23 @@
         (merge-where [:= :a.article-id article-id])
         do-query first :predict-run-id)))
 
+;;; article notes
+(defn with-project-note [m & [note-name]]
+  (cond-> m
+    true (merge-join [:project-note :pn]
+                     [:= :pn.project-id :p.project-id])
+    note-name (merge-where [:= :pn.name note-name])))
+
+(defn with-article-note [m & [note-name user-id]]
+  (cond->
+      (-> m
+          (merge-join [:article-note :an]
+                      [:= :an.article-id :a.article-id])
+          (merge-join [:project-note :pn]
+                      [:= :pn.project-note-id :an.project-note-id]))
+    note-name (merge-where [:= :pn.name note-name])
+    user-id (merge-where [:= :an.user-id user-id])))
+
 ;;;
 ;;; combined
 ;;;

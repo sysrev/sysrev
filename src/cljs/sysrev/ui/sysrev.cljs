@@ -207,6 +207,15 @@
      [:div.ui.secondary.segment
       [:h4 (str "Last updated: " (d/project [:stats :predict label-id :update-time]))]]]))
 
+(defn project-invite-link-segment []
+  [:div.ui.segment
+   {:style {:padding "0.5em"}}
+   [:div.ui.fluid.labeled.input
+    [:div.ui.label "Project invite URL"]
+    [:input.ui.input {:readOnly true
+                      :value (d/project-invite-url
+                              (s/active-project-id))}]]])
+
 (defn project-page []
   [:div
    [project-page-menu]
@@ -214,4 +223,5 @@
     (case (-> @state :page :project :tab)
       :overview [project-overview-box]
       :predict [project-predict-report-box]
-      [:div "Sub-page not found"])]])
+      [:div "Sub-page not found"])]
+   [project-invite-link-segment]])
