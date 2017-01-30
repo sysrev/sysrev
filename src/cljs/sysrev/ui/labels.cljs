@@ -4,7 +4,7 @@
             [sysrev.state.data :as d]))
 
 (defn labels-page []
-  [:table.ui.celled.unstackable.table
+  [:table.ui.celled.unstackable.table.project-labels
    [:thead
     [:tr
      [:th {:style {:width "16%"}} "Name"]

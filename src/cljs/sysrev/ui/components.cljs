@@ -28,9 +28,7 @@
   (apply show-debug-box arg args))
 
 (defn loading-screen []
-  [:div.ui.container
-   [:div.ui.stripe {:style {:padding-top "20px"}}
-    [:h1.ui.header.huge.center.aligned "Loading data..."]]])
+  [:div])
 
 (defn notifier [{:keys [message class]
                  :as entry}]
@@ -112,7 +110,7 @@
   ;; nil for unset, true, false
   (fn [change-handler curval]
     (let [size (if (full-size?) "large" "small")
-          class (str "ui " size " buttons")]
+          class (str "ui " size " buttons three-state")]
       [:div {:class class}
        [radio-button #(change-handler false) (false? curval) "No"]
        [radio-button #(change-handler nil) (nil? curval) "?" true]
@@ -134,8 +132,6 @@
       (let [dom-id (str "label-edit-" label-id)]
         [:div.ui.large.fluid.multiple.selection.dropdown
          {:id dom-id
-          :style {:margin-left "6px"
-                  :margin-right "6px"}
           ;; hide dropdown on click anywhere in main dropdown box
           :on-click #(when (or (= dom-id (-> % .-target .-id))
                                (-> (js/$ (-> % .-target))
@@ -231,7 +227,7 @@
                 :hoverable true
                 :position "top center"
                 :delay {:show 400
-                        :hide 100}
+                        :hide 0}
                 :transition "fade up"}
                (or popup-options {}))))
     :reagent-render
@@ -289,37 +285,23 @@
         [:div.ui.button.cancel "Cancel"]
         [:div.ui.button.ok "Confirm"]]])}))
 
-(defn project-wrapper-div [content]
-  [:div
-   {:style {:margin-top "-1.0em"}}
-   [:div.ui.middle.aligned.center.aligned.blue.segment
-    {:style {:margin-top "0"
-             :padding-top "0.5em"
-             :padding-bottom "0.5em"}}
-    [:h4 (d/data [:all-projects (s/active-project-id) :name])]]
-   content])
-
 (defn inconsistent-answers-notice [label-values]
   (let [labels (d/find-inconsistent-answers label-values)]
     (when ((comp not empty?) labels)
-      [:div.ui.yellow.secondary.segment
-       ;; {:style {:padding-top "0px"}}
-       {:style {:padding-top "5px"
-                :padding-bottom "5px"
-                :padding-left "8px"
-                :padding-right "8px"}}
-       [:div.ui.horizontal.divided.list
-        [:div.item
-         [:div.ui.large.label
-          [:i.yellow.info.circle.icon]
-          "Labels inconsistent with positive inclusion value"]]
-        [:div.item
-         [:div.ui.horizontal.list
-          (doall
-           (for [label labels]
-             ^{:key {:lval-warning (:label-id label)}} 
-             [:div.item
-              [:div.ui.large.label (:short-label label)]]))]]]])))
+      [:div.ui.attached.segment.labels-warning
+       [:div.ui.warning.message
+        [:div.ui.horizontal.divided.list
+         [:div.item
+          [:div.ui.large.label
+           [:i.yellow.info.circle.icon]
+           "Labels inconsistent with positive inclusion value"]]
+         [:div.item
+          [:div.ui.horizontal.list
+           (doall
+            (for [label labels]
+              ^{:key {:lval-warning (:label-id label)}}
+              [:div.item
+               [:div.ui.large.label (:short-label label)]]))]]]]])))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML

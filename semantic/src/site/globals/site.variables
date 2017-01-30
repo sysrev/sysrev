@@ -1,7 +1,7 @@
 /*******************************
      User Global Variables
 *******************************/
-@pageBackground : #e4e4e4;
+@pageBackground : #ececec;
 
 // copied from chemsim
 //

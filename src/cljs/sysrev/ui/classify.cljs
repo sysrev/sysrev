@@ -22,12 +22,10 @@
           labels-path [:page :classify :label-values]
           label-values (d/active-label-values article-id labels-path)]
       [:div.ui
-       {:style {:margin-bottom "40px"}}
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
        [label-editor-component
         article-id labels-path label-values]
-       [inconsistent-answers-notice label-values]
        [confirm-modal-box
         #(data :classify-article-id)
         labels-path

@@ -162,7 +162,9 @@
   (get-identity
    (fn [response]
      (swap! state (s/set-identity (:identity response)))
-     (swap! state (s/set-active-project-id (:active-project response))))))
+     (swap! state (s/set-active-project-id (:active-project response)))
+     (when (:active-project response)
+       (pull-member-labels (s/current-user-id))))))
 
 (defn pull-article-info [article-id]
   (get-article-info

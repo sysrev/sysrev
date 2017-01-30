@@ -6,6 +6,7 @@
              [nav number-to-word full-size? in?]]
             [sysrev.ui.users :as users]
             [sysrev.ui.components :refer [true-false-nil-tag]]
+            [sysrev.ui.labels :refer [labels-page]]
             [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
@@ -15,7 +16,7 @@
 
 (defn project-summary-box []
   (let [stats (d/project :stats)]
-    [:div.ui.grey.raised.segment
+    [:div.ui.grey.segment
      [:div.ui.three.column.grid.project-stats
       [:div.ui.row
        [:div.ui.column
@@ -45,7 +46,7 @@
 
 (defn label-counts-box []
   (let [stats (d/project :stats)]
-    [:table.ui.celled.unstackable.table.grey.raised.segment
+    [:table.ui.celled.unstackable.table.grey.segment
      [:thead
       [:tr
        [:th "Criteria label counts"]
@@ -70,15 +71,8 @@
               #_ [:td (str (get counts :nil))]]))))]]))
 
 (defn member-list-box []
-  (let [members (d/project :members)
-        user-ids
-        (->> (keys members)
-             (filter
-              (fn [user-id]
-                (let [permissions
-                      (d/data [:users user-id :permissions])]
-                  (not (in? permissions "admin"))))))]
-    [:div.ui.raised.grey.segment
+  (let [user-ids (d/project-member-user-ids false)]
+    [:div.ui.grey.segment
      [:h4 {:style {:margin-bottom "0px"}}
       "Project members"]
      (doall
@@ -88,20 +82,31 @@
               ^{:key {:user-info user-id}}
               [users/user-info-card user-id]))))]))
 
-(defn project-page-menu []
+(defn project-page-menu [active-tab]
   (let [make-class
-        (fn [tab]
-          (if (= tab (-> @state :page :project :tab))
-            "active item" "item"))]
-    [:div.ui.top.attached.two.item.tabular.menu
+        #(if (= % active-tab) "active item" "item")]
+    [:div.ui.five.item.secondary.pointing.menu.project-menu
      [:a
       {:class (make-class :overview)
        :href "/project"}
-      [:h3.ui.blue.header "Project overview"]]
+      [:h4.ui.header "Overview"]]
+     [:a
+      {:class (make-class :user-profile)
+       :href "/user"}
+      [:h4.ui.header "User profile"]]
+     [:a
+      {:class (make-class :labels)
+       :href "/project/labels"}
+      [:h4.ui.header "Labels"]]
      [:a
       {:class (make-class :predict)
        :href "/project/predict"}
-      [:h3.ui.blue.header "Prediction report"]]]))
+      [:h4.ui.header "Prediction"]]
+     [:a
+      {:class (make-class :classify)
+       :href "/project/classify"}
+      [:div.ui.large.basic.button.classify
+       "Classify articles"]]]))
 
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid
@@ -208,20 +213,24 @@
       [:h4 (str "Last updated: " (d/project [:stats :predict label-id :update-time]))]]]))
 
 (defn project-invite-link-segment []
-  [:div.ui.segment
-   {:style {:padding "0.5em"}}
+  [:div.ui.bottom.attached.segment.invite-link
    [:div.ui.fluid.labeled.input
     [:div.ui.label "Project invite URL"]
     [:input.ui.input {:readOnly true
                       :value (d/project-invite-url
                               (s/active-project-id))}]]])
 
-(defn project-page []
-  [:div
-   [project-page-menu]
-   [:div.ui.bottom.attached.segment
-    (case (-> @state :page :project :tab)
-      :overview [project-overview-box]
-      :predict [project-predict-report-box]
-      [:div "Sub-page not found"])]
-   [project-invite-link-segment]])
+(defn project-page [active-tab content]
+  (let [bottom-segment?
+        (case active-tab
+          :overview false
+          true)]
+    [:div
+     [:div.ui.top.attached.center.aligned.segment.project-header
+      [:h5 (d/data [:all-projects (s/active-project-id) :name])]]
+     [:div.ui.segment.project-segment
+      {:class (if bottom-segment? "bottom attached" "attached")}
+      [project-page-menu active-tab]
+      [:div.padded content]]
+     (when (= active-tab :overview)
+       [project-invite-link-segment])]))

@@ -4,10 +4,14 @@
             [sysrev.state.data :as d]
             [sysrev.ui.components :refer [debug-box]]
             [sysrev.ui.article :refer [article-short-info-component]]
-            [sysrev.ajax :as ajax]))
+            [sysrev.ajax :as ajax]
+            [reagent.core :as r])
+  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn user-profile-page []
-  (let [user-id (get-in @state [:page :user-profile :user-id])
+  (let [user-id (or (get-in @state [:page :user-profile :user-id])
+                    (s/current-user-id))
+        project-id (s/active-project-id)
         user (get-in @state [:data :users user-id])
         display-name (or (:name user) (:email user))
         unconfirmed-ids (-> (d/member-labels user-id)
@@ -22,21 +26,40 @@
                   :else :confirmed)
             active-tab))]
     [:div.sixteen.wide.column
-     (when (and (= user-id (s/current-user-id))
-                (d/admin-user? user-id))
-       [:div.ui.segment
-        [:div.ui.two.column.grid
-         [:div.ui.column
-          [:a.ui.fluid.button
-           {:on-click ajax/do-post-delete-user}
-           "Delete account"]]
-         [:div.ui.column
-          [:a.ui.fluid.button
-           {:on-click ajax/do-post-delete-member-labels}
-           "Delete user labels"]]]])
      [:div.ui.segments
-      [:div.ui.top.attached.header.segment
-       [:h3 display-name]]
+      [:div.ui.top.attached.header.segment.user-menu
+       (if (nil? project-id)
+         [:h3 display-name]
+         (let [dropdown
+               (with-mount-hook
+                 #(.dropdown (js/$ (r/dom-node %))
+                             (clj->js {})))]
+           [dropdown
+            [:div.ui.fluid.dropdown.button.user-menu
+             [:input {:type "hidden" :name "menu-dropdown"}]
+             [:label (d/data [:users user-id :email])
+              [:i.chevron.down.icon]]
+             [:div.menu
+              (doall
+               (for [link-user-id (d/project-member-user-ids true)]
+                 (let [active (= link-user-id user-id)]
+                   ^{:key {:user-menu-entry link-user-id}}
+                   [:a.item
+                    {:href (str "/user/" link-user-id)
+                     :class (if active "default active" "")}
+                    (d/data [:users link-user-id :email])])))]]]))]
+      (when (and (= user-id (s/current-user-id))
+                 (d/admin-user? user-id))
+        [:div.ui.attached.segment.user-admin-segment
+         [:div.ui.two.column.grid
+          [:div.ui.column
+           [:a.ui.fluid.button
+            {:on-click ajax/do-post-delete-user}
+            "Delete account"]]
+          [:div.ui.column
+           [:a.ui.fluid.button
+            {:on-click ajax/do-post-delete-member-labels}
+            "Delete user labels"]]]])
       [:div.ui.bottom.attached.segment
        [:div.ui.secondary.pointing.large.two.item.menu
         [:a.item

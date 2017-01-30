@@ -47,7 +47,6 @@
         [article-info-component article-id false]
         [label-editor-component
          article-id labels-path label-values]
-        [inconsistent-answers-notice label-values]
         [confirm-modal-box
          #(-> @state :page :article :id)
          labels-path

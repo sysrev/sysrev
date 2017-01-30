@@ -1,9 +1,150 @@
 /* some style */
 
-.main-content > .grid {
-    padding-top: 10px;
-    padding-bottom: 20px;
-    margin-bottom: 120px;
+.main-content {
+    margin-bottom: 80px;
+}
+
+.ui.segment.project-header {
+    padding: 0.5em;
+}
+
+div.segment.labels-warning {
+    padding: 0.5em;
+}
+
+div.ui.segment.labels-warning .ui.message {
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+}
+
+.row.label-edit-name i {
+    font-size: 17px;
+    width: 25px;
+}
+
+.row.label-edit-name span.name {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.row.label-edit-name span.name span.inner {
+    margin-left: -25px;
+}
+
+.ui.buttons.three-state .ui.button {
+    padding-top: 0.6em;
+    padding-bottom: 0.6em;
+}
+
+.ui.celled.grid > .row > .ui.column.label-edit {
+    padding: 0.0em;
+}
+
+.ui.grid.label-edit {
+}
+
+.ui.celled.grid.segment.label-section {
+    margin: 0;
+    border-left: none;
+    border-right: none;
+}
+
+.ui.column.label-edit.required {
+    background-color: #eeeeee;
+}
+
+.ui.column.label-edit.extra {
+}
+
+.ui.column.label-edit > .middle.aligned.grid {
+    margin: 0px;
+}
+
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-name {
+    padding-bottom: 6px;
+    padding-top: 5px;
+    text-align: center;
+}
+
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value {
+    padding-top: 0px;
+    padding-bottom: 12px;
+}
+
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.boolean div.inner {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category {
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+}
+
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category div.inner {
+    width: 100%;
+    margin: 0;
+}
+
+div.page-content {
+}
+
+.ui.segment.user-admin-segment {
+    padding: 0.5em;
+}
+
+.ui.header.segment.user-menu {
+    padding: 0.0em;
+}
+
+.ui.dropdown.button.user-menu {
+    padding-top: 0.75em;
+    padding-bottom: 0.75em;
+    padding-left: 1em;
+    padding-right: 1em;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.ui.dropdown.button.user-menu label i.icon {
+    float: right;
+}
+
+.ui.segment.project-segment {
+    padding-top: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.ui.segment.project-segment .padded {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.ui.segment.invite-link {
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+}
+
+.ui.secondary.pointing.menu.project-menu a.active.item {
+    background-color: rgba(240,240,240,1);
+}
+
+.ui.menu.project-menu h4.header {
+    font-weight: normal;
+    font-size: 14px;
+}
+
+.ui.menu.project-menu .ui.basic.button.classify {
+    background-color: rgba(252,252,252,1) !important;
+    color: rgba(64, 121, 191, 0.925) !important;
+    font-weight: bold;
+    border: 1.5px solid rgba(64, 121, 191, 0.7) !important;
+    box-shadow: none;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
 }
 
 .grid.project-stats {
@@ -83,9 +224,27 @@ div.ui.segment.label-section-header {
     padding-bottom: 0.5em;
 }
 
-.ui.menu:not(.vertical) .item>.button {
-    padding-left: 1.0em;
-    padding-right: 1.0em;
+.ui.top.menu.site-menu {
+    margin-bottom: 1em;
+    border-radius: 0px;
+}
+
+.ui.top.menu.site-menu .header {
+    font-size: 21px;
+}
+
+.ui.top.menu.site-menu .item {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    font-size: 13px;
+}
+
+.project-menu .ui.large.basic.button {
+    font-weight: bold;
+}
+
+.bold {
+    font-weight: bold !important;
 }
 
 .ui.keyword.basic.button
@@ -115,8 +274,54 @@ div.ui.segment.label-section-header {
     border: 1.5px solid #F2711C;
 }
 
+.grid.popup.label-help {
+    min-width: 18em;
+    padding: 0;
+    background-color: rgba(230,230,230,1.0);
+    border: 1px solid rgba(140,140,140,1.0);
+}
+
+.grid.popup.label-help .row {
+    border: 0;
+}
+
+.grid.popup.label-help .row.label-help-header {
+    font-size: 90%;
+    font-weight: bold;
+    padding: 3px;
+    background-color: rgba(100,100,100,1.0);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+    color: white;
+    border: 0;
+}
+
+.grid.popup.label-help .row.label-help-bottom {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.grid.popup.label-help .row {
+    padding: 0.5em;
+}
+
+.grid.popup.label-help .row.label-help-question {
+    color: black;
+    font-size: 13px;
+}
+
+.grid.popup.label-help .row.label-help-tag {
+    font-size: 100%;
+    font-weight: bold;
+    padding: 3px;
+    background-color: rgba(100,100,100,1.0);
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    border: 0;
+}
+
 .grid.popup.keyword-popup {
-    min-width: 15em;
+    min-width: 18em;
     padding: 0;
     background-color: rgba(230,230,230,1.0);
     border: 1px solid rgba(140,140,140,1.0);
@@ -175,6 +380,9 @@ div.ui.segment.label-section-header {
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
+}
+
+table.table.project-labels {
 }
 
 @media only screen and (max-width: 900px) {

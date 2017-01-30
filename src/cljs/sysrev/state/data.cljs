@@ -372,3 +372,15 @@
         (vec (get nmap article-id))))
      s
      (keys nmap))))
+
+(defn project-member-user-ids [include-self-admin?]
+  (let [self-id (current-user-id)]
+    (->> (keys (project [:members]))
+         (filter
+          (fn [user-id]
+            (let [permissions
+                  (data [:users user-id :permissions])]
+              (or (not (in? permissions "admin"))
+                  (and self-id include-self-admin?
+                       (= user-id self-id))))))
+         (sort <))))

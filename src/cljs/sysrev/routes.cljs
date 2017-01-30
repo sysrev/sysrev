@@ -299,9 +299,9 @@
                      {:id article-id
                       :label-values {}})))
 
-(defroute classify-route "/classify" []
+(defroute classify-route "/project/classify" []
   (do-route-change :classify
                    {:label-values {}}))
 
-(defroute labels-route "/labels" []
+(defroute labels-route "/project/labels" []
   (do-route-change :labels {}))

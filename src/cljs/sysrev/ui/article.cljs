@@ -8,7 +8,8 @@
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
-     with-tooltip three-state-selection multi-choice-selection dangerous]]
+     with-tooltip three-state-selection multi-choice-selection dangerous
+     inconsistent-answers-notice]]
    [sysrev.util :refer [full-size? mobile? in?]]
    [sysrev.ajax :as ajax]
    [reagent.core :as r]
@@ -43,6 +44,43 @@
                              label-value)
                        distinct vec))))))
 
+(defn label-help-popup-element [label-id]
+  (when-let [{:keys [category required question] :as label}
+             (d/project [:labels label-id])]
+    [:div.ui.inverted.grid.popup.transition.hidden.label-help
+     [:div.middle.aligned.center.aligned.row.label-help-header
+      [:div.ui.sixteen.wide.column
+       (case category
+         "inclusion criteria"
+         (if required
+           [:span "Inclusion criteria [Required]"]
+           [:span "Inclusion criteria"])
+         [:span "Extra label"])]]
+     [:div.middle.aligned.center.aligned.row.label-help-question
+      [:div.sixteen.wide.column.label-help
+       [:span (str question)]]]]))
+
+(defn keyword-button-elements [content label-name label-value]
+  [[with-tooltip content
+    {:delay {:show 50
+             :hide 0}
+     :hoverable false
+     :transition "fade up"
+     :distanceAway 8
+     :variation "basic"}]
+   [:div.ui.inverted.grid.popup.transition.hidden.keyword-popup
+    [:div.middle.aligned.center.aligned.row.keyword-popup-header
+     [:div.ui.sixteen.wide.column
+      [:span "Set label"]]]
+    [:div.middle.aligned.center.aligned.row
+     [:div.middle.aligned.center.aligned.three.wide.column.keyword-side
+      [:i.fitted.large.grey.exchange.icon]]
+     [:div.thirteen.wide.column.keyword-popup
+      [:div.ui.center.aligned.grid.keyword-popup
+       [:div.ui.row.label-name (str label-name)]
+       [:div.ui.row.label-separator]
+       [:div.ui.row.label-value (str label-value)]]]]]])
+
 (defn render-keywords
   [article-id content & [{:keys [label-class show-tooltip]
                           :or {label-class "small button"
@@ -76,27 +114,8 @@
                                       article-id (:label-id label) label-value)))}
                           text)]
                      (if (and kw show-tooltip (d/editing-article-labels?))
-                       [[with-tooltip span-content
-                         {:delay {:show 50
-                                  :hide 0}
-                          :hoverable false
-                          :transition "fade up"
-                          :distanceAway 8
-                          :variation "basic"}]
-                        [:div.ui.inverted.grid.popup.transition.hidden.keyword-popup
-                         [:div.middle.aligned.center.aligned.row.keyword-popup-header
-                          [:div.ui.sixteen.wide.column
-                           [:span "Set label"]]]
-                         [:div.middle.aligned.center.aligned.row
-                          [:div.middle.aligned.center.aligned.three.wide.column.keyword-side
-                           [:i.fitted.large.grey.exchange.icon]]
-                          [:div.thirteen.wide.column.keyword-popup
-                           [:div.ui.center.aligned.grid.keyword-popup
-                            [:div.ui.row.label-name
-                             (str (:name label))]
-                            [:div.ui.row.label-separator]
-                            [:div.ui.row.label-value
-                             (str label-value)]]]]]]
+                       (keyword-button-elements
+                        span-content (:name label) label-value)
                        [span-content]))))
            (apply concat)
            vec)))))
@@ -267,10 +286,10 @@
             have-labels? (if labels true false)
             docs (d/article-documents article-id)]
         [:div
-         [:div.ui.top.attached.header.segment.middle.aligned
+         [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
           [:div.ui
            {:style {:float "left"}}
-           [:h3 "Article info"]]
+           [:h4 "Article info"]]
           (when review-status
             (let [sstr
                   (cond (= review-status "conflict")
@@ -285,7 +304,7 @@
                         :else "")]
               (when sstr
                 [:div {:style {:float "right"}}
-                 [:div.ui.large.label
+                 [:div.ui.basic.label
                   {:class color
                    :style {:margin-top "-3px"
                            :margin-bottom "-3px"
@@ -429,53 +448,50 @@
         extra-ids (->> ordered-label-ids
                        (remove #(= "inclusion criteria"
                                    (-> (get labels %) :category))))
+        n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
+        n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
         make-inclusion-tag
         (fn [label-id]
-          (when (= "inclusion criteria"
-                   (:category (get labels label-id)))
+          (if (= "inclusion criteria"
+                 (:category (get labels label-id)))
             (let [current-answer (get label-values label-id)
                   inclusion (d/label-answer-inclusion
                              label-id current-answer)
                   color (case inclusion
                           true "green"
                           false "orange"
-                          nil "")
+                          nil "grey")
                   iclass (case inclusion
-                           true "plus circle icon"
-                           false "minus circle icon"
-                           nil "help circle icon")]
-              [:div.ui.left.corner.label
-               {:class (str color)}
-               [:i {:class (str iclass)}]])))
+                           true "circle plus icon"
+                           false "circle minus icon"
+                           nil "circle outline icon")]
+              [:i.left.floated.fitted {:class (str color " " iclass)}])
+            [:i.left.floated.fitted {:class "grey content icon"}]))
         make-boolean-column
         (fn [label-id]
           (let [label (get labels label-id)]
             ^{:key {:article-label label-id}}
-            [:div.ui.column
-             {:style {:background-color
-                      (if (:required label)
-                        "rgba(215,215,215,1)"
-                        nil)
-                      :padding "0px"}}
-             [:div.ui.middle.aligned.grid
-              {:style {:margin "0px"}}
+            [:div.ui.column.label-edit
+             {:class (cond (:required label) "required"
+                           (not= (:category label)
+                                 "inclusion criteria") "extra"
+                           :else "")}
+             [:div.ui.middle.aligned.grid.label-edit
               [with-tooltip
-               [:div.ui.row
-                {:style {:padding-bottom "8px"
-                         :padding-top "12px"
-                         :text-align "center"}}
+               [:div.ui.row.label-edit-name
                 (make-inclusion-tag label-id)
-                [:span
-                 {:style {:width "100%"}}
-                 (str (:short-label label) "?")]]]
-              [:div.ui.inverted.popup.top.left.transition.hidden
-               (:question label)]
-              [:div.ui.row
-               {:style {:padding-top "0px"
-                        :padding-bottom "18px"}}
-               [:div
-                {:style {:margin-left "auto"
-                         :margin-right "auto"}}
+                [:span.name
+                 [:span.inner
+                  (str (:short-label label) "?")]]]
+               {:delay {:show 400
+                        :hide 0}
+                :hoverable false
+                :transition "fade up"
+                :distanceAway 8
+                :variation "basic"}]
+              [label-help-popup-element label-id]
+              [:div.ui.row.label-edit-value.boolean
+               [:div.inner
                 [three-state-selection
                  (fn [new-value]
                    (swap! state assoc-in
@@ -489,56 +505,52 @@
         (fn [label-id]
           (let [label (get labels label-id)]
             ^{:key {:article-label label-id}}
-            [:div.ui.column
-             {:style {:background-color
-                      (if (:required label)
-                        "rgba(215,215,215,1)"
-                        nil)
-                      :padding "0px"}}
-             [:div.ui.middle.aligned.grid
-              {:style {:margin "0px"}}
+            [:div.ui.column.label-edit
+             {:class (if (:required label) "required" nil)}
+             [:div.ui.middle.aligned.grid.label-edit
               [with-tooltip
-               [:div.ui.row
-                {:style {:padding-bottom "8px"
-                         :padding-top "12px"
-                         :text-align "center"}}
+               [:div.ui.row.label-edit-name
                 (make-inclusion-tag label-id)
-                [:span
-                 {:style {:width "100%"}}
-                 (:short-label label)]]]
-              [:div.ui.inverted.popup.top.left.transition.hidden
-               (:question label)]
-              [:div.ui.row
-               {:style {:padding-top "8px"
-                        :padding-bottom "10px"}}
-               (let [current-values
-                     (get label-values label-id)]
-                 [multi-choice-selection
-                  label-id
-                  (-> label :definition :all-values)
-                  current-values
-                  (fn [v t]
-                    (swap! state assoc-in
-                           (concat labels-path [label-id])
-                           (-> (conj (get
-                                      (d/active-label-values article-id labels-path)
-                                      label-id)
-                                     v)
-                               distinct vec))
-                    (ajax/send-labels
-                     article-id
-                     (d/active-label-values article-id labels-path)))
-                  (fn [v t]
-                    (swap! state assoc-in
-                           (concat labels-path [label-id])
-                           (remove
-                            (partial = v)
-                            (get
-                             (d/active-label-values article-id labels-path)
-                             label-id)))
-                    (ajax/send-labels
-                     article-id
-                     (d/active-label-values article-id labels-path)))])]]]))
+                [:span.name
+                 [:span.inner
+                  (:short-label label)]]]
+               {:delay {:show 400
+                        :hide 0}
+                :hoverable false
+                :transition "fade up"
+                :distanceAway 8
+                :variation "basic"}]
+              [label-help-popup-element label-id]
+              [:div.ui.row.label-edit-value.category
+               [:div.inner
+                (let [current-values
+                      (get label-values label-id)]
+                  [multi-choice-selection
+                   label-id
+                   (-> label :definition :all-values)
+                   current-values
+                   (fn [v t]
+                     (swap! state assoc-in
+                            (concat labels-path [label-id])
+                            (-> (conj (get
+                                       (d/active-label-values article-id labels-path)
+                                       label-id)
+                                      v)
+                                distinct vec))
+                     (ajax/send-labels
+                      article-id
+                      (d/active-label-values article-id labels-path)))
+                   (fn [v t]
+                     (swap! state assoc-in
+                            (concat labels-path [label-id])
+                            (remove
+                             (partial = v)
+                             (get
+                              (d/active-label-values article-id labels-path)
+                              label-id)))
+                     (ajax/send-labels
+                      article-id
+                      (d/active-label-values article-id labels-path)))])]]]]))
         make-column
         (fn [label-id]
           (let [{:keys [value-type]
@@ -548,34 +560,31 @@
               "categorical" (make-categorical-column label-id)
               nil)))
         make-label-columns
-        (fn [label-ids]
-          (doall (map make-column label-ids)))]
+        (fn [label-ids n-cols]
+          (doall
+           (for [row (partition-all n-cols label-ids)]
+             ^{:key {:label-row (first row)}}
+             [:div.row
+              (doall
+               (concat
+                (map make-column row)
+                (when (< (count row) n-cols)
+                  [^{:key {:label-row-end (last row)}}
+                   [:div.column]])))])))]
     [:div.ui.segments
      [:div.ui.top.attached.header
       [:h3
        "Edit labels "
        [with-tooltip
-        [:a {:href "/labels"}
-         [:i.medium.yellow.info.circle.icon]]]
+        [:a {:href "/project/labels"}
+         [:i.medium.grey.help.circle.icon]]]
        [:div.ui.inverted.popup.top.left.transition.hidden
         "View label definitions"]]]
-     [:div.ui.attached.segment.label-section-header
-      [:h4 "Inclusion criteria"]]
-     [:div.ui.attached.grid.segment
-      {:class (cond (full-size?) "four column"
-                    (mobile?) "two column"
-                    :else "three column")
-       :style {:padding "0px"}}
-      (make-label-columns core-ids)]
-     [:div.ui.attached.segment.label-section-header
-      [:h4 "Extra labels"]]
-     [:div.ui.grid.segment
-      {:class (str (cond (full-size?) "four column"
-                         (mobile?) "two column"
-                         :else "three column")
-                   " "
-                   (if (nil? pnote) "bottom attached" "attached"))
-       :style {:padding "0px"}}
-      (make-label-columns extra-ids)]
+     [:div.ui.label-section
+      {:class (str "attached "
+                   n-cols-str " column "
+                   "celled grid segment")}
+      (make-label-columns (concat core-ids extra-ids) n-cols)]
+     [inconsistent-answers-notice label-values]
      [note-input-element article-id]]))
 

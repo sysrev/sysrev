@@ -6,8 +6,9 @@
     [current-page on-page? logged-in? active-project-id]]
    [sysrev.routes :refer [data-initialized? on-public-page?]]
    [sysrev.notify :refer [active-notification]]
-   [sysrev.ui.components :refer [loading-screen notifier project-wrapper-div]]
-   [sysrev.ui.sysrev :refer [project-page]]
+   [sysrev.ui.components :refer [loading-screen notifier]]
+   [sysrev.ui.sysrev :refer
+    [project-page project-overview-box project-predict-report-box]]
    [sysrev.ui.labels :refer [labels-page]]
    [sysrev.ui.login :refer [login-register-page]]
    [sysrev.ui.user-profile :refer [user-profile-page]]
@@ -33,62 +34,74 @@
              (not (on-public-page?))) [logged-out-content]
         (and (logged-in?)
              (nil? (active-project-id))) [select-project-page]
-        (on-page? :project) [project-wrapper-div [project-page]]
+        (on-page? :project)
+        [project-page (-> @state :page :project :tab)
+         (case (-> @state :page :project :tab)
+           :overview [project-overview-box]
+           :predict [project-predict-report-box]
+           nil)]
+        (on-page? :labels) [project-page :labels [labels-page]]
+        (on-page? :user-profile)
+        [project-page :user-profile [user-profile-page]]
+        (on-page? :classify)
+        [project-page :classify [classify-page]]
+        (on-page? :article)
+        (let [project-id (active-project-id)
+              article-id (-> @state :page :article :id)
+              article-project-id
+              (and article-id (d/data [:articles article-id :project-id]))]
+          (if (and project-id article-project-id
+                   (= project-id article-project-id))
+            [project-page :article [article-page]]
+            [article-page]))
         (on-page? :select-project) [select-project-page]
-        (on-page? :labels) [project-wrapper-div [labels-page]]
         (on-page? :login) [login-register-page {:register? false}]
         (on-page? :register) [login-register-page {:register? true}]
         (on-page? :request-password-reset) [request-password-reset-page]
         (on-page? :reset-password) [password-reset-page]
-        (on-page? :user-profile) [project-wrapper-div [user-profile-page]]
-        (on-page? :classify) [project-wrapper-div [classify-page]]
-        (on-page? :article) [project-wrapper-div [article-page]]
         true [:div [:h1 "Route not found"]]))
 
 (defn header-menu-full []
-  [:div.ui.menu
-   [:a.item
-    {:href "/"}
-    [:h2.ui.blue.header
-     "sysrev.us"]]
-   (if (logged-in?)
-     (let [{:keys [user-id email name]} (-> @state :identity)
-           display-name (or name email)]
-       [:div.right.menu
-        [:a.item.blue-text {:href (str "/user/" user-id)}
-         [:div
-          [:i.blue.user.icon]
-          display-name]]
-        [:a.item {:href "/project"} "Project"]
-        [:a.item {:href "/labels"} "Labels"]
-        [:a.item {:href "/classify"} "Classify"]
-        (when (d/admin-user? user-id)
-          [:div.item
-           [:a.ui.button {:href "/select-project"}
-            "Change project"]])
-        [:div.item
-         [:a.ui.button {:on-click ajax/do-post-logout}
-          "Log out"]]])
-     [:div.right.menu
-      #_ [:a.item {:href "/project"} "Project"]
-      #_ [:a.item {:href "/labels"} "Labels"]
-      [:div.item
-       [:a.ui.button {:href "/login"}
-        "Log in"]]
-      [:div.item
-       [:a.ui.button {:href "/register"}
-        "Register"]]])])
+  (let [{:keys [user-id email name]} (-> @state :identity)
+        display-name (or name email)]
+    [:div.ui.top.menu.site-menu
+     [:div.ui.container
+      [:a.header.item
+       {:href "/"}
+       [:h3.ui.blue.header
+        "sysrev.us"]]
+      (if (logged-in?)
+        [:div.right.menu
+         [:a.item {:href "/project"} "Project"]
+         [:a.item.blue-text {:href (str "/user/" user-id)}
+          [:div
+           [:i.blue.user.icon]
+           display-name]]
+         (when (d/admin-user? user-id)
+           [:a.item {:href "/select-project"}
+            "Change project"])
+         [:a.item.distinct.middle.aligned {:on-click ajax/do-post-logout}
+          "Log out"
+          #_ [:i.blue.sign.out.fitted.icon
+              {:style {:padding-left "4px"
+                       :margin-bottom "-3px"}}]]
+         [:a.item {:style {:width "0" :padding "0"}}]]
+        [:div.right.menu
+         [:a.item.distinct {:href "/login"}
+          "Log in"]
+         [:a.item.distinct {:href "/register"}
+          "Register"]])]]))
 
 (defn header-menu-mobile []
   (if (logged-in?)
     (let [{:keys [user-id email name]} (-> @state :identity)
           display-name (or name email)]
-      [:div.ui.menu
+      [:div.ui.menu.site-menu
        [:a.item
         {:href "/"}
         [:h3.ui.blue.header
          "sysrev.us"]]
-       [:a.item {:href "/classify"} "Classify"]
+       [:a.item {:href "/project/classify"} "Classify"]
        [:div.item
         (let [dropdown
               (with-mount-hook
@@ -99,16 +112,16 @@
             [:i.chevron.down.icon
              {:style {:margin "0px"}}]
             [:div.menu
-             [:a.item {:href "/project"} "Project"]
-             [:a.item {:href "/labels"} "Labels"]
              (when (d/admin-user? user-id)
                [:a.item {:href "/select-project"} "Change project"])]]])]
        [:div.right.menu
+        [:a.item {:href "/project"} "Project"]
         [:a.item.blue-text {:href (str "/user/" user-id)}
          [:i.large.blue.user.icon {:style {:margin "0px"}}]]
         [:div.item
          [:a.ui.button {:on-click ajax/do-post-logout}
-          "Log out"]]]])
+          "Log out"]]
+        [:a.item {:style {:width "0" :padding "0"}}]]])
     [:div.ui.menu
      [:a.item
       {:href "/"}
@@ -123,17 +136,11 @@
         "Register"]]]]))
 
 (defn main-content []
-  [:div
-   [:div.ui.container.main-content
-    [:div.ui.grid
-     [:div.middle.aligned.row
-      [:div.ui.sixteen.wide.computer.only.column
-       (when (contains? @state :identity)
-         [header-menu-full])]
-      [:div.ui.sixteen.wide.mobile.only.tablet.only.column
-       (when (contains? @state :identity)
-         [header-menu-mobile])]]
-     [:div.middle.aligned.row
-      [:div.sixteen.wide.column
-       [current-page-content]]]]]
+  [:div.main-content
+   (when (contains? @state :identity)
+     (if (full-size?)
+       [header-menu-full]
+       [header-menu-mobile]))
+   [:div.ui.container.page-content
+    [current-page-content]]
    [notifier (active-notification)]])
