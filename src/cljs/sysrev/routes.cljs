@@ -331,5 +331,12 @@
   (do-route-change :classify
                    {:label-values {}}))
 
+(defroute classify-route-old "/classify" []
+  (do-route-change :classify
+                   {:label-values {}}))
+
 (defroute labels-route "/project/labels" []
+  (do-route-change :labels {}))
+
+(defroute labels-route-old "/labels" []
   (do-route-change :labels {}))
