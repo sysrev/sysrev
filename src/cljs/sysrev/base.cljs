@@ -12,7 +12,8 @@
 (defonce ^:dynamic work-state (atom {}))
 ;; Most recent state that has all data required for rendering
 (defonce display-state (r/atom {}))
-;; Set to `true` while state is not ready for display
+;; Used to control visibility of loading indicator based on
+;; whether display-state is up-to-date with work-state.
 (defonce display-ready (r/atom false))
 
 (defn init-state []
@@ -25,6 +26,7 @@
     (reset! work-state s)
     (reset! display-state s)))
 
+;; Controls whether `st` reads from `work-state` or `display-state`
 (defonce ^:dynamic read-from-work-state false)
 
 (defn st
