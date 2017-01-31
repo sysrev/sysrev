@@ -98,47 +98,41 @@
           "Register"]])]]))
 
 (defn header-menu-mobile []
-  (if (logged-in?)
-    (let [{:keys [user-id email name]} (st :identity)
-          display-name (or name email)]
-      [:div.ui.menu.site-menu
-       [:a.item
-        {:href "/"}
-        [:h3.ui.blue.header
-         "sysrev.us"]]
-       [:a.item {:href "/project/classify"} "Classify"]
-       [:div.item
-        (let [dropdown
-              (with-mount-hook
-                #(.dropdown (js/$ (r/dom-node %))))]
-          [dropdown
-           [:div.ui.dropdown
-            [:input {:type "hidden" :name "menu-dropdown"}]
-            [:i.chevron.down.icon
-             {:style {:margin "0px"}}]
-            [:div.menu
-             (when (s/admin-user? user-id)
-               [:a.item {:href "/select-project"} "Change project"])]]])]
-       [:div.right.menu
-        [:a.item {:href "/project"} "Project"]
-        [:a.item.blue-text {:href (str "/user/" user-id)}
-         [:i.large.blue.user.icon {:style {:margin "0px"}}]]
-        [:div.item
-         [:a.ui.button {:on-click ajax/post-logout}
-          "Log out"]]
-        [:a.item {:style {:width "0" :padding "0"}}]]])
-    [:div.ui.menu
-     [:a.item
-      {:href "/"}
-      [:h3.ui.blue.header
-       "sysrev.us"]]
-     [:div.right.menu
-      [:div.item
-       [:a.ui.button {:href "/login"}
-        "Log in"]]
-      [:div.item
-       [:a.ui.button {:href "/register"}
-        "Register"]]]]))
+  (let [{:keys [user-id email name]} (st :identity)
+        display-name (or name email)]
+    [:div.ui.top.menu.site-menu
+     [:div.ui.container
+      [:a.header.item
+       {:href "/"}
+       [:h3.ui.blue.header
+        "sysrev.us"]]
+      [:a.item.loading-indicator [loading-indicator]]
+      (if (logged-in?)
+        [:div.right.menu
+         (when (s/admin-user? user-id)
+           [:div.item
+            (let [dropdown
+                  (with-mount-hook
+                    #(.dropdown (js/$ (r/dom-node %))))]
+              [dropdown
+               [:div.ui.dropdown
+                [:input {:type "hidden" :name "menu-dropdown"}]
+                [:i.chevron.down.icon
+                 {:style {:margin "0px"}}]
+                [:div.menu
+                 (when (s/admin-user? user-id)
+                   [:a.item {:href "/select-project"} "Change project"])]]])])
+         [:a.item {:href "/project"} "Project"]
+         [:a.item.blue-text {:href (str "/user/" user-id)}
+          [:i.large.blue.fitted.user.icon {:style {:margin "0px"}}]]
+         [:a.item.distinct.middle.aligned {:on-click ajax/post-logout}
+          "Log out"]
+         [:a.item {:style {:width "0" :padding "0"}}]]
+        [:div.right.menu
+         [:a.item.distinct {:href "/login"}
+          "Log in"]
+         [:a.item.distinct {:href "/register"}
+          "Register"]])]]))
 
 (defn main-content []
   (binding [sysrev.base/read-from-work-state false]

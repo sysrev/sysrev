@@ -364,21 +364,14 @@
         anote (notes/get-note-field
                article-id user-id (:name pnote))]
     (when pnote
-      [:div.ui.segment
-       {:style {:padding-top "0.4em"
-                :padding-bottom "0.6em"
-                :padding-left "1.0em"
-                :padding-right "1.0em"}
-        :class (if true "bottom attached" "attached")}
-       [:div.ui.middle.aligned.form
-        [:div.middle.aligned.field
-         [:label.middle.aligned
-          {:style {:margin-bottom "0.25em"}}
+      [:div.ui.segment.notes
+       {:class (if true "bottom attached" "attached")}
+       [:div.ui.middle.aligned.form.notes
+        [:div.middle.aligned.field.notes
+         [:label.middle.aligned.notes
           (:description pnote)
           [:i.large.middle.aligned.icon
-           {:style {:margin-left "0.25em"
-                    :margin-bottom "0.2em"}
-            :class
+           {:class
             (cond
               (not (notes/note-field-synced? article-id (:name pnote)))
               "blue asterisk loading"

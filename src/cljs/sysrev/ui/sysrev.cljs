@@ -46,33 +46,31 @@
 
 (defn project-summary-box []
   (let [stats (project :stats)]
-    [:div.ui.grey.segment
-     [:div.ui.three.column.grid.project-stats
-      [:div.ui.row
-       [:div.ui.column
-        [:span.attention
-         (str (-> stats :articles))]
-        " total articles"]
-       [:div.ui.column
-        [:span.attention
-         (str (-> stats :labels :any))]
-        " total reviewed"]
-       [:div.ui.column
-        [:span.attention
-         (str (- (-> stats :labels :any)
-                 (-> stats :labels :single)))]
-        " reviewed twice"]]]
-     [:div.ui.two.column.grid.project-stats
-      [:div.ui.row
-       {:style {:padding-top "0px"}}
-       [:div.ui.column
-        [:span.attention
-         (str (-> stats :conflicts :resolved))]
-        " resolved conflicts"]
-       [:div.ui.column
-        [:span.attention
-         (str (-> stats :conflicts :pending))]
-        " awaiting extra review"]]]]))
+    [:div.ui.grey.two.column.celled.grid.segment.project-stats
+     [:div.row.top-row
+      [:div.ui.column.top-left
+       [:span.attention (str (-> stats :articles))]
+       " total articles"]
+      [:div.ui.column.top-right
+       [:span.attention
+        (str (-> stats :labels :any))]
+       " total reviewed"]]
+     [:div.row
+      [:div.ui.column
+       [:span.attention
+        (str (- (-> stats :labels :any)
+                (-> stats :labels :single)))]
+       " reviewed twice"]
+      [:div.ui.column
+       [:span.attention
+        (str (-> stats :conflicts :resolved))]
+       " resolved conflicts"]]
+     [:div.row
+      [:div.ui.column.bottom-left
+       [:span.attention
+        (str (-> stats :conflicts :pending))]
+       " awaiting extra review"]
+      [:div.ui.column.bottom-right]]]))
 
 (defn label-counts-box []
   (let [stats (project :stats)]
@@ -112,7 +110,7 @@
               ^{:key {:user-info user-id}}
               [user-info-card user-id]))))]))
 
-(defn project-page-menu [active-tab]
+(defn project-page-menu-full [active-tab]
   (let [make-class
         #(if (= % active-tab) "active item" "item")]
     [:div.ui.five.item.secondary.pointing.menu.project-menu
@@ -136,7 +134,34 @@
       {:class (make-class :classify)
        :href "/project/classify"}
       [:div.ui.large.basic.button.classify
-       "Classify articles"]]]))
+       "Classify"]]]))
+
+(defn project-page-menu-mobile [active-tab]
+  (let [make-class
+        #(if (= % active-tab) "active item" "item")]
+    [:div.ui.four.item.secondary.pointing.menu.project-menu
+     [:a
+      {:class (make-class :overview)
+       :href "/project"}
+      [:h4.ui.header "Overview"]]
+     [:a
+      {:class (make-class :user-profile)
+       :href "/user"}
+      [:h4.ui.header "User"]]
+     [:a
+      {:class (make-class :labels)
+       :href "/project/labels"}
+      [:h4.ui.header "Labels"]]
+     [:a
+      {:class (make-class :classify)
+       :href "/project/classify"}
+      [:div.ui.basic.button.classify
+       "Classify"]]]))
+
+(defn project-page-menu [active-tab]
+  (if (full-size?)
+    [project-page-menu-full active-tab]
+    [project-page-menu-mobile active-tab]))
 
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid

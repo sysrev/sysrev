@@ -27,23 +27,23 @@
         [article-info-component article-id false]]
        :none
        [:div
-        [:div.ui.segment
-         [:h3.ui.grey.header.middle.aligned {:style {:margin "-5px"}}
+        [:div.ui.segment.article-status
+         [:h3.ui.grey.header.middle.aligned
           [:i.info.circle.icon {:aria-hidden true}]
           "This article has not been selected for you to label."]]
         [article-info-component article-id false]]
        :confirmed
        [:div
-        [:div.ui.segment
-         [:h3.ui.green.header.middle.aligned {:style {:margin "-5px"}}
+        [:div.ui.segment.article-status
+         [:h3.ui.green.header.middle.aligned
           [:i.info.circle.icon {:aria-hidden true}]
           "You have confirmed your labels for this article."]]
         [article-info-component article-id true user-id]]
        :unconfirmed
        [:div
-        [:div.ui.segment
-         [:h3.ui.yellow.header.middle.aligned {:style {:margin "-5px"}}
-          [:i.info.circle.icon {:aria-hidden true}]
+        [:div.ui.segment.article-status
+         [:h3.ui.yellow.header.middle.aligned
+          [:i.small.info.circle.icon {:aria-hidden true}]
           "Your labels for this article are not yet confirmed."]]
         [article-info-component article-id false]
         [label-editor-component
