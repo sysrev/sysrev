@@ -229,7 +229,7 @@
   `user-id` is optional, if specified then only input from that user will
   be included."
   [article-id & [show-labels user-id review-status classify?]]
-  (fn [article-id & [show-labels user-id]]
+  (fn [article-id & [show-labels user-id review-status classify?]]
     (when-let [article (data [:articles article-id])]
       (let [unote (and user-id (notes/get-note-field
                                 article-id user-id "default"))

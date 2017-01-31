@@ -287,20 +287,22 @@
   (using-work-state
    (let [current-id (data :classify-article-id)]
      (when (or force? (nil? current-id))
-       (swap! work-state dissoc-in [:data :classify-article-id])
-       (let [current-score
-             (if (nil? current-id)
-               nil
-               (data [:articles current-id :score]))]
-         (ajax-get
-          "/api/label-task"
-          (fn [result]
-            (swap! work-state (project/merge-article result))
-            (swap! work-state (s/set-classify-task
-                               (:article-id result)
-                               (:review-status result)))
-            (scroll-top)
-            (notify "Fetched next article"))))))))
+       (->>
+        (comp
+         #(dissoc-in % [:data :classify-article-id])
+         #(dissoc-in % [:data :classify-review-status]))
+        (swap! work-state))
+       (ajax-get
+        "/api/label-task"
+        (fn [result]
+          (->>
+           (comp
+            (project/merge-article result)
+            (s/set-classify-task (:article-id result)
+                                 (:review-status result)))
+           (swap! work-state))
+          (scroll-top)
+          (notify "Fetched next article")))))))
 
 (defn send-labels
   "Update the database with user label values for `article-id`."
