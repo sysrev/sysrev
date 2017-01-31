@@ -385,6 +385,10 @@ div.ui.segment.label-section-header {
 table.table.project-labels {
 }
 
+.ui.menu a.item.loading-indicator:before {
+    width: 0;
+}
+
 @media only screen and (max-width: 900px) {
     .ui.segment {
         padding: 0.5em;

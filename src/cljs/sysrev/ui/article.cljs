@@ -2,8 +2,11 @@
   (:require
    [clojure.core.reducers :refer [fold]]
    [clojure.string :as str]
-   [sysrev.base :refer [state]]
-   [sysrev.state.core :as s]
+   [sysrev.base :refer [st work-state]]
+   [sysrev.state.core :as s :refer [data]]
+   [sysrev.state.project :as project :refer [project]]
+   [sysrev.state.labels :as labels]
+   [sysrev.state.notes :as notes]
    [sysrev.shared.util :refer [map-values re-pos]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.ui.components :refer
@@ -12,41 +15,12 @@
      inconsistent-answers-notice]]
    [sysrev.util :refer [full-size? mobile? in?]]
    [sysrev.ajax :as ajax]
-   [reagent.core :as r]
-   [sysrev.state.data :as d])
-  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
-
-(defn active-labels-path []
-  (case (s/current-page)
-    :classify [:page :classify :label-values]
-    :article [:page :article :label-values]
-    nil))
-
-(defn enable-label-value [article-id label-id label-value]
-  (let [labels-path (active-labels-path)
-        {:keys [value-type]} (d/project-label label-id)
-        active-values (d/active-label-values article-id labels-path)]
-    (cond (= value-type "boolean")
-          (swap! state assoc-in
-                 (concat labels-path [label-id])
-                 label-value)
-          (= value-type "categorical")
-          (do
-            (.dropdown
-             (js/$ (str "#label-edit-" label-id))
-             "set selected"
-             label-value)
-            (swap! state assoc-in
-                   (concat labels-path [label-id])
-                   (-> (conj (get
-                              (d/active-label-values article-id labels-path)
-                              label-id)
-                             label-value)
-                       distinct vec))))))
+   [reagent.core :as r])
+  (:require-macros [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
 (defn label-help-popup-element [label-id]
   (when-let [{:keys [category required question] :as label}
-             (d/project [:labels label-id])]
+             (project :labels label-id)]
     [:div.ui.inverted.grid.popup.transition.hidden.label-help
      [:div.middle.aligned.center.aligned.row.label-help-header
       [:div.ui.sixteen.wide.column
@@ -85,14 +59,14 @@
   [article-id content & [{:keys [label-class show-tooltip]
                           :or {label-class "small button"
                                show-tooltip true}}]]
-  (let [keywords (d/project-keywords)]
+  (let [keywords (project :keywords)]
     (vec
      (concat
       [:span]
       (->> content
            (mapv (fn [{:keys [keyword-id text]}]
                    (let [kw (and keyword-id (get keywords keyword-id))
-                         label (and kw (d/project-label (:label-id kw)))
+                         label (and kw (project :labels (:label-id kw)))
                          label-value (and kw (:label-value kw))
                          class (cond
                                  (nil? kw)
@@ -107,13 +81,13 @@
                          (dangerous
                           :span {:class class
                                  :on-click
-                                 (when (and (d/editing-article-labels?)
+                                 (when (and (labels/editing-article-labels?)
                                             kw label label-value)
                                    (fn []
-                                     (enable-label-value
+                                     (labels/enable-label-value
                                       article-id (:label-id label) label-value)))}
                           text)]
-                     (if (and kw show-tooltip (d/editing-article-labels?))
+                     (if (and kw show-tooltip (labels/editing-article-labels?))
                        (keyword-button-elements
                         span-content (:name label) label-value)
                        [span-content]))))
@@ -121,7 +95,7 @@
            vec)))))
 
 (defn render-abstract [article-id]
-  (let [sections (d/data [:articles article-id :abstract-render])]
+  (let [sections (data [:articles article-id :abstract-render])]
     [:div
      (doall
       (->> sections
@@ -139,11 +113,8 @@
 
 (defn label-values-component [article-id user-id]
   (fn [article-id & [user-id]]
-    (let [labels (d/project-labels-ordered)
-          values (d/user-label-values article-id user-id)
-          values (if-not (empty? values)
-                   values
-                   (d/get-article-labels article-id user-id))]
+    (let [labels (labels/project-labels-ordered)
+          values (labels/user-label-values article-id user-id)]
       [:div {:style {:margin-top "-8px"
                      :margin-bottom "-9px"
                      :margin-left "-6px"
@@ -155,8 +126,7 @@
          (map #(do [% (get values %)]))
          (map-indexed
           (fn [i [label-id answer]]
-            (let [label-name
-                  (d/project [:labels label-id :name])
+            (let [label-name (project :labels label-id :name)
                   answer-str (if (nil? answer)
                                "unknown"
                                (str answer))]
@@ -164,7 +134,7 @@
               [label-answer-tag label-id answer])))))])))
 
 (defn article-docs-component [article-id]
-  (let [docs (d/article-documents article-id)]
+  (let [docs (project/article-documents article-id)]
     [:div.ui.two.column.grid
      (doall
       (->>
@@ -174,8 +144,7 @@
               [:div.ui.column
                [:a.ui.fluid.labeled.button
                 {:target "_blank"
-                 :href (d/article-document-url
-                        document-id file-name)}
+                 :href (project/article-document-url document-id file-name)}
                 [:div.ui.green.button
                  {:style {:min-width "70px"
                           :box-sizing "content-box"}}
@@ -194,20 +163,19 @@
   be included."
   [article-id & [show-labels user-id]]
   (fn [article-id & [show-labels user-id]]
-    (when-let [article (get-in @state [:data :articles article-id])]
+    (when-let [article (data [:articles article-id])]
       (let [similarity (:score article)
             show-similarity?
             (and similarity
-                 (d/project [:member-labels
-                             (s/current-user-id)
-                             :confirmed article-id])
+                 (project :member-labels (s/current-user-id)
+                          :confirmed article-id)
                  (some->>
-                  (d/project [:stats :predict
-                              (d/project :overall-label-id)
-                              :counts :labeled])
+                  (project :stats :predict
+                           (project :overall-label-id)
+                           :counts :labeled)
                   (not= 0)))
-            docs (d/article-documents article-id)
-            unote (and user-id (d/get-note-field article-id user-id "default"))
+            docs (project/article-documents article-id)
+            unote (and user-id (notes/get-note-field article-id user-id "default"))
             note-content (and unote (:active unote))]
         [:div.ui.segments
          (when show-similarity?
@@ -233,7 +201,7 @@
           {:class (if (empty? note-content) "bottom attached" "attached")}
           (when (and show-labels
                      ((comp not empty?)
-                      (d/user-label-values article-id user-id)))
+                      (labels/user-label-values article-id user-id)))
             [label-values-component article-id user-id])]
          (when-not (empty? note-content)
            [:div.ui.bottom.attached.segment
@@ -262,29 +230,29 @@
   be included."
   [article-id & [show-labels user-id review-status classify?]]
   (fn [article-id & [show-labels user-id]]
-    (when-let [article (get-in @state [:data :articles article-id])]
-      (let [unote (and user-id (d/get-note-field
+    (when-let [article (data [:articles article-id])]
+      (let [unote (and user-id (notes/get-note-field
                                 article-id user-id "default"))
             note-content (and unote (:active unote))
-            keywords (d/project-keywords)
+            keywords (project :keywords)
             similarity (:score article)
             show-similarity?
             (and similarity
-                 (d/project [:member-labels
-                             (s/current-user-id)
-                             :confirmed article-id])
+                 (project :member-labels
+                          (s/current-user-id)
+                          :confirmed article-id)
                  (some->>
-                  (d/project [:stats :predict
-                              (d/project :overall-label-id)
-                              :counts :labeled])
+                  (project :stats :predict
+                           (project :overall-label-id)
+                           :counts :labeled)
                   (not= 0)))
             percent (Math/round (* 100 similarity))
-            all-labels (d/get-article-labels article-id)
+            all-labels (labels/article-label-values article-id)
             labels (and show-labels
                         user-id
-                        (d/user-label-values article-id user-id))
+                        (labels/user-label-values article-id user-id))
             have-labels? (if labels true false)
-            docs (d/article-documents article-id)]
+            docs (project/article-documents article-id)]
         [:div
          [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
           [:div.ui
@@ -329,7 +297,7 @@
                   {:style {:margin-bottom "7px"}}
                   [:a
                    {:href (str "/user/" label-user-id)}
-                   (str (-> label-user-id d/project-user-info :user :email))]
+                   (str (project/project-user label-user-id :user :email))]
                   " saved labels"]
                  [label-values-component article-id label-user-id true]]))))
          (when show-similarity?
@@ -343,13 +311,13 @@
            [:h3.header
             [render-keywords
              article-id
-             (d/data [:articles article-id :title-render])
+             (data [:articles article-id :title-render])
              {:label-class "large button"}]]
            (when-not (empty? (:secondary-title article))
              [:h3.header {:style {:margin-top "0px"}}
               [render-keywords
                article-id
-               (d/data [:articles article-id :journal-render])
+               (data [:articles article-id :journal-render])
                {:label-class "large button"}]])
            (when-not (empty? (:authors article))
              [:h5.header {:style {:margin-top "0px"}}
@@ -361,7 +329,7 @@
               [article-docs-component article-id]])
            (let [urls
                  (concat (-> article :urls)
-                         (-> article :locations d/article-location-urls))]
+                         (-> article :locations project/article-location-urls))]
              [:div.content.ui.list
               (->> urls
                    (map-indexed
@@ -392,8 +360,8 @@
 
 (defn note-input-element [article-id]
   (let [user-id (s/current-user-id)
-        pnote (d/project [:notes :default])
-        anote (d/get-note-field
+        pnote (project :notes :default)
+        anote (notes/get-note-field
                article-id user-id (:name pnote))]
     (when pnote
       [:div.ui.segment
@@ -412,7 +380,7 @@
                     :margin-bottom "0.2em"}
             :class
             (cond
-              (not (d/note-field-synced? article-id (:name pnote)))
+              (not (notes/note-field-synced? article-id (:name pnote)))
               "blue asterisk loading"
               (empty? (:active anote))
               "grey write"
@@ -424,10 +392,11 @@
            :name (:name pnote)
            :default-value (or (:active anote) "")
            :on-change
-           #(swap! state
-                   (d/update-note-field
-                    article-id (:name pnote)
-                    (-> % .-target .-value)))}]]]])))
+           #(using-work-state
+             (swap! work-state
+                    (notes/update-note-field
+                     article-id (:name pnote)
+                     (-> % .-target .-value))))}]]]])))
 
 (defn label-editor-component
   "UI component for editing label values on an article.
@@ -435,12 +404,12 @@
   `article-id` is the article being edited.
 
   `labels-path` is a sequence of keys specifying the path
-  in `state` where the label values set by the user will be stored."
+  in the state map where the label values set by the user will be stored."
   [article-id labels-path label-values]
-  (let [pnote (d/project [:notes :default])
+  (let [pnote (project :notes :default)
         user-id (s/current-user-id)
-        labels (d/project :labels)
-        ordered-label-ids (->> (d/project-labels-ordered)
+        labels (project :labels)
+        ordered-label-ids (->> (labels/project-labels-ordered)
                                (map :label-id))
         core-ids (->> ordered-label-ids
                       (filter #(= "inclusion criteria"
@@ -455,7 +424,7 @@
           (if (= "inclusion criteria"
                  (:category (get labels label-id)))
             (let [current-answer (get label-values label-id)
-                  inclusion (d/label-answer-inclusion
+                  inclusion (labels/label-answer-inclusion
                              label-id current-answer)
                   color (case inclusion
                           true "green"
@@ -494,12 +463,13 @@
                [:div.inner
                 [three-state-selection
                  (fn [new-value]
-                   (swap! state assoc-in
-                          (concat labels-path [label-id])
-                          new-value)
-                   (ajax/send-labels
-                    article-id
-                    (d/active-label-values article-id labels-path)))
+                   (using-work-state
+                    (swap! work-state assoc-in
+                           (concat labels-path [label-id])
+                           new-value)
+                    (ajax/send-labels
+                     article-id
+                     (labels/active-label-values article-id labels-path))))
                  (get label-values label-id)]]]]]))
         make-categorical-column
         (fn [label-id]
@@ -530,27 +500,29 @@
                    (-> label :definition :all-values)
                    current-values
                    (fn [v t]
-                     (swap! state assoc-in
-                            (concat labels-path [label-id])
-                            (-> (conj (get
-                                       (d/active-label-values article-id labels-path)
-                                       label-id)
-                                      v)
-                                distinct vec))
-                     (ajax/send-labels
-                      article-id
-                      (d/active-label-values article-id labels-path)))
+                     (using-work-state
+                      (swap!
+                       work-state assoc-in
+                       (concat labels-path [label-id])
+                       (-> (get
+                            (labels/active-label-values article-id labels-path)
+                            label-id)
+                           vec (conj v) distinct))
+                      (ajax/send-labels
+                       article-id
+                       (labels/active-label-values article-id labels-path))))
                    (fn [v t]
-                     (swap! state assoc-in
-                            (concat labels-path [label-id])
-                            (remove
-                             (partial = v)
-                             (get
-                              (d/active-label-values article-id labels-path)
-                              label-id)))
-                     (ajax/send-labels
-                      article-id
-                      (d/active-label-values article-id labels-path)))])]]]]))
+                     (using-work-state
+                      (swap!
+                       work-state assoc-in
+                       (concat labels-path [label-id])
+                       (remove
+                        (partial = v)
+                        (get (labels/active-label-values article-id labels-path)
+                             label-id)))
+                      (ajax/send-labels
+                       article-id
+                       (labels/active-label-values article-id labels-path))))])]]]]))
         make-column
         (fn [label-id]
           (let [{:keys [value-type]

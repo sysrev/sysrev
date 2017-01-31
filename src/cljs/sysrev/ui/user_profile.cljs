@@ -1,25 +1,24 @@
 (ns sysrev.ui.user-profile
-  (:require [sysrev.base :refer [state]]
-            [sysrev.state.core :as s]
-            [sysrev.state.data :as d]
+  (:require [sysrev.base :refer [st work-state]]
+            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.project :as project :refer [project]]
+            [sysrev.state.labels :as labels]
             [sysrev.ui.components :refer [debug-box]]
             [sysrev.ui.article :refer [article-short-info-component]]
             [sysrev.ajax :as ajax]
             [reagent.core :as r])
-  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
+  (:require-macros [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
 (defn user-profile-page []
-  (let [user-id (or (get-in @state [:page :user-profile :user-id])
+  (let [user-id (or (st :page :user-profile :user-id)
                     (s/current-user-id))
-        project-id (s/active-project-id)
-        user (get-in @state [:data :users user-id])
+        project-id (s/current-project-id)
+        user (st :data :users user-id)
         display-name (or (:name user) (:email user))
-        unconfirmed-ids (-> (d/member-labels user-id)
-                            :unconfirmed keys)
-        confirmed-ids (->> (d/member-labels user-id)
-                           :confirmed keys)
+        unconfirmed-ids (keys (project :member-labels user-id :unconfirmed))
+        confirmed-ids (keys (project :member-labels user-id :confirmed))
         active-tab
-        (as-> (get-in @state [:page :user-profile :articles-tab])
+        (as-> (st :page :user-profile :articles-tab)
             active-tab
           (if (= active-tab :default)
             (cond (not= 0 (count unconfirmed-ids)) :unconfirmed
@@ -37,43 +36,47 @@
            [dropdown
             [:div.ui.fluid.dropdown.button.user-menu
              [:input {:type "hidden" :name "menu-dropdown"}]
-             [:label (d/data [:users user-id :email])
+             [:label (data [:users user-id :email])
               [:i.chevron.down.icon]]
              [:div.menu
               (doall
-               (for [link-user-id (d/project-member-user-ids true)]
+               (for [link-user-id (project/project-member-user-ids true)]
                  (let [active (= link-user-id user-id)]
                    ^{:key {:user-menu-entry link-user-id}}
                    [:a.item
                     {:href (str "/user/" link-user-id)
                      :class (if active "default active" "")}
-                    (d/data [:users link-user-id :email])])))]]]))]
+                    (data [:users link-user-id :email])])))]]]))]
       (when (and (= user-id (s/current-user-id))
-                 (d/admin-user? user-id))
+                 (s/admin-user? user-id))
         [:div.ui.attached.segment.user-admin-segment
          [:div.ui.two.column.grid
           [:div.ui.column
            [:a.ui.fluid.button
-            {:on-click ajax/do-post-delete-user}
+            {:on-click ajax/post-delete-user}
             "Delete account"]]
           [:div.ui.column
            [:a.ui.fluid.button
-            {:on-click ajax/do-post-delete-member-labels}
+            {:on-click ajax/post-delete-member-labels}
             "Delete user labels"]]]])
       [:div.ui.bottom.attached.segment
        [:div.ui.secondary.pointing.large.two.item.menu
         [:a.item
          {:class (if (= active-tab :unconfirmed) "active" "")
-          :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
-                            :unconfirmed)}
+          :on-click
+          #(using-work-state
+            (swap! work-state assoc-in
+                   [:page :user-profile :articles-tab] :unconfirmed))}
          (str (count unconfirmed-ids)
               " article"
               (if (= 1 (count unconfirmed-ids)) "" "s")
               " in progress")]
         [:a.item
          {:class (if (= active-tab :confirmed) "active" "")
-          :on-click #(swap! state assoc-in [:page :user-profile :articles-tab]
-                            :confirmed)}
+          :on-click
+          #(using-work-state
+            (swap! work-state assoc-in
+                   [:page :user-profile :articles-tab] :confirmed))}
          (str (count confirmed-ids) " confirmed article"
               (if (= 1 (count confirmed-ids)) "" "s"))]]
        (let [article-ids (case active-tab

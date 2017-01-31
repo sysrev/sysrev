@@ -1,17 +1,16 @@
 (ns sysrev.routes
   (:require
-   [sysrev.base :refer [state]]
+   [sysrev.base :refer [st work-state display-state display-ready]]
    [sysrev.state.core :as s :refer
-    [on-page? current-page current-user-id logged-in? active-project-id]]
-   [sysrev.state.data :as d :refer [data]]
+    [data on-page? current-page current-user-id logged-in? current-project-id]]
    [sysrev.ajax :as ajax]
    [sysrev.util :refer [nav in? dissoc-in]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
-  (:require-macros [sysrev.macros :refer [with-state]]))
+  (:require-macros [sysrev.macros :refer [with-state using-work-state]]))
 
 (def public-pages
-  [:login :register :request-password-reset :reset-password :labels])
+  [:login :register :request-password-reset :reset-password])
 
 (def public-data-fields
   [[:all-projects]])
@@ -25,11 +24,11 @@
 (defn page-authorized? [page]
   (or (some #(= % page) public-pages)
       (and (logged-in?)
-           (active-project-id))))
+           (current-project-id))))
 
 (defn user-labels-path [user-id]
   (when user-id
-    (when-let [project-id (active-project-id)]
+    (when-let [project-id (current-project-id)]
       [:project project-id :member-labels user-id])))
 
 ;; This var records the elements of `(:data @state)` that are required by each
@@ -78,7 +77,7 @@
     :reload
     (fn [old new]
       (with-state new
-        (when-let [project-id (active-project-id)]
+        (when-let [project-id (current-project-id)]
           [[:project project-id]])))}
    
    :classify
@@ -104,7 +103,7 @@
         [[:documents]
          [:article-labels (-> s :page :article :id)]
          (user-labels-path (current-user-id))
-         [:project (active-project-id) :keywords]]))
+         [:project (current-project-id) :keywords]]))
     :reload
     (fn [old new]
       (with-state new
@@ -128,18 +127,19 @@
       [])}})
 
 (defn global-required-data [s]
-  (with-state s
-    (concat
-     [[:all-projects]]
-     (when-let [project-id (active-project-id)]
-       [[:project project-id]]))))
+  (using-work-state
+   (with-state s
+     (concat
+      [[:all-projects]]
+      (when-let [project-id (current-project-id)]
+        [[:project project-id]])))))
 
 (defn page-required-data
   ([page-key]
-   (page-required-data page-key @state))
+   (page-required-data page-key @work-state))
   ([page-key state-map]
    (let [required-fn (get-in page-specs [page-key :required])]
-     (as-> (concat (required-fn state-map)
+     (as-> (concat (using-work-state (required-fn state-map))
                    (global-required-data state-map))
          fields
        (remove nil? fields)
@@ -149,20 +149,25 @@
 
 (defn data-initialized?
   "Test whether all server data required for a page has been received."
-  [page]
-  (and (contains? @state :identity)
-       (let [required-fields (page-required-data page)]
-         (every? #(not= :not-found (data % :not-found))
-                 required-fields))))
+  ([page-key]
+   (data-initialized? page-key @work-state))
+  ([page-key state-map]
+   (and (contains? state-map :identity)
+        (contains? state-map :current-project-id)
+        (let [required-fields (page-required-data page-key state-map)]
+          (every? #(not= :not-found
+                         (get-in state-map (concat [:data] %) :not-found))
+                  required-fields)))))
 
 (defn page-reload-data
   ([page-key]
-   (page-reload-data page-key @state))
+   (page-reload-data page-key @work-state))
   ([page-key state-map]
    (page-reload-data page-key state-map state-map))
   ([page-key old-state-map new-state-map]
    (when-let [reload-fn (get-in page-specs [page-key :reload])]
-     (as-> (reload-fn old-state-map new-state-map) fields
+     (as-> (using-work-state (reload-fn old-state-map new-state-map))
+         fields
        (remove nil? fields)
        (if (page-authorized? page-key)
          fields
@@ -174,11 +179,11 @@
   [page-key page-map]
   (let [reload-data (page-reload-data
                      page-key
-                     @state
-                     (-> @state
+                     @work-state
+                     (-> @work-state
                          (assoc-in [:page page-key] page-map)
                          (assoc :active-page page-key)))]
-    (swap! state
+    (swap! work-state
            (comp
             ;; remove existing data for all `reload-data` entries
             (->> reload-data
@@ -188,7 +193,7 @@
             ;; update page state
             #(assoc-in % [:page page-key] page-map)
             #(assoc % :active-page page-key)))
-    (when-not (contains? @state :identity)
+    (when-not (contains? @work-state :identity)
       (ajax/pull-identity))
     (doall (map ajax/fetch-data (page-required-data page-key)))))
 
@@ -202,40 +207,63 @@
 ;; updates `state`, new entries may appear in `:required` and `:reload` based
 ;; on the results of that request.
 (add-watch
- state :fetch-page-data
+ work-state :fetch-page-data
  (fn [k v old new]
-   (let [page (with-state new (current-page))
-         old-page (with-state old (current-page))]
-     (cond
+   (using-work-state
+    (let [page (with-state new (current-page))
+          old-page (with-state old (current-page))]
+      (cond
+        ;; Fetch all page data upon login or logout or project change
+        (or
+         ;; login
+         (and (with-state old (not (logged-in?)))
+              (with-state new (logged-in?)))
+         ;; logout
+         (and (with-state old (logged-in?))
+              (with-state new (not (logged-in?))))
+         ;; project change
+         (not= (with-state old (current-project-id))
+               (with-state new (current-project-id))))
+        (with-state new
+          (doall (map ajax/fetch-data (page-required-data page))))
+        
+        (and page old-page (= page old-page))
+        (let [reqs (page-required-data page new)
+              old-reqs (page-required-data page old)
+              fetch-reqs (->> reqs
+                              (remove #(in? old-reqs %)))
+              reload-fn (get-in page-specs [page :reload])
+              reload-data (page-reload-data page new)
+              old-reload-data (page-reload-data page old)
+              reloads (->> reload-data
+                           (remove #(in? old-reload-data %))
+                           (remove #(in? fetch-reqs %)))]
+          (doall (map ajax/fetch-data fetch-reqs))
+          (doall (map #(ajax/fetch-data % true) reloads)))
 
-       ;; Fetch all page data upon login or logout or project change
-       (or
-        ;; login
-        (and (with-state old (not (logged-in?)))
-             (with-state new (logged-in?)))
-        ;; logout
-        (and (with-state old (logged-in?))
-             (with-state new (not (logged-in?))))
-        ;; project change
-        (not= (with-state old (active-project-id))
-              (with-state new (active-project-id))))
-       (doall (map ajax/fetch-data (page-required-data page)))
-       
-       (and page old-page (= page old-page))
-       (let [reqs (page-required-data page new)
-             old-reqs (page-required-data page old)
-             fetch-reqs (->> reqs
-                             (remove #(in? old-reqs %)))
-             reload-fn (get-in page-specs [page :reload])
-             reload-data (page-reload-data page new)
-             old-reload-data (page-reload-data page old)
-             reloads (->> reload-data
-                          (remove #(in? old-reload-data %))
-                          (remove #(in? fetch-reqs %)))]
-         (doall (map ajax/fetch-data fetch-reqs))
-         (doall (map #(ajax/fetch-data % true) reloads)))
+        true nil)))))
 
-       true nil))))
+;; Update `display-state` value when `data-initialized?` is true.
+(add-watch
+ work-state :update-display-state
+ (fn [k v old new]
+   (using-work-state
+    (let [page (with-state new (current-page))]
+      (let [ready (data-initialized? page new)
+            prev-ready (data-initialized? page old)]
+        (when ready
+          (reset! display-state new)
+          (reset! display-ready true))
+        ;; show a loading indicator if waiting for >100ms
+        (when (and (not ready) prev-ready)
+          (js/setTimeout
+           (fn []
+             (using-work-state
+              (let [newer @work-state
+                    page (with-state newer (current-page))]
+                (when (not (data-initialized? page newer))
+                  (reset! display-ready false)))))
+           100)))))))
 
 (defroute home-route "/" []
   (do-route-change :project

@@ -1,8 +1,10 @@
 (ns sysrev.ui.login
-  (:require [sysrev.base :refer [state]]
+  (:require [sysrev.base :refer [st work-state]]
+            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.project :as project]
             [sysrev.ajax :as ajax]
-            [sysrev.util :refer [validate]]
-            [sysrev.state.data :as d]))
+            [sysrev.util :refer [validate]])
+  (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
@@ -12,26 +14,28 @@
   [& [{:keys [register?]
        :or {register? false}}]]
   (let [page (if register? :register :login)
-        project-hash (-> @state :page page :project-hash)
-        project-id (and project-hash (d/project-id-from-hash project-hash))
-        validator #(validate (-> @state :page page) login-validation)
+        project-hash (st :page page :project-hash)
+        project-id (and project-hash (project/project-id-from-hash project-hash))
+        validator #(validate (st :page page) login-validation)
         on-submit (fn [event]
-                    (let [errors (validator)]
-                      (swap! state assoc-in [:page page :submit] true)
-                      (when (empty? errors)
-                        (let [{:keys [email password]} (-> @state :page page)]
-                          (if register?
-                            (ajax/do-post-register email password project-id)
-                            (ajax/do-post-login email password)))))
-                    (when (.-preventDefault event)
-                      (.preventDefault event))
-                    (set! (.-returnValue event) false)
-                    false)
+                    (using-work-state
+                     (let [errors (validator)]
+                       (swap! work-state assoc-in [:page page :submit] true)
+                       (when (empty? errors)
+                         (let [{:keys [email password]} (st :page page)]
+                           (if register?
+                             (ajax/post-register email password project-id)
+                             (ajax/post-login email password)))))
+                     (when (.-preventDefault event)
+                       (.preventDefault event))
+                     (set! (.-returnValue event) false)
+                     false))
         input-change (fn [field-key]
-                       #(swap! state assoc-in [:page page field-key]
-                               (-> % .-target .-value)))
+                       #(using-work-state
+                         (swap! work-state assoc-in [:page page field-key]
+                                (-> % .-target .-value))))
         ;; recalculate the validation status if the submit button has been pressed
-        validation (when (-> @state :page page :submit) (validator))
+        validation (when (st :page page :submit) (validator))
         error-class (fn [k] (when (k validation) "error"))
         error-msg (fn [k] (when (k validation) [:div.ui.warning.message (k validation)]))
         form-class (when-not (empty? validation) "warning")]
@@ -44,7 +48,7 @@
         :else "Login")]
      (when project-id
        [:div.ui.attached.segment
-        [:h4 (str (d/data [:all-projects project-id :name]))]])
+        [:h4 (str (data [:all-projects project-id :name]))]])
      [:div.ui.bottom.attached.segment
       [:form.ui.form {:class form-class :on-submit on-submit}
        [:div.field {:class (error-class :email)}
@@ -52,20 +56,20 @@
         [:input.ui.input
          {:type "email"
           :name "email"
-          :value (-> @state :page page :email)
+          :value (st :page page :email)
           :on-change (input-change :email)}]]
        [:div.field {:class (error-class :password)}
         [:label "Password"]
         [:input.ui.input
          {:type "password"
           :name "password"
-          :value (-> @state :page page :password)
+          :value (st :page page :password)
           :on-change (input-change :password)}]]
        [error-msg :email]
        [error-msg :password]
        [:div.ui.divider]
        [:button.ui.button {:type "submit" :name "submit"} "Submit"]
-       (when-let [err (-> @state :page page :err)]
+       (when-let [err (st :page page :err)]
          [:div.ui.negative.message err])]
       [:div.ui.divider]
       (when (= page :register)

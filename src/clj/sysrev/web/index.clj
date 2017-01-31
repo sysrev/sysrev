@@ -1,5 +1,6 @@
 (ns sysrev.web.index
-  (:require [hiccup.page :as page]))
+  (:require [hiccup.page :as page]
+            [sysrev.shared.components :refer [loading-content]]))
 
 (defn index [& [request]]
   (page/html5
@@ -12,16 +13,8 @@
                       "/css/style.css")
     (page/include-js "/ga.js")]
    [:body
-    [:div {:id "app"}
-     [:div.ui.container
-      [:div.ui.stripe {:style "padding-top: 20px;"}
-       [:h1.ui.header.huge.center.aligned
-        "Loading app..."]]]]
+    [:div {:id "app"} loading-content]
     (page/include-js "/out/sysrev.js")]))
-
-#_
-(defn not-found [& [request]]
-  "Not found")
 
 (defn not-found [& [request]]
   (page/html5

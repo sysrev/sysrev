@@ -1,12 +1,13 @@
 (ns sysrev.ui.core
   (:require
-   [sysrev.base :refer [state]]
+   [sysrev.base :refer [st st-if-exists display-ready]]
    [sysrev.util :refer [full-size?]]
-   [sysrev.state.core :refer
-    [current-page on-page? logged-in? active-project-id]]
+   [sysrev.state.core :as s :refer
+    [data current-page on-page? logged-in? current-project-id]]
    [sysrev.routes :refer [data-initialized? on-public-page?]]
    [sysrev.notify :refer [active-notification]]
-   [sysrev.ui.components :refer [loading-screen notifier]]
+   [sysrev.ui.components :refer [notifier]]
+   [sysrev.shared.components :refer [loading-content]]
    [sysrev.ui.sysrev :refer
     [project-page project-overview-box project-predict-report-box]]
    [sysrev.ui.labels :refer [labels-page]]
@@ -18,9 +19,12 @@
    [sysrev.ui.select-project :refer [select-project-page]]
    [sysrev.ui.password-reset :refer
     [password-reset-page request-password-reset-page]]
-   [reagent.core :as r]
-   [sysrev.state.data :as d])
+   [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
+
+(defn loading-indicator []
+  (when (not @display-ready)
+    [:div.ui.small.active.inline.loader]))
 
 (defn logged-out-content []
   [:div.ui.segments
@@ -29,14 +33,13 @@
 
 (defn current-page-content []
   (cond (nil? (current-page)) [:div [:h1 "Route not found"]]
-        (not (data-initialized? (current-page))) [loading-screen]
         (and (not (logged-in?))
              (not (on-public-page?))) [logged-out-content]
         (and (logged-in?)
-             (nil? (active-project-id))) [select-project-page]
+             (nil? (current-project-id))) [select-project-page]
         (on-page? :project)
-        [project-page (-> @state :page :project :tab)
-         (case (-> @state :page :project :tab)
+        [project-page (st :page :project :tab)
+         (case (st :page :project :tab)
            :overview [project-overview-box]
            :predict [project-predict-report-box]
            nil)]
@@ -46,10 +49,10 @@
         (on-page? :classify)
         [project-page :classify [classify-page]]
         (on-page? :article)
-        (let [project-id (active-project-id)
-              article-id (-> @state :page :article :id)
+        (let [project-id (current-project-id)
+              article-id (st :page :article :id)
               article-project-id
-              (and article-id (d/data [:articles article-id :project-id]))]
+              (and article-id (data [:articles article-id :project-id]))]
           (if (and project-id article-project-id
                    (= project-id article-project-id))
             [project-page :article [article-page]]
@@ -62,7 +65,7 @@
         true [:div [:h1 "Route not found"]]))
 
 (defn header-menu-full []
-  (let [{:keys [user-id email name]} (-> @state :identity)
+  (let [{:keys [user-id email name]} (st :identity)
         display-name (or name email)]
     [:div.ui.top.menu.site-menu
      [:div.ui.container
@@ -70,17 +73,19 @@
        {:href "/"}
        [:h3.ui.blue.header
         "sysrev.us"]]
+      [:a.item.loading-indicator [loading-indicator]]
       (if (logged-in?)
         [:div.right.menu
+         ;; {:style {:border-left "none"}}
          [:a.item {:href "/project"} "Project"]
          [:a.item.blue-text {:href (str "/user/" user-id)}
           [:div
            [:i.blue.user.icon]
            display-name]]
-         (when (d/admin-user? user-id)
+         (when (s/admin-user? user-id)
            [:a.item {:href "/select-project"}
             "Change project"])
-         [:a.item.distinct.middle.aligned {:on-click ajax/do-post-logout}
+         [:a.item.distinct.middle.aligned {:on-click ajax/post-logout}
           "Log out"
           #_ [:i.blue.sign.out.fitted.icon
               {:style {:padding-left "4px"
@@ -94,7 +99,7 @@
 
 (defn header-menu-mobile []
   (if (logged-in?)
-    (let [{:keys [user-id email name]} (-> @state :identity)
+    (let [{:keys [user-id email name]} (st :identity)
           display-name (or name email)]
       [:div.ui.menu.site-menu
        [:a.item
@@ -112,14 +117,14 @@
             [:i.chevron.down.icon
              {:style {:margin "0px"}}]
             [:div.menu
-             (when (d/admin-user? user-id)
+             (when (s/admin-user? user-id)
                [:a.item {:href "/select-project"} "Change project"])]]])]
        [:div.right.menu
         [:a.item {:href "/project"} "Project"]
         [:a.item.blue-text {:href (str "/user/" user-id)}
          [:i.large.blue.user.icon {:style {:margin "0px"}}]]
         [:div.item
-         [:a.ui.button {:on-click ajax/do-post-logout}
+         [:a.ui.button {:on-click ajax/post-logout}
           "Log out"]]
         [:a.item {:style {:width "0" :padding "0"}}]]])
     [:div.ui.menu
@@ -136,11 +141,16 @@
         "Register"]]]]))
 
 (defn main-content []
-  [:div.main-content
-   (when (contains? @state :identity)
-     (if (full-size?)
-       [header-menu-full]
-       [header-menu-mobile]))
-   [:div.ui.container.page-content
-    [current-page-content]]
-   [notifier (active-notification)]])
+  (binding [sysrev.base/read-from-work-state false]
+    (if (or (empty? (st :data))
+            (not (data-initialized? (current-page))))
+      loading-content
+      [:div.main-content
+       (when (not= :not-found
+                   (st-if-exists [:identity] :not-found))
+         (if (full-size?)
+           [header-menu-full]
+           [header-menu-mobile]))
+       [:div.ui.container.page-content
+        [current-page-content]]
+       [notifier (active-notification)]])))

@@ -1,8 +1,9 @@
 (ns sysrev.ui.password-reset
-  (:require [sysrev.base :refer [state]]
+  (:require [sysrev.base :refer [st work-state]]
             [sysrev.ajax :as ajax]
             [sysrev.util :refer [validate]]
-            [sysrev.state.data :as d]))
+            [sysrev.state.core :as s :refer [data]])
+  (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (def pass-reset-validation
   {:password [#(>= (count %) 6) (str "Password must be at least six characters")]})
@@ -12,26 +13,27 @@
 
 (defn request-password-reset-page []
   (let [page :request-password-reset
-        validator #(validate (-> @state :page page)
+        validator #(validate (st :page page)
                              pass-reset-request-validation)
-        loading? (and (true? (-> @state :page page :submit))
-                      (nil? (-> @state :page page :sent)))
+        loading? (and (true? (st :page page :submit))
+                      (nil? (st :page page :sent)))
         on-submit (fn [event]
-                    (let [errors (validator)]
-                      (swap! state assoc-in [:page page :submit] true)
-                      (when (empty? errors)
-                        (let [{:keys [email]} (-> @state :page page)]
-                          (ajax/do-post-request-password-reset email))))
-                    (when (.-preventDefault event)
-                      (.preventDefault event))
-                    (set! (.-returnValue event) false)
-                    false)
+                    (using-work-state
+                     (let [errors (validator)]
+                       (swap! work-state assoc-in [:page page :submit] true)
+                       (when (empty? errors)
+                         (let [{:keys [email]} (st :page page)]
+                           (ajax/post-request-password-reset email))))
+                     (when (.-preventDefault event)
+                       (.preventDefault event))
+                     (set! (.-returnValue event) false)
+                     false))
         input-change (fn [field-key]
-                       #(do
-                          (swap! state assoc-in [:page page :err] nil)
-                          (swap! state assoc-in [:page page field-key]
-                                 (-> % .-target .-value))))
-        validation (when (-> @state :page page :submit) (validator))
+                       #(using-work-state
+                         (swap! work-state assoc-in [:page page :err] nil)
+                         (swap! work-state assoc-in [:page page field-key]
+                                (-> % .-target .-value))))
+        validation (when (st :page page :submit) (validator))
         error-class (fn [k] (when (k validation) "error"))
         error-msg (fn [k] (when (k validation)
                             [:div.ui.warning.message (k validation)]))
@@ -47,7 +49,7 @@
         [:input.ui.input
          {:type "email"
           :name "email"
-          :value (-> @state :page page :email)
+          :value (st :page page :email)
           :on-change (input-change :email)}]]
        [error-msg :email]
        [:div.ui.divider]
@@ -56,31 +58,33 @@
          :name "submit"
          :class (if loading? "loading" "")}
         "Submit"]
-       (when-let [err (-> @state :page page :err)]
+       (when-let [err (st :page page :err)]
          [:div.ui.negative.message err])
-       (when (-> @state :page page :sent)
+       (when (st :page page :sent)
          [:div.ui.green.message
           (str "An email has been sent with a link to reset your password.")])]]]))
 
 (defn password-reset-page []
   (let [page :reset-password
-        reset-code (-> @ state :page :reset-password :reset-code)
-        validator #(validate (-> @state :page page)
+        reset-code (st :page :reset-password :reset-code)
+        validator #(validate (st :page page)
                              pass-reset-validation)
         on-submit (fn [event]
-                    (let [errors (validator)]
-                      (swap! state assoc-in [:page page :submit] true)
-                      (when (empty? errors)
-                        (let [{:keys [email password]} (-> @state :page page)]
-                          (ajax/do-post-reset-password reset-code password))))
-                    (when (.-preventDefault event)
-                      (.preventDefault event))
-                    (set! (.-returnValue event) false)
-                    false)
+                    (using-work-state
+                     (let [errors (validator)]
+                       (swap! work-state assoc-in [:page page :submit] true)
+                       (when (empty? errors)
+                         (let [{:keys [email password]} (st :page page)]
+                           (ajax/post-reset-password reset-code password))))
+                     (when (.-preventDefault event)
+                       (.preventDefault event))
+                     (set! (.-returnValue event) false)
+                     false))
         input-change (fn [field-key]
-                       #(swap! state assoc-in [:page page field-key]
-                               (-> % .-target .-value)))
-        validation (when (-> @state :page page :submit) (validator))
+                       #(using-work-state
+                         (swap! work-state assoc-in [:page page field-key]
+                                (-> % .-target .-value))))
+        validation (when (st :page page :submit) (validator))
         error-class (fn [k] (when (k validation) "error"))
         error-msg (fn [k] (when (k validation)
                             [:div.ui.warning.message (k validation)]))
@@ -96,7 +100,7 @@
         [:input.ui.disabled.input
          {:type "email"
           :name "email"
-          :value (d/data [:reset-code reset-code :email])
+          :value (data [:reset-code reset-code :email])
           :read-only true
           :auto-complete false}]]
        [:div.field {:class (error-class :password)}
@@ -104,12 +108,12 @@
         [:input.ui.input
          {:type "password"
           :name "password"
-          :value (-> @state :page page :password)
+          :value (st :page page :password)
           :on-change (input-change :password)
           :auto-complete false}]]
        [error-msg :email]
        [error-msg :password]
        [:div.ui.divider]
        [:button.ui.button {:type "submit" :name "submit"} "Submit"]
-       (when-let [err (-> @state :page page :err)]
+       (when-let [err (st :page page :err)]
          [:div.ui.negative.message err])]]]))

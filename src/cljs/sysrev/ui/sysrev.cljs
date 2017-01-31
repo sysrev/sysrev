@@ -1,21 +1,51 @@
 (ns sysrev.ui.sysrev
-  (:require [sysrev.base :refer [state]]
-            [sysrev.state.core :as s]
-            [sysrev.state.data :as d]
+  (:require [sysrev.base :refer [st]]
+            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.project :as project :refer [project]]
+            [sysrev.state.labels :as labels]
             [sysrev.util :refer
              [nav number-to-word full-size? in?]]
-            [sysrev.ui.users :as users]
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
             [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
+(defn user-info-card [user-id]
+  (let [{:keys [email name]} (data [:users user-id])
+        display-name (or name email)
+        {:keys [articles in-progress]} (project :members user-id)
+        num-include (-> articles :includes count)
+        num-exclude (-> articles :excludes count)
+        num-classified (+ num-include num-exclude)]
+    [:div
+     {:style {:margin-top "10px"
+              :margin-bottom "0px"}}
+     [:div.ui.top.attached.header.segment
+      {:style {:padding-left "0.7em"
+               :padding-right "0.7em"}}
+      [:a {:href (str "/user/" user-id)}
+       [:h4 display-name]]]
+     [:table.ui.bottom.attached.unstackable.table
+      {:style {:margin-left "-1px"}}
+      [:thead
+       [:tr
+        [:th "Confirmed"]
+        [:th "Included"]
+        [:th "Excluded"]
+        [:th "In progress"]]]
+      [:tbody
+       [:tr
+        [:td [:span.attention (str num-classified)]]
+        [:td [:span.attention (str num-include)]]
+        [:td [:span.attention (str num-exclude)]]
+        [:td [:span.attention (str in-progress)]]]]]]))
+
 (defn selected-label-id []
-  (or (-> @state :page :project :active-label-id)
-      (d/project :overall-label-id)))
+  (or (st :page :project :active-label-id)
+      (project :overall-label-id)))
 
 (defn project-summary-box []
-  (let [stats (d/project :stats)]
+  (let [stats (project :stats)]
     [:div.ui.grey.segment
      [:div.ui.three.column.grid.project-stats
       [:div.ui.row
@@ -45,7 +75,7 @@
         " awaiting extra review"]]]]))
 
 (defn label-counts-box []
-  (let [stats (d/project :stats)]
+  (let [stats (project :stats)]
     [:table.ui.celled.unstackable.table.grey.segment
      [:thead
       [:tr
@@ -60,7 +90,7 @@
      [:tbody
       (doall
        (for [{:keys [label-id short-label category]}
-             (d/project-labels-ordered)]
+             (labels/project-labels-ordered)]
          (when (= category "inclusion criteria")
            (let [counts (get-in stats [:inclusion-values label-id])]
              ^{:key {:label-stats label-id}}
@@ -71,7 +101,7 @@
               #_ [:td (str (get counts :nil))]]))))]]))
 
 (defn member-list-box []
-  (let [user-ids (d/project-member-user-ids false)]
+  (let [user-ids (project/project-member-user-ids false)]
     [:div.ui.grey.segment
      [:h4 {:style {:margin-bottom "0px"}}
       "Project members"]
@@ -80,7 +110,7 @@
            (map
             (fn [user-id]
               ^{:key {:user-info user-id}}
-              [users/user-info-card user-id]))))]))
+              [user-info-card user-id]))))]))
 
 (defn project-page-menu [active-tab]
   (let [make-class
@@ -119,8 +149,8 @@
 
 (defn train-input-summary-box []
   (let [label-id (selected-label-id)
-        short-label (d/project [:labels label-id :short-label])
-        counts (d/project [:stats :predict label-id :counts])]
+        short-label (project :labels label-id :short-label)
+        counts (project :stats :predict label-id :counts)]
     [:table.ui.celled.unstackable.table.grey.segment.mobile-table
      [:thead
       [:tr
@@ -137,8 +167,8 @@
 
 (defn value-confidence-box []
   (let [label-id (selected-label-id)
-        c-include (d/project [:stats :predict label-id :include :confidence])
-        c-exclude (d/project [:stats :predict label-id :exclude :confidence])
+        c-include (project :stats :predict label-id :include :confidence)
+        c-exclude (project :stats :predict label-id :exclude :confidence)
         c-percents (-> c-include keys sort)]
     [:div.ui.grid
      [:div.ui.sixteen.wide.column
@@ -171,8 +201,8 @@
               [:td (str n-articles)])))]]]]]))
 
 (defn predict-report-labels-menu []
-  (let [predict-ids (keys (d/project [:stats :predict]))
-        label-ids (->> (d/project-labels-ordered)
+  (let [predict-ids (keys (project :stats :predict))
+        label-ids (->> (labels/project-labels-ordered)
                        (map :label-id)
                        (filter (in? predict-ids)))
         ncols (-> label-ids count number-to-word)
@@ -187,7 +217,7 @@
          [:div.ui.small.blue.dropdown.button
           {:style {:margin-left "5px"}}
           [:input {:type "hidden" :name "menu-dropdown"}]
-          [:label (d/project [:labels active-label-id :short-label])]
+          [:label (project :labels active-label-id :short-label)]
           [:i.chevron.down.right.icon]
           [:div.menu
            (doall
@@ -197,7 +227,7 @@
                 [:a.item
                  {:href (str "/project/predict/" (name label-id))
                   :class (if active "default active" "")}
-                 (d/project [:labels label-id :short-label])])))]]])]]))
+                 (project :labels label-id :short-label)])))]]])]]))
 
 (defn project-predict-report-box []
   (let [label-id (selected-label-id)]
@@ -210,15 +240,15 @@
       [value-confidence-box]]
      #_
      [:div.ui.secondary.segment
-      [:h4 (str "Last updated: " (d/project [:stats :predict label-id :update-time]))]]]))
+      [:h4 (str "Last updated: " (project :stats :predict label-id :update-time))]]]))
 
 (defn project-invite-link-segment []
   [:div.ui.bottom.attached.segment.invite-link
    [:div.ui.fluid.labeled.input
     [:div.ui.label "Project invite URL"]
-    [:input.ui.input {:readOnly true
-                      :value (d/project-invite-url
-                              (s/active-project-id))}]]])
+    [:input.ui.input
+     {:readOnly true
+      :value (project/project-invite-url (s/current-project-id))}]]])
 
 (defn project-page [active-tab content]
   (let [bottom-segment?
@@ -227,7 +257,7 @@
           true)]
     [:div
      [:div.ui.top.attached.center.aligned.segment.project-header
-      [:h5 (d/data [:all-projects (s/active-project-id) :name])]]
+      [:h5 (data [:all-projects (s/current-project-id) :name])]]
      [:div.ui.segment.project-segment
       {:class (if bottom-segment? "bottom attached" "attached")}
       [project-page-menu active-tab]

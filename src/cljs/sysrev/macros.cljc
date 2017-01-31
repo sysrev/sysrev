@@ -2,7 +2,11 @@
   (:require [cljs.analyzer.api :as ana-api]))
 
 (defmacro with-state [state-map & body]
-  `(binding [sysrev.base/state (reagent.core/atom ~state-map)]
+  `(binding [sysrev.base/work-state (reagent.core/atom ~state-map)]
+     ~@body))
+
+(defmacro using-work-state [& body]
+  `(binding [sysrev.base/read-from-work-state true]
      ~@body))
 
 (defmacro with-mount-hook [on-mount]

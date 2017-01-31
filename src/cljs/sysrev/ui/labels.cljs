@@ -1,7 +1,6 @@
 (ns sysrev.ui.labels
-  (:require [sysrev.base :refer [state]]
-            [sysrev.ui.components :refer [true-false-nil-tag]]
-            [sysrev.state.data :as d]))
+  (:require [sysrev.ui.components :refer [true-false-nil-tag]]
+            [sysrev.state.labels :as labels]))
 
 (defn labels-page []
   [:table.ui.celled.unstackable.table.project-labels
@@ -13,7 +12,7 @@
    [:tbody
     (doall
      (->>
-      (d/project-labels-ordered)
+      (labels/project-labels-ordered)
       (map
        (fn [{:keys [label-id name question definition]}]
          (let [inclusion-values (-> definition :inclusion-values)

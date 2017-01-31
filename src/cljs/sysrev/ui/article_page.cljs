@@ -1,9 +1,11 @@
 (ns sysrev.ui.article-page
   (:require
-   [sysrev.base :refer [state]]
+   [sysrev.base :refer [st]]
    [sysrev.util :refer [scroll-top]]
-   [sysrev.state.core :refer [current-page current-user-id on-page?]]
-   [sysrev.state.data :as d]
+   [sysrev.state.core :as s
+    :refer [current-page current-user-id on-page?]]
+   [sysrev.state.project :as project :refer [project]]
+   [sysrev.state.labels :as labels]
    [sysrev.ajax :as ajax]
    [sysrev.ui.article :refer
     [article-info-component label-editor-component]]
@@ -13,12 +15,12 @@
 
 (defn article-page []
   [:div
-   (let [article-id (-> @state :page :article :id)
+   (let [article-id (st :page :article :id)
          labels-path [:page :article :label-values]
-         label-values (d/active-label-values article-id labels-path)
-         overall-label-id (d/project :overall-label-id)
+         label-values (labels/active-label-values article-id labels-path)
+         overall-label-id (project :overall-label-id)
          user-id (current-user-id)
-         status (d/user-article-status article-id)]
+         status (labels/user-article-status article-id)]
      (case status
        :logged-out
        [:div
@@ -39,7 +41,6 @@
         [article-info-component article-id true user-id]]
        :unconfirmed
        [:div
-        {:style {:margin-bottom "40px"}}
         [:div.ui.segment
          [:h3.ui.yellow.header.middle.aligned {:style {:margin "-5px"}}
           [:i.info.circle.icon {:aria-hidden true}]
@@ -48,10 +49,10 @@
         [label-editor-component
          article-id labels-path label-values]
         [confirm-modal-box
-         #(-> @state :page :article :id)
+         #(st :page :article :id)
          labels-path
          (fn [] (scroll-top))]
-        (let [missing (d/required-answers-missing label-values)
+        (let [missing (labels/required-answers-missing label-values)
               disabled? ((comp not empty?) missing)
               confirm-button
               [:div.ui.primary.right.labeled.icon.button

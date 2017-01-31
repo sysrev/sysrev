@@ -2,10 +2,10 @@
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
             [sysrev.util :refer [url-domain nbsp scroll-top full-size?]]
-            [sysrev.base :refer [state]]
             [sysrev.ajax :as ajax]
-            [sysrev.state.core :as s]
-            [sysrev.state.data :as d :refer [data]]
+            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.project :as project :refer [project]]
+            [sysrev.state.labels :as labels]
             [reagent.core :as r]
             [cljsjs.jquery]
             [cljsjs.semantic-ui]))
@@ -26,9 +26,6 @@
 
 (defn debug-box [arg & args]
   (apply show-debug-box arg args))
-
-(defn loading-screen []
-  [:div])
 
 (defn notifier [{:keys [message class]
                  :as entry}]
@@ -146,7 +143,7 @@
            :value (str/join "," current-values)
            :type "hidden"}]
          [:i.dropdown.icon]
-         (if (d/project [:labels label-id :required])
+         (if (project :labels label-id :required)
            [:div.default.text
             "No answer selected "
             [:span.default {:style {:font-weight "bold"}}
@@ -188,8 +185,8 @@
   "UI component for representing a label answer."
   [label-id answer]
   (let [{:keys [short-label value-type category]}
-        (d/project [:labels label-id])
-        inclusion (d/label-answer-inclusion label-id answer)
+        (project :labels label-id)
+        inclusion (labels/label-answer-inclusion label-id answer)
         color (case inclusion
                 true "green"
                 false "orange"
@@ -257,7 +254,7 @@
          #(let [article-id (article-id-fn)]
             (ajax/confirm-labels
              article-id
-             (d/active-label-values article-id labels-path)
+             (labels/active-label-values article-id labels-path)
              on-confirm))}))
       (.modal
        (js/$ (r/dom-node e))
@@ -267,9 +264,9 @@
       [:div.ui.small.modal
        [:div.header "Confirm article labels?"]
        (let [article-id (article-id-fn)
-             labels (d/project :labels)
+             labels (project :labels)
              n-total (count labels)
-             label-values (d/active-label-values article-id labels-path)
+             label-values (labels/active-label-values article-id labels-path)
              n-set (->> (vals label-values)
                         (remove nil?)
                         (remove (every-pred coll? empty?))
@@ -286,7 +283,7 @@
         [:div.ui.button.ok "Confirm"]]])}))
 
 (defn inconsistent-answers-notice [label-values]
-  (let [labels (d/find-inconsistent-answers label-values)]
+  (let [labels (labels/find-inconsistent-answers label-values)]
     (when ((comp not empty?) labels)
       [:div.ui.attached.segment.labels-warning
        [:div.ui.warning.message

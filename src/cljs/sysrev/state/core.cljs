@@ -1,57 +1,55 @@
 (ns sysrev.state.core
-  (:require [sysrev.base :refer [state]]
-            [reagent.core :as r]))
+  (:require [sysrev.base :refer [st st-if-exists]]
+            [sysrev.util :refer [in?]]
+            [reagent.core :as r])
+  (:require-macros [sysrev.macros :refer [using-work-state]]))
 
-(defn init-state []
-  (reset! state {;; State specific to current page
-                 :page {}
-                 ;; Data pulled from server
-                 :data {}
-                 ;; Independent app-wide state for popup notifications
-                 :notifications #queue []}))
+(defn data
+  ([ks]
+   (data ks nil))
+  ([ks not-found]
+   (let [ks (if (keyword? ks) [ks] ks)]
+     (st-if-exists (concat [:data] ks) not-found))))
 
 (defn current-page []
-  (-> @state :active-page))
-
-(defn on-page?
-  "Check whether the current page is `page-key`.
-  The current page is contained in (:page @state) which is a map with a
-  single element, the key of which identifies the page."
-  [page-key]
-  (= (current-page) page-key))
+  (st :active-page))
 
 (defn current-user-id []
-  (-> @state :identity :user-id))
+  (st :identity :user-id))
+
+(defn current-project-id []
+  (st :current-project-id))
+
+(defn on-page?
+  [page-key]
+  (= (current-page) page-key))
 
 (defn logged-in? []
   (integer? (current-user-id)))
 
 (defn page-state
   ([& ks]
-   (get-in @state (concat [:page (current-page)] ks))))
+   (apply st (concat [:page (current-page)] ks))))
 
 (defn set-identity [imap]
   (fn [s]
     (assoc s :identity imap)))
 
-(defn set-active-project-id [project-id]
+(defn set-current-project-id [project-id]
   (fn [s]
-    (assoc s :active-project-id project-id)))
-
-(defn active-project-id []
-  (get @state :active-project-id))
+    (assoc s :current-project-id project-id)))
 
 (defn change-project [project-id]
   (fn [s]
     (-> s
-        (assoc :active-project-id project-id)
+        (assoc :current-project-id project-id)
         (assoc :data {}))))
 
 (defn log-out []
   (fn [s]
     (-> s
         (assoc :identity nil)
-        (assoc :active-project-id nil)
+        (assoc :current-project-id nil)
         (assoc :data {})
         (assoc :page {}))))
 
@@ -67,4 +65,32 @@
     (assoc s :csrf-token csrf-token)))
 
 (defn csrf-token []
-  (get @state :csrf-token))
+  (using-work-state (st :csrf-token)))
+
+(defn set-all-projects [pmap]
+  (fn [s]
+    (assoc-in s [:data :all-projects] pmap)))
+
+(defn set-user-info [user-id umap]
+  (fn [s]
+    (assoc-in s [:data :users user-id] umap)))
+
+(defn user [user-id & ks]
+  (data (concat [:users user-id] ks)))
+
+(defn merge-users [users]
+  (fn [s]
+    (update-in s [:data :users] #(merge % users))))
+
+(defn real-user? [user-id]
+  (in? (user user-id :permissions) "user"))
+
+(defn admin-user? [user-id]
+  (in? (user user-id :permissions) "admin"))
+
+(defn reset-code-info [reset-code]
+  (data [:reset-code reset-code]))
+
+(defn set-reset-code-info [reset-code rmap]
+  (fn [s]
+    (assoc-in s [:data :reset-code reset-code] rmap)))

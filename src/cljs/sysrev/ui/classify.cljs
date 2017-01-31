@@ -1,7 +1,10 @@
 (ns sysrev.ui.classify
   (:require
-   [sysrev.base :refer [state ga-event]]
-   [sysrev.state.core :refer [current-user-id current-page]]
+   [sysrev.base :refer [st ga-event]]
+   [sysrev.state.core :as s :refer
+    [data current-user-id current-page]]
+   [sysrev.state.project :as project :refer [project]]
+   [sysrev.state.labels :as labels]
    [sysrev.util :refer [scroll-top nav-scroll-top nbsp full-size?]]
    [sysrev.routes :refer [data-initialized?]]
    [sysrev.ui.components :refer
@@ -10,17 +13,16 @@
    [sysrev.ui.article :refer
     [article-info-component label-editor-component]]
    [sysrev.ajax :as ajax]
-   [sysrev.state.data :as d :refer [data]]
    [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-state]]))
 
 (defn classify-page []
   (when-let [article-id (data :classify-article-id)]
     (let [user-id (current-user-id)
-          email (-> @state :identity :email)
-          overall-label-id (d/project :overall-label-id)
+          email (st :identity :email)
+          overall-label-id (project :overall-label-id)
           labels-path [:page :classify :label-values]
-          label-values (d/active-label-values article-id labels-path)]
+          label-values (labels/active-label-values article-id labels-path)]
       [:div.ui
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
@@ -37,7 +39,7 @@
            [:div.ui.six.wide.column.center.aligned
             [:div.ui.grid.centered
              [:div.row
-              (let [missing (d/required-answers-missing label-values)
+              (let [missing (labels/required-answers-missing label-values)
                     disabled? ((comp not empty?) missing)
                     confirm-button
                     [:div.ui.primary.right.labeled.icon.button
@@ -54,13 +56,12 @@
                {:on-click
                 #(do (ga-event "labels" "next_article")
                      (ajax/fetch-classify-task true)
-                     (ajax/pull-member-labels user-id)
-                     (scroll-top))}
+                     (ajax/pull-member-labels user-id))}
                "Next article"
                [:i.right.circle.arrow.icon]]]]]
            (let [n-unconfirmed
                  (count
-                  (d/project [:member-labels user-id :unconfirmed]))
+                  (project :member-labels user-id :unconfirmed))
                  n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
              [:div.ui.five.wide.column
               [:div.ui.buttons.right.floated
@@ -94,7 +95,7 @@
             {:style {:padding-right "0px"}}
             (let [n-unconfirmed
                   (count
-                   (d/project [:member-labels user-id :unconfirmed]))
+                   (project :member-labels user-id :unconfirmed))
                   n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
               [:div.ui.small.green.icon.button.middle.aligned
                {:on-click #(nav-scroll-top (str "/user/" user-id))
