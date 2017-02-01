@@ -147,18 +147,4 @@
       :article (st :page :article :id)
       nil)))
 
-(defn enable-label-value [article-id label-id label-value]
-  (using-work-state
-   (let [labels-path (active-labels-path)
-         {:keys [value-type]} (project :labels label-id)
-         active-values (active-label-values article-id labels-path)]
-     (cond (= value-type "boolean")
-           (swap! work-state assoc-in
-                  (concat labels-path [label-id])
-                  label-value)
-           (= value-type "categorical")
-           (do
-             (.dropdown
-              (js/$ (str "#label-edit-" article-id "-" label-id))
-              "set selected"
-              label-value))))))
+

@@ -18,6 +18,24 @@
    [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
+(defn enable-label-value [article-id label-id label-value]
+  (using-work-state
+   (let [labels-path (labels/active-labels-path)
+         {:keys [value-type]} (project :labels label-id)
+         active-values (labels/active-label-values article-id labels-path)]
+     (cond (= value-type "boolean")
+           (do (swap! work-state assoc-in
+                      (concat labels-path [label-id])
+                      label-value)
+               (ajax/send-labels
+                article-id
+                (labels/active-label-values article-id labels-path)))
+           (= value-type "categorical")
+           (.dropdown
+            (js/$ (str "#label-edit-" article-id "-" label-id))
+            "set selected"
+            label-value)))))
+
 (defn label-help-popup-element [label-id]
   (when-let [{:keys [category required question] :as label}
              (project :labels label-id)]
@@ -84,7 +102,7 @@
                                  (when (and (labels/editing-article-labels?)
                                             kw label label-value)
                                    (fn []
-                                     (labels/enable-label-value
+                                     (enable-label-value
                                       article-id (:label-id label) label-value)))}
                           text)]
                      (if (and kw show-tooltip (labels/editing-article-labels?))
