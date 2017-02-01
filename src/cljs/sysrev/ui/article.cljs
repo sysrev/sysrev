@@ -485,37 +485,7 @@
                 :variation "basic"}]
               [label-help-popup-element label-id]
               [:div.ui.row.label-edit-value.category
-               [:div.inner
-                (let [current-values
-                      (get label-values label-id)]
-                  [multi-choice-selection
-                   label-id
-                   (-> label :definition :all-values)
-                   current-values
-                   (fn [v t]
-                     (using-work-state
-                      (swap!
-                       work-state assoc-in
-                       (concat labels-path [label-id])
-                       (-> (get
-                            (labels/active-label-values article-id labels-path)
-                            label-id)
-                           vec (conj v) distinct))
-                      (ajax/send-labels
-                       article-id
-                       (labels/active-label-values article-id labels-path))))
-                   (fn [v t]
-                     (using-work-state
-                      (swap!
-                       work-state assoc-in
-                       (concat labels-path [label-id])
-                       (remove
-                        (partial = v)
-                        (get (labels/active-label-values article-id labels-path)
-                             label-id)))
-                      (ajax/send-labels
-                       article-id
-                       (labels/active-label-values article-id labels-path))))])]]]]))
+               [:div.inner [multi-choice-selection label-id]]]]]))
         make-column
         (fn [label-id]
           (let [{:keys [value-type]
@@ -552,4 +522,3 @@
       (make-label-columns (concat core-ids extra-ids) n-cols)]
      [inconsistent-answers-notice label-values]
      [note-input-element article-id]]))
-

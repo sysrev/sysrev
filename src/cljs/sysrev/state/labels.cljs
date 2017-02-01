@@ -140,6 +140,13 @@
     :article [:page :article :label-values]
     nil))
 
+(defn active-article-id-editing []
+  (when (editing-article-labels?)
+    (case (s/current-page)
+      :classify (data :classify-article-id)
+      :article (st :page :article :id)
+      nil)))
+
 (defn enable-label-value [article-id label-id label-value]
   (using-work-state
    (let [labels-path (active-labels-path)
@@ -152,13 +159,6 @@
            (= value-type "categorical")
            (do
              (.dropdown
-              (js/$ (str "#label-edit-" label-id))
+              (js/$ (str "#label-edit-" article-id "-" label-id))
               "set selected"
-              label-value)
-             (swap! work-state assoc-in
-                    (concat labels-path [label-id])
-                    (-> (conj (get
-                               (active-label-values article-id labels-path)
-                               label-id)
-                              label-value)
-                        distinct vec)))))))
+              label-value))))))

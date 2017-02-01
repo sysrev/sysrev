@@ -287,11 +287,6 @@
   (using-work-state
    (let [current-id (data :classify-article-id)]
      (when (or force? (nil? current-id))
-       (->>
-        (comp
-         #(dissoc-in % [:data :classify-article-id])
-         #(dissoc-in % [:data :classify-review-status]))
-        (swap! work-state))
        (ajax-get
         "/api/label-task"
         (fn [result]

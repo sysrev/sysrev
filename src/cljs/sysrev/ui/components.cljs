@@ -1,6 +1,7 @@
 (ns sysrev.ui.components
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
+            [sysrev.base :refer [st work-state]]
             [sysrev.util :refer [url-domain nbsp scroll-top full-size?]]
             [sysrev.ajax :as ajax]
             [sysrev.state.core :as s :refer [data]]
@@ -8,7 +9,8 @@
             [sysrev.state.labels :as labels]
             [reagent.core :as r]
             [cljsjs.jquery]
-            [cljsjs.semantic-ui]))
+            [cljsjs.semantic-ui])
+  (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defn debug-container [child & children]
   (fn [child & children]
@@ -113,20 +115,67 @@
        [radio-button #(change-handler nil) (nil? curval) "?" true]
        [radio-button #(change-handler true) (true? curval) "Yes"]])))
 
-(defn multi-choice-selection [label-id all-values current-values on-add on-remove]
+(defn multi-choice-selection [label-id]
   (r/create-class
    {:component-did-mount
-    #(.dropdown
-      (js/$ (r/dom-node %))
-      (clj->js
-       {:onAdd on-add
-        :onRemove on-remove
-        :onChange (fn [_] (.dropdown
-                           (js/$ (r/dom-node %))
-                           "hide"))}))
+    #(do
+       (.dropdown
+        (js/$ (r/dom-node %))
+        (clj->js
+         {:onAdd
+          (fn [v t]
+            (using-work-state
+             (let [article-id (labels/active-article-id-editing)
+                   labels-path (labels/active-labels-path)]
+               (swap!
+                work-state assoc-in
+                (concat labels-path [label-id])
+                (-> (get
+                     (labels/active-label-values article-id labels-path)
+                     label-id)
+                    vec (conj v) distinct))
+               (ajax/send-labels
+                article-id
+                (labels/active-label-values article-id labels-path)))))
+          :onRemove
+          (fn [v t]
+            (using-work-state
+             (let [article-id (labels/active-article-id-editing)
+                   labels-path (labels/active-labels-path)]
+               (swap!
+                work-state assoc-in
+                (concat labels-path [label-id])
+                (remove
+                 (partial = v)
+                 (get (labels/active-label-values article-id labels-path)
+                      label-id)))
+               (ajax/send-labels
+                article-id
+                (labels/active-label-values article-id labels-path)))))
+          :onChange (fn [_] (.dropdown (js/$ (r/dom-node %))
+                                       "hide"))})))
+    :component-will-update
+    #(using-work-state
+      (let [article-id (labels/active-article-id-editing)
+            active-vals (->> (get (labels/active-label-values
+                                   article-id (labels/active-labels-path))
+                                  label-id)
+                             (str/join ","))
+            comp-vals (-> (js/$ (r/dom-node %))
+                          (.dropdown "get value"))]
+        (when (and (not= comp-vals active-vals))
+          (-> (js/$ (r/dom-node %))
+              (.dropdown "set exactly" active-vals)))))
     :reagent-render
-    (fn [label-id all-values current-values on-add on-remove]
-      (let [dom-id (str "label-edit-" label-id)]
+    (fn [label-id]
+      (let [all-values
+            (project/project :labels label-id :definition :all-values)
+            article-id (labels/active-article-id-editing)
+            labels-path (labels/active-labels-path)
+            current-values
+            (get (labels/active-label-values article-id labels-path)
+                 label-id)
+            dom-id (str "label-edit-" article-id "-" label-id)]
         [:div.ui.large.fluid.multiple.selection.dropdown
          {:id dom-id
           ;; hide dropdown on click anywhere in main dropdown box
@@ -139,7 +188,7 @@
                          (when (.dropdown dd "is visible")
                            (.dropdown dd "hide"))))}
          [:input
-          {:name (str "label-edit(" label-id ")")
+          {:name (str "label-edit(" dom-id ")")
            :value (str/join "," current-values)
            :type "hidden"}]
          [:i.dropdown.icon]
