@@ -26,3 +26,11 @@
    (into rescoll (->> m (map (fn [[k v]] [k (f v)])))))
   ([f m]
    (map-values f {} m)))
+
+(defn check
+  "Returns val after running an assertion on `(f val)`.
+  If `f` is not specified, checks that `(not (nil? val))`."
+  [val & [f]]
+  (let [f (or f (comp not nil?))]
+    (assert (f val))
+    val))

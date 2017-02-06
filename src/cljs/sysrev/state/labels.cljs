@@ -17,6 +17,41 @@
     category (filter #(= (:category %) category))
     value-type (filter #(= (:value-type %) value-type))))
 
+(defn set-article-labels [article-id lmap]
+  (fn [s]
+    (assoc-in s [:data :article-labels article-id] lmap)))
+
+(defn article-label-values [article-id & [user-id]]
+  (let [path (cond-> [:data :article-labels article-id]
+               user-id (conj user-id))]
+    (apply st path)))
+
+(defn user-label-values [article-id user-id]
+  (let [lmap (project :member-labels user-id)
+        amap (or (get-in lmap [:confirmed article-id])
+                 (get-in lmap [:unconfirmed article-id]))
+        result
+        (->> amap
+             (group-by :label-id)
+             (map-values first)
+             (map-values :answer))]
+    (if-not (empty? result)
+      result
+      (article-label-values article-id user-id))))
+
+(defn user-article-status [article-id]
+  (let [user-id (s/current-user-id)
+        confirmed
+        (and user-id (project :member-labels user-id
+                              :confirmed article-id))
+        unconfirmed
+        (and user-id (project :member-labels user-id
+                              :unconfirmed article-id))]
+    (cond (nil? user-id) :logged-out
+          confirmed :confirmed
+          unconfirmed :unconfirmed
+          :else :none)))
+
 (defn project-labels-ordered
   "Return label definition entries ordered first by category/type and then
   by project-ordering value."
@@ -44,38 +79,72 @@
                     (group-idx %) (:project-ordering %))
                   <))))
 
-(defn set-article-labels [article-id lmap]
-  (fn [s]
-    (assoc-in s [:data :article-labels article-id] lmap)))
+(defn editing-article-labels? []
+  (boolean
+   (and (s/current-user-id)
+        (or (and (= (s/current-page) :classify)
+                 (data :classify-article-id))
+            (and (= (s/current-page) :article)
+                 (= (user-article-status (st :page :article :id))
+                    :unconfirmed))))))
 
-(defn article-label-values [article-id & [user-id]]
-  (let [path (cond-> [:data :article-labels article-id]
-               user-id (conj user-id))]
-    (apply st path)))
+(defn active-editor-article-id []
+  (when (editing-article-labels?)
+    (case (s/current-page)
+      :classify (data :classify-article-id)
+      :article (st :page :article :id)
+      nil)))
 
-(defn user-label-values [article-id user-id]
-  (let [lmap (project :member-labels user-id)
-        amap (or (get-in lmap [:confirmed article-id])
-                 (get-in lmap [:unconfirmed article-id]))
-        result
-        (->> amap
-             (group-by :label-id)
-             (map-values first)
-             (map-values :answer))]
-    (if-not (empty? result)
-      result
-      (article-label-values article-id user-id))))
+(defn active-labels-path
+  "Returns the path in the global state map where label input values for the
+  article currently being edited are stored."
+  []
+  (when-let [article-id (active-editor-article-id)]
+    (case (s/current-page)
+      :classify [:page :classify :label-values article-id]
+      :article [:page :article :label-values article-id]
+      nil)))
 
 (defn active-label-values
   "Get the active label values for `article-id` by taking the values
   pulled from the server and overriding with state values set by the user.
 
   Uses `article-label-values` because [:data :article-labels] contains
-  the latest server values while editing."
-  [article-id labels-path]
+  the latest server values while editing.
+
+  `article-id` defaults to the active editor article if not given.
+
+  `label-id` can be passed to return only the value of a single label."
+  [& [article-id label-id]]
   (when-let [user-id (s/current-user-id)]
-    (merge (or (article-label-values article-id user-id) {})
-           (or (apply st labels-path) {}))))
+    (when-let [article-id (or article-id (active-editor-article-id))]
+      (cond->
+          (let [labels-path (active-labels-path)]
+            (merge (or (article-label-values article-id user-id) {})
+                   (or (and labels-path (apply st labels-path)) {})))
+        label-id (get label-id)))))
+
+(defn set-label-value
+  "Sets the value of a label in the active editor."
+  [label-id label-value]
+  (using-work-state
+   (let [labels-path (active-labels-path)]
+     (assert ((comp not empty?) labels-path))
+     (swap! work-state assoc-in
+            (concat labels-path [label-id])
+            label-value))))
+
+(defn update-label-value
+  "Alters the active value of a label by applying function `f` to the
+  current value."
+  [label-id f]
+  (using-work-state
+   (let [labels-path (active-labels-path)]
+     (assert ((comp not empty?) labels-path))
+     (let [curval (active-label-values nil label-id)]
+       (swap! work-state assoc-in
+              (concat labels-path [label-id])
+              (f curval))))))
 
 (defn label-answer-inclusion [label-id answer]
   (let [{:keys [definition value-type]} (project :labels label-id)
@@ -98,10 +167,9 @@
   (->> (project-labels-ordered)
        (filter :required)
        (filter (fn [label]
-                 (let [answer (get label-values (:label-id label))]
-                   (or (nil? answer)
-                       (and (coll? answer)
-                            (empty? answer))))))))
+                 (let [v (get label-values (:label-id label))]
+                   (or (nil? v)
+                       (and (coll? v) (empty? v))))))))
 
 (defn find-inconsistent-answers [label-values]
   (let [overall-inclusion (get label-values (project :overall-label-id))]
@@ -112,39 +180,8 @@
                            inclusion (label-answer-inclusion label-id answer)]
                        (false? inclusion))))))))
 
-(defn user-article-status [article-id]
-  (let [user-id (s/current-user-id)
-        confirmed
-        (and user-id (project :member-labels user-id
-                              :confirmed article-id))
-        unconfirmed
-        (and user-id (project :member-labels user-id
-                              :unconfirmed article-id))]
-    (cond (nil? user-id) :logged-out
-          confirmed :confirmed
-          unconfirmed :unconfirmed
-          :else :none)))
 
-(defn editing-article-labels? []
-  (boolean
-   (and (s/current-user-id)
-        (or (and (= (s/current-page) :classify)
-                 (data :classify-article-id))
-            (and (= (s/current-page) :article)
-                 (= (user-article-status (st :page :article :id))
-                    :unconfirmed))))))
 
-(defn active-labels-path []
-  (case (s/current-page)
-    :classify [:page :classify :label-values]
-    :article [:page :article :label-values]
-    nil))
 
-(defn active-article-id-editing []
-  (when (editing-article-labels?)
-    (case (s/current-page)
-      :classify (data :classify-article-id)
-      :article (st :page :article :id)
-      nil)))
 
 

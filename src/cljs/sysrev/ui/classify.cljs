@@ -4,7 +4,7 @@
    [sysrev.state.core :as s :refer
     [data current-user-id current-page]]
    [sysrev.state.project :as project :refer [project]]
-   [sysrev.state.labels :as labels]
+   [sysrev.state.labels :as l]
    [sysrev.util :refer [scroll-top nav-scroll-top nbsp full-size?]]
    [sysrev.routes :refer [data-initialized?]]
    [sysrev.ui.components :refer
@@ -21,17 +21,12 @@
     (let [user-id (current-user-id)
           email (st :identity :email)
           overall-label-id (project :overall-label-id)
-          labels-path [:page :classify :label-values]
-          label-values (labels/active-label-values article-id labels-path)]
+          label-values (l/active-label-values article-id)]
       [:div.ui
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
-       [label-editor-component
-        article-id labels-path label-values]
-       [confirm-modal-box
-        #(data :classify-article-id)
-        labels-path
-        (fn [] (scroll-top))]
+       [label-editor-component]
+       [confirm-modal-box #(scroll-top)]
        (if (full-size?)
          [:div.ui.grid
           [:div.ui.row
@@ -39,7 +34,7 @@
            [:div.ui.six.wide.column.center.aligned
             [:div.ui.grid.centered
              [:div.row
-              (let [missing (labels/required-answers-missing label-values)
+              (let [missing (l/required-answers-missing label-values)
                     disabled? ((comp not empty?) missing)
                     confirm-button
                     [:div.ui.primary.right.labeled.icon.button

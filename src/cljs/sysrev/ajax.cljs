@@ -3,9 +3,9 @@
             [sysrev.base :refer [st work-state ga ga-event]]
             [sysrev.state.core :as s :refer [data]]
             [sysrev.state.project :as project]
-            [sysrev.state.labels :as labels]
+            [sysrev.state.labels :as l]
             [sysrev.state.notes :as notes]
-            [sysrev.shared.util :refer [map-values]]
+            [sysrev.shared.util :as us :refer [map-values]]
             [sysrev.util :refer
              [nav scroll-top nav-scroll-top dissoc-in]]
             [sysrev.notify :refer [notify]])
@@ -120,7 +120,7 @@
      (->>
       (comp
        (project/merge-articles (:articles result))
-       (labels/set-member-labels user-id (:labels result))
+       (l/set-member-labels user-id (:labels result))
        (notes/ensure-user-note-fields user-id (:notes result)))
       (swap! work-state)))))
 
@@ -140,7 +140,7 @@
   (ajax-get
    (str "/api/article-info/" article-id)
    (fn [response]
-     (swap! work-state (labels/set-article-labels
+     (swap! work-state (l/set-article-labels
                         article-id (:labels response)))
      (swap! work-state (project/merge-articles
                         {article-id (:article response)}))
@@ -327,6 +327,19 @@
      (when (= article-id (data :classify-article-id))
        (fetch-classify-task true))
      (on-confirm))))
+
+(defn send-active-labels
+  "Calls `send-labels` with values from the active editor."
+  []
+  (send-labels (l/active-editor-article-id)
+               (l/active-label-values)))
+
+(defn confirm-active-labels
+  "Calls `confirm-labels` with values from the active editor."
+  [on-confirm]
+  (confirm-labels (l/active-editor-article-id)
+                  (l/active-label-values)
+                  on-confirm))
 
 (defn send-article-note
   [article-id note-name content]

@@ -5,7 +5,7 @@
    [sysrev.state.core :as s
     :refer [current-page current-user-id on-page?]]
    [sysrev.state.project :as project :refer [project]]
-   [sysrev.state.labels :as labels]
+   [sysrev.state.labels :as l]
    [sysrev.ajax :as ajax]
    [sysrev.ui.article :refer
     [article-info-component label-editor-component]]
@@ -16,11 +16,10 @@
 (defn article-page []
   [:div
    (let [article-id (st :page :article :id)
-         labels-path [:page :article :label-values]
-         label-values (labels/active-label-values article-id labels-path)
+         label-values (l/active-label-values article-id)
          overall-label-id (project :overall-label-id)
          user-id (current-user-id)
-         status (labels/user-article-status article-id)]
+         status (l/user-article-status article-id)]
      (case status
        :logged-out
        [:div
@@ -46,13 +45,9 @@
           [:i.small.info.circle.icon {:aria-hidden true}]
           "Your labels for this article are not yet confirmed."]]
         [article-info-component article-id false]
-        [label-editor-component
-         article-id labels-path label-values]
-        [confirm-modal-box
-         #(st :page :article :id)
-         labels-path
-         (fn [] (scroll-top))]
-        (let [missing (labels/required-answers-missing label-values)
+        [label-editor-component]
+        [confirm-modal-box #(scroll-top)]
+        (let [missing (l/required-answers-missing label-values)
               disabled? ((comp not empty?) missing)
               confirm-button
               [:div.ui.primary.right.labeled.icon.button

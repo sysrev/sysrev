@@ -18,7 +18,7 @@
       (history-init)
       true))
 
-(defonce note-sync-watcher
+(defonce input-sync-watcher
   (js/setInterval
    (fn []
      (when-let [user-id (s/current-user-id)]

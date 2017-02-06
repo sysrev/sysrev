@@ -6,7 +6,7 @@
             [sysrev.ajax :as ajax]
             [sysrev.state.core :as s :refer [data]]
             [sysrev.state.project :as project :refer [project]]
-            [sysrev.state.labels :as labels]
+            [sysrev.state.labels :as l]
             [reagent.core :as r]
             [cljsjs.jquery]
             [cljsjs.semantic-ui])
@@ -115,97 +115,6 @@
        [radio-button #(change-handler nil) (nil? curval) "?" true]
        [radio-button #(change-handler true) (true? curval) "Yes"]])))
 
-(defn multi-choice-selection [label-id]
-  (r/create-class
-   {:component-did-mount
-    #(do
-       (.dropdown
-        (js/$ (r/dom-node %))
-        (clj->js
-         {:onAdd
-          (fn [v t]
-            (using-work-state
-             (let [article-id (labels/active-article-id-editing)
-                   labels-path (labels/active-labels-path)]
-               (swap!
-                work-state assoc-in
-                (concat labels-path [label-id])
-                (-> (get
-                     (labels/active-label-values article-id labels-path)
-                     label-id)
-                    vec (conj v) distinct))
-               (ajax/send-labels
-                article-id
-                (labels/active-label-values article-id labels-path)))))
-          :onRemove
-          (fn [v t]
-            (using-work-state
-             (let [article-id (labels/active-article-id-editing)
-                   labels-path (labels/active-labels-path)]
-               (swap!
-                work-state assoc-in
-                (concat labels-path [label-id])
-                (remove
-                 (partial = v)
-                 (get (labels/active-label-values article-id labels-path)
-                      label-id)))
-               (ajax/send-labels
-                article-id
-                (labels/active-label-values article-id labels-path)))))
-          :onChange (fn [_] (.dropdown (js/$ (r/dom-node %))
-                                       "hide"))})))
-    :component-will-update
-    #(using-work-state
-      (let [article-id (labels/active-article-id-editing)
-            active-vals (->> (get (labels/active-label-values
-                                   article-id (labels/active-labels-path))
-                                  label-id)
-                             (str/join ","))
-            comp-vals (-> (js/$ (r/dom-node %))
-                          (.dropdown "get value"))]
-        (when (and (not= comp-vals active-vals))
-          (-> (js/$ (r/dom-node %))
-              (.dropdown "set exactly" active-vals)))))
-    :reagent-render
-    (fn [label-id]
-      (let [all-values
-            (project/project :labels label-id :definition :all-values)
-            article-id (labels/active-article-id-editing)
-            labels-path (labels/active-labels-path)
-            current-values
-            (get (labels/active-label-values article-id labels-path)
-                 label-id)
-            dom-id (str "label-edit-" article-id "-" label-id)]
-        [:div.ui.large.fluid.multiple.selection.dropdown
-         {:id dom-id
-          ;; hide dropdown on click anywhere in main dropdown box
-          :on-click #(when (or (= dom-id (-> % .-target .-id))
-                               (-> (js/$ (-> % .-target))
-                                   (.hasClass "default"))
-                               (-> (js/$ (-> % .-target))
-                                   (.hasClass "label")))
-                       (let [dd (js/$ (str "#" dom-id))]
-                         (when (.dropdown dd "is visible")
-                           (.dropdown dd "hide"))))}
-         [:input
-          {:name (str "label-edit(" dom-id ")")
-           :value (str/join "," current-values)
-           :type "hidden"}]
-         [:i.dropdown.icon]
-         (if (project :labels label-id :required)
-           [:div.default.text
-            "No answer selected "
-            [:span.default {:style {:font-weight "bold"}}
-             "(required)"]]
-           [:div.default.text "No answer selected"])
-         [:div.menu
-          (doall
-           (for [lval all-values]
-             ^{:key {:label-option (str label-id " - " lval)}}
-             [:div.item
-              {:data-value (str lval)}
-              (str lval)]))]]))}))
-
 (defn true-false-nil-tag
   "UI component for representing an optional boolean value.
   `value` is one of true, false, nil."
@@ -235,7 +144,7 @@
   [label-id answer]
   (let [{:keys [short-label value-type category]}
         (project :labels label-id)
-        inclusion (labels/label-answer-inclusion label-id answer)
+        inclusion (l/label-answer-inclusion label-id answer)
         color (case inclusion
                 true "green"
                 false "orange"
@@ -243,7 +152,8 @@
         values (case value-type
                  "boolean" (if (boolean? answer)
                              [answer] [])
-                 "categorical" answer)
+                 "categorical" answer
+                 "numeric" answer)
         display-label (case value-type
                         "boolean" (str short-label "?")
                         short-label)
@@ -285,11 +195,9 @@
   Must be triggered by (.modal (js/$ \".ui.modal\") \"show\") from the component
   containing this.
 
-  `labels-path` is the path of keys in `state` containing active label values.
-
   `on-confirm` is a function that will be run when the AJAX confirm request
   succeeds."
-  [article-id-fn labels-path on-confirm]
+  [on-confirm]
   (r/create-class
    {:component-did-mount
     (fn [e]
@@ -300,23 +208,16 @@
          ;; semantic and reagent in managing DOM
          :detachable false
          :onApprove
-         #(let [article-id (article-id-fn)]
-            (ajax/confirm-labels
-             article-id
-             (labels/active-label-values article-id labels-path)
-             on-confirm))}))
+         #(ajax/confirm-active-labels on-confirm)}))
       (.modal
        (js/$ (r/dom-node e))
        "setting" "transition" "fade up"))
     :reagent-render
-    (fn [article-id-fn labels-path on-confirm]
+    (fn [on-confirm]
       [:div.ui.small.modal
        [:div.header "Confirm article labels?"]
-       (let [article-id (article-id-fn)
-             labels (project :labels)
-             n-total (count labels)
-             label-values (labels/active-label-values article-id labels-path)
-             n-set (->> (vals label-values)
+       (let [n-total (count (project :labels))
+             n-set (->> (vals (l/active-label-values))
                         (remove nil?)
                         (remove (every-pred coll? empty?))
                         count)]
@@ -332,7 +233,7 @@
         [:div.ui.button.ok "Confirm"]]])}))
 
 (defn inconsistent-answers-notice [label-values]
-  (let [labels (labels/find-inconsistent-answers label-values)]
+  (let [labels (l/find-inconsistent-answers label-values)]
     (when ((comp not empty?) labels)
       [:div.ui.attached.segment.labels-warning
        [:div.ui.warning.message
