@@ -66,6 +66,8 @@
                  [cljsjs/jquery "2.2.4-0"]
                  [cljsjs/semantic-ui "2.2.4-0"]
                  [camel-snake-kebab "0.4.0"]
+                 [cljsjs/chartjs "2.5.0-0"]
+                 [org.clojure/test.check "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms600m"
