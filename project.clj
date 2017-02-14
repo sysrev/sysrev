@@ -1,8 +1,8 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [;; Clojure (JVM) libraries
                  ;;
-                 [org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.456"]
+                 [org.clojure/clojure "1.9.0-alpha14"]
+                 [org.clojure/clojurescript "1.9.473"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;;[org.clojure/clojurescript "1.9.93"]
                  [org.clojure/core.async "0.2.395"]
@@ -12,11 +12,12 @@
                  [me.raynes/fs "1.4.6"]
                  [org.clojure/data.xml "0.0.8"]
                  [org.clojure/data.zip "0.1.2"]
+                 ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
                  [clojure-csv/clojure-csv "2.0.1"]
                  ;; REPL
                  [org.clojure/tools.nrepl "0.2.12"]
                  [com.cemerick/piggieback "0.2.1"]
-                 [figwheel-sidecar "0.5.8"]
+                 [figwheel-sidecar "0.5.9"]
                  ;; Database
                  [org.postgresql/postgresql "9.4.1212"]
                  [clojure.jdbc/clojure.jdbc-c3p0 "0.3.2"]
@@ -38,11 +39,11 @@
                  [compojure "1.5.2"]
                  [javax.servlet/servlet-api "2.5"]
                  [ring "1.5.1"]
-                 [ring/ring-defaults "0.2.2"]
+                 [ring/ring-defaults "0.2.3"]
                  [ring/ring-json "0.4.0"]
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
-                 [buddy "1.1.0"]
+                 [buddy "1.3.0"]
                  ;; Web client
                  [clj-http "3.4.1"]
                  [crypto-random "1.2.0"]
@@ -74,10 +75,10 @@
   :source-paths ["src/clj" "src/cljc" "src/scripts"]
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-bower "0.5.2"]
-            [lein-ring "0.10.0"]
+            [lein-ring "0.11.0"]
             [cider/cider-nrepl "0.14.0"]
             [refactor-nrepl "2.2.0"]
-            [lein-figwheel "0.5.8"]]
+            [lein-figwheel "0.5.9"]]
   :clean-targets ^{:protect false} ["target"]
   :cljsbuild
   {:builds
@@ -118,7 +119,8 @@
               :main sysrev.web-main
               :aot [sysrev.web-main]}
              :dev
-             {:resource-paths ["config/dev"]}
+             {:resource-paths ["config/dev"]
+              :dependencies [[org.clojure/test.check "0.9.0"]]}
              :dev-spark
              {:source-paths ["src/clj" "src-spark" "src/scripts"]
               :resource-paths ["config/dev"]
