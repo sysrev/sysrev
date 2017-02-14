@@ -177,9 +177,8 @@
 
 (defmacro with-project-cache [project-id field-path form]
   `(let [project-id# ~project-id
-         field-path# ~field-path
-         field-path# (if (keyword? field-path#)
-                       [field-path#] field-path#)
+         field-path# ~(if (keyword? field-path)
+                        `[~field-path] `~field-path)
          full-path# (concat [:project project-id#] field-path#)]
      (with-query-cache full-path# ~form)))
 

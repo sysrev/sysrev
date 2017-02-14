@@ -47,7 +47,8 @@
             ;; [flambo.conf :as fc]
             ;; [flambo.tuple :as ft]
             ;; [flambo.sql :as fsql]
-            ))
+            )
+  (:import java.util.UUID))
 
 (defonce started
   (sysrev.init/start-app))

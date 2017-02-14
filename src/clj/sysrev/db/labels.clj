@@ -12,12 +12,15 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [clojure.math.numeric-tower :as math]))
+            [clojure.math.numeric-tower :as math])
+  (:import java.util.UUID))
 
 (def valid-label-categories
   ["inclusion criteria" "extra"])
 (def valid-label-value-types
-  ["boolean" "categorical"])
+  ["boolean" "categorical" "numeric" "string"])
+(def valid-numeric-types
+  ["integer" "percent" "ratio" "real"])
 
 (defn all-labels-cached []
   (with-query-cache [:all-labels]
@@ -113,6 +116,87 @@
      :definition {:all-values all-values
                   :inclusion-values inclusion-values
                   :multi? (boolean multi?)}})))
+
+(defn define-numeric-label-unit
+  [name numeric-type & [{:keys [min-bound max-bound]}]]
+  (let [[min-val min-inclusive?] min-bound
+        [max-val max-inclusive?] max-bound]
+    (assert (or (nil? name) (string? name)))
+    (assert (in? valid-numeric-types numeric-type))
+    (assert (= (nil? min-val) (nil? min-inclusive?)))
+    (assert (= (nil? max-val) (nil? max-inclusive?)))
+    (when (= numeric-type "integer")
+      (assert (or (nil? min-val) (integer? min-val)))
+      (assert (or (nil? max-val) (integer? max-val))))
+    (assert (in? [nil "inclusive" "exclusive"] min-inclusive?))
+    (assert (in? [nil "inclusive" "exclusive"] max-inclusive?))
+    (cond->
+        {:name name :numeric-type numeric-type
+         :unit-id (UUID/randomUUID)}
+      min-bound (assoc :min-bound min-bound)
+      max-bound (assoc :max-bound max-bound))))
+
+;; *TODO*
+;; finish adding numeric label type
+(defn add-label-entry-numeric
+  "Creates an entry for a numeric label definition, with one or more choices
+  of unit selectable by user when providing answer.
+
+  `integer-only?` if true will disallow non-integer values as answer."
+  [project-id
+   {:keys [name question short-label required custom-category units]
+    :as entry-values}]
+  (assert (sequential? units))
+  (assert (not= 0 (count units)))
+  (assert (every? (some-fn nil? string?) (map :name units)))
+  (assert (in? [0 1] (->> units (map :name) (filter nil?) count)))
+  (assert (every? map? units))
+  (add-label-entry
+   project-id
+   (merge
+    (->> [:name :question :short-label :required]
+         (select-keys entry-values))
+    {:value-type "numeric"
+     :category (or custom-category "extra")
+     :definition {:units units}})))
+
+(defn add-label-entry-string
+  "Creates an entry for a string label definition. Value is provided by user
+  in a text input field.
+
+  `max-length` is a required integer.
+  `regex` is an optional vector of strings to require that answers must match
+  one of the regex values.
+  `entity` is an optional string to identify what the value represents.
+  `examples` is an optional list of example strings to indicate to users
+  the required format.
+  `multi?` if true allows multiple string values in answer."
+  [project-id
+   {:keys [name question short-label required custom-category
+           max-length regex entity examples multi?]
+    :as entry-values}]
+  (assert (= (type multi?) Boolean))
+  (assert (integer? max-length))
+  (assert (or (nil? regex)
+              (and (coll? regex)
+                   (every? string? regex))))
+  (assert (or (nil? examples)
+              (and (coll? examples)
+                   (every? string? examples))))
+  (assert ((some-fn nil? string?) entity))
+  (add-label-entry
+   project-id
+   (merge
+    (->> [:name :question :short-label :required]
+         (select-keys entry-values))
+    {:value-type "string"
+     :category (or custom-category "extra")
+     :definition (cond->
+                     {:multi? multi?
+                      :max-length max-length}
+                   regex (assoc :regex regex)
+                   entity (assoc :entity entity)
+                   examples (assoc :examples examples))})))
 
 (defn alter-label-entry [project-id label-id values-map]
   (db/clear-labels-cache project-id)
@@ -382,7 +466,12 @@
              (let [allowed (-> label :definition :all-values)]
                (every? (in? allowed) answer))
              :else false)
-       false))))
+       ;; TODO check that answer value matches label regex
+       "string" (and (not (nil? answer))
+                     (coll? answer)
+                     (every? string? answer)
+                     (every? not-empty answer))
+       true))))
 
 (defn label-answer-inclusion [label-id answer]
   (let [label (get (all-labels-cached) label-id)
@@ -410,37 +499,43 @@
       (-> label :definition :all-values)
       nil)))
 
+(defn filter-valid-label-values [label-values]
+  (->> label-values
+       (filterv
+        (fn [[label-id answer]]
+          (label-answer-valid? label-id answer)))
+       (apply concat)
+       (apply hash-map)))
+
 (defn set-user-article-labels [user-id article-id label-values imported?]
   (assert (integer? user-id))
   (assert (integer? article-id))
   (assert (map? label-values))
   (do-transaction
    nil
-   (let [[now project-id]
+   (let [valid-values (->> label-values filter-valid-label-values)
+         [now project-id]
          (pvalues
           (sql-now)
           (:project-id (q/query-article-by-id article-id [:project-id])))
          overall-label-id (project-overall-label-id project-id)
          confirm? (and imported?
                        ((comp not nil?)
-                        (get label-values overall-label-id)))
+                        (get valid-values overall-label-id)))
          existing-label-ids
          (-> (q/select-article-by-id article-id [:al.label-id])
              (q/join-article-labels)
              (q/filter-label-user user-id)
              (do-query-map :label-id))
          new-label-ids
-         (->> (keys label-values)
+         (->> (keys valid-values)
               (remove (in? existing-label-ids)))
          new-entries
          (->> new-label-ids
               (map (fn [label-id]
-                     (let [answer (get label-values label-id)
-                           valid (label-answer-valid? label-id answer)
-                           inclusion
-                           (when valid
-                             (label-answer-inclusion label-id answer))]
-                       (assert valid "invalid label value submitted")
+                     (let [answer (get valid-values label-id)
+                           _ (assert (label-answer-valid? label-id answer))
+                           inclusion (label-answer-inclusion label-id answer)]
                        {:label-id label-id
                         :article-id article-id
                         :user-id user-id
@@ -449,22 +544,21 @@
                         :imported imported?
                         :inclusion inclusion}))))]
      (doseq [label-id existing-label-ids]
-       (let [answer (get label-values label-id)
-             valid (label-answer-valid? label-id answer)
-             inclusion
-             (when valid
-               (label-answer-inclusion label-id answer))]
-         (-> (sqlh/update :article-label)
-             (sset {:answer (to-jsonb answer)
-                    :updated-time now
-                    :imported imported?
-                    :inclusion inclusion})
-             (where [:and
-                     [:= :article-id article-id]
-                     [:= :user-id user-id]
-                     [:= :label-id label-id]
-                     [:or imported? [:= :confirm-time nil]]])
-             do-execute)))
+       (when (contains? valid-values label-id)
+         (let [answer (get valid-values label-id)
+               _ (assert (label-answer-valid? label-id answer))
+               inclusion (label-answer-inclusion label-id answer)]
+           (-> (sqlh/update :article-label)
+               (sset {:answer (to-jsonb answer)
+                      :updated-time now
+                      :imported imported?
+                      :inclusion inclusion})
+               (where [:and
+                       [:= :article-id article-id]
+                       [:= :user-id user-id]
+                       [:= :label-id label-id]
+                       [:or imported? [:= :confirm-time nil]]])
+               do-execute))))
      (when-not (empty? new-entries)
        (-> (insert-into :article-label)
            (values new-entries)

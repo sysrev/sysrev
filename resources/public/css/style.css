@@ -117,6 +117,51 @@ div.ui.segment.labels-warning .ui.message {
     padding-right: 0.5em;
 }
 
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.string,
+.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.numeric {
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+}
+
+.ui.column.label-edit .ui.icon.button.input-row {
+    padding: 0.5em;
+}
+
+.ui.column.label-edit .ui.label.input-remove {
+    padding: 0;
+}
+
+.ui.column.label-edit .ui.label.input-remove .ui.button {
+    padding-left: 0.5em;
+    padding-right: 0.5em;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    margin: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.ui.column.label-edit .ui.label.input-remove i.icon {
+    padding: 0;
+    margin: 0;
+}
+
+.field.success .ui.input input {
+    background-color: rgba(220,255,220,1.0);
+}
+
+.ui.form.string-label .field .ui.input {
+    padding-top: 0.15em;
+    padding-bottom: 0.15em;
+}
+
+.ui.column.label-edit input {
+    padding-left: 0.6em;
+    padding-right: 0.6em;
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+}
+
 .ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category div.inner {
     width: 100%;
     margin: 0;

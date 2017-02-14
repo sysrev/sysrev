@@ -153,7 +153,8 @@
                  "boolean" (if (boolean? answer)
                              [answer] [])
                  "categorical" answer
-                 "numeric" answer)
+                 "numeric" answer
+                 "string" answer)
         display-label (case value-type
                         "boolean" (str short-label "?")
                         short-label)

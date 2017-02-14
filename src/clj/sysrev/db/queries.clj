@@ -8,7 +8,8 @@
               to-sql-array to-jsonb sql-field
               with-project-cache clear-project-cache
               with-query-cache clear-query-cache]]
-            [sysrev.util :refer [in?]]))
+            [sysrev.util :refer [in?]])
+  (:import java.util.UUID))
 
 ;;;
 ;;; articles
@@ -71,6 +72,22 @@
 ;;;
 ;;; labels
 ;;;
+
+(defn select-label-by-id
+  [label-id fields & [{:keys [include-disabled?]
+                       :or {include-disabled? true}
+                       :as opts}]]
+  (assert (or (in? [UUID String] (type label-id))
+              (integer? label-id)))
+  (cond->
+      (-> (apply select fields)
+          (from [:label :l]))
+    (integer? label-id)
+    (merge-where [:= :label-id-local label-id])
+    (not (integer? label-id))
+    (merge-where [:= :label-id label-id])
+    (not include-disabled?)
+    (merge-where [:= :enabled true])))
 
 (defn select-label-where
   [project-id where-clause fields & [{:keys [include-disabled?]

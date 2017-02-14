@@ -146,6 +146,38 @@
               (concat labels-path [label-id])
               (f curval))))))
 
+(defn string-label-valid? [label-id val]
+  (let [{:keys [definition value-type]} (project :labels label-id)]
+    (when (= value-type "string")
+      (boolean
+       (let [{:keys [regex max-length]} definition]
+         (and
+          (string? val)
+          (<= (count val) max-length)
+          (or (empty? regex)
+              (some #(re-matches (re-pattern %) val) regex))))))))
+
+(defn label-answer-valid? [label-id answer]
+  (let [{:keys [definition value-type]} (project :labels label-id)]
+    (boolean
+     (case value-type
+       "boolean"
+       (in? [true false nil] answer)
+       "categorical"
+       (cond (nil? answer)
+             true
+             (sequential? answer)
+             (let [allowed (-> definition :all-values)]
+               (every? (in? allowed) answer))
+             :else false)
+       ;; TODO check that answer value matches label regex
+       "string"
+       (let [{:keys [regex max-length]} definition]
+         (and
+          (sequential? answer)
+          (every? #(string-label-valid? label-id %) answer)))
+       true))))
+
 (defn label-answer-inclusion [label-id answer]
   (let [{:keys [definition value-type]} (project :labels label-id)
         ivals (:inclusion-values definition)]
@@ -180,8 +212,10 @@
                            inclusion (label-answer-inclusion label-id answer)]
                        (false? inclusion))))))))
 
-
-
-
-
-
+(defn filter-valid-label-values [label-values]
+  (->> label-values
+       (filterv
+        (fn [[label-id answer]]
+          (label-answer-valid? label-id answer)))
+       (apply concat)
+       (apply hash-map)))

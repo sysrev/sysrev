@@ -42,5 +42,21 @@
 (defn alter-label [id values]
   (-> (sqlh/update :label)
       (sset values)
-      (where [:= :label-id id])
+      (where (if (integer? id)
+               [:= :label-id-local id]
+               [:= :label-id id]))
       do-execute))
+
+(defn fix-duplicate-label-values [label-id]
+  (let [label (->> (q/select-label-by-id label-id [:*])
+                   do-query first)]
+    (let [{:keys [all-values inclusion-values]}
+          (:definition label)]
+      (let [label (cond-> label
+                    all-values
+                    (update-in [:definition :all-values]
+                               #(->> % (remove empty?) distinct))
+                    inclusion-values
+                    (update-in [:definition :inclusion-values]
+                               #(->> % (remove empty?) distinct)))]
+        label))))

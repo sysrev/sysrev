@@ -411,6 +411,123 @@
                      article-id (:name pnote)
                      (-> % .-target .-value))))}]]]])))
 
+(defn string-label-element [label-id]
+  (let [label (project :labels label-id)
+        curvals (as-> (l/active-label-values nil label-id) vs
+                  (if (empty? vs) [""] vs))]
+    [:div.inner {:style {:width "100%"}}
+     (doall
+      (->>
+       curvals
+       (map-indexed
+        (fn [i val]
+          (let [left-action? true
+                right-action? (and (= (+ i 1) (count curvals))
+                                   (-> label :definition :multi?))]
+            ^{:key {:string-label [label-id i]}}
+            [:div.ui.form.string-label
+             [:div.field.string-label
+              {:class (cond
+                        (empty? val)
+                        ""
+                        (l/string-label-valid? label-id val)
+                        "success"
+                        :else "error")}
+              [:div.ui.fluid.small
+               {:class
+                (str
+                 (if left-action? "labeled" "")
+                 " " (if right-action? "right action input" "input")
+                 " " )}
+               (when left-action?
+                 [:div.ui.label.input-remove
+                  [:div.ui.button
+                   {:class (if (and (= i 0)
+                                    (= (count curvals) 1)
+                                    (empty? val)) "disabled" "")
+                    :on-click
+                    (fn [ev]
+                      (l/update-label-value
+                       label-id #(->> (assoc (vec %) i "")
+                                      (filterv not-empty))))}
+                   [:i.fitted.small.remove.icon]]])
+               [:input
+                {:type "text"
+                 :name (str label-id "__" i)
+                 :value val
+                 :on-change
+                 (fn [ev]
+                   (let [s (-> ev .-target .-value)]
+                     (l/update-label-value
+                      label-id #(assoc (vec %) i s))))}]
+               (when right-action?
+                 [:div.ui.icon.button.input-row
+                  {:class (if (empty? val) "disabled" "")
+                   :on-click
+                   (fn [ev]
+                     (l/update-label-value
+                      label-id #(assoc (vec %) (count curvals) "")))}
+                  [:i.fitted.small.plus.icon]])]]])))))]))
+
+#_
+(defn numeric-label-element [label-id]
+  (let [label (project :labels label-id)
+        curvals (as-> (l/active-label-values nil label-id) vs
+                  (if (empty? vs) [""] vs))]
+    [:div.inner {:style {:width "100%"}}
+     (doall
+      (->>
+       curvals
+       (map-indexed
+        (fn [i val]
+          (let [left-action? true
+                right-action? (and (= (+ i 1) (count curvals))
+                                   (-> label :definition :multi?))]
+            ^{:key {:string-label [label-id i]}}
+            [:div.ui.form.string-label
+             [:div.field.string-label
+              {:class (cond
+                        (empty? val)
+                        ""
+                        (l/string-label-valid? label-id val)
+                        "success"
+                        :else "error")}
+              [:div.ui.fluid.small
+               {:class
+                (str
+                 (if left-action? "labeled" "")
+                 " " (if right-action? "right action input" "input")
+                 " " )}
+               (when left-action?
+                 [:div.ui.label.input-remove
+                  [:div.ui.button
+                   {:class (if (and (= i 0)
+                                    (= (count curvals) 1)
+                                    (empty? val)) "disabled" "")
+                    :on-click
+                    (fn [ev]
+                      (l/update-label-value
+                       label-id #(->> (assoc (vec %) i "")
+                                      (filterv not-empty))))}
+                   [:i.fitted.small.remove.icon]]])
+               [:input
+                {:type "text"
+                 :name (str label-id "__" i)
+                 :value val
+                 :on-change
+                 (fn [ev]
+                   (let [s (-> ev .-target .-value)]
+                     (l/update-label-value
+                      label-id #(assoc (vec %) i s))))}]
+               (when right-action?
+                 [:div.ui.icon.button.input-row
+                  {:class (if (empty? val) "disabled" "")
+                   :on-click
+                   (fn [ev]
+                     (l/update-label-value
+                      label-id #(assoc (vec %) (count curvals) "")))}
+                  [:i.fitted.small.plus.icon]])]]])))))]))
+
 (defn multi-choice-selection [label-id]
   (r/create-class
    {:component-did-mount
@@ -568,6 +685,25 @@
               [label-help-popup-element label-id]
               [:div.ui.row.label-edit-value.category
                [:div.inner [multi-choice-selection label-id]]]]]))
+        make-string-column
+        (fn [label-id]
+          (let [label (get labels label-id)]
+            ^{:key {:article-label label-id}}
+            [:div.ui.column.label-edit
+             {:class (if (:required label) "required" nil)}
+             [:div.ui.middle.aligned.grid.label-edit
+              [with-tooltip
+               [:div.ui.row.label-edit-name
+                [:span.name [:span.inner (:short-label label)]]]
+               {:delay {:show 400
+                        :hide 0}
+                :hoverable false
+                :transition "fade up"
+                :distanceAway 8
+                :variation "basic"}]
+              [label-help-popup-element label-id]
+              [:div.ui.row.label-edit-value.string
+               [string-label-element label-id]]]]))
         make-column
         (fn [label-id]
           (let [{:keys [value-type]
@@ -575,6 +711,7 @@
             (case value-type
               "boolean" (make-boolean-column label-id)
               "categorical" (make-categorical-column label-id)
+              "string" (make-string-column label-id)
               nil)))
         make-label-columns
         (fn [label-ids n-cols]

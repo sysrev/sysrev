@@ -331,15 +331,24 @@
 (defn send-active-labels
   "Calls `send-labels` with values from the active editor."
   []
-  (send-labels (l/active-editor-article-id)
-               (l/active-label-values)))
+  (using-work-state
+   (when-let [article-id (l/active-editor-article-id)]
+     (let [active-values
+           (->> (l/active-label-values)
+                (l/filter-valid-label-values))]
+       (swap! work-state
+              assoc-in [:page (s/current-page) :label-values-sent article-id]
+              active-values)
+       (send-labels article-id active-values)))))
 
 (defn confirm-active-labels
   "Calls `confirm-labels` with values from the active editor."
   [on-confirm]
-  (confirm-labels (l/active-editor-article-id)
-                  (l/active-label-values)
-                  on-confirm))
+  (using-work-state
+   (when (l/editing-article-labels?)
+     (confirm-labels (l/active-editor-article-id)
+                     (l/active-label-values)
+                     on-confirm))))
 
 (defn send-article-note
   [article-id note-name content]
