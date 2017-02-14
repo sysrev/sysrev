@@ -65,6 +65,7 @@
                  [cljs-http "0.1.42"]
                  [cljsjs/jquery "2.2.4-0"]
                  [cljsjs/semantic-ui "2.2.4-0"]
+                 [camel-snake-kebab "0.4.0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms600m"
