@@ -14,5 +14,4 @@
         (->> postgres-port (format "connected to postgres (port %s)") println)
         (run-web server-port prod?)
         (->> server-port (format "web server started (port %s)") println)
-        (db/clear-predict-cache)
         true)))
