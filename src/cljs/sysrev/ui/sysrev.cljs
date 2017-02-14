@@ -118,7 +118,8 @@
 
 (defn project-page-menu-full [active-tab]
   (let [make-class
-        #(if (= % active-tab) "active item" "item")]
+        #(if (= % active-tab) "active item" "item")
+        has-predict-data (not-empty (project :stats :predict :confidences))]
     [:div.ui.five.item.secondary.pointing.menu.project-menu
      [:a
       {:class (make-class :overview)
@@ -132,10 +133,11 @@
       {:class (make-class :labels)
        :href "/project/labels"}
       [:h4.ui.header "Labels"]]
-     [:a
-      {:class (make-class :predict)
-       :href "/project/predict"}
-      [:h4.ui.header "Prediction"]]
+     (when has-predict-data
+       [:a
+        {:class (make-class :predict)
+         :href "/project/predict"}
+        [:h4.ui.header "Prediction"]])
      [:a
       {:class (make-class :classify)
        :href "/project/classify"}
