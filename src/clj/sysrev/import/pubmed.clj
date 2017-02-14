@@ -115,8 +115,16 @@
           (when (or (nil? v)
                     (and (coll? v) (empty? v)))
             (println (format "* field `%s` is empty" (pr-str k)))))
-        (articles/add-article (dissoc article :locations)
-                              project-id)))))
+        (when-let [article-id
+                   (->> (articles/add-article
+                         (dissoc article :locations) project-id)
+                        first :article-id)]
+          (when (not-empty (:locations article))
+            (-> (sqlh/insert-into :article-location)
+                (values
+                 (->> (:locations article)
+                      (mapv #(assoc % :article-id article-id))))
+                do-execute)))))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

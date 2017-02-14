@@ -59,7 +59,7 @@
   (apply project :users user-id ks))
 
 (defn article-location-urls [locations]
-  (let [sources [:pubmed :doi :pii]]
+  (let [sources [:pubmed :doi :pii #_ :nct]]
     (->>
      sources
      (map
@@ -73,6 +73,7 @@
                 :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
                 :doi (str "https://dx.doi.org/" external-id)
                 :pmc (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" external-id "/")
+                :nct (str "https://clinicaltrials.gov/ct2/show/" external-id)
                 nil)))))))
      (apply concat)
      (filter identity))))

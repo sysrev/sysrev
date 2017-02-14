@@ -59,6 +59,28 @@
    {:include-disabled? include-disabled?
     :tname tname}))
 
+(defn filter-article-by-location [m source external-id]
+  (-> m
+      (merge-where
+       [:exists
+        (-> (select :*)
+            (from [:article-location :al-f])
+            (where [:and
+                    [:= :a.article-id :al-f.article-id]
+                    [:= :al-f.source source]
+                    [:= :al-f.external-id external-id]]))])))
+
+(defn select-article-by-external-id
+  [source external-id
+   fields & [{:keys [include-disabled? project-id]
+              :or {include-disabled? true
+                   project-id nil}
+              :as opts}]]
+  (-> (select-article-where
+       project-id true fields
+       {:include-disabled? include-disabled?})
+      (filter-article-by-location source external-id)))
+
 (defn query-article-by-id [article-id fields]
   (-> (select-article-by-id article-id fields)
       do-query first))

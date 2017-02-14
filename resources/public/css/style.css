@@ -354,7 +354,7 @@ div.ui.segment.label-section-header {
 }
 
 .grid.popup.label-help {
-    min-width: 18em;
+    min-width: 22em;
     padding: 0;
     background-color: rgba(230,230,230,1.0);
     border: 1px solid rgba(140,140,140,1.0);

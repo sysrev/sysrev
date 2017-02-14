@@ -39,7 +39,7 @@
             label-value)))))
 
 (defn label-help-popup-element [label-id]
-  (when-let [{:keys [category required question] :as label}
+  (when-let [{:keys [category required question definition] :as label}
              (project :labels label-id)]
     [:div.ui.inverted.grid.popup.transition.hidden.label-help
      [:div.middle.aligned.center.aligned.row.label-help-header
@@ -52,7 +52,18 @@
          [:span "Extra label"])]]
      [:div.middle.aligned.center.aligned.row.label-help-question
       [:div.sixteen.wide.column.label-help
-       [:span (str question)]]]]))
+       [:div [:span (str question)]]
+       (when-let [examples (:examples definition)]
+         [:div
+          [:div.ui.small.divider]
+          [:div
+           [:strong "Examples: "]
+           (doall
+            (map-indexed
+             (fn [i ex]
+               ^{:key {:label-popup-example [label-id i]}}
+               [:div.ui.small.green.label (str ex)])
+             examples))]])]]]))
 
 (defn keyword-button-elements [content label-name label-value]
   [[with-tooltip content
@@ -403,7 +414,7 @@
           {:type "text"
            :rows 2
            :name (:name pnote)
-           :default-value (or (:active anote) "")
+           :value (or (:active anote) "")
            :on-change
            #(using-work-state
              (swap! work-state

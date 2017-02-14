@@ -24,6 +24,7 @@
         sysrev.web.routes.project
         sysrev.mail.core
         sysrev.custom.immuno
+        sysrev.custom.facts
         sysrev.misc
         sysrev.init
         sysrev.shared.util
