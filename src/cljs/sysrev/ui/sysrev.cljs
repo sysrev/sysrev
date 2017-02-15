@@ -272,10 +272,11 @@
                         (mapv (apply juxt ffs))
                         (filterv (comp (fn [x] (< x 1.0)) first)))))
         coverage (fn [v] (/ (predictions/examples v) (:global-population-size v)))
-        data (confs-by-f predictions/positive-predictive-value coverage)
+        data (confs-by-f predictions/positive-predictive-value predictions/negative-predictive-value coverage)
         confidences (->> data (map first) (map #(string/format "%.2f" %)))
-        ppvs (map second data)
-        coverages (map (comp second rest) data)
+        ppvs (mapv second data)
+        npvs (mapv #(get % 2) data)
+        coverages (mapv #(get % 3) data)
         conf-at-least (fn [thresh] (->> vs (filterv #(> (:confidence %) thresh)) first :values))
         mk-coverage-string (fn [v]
                              (string/format "%.1f%% (%d/%d)"
@@ -285,18 +286,23 @@
         conf-row (fn [thresh]
                    (let [v (conf-at-least thresh)]
                      [:tr
-                      [:td (-> thresh (* 100) (str "%"))]
-                      [:td (->> v predictions/balanced-accuracy (* 100) (string/format "%.1f%%"))]
+                      [:td "> " (-> thresh (* 100) (str "%"))]
+                      [:td
+                       (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
+                       (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
+                      [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
+                       (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
                       [:td (mk-coverage-string v)]]))]
     [:div
      [:div.ui.bottom.attached.segment
-      [:div.ui.center.aligned.header "Confidence report"]
+      [:div.ui.center.aligned.header "Prediction confidence report"]
       [:div.ui.segment
        [:table.ui.celled.table
         [:thead
          [:tr
           [:th "Confidence"]
-          [:th "Balanced Accuracy"]
+          [:th "True Positive Rate (Sensitivity)"]
+          [:th "True Negative Rate (Specificity)"]
           [:th "Coverage"]]]
         [:tbody
          [conf-row 0.9]
@@ -306,8 +312,8 @@
        [chart-container
         (line-chart
           confidences
-          ["Positive predictive value" "Coverage"]
-          [ppvs coverages])]]]]))
+          ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
+          [ppvs npvs coverages])]]]]))
 
 
 (defn project-invite-link-segment []

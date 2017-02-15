@@ -24,7 +24,18 @@
         :reagent-render (fn [] [:canvas {:id id :width (first bounds) :height (second bounds)}])})))
   ([make-chart] (chart-container [nil 150] make-chart)))
 
-(def series-colors ["rgba(190,66,66,0.4)" "rgba(40,66,255,0.4)"])
+(def series-colors ["rgba(252,35,29,0.4)"
+                    "rgba(29,252,35,0.4)"
+                    "rgba(35,29,252,0.4)"
+                    "rgba(146,29,252,0.4)"
+                    "rgba(29,252,146,0.4)"
+                    "rgba(252,146,29,0.4)"
+                    "rgba(183,29,252,0.4)"
+                    "rgba(252,29,208,0.4)"
+                    "rgba(252,183,29,0.4)"
+                    "rgba(208,252,29,0.4)"
+                    "rgba(29,252,183,0.4)"
+                    "rgba(29,208,252,0.4)"])
 
 (defn line-chart
   "Creates a line chart function expecting an id to render into.
