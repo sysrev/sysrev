@@ -245,13 +245,5 @@
   #_ (clear-project-cache project-id [:members-info])
   #_ (clear-project-cache project-id [:users-info]))
 
-(defn clear-predict-cache []
-  (-> (sqlh/update :predict-run)
-      (sset {:meta {}})
-      do-execute)
-  (clear-query-cache)
-  #_ (clear-query-cache [:predict])
-  #_ (clear-query-cache [:article]))
-
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))

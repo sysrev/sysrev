@@ -1,6 +1,10 @@
 (ns sysrev.state.project
   (:require [sysrev.state.core :as s :refer [data user]]
-            [sysrev.util :refer [short-uuid in?]]))
+            [sysrev.util :refer [short-uuid in?]]
+            [sysrev.shared.predictions :as predictions]
+            [camel-snake-kebab.core :refer [->kebab-case-keyword]]
+            [camel-snake-kebab.extras :refer [transform-keys]]))
+
 
 (defn project [& ks]
   (when-let [project-id (s/current-project-id)]
@@ -34,9 +38,14 @@
                                 (= name "overall include")))
                       first first)
                  :member-labels
-                 (merge old-member-labels new-member-labels))]
-      (assert (:project-id pmap))
-      (assoc-in s [:data :project (:project-id pmap)] pmap))))
+                 (merge old-member-labels new-member-labels))
+          metric-keys #(select-keys % [:true-positives :true-negatives :false-positives :false-negatives :global-population-size])
+          transformed #(transform-keys ->kebab-case-keyword %)
+          confidence-update #(update % :values (comp predictions/map->AccuracyMetric metric-keys transformed))
+          confidences-update #(map confidence-update %)
+          parsed-pmap (update-in pmap [:stats :predict :confidences] confidences-update)]
+      (assert (:project-id parsed-pmap))
+      (assoc-in s [:data :project (:project-id parsed-pmap)] parsed-pmap))))
 
 (defn article-documents [article-id]
   (when-let [article (data [:articles article-id])]

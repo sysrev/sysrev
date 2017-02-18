@@ -7,7 +7,13 @@
              [nav number-to-word full-size? in?]]
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
-            [reagent.core :as r])
+            [reagent.core :as r]
+            [sysrev.shared.predictions :as predictions]
+            [camel-snake-kebab.core :refer [->kebab-case-keyword]]
+            [camel-snake-kebab.extras :refer [transform-keys]]
+            [sysrev.ui.charts :refer [chart-container line-chart]]
+            [goog.string :as string])
+
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn user-info-card [user-id]
@@ -112,7 +118,8 @@
 
 (defn project-page-menu-full [active-tab]
   (let [make-class
-        #(if (= % active-tab) "active item" "item")]
+        #(if (= % active-tab) "active item" "item")
+        has-predict-data (not-empty (project :stats :predict :confidences))]
     [:div.ui.five.item.secondary.pointing.menu.project-menu
      [:a
       {:class (make-class :overview)
@@ -126,10 +133,11 @@
       {:class (make-class :labels)
        :href "/project/labels"}
       [:h4.ui.header "Labels"]]
-     [:a
-      {:class (make-class :predict)
-       :href "/project/predict"}
-      [:h4.ui.header "Prediction"]]
+     (when has-predict-data
+       [:a
+        {:class (make-class :predict)
+         :href "/project/predict"}
+        [:h4.ui.header "Prediction"]])
      [:a
       {:class (make-class :classify)
        :href "/project/classify"}
@@ -254,18 +262,59 @@
                   :class (if active "default active" "")}
                  (project :labels label-id :short-label)])))]]])]]))
 
+
 (defn project-predict-report-box []
-  (let [label-id (selected-label-id)]
+  (let [vs (project :stats :predict :confidences)
+        ;; Facilitate creation of multiple datasets, each as functions on the vector of confidence values.
+        confs-by-f (fn [& fs]
+                     (let [ffs (into [:confidence] (mapv #(comp % :values) fs))]
+                      (->> vs
+                        (mapv (apply juxt ffs))
+                        (filterv (comp (fn [x] (< x 1.0)) first)))))
+        coverage (fn [v] (/ (predictions/examples v) (:global-population-size v)))
+        data (confs-by-f predictions/positive-predictive-value predictions/negative-predictive-value coverage)
+        confidences (->> data (map first) (map #(string/format "%.2f" %)))
+        ppvs (mapv second data)
+        npvs (mapv #(get % 2) data)
+        coverages (mapv #(get % 3) data)
+        conf-at-least (fn [thresh] (->> vs (filterv #(> (:confidence %) thresh)) first :values))
+        mk-coverage-string (fn [v]
+                             (string/format "%.1f%% (%d/%d)"
+                                             (* 100 (coverage v))
+                                             (predictions/examples v)
+                                             (:global-population-size v)))
+        conf-row (fn [thresh]
+                   (let [v (conf-at-least thresh)]
+                     [:tr
+                      [:td "> " (-> thresh (* 100) (str "%"))]
+                      [:td
+                       (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
+                       (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
+                      [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
+                       (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
+                      [:td (mk-coverage-string v)]]))]
     [:div
-     [:div.ui.secondary.yellow.center.aligned.segment
-      [:h3 "Under development"]]
-     [predict-report-labels-menu]
-     [:div.ui.bottom.attached.disabled.segment
-      [train-input-summary-box]
-      [value-confidence-box]]
-     #_
-     [:div.ui.secondary.segment
-      [:h4 (str "Last updated: " (project :stats :predict label-id :update-time))]]]))
+     [:div.ui.bottom.attached.segment
+      [:div.ui.center.aligned.header "Prediction confidence report"]
+      [:div.ui.segment
+       [:table.ui.celled.table
+        [:thead
+         [:tr
+          [:th "Confidence"]
+          [:th "True Positive Rate (Sensitivity)"]
+          [:th "True Negative Rate (Specificity)"]
+          [:th "Coverage"]]]
+        [:tbody
+         [conf-row 0.9]
+         [conf-row 0.95]
+         [conf-row 0.99]]]]
+      [:div.ui.segment
+       [chart-container
+        (line-chart
+          confidences
+          ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
+          [ppvs npvs coverages])]]]]))
+
 
 (defn project-invite-link-segment []
   [:div.ui.bottom.attached.segment.invite-link
