@@ -41,3 +41,15 @@
           (-> (sqlh/insert-into :article-location)
               (values (vec entries))
               do-execute))))))
+
+(defn delete-article-locations [project-id source]
+  (-> (delete-from [:article-location :al])
+      (where [:and
+              [:= :source source]
+              [:exists
+               (-> (select :*)
+                   (from [:article :a])
+                   (where [:and
+                           [:= :a.article-id :al.article-id]
+                           [:= :a.project-id project-id]]))]])
+      do-execute))

@@ -68,7 +68,7 @@
   (apply project :users user-id ks))
 
 (defn article-location-urls [locations]
-  (let [sources [:pubmed :doi :pii #_ :nct]]
+  (let [sources [:pubmed :doi :pii :nct]]
     (->>
      sources
      (map

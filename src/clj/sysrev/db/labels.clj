@@ -7,6 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer [project-labels project-overall-label-id]]
             [sysrev.shared.util :refer [map-values]]
+            [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :refer [in? crypto-rand crypto-rand-nth]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -533,7 +534,9 @@
          new-entries
          (->> new-label-ids
               (map (fn [label-id]
-                     (let [answer (get valid-values label-id)
+                     (let [label (get (all-labels-cached) label-id)
+                           answer (->> (get valid-values label-id)
+                                       (cleanup-label-answer label))
                            _ (assert (label-answer-valid? label-id answer))
                            inclusion (label-answer-inclusion label-id answer)]
                        {:label-id label-id
@@ -545,7 +548,9 @@
                         :inclusion inclusion}))))]
      (doseq [label-id existing-label-ids]
        (when (contains? valid-values label-id)
-         (let [answer (get valid-values label-id)
+         (let [label (get (all-labels-cached) label-id)
+               answer (->> (get valid-values label-id)
+                           (cleanup-label-answer label))
                _ (assert (label-answer-valid? label-id answer))
                inclusion (label-answer-inclusion label-id answer)]
            (-> (sqlh/update :article-label)
