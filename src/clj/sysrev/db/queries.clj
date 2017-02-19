@@ -111,6 +111,14 @@
     (not include-disabled?)
     (merge-where [:= :enabled true])))
 
+(defn delete-label-by-id [label-id]
+  (assert (or (in? [UUID String] (type label-id))
+              (integer? label-id)))
+  (-> (delete-from :label)
+      (where (if (integer? label-id)
+               [:= :label-id-local label-id]
+               [:= :label-id label-id]))))
+
 (defn select-label-where
   [project-id where-clause fields & [{:keys [include-disabled?]
                                       :or {include-disabled? false}

@@ -204,7 +204,7 @@
                        (and (coll? v) (empty? v))))))))
 
 (defn find-inconsistent-answers [label-values]
-  (let [overall-inclusion (get label-values (project :overall-label-id))]
+  (when-let [overall-inclusion (get label-values (project :overall-label-id))]
     (when (true? overall-inclusion)
       (->> (project-labels-ordered)
            (filter (fn [{:keys [label-id] :as label}]

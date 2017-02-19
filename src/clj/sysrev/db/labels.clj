@@ -600,3 +600,13 @@
      (db/clear-project-member-cache project-id user-id)
      (db/clear-project-article-cache project-id article-id)
      true)))
+
+(defn delete-project-user-labels [project-id]
+  (-> (delete-from [:article-label :al])
+      (where [:exists
+              (-> (select :*)
+                  (from [:article :a])
+                  (where [:and
+                          [:= :a.article-id :al.article-id]
+                          [:= :a.project-id project-id]]))])
+      do-execute))
