@@ -53,17 +53,15 @@
       [:form.ui.form {:class form-class :on-submit on-submit}
        [:div.field {:class (error-class :email)}
         [:label "Email"]
-        [:input.ui.input
+        [:input
          {:type "email"
           :name "email"
-          :value (st :page page :email)
           :on-change (input-change :email)}]]
        [:div.field {:class (error-class :password)}
         [:label "Password"]
-        [:input.ui.input
+        [:input
          {:type "password"
           :name "password"
-          :value (st :page page :password)
           :on-change (input-change :password)}]]
        [error-msg :email]
        [error-msg :password]
