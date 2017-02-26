@@ -1,7 +1,7 @@
 (ns sysrev.ui.classify
   (:require
    [sysrev.base :refer [st ga-event]]
-   [sysrev.state.core :as s :refer
+   [sysrev.state.core :as st :refer
     [data current-user-id current-page]]
    [sysrev.state.project :as project :refer [project]]
    [sysrev.state.labels :as l]

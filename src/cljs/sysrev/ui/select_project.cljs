@@ -1,14 +1,14 @@
 (ns sysrev.ui.select-project
   (:require [sysrev.base :refer [st]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.ajax :as ajax]
             [sysrev.util :refer [full-size? in?]]))
 
 (defn select-project-page []
-  (let [user-id (s/current-user-id)
+  (let [user-id (st/current-user-id)
         projects (data :all-projects)
-        active-id (or (s/page-state :selected)
-                      (s/current-project-id))
+        active-id (or (st/page-state :selected)
+                      (st/current-project-id))
         self-projects (st :identity :projects)]
     [:div
      (when (empty? self-projects)
@@ -54,7 +54,7 @@
                 [:div.ui.three.wide.column
                  [:div.ui.blue.right.floated.button
                   {:on-click #(ajax/join-project project-id)
-                   :class (if (or (s/admin-user? user-id)
+                   :class (if (or (st/admin-user? user-id)
                                   (empty? self-projects))
                             "" "disabled")}
                   "Join"]]]])))))]]]))

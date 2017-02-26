@@ -1,6 +1,6 @@
 (ns sysrev.ui.login
   (:require [sysrev.base :refer [st work-state]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.ajax :as ajax]
             [sysrev.util :refer [validate]])

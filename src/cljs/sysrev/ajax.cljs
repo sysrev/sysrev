@@ -1,7 +1,7 @@
 (ns sysrev.ajax
   (:require [ajax.core :refer [GET POST]]
             [sysrev.base :refer [st work-state ga ga-event]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.state.labels :as l]
             [sysrev.state.notes :as notes]
@@ -72,13 +72,13 @@
          :format :json
          :response-format :json
          :keywords? true
-         :headers (when-let [csrf-token (s/csrf-token)]
+         :headers (when-let [csrf-token (st/csrf-token)]
                     {"x-csrf-token" csrf-token})
          :params content
          :handler
          #(using-work-state
            (when (contains? % :csrf-token)
-             (swap! work-state (s/set-csrf-token (:csrf-token %))))
+             (swap! work-state (st/set-csrf-token (:csrf-token %))))
            (if (contains? % :result)
              (-> % :result integerify-map-keys uuidify-map-keys handler)
              (request-error url "Server error (empty result from request)" %)))
@@ -97,13 +97,13 @@
           :format :json
           :response-format :json
           :keywords? true
-          :headers (when-let [csrf-token (s/csrf-token)]
+          :headers (when-let [csrf-token (st/csrf-token)]
                      {"x-csrf-token" csrf-token})
           :params content
           :handler
           #(using-work-state
             (when (contains? % :csrf-token)
-              (swap! work-state (s/set-csrf-token (:csrf-token %))))
+              (swap! work-state (st/set-csrf-token (:csrf-token %))))
             (if (contains? % :result)
               (-> % :result integerify-map-keys uuidify-map-keys handler)
               (request-error url "Server error (action had empty result)" %)))
@@ -130,11 +130,11 @@
    (fn [response]
      (->>
       (comp
-       (s/set-identity (:identity response))
-       (s/set-current-project-id (:active-project response)))
+       (st/set-identity (:identity response))
+       (st/set-current-project-id (:active-project response)))
       (swap! work-state))
      (when (:active-project response)
-       (pull-member-labels (s/current-user-id))))))
+       (pull-member-labels (st/current-user-id))))))
 
 (defn pull-article-info [article-id]
   (ajax-get
@@ -152,7 +152,7 @@
    "/api/auth/lookup-reset-code"
    {:reset-code reset-code}
    (fn [response]
-     (swap! work-state (s/set-reset-code-info reset-code response)))))
+     (swap! work-state (st/set-reset-code-info reset-code response)))))
 
 (defn pull-article-documents []
   (ajax-get
@@ -166,13 +166,13 @@
    (fn [result]
      (->>
       (comp (project/set-project-info (:project result))
-            (s/merge-users (:users result)))
+            (st/merge-users (:users result)))
       (swap! work-state)))))
 
 (defn pull-all-projects []
   (ajax-get
    "/api/all-projects"
-   #(swap! work-state (s/set-all-projects %))))
+   #(swap! work-state (st/set-all-projects %))))
 
 (defn post-login [email password]
   (ajax-post
@@ -212,7 +212,7 @@
      (if (:success response)
        (do (ga-event "auth" "password_reset_success")
            (notify "Password reset" {:class "green"})
-           (swap! work-state (s/log-out))
+           (swap! work-state (st/log-out))
            (nav-scroll-top "/login"))
        (do (ga-event "error" "password_reset_failure")
            (swap! work-state assoc-in [:page :reset-password :err]
@@ -239,7 +239,7 @@
      (if (:success response)
        (ga-event "auth" "logout_success")
        (ga-event "auth" "logout_failure"))
-     (swap! work-state (s/log-out))
+     (swap! work-state (st/log-out))
      (nav-scroll-top "/")
      (notify "Logged out"))))
 
@@ -247,9 +247,9 @@
   (using-work-state
    (ajax-post
     "/api/delete-user"
-    {:verify-user-id (s/current-user-id)}
+    {:verify-user-id (st/current-user-id)}
     (fn [result]
-      (swap! work-state (s/log-out))
+      (swap! work-state (st/log-out))
       (nav-scroll-top "/")
       (notify "Account deleted")
       (notify "Logged out")))))
@@ -258,7 +258,7 @@
   (using-work-state
    (ajax-post
     "/api/delete-member-labels"
-    {:verify-user-id (s/current-user-id)}
+    {:verify-user-id (st/current-user-id)}
     (fn [result]
       (swap! work-state assoc :data {}())
       (nav-scroll-top "/")
@@ -270,7 +270,7 @@
    {:project-id project-id}
    (fn [result]
      (notify "Project selected")
-     (swap! work-state (s/change-project project-id))
+     (swap! work-state (st/change-project project-id))
      (nav-scroll-top "/"))))
 
 (defn join-project [project-id]
@@ -279,7 +279,7 @@
    {:project-id project-id}
    (fn [result]
      (notify "Joined project" {:class "green" :display-ms 2000})
-     (swap! work-state (s/change-project project-id))
+     (swap! work-state (st/change-project project-id))
      (pull-identity)
      (nav-scroll-top "/"))))
 
@@ -293,8 +293,8 @@
           (->>
            (comp
             (project/merge-article result)
-            (s/set-classify-task (:article-id result)
-                                 (:review-status result)))
+            (st/set-classify-task (:article-id result)
+                                  (:review-status result)))
            (swap! work-state))
           (scroll-top)
           (notify "Fetched next article")))))))
@@ -323,7 +323,7 @@
                (str "article-id = " article-id))
      (notify "Labels submitted" {:class "green"})
      (pull-article-info article-id)
-     (pull-member-labels (s/current-user-id))
+     (pull-member-labels (st/current-user-id))
      (when (= article-id (data :classify-article-id))
        (fetch-classify-task true))
      (on-confirm))))
@@ -337,7 +337,7 @@
            (->> (l/active-label-values)
                 (l/filter-valid-label-values))]
        (swap! work-state
-              assoc-in [:page (s/current-page) :label-values-sent article-id]
+              assoc-in [:page (st/current-page) :label-values-sent article-id]
               active-values)
        (send-labels article-id active-values)))))
 

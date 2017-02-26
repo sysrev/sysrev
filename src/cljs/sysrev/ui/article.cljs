@@ -3,7 +3,7 @@
    [clojure.core.reducers :refer [fold]]
    [clojure.string :as str]
    [sysrev.base :refer [st work-state]]
-   [sysrev.state.core :as s :refer [data]]
+   [sysrev.state.core :as st :refer [data]]
    [sysrev.state.project :as project :refer [project]]
    [sysrev.state.labels :as l]
    [sysrev.state.notes :as notes]
@@ -198,7 +198,7 @@
       (let [similarity (:score article)
             show-similarity?
             (and similarity
-                 (project :member-labels (s/current-user-id)
+                 (project :member-labels (st/current-user-id)
                           :confirmed article-id)
                  (some->>
                   (project :stats :predict
@@ -270,7 +270,7 @@
             show-similarity?
             (and similarity
                  (project :member-labels
-                          (s/current-user-id)
+                          (st/current-user-id)
                           :confirmed article-id)
                  (some->>
                   (project :stats :predict
@@ -390,7 +390,7 @@
               note-content]]])]))))
 
 (defn note-input-element [article-id]
-  (let [user-id (s/current-user-id)
+  (let [user-id (st/current-user-id)
         pnote (project :notes :default)
         anote (notes/get-note-field
                article-id user-id (:name pnote))]
@@ -614,7 +614,7 @@
   (let [article-id (l/active-editor-article-id)
         label-values (l/active-label-values)
         pnote (project :notes :default)
-        user-id (s/current-user-id)
+        user-id (st/current-user-id)
         labels (project :labels)
         ordered-label-ids (->> (l/project-labels-ordered)
                                (map :label-id))

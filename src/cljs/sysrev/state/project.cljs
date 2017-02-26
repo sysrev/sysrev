@@ -1,5 +1,5 @@
 (ns sysrev.state.project
-  (:require [sysrev.state.core :as s :refer [data user]]
+  (:require [sysrev.state.core :as st :refer [data user]]
             [sysrev.util :refer [short-uuid in?]]
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
@@ -7,7 +7,7 @@
 
 
 (defn project [& ks]
-  (when-let [project-id (s/current-project-id)]
+  (when-let [project-id (st/current-project-id)]
     (data (concat [:project project-id] ks))))
 
 (defn merge-article [article]
@@ -100,7 +100,7 @@
   (str "https://sysrev.us/register/" (project-hash-from-id project-id)))
 
 (defn project-member-user-ids [include-self-admin?]
-  (let [self-id (s/current-user-id)]
+  (let [self-id (st/current-user-id)]
     (->> (keys (project :members))
          (filter
           (fn [user-id]

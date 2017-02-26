@@ -1,6 +1,6 @@
 (ns sysrev.ui.sysrev
   (:require [sysrev.base :refer [st]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project :refer [project]]
             [sysrev.state.labels :as labels]
             [sysrev.util :refer
@@ -322,7 +322,7 @@
     [:div.ui.label "Project invite URL"]
     [:input.ui.input
      {:readOnly true
-      :value (project/project-invite-url (s/current-project-id))}]]])
+      :value (project/project-invite-url (st/current-project-id))}]]])
 
 (defn project-page [active-tab content]
   (let [bottom-segment?
@@ -331,7 +331,7 @@
           true)]
     [:div
      [:div.ui.top.attached.center.aligned.segment.project-header
-      [:h5 (data [:all-projects (s/current-project-id) :name])]]
+      [:h5 (data [:all-projects (st/current-project-id) :name])]]
      [:div.ui.segment.project-segment
       {:class (if bottom-segment? "bottom attached" "attached")}
       [project-page-menu active-tab]

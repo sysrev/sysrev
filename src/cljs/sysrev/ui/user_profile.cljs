@@ -1,6 +1,6 @@
 (ns sysrev.ui.user-profile
   (:require [sysrev.base :refer [st work-state]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project :refer [project]]
             [sysrev.state.labels :as labels]
             [sysrev.ui.components :refer [debug-box]]
@@ -11,8 +11,8 @@
 
 (defn user-profile-page []
   (let [user-id (or (st :page :user-profile :user-id)
-                    (s/current-user-id))
-        project-id (s/current-project-id)
+                    (st/current-user-id))
+        project-id (st/current-project-id)
         user (st :data :users user-id)
         display-name (or (:name user) (:email user))
         unconfirmed-ids (keys (project :member-labels user-id :unconfirmed))
@@ -47,8 +47,8 @@
                     {:href (str "/user/" link-user-id)
                      :class (if active "default active" "")}
                     (data [:users link-user-id :email])])))]]]))]
-      (when (and (= user-id (s/current-user-id))
-                 (s/admin-user? user-id))
+      (when (and (= user-id (st/current-user-id))
+                 (st/admin-user? user-id))
         [:div.ui.attached.segment.user-admin-segment
          [:div.ui.two.column.grid
           [:div.ui.column

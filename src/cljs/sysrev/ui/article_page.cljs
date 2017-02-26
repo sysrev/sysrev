@@ -2,7 +2,7 @@
   (:require
    [sysrev.base :refer [st]]
    [sysrev.util :refer [scroll-top]]
-   [sysrev.state.core :as s
+   [sysrev.state.core :as st
     :refer [current-page current-user-id on-page?]]
    [sysrev.state.project :as project :refer [project]]
    [sysrev.state.labels :as l]

@@ -1,6 +1,6 @@
 (ns sysrev.state.notes
   (:require [sysrev.base :refer [st]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :refer [project]]
             [cljs-time.core :as t]))
 
@@ -20,7 +20,7 @@
     identity))
 
 (defn note-field-synced? [article-id note-name]
-  (when-let [user-id (s/current-user-id)]
+  (when-let [user-id (st/current-user-id)]
     (if (map? (data [:notes :article article-id user-id note-name]))
       (let [{:keys [saved active]}
             (data [:notes :article article-id user-id note-name])]
@@ -28,7 +28,7 @@
       true)))
 
 (defn update-note-field [article-id note-name content]
-  (let [user-id (s/current-user-id)]
+  (let [user-id (st/current-user-id)]
     (cond
       (nil? user-id) identity
       (map? (data [:notes :article article-id user-id note-name]))
@@ -39,7 +39,7 @@
       :else (init-note-field article-id user-id note-name content))))
 
 (defn update-note-saved [article-id note-name saved-content]
-  (let [user-id (s/current-user-id)]
+  (let [user-id (st/current-user-id)]
     (cond
       (nil? user-id) identity
       (map? (data [:notes :article article-id user-id note-name]))

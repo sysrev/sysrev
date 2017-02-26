@@ -1,6 +1,6 @@
 (ns sysrev.state.labels
   (:require [sysrev.base :refer [st work-state]]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :refer [project]]
             [sysrev.util :refer [in?]]
             [sysrev.shared.util :refer [map-values]])
@@ -9,7 +9,7 @@
 (defn set-member-labels [user-id lmap]
   (fn [s]
     (assoc-in
-     s [:data :project (s/current-project-id) :member-labels user-id] lmap)))
+     s [:data :project (st/current-project-id) :member-labels user-id] lmap)))
 
 (defn filter-labels
   [labels {:keys [category value-type]}]
@@ -40,7 +40,7 @@
       (article-label-values article-id user-id))))
 
 (defn user-article-status [article-id]
-  (let [user-id (s/current-user-id)
+  (let [user-id (st/current-user-id)
         confirmed
         (and user-id (project :member-labels user-id
                               :confirmed article-id))
@@ -81,16 +81,16 @@
 
 (defn editing-article-labels? []
   (boolean
-   (and (s/current-user-id)
-        (or (and (= (s/current-page) :classify)
+   (and (st/current-user-id)
+        (or (and (= (st/current-page) :classify)
                  (data :classify-article-id))
-            (and (= (s/current-page) :article)
+            (and (= (st/current-page) :article)
                  (= (user-article-status (st :page :article :id))
                     :unconfirmed))))))
 
 (defn active-editor-article-id []
   (when (editing-article-labels?)
-    (case (s/current-page)
+    (case (st/current-page)
       :classify (data :classify-article-id)
       :article (st :page :article :id)
       nil)))
@@ -100,7 +100,7 @@
   article currently being edited are stored."
   []
   (when-let [article-id (active-editor-article-id)]
-    (case (s/current-page)
+    (case (st/current-page)
       :classify [:page :classify :label-values article-id]
       :article [:page :article :label-values article-id]
       nil)))
@@ -116,7 +116,7 @@
 
   `label-id` can be passed to return only the value of a single label."
   [& [article-id label-id]]
-  (when-let [user-id (s/current-user-id)]
+  (when-let [user-id (st/current-user-id)]
     (when-let [article-id (or article-id (active-editor-article-id))]
       (cond->
           (let [labels-path (active-labels-path)]

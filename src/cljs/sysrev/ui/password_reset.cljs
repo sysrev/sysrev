@@ -2,7 +2,7 @@
   (:require [sysrev.base :refer [st work-state]]
             [sysrev.ajax :as ajax]
             [sysrev.util :refer [validate]]
-            [sysrev.state.core :as s :refer [data]])
+            [sysrev.state.core :as st :refer [data]])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (def pass-reset-validation

@@ -1,7 +1,7 @@
 (ns sysrev.routes
   (:require
    [sysrev.base :refer [st work-state display-state display-ready]]
-   [sysrev.state.core :as s :refer
+   [sysrev.state.core :as st :refer
     [data on-page? current-page current-user-id logged-in? current-project-id]]
    [sysrev.ajax :as ajax]
    [sysrev.util :refer [nav in? dissoc-in]]

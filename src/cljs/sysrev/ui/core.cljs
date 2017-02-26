@@ -2,7 +2,7 @@
   (:require
    [sysrev.base :refer [st st-if-exists display-ready]]
    [sysrev.util :refer [full-size?]]
-   [sysrev.state.core :as s :refer
+   [sysrev.state.core :as st :refer
     [data current-page on-page? logged-in? current-project-id]]
    [sysrev.routes :refer [data-initialized? on-public-page?]]
    [sysrev.notify :refer [active-notification]]
@@ -82,7 +82,7 @@
           [:div
            [:i.blue.user.icon]
            display-name]]
-         (when (s/admin-user? user-id)
+         (when (st/admin-user? user-id)
            [:a.item {:href "/select-project"}
             "Change project"])
          [:a.item.distinct.middle.aligned {:on-click ajax/post-logout}
@@ -109,7 +109,7 @@
       [:a.item.loading-indicator [loading-indicator]]
       (if (logged-in?)
         [:div.right.menu
-         (when (s/admin-user? user-id)
+         (when (st/admin-user? user-id)
            [:div.item
             (let [dropdown
                   (with-mount-hook
@@ -120,7 +120,7 @@
                 [:i.chevron.down.icon
                  {:style {:margin "0px"}}]
                 [:div.menu
-                 (when (s/admin-user? user-id)
+                 (when (st/admin-user? user-id)
                    [:a.item {:href "/select-project"} "Change project"])]]])])
          [:a.item {:href "/project"} "Project"]
          [:a.item.blue-text {:href (str "/user/" user-id)}

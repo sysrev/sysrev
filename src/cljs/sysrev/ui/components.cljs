@@ -4,7 +4,7 @@
             [sysrev.base :refer [st work-state]]
             [sysrev.util :refer [url-domain nbsp scroll-top full-size?]]
             [sysrev.ajax :as ajax]
-            [sysrev.state.core :as s :refer [data]]
+            [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project :refer [project]]
             [sysrev.state.labels :as l]
             [reagent.core :as r]
