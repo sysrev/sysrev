@@ -362,7 +362,7 @@
         [article status]
         (cond
           (and pending unlabeled)
-          (if (<= (crypto-rand) 0.75) [unlabeled :fresh] [pending :single])
+          (if (<= (crypto-rand) 0.9) [unlabeled :fresh] [pending :single])
           pending [pending :single]
           unlabeled [unlabeled :fresh]
           :else nil)]
