@@ -29,7 +29,9 @@
         sysrev.init
         sysrev.shared.util
         sysrev.shared.keywords)
-  (:require [clojure.math.numeric-tower :as math]
+  (:require [clojure.spec :as s]
+            [clojure.spec.test :as t]
+            [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -48,7 +50,13 @@
             ;; [flambo.conf :as fc]
             ;; [flambo.tuple :as ft]
             ;; [flambo.sql :as fsql]
-            )
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.shared.spec.labels :as sl]
+            [sysrev.shared.spec.users :as su]
+            [sysrev.shared.spec.keywords :as skw]
+            [sysrev.shared.spec.notes :as snt])
   (:import java.util.UUID))
 
 (defonce started

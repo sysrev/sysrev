@@ -1,0 +1,66 @@
+(ns sysrev.shared.spec.article
+  (:require [clojure.spec :as s]
+            [sysrev.shared.spec.core :as sc]))
+
+(s/def ::article-id ::sc/sql-serial-id)
+(s/def ::article-uuid ::sc/uuid)
+
+(s/def ::primary-title string?)
+(s/def ::secondary-title (s/nilable string?))
+(s/def ::abstract (s/nilable string?))
+(s/def ::public-id (s/nilable string?))
+;;
+;; TODO: check this field to try to identify conf. abstracts
+;; value is taken from endnote xml export
+(s/def ::work-type (s/nilable string?))
+;;
+(s/def ::remote-database-name (s/nilable string?))
+(s/def ::year (s/nilable integer?))
+(s/def ::authors (s/nilable (s/coll-of string?)))
+(s/def ::urls (s/nilable (s/coll-of string?)))
+(s/def ::document-ids (s/nilable (s/coll-of string?)))
+(s/def ::project-id ::sc/sql-serial-id)
+(s/def ::raw (s/nilable string?))
+(s/def ::enabled (s/nilable boolean?))
+(s/def ::duplicate-of (s/nilable integer?))
+
+;; unused article fields
+;; TODO: remove these fields from schema
+(s/def ::notes (s/nilable string?))
+(s/def ::keywords (s/nilable (s/coll-of string?)))
+
+;; additional article map fields (not fields of `article` table)
+(s/def ::score (s/and (s/nilable number?)
+                      #(and (<= 0.0 %)
+                            (<= % 1.0))))
+
+;; article map with fields optional
+(s/def ::article-partial
+  (s/keys :opt-un
+          [::article-id ::primary-title ::secondary-title
+           ::abstract ::public-id ::work-type ::notes ::remote-database-name
+           ::year ::authors ::urls ::document-ids ::project-id ::raw
+           ::keywords ::article-uuid ::enabled ::duplicate-of
+           ::score ::locations]))
+
+;; article map with all columns of `article` table required
+(s/def ::article
+  (s/keys :req-un
+          [::article-id ::primary-title ::secondary-title
+           ::abstract ::public-id ::work-type ::notes ::remote-database-name
+           ::year ::authors ::urls ::document-ids ::project-id ::raw
+           ::keywords ::article-uuid ::enabled ::duplicate-of]
+          :opt-un
+          [::score ::locations]))
+
+;; article map with all columns and extra fields required
+(s/def ::article-full
+  (s/keys :req-un
+          [::article-id ::primary-title ::secondary-title
+           ::abstract ::public-id ::work-type ::notes ::remote-database-name
+           ::year ::authors ::urls ::document-ids ::project-id ::raw
+           ::keywords ::article-uuid ::enabled ::duplicate-of
+           ::score ::locations]))
+
+(s/def ::article-or-id (s/or :id ::sc/article-id
+                             :map ::article))

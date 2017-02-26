@@ -1,4 +1,6 @@
-(ns sysrev.shared.util)
+(ns sysrev.shared.util
+  (:require [clojure.spec :as s])
+  #?(:clj (:import java.util.UUID)))
 
 #?(:clj
    ;; http://stackoverflow.com/questions/3262195/compact-clojure-code-for-regular-expression-matches-and-their-position-in-string
@@ -34,3 +36,22 @@
   (let [f (or f (comp not nil?))]
     (assert (f val))
     val))
+
+(defn conform-map [spec x]
+  (and (s/valid? spec x)
+       (->> (s/conform spec x)
+            (apply hash-map))))
+
+(s/def ::uuid uuid?)
+
+(s/def ::uuid-or-str (s/or :uuid ::uuid
+                           :str string?))
+
+(defn to-uuid [uuid-or-str]
+  (let [in (conform-map ::uuid-or-str uuid-or-str)]
+    (cond
+      (contains? in :uuid) (:uuid in)
+      (contains? in :str)
+      #?(:clj (UUID/fromString (:str in))
+         :cljs (uuid (:str in)))
+      :else nil)))

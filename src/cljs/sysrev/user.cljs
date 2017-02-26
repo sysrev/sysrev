@@ -22,8 +22,16 @@
             sysrev.ui.classify
             sysrev.shared.util
             sysrev.shared.keywords
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.shared.spec.labels :as sl]
+            [sysrev.shared.spec.users :as su]
+            [sysrev.shared.spec.keywords :as skw]
+            [sysrev.shared.spec.notes :as snt]
             [clojure.string :as str]
-            [cljs-time.core :as t])
+            [cljs-time.core :as t]
+            [clojure.spec :as s])
   (:require-macros
    [sysrev.macros :refer [import-vars using-work-state with-state]]))
 
@@ -51,6 +59,8 @@
   (import-vars 'sysrev.ui.classify)
   (import-vars 'sysrev.shared.util)
   (import-vars 'sysrev.shared.keywords)
+  (import-vars 'sysrev.shared.spec.core)
+  (import-vars 'sysrev.shared.spec.article)
   true)
 
 (populate-user-ns)

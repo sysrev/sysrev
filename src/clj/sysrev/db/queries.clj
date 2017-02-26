@@ -1,5 +1,8 @@
 (ns sysrev.db.queries
-  (:require [honeysql.core :as sql]
+  (:require [clojure.spec :as s]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
+            [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
@@ -10,6 +13,90 @@
               with-query-cache clear-query-cache]]
             [sysrev.util :refer [in?]])
   (:import java.util.UUID))
+
+;;;
+;;; id conversions
+;;;
+
+(defn to-article-id
+  "Returns integer article id of argument."
+  [article-or-id]
+  (let [in (s/conform ::sa/article-or-id article-or-id)]
+    (if (= in ::s/invalid)
+      nil
+      (let [[t v] in]
+        (cond
+          (= t :map) (:article-id article-or-id)
+          (= t :id)
+          (let [id (s/unform ::sc/article-id v)]
+            (if (integer? id)
+              id
+              (-> (select :article-id)
+                  (from :article)
+                  (where [:= :article-uuid id])
+                  do-query first :article-id)))
+          :else nil)))))
+;;
+(s/fdef to-article-id
+        :args (s/cat :article-or-id ::sa/article-or-id)
+        :ret (s/nilable ::sc/sql-serial-id))
+
+(defn to-user-id
+  "Returns integer user id of argument."
+  [user-id]
+  (let [in (s/conform ::sc/user-id user-id)]
+    (if (= in ::s/invalid)
+      nil
+      (let [[t v] in]
+        (cond
+          (= t :serial) user-id
+          (= t :uuid) (-> (select :user-id)
+                          (from :web-user)
+                          (where [:= :user-uuid user-id])
+                          do-query first :user-id)
+          :else nil)))))
+;;
+(s/fdef to-user-id
+        :args (s/cat :user-id ::sc/user-id)
+        :ret (s/nilable ::sc/sql-serial-id))
+
+(defn to-project-id
+  "Returns integer project id of argument."
+  [project-id]
+  (let [in (s/conform ::sc/project-id project-id)]
+    (if (= in ::s/invalid)
+      nil
+      (let [[t v] in]
+        (cond
+          (= t :serial) project-id
+          (= t :uuid) (-> (select :project-id)
+                          (from :project)
+                          (where [:= :project-uuid project-id])
+                          do-query first :project-id)
+          :else nil)))))
+;;
+(s/fdef to-project-id
+        :args (s/cat :project-id ::sc/project-id)
+        :ret (s/nilable ::sc/sql-serial-id))
+
+(defn to-label-id
+  "Returns label uuid of argument."
+  [label-id]
+  (let [in (s/conform ::sc/label-id label-id)]
+    (if (= in ::s/invalid)
+      nil
+      (let [[t v] in]
+        (cond
+          (= t :uuid) label-id
+          (= t :serial) (-> (select :label-id)
+                            (from :label)
+                            (where [:= :label-id-local label-id])
+                            do-query first :label-id)
+          :else nil)))))
+;;
+(s/fdef to-label-id
+        :args (s/cat :label-id ::sc/label-id)
+        :ret (s/nilable ::sc/uuid))
 
 ;;;
 ;;; articles
@@ -54,7 +141,9 @@
                          :as opts}]]
   (select-article-where
    project-id
-   [:= (sql-field tname :article-id) article-id]
+   (if (or (string? article-id) (uuid? article-id))
+     [:= (sql-field tname :article-uuid) article-id]
+     [:= (sql-field tname :article-id) article-id])
    fields
    {:include-disabled? include-disabled?
     :tname tname}))
@@ -81,15 +170,22 @@
        {:include-disabled? include-disabled?})
       (filter-article-by-location source external-id)))
 
-(defn query-article-by-id [article-id fields]
-  (-> (select-article-by-id article-id fields)
+(defn query-article-by-id [article-id fields & [opts]]
+  (-> (select-article-by-id article-id fields opts)
       do-query first))
 
 (defn query-article-locations-by-id [article-id fields]
-  (-> (apply select fields)
-      (from [:article-location :al])
-      (where [:= :al.article-id article-id])
-      do-query))
+  (if (or (string? article-id) (uuid? article-id))
+    (-> (apply select fields)
+        (from [:article-location :al])
+        (join [:article :a]
+              [:= :a.article-id :al.article-id])
+        (where [:= :a.article-uuid article-id])
+        do-query)
+    (-> (apply select fields)
+        (from [:article-location :al])
+        (where [:= :al.article-id article-id])
+        do-query)))
 
 ;;;
 ;;; labels
@@ -304,7 +400,9 @@
                     [:= :p.project-id :pr.project-id])
         (merge-join [:article :a]
                     [:= :a.project-id :p.project-id])
-        (merge-where [:= :a.article-id article-id])
+        (merge-where (if (or (string? article-id) (uuid? article-id))
+                       [:= :a.article-uuid article-id]
+                       [:= :a.article-id article-id]))
         do-query first :predict-run-id)))
 
 ;;; article notes
@@ -341,15 +439,34 @@
                   :or {include-disabled? false}}]]
   (with-query-cache
     [:article article-id :full [predict-run-id include-disabled?]]
-    (->>
-     (pvalues
-      (-> (select-article-by-id
-           article-id [:a.*] {:include-disabled? include-disabled?})
-          (with-article-predict-score
-            (or predict-run-id (article-latest-predict-run-id article-id)))
-          do-query first)
-      {:locations
-       (->> (query-article-locations-by-id
-             article-id [:source :external-id])
-            (group-by :source))})
-     (apply merge))))
+    (let [[article locations]
+          (pvalues
+           (-> (select-article-by-id
+                article-id [:a.*] {:include-disabled? include-disabled?})
+               (with-article-predict-score
+                 (or predict-run-id
+                     (article-latest-predict-run-id article-id)))
+               do-query first)
+           (->> (query-article-locations-by-id
+                 article-id [:al.source :al.external-id])
+                (group-by :source)))]
+      (when (not-empty article)
+        (assoc article :locations locations)))))
+
+(defn to-article
+  "Queries by id argument or returns article map argument unmodified."
+  [article-or-id]
+  (let [in (s/conform ::sa/article-or-id article-or-id)]
+    (if (= in ::s/invalid)
+      nil
+      (let [[t v] in]
+        (cond
+          (= t :map) v
+          (= t :id) (let [[_ id] v]
+                      (->> (query-article-by-id-full id)
+                           (s/assert (s/nilable ::sa/article))))
+          :else nil)))))
+;;
+(s/fdef to-article
+        :args (s/cat :article-or-id ::sa/article-or-id)
+        :ret (s/nilable ::sa/article))

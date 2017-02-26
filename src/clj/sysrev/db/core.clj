@@ -1,6 +1,9 @@
 (ns sysrev.db.core
-  (:require [sysrev.shared.util :refer [map-values]]
+  (:require [clojure.spec :as s]
+            [sysrev.shared.util :refer [map-values]]
             [sysrev.util :refer [map-to-arglist in?]]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
             [clojure.java.jdbc :as j]
             [clj-postgresql.core :as pg]
             [jdbc.pool.c3p0]
@@ -247,3 +250,5 @@
 
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))
+
+

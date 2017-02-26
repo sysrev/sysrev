@@ -116,9 +116,8 @@
                     (and (coll? v) (empty? v)))
             (println (format "* field `%s` is empty" (pr-str k)))))
         (when-let [article-id
-                   (->> (articles/add-article
-                         (dissoc article :locations) project-id)
-                        first :article-id)]
+                   (articles/add-article
+                    (dissoc article :locations) project-id)]
           (when (not-empty (:locations article))
             (-> (sqlh/insert-into :article-location)
                 (values

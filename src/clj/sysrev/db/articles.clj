@@ -1,7 +1,10 @@
 (ns sysrev.db.articles
   (:require
+   [clojure.spec :as s]
    [clojure.java.jdbc :as j]
-   [sysrev.shared.util :refer [map-values]]
+   [sysrev.shared.util :as u]
+   [sysrev.shared.spec.core :as sc]
+   [sysrev.shared.spec.article :as sa]
    [sysrev.db.core :as db :refer
     [do-query do-execute to-sql-array sql-now with-project-cache
      clear-project-cache]]
@@ -10,30 +13,6 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.queries :as q]))
-
-(defn fix-duplicate-authors-entries [project-id]
-  (->>
-   (q/select-project-articles
-    project-id [:article-id :authors]
-    {:include-disabled? true})
-   (pmap
-    (fn [a]
-      (let [authors (:authors a)
-            distinct-authors (vec (distinct authors))]
-        (when (< (count distinct-authors) (count authors))
-          (println
-           (format "fixing authors field for article #%d" (:article-id a)))
-          (println (pr-str authors))
-          (println (pr-str distinct-authors))
-          (let [sql-authors
-                (to-sql-array "text" distinct-authors)]
-            (-> (sqlh/update :article)
-                (sset {:authors sql-authors})
-                (where [:= :article-id (:article-id a)])
-                do-execute))))))
-   doall)
-  (db/clear-project-cache project-id)
-  true)
 
 (defn article-to-sql
   "Converts some fields in an article map to values that can be passed
@@ -44,16 +23,29 @@
       (update :keywords #(to-sql-array "text" % conn))
       (update :urls #(to-sql-array "text" % conn))
       (update :document-ids #(to-sql-array "text" % conn))))
+;;
+(s/fdef article-to-sql
+        :args (s/cat :article ::sa/article-partial
+                     :conn (s/? any?))
+        :ret map?)
 
 (defn add-article [article project-id]
-  (-> (insert-into :article)
-      (values [(merge (article-to-sql article)
-                      {:project-id project-id})])
-      (returning :article-id)
-      do-query))
+  (let [project-id (q/to-project-id project-id)]
+    (-> (insert-into :article)
+        (values [(merge (article-to-sql article)
+                        {:project-id project-id})])
+        (returning :article-id)
+        do-query first :article-id)))
+;;
+(s/fdef add-article
+        :args (s/cat :article ::sa/article-partial
+                     :project-id ::sc/project-id)
+        :ret (s/nilable ::sc/article-id))
 
 (defn set-user-article-note [article-id user-id note-name content]
-  (let [note-name (name note-name)
+  (let [article-id (q/to-article-id article-id)
+        user-id (q/to-user-id user-id)
+        note-name (name note-name)
         pnote (-> (q/select-article-by-id article-id [:pn.*])
                   (merge-join [:project :p]
                               [:= :p.project-id :a.project-id])
@@ -84,17 +76,32 @@
             (sset fields)
             (returning :*)
             do-query)))))
+;;
+(s/fdef set-user-article-note
+        :args (s/cat :article-id ::sc/article-id
+                     :user-id ::sc/user-id
+                     :note-name (s/or :s string?
+                                      :k keyword?)
+                     :content (s/nilable string?))
+        :ret (s/nilable map?))
 
 (defn article-user-notes-map [project-id article-id]
-  (with-project-cache
-    project-id [:article article-id :notes :user-notes-map]
-    (->>
-     (-> (q/select-article-by-id article-id [:an.* :pn.name])
-         (q/with-article-note)
-         do-query)
-     (group-by :user-id)
-     (map-values
-      #(->> %
-            (group-by :name)
-            (map-values first)
-            (map-values :content))))))
+  (let [project-id (q/to-project-id project-id)
+        article-id (q/to-article-id article-id)]
+    (with-project-cache
+      project-id [:article article-id :notes :user-notes-map]
+      (->>
+       (-> (q/select-article-by-id article-id [:an.* :pn.name])
+           (q/with-article-note)
+           do-query)
+       (group-by :user-id)
+       (u/map-values
+        #(->> %
+              (group-by :name)
+              (u/map-values first)
+              (u/map-values :content)))))))
+;;
+(s/fdef article-user-notes-map
+        :args (s/cat :project-id ::sc/project-id
+                     :article-id ::sc/article-id)
+        :ret (s/nilable map?))
