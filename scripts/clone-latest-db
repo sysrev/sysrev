@@ -1,0 +1,13 @@
+#!/bin/bash
+set -eu
+
+src_db=sysrev
+src_port=5470
+dest_db=$SR_DEST_DB
+dest_port=$SR_DEST_PORT
+
+fname=$(SYSREV_HOST="localhost" SYSREV_PORT="$src_port" SYSREV_DB="$src_db" ./scripts/pull-db)
+SYSREV_PORT="$dest_port" SYSREV_DB="$dest_db" ./scripts/reset-db
+SR_BACKUP_FILE="$fname" ./scripts/restore-backup
+rm "$fname"
+(>&2 echo "localhost:$SR_DEST_PORT/$SR_DEST_DB updated to latest production data")

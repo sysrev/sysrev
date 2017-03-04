@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -eu
+
+fname="$SR_BACKUP_FILE"
+
+opts=( '--data-only'
+       '--disable-triggers'
+       '--single-transaction'
+       "--dbname=$SR_DEST_DB"
+       '--format=custom'
+       '--no-owner'
+       '--username=postgres'
+       '--host=localhost'
+       "--port=$SR_DEST_PORT"
+       '--no-password')
+
+opts=$(printf " %s" "${opts[@]}")
+opts=${opts:1}
+
+(>&2 echo "running pg_restore")
+
+pg_restore $opts $fname

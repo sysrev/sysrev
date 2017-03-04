@@ -11,7 +11,7 @@ ls ./flyway
 echo "checking that ./flyway.conf exists..."
 ls ./flyway.conf
 
-echo "checking that ./flyway.conf connection parameters match..."
+echo "checking that flyway.conf matches localhost:$SYSREV_PORT/$SYSREV_DB..."
 grep "localhost:$SYSREV_PORT/$SYSREV_DB" flyway.conf
 
 echo "dropping database (if exists)..."
@@ -21,4 +21,4 @@ echo "creating database..."
 createdb -h localhost -p $SYSREV_PORT -U postgres -T template0 $SYSREV_DB
 
 echo "running flyway migrations..."
-./flyway migrate
+./flyway migrate > /dev/null
