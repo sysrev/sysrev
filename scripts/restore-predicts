@@ -1,6 +1,9 @@
 #!/bin/bash
 set -eu
 
+port=$SYSREV_PORT
+db=$SYSREV_DB
+
 # This will drop and replace the tables contained in the pg_dump file passed
 # as a script argument (eg. all prediction-related tables).
-pg_restore -1 -c -U postgres -d sysrev $*
+pg_restore -h localhost -p $port -1 -c --disable-triggers -U postgres -d $db $*
