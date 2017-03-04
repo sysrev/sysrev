@@ -1,2 +1,2 @@
 #!/bin/bash
-lein with-profile +dev repl
+lein with-profile +dev,+repl repl

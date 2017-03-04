@@ -1,8 +1,9 @@
 (ns sysrev.test.import.pubmed
-  (:require [clojure.test :refer :all]
-            [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml]]
-            [sysrev.util :refer [parse-xml-str xml-find]]
-            [clojure.string :as str]))
+  (:require
+   [clojure.test :refer :all]
+   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml]]
+   [sysrev.util :refer [parse-xml-str xml-find]]
+   [clojure.string :as str]))
 
 (def ss (partial clojure.string/join "\n"))
 

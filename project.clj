@@ -98,7 +98,7 @@
                 :source-map true
                 :source-map-timestamp true}}
     {:id "production"
-     :source-paths ["src/cljs"]
+     :source-paths ["src/cljs" "src/cljc"]
      :compiler {:main "sysrev.main"
                 :output-to "resources/public/out-production/sysrev.js"
                 :output-dir "resources/public/out-production"
@@ -123,9 +123,12 @@
               :aot [sysrev.web-main]}
              :dev
              {:resource-paths ["config/dev"]
+              :source-paths ["src/clj" "src/cljc" "src/scripts" "test/clj"]
+              :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]]}
              :dev-spark
-             {:source-paths ["src/clj" "src-spark" "src/scripts"]
+             {:source-paths ["src/clj" "src/cljc" "src/scripts" "src-spark" "test/clj"]
+              :test-paths ["test/clj"]
               :resource-paths ["config/dev"]
               :dependencies
               [[yieldbot/flambo "0.8.0"
@@ -140,7 +143,8 @@
               :aot :all}
              :test
              {:resource-paths ["config/test"]
-              :source-paths ["src/clj" "src/cljs" "test/clj"]
-              :test-paths ["test/clj"]}
+              :source-paths ["src/clj" "src/cljc" "src/scripts" "test/clj"]
+              :test-paths ["test/clj"]
+              :dependencies [[org.clojure/test.check "0.9.0"]]}
              :autotest
              {:dependencies {}}})

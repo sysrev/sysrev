@@ -101,7 +101,7 @@
         ;; referenced in the XML string.
         startparse-no-dtd
         (fn [s ch]
-          (let [factory (SAXParserFactory/newInstance)]
+          (let [^SAXParserFactory factory (SAXParserFactory/newInstance)]
             (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
             (let [^SAXParser parser (.newSAXParser factory)]
               (.parse parser s ch))))]

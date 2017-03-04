@@ -31,8 +31,16 @@
 
 ;; additional article map fields (not fields of `article` table)
 (s/def ::score (s/and (s/nilable number?)
-                      #(and (<= 0.0 %)
-                            (<= % 1.0))))
+                      #(or (nil? %)
+                           (and (<= 0.0 %)
+                                (<= % 1.0)))))
+
+(s/def ::external-id string?)
+(s/def ::source string?)
+(s/def ::location
+  (s/keys :req-un [::source ::external-id]))
+(s/def ::locations
+  (s/map-of ::source (s/coll-of ::location)))
 
 ;; article map with fields optional
 (s/def ::article-partial
