@@ -6,6 +6,7 @@
   (:require [clojure.xml :as xml]
             [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
+            [sysrev.import.endnote :refer [parse-endnote-file]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query do-query-map do-execute]]
@@ -16,10 +17,6 @@
             [sysrev.db.queries :as q]
             [sysrev.misc :refer [articles-matching-regex-clause]]
             [clojure.java.jdbc :as j]))
-
-(defn parse-endnote-file [fname]
-  (-> fname
-      io/file io/reader dxml/parse))
 
 (defn match-article-id
   "Attempt to find an article-id in the database which is the best match
@@ -76,9 +73,11 @@
   "Parse the Endnote XML file into a map containing the fields we're interested
   in. `group-field` should be a keyword with the name of the Endnote reference
   field used to attach the group name to each entry (defaults to :custom1)."
-  [fname & [group-field]]
+  [file & [group-field]]
   (let [group-field (or group-field :custom1)
-        x (parse-endnote-file fname)]
+        x (if (string? file)
+            (parse-endnote-file file)
+            file)]
     (let [entries (xml-find [x] [:records :record])]
       (->> entries
            (map (fn [e]
