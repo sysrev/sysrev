@@ -72,8 +72,8 @@
                  [org.clojure/test.check "0.9.0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]]
   :min-lein-version "2.6.1"
-  :jvm-opts ["-Xms600m"
-             "-Xmx1000m"
+  :jvm-opts ["-Xms800m"
+             "-Xmx1500m"
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
