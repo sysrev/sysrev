@@ -264,56 +264,56 @@
 
 
 (defn project-predict-report-box []
-  (let [vs (project :stats :predict :confidences)
-        ;; Facilitate creation of multiple datasets, each as functions on the vector of confidence values.
-        confs-by-f (fn [& fs]
-                     (let [ffs (into [:confidence] (mapv #(comp % :values) fs))]
-                      (->> vs
-                        (mapv (apply juxt ffs))
-                        (filterv (comp (fn [x] (< x 1.0)) first)))))
-        coverage (fn [v] (/ (predictions/examples v) (:global-population-size v)))
-        data (confs-by-f predictions/positive-predictive-value predictions/negative-predictive-value coverage)
-        confidences (->> data (map first) (map #(string/format "%.2f" %)))
-        ppvs (mapv second data)
-        npvs (mapv #(get % 2) data)
-        coverages (mapv #(get % 3) data)
-        conf-at-least (fn [thresh] (->> vs (filterv #(> (:confidence %) thresh)) first :values))
-        mk-coverage-string (fn [v]
-                             (string/format "%.1f%% (%d/%d)"
-                                             (* 100 (coverage v))
-                                             (predictions/examples v)
-                                             (:global-population-size v)))
-        conf-row (fn [thresh]
-                   (let [v (conf-at-least thresh)]
-                     [:tr
-                      [:td "> " (-> thresh (* 100) (str "%"))]
-                      [:td
-                       (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
-                       (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
-                      [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
-                       (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
-                      [:td (mk-coverage-string v)]]))]
-    [:div
-     [:div.ui.bottom.attached.segment
-      [:div.ui.center.aligned.header "Prediction confidence report"]
-      [:div.ui.segment
-       [:table.ui.celled.table
-        [:thead
-         [:tr
-          [:th "Confidence"]
-          [:th "True Positive Rate (Sensitivity)"]
-          [:th "True Negative Rate (Specificity)"]
-          [:th "Coverage"]]]
-        [:tbody
-         [conf-row 0.9]
-         [conf-row 0.95]
-         [conf-row 0.99]]]]
-      [:div.ui.segment
-       [chart-container
-        (line-chart
-          confidences
-          ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
-          [ppvs npvs coverages])]]]]))
+  (when-let [vs (project :stats :predict :confidences)]
+    ;; Facilitate creation of multiple datasets, each as functions on the vector of confidence values.
+    (letfn [(confs-by-f [& fs]
+              (let [ffs (into [:confidence] (mapv #(comp % :values) fs))]
+                (->> vs
+                     (mapv (apply juxt ffs))
+                     (filterv (comp (partial > 1.0) first)))))
+            (coverage [v] (/ (predictions/examples v) (:global-population-size v)))
+            (conf-at-least [thresh] (->> vs (filterv #(> (:confidence %) thresh)) first :values))
+            (mk-coverage-string [v]
+              (string/format "%.1f%% (%d/%d)"
+                             (* 100 (coverage v))
+                             (predictions/examples v)
+                             (:global-population-size v)))
+            (conf-row [thresh]
+              (let [v (conf-at-least thresh)]
+                [:tr
+                 [:td "> " (-> thresh (* 100) (str "%"))]
+                 [:td
+                  (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
+                  (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
+                 [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
+                  (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
+                 [:td (mk-coverage-string v)]]))]
+      (let [data (confs-by-f predictions/positive-predictive-value predictions/negative-predictive-value coverage)
+            confidences (->> data (map first) (map #(string/format "%.2f" %)))
+            ppvs (mapv second data)
+            npvs (mapv #(get % 2) data)
+            coverages (mapv #(get % 3) data)]
+           [:div
+            [:div.ui.bottom.attached.segment
+             [:div.ui.center.aligned.header "Prediction confidence report"]
+             [:div.ui.segment
+              [:table.ui.celled.table
+               [:thead
+                [:tr
+                 [:th "Confidence"]
+                 [:th "True Positive Rate (Sensitivity)"]
+                 [:th "True Negative Rate (Specificity)"]
+                 [:th "Coverage"]]]
+               [:tbody
+                [conf-row 0.9]
+                [conf-row 0.95]
+                [conf-row 0.99]]]]
+             [:div.ui.segment
+              [chart-container
+               (line-chart
+                 confidences
+                 ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
+                 [ppvs npvs coverages])]]]]))))
 
 
 (defn project-invite-link-segment []
