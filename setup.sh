@@ -15,4 +15,3 @@ echo "Done"
 echo
 echo "Remember to link ./sysrev.dev.nginx.site into /etc/nginx/sites-enabled"
 echo
-
