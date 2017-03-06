@@ -26,7 +26,6 @@ cp ./ga.js ./tmp/ga.js
 cp -R ./css/ ./tmp/
 cp ./favicon.ico ./tmp
 cp -R ./semantic ./tmp
-cp -R  ./vendor ./tmp
 cd tmp
 tar -czf $dir/deploy/client.tgz *
 cd ..
