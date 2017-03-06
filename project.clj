@@ -84,7 +84,8 @@
             [cider/cider-nrepl "0.14.0"]
             [refactor-nrepl "2.2.0"]
             [lein-figwheel "0.5.9"]]
-  :clean-targets ^{:protect false} ["target"]
+  :clean-targets ^{:protect false}
+  ["target" "resources/public/out-dev" "resources/public/out-production"]
   :cljsbuild
   {:builds
    [{:id "dev"
