@@ -2,10 +2,10 @@
   :dependencies [;; Clojure (JVM) libraries
                  ;;
                  [org.clojure/clojure "1.9.0-alpha14"]
-                 [org.clojure/clojurescript "1.9.473"]
+                 [org.clojure/clojurescript "1.9.495"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;;[org.clojure/clojurescript "1.9.93"]
-                 [org.clojure/core.async "0.2.395"]
+                 ;;[org.clojure/core.async "0.2.395"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
                  ;; [cheshire "5.6.3"]
@@ -19,12 +19,14 @@
                  [com.cemerick/piggieback "0.2.1"]
                  [figwheel-sidecar "0.5.9"]
                  ;; Database
-                 [org.postgresql/postgresql "9.4.1212"]
+                 [org.clojure/java.jdbc "0.6.1"]
+                 [org.postgresql/postgresql "42.0.0"]
                  [clojure.jdbc/clojure.jdbc-c3p0 "0.3.2"]
                  [postgre-types "0.0.4"]
                  [clj-postgresql "0.4.0"
                   :exclusions
-                  [clj-time
+                  [org.clojure/java.jdbc
+                   clj-time
                    joda-time
                    com.fasterxml.jackson.dataformat/jackson-dataformat-smile
                    com.fasterxml.jackson.core/jackson-core

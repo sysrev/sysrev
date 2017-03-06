@@ -91,8 +91,8 @@
   [sql-map & [conn]]
   (j/query (or conn *conn* @active-db)
            (-> sql-map prepare-honeysql-map sql/format)
-           :identifiers format-column-name
-           :result-set-fn vec))
+           {:identifiers format-column-name
+            :result-set-fn vec}))
 
 (defn do-query-map
   "(->> (do-query ...) (map map-fn))"
@@ -113,7 +113,7 @@
   [sql-map & [conn]]
   (j/execute! (or conn *conn* @active-db)
               (-> sql-map prepare-honeysql-map sql/format)
-              :transaction? (nil? (or conn *conn*))))
+              {:transaction? (nil? (or conn *conn*))}))
 
 (defmacro do-transaction
   "Run body wrapped in an SQL transaction.
