@@ -1,4 +1,10 @@
 #!/bin/bash
+set -e
+
+if [[ -z "$SYSREV_REBUILD" ]]; then
+    SYSREV_REBUILD="1"
+fi
+
 set -eu
 
 echo $SYSREV_HOST > /dev/null
@@ -8,7 +14,9 @@ dir=`pwd`
 mkdir -p $dir/deploy
 rm -f $dir/deploy/client.tgz
 
-lein cljsbuild once production
+if [[ $SYSREV_REBUILD == "1" ]]; then
+    lein cljsbuild once production
+fi
 
 cd ./resources/public
 

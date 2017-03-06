@@ -1,11 +1,19 @@
 #!/bin/bash
+set -e
+
+if [[ -z "$SYSREV_REBUILD" ]]; then
+    SYSREV_REBUILD="1"
+fi
+
 set -eu
 
 echo $SYSREV_HOST > /dev/null
 
 dir=`pwd`
 
-lein with-profile +prod uberjar
+if [[ $SYSREV_REBUILD == "1" ]]; then
+    lein with-profile +prod uberjar
+fi
 
 scp ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar ubuntu@"$SYSREV_HOST":/data/sysrev/sysrev-web-standalone.jar
 
