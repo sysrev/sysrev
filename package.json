@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "jquery": "^3.1.0",
-    "semantic-ui": "^2.2.4"
+    "semantic-ui": "^2.2.9"
   },
   "devDependencies": {},
   "scripts": {

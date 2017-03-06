@@ -1,16 +1,22 @@
 #!/bin/bash
 
+set -eu
+
 echo "Making semantic directory"
 mkdir -p resources/public/semantic
 
-npm install
+echo "Installing semantic through NPM"
+npm install > /dev/null
 
 echo "Building semantic into resources/public/semantic"
-cd ./semantic && gulp build
+cd ./semantic && gulp build > /dev/null
 
-lein deps
-lein bower install
-lein cljsbuild once dev
+echo "Installing lein deps"
+lein deps > /dev/null
 
-echo "Remember to link ./sysrev.dev.nginx.site into /etc/nginx/sites-enabled"
 echo "Done"
+echo
+echo "Remember to link ./sysrev.dev.nginx.site into /etc/nginx/sites-enabled"
+echo
+
+true
