@@ -363,12 +363,14 @@
        [:= :predict-run-id predict-run-id] fields)
       do-query first))
 
-(defn join-article-predict-values [m & [predict-run-id stage]]
+(defn join-article-predict-values [m & [predict-run-id]]
   (cond-> m
     true (merge-join [:label-predicts :lp]
                      [:= :lp.article-id :a.article-id])
     predict-run-id (merge-where [:= :lp.predict-run-id predict-run-id])
-    stage (merge-where [:= :lp.stage stage])))
+    true (merge-where [:or
+                       [:= :lp.stage 1]
+                       [:= :lp.stage nil]])))
 
 (defn join-predict-labels [m]
   (-> m
@@ -428,7 +430,7 @@
 
 (defn with-article-predict-score [m predict-run-id]
   (-> m
-      (join-article-predict-values predict-run-id 1)
+      (join-article-predict-values predict-run-id)
       (join-predict-labels)
       (filter-overall-label)
       (merge-select [:lp.val :score])))

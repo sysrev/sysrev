@@ -245,7 +245,7 @@
               (q/join-article-label-defs)
               (q/filter-overall-label)
               (q/filter-valid-article-label true)
-              (q/join-article-predict-values predict-run-id 1)
+              (q/join-article-predict-values predict-run-id)
               (merge-where
                [:and
                 [:= :lp.label-id :l.label-id]
