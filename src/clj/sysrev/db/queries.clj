@@ -365,17 +365,14 @@
 
 (defn join-article-predict-values [m & [predict-run-id]]
   (cond-> m
-    true (merge-join [:label-predicts :lp]
-                     [:= :lp.article-id :a.article-id])
-    predict-run-id (merge-where [:= :lp.predict-run-id predict-run-id])
+    true (merge-left-join [:label-predicts :lp]
+                          [:= :lp.article-id :a.article-id])
+    predict-run-id (merge-where [:or
+                                 [:= :lp.predict-run-id predict-run-id]
+                                 [:= :lp.predict-run-id nil]])
     true (merge-where [:or
                        [:= :lp.stage 1]
                        [:= :lp.stage nil]])))
-
-(defn join-predict-labels [m]
-  (-> m
-      (merge-join [:label :l]
-                  [:= :l.label-id :lp.label-id])))
 
 (defn select-latest-predict-run [fields]
   (-> (apply select fields)
@@ -431,8 +428,11 @@
 (defn with-article-predict-score [m predict-run-id]
   (-> m
       (join-article-predict-values predict-run-id)
-      (join-predict-labels)
-      (filter-overall-label)
+      (merge-left-join [:label :l]
+                       [:= :l.label-id :lp.label-id])
+      (merge-where [:or
+                    [:= :l.name nil]
+                    [:= :l.name "overall include"]])
       (merge-select [:lp.val :score])))
 
 (defn query-article-by-id-full
@@ -441,19 +441,24 @@
                   :or {include-disabled? false}}]]
   (with-query-cache
     [:article article-id :full [predict-run-id include-disabled?]]
-    (let [[article locations]
+    (let [[article score locations]
           (pvalues
            (-> (select-article-by-id
                 article-id [:a.*] {:include-disabled? include-disabled?})
+               do-query first)
+           (-> (select-article-by-id
+                article-id [:a.article-id] {:include-disabled? include-disabled?})
                (with-article-predict-score
                  (or predict-run-id
                      (article-latest-predict-run-id article-id)))
-               do-query first)
+               do-query first :score)
            (->> (query-article-locations-by-id
                  article-id [:al.source :al.external-id])
                 (group-by :source)))]
       (when (not-empty article)
-        (assoc article :locations locations)))))
+        (-> article
+            (assoc :locations locations)
+            (assoc :score (or score 0.0)))))))
 
 (defn to-article
   "Queries by id argument or returns article map argument unmodified."

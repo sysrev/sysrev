@@ -209,65 +209,57 @@
               [:= :project-id project-id]])
       do-execute))
 
-(defn unlabeled-articles [project-id & [predict-run-id]]
+(defn get-articles-with-label-users [project-id & [predict-run-id]]
   (with-project-cache
-    project-id [:label-values :saved :unlabeled-articles]
+    project-id [:label-values :saved :articles]
     (let [predict-run-id
           (or predict-run-id (q/project-latest-predict-run-id project-id))
           articles
-          (->>
-           (-> (q/select-project-articles project-id [:a.article-id])
-               (q/with-article-predict-score predict-run-id)
-               (merge-where
-                [:not
-                 [:exists
-                  (-> (q/select-article-by-id
-                       :a.article-id
-                       [:a2.article-id]
-                       {:tname :a2
-                        :project-id project-id})
-                      (q/join-article-labels {:tname-a :a2})
-                      (q/filter-valid-article-label nil))]])
-               do-query))
-          _ (assert (= (->> articles (mapv :article-id) distinct count)
-                       (count articles)))]
-      articles)))
-
-(defn single-labeled-articles [project-id self-id & [predict-run-id]]
-  (with-project-cache
-    project-id [:label-values :saved :single-labeled-articles]
-    (let [predict-run-id
-          (or predict-run-id (q/project-latest-predict-run-id project-id))
-          articles
-          (-> (q/select-project-articles
-               project-id [:a.article-id [(sql/call :max :lp.val) :score]])
+          (-> (q/select-project-articles project-id [:a.article-id])
+              (->> do-query
+                   (group-by :article-id)
+                   (map-values
+                    (fn [x]
+                      (-> (first x)
+                          (merge {:users [] :score 0.0}))))))
+          scores
+          (-> (q/select-project-articles project-id [:a.article-id])
+              (q/with-article-predict-score predict-run-id)
+              (->> do-query
+                   (group-by :article-id)
+                   (map-values
+                    (fn [x]
+                      (let [score (or (-> x first :score) 0.0)]
+                        {:score score})))))
+          labels
+          (-> (q/select-project-articles project-id [:a.article-id :al.user-id])
               (q/join-article-labels)
               (q/join-article-label-defs)
-              (q/filter-overall-label)
-              (q/filter-valid-article-label true)
-              (q/join-article-predict-values predict-run-id)
-              (merge-where
-               [:and
-                [:= :lp.label-id :l.label-id]
-                [:!= :al.user-id self-id]])
-              (group :a.article-id)
-              (having
-               [:and
-                ;; one user found with a confirmed inclusion label
-                [:= 1 (sql/call :count (sql/call :distinct :al.user-id))]
-                ;; and `self-id` has not labeled the article
-                [:not
-                 [:exists
-                  (-> (select :*)
-                      (from [:article-label :al2])
-                      (where [:and
-                              [:= :al2.article-id :a.article-id]
-                              [:= :al2.user-id self-id]
-                              [:!= :al2.answer nil]]))]]])
-              do-query)
-          _ (assert (= (->> articles (mapv :article-id) distinct count)
-                       (count articles)))]
-      articles)))
+              (q/filter-valid-article-label nil)
+              (->> do-query
+                   (group-by :article-id)
+                   (map-values
+                    (fn [x]
+                      (let [user-ids (->> x (map :user-id) distinct vec)]
+                        {:users user-ids})))))]
+      (merge-with merge articles scores labels))))
+
+(defn unlabeled-articles [project-id & [predict-run-id articles]]
+  (with-project-cache
+    project-id [:label-values :saved :unlabeled-articles]
+    (->> (or articles (get-articles-with-label-users project-id predict-run-id))
+         vals
+         (filter #(= 0 (count (:users %))))
+         (map #(dissoc % :users)))))
+
+(defn single-labeled-articles [project-id self-id & [predict-run-id articles]]
+  (with-project-cache
+    project-id [:label-values :saved :single-labeled-articles]
+    (->> (or articles (get-articles-with-label-users project-id predict-run-id))
+         vals
+         (filter #(and (= 1 (count (:users %)))
+                       (not (in? (:users %) self-id))))
+         (map #(dissoc % :users)))))
 
 (defn- pick-ideal-article
   "Used by the classify task functions to select an article from the candidates.
@@ -287,11 +279,11 @@
 
 (defn ideal-unlabeled-article
   "Selects an unlabeled article to assign to a user for classification."
-  [project-id & [predict-run-id]]
+  [project-id & [predict-run-id articles]]
   (let [predict-run-id
         (or predict-run-id (q/project-latest-predict-run-id project-id))]
     (pick-ideal-article
-     (unlabeled-articles project-id predict-run-id)
+     (unlabeled-articles project-id predict-run-id articles)
      #(math/abs (- (:score %) 0.5))
      predict-run-id)))
 
@@ -302,63 +294,20 @@
 
   Articles which have any labels saved by `self-id` (even unconfirmed) will
   be excluded from this query."
-  [project-id self-id & [predict-run-id]]
+  [project-id self-id & [predict-run-id articles]]
   (let [predict-run-id
         (or predict-run-id (q/project-latest-predict-run-id project-id))]
     (pick-ideal-article
-     (single-labeled-articles project-id self-id predict-run-id)
+     (single-labeled-articles project-id self-id predict-run-id articles)
      #(math/abs (- (:score %) 0.5))
      predict-run-id)))
 
-#_
-(defn get-conflict-articles
-  "The purpose of this function is to find articles with conflicting labels,
-  to present to user `self-id` to resolve the conflict by labeling. These are
-  the first priority in the classify queue.
-
-  Queries for articles with conflicting confirmed inclusion labels from two
-  users who are not `self-id`, and for which the article has no labels saved
-  by `self-id` (even unconfirmed)."
-  [project-id self-id n-max & [predict-run-id]]
-  (let [predict-run-id
-        (or predict-run-id (latest-predict-run-id project-id))]
-    (-> (select :a.* [(sql/call :max :lp.val) :score])
-        (from [:article :a])
-        (join [:article-criteria :ac] [:= :ac.article-id :a.article-id])
-        (merge-join [:criteria :c] [:= :c.criteria-id :ac.criteria-id])
-        (merge-join [:label-predicts :lp] [:= :a.article-id :lp.article-id])
-        (where [:and
-                [:= :a.project-id project-id]
-                [:= :c.name "overall include"]
-                [:!= :ac.user-id self-id]
-                [:!= :ac.answer nil]
-                [:!= :ac.confirm-time nil]
-                [:= :lp.predict-run-id predict-run-id]
-                [:= :lp.criteria-id :c.criteria-id]
-                [:= :lp.stage 1]])
-        (group :a.article-id)
-        (having [:and
-                 ;; article has two differing inclusion labels
-                 [:= 2 (sql/call :count (sql/call :distinct :ac.user-id))]
-                 [:= 2 (sql/call :count (sql/call :distinct :ac.answer))]
-                 ;; and `self-id` has not labeled the article
-                 [:not
-                  [:exists
-                   (-> (select :*)
-                       (from [:article-criteria :ac2])
-                       (where [:and
-                               [:= :ac2.article-id :a.article-id]
-                               [:= :ac2.user-id self-id]
-                               [:!= :ac2.answer nil]]))]]])
-        (order-by :a.article-id)
-        (#(if n-max (limit % n-max) (identity %)))
-        do-query)))
-
 (defn get-user-label-task [project-id user-id]
-  (let [[pending unlabeled]
+  (let [articles (get-articles-with-label-users project-id)
+        [pending unlabeled]
         (pvalues
-         (ideal-single-labeled-article project-id user-id)
-         (ideal-unlabeled-article project-id))
+         (ideal-single-labeled-article project-id user-id nil articles)
+         (ideal-unlabeled-article project-id nil articles))
         [article status]
         (cond
           (and pending unlabeled)
