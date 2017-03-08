@@ -11,7 +11,7 @@
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [camel-snake-kebab.extras :refer [transform-keys]]
-            [sysrev.ui.charts :refer [chart-container line-chart]]
+            [sysrev.ui.charts :refer [chart-container line-chart histogram]]
             [goog.string :as string])
 
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
@@ -116,6 +116,23 @@
               ^{:key {:user-info user-id}}
               [user-info-card user-id]))))]))
 
+
+(defn show-email [email] (-> email (clojure.string/split "@") first))
+(defn user-summary-chart []
+  (let [user-ids (project/project-member-user-ids false)
+        users (mapv #(data [:users %]) user-ids)
+        user-articles (->> user-ids (mapv #(->> % (project :members) :articles)))
+        xs (mapv (fn [{:keys [email name]}] (or name (show-email email))) users)
+        includes (mapv #(-> % :includes count) user-articles)
+        excludes (mapv #(-> % :excludes count) user-articles)
+        yss [includes excludes]
+        ynames ["include" "exclude"]]
+    [:div.ui.grey.segment
+     [:h4.ui.dividing.header
+      "Member activity"]
+     [chart-container
+      (histogram xs ynames yss)]]))
+
 (defn project-page-menu-full [active-tab]
   (let [make-class
         #(if (= % active-tab) "active item" "item")
@@ -178,6 +195,7 @@
      [project-summary-box]
      [label-counts-box]]
     [:div.ui.column
+     [user-summary-chart]
      [member-list-box]]]])
 
 (defn train-input-summary-box []
@@ -263,6 +281,47 @@
                  (project :labels label-id :short-label)])))]]])]]))
 
 
+(defn project-predict-report-table [vs]
+  (letfn [(coverage [v] (/ (predictions/examples v) (:global-population-size v)))
+          (mk-coverage-string [v]
+            (string/format "%.1f%% (%d/%d)"
+                           (* 100 (coverage v))
+                           (predictions/examples v)
+                           (:global-population-size v)))
+          (conf-row [thresh]
+            (let [v (conf-at-least thresh)]
+              [:tr
+               [:td "> " (-> thresh (* 100) (str "%"))]
+               [:td
+                (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
+                (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
+               [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
+                (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
+               [:td (mk-coverage-string v)]]))
+          (conf-row [thresh]
+            (let [v (conf-at-least thresh)]
+              [:tr
+               [:td "> " (-> thresh (* 100) (str "%"))]
+               [:td
+                (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
+                (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
+               [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
+                (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
+               [:td (mk-coverage-string v)]]))
+          (conf-at-least [thresh] (->> vs (filterv #(> (:confidence %) thresh)) first :values))]
+    [:table.ui.celled.table
+     [:thead
+      [:tr
+       [:th "Confidence"]
+       [:th "True Positive Rate (Sensitivity)"]
+       [:th "True Negative Rate (Specificity)"]
+       [:th "Coverage"]]]
+     [:tbody
+      [conf-row 0.9]
+      [conf-row 0.95]
+      [conf-row 0.99]]]))
+
+
 (defn project-predict-report-box []
   (when-let [vs (project :stats :predict :confidences)]
     ;; Facilitate creation of multiple datasets, each as functions on the vector of confidence values.
@@ -271,23 +330,7 @@
                 (->> vs
                      (mapv (apply juxt ffs))
                      (filterv (comp (partial > 1.0) first)))))
-            (coverage [v] (/ (predictions/examples v) (:global-population-size v)))
-            (conf-at-least [thresh] (->> vs (filterv #(> (:confidence %) thresh)) first :values))
-            (mk-coverage-string [v]
-              (string/format "%.1f%% (%d/%d)"
-                             (* 100 (coverage v))
-                             (predictions/examples v)
-                             (:global-population-size v)))
-            (conf-row [thresh]
-              (let [v (conf-at-least thresh)]
-                [:tr
-                 [:td "> " (-> thresh (* 100) (str "%"))]
-                 [:td
-                  (->> v predictions/true-positive-rate (* 100) (string/format "%.1f%%"))
-                  (string/format " (%d / %d)" (predictions/true-positives v) (predictions/condition-positives v))]
-                 [:td (->> v predictions/true-negative-rate (* 100) (string/format "%.1f%%"))
-                  (string/format " (%d / %d)" (predictions/true-negatives v) (predictions/condition-negatives v))]
-                 [:td (mk-coverage-string v)]]))]
+            (coverage [v] (/ (predictions/examples v) (:global-population-size v)))]
       (let [data (confs-by-f predictions/positive-predictive-value predictions/negative-predictive-value coverage)
             confidences (->> data (map first) (map #(string/format "%.2f" %)))
             ppvs (mapv second data)
@@ -297,17 +340,7 @@
             [:div.ui.bottom.attached.segment
              [:div.ui.center.aligned.header "Prediction confidence report"]
              [:div.ui.segment
-              [:table.ui.celled.table
-               [:thead
-                [:tr
-                 [:th "Confidence"]
-                 [:th "True Positive Rate (Sensitivity)"]
-                 [:th "True Negative Rate (Specificity)"]
-                 [:th "Coverage"]]]
-               [:tbody
-                [conf-row 0.9]
-                [conf-row 0.95]
-                [conf-row 0.99]]]]
+              [project-predict-report-table vs]]
              [:div.ui.segment
               [chart-container
                (line-chart
