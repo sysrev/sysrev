@@ -73,7 +73,9 @@
    :project
    {:required
     (fn [s]
-      [])
+      (with-state s
+        [[:project (current-project-id)]
+         [:users]]))
     :reload
     (fn [old new]
       (with-state new
