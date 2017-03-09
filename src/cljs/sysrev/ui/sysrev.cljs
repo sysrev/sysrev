@@ -11,7 +11,7 @@
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [camel-snake-kebab.extras :refer [transform-keys]]
-            [sysrev.ui.charts :refer [chart-container line-chart histogram]]
+            [sysrev.ui.charts :refer [chart-container line-chart bar-chart]]
             [goog.string :as string])
 
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
@@ -130,8 +130,7 @@
     [:div.ui.grey.segment
      [:h4.ui.dividing.header
       "Member activity"]
-     [chart-container
-      (histogram xs ynames yss)]]))
+     [chart-container bar-chart xs ynames yss]]))
 
 (defn project-page-menu-full [active-tab]
   (let [make-class
@@ -343,10 +342,10 @@
               [project-predict-report-table vs]]
              [:div.ui.segment
               [chart-container
-               (line-chart
-                 confidences
-                 ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
-                 [ppvs npvs coverages])]]]]))))
+               line-chart
+               confidences
+               ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
+               [ppvs npvs coverages]]]]]))))
 
 
 (defn project-invite-link-segment []
