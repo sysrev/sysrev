@@ -19,6 +19,8 @@
            java.sql.Date
            java.util.UUID))
 
+(declare clear-query-cache)
+
 ;; Active database connection pool object
 (defonce active-db (atom nil))
 
@@ -37,6 +39,7 @@
 
 (defn set-active-db!
   [db]
+  (clear-query-cache)
   (reset! active-db db))
 
 ;; Add JDBC conversion methods for Postgres jsonb type
@@ -167,16 +170,27 @@
 ;;
 (defonce query-cache (atom {}))
 
+(defonce query-cache-enabled (atom true))
+
+(defn enable-query-cache [enable?]
+  (reset! query-cache-enabled enable?))
+;;
+(s/fdef enable-query-cache
+        :args (s/cat :enable? boolean?)
+        :ret boolean?)
+
 (defmacro with-query-cache [field-path form]
-  `(let [field-path# ~field-path
-         field-path# (if (keyword? field-path#)
-                       [field-path#] field-path#)
-         cache-val# (get-in @query-cache field-path# :not-found)]
-     (if (= cache-val# :not-found)
-       (let [new-val# (do ~form)]
-         (swap! query-cache assoc-in field-path# new-val#)
-         new-val#)
-       cache-val#)))
+  `(if (not @query-cache-enabled)
+     (do ~form)
+     (let [field-path# ~field-path
+           field-path# (if (keyword? field-path#)
+                         [field-path#] field-path#)
+           cache-val# (get-in @query-cache field-path# :not-found)]
+       (if (= cache-val# :not-found)
+         (let [new-val# (do ~form)]
+           (swap! query-cache assoc-in field-path# new-val#)
+           new-val#)
+         cache-val#))))
 
 (defmacro with-project-cache [project-id field-path form]
   `(let [project-id# ~project-id
