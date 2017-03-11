@@ -7,7 +7,7 @@
    [sysrev.shared.spec.article :as sa]
    [sysrev.db.core :as db :refer
     [do-query do-execute to-sql-array sql-now with-project-cache
-     clear-project-cache]]
+     clear-project-cache to-jsonb]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -105,3 +105,32 @@
         :args (s/cat :project-id ::sc/project-id
                      :article-id ::sc/article-id)
         :ret (s/nilable map?))
+
+(defn remove-article-flag [article-id flag-name]
+  (-> (delete-from :article-flag)
+      (where [:and
+              [:= :article-id article-id]
+              [:= :flag-name flag-name]])
+      do-execute))
+;;
+(s/fdef remove-article-flag
+        :args (s/cat :article-id ::sc/article-id
+                     :flag-name ::sa/flag-name)
+        :ret ::sc/sql-execute)
+
+(defn set-article-flag [article-id flag-name disable? & [meta]]
+  (remove-article-flag article-id flag-name)
+  (-> (insert-into :article-flag)
+      (values [{:article-id article-id
+                :flag-name flag-name
+                :disable disable?
+                :meta (when meta (to-jsonb meta))}])
+      (returning :*)
+      do-query first))
+;;
+(s/fdef set-article-flag
+        :args (s/cat :article-id ::sc/article-id
+                     :flag-name ::sa/flag-name
+                     :disable? boolean?
+                     :meta (s/? ::sa/meta))
+        :ret map?)

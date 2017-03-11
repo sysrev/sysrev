@@ -16,6 +16,7 @@
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache
      clear-project-cache clear-query-cache cached-project-ids to-jsonb]]
+   [sysrev.db.articles :refer [set-article-flag remove-article-flag]]
    [sysrev.db.queries :as q]
    [sysrev.shared.util :refer [map-values]]
    [sysrev.shared.keywords :refer [canonical-keyword]]
@@ -375,19 +376,33 @@
 
 (defn disable-missing-abstracts [project-id min-length]
   (let [project-id (q/to-project-id project-id)]
-    (-> (sqlh/update [:article :a])
-        (sset {:enabled false})
+    (-> (select :article-id)
+        (from [:article :a])
         (where [:and
                 [:= :a.project-id project-id]
                 [:or
                  [:= :a.abstract nil]
-                 [:< (sql/call :char_length :a.abstract) min-length]]])
-        do-execute first)))
+                 [:= (sql/call :char_length :a.abstract) 0]]])
+        (->> do-query
+             (map :article-id)
+             (mapv #(set-article-flag % "no abstract" true))))
+    (-> (select :article-id)
+        (from [:article :a])
+        (where
+         [:and
+          [:= :a.project-id project-id]
+          [:!= :a.abstract nil]
+          [:< (sql/call :char_length :a.abstract) min-length]])
+        (->> do-query
+             (map :article-id)
+             (mapv #(set-article-flag % "short abstract" true
+                                      {:min-length min-length}))))
+    true))
 ;;
 (s/fdef disable-missing-abstracts
         :args (s/cat :project-id ::sc/project-id
                      :min-length (s/and integer? nat-int?))
-        :ret (s/and integer? nat-int?))
+        :ret any?)
 
 (defn add-project-note
   "Defines an entry for a note type that can be saved by users on articles

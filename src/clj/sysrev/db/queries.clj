@@ -111,7 +111,19 @@
       (-> (apply select fields)
           (from [:article tname]))
     project-id (merge-where [:= (sql-field tname :project-id) project-id])
-    (not include-disabled?) (merge-where [:= (sql-field tname :enabled) true])))
+    (not include-disabled?)
+    (merge-where [:= (sql-field tname :enabled) true])
+    (not include-disabled?)
+    (merge-where
+     [:not
+      [:exists
+       (-> (select :*)
+           (from [:article-flag :af-test])
+           (where [:and
+                   [:= :af-test.disable true]
+                   [:=
+                    :af-test.article-id
+                    (sql-field tname :article-id)]]))]])))
 
 (defn select-article-where
   [project-id where-clause fields & [{:keys [include-disabled? tname]
@@ -147,6 +159,22 @@
    fields
    {:include-disabled? include-disabled?
     :tname tname}))
+
+(defn filter-article-by-disable-flag
+  [m disabled? & [{:keys [tname] :or {tname :a}}
+                  :as opts]]
+  (let [exists
+        [:exists
+         (-> (select :*)
+             (from [:article-flag :af-filter])
+             (where [:and
+                     [:= :af-filter.disable true]
+                     [:=
+                      :af-filter.article-id
+                      (sql-field tname :article-id)]]))]]
+    (cond-> m
+      disabled? (merge-where exists)
+      (not disabled?) (merge-where [:not exists]))))
 
 (defn filter-article-by-location [m source external-id]
   (-> m

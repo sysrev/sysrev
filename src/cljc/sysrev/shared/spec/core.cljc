@@ -14,3 +14,5 @@
 (s/def ::keyword-id ::sql-id)
 (s/def ::project-note-id ::sql-id)
 (s/def ::article-note-id ::sql-id)
+
+(s/def ::sql-execute (s/coll-of integer? :count 1))
