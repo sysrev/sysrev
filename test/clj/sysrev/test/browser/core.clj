@@ -1,0 +1,102 @@
+(ns sysrev.test.browser.core
+  (:require [clojure.test :refer :all]
+            [clojure.spec :as s]
+            [clojure.spec.test :as t]
+            [clojure.tools.logging :as log]
+            [cljs.build.api :as cljs]
+            [clj-webdriver.driver :as driver]
+            [clj-webdriver.taxi :as taxi]
+            [config.core :refer [env]]
+            [sysrev.test.core :refer [default-fixture]]
+            [sysrev.db.users :refer
+             [delete-user create-user get-user-by-email]]
+            [clojure.string :as str])
+  (:import [org.openqa.selenium.phantomjs PhantomJSDriver]
+           [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
+           [org.openqa.selenium.logging LoggingPreferences LogType]
+           [java.util.logging Level]))
+
+(defn build-cljs!
+  "Builds CLJS project for integration testing."
+  []
+  (cljs/build
+   "src"
+   {:main "sysrev.main"
+    :output-to "resources/public/integration/sysrev.js"
+    :output-dir "resources/public/integration"
+    :asset-path "/integration"
+    :optimizations :none
+    :pretty-print true
+    :source-map true
+    :source-map-timestamp true
+    :static-fns true}))
+
+(defonce active-webdriver (atom nil))
+
+(defn start-webdriver [& [restart?]]
+  (if (and @active-webdriver (not restart?))
+    @active-webdriver
+    (do (when @active-webdriver
+          (try (taxi/quit) (catch Throwable e nil)))
+        (reset!
+         active-webdriver
+         (let [^LoggingPreferences logs (LoggingPreferences.)
+               _ (.enable logs LogType/DRIVER Level/WARNING)
+               _ (.enable logs LogType/SERVER Level/WARNING)
+               _ (.enable logs LogType/BROWSER Level/WARNING)
+               _ (.enable logs LogType/CLIENT Level/WARNING)
+               pjs (PhantomJSDriver.
+                    (doto (DesiredCapabilities.)
+                      (.setCapability
+                       "phantomjs.cli.args"
+                       (into-array String ["--ignore-ssl-errors=true"
+                                           "--webdriver-loglevel=warn"]))
+                      (.setCapability
+                       "phantomjs.ghostdriver.cli.args"
+                       (into-array String ["--logLevel=WARN"]))
+                      (.setCapability
+                       CapabilityType/LOGGING_PREFS
+                       logs)))
+               driver (driver/init-driver {:webdriver pjs})]
+           (taxi/implicit-wait driver 3000)
+           (taxi/set-driver! driver)
+           (log/info "started phantomjs webdriver")
+           driver)))))
+
+(defn stop-webdriver []
+  (when @active-webdriver
+    (taxi/quit)
+    (reset! active-webdriver nil)))
+
+(defn delete-test-user []
+  (let [email "test@insilica.co"]
+    (when-let [user-id (-> (get-user-by-email email) :user-id)]
+      (delete-user user-id))))
+
+(defn create-test-user []
+  (let [email "test@insilica.co"
+        password "test1test"]
+    (delete-test-user)
+    (create-user email password)))
+
+(defn webdriver-fixture-once
+  [f]
+  (do (build-cljs!)
+      (f)))
+
+(defn webdriver-fixture-each
+  [f]
+  (do (create-test-user)
+      (start-webdriver)
+      (f)
+      (stop-webdriver)))
+
+(defn go-route [path]
+  (let [port (-> env :server :port)
+        path (if (= (nth path 0) \/)
+               (subs path 1) path)]
+    (taxi/to (str "http://localhost:" port "/" path))))
+
+(defn on-unauth-home-page? []
+  (str/includes? (taxi/text "body")
+                 "Please log in"))

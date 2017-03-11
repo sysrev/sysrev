@@ -1,7 +1,8 @@
 (ns sysrev.init
   (:require [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
-            [config.core :refer [env]]))
+            [config.core :refer [env]]
+            [clojure.tools.logging :as log]))
 
 (defn start-app [& [postgres-overrides server-port-override]]
   (let [{profile :profile} env
@@ -12,7 +13,9 @@
         {{server-port :port} :server} env
         server-port (or server-port-override server-port)]
     (do (set-active-db! (make-db-config postgres-config))
-        (->> postgres-port (format "connected to postgres (port %s)") println)
+        (let [{:keys [host port dbname]} postgres-config]
+          (log/info (format "connected to postgres (%s:%d/%s)"
+                            host port dbname)))
         (run-web server-port prod?)
-        (->> server-port (format "web server started (port %s)") println)
+        (log/info (format "web server started (port %s)" server-port))
         true)))

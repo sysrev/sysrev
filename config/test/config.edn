@@ -1,7 +1,7 @@
 {:postgres
  {:dbname "sysrev_test"
   :user "postgres"
-  :password nil
+  :password ""
   :host "localhost"
   :port 5432}
  :server

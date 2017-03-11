@@ -4,7 +4,8 @@
             [clojure.spec.test :as t]
             [clojure.tools.logging :as log]
             [config.core :refer [env]]
-            [sysrev.init :refer [start-app]]))
+            [sysrev.init :refer [start-app]]
+            [sysrev.web.index :refer [set-web-asset-path]]))
 
 (defn default-fixture
   "Validates configuration, tries to ensure we're running
@@ -26,10 +27,12 @@
       (if error
         (log/error "default-fixture: " error)
         (do (t/instrument)
+            (set-web-asset-path "/integration")
             (start-app)
             (f))))
     :dev
     (do (t/instrument)
+        (set-web-asset-path "/integration")
         (start-app {:dbname "sysrev_test"})
         (f))
     (log/error "default-fixture: profile must be :test or :dev")))

@@ -2,6 +2,12 @@
   (:require [hiccup.page :as page]
             [sysrev.shared.components :refer [loading-content]]))
 
+(defonce web-asset-path (atom "/out"))
+
+(defn set-web-asset-path [& [path]]
+  (let [path (or path "/out")]
+    (reset! web-asset-path path)))
+
 (defn index [& [request]]
   (page/html5
    [:head
@@ -14,7 +20,7 @@
     (page/include-js "/ga.js")]
    [:body
     [:div {:id "app"} loading-content]
-    (page/include-js "/out/sysrev.js")]))
+    (page/include-js (str @web-asset-path "/sysrev.js"))]))
 
 (defn not-found [& [request]]
   (page/html5

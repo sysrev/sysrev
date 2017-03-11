@@ -4,8 +4,6 @@
                  [org.clojure/clojure "1.9.0-alpha14"]
                  [org.clojure/clojurescript "1.9.495"]
                  [org.clojure/math.numeric-tower "0.0.4"]
-                 ;;[org.clojure/clojurescript "1.9.93"]
-                 ;;[org.clojure/core.async "0.2.395"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
                  ;; [cheshire "5.6.3"]
@@ -14,10 +12,6 @@
                  [org.clojure/data.zip "0.1.2"]
                  ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
                  [clojure-csv/clojure-csv "2.0.1"]
-                 ;; REPL
-                 [org.clojure/tools.nrepl "0.2.12"]
-                 [com.cemerick/piggieback "0.2.1"]
-                 [figwheel-sidecar "0.5.9"]
                  ;; Database
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "42.0.0"]
@@ -51,8 +45,6 @@
                  [crypto-random "1.2.0"]
                  ;; Email
                  [com.draines/postal "2.0.2"]
-                 ;; Browser automation
-                 [clj-webdriver "0.7.2"]
                  ;; Project config file support
                  [yogthos/config "0.8"]
                  ;; Logging
@@ -80,10 +72,7 @@
   :source-paths ["src/clj" "src/cljc" "src/scripts"]
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-bower "0.5.2"]
-            [lein-ring "0.11.0"]
-            [cider/cider-nrepl "0.14.0"]
-            [refactor-nrepl "2.2.0"]
-            [lein-figwheel "0.5.9"]]
+            [lein-ring "0.11.0"]]
   :clean-targets ^{:protect false}
   ["target" "resources/public/out-dev" "resources/public/out-production"]
   :cljsbuild
@@ -125,10 +114,28 @@
               :main sysrev.web-main
               :aot [sysrev.web-main]}
              :dev
-             {:resource-paths ["config/dev"]
+             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
+              :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "src/scripts" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[org.clojure/test.check "0.9.0"]]}
+              :dependencies [[org.clojure/test.check "0.9.0"]
+                             [figwheel-sidecar "0.5.9"]
+                             [org.clojure/tools.nrepl "0.2.12"]
+                             [com.cemerick/piggieback "0.2.1"]
+                             [clj-webdriver "0.7.2"]
+                             [org.seleniumhq.selenium/selenium-java "3.1.0"]
+                             [org.seleniumhq.selenium/selenium-remote-driver "3.1.0"
+                              :exclusions
+                              [com.google.guava/guava]]
+                             [org.seleniumhq.selenium/selenium-server "3.1.0"
+                              :exclusions
+                              [org.bouncycastle/bcpkix-jdk15on
+                               org.bouncycastle/bcprov-jdk15on
+                               org.seleniumhq.selenium/selenium-support]]
+                             [com.codeborne/phantomjsdriver "1.4.1"]]
+              :plugins [[lein-figwheel "0.5.9"]
+                        [cider/cider-nrepl "0.14.0"]
+                        [refactor-nrepl "2.2.0"]]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src/scripts" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
@@ -145,9 +152,22 @@
                [org.apache.spark/spark-hive_2.11 "2.1.0"]]
               :aot :all}
              :test
-             {:resource-paths ["config/test"]
+             {:jvm-opts ["-Dlog4j.configuration=log4j.properties.test"
+                         "-Djava.util.logging.config.file=logging.properties"]
+              :resource-paths ["config/test"]
               :source-paths ["src/clj" "src/cljc" "src/scripts" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[org.clojure/test.check "0.9.0"]]}
+              :dependencies [[org.clojure/test.check "0.9.0"]
+                             [clj-webdriver "0.7.2"]
+                             [org.seleniumhq.selenium/selenium-java "3.1.0"]
+                             [org.seleniumhq.selenium/selenium-remote-driver "3.1.0"
+                              :exclusions
+                              [com.google.guava/guava]]
+                             [org.seleniumhq.selenium/selenium-server "3.1.0"
+                              :exclusions
+                              [org.bouncycastle/bcpkix-jdk15on
+                               org.bouncycastle/bcprov-jdk15on
+                               org.seleniumhq.selenium/selenium-support]]
+                             [com.codeborne/phantomjsdriver "1.4.1"]]}
              :autotest
              {:dependencies {}}})
