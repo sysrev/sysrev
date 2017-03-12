@@ -13,7 +13,7 @@
              [get-user-by-email set-user-permissions]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
             [sysrev.shared.util :refer [map-values]]
-            [sysrev.util :refer [parse-xml-str]]
+            [sysrev.util :refer [parse-xml-str in?]]
             [sysrev.import.pubmed :refer [extract-article-location-entries]]
             [clojure.data.json :as json]
             [sysrev.db.queries :as q]
@@ -326,6 +326,20 @@
                     [:= :al.article-label-id (:article-label-id alabel)])
                    do-execute))))))))))
 
+(defn ensure-no-null-authors []
+  (let [invalid (-> (q/select-project-articles nil [:a.article-id :a.authors])
+                    (->> do-query
+                         (filterv (fn [{:keys [authors]}]
+                                    (in? authors nil)))))]
+    (doseq [{:keys [article-id authors]} invalid]
+      (let [authors (filterv string? authors)]
+        (-> (sqlh/update :article)
+            (where [:= :article-id article-id])
+            (sset {:authors (to-sql-array "text" authors)})
+            do-execute)))
+    (when-not (empty? invalid)
+      (println (format "fixed %d invalid authors entries" (count invalid))))))
+
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
@@ -339,4 +353,5 @@
   (ensure-new-label-entries)
   (ensure-new-label-value-entries)
   (ensure-predict-label-ids)
-  (ensure-label-inclusion-values))
+  (ensure-label-inclusion-values)
+  (ensure-no-null-authors))

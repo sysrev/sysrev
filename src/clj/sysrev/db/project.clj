@@ -467,3 +467,15 @@
         :args (s/cat :project-id ::sc/project-id
                      :user-id ::sc/user-id)
         :ret ::snt/member-notes-map)
+
+(defn project-user-ids
+  "Returns a vector of `user-id` for the members of `project-id`.
+   If `admin?` is a boolean, filter by user admin status."
+  [project-id & [admin?]]
+  (-> (q/select-project-members project-id [:u.user-id])
+      (q/filter-admin-user admin?)
+      (->> do-query (mapv :user-id))))
+;;
+(s/fdef project-user-ids
+        :args (s/cat :project-id ::sc/project-id)
+        :ret (s/coll-of map?))

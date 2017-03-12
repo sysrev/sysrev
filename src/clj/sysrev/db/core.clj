@@ -15,8 +15,7 @@
             [clj-time.coerce :as tc]
             [config.core :refer [env]]
             [clojure.string :as str])
-  (:import java.sql.Timestamp
-           java.sql.Date
+  (:import (java.sql Timestamp Date Connection)
            java.util.UUID))
 
 (declare clear-query-cache)
@@ -72,7 +71,14 @@
     (if conn
       (.createArrayOf (:connection conn) sql-type (into-array elts))
       (j/with-db-connection [conn (or *conn* @active-db)]
-        (.createArrayOf (:connection conn) sql-type (into-array elts))))))
+        (try
+          (.createArrayOf (:connection conn) sql-type (into-array elts))
+          (finally
+            (when (nil? *conn*)
+              (.close (:connection conn)))))))))
+
+(defn sql-array-contains [field val]
+  [:= val (sql/call :any field)])
 
 (defn format-column-name [col]
   (-> col str/lower-case (str/replace "_" "-")))

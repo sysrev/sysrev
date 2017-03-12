@@ -7,10 +7,9 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now
-              to-sql-array to-jsonb sql-field
-              with-project-cache clear-project-cache
-              with-query-cache clear-query-cache]]
+             [do-query do-execute do-transaction sql-now to-sql-array to-jsonb
+              sql-field with-project-cache clear-project-cache with-query-cache
+              clear-query-cache sql-array-contains]]
             [sysrev.util :refer [in?]])
   (:import java.util.UUID))
 
@@ -375,6 +374,28 @@
       (merge-join [:project-member :m]
                   [:= :m.user-id :u.user-id])
       (merge-where [:= :m.project-id project-id])))
+
+(defn filter-user-permission [m permission & [not?]]
+  (let [test (sql-array-contains :u.permissions permission)
+        test (if not? [:not test] test)]
+    (merge-where m test)))
+;;
+(s/fdef filter-user-permission
+        :args (s/cat :m ::sc/honeysql
+                     :permission string?
+                     :not? (s/? boolean?))
+        :ret ::sc/honeysql)
+
+(defn filter-admin-user [m admin?]
+  (cond-> m
+    (true? admin?) (filter-user-permission "admin")
+    (false? admin?) (filter-user-permission "admin" true)
+    (nil? admin?) (identity)))
+;;
+(s/fdef filter-admin-user
+        :args (s/cat :m ::sc/honeysql
+                     :admin? (s/nilable boolean?))
+        :ret ::sc/honeysql)
 
 ;;;
 ;;; predict values

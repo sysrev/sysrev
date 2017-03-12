@@ -1,5 +1,5 @@
 (ns sysrev.import.pubmed
-  (:require [sysrev.db.core :refer [do-query do-execute]]
+  (:require [sysrev.db.core :refer [do-query do-execute do-transaction]]
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.util :refer
@@ -33,7 +33,8 @@
                                          (#(str/split % #" "))
                                          (map #(str % "."))
                                          (str/join " ")))
-                last-name)))))))
+                last-name))))
+         (filterv string?))))
 
 (defn extract-article-location-entries
   "Extracts entries for article_location from parsed PubMed API XML article."

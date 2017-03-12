@@ -211,7 +211,7 @@
 
 (defn get-articles-with-label-users [project-id & [predict-run-id]]
   (with-project-cache
-    project-id [:label-values :saved :articles]
+    project-id [:label-values :saved :articles predict-run-id]
     (let [predict-run-id
           (or predict-run-id (q/project-latest-predict-run-id project-id))
           articles
@@ -246,7 +246,7 @@
 
 (defn unlabeled-articles [project-id & [predict-run-id articles]]
   (with-project-cache
-    project-id [:label-values :saved :unlabeled-articles]
+    project-id [:label-values :saved :unlabeled-articles predict-run-id]
     (->> (or articles (get-articles-with-label-users project-id predict-run-id))
          vals
          (filter #(= 0 (count (:users %))))
@@ -254,7 +254,7 @@
 
 (defn single-labeled-articles [project-id self-id & [predict-run-id articles]]
   (with-project-cache
-    project-id [:label-values :saved :single-labeled-articles]
+    project-id [:label-values :saved :single-labeled-articles self-id predict-run-id]
     (->> (or articles (get-articles-with-label-users project-id predict-run-id))
          vals
          (filter #(and (= 1 (count (:users %)))

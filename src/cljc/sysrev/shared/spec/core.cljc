@@ -6,6 +6,7 @@
 ;; this is used to allow either a uuid or integer id where appropriate
 (s/def ::sql-id (s/or :uuid ::uuid
                       :serial ::sql-serial-id))
+(s/def ::honeysql map?)
 
 (s/def ::article-id ::sql-id)
 (s/def ::project-id ::sql-id)
