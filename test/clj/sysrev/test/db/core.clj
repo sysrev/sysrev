@@ -14,4 +14,3 @@
   (-> (select :project-id)
       (from :project)
       (->> do-query (mapv :project-id))))
-

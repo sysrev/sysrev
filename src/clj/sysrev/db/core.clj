@@ -40,7 +40,7 @@
         (-> (apply pg/pool (map-to-arglist postgres-config))
             (assoc :config postgres-config))]
     (.setPartitionCount datasource 1)
-    (.setMinConnectionsPerPartition datasource 1)
+    (.setMinConnectionsPerPartition datasource 0)
     (.setMaxConnectionsPerPartition datasource 4)
     db))
 

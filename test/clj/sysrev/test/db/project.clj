@@ -14,14 +14,12 @@
 (use-fixtures :once default-fixture)
 
 (deftest article-flag-counts
-  (do-transaction
-   nil
-   (doseq [project-id (test-project-ids)]
-     (let [query (q/select-project-articles
-                  project-id [:%count.*] {:include-disabled? true})
-           total (-> query do-query first :count)
-           flag-enabled (-> query (q/filter-article-by-disable-flag true)
-                            do-query first :count)
-           flag-disabled (-> query (q/filter-article-by-disable-flag false)
-                             do-query first :count)]
-       (is (= total (+ flag-enabled flag-disabled)))))))
+  (doseq [project-id (test-project-ids)]
+    (let [query (q/select-project-articles
+                 project-id [:%count.*] {:include-disabled? true})
+          total (-> query do-query first :count)
+          flag-enabled (-> query (q/filter-article-by-disable-flag true)
+                           do-query first :count)
+          flag-disabled (-> query (q/filter-article-by-disable-flag false)
+                            do-query first :count)]
+      (is (= total (+ flag-enabled flag-disabled))))))
