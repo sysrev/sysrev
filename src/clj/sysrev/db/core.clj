@@ -35,9 +35,14 @@
   overriding with any field values passed in `postgres-overrides`."
   [{:keys [dbname user password host port] :as postgres-overrides}]
   (let [postgres-defaults (:postgres env)
-        postgres-config (merge postgres-defaults postgres-overrides)]
-    (-> (apply pg/pool (map-to-arglist postgres-config))
-        (assoc :config postgres-config))))
+        postgres-config (merge postgres-defaults postgres-overrides)
+        {:keys [^BoneCPDataSource datasource] :as db}
+        (-> (apply pg/pool (map-to-arglist postgres-config))
+            (assoc :config postgres-config))]
+    (.setPartitionCount datasource 1)
+    (.setMinConnectionsPerPartition datasource 1)
+    (.setMaxConnectionsPerPartition datasource 4)
+    db))
 
 (defn close-active-db []
   (when-let [^BoneCPDataSource ds (:datasource @active-db)]
