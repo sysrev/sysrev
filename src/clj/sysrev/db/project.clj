@@ -477,5 +477,6 @@
       (->> do-query (mapv :user-id))))
 ;;
 (s/fdef project-user-ids
-        :args (s/cat :project-id ::sc/project-id)
+        :args (s/cat :project-id ::sc/project-id
+                     :admin? (s/? (s/nilable boolean?)))
         :ret (s/coll-of map?))

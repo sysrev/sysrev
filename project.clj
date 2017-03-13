@@ -120,6 +120,10 @@
              {:resource-paths ["config/test"]
               :main sysrev.browser-test-main
               :aot [sysrev.browser-test-main]}
+             :test-all
+             {:resource-paths ["config/test"]
+              :main sysrev.all-test-main
+              :aot [sysrev.all-test-main]}
              :test-aws-dev
              {:resource-paths ["config/test-aws-dev"]}
              :test-aws-prod
