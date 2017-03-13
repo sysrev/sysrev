@@ -1,0 +1,4 @@
+flyway.url=jdbc:postgresql://localhost:5471/sysrev
+flyway.user=postgres
+flyway.password=
+flyway.locations=filesystem:./resources/sql
