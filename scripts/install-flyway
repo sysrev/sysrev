@@ -1,6 +1,11 @@
 #!/bin/bash
 set -eu
 
+if [[ -e "./flyway" ]]; then
+    echo "flyway is already installed"
+    exit
+fi
+
 rm -f flyway
 rm -rf flyway-4.0.1
 rm -f flyway-commandline-4.0.1.tar.gz
