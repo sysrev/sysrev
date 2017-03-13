@@ -1,5 +1,6 @@
 (ns sysrev.web.core
-  (:require [compojure.core :refer :all]
+  (:require [clojure.tools.logging :as log]
+            [compojure.core :refer :all]
             [compojure.route :refer [not-found]]
             [ring.util.response :as r]
             [ring.middleware.defaults :as default]
@@ -48,20 +49,28 @@
 
 (defonce web-server (atom nil))
 (defonce web-port (atom nil))
+(defonce web-server-config (atom nil))
 
 (defn stop-web-server []
   (when-not (nil? @web-server)
     (@web-server :timeout 100)
     (reset! web-server nil)))
 
-(defn run-web [& [port prod?]]
-  (let [port (or port @web-port 4041)]
-    (reset! web-port port)
-    (stop-web-server)
-    (reset! web-server
-            (run-server (sysrev-app (if prod? false true))
-                        {:port port
-                         :join? (if prod? true false)}))))
+(defn run-web [& [port prod? only-if-new]]
+  (let [port (or port @web-port 4041)
+        config {:port port :prod? prod?}]
+    (if (and only-if-new
+             (= config @web-server-config))
+      nil
+      (do (reset! web-port port)
+          (reset! web-server-config config)
+          (stop-web-server)
+          (reset! web-server
+                  (run-server (sysrev-app (if prod? false true))
+                              {:port port
+                               :join? (if prod? true false)}))
+          (log/info (format "web server started (port %s)" port))
+          @web-server))))
 
 ;; if web server is running, restart it when this file is reloaded
 ;; ---

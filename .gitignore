@@ -19,6 +19,7 @@ target/
 
 /resources/public/out-dev
 /resources/public/out-production
+/resources/public/integration
 /resources/public/vendor
 /resources/public/files/PDF
 /resources/smtp-config.edn

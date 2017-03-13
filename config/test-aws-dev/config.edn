@@ -1,0 +1,12 @@
+{:postgres
+ {:dbname "sysrev"
+  :user "postgres"
+  :password ""
+  :host "localhost"
+  :port 5471}
+ :server
+ {:port 4132}
+ :selenium
+ {:protocol "http"
+  :host "isysrev-dev.ddns.net"}
+ :profile :remote-test}

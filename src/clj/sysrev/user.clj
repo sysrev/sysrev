@@ -29,7 +29,9 @@
         sysrev.misc
         sysrev.init
         sysrev.shared.util
-        sysrev.shared.keywords)
+        sysrev.shared.keywords
+        sysrev.test.core
+        sysrev.test.browser.core)
   (:require [clojure.spec :as s]
             [clojure.spec.test :as t]
             [clojure.math.numeric-tower :as math]
@@ -57,7 +59,8 @@
             [sysrev.shared.spec.labels :as sl]
             [sysrev.shared.spec.users :as su]
             [sysrev.shared.spec.keywords :as skw]
-            [sysrev.shared.spec.notes :as snt])
+            [sysrev.shared.spec.notes :as snt]
+            sysrev.test.all)
   (:import java.util.UUID))
 
 (defonce started

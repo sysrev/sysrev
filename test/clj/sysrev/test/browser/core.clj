@@ -7,7 +7,7 @@
             [clj-webdriver.driver :as driver]
             [clj-webdriver.taxi :as taxi]
             [config.core :refer [env]]
-            [sysrev.test.core :refer [default-fixture]]
+            [sysrev.test.core :refer [default-fixture get-selenium-config]]
             [sysrev.db.users :refer
              [delete-user create-user get-user-by-email]]
             [clojure.string :as str])
@@ -81,21 +81,26 @@
 
 (defn webdriver-fixture-once
   [f]
-  (do (build-cljs!)
+  (do (when (= "localhost" (:host (get-selenium-config)))
+        (build-cljs!))
       (f)))
 
 (defn webdriver-fixture-each
   [f]
-  (do (create-test-user)
+  (do (when (:safe (get-selenium-config))
+        (create-test-user))
       (start-webdriver)
       (f)
       (stop-webdriver)))
 
-(defn go-route [path]
-  (let [port (-> env :server :port)
-        path (if (= (nth path 0) \/)
-               (subs path 1) path)]
-    (taxi/to (str "http://localhost:" port "/" path))))
+(defn go-route [path & [wait-ms]]
+  (let [wait-ms (or wait-ms 300)
+        full-url (str (:url (get-selenium-config))
+                      (if (= (nth path 0) \/)
+                        (subs path 1) path))]
+    (log/info "loading " full-url)
+    (taxi/to full-url)
+    (Thread/sleep wait-ms)))
 
 (defn on-unauth-home-page? []
   (str/includes? (taxi/text "body")

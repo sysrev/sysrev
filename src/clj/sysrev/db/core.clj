@@ -1,5 +1,6 @@
 (ns sysrev.db.core
   (:require [clojure.spec :as s]
+            [clojure.tools.logging :as log]
             [sysrev.shared.util :refer [map-values]]
             [sysrev.util :refer [map-to-arglist in?]]
             [sysrev.shared.spec.core :as sc]
@@ -16,7 +17,8 @@
             [config.core :refer [env]]
             [clojure.string :as str])
   (:import (java.sql Timestamp Date Connection)
-           java.util.UUID))
+           java.util.UUID
+           (com.jolbox.bonecp BoneCPDataSource)))
 
 (declare clear-query-cache)
 
@@ -34,12 +36,26 @@
   [{:keys [dbname user password host port] :as postgres-overrides}]
   (let [postgres-defaults (:postgres env)
         postgres-config (merge postgres-defaults postgres-overrides)]
-    (apply pg/pool (map-to-arglist postgres-config))))
+    (-> (apply pg/pool (map-to-arglist postgres-config))
+        (assoc :config postgres-config))))
+
+(defn close-active-db []
+  (when-let [^BoneCPDataSource ds (:datasource @active-db)]
+    (.close ds))
+  (reset! active-db nil))
 
 (defn set-active-db!
-  [db]
+  [db & [only-if-new]]
   (clear-query-cache)
-  (reset! active-db db))
+  (if (and only-if-new
+           (= (:config db) (:config @active-db)))
+    nil
+    (do (close-active-db)
+        (reset! active-db db)
+        (let [{:keys [host port dbname]} (:config db)]
+          (log/info (format "connected to postgres (%s:%d/%s)"
+                            host port dbname)))
+        db)))
 
 ;; Add JDBC conversion methods for Postgres jsonb type
 (add-jsonb-type

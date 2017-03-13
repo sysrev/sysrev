@@ -74,7 +74,10 @@
             [lein-bower "0.5.2"]
             [lein-ring "0.11.0"]]
   :clean-targets ^{:protect false}
-  ["target" "resources/public/out-dev" "resources/public/out-production"]
+  ["target"
+   "resources/public/out-dev"
+   "resources/public/out-production"
+   "resources/public/integration"]
   :cljsbuild
   {:builds
    [{:id "dev"
@@ -113,6 +116,14 @@
              {:resource-paths ["config/prod"]
               :main sysrev.web-main
               :aot [sysrev.web-main]}
+             :test-browser
+             {:resource-paths ["config/test"]
+              :main sysrev.browser-test-main
+              :aot [sysrev.browser-test-main]}
+             :test-aws-dev
+             {:resource-paths ["config/test-aws-dev"]}
+             :test-aws-prod
+             {:resource-paths ["config/test-aws-prod"]}
              :dev
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
               :resource-paths ["config/dev"]
