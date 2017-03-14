@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eux
+
+rm -f target/junit-browser.xml
+testcmd1='lein test-aws-prod-browser'
+$testcmd1 || $testcmd1

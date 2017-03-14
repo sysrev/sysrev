@@ -1,0 +1,12 @@
+#!/bin/bash
+set -eux
+
+export SYSREV_HOST=isysrev-dev.ddns.net
+ssh ubuntu@$SYSREV_HOST 'sudo systemctl stop sysrev-web'
+ssh ubuntu@$SYSREV_HOST 'sudo systemctl restart postgresql'
+
+cp -f flyway.conf.aws-dev-main flyway.conf
+SR_DEST_PORT=5471 SR_DEST_DB=sysrev ./scripts/clone-latest-db
+
+ssh ubuntu@$SYSREV_HOST 'sudo systemctl restart sysrev-web'
+sleep 2

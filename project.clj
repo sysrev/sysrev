@@ -70,6 +70,14 @@
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
   :source-paths ["src/clj" "src/cljc" "src/scripts"]
+  :aliases {"junit"
+            ["with-profile" "+test,+test-all" "run"]
+            "test-aws-dev-browser"
+            ["with-profile" "+test,+test-browser,+test-aws-dev" "run"]
+            "test-aws-prod-browser"
+            ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
+            "test-aws-dev-all"
+            ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
   :plugins [[lein-cljsbuild "1.1.5"]
             [lein-bower "0.5.2"]
             [lein-ring "0.11.0"]]

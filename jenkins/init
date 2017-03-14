@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eux
+
+./setup.sh > /dev/null
+./scripts/install-flyway > /dev/null
+lein clean

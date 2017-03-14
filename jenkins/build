@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eux
+
+lein with-profile +prod uberjar
+lein cljsbuild once production
