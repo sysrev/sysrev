@@ -138,7 +138,7 @@ node {
             } catch (exc) {
               currentBuild.result = 'UNSTABLE'
             } finally {
-              junit 'target/junit-browser.xml'
+              junit 'target/junit-all.xml'
             }
           }
         } catch (exc) {
