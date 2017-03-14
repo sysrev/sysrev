@@ -82,7 +82,7 @@ node {
     echo "branch = ${branch}"
     echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
     echo "BRANCH_NAME = ${env.BRANCH_NAME}"
-    sendFlowdockMsg ('Started')
+    sendFlowdockMsg ('Build started')
     echo 'Setting up workspace...'
     try {
       sh './jenkins/init'
@@ -108,7 +108,12 @@ node {
       try {
         sh './jenkins/test'
         currentBuild.result = 'SUCCESS'
-        sendFlowdockMsgFull ('Tests passed','running','blue')
+        if (branch == 'staging' ||
+            branch == 'production') {
+          sendFlowdockMsgFull ('Tests passed','running','blue')
+        } else {
+          sendFlowdockMsg ('Tests passed')
+        }
       } catch (exc) {
         currentBuild.result = 'UNSTABLE'
         sendFlowdockMsg ('Tests failed')
