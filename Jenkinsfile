@@ -6,19 +6,9 @@ node {
     returnStdout: true
   ).trim()
   
-  flowToken = '3b68626ba6383cd066505e7c462a4864'
-  flowdockPostUrl = "https://api.flowdock.com/messages?flow_token=${flowToken}"
   gitUrl = 'git@bitbucket.org:insilica/systematic_review.git'
 
-  if (
-    env.CHANGE_TARGET == 'staging' ||
-    env.BRANCH_NAME == 'staging') {
-    branch = 'staging'
-  } else if (
-    env.CHANGE_TARGET == 'production' ||
-    env.BRANCH_NAME == 'production') {
-    branch = 'production'
-  } else if (env.BRANCH_NAME != null) {
+  if (env.BRANCH_NAME != null) {
     branch = env.BRANCH_NAME
   } else if (env.CHANGE_TARGET != null) {
     branch = env.CHANGE_TARGET
@@ -28,48 +18,24 @@ node {
   
   def sendFlowdockMsgFull = {
     msg,status,color ->
+      cmd = "./scripts/flowdock-msg pipeline"
+      cmd += " -j sysrev"
+      cmd += " -b ${branch}"
+      cmd += " -n ${env.BUILD_NUMBER}"
+      cmd += " -m '${msg}'"
+      if (currentBuild.result != null) {
+        cmd += " -r ${currentBuild.result}"
+      }
+      if (status != null) {
+        cmd += " -s ${status}"
+      }
+      if (color != null) {
+        cmd += " -c ${color}"
+      }
       try {
-        threadId = "sysrev_${branch}_${env.BUILD_NUMBER}"
-        if (status == null) {
-          if (currentBuild.result == 'SUCCESS') {
-            status = 'success'
-            color = 'green'
-          } else if (currentBuild.result == 'UNSTABLE') {
-            status = 'unstable'
-            color = 'yellow'
-          } else if (currentBuild.result == 'FAILURE') {
-            status = 'failure'
-            color = 'red'
-          } else if (currentBuild.result == null) {
-            status = 'running'
-            color = 'blue'
-          } else {
-            status = 'unknown'
-            color = 'grey'
-          }
-        }
-      
-        body = """
-{
-\"flow_token\": \"${flowToken}\",
-\"external_thread_id\": \"${threadId}\",
-\"event\": \"activity\",
-\"author\": {\"name\": \"jenkins\"},
-\"title\": \"${msg}\",
-\"thread\": {
-\"title\": \"sysrev.${branch} pipeline\",
-\"fields\": [],
-\"body\": \"\",
-\"external_url\": \"https://ws1.insilica.co/blue/organizations/jenkins/sysrev/detail/${branch}/${env.BUILD_NUMBER}/pipeline\",
-\"status\": {\"color\": \"${color}\", \"value\": \"${status}\"}
-}
-}
-"""
-        echo "$body"
-        response = httpRequest consoleLogResponseBody: true, contentType: 'APPLICATION_JSON', httpMode: 'POST', requestBody: body, url: flowdockPostUrl
+        sh (cmd)
       } catch (exc) {
         echo "sendFlowdockMsgFull failed"
-        throw exc
       }
   }
 

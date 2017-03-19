@@ -1,0 +1,56 @@
+node {
+  checkout scm
+
+  def sendFlowdockMsgFull = {
+    msg,status,color ->
+      cmd = "./scripts/flowdock-msg pipeline"
+      cmd += " -j sysrev-prod-monitor"
+      cmd += " -n ${env.BUILD_NUMBER}"
+      cmd += " -m '${msg}'"
+      if (currentBuild.result != null) {
+        cmd += " -r ${currentBuild.result}"
+      }
+      if (status != null) {
+        cmd += " -s ${status}"
+      }
+      if (color != null) {
+        cmd += " -c ${color}"
+      }
+      try {
+        sh (cmd)
+      } catch (exc) {
+        echo "sendFlowdockMsgFull failed"
+      }
+  }
+
+  def sendFlowdockMsg = {
+    msg ->
+      sendFlowdockMsgFull (msg, null, null)
+  }
+
+  stage('Init') {
+    echo 'Setting up workspace...'
+    try {
+      sh './jenkins/init'
+    } catch (exc) {
+      currentBuild.result = 'FAILURE'
+      sendFlowdockMsg ('Init stage failed')
+      throw exc
+    }
+  }
+
+  stage('BrowserTest') {
+    if (currentBuild.result != 'FAILURE') {
+      echo 'Running browser tests against remote host...'
+      try {
+        sh './jenkins/test-aws-prod-browser'
+        currentBuild.result = 'SUCCESS'
+      } catch (exc) {
+        currentBuild.result = 'FAILURE'
+        sendFlowdockMsg('Browser tests failed')
+      } finally {
+        junit 'target/junit-browser.xml'
+      }
+    }
+  }
+}
