@@ -5,15 +5,16 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.db.project :refer
-             [add-project-member set-member-permissions]]
+             [add-project-member set-member-permissions
+              default-project-settings]]
             [sysrev.db.core :refer
              [do-query do-query-map do-execute do-transaction
               to-sql-array with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
-            [sysrev.shared.util :refer [map-values]]
-            [sysrev.util :refer [parse-xml-str in?]]
+            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.util :refer [parse-xml-str]]
             [sysrev.import.pubmed :refer [extract-article-location-entries]]
             [clojure.data.json :as json]
             [sysrev.db.queries :as q]
@@ -164,8 +165,7 @@
               (when-not (empty? entries)
                 (-> (insert-into :article-location)
                     (values entries)
-                    do-execute))
-              (println (str "processed #" article-id)))))
+                    do-execute)))))
          doall)
     (when (not= 0 (count articles))
       (println
@@ -340,6 +340,14 @@
     (when-not (empty? invalid)
       (println (format "fixed %d invalid authors entries" (count invalid))))))
 
+(defn ensure-project-settings-entry []
+  (let [n (-> (sqlh/update :project)
+              (sset {:settings (to-jsonb default-project-settings)})
+              (where [:= :settings nil])
+              do-execute first)]
+    (when (not= n 0)
+      (println (format "initialized %d project settings fields" n)))))
+
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
@@ -354,4 +362,5 @@
   (ensure-new-label-value-entries)
   (ensure-predict-label-ids)
   (ensure-label-inclusion-values)
-  (ensure-no-null-authors))
+  (ensure-no-null-authors)
+  (ensure-project-settings-entry))

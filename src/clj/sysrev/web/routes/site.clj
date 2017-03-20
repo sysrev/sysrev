@@ -7,8 +7,8 @@
             [sysrev.db.core :refer [do-query with-query-cache]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.shared.util :refer [map-values]]
-            [sysrev.util :refer [in? should-never-happen-exception]]
+            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.web.app :refer [wrap-permissions current-user-id]]))
 
 ;; Functions defined after defroutes form

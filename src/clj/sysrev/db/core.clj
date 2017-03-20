@@ -1,14 +1,14 @@
 (ns sysrev.db.core
   (:require [clojure.spec :as s]
             [clojure.tools.logging :as log]
-            [sysrev.shared.util :refer [map-values]]
-            [sysrev.util :refer [map-to-arglist in?]]
+            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.util :refer [map-to-arglist]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [clojure.java.jdbc :as j]
-            [clj-postgresql.core :as pg]
-            [jdbc.pool.c3p0]
             [clojure.data.json :as json]
+            [clj-postgresql.core :as pg]
+            [hikari-cp.core :refer [make-datasource close-datasource]]
             [postgre-types.json :refer [add-jsonb-type]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -17,8 +17,7 @@
             [config.core :refer [env]]
             [clojure.string :as str])
   (:import (java.sql Timestamp Date Connection)
-           java.util.UUID
-           (com.jolbox.bonecp BoneCPDataSource)))
+           java.util.UUID))
 
 (declare clear-query-cache)
 
@@ -36,17 +35,21 @@
   [{:keys [dbname user password host port] :as postgres-overrides}]
   (let [postgres-defaults (:postgres env)
         postgres-config (merge postgres-defaults postgres-overrides)
-        {:keys [^BoneCPDataSource datasource] :as db}
-        (-> (apply pg/pool (map-to-arglist postgres-config))
-            (assoc :config postgres-config))]
-    (.setPartitionCount datasource 1)
-    (.setMinConnectionsPerPartition datasource 0)
-    (.setMaxConnectionsPerPartition datasource 4)
-    db))
+        options
+        (-> {:minimum-idle 4
+             :maximum-pool-size 10
+             :adapter "postgresql"}
+            (assoc :username (:user postgres-config)
+                   :password (:password postgres-config)
+                   :database-name (:dbname postgres-config)
+                   :server-name (:host postgres-config)
+                   :port-number (:port postgres-config)))]
+    {:datasource (make-datasource options)
+     :config postgres-config}))
 
 (defn close-active-db []
-  (when-let [^BoneCPDataSource ds (:datasource @active-db)]
-    (.close ds))
+  (when-let [ds (:datasource @active-db)]
+    (close-datasource ds))
   (reset! active-db nil))
 
 (defn set-active-db!
@@ -58,8 +61,8 @@
     (do (close-active-db)
         (reset! active-db db)
         (let [{:keys [host port dbname]} (:config db)]
-          (log/info (format "connected to postgres (%s:%d/%s)"
-                            host port dbname)))
+          (println (format "connected to postgres (%s:%d/%s)"
+                           host port dbname)))
         db)))
 
 ;; Add JDBC conversion methods for Postgres jsonb type

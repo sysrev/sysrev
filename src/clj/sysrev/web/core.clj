@@ -69,7 +69,7 @@
                   (run-server (sysrev-app (if prod? false true))
                               {:port port
                                :join? (if prod? true false)}))
-          (log/info (format "web server started (port %s)" port))
+          (println (format "web server started (port %s)" port))
           @web-server))))
 
 ;; if web server is running, restart it when this file is reloaded

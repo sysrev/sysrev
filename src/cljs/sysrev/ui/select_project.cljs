@@ -2,7 +2,8 @@
   (:require [sysrev.base :refer [st]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.ajax :as ajax]
-            [sysrev.util :refer [full-size? in?]]))
+            [sysrev.util :refer [full-size?]]
+            [sysrev.shared.util :refer [in?]]))
 
 (defn select-project-page []
   (let [user-id (st/current-user-id)

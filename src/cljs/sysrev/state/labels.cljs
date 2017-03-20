@@ -2,8 +2,7 @@
   (:require [sysrev.base :refer [st work-state]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :refer [project]]
-            [sysrev.util :refer [in?]]
-            [sysrev.shared.util :refer [map-values]])
+            [sysrev.shared.util :refer [map-values in?]])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defn set-member-labels [user-id lmap]

@@ -10,7 +10,7 @@
              [do-query do-execute do-transaction sql-now to-sql-array to-jsonb
               sql-field with-project-cache clear-project-cache with-query-cache
               clear-query-cache sql-array-contains]]
-            [sysrev.util :refer [in?]])
+            [sysrev.shared.util :refer [in?]])
   (:import java.util.UUID))
 
 ;;;

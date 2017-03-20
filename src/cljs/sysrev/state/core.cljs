@@ -1,6 +1,6 @@
 (ns sysrev.state.core
   (:require [sysrev.base :refer [st st-if-exists]]
-            [sysrev.util :refer [in?]]
+            [sysrev.shared.util :refer [in?]]
             [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 

@@ -18,10 +18,12 @@
      clear-project-cache clear-query-cache cached-project-ids to-jsonb]]
    [sysrev.db.articles :refer [set-article-flag remove-article-flag]]
    [sysrev.db.queries :as q]
-   [sysrev.shared.util :refer [map-values]]
-   [sysrev.shared.keywords :refer [canonical-keyword]]
-   [sysrev.util :refer [in?]])
+   [sysrev.shared.util :refer [map-values in?]]
+   [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
+
+(def default-project-settings
+  {:second-review-prob 0.5})
 
 (defn all-projects
   "Returns seq of short info on all projects, for interactive use."
@@ -107,7 +109,8 @@
   (-> (insert-into :project)
       (values [{:name project-name
                 :enabled true
-                :project-uuid (UUID/randomUUID)}])
+                :project-uuid (UUID/randomUUID)
+                :settings (to-jsonb default-project-settings)}])
       (returning :*)
       do-query
       first))
@@ -129,6 +132,20 @@
 (s/fdef delete-project
         :args (s/cat :project-id ::sc/project-id)
         :ret integer?)
+
+(defn change-project-setting [project-id setting new-value]
+  (let [project-id (q/to-project-id project-id)
+        cur-settings (-> (select :settings)
+                         (from :project)
+                         (where [:= :project-id project-id])
+                         do-query first :settings)
+        new-settings (assoc cur-settings setting new-value)]
+    (assert (s/valid? ::sp/settings new-settings))
+    (-> (sqlh/update :project)
+        (sset {:settings (to-jsonb new-settings)})
+        (where [:= :project-id project-id])
+        do-execute)
+    new-settings))
 
 (defn project-contains-public-id
   "Test if project contains an article with given `public-id` value."

@@ -4,7 +4,8 @@
    [sysrev.state.core :as st :refer
     [data on-page? current-page current-user-id logged-in? current-project-id]]
    [sysrev.ajax :as ajax]
-   [sysrev.util :refer [nav in? dissoc-in]]
+   [sysrev.util :refer [nav dissoc-in]]
+   [sysrev.shared.util :refer [in?]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-state using-work-state]]))

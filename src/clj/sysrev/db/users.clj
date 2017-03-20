@@ -1,8 +1,7 @@
 (ns sysrev.db.users
   (:require [sysrev.db.core :refer
              [do-query do-execute sql-now to-sql-array do-transaction]]
-            [sysrev.shared.util :refer [map-values]]
-            [sysrev.util :refer [in?]]
+            [sysrev.shared.util :refer [map-values in?]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]

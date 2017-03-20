@@ -21,6 +21,12 @@
            (recur (assoc res (.-index m) (first m)))
            res)))))
 
+(defn in?
+  "Tests if `coll` contains an element equal to `x`.
+  With one argument `coll`, returns the function #(in? coll %)."
+  ([coll x] (some #(= x %) coll))
+  ([coll] #(in? coll %)))
+
 (defn map-values
   "Map a function over the values of a collection of pairs (vector of vectors,
   hash-map, etc.) Optionally accept a result collection to put values into."

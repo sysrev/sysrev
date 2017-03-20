@@ -1,12 +1,18 @@
 (ns sysrev.shared.spec.project
   (:require [clojure.spec :as s]
+            [sysrev.shared.util :refer [in?]]
             [sysrev.shared.spec.core :as sc]))
+
+(def all-project-settings
+  [:second-review-prob])
 
 (s/def ::project-id ::sc/sql-serial-id)
 (s/def ::name string?)
 (s/def ::enabled boolean?)
 (s/def ::project-uuid ::sc/uuid)
 (s/def ::date-created inst?)
+(s/def ::setting (s/and keyword? (in? all-project-settings)))
+(s/def ::settings (s/nilable (s/map-of ::setting any?)))
 ;; map with all columns of `project` table required
 (s/def ::project
   (s/keys :req-un

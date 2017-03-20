@@ -12,11 +12,10 @@
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
    [sysrev.predict.report :refer [predict-summary]]
-   [sysrev.shared.util :refer [map-values]]
+   [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.util :refer
-    [should-never-happen-exception in?
-     integerify-map-keys uuidify-map-keys]]
+    [should-never-happen-exception integerify-map-keys uuidify-map-keys]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]

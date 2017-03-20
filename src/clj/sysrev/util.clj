@@ -18,12 +18,6 @@
     (when (integer? n)
       n)))
 
-(defn in?
-  "Tests if `coll` contains an element equal to `x`.
-  With one argument `coll`, returns the function #(in? coll %)."
-  ([coll x] (some #(= x %) coll))
-  ([coll] #(in? coll %)))
-
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
   to keywords. This converts any integer keywords back to integers, operating

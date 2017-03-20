@@ -7,13 +7,13 @@
    [sysrev.state.project :as project :refer [project]]
    [sysrev.state.labels :as l]
    [sysrev.state.notes :as notes]
-   [sysrev.shared.util :refer [map-values re-pos]]
+   [sysrev.shared.util :refer [map-values in? re-pos]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
      with-tooltip three-state-selection dangerous
      inconsistent-answers-notice]]
-   [sysrev.util :refer [full-size? mobile? in?]]
+   [sysrev.util :refer [full-size? mobile?]]
    [sysrev.ajax :as ajax]
    [reagent.core :as r]
    [sysrev.state.labels :as labels])

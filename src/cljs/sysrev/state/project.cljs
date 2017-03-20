@@ -1,6 +1,7 @@
 (ns sysrev.state.project
   (:require [sysrev.state.core :as st :refer [data user]]
-            [sysrev.util :refer [short-uuid in?]]
+            [sysrev.util :refer [short-uuid]]
+            [sysrev.shared.util :refer [in?]]
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [camel-snake-kebab.extras :refer [transform-keys]]))

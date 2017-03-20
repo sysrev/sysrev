@@ -15,11 +15,12 @@
                  ;; Database
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "42.0.0"]
-                 [clojure.jdbc/clojure.jdbc-c3p0 "0.3.2"]
                  [postgre-types "0.0.4"]
+                 [hikari-cp "1.7.5"]
                  [clj-postgresql "0.4.0"
                   :exclusions
-                  [org.clojure/java.jdbc
+                  [postgres
+                   org.clojure/java.jdbc
                    clj-time
                    joda-time
                    com.fasterxml.jackson.dataformat/jackson-dataformat-smile

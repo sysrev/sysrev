@@ -4,7 +4,8 @@
             [sysrev.state.project :as project :refer [project]]
             [sysrev.state.labels :as labels]
             [sysrev.util :refer
-             [nav number-to-word full-size? in?]]
+             [nav number-to-word full-size?]]
+            [sysrev.shared.util :refer [in?]]
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
             [reagent.core :as r]
