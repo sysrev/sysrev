@@ -62,7 +62,8 @@
                  [camel-snake-kebab "0.4.0"]
                  [cljsjs/chartjs "2.5.0-0"]
                  [org.clojure/test.check "0.9.0"]
-                 [com.andrewmcveigh/cljs-time "0.4.0"]]
+                 ;; [com.andrewmcveigh/cljs-time "0.4.0"]
+                 [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms800m"
              "-Xmx1500m"
