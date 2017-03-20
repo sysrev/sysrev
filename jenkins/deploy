@@ -7,3 +7,4 @@ ssh ubuntu@$SYSREV_HOST 'sudo systemctl restart sysrev-deployer'
 sleep 3
 SYSREV_REBUILD=0 ./scripts/deploy-client
 SYSREV_REBUILD=0 ./scripts/deploy-server
+sleep 3
