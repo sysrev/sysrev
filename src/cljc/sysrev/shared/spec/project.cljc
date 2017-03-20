@@ -16,11 +16,13 @@
 ;; map with all columns of `project` table required
 (s/def ::project
   (s/keys :req-un
-          [::project-id ::name ::enabled ::project-uuid ::date-created]))
+          [::project-id ::name ::enabled ::project-uuid ::date-created
+           ::settings]))
 ;; project map with fields optional
 (s/def ::project-partial
   (s/keys :opt-un
-          [::project-id ::name ::enabled ::project-uuid ::date-created]))
+          [::project-id ::name ::enabled ::project-uuid ::date-created
+           ::settings]))
 
 ;;
 ;; `project-member` table

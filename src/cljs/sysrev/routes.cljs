@@ -3,6 +3,7 @@
    [sysrev.base :refer [st work-state display-state display-ready]]
    [sysrev.state.core :as st :refer
     [data on-page? current-page current-user-id logged-in? current-project-id]]
+   [sysrev.state.project :refer [project]]
    [sysrev.ajax :as ajax]
    [sysrev.util :refer [nav dissoc-in]]
    [sysrev.shared.util :refer [in?]]
@@ -76,6 +77,19 @@
     (fn [s]
       (with-state s
         [[:project (current-project-id)]
+         [:users]]))
+    :reload
+    (fn [old new]
+      (with-state new
+        (when-let [project-id (current-project-id)]
+          [[:project project-id]])))}
+
+   :project-settings
+   {:required
+    (fn [s]
+      (with-state s
+        [[:project (current-project-id)]
+         [:project (current-project-id) :settings]
          [:users]]))
     :reload
     (fn [old new]
@@ -310,6 +324,10 @@
   (do-route-change :project
                    {:tab :predict
                     :active-label-id label-id}))
+
+(defroute project-settings-route "/project/settings" []
+  (do-route-change :project-settings
+                   {:active-values (project :settings)}))
 
 (defroute self-profile-route "/user" []
   (do-route-change :user-profile

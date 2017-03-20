@@ -5,7 +5,8 @@
               with-query-cache clear-query-cache
               with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :refer [project-labels project-overall-label-id]]
+            [sysrev.db.project :refer
+             [project-labels project-overall-label-id project-settings]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :refer [crypto-rand crypto-rand-nth]]
@@ -306,7 +307,9 @@
      predict-run-id)))
 
 (defn get-user-label-task [project-id user-id]
-  (let [articles (get-articles-with-label-users project-id)
+  (let [{:keys [second-review-prob]
+         :or {second-review-prob 0.5}} (project-settings project-id)
+        articles (get-articles-with-label-users project-id)
         [pending unlabeled]
         (pvalues
          (ideal-single-labeled-article project-id user-id nil articles)
@@ -314,7 +317,8 @@
         [article status]
         (cond
           (and pending unlabeled)
-          (if (<= (crypto-rand) 0.9) [unlabeled :fresh] [pending :single])
+          (if (<= (crypto-rand) second-review-prob)
+            [pending :single] [unlabeled :fresh])
           pending [pending :single]
           unlabeled [unlabeled :fresh]
           :else nil)]

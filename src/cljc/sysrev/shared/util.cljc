@@ -61,3 +61,9 @@
       #?(:clj (UUID/fromString (:str in))
          :cljs (uuid (:str in)))
       :else nil)))
+
+(defn num-to-english [n]
+  (get ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight"
+        "nine" "ten" "eleven" "twelve" "thirteen" "fourteen" "fifteen"
+        "sixteen"]
+       n))

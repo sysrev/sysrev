@@ -110,3 +110,10 @@
                   (and self-id include-self-admin?
                        (= user-id self-id))))))
          (sort <))))
+
+(defn member-permissions [user-id]
+  (project :members user-id :permissions))
+
+(defn project-admin? [& [user-id]]
+  (let [user-id (or user-id (st/current-user-id))]
+    (boolean (in? (member-permissions user-id) "admin"))))

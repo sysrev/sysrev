@@ -9,7 +9,8 @@
    [sysrev.ui.components :refer [notifier]]
    [sysrev.shared.components :refer [loading-content]]
    [sysrev.ui.sysrev :refer
-    [project-page project-overview-box project-predict-report-box]]
+    [project-page project-overview-box project-predict-report-box
+     project-settings-page]]
    [sysrev.ui.labels :refer [labels-page]]
    [sysrev.ui.login :refer [login-register-page]]
    [sysrev.ui.user-profile :refer [user-profile-page]]
@@ -43,7 +44,10 @@
            :overview [project-overview-box]
            :predict [project-predict-report-box]
            nil)]
-        (on-page? :labels) [project-page :labels [labels-page]]
+        (on-page? :labels)
+        [project-page :labels [labels-page]]
+        (on-page? :project-settings)
+        [project-page :settings [project-settings-page]]
         (on-page? :user-profile)
         [project-page :user-profile [user-profile-page]]
         (on-page? :classify)

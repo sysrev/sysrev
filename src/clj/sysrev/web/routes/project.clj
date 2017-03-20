@@ -7,7 +7,7 @@
    [sysrev.db.users :as users]
    [sysrev.db.project :refer
     [project-labels project-member project-article-count project-keywords
-     project-notes]]
+     project-notes project-settings]]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
@@ -119,6 +119,15 @@
                {:keys [verify-user-id]} (:body request)]
            (assert (= user-id verify-user-id) "verify-user-id mismatch")
            (project/delete-member-labels-notes project-id user-id)
+           {:result {:success true}})))
+
+  (POST "/api/change-project-setting" request
+        (wrap-permissions
+         request [] ["admin"]
+         (let [project-id (active-project request)
+               {:keys [setting value]} (:body request)]
+           (project/change-project-setting
+            project-id (keyword setting) value)
            {:result {:success true}}))))
 
 (defn prepare-article-response
@@ -352,7 +361,7 @@
 
 (defn project-info [project-id]
   (let [[predict articles labels inclusion-values label-values
-         conflicts members users keywords notes]
+         conflicts members users keywords notes settings]
         (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
@@ -362,7 +371,8 @@
                  (project-members-info project-id)
                  (project-users-info project-id)
                  (project-keywords project-id)
-                 (project-notes project-id))]
+                 (project-notes project-id)
+                 (project-settings project-id))]
     {:project {:project-id project-id
                :members members
                :stats {:articles articles
@@ -373,5 +383,6 @@
                        :predict predict}
                :labels (project-labels project-id)
                :keywords keywords
-               :notes notes}
+               :notes notes
+               :settings settings}
      :users users}))

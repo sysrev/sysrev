@@ -1,11 +1,12 @@
 (ns sysrev.ui.sysrev
-  (:require [sysrev.base :refer [st]]
+  (:require [sysrev.base :refer [st work-state]]
             [sysrev.state.core :as st :refer [data]]
-            [sysrev.state.project :as project :refer [project]]
+            [sysrev.state.project :as project
+             :refer [project project-admin?]]
             [sysrev.state.labels :as labels]
             [sysrev.util :refer
              [nav number-to-word full-size?]]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.shared.util :refer [in? num-to-english]]
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
             [reagent.core :as r]
@@ -14,8 +15,8 @@
             [camel-snake-kebab.extras :refer [transform-keys]]
             [sysrev.ui.charts :refer [chart-container line-chart bar-chart]]
             [goog.string :as string])
-
-  (:require-macros [sysrev.macros :refer [with-mount-hook]]))
+  (:require-macros
+   [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
 (defn user-info-card [user-id]
   (let [{:keys [email name]} (data [:users user-id])
@@ -137,51 +138,77 @@
   (let [make-class
         #(if (= % active-tab) "active item" "item")
         has-predict-data (not-empty (project :stats :predict :confidences))]
-    [:div.ui.five.item.secondary.pointing.menu.project-menu
-     [:a
-      {:class (make-class :overview)
-       :href "/project"}
-      [:h4.ui.header "Overview"]]
-     [:a
-      {:class (make-class :user-profile)
-       :href "/user"}
-      [:h4.ui.header "User profile"]]
-     [:a
-      {:class (make-class :labels)
-       :href "/project/labels"}
-      [:h4.ui.header "Labels"]]
-     (when has-predict-data
-       [:a
-        {:class (make-class :predict)
-         :href "/project/predict"}
-        [:h4.ui.header "Prediction"]])
-     [:a
-      {:class (make-class :classify)
-       :href "/project/classify"}
-      [:div.ui.large.basic.button.classify
-       "Classify"]]]))
+    (let [tabs
+          (->>
+           [[:a
+             {:class (make-class :overview)
+              :href "/project"}
+             [:h4.ui.header "Overview"]]
+            [:a
+             {:class (make-class :user-profile)
+              :href "/user"}
+             [:h4.ui.header "User profile"]]
+            [:a
+             {:class (make-class :labels)
+              :href "/project/labels"}
+             [:h4.ui.header "Labels"]]
+            (when has-predict-data
+              [:a
+               {:class (make-class :predict)
+                :href "/project/predict"}
+               [:h4.ui.header "Prediction"]])
+            #_
+            (when (project-admin?)
+              [:a
+               {:class (make-class :settings)
+                :href "/project/settings"}
+               [:h4.ui.header "Settings"]])
+            [:a
+             {:class (make-class :classify)
+              :href "/project/classify"}
+             [:div.ui.large.basic.button.classify
+              "Classify"]]]
+           (remove nil?))]
+      [:div.ui
+       {:class
+        (str (num-to-english (count tabs))
+             " item secondary pointing menu project-menu")}
+       (doall tabs)])))
 
 (defn project-page-menu-mobile [active-tab]
   (let [make-class
         #(if (= % active-tab) "active item" "item")]
-    [:div.ui.four.item.secondary.pointing.menu.project-menu
-     [:a
-      {:class (make-class :overview)
-       :href "/project"}
-      [:h4.ui.header "Overview"]]
-     [:a
-      {:class (make-class :user-profile)
-       :href "/user"}
-      [:h4.ui.header "User"]]
-     [:a
-      {:class (make-class :labels)
-       :href "/project/labels"}
-      [:h4.ui.header "Labels"]]
-     [:a
-      {:class (make-class :classify)
-       :href "/project/classify"}
-      [:div.ui.basic.button.classify
-       "Classify"]]]))
+    (let [tabs
+          (->>
+           [[:a
+             {:class (make-class :overview)
+              :href "/project"}
+             [:h4.ui.header "Overview"]]
+            [:a
+             {:class (make-class :user-profile)
+              :href "/user"}
+             [:h4.ui.header "User"]]
+            [:a
+             {:class (make-class :labels)
+              :href "/project/labels"}
+             [:h4.ui.header "Labels"]]
+            #_
+            (when (project-admin?)
+              [:a
+               {:class (make-class :settings)
+                :href "/project/settings"}
+               [:h4.ui.header "Settings"]])
+            [:a
+             {:class (make-class :classify)
+              :href "/project/classify"}
+             [:div.ui.basic.button.classify
+              "Classify"]]]
+           (remove nil?))]
+      [:div.ui
+       {:class
+        (str (num-to-english (count tabs))
+             " item secondary pointing menu project-menu")}
+       (doall tabs)])))
 
 (defn project-page-menu [active-tab]
   (if (full-size?)
@@ -336,18 +363,17 @@
             ppvs (mapv second data)
             npvs (mapv #(get % 2) data)
             coverages (mapv #(get % 3) data)]
-           [:div
-            [:div.ui.bottom.attached.segment
-             [:div.ui.center.aligned.header "Prediction confidence report"]
-             [:div.ui.segment
-              [project-predict-report-table vs]]
-             [:div.ui.segment
-              [chart-container
-               line-chart
-               confidences
-               ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
-               [ppvs npvs coverages]]]]]))))
-
+        [:div
+         [:div.ui.bottom.attached.segment
+          [:div.ui.center.aligned.header "Prediction confidence report"]
+          [:div.ui.segment
+           [project-predict-report-table vs]]
+          [:div.ui.segment
+           [chart-container
+            line-chart
+            confidences
+            ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
+            [ppvs npvs coverages]]]]]))))
 
 (defn project-invite-link-segment []
   [:div.ui.bottom.attached.segment.invite-link
@@ -356,6 +382,39 @@
     [:input.ui.input
      {:readOnly true
       :value (project/project-invite-url (st/current-project-id))}]]])
+
+(defn project-setting-wrapper [name description content]
+  [:div.ui.middle.aligned.grid
+   [:div.ui.row
+    [:span.name [:span.inner name]]]
+   [:div.ui.row
+    [:span.description [:span.inner description]]]
+   [:div.ui.row [:div.inner content]]])
+
+(defn project-settings-page []
+  (using-work-state
+   (when (and (empty? (st :page :settings :active-values))
+              (not-empty (project :settings)))
+     (swap! work-state assoc-in
+            [:page :settings :active-values]
+            (project :settings))))
+  (let [active (st :page :settings :active-values)
+        saved (project :settings)
+        row-size (if (full-size?) 2 1)
+        row-size-word (if (full-size?) "two" "one")]
+    [:div
+     {:class (str "ui "
+                  (if (full-size?) "two" "one")
+                  " column celled grid segment")}
+     (let [columns
+           [[:div.ui.column
+             [project-setting-wrapper
+              "Double-review priority"
+              "This controls classify task frequency of assigning an article for review by a second user. Setting to 100% will assign for second review always when any single-reviewed articles are available. Setting to 0% will assign unreviewed articles always when any are available."
+              [:div]]]]]
+       (doall
+        (for [row (partition-all row-size columns)]
+          [:div.ui.row (doall row)])))]))
 
 (defn project-page [active-tab content]
   (let [bottom-segment?

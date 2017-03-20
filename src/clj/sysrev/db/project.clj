@@ -141,6 +141,7 @@
                          do-query first :settings)
         new-settings (assoc cur-settings setting new-value)]
     (assert (s/valid? ::sp/settings new-settings))
+    (clear-project-cache project-id)
     (-> (sqlh/update :project)
         (sset {:settings (to-jsonb new-settings)})
         (where [:= :project-id project-id])
@@ -462,6 +463,17 @@
 (s/fdef project-notes
         :args (s/cat :project-id ::sc/project-id)
         :ret ::snt/project-notes-map)
+
+(defn project-settings
+  "Returns the current settings map for the project."
+  [project-id]
+  (let [project-id (q/to-project-id project-id)]
+    (-> (q/select-project-where [:= :p.project-id project-id] [:settings])
+        do-query first :settings)))
+;;
+(s/fdef project-settings
+        :args (s/cat :project-id ::sc/project-id)
+        :ret ::sp/settings)
 
 (defn project-member-article-notes
   "Returns a map of article notes saved by `user-id` in `project-id`."
