@@ -94,7 +94,10 @@
       (stop-webdriver)))
 
 (defn go-route [path & [wait-ms]]
-  (let [wait-ms (or wait-ms 350)
+  (let [local? (boolean
+                (= (:host (get-selenium-config))
+                   "localhost"))
+        wait-ms (or wait-ms (if local? 500 800))
         full-url (str (:url (get-selenium-config))
                       (if (= (nth path 0) \/)
                         (subs path 1) path))]
