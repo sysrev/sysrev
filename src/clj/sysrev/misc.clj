@@ -40,14 +40,6 @@
             (sql/raw (format "now() - interval '%s'" interval-string))]])
    do-execute))
 
-(defn alter-label [id values]
-  (-> (sqlh/update :label)
-      (sset values)
-      (where (if (integer? id)
-               [:= :label-id-local id]
-               [:= :label-id id]))
-      do-execute))
-
 (defn fix-duplicate-label-values [label-id]
   (let [label (->> (q/select-label-by-id label-id [:*])
                    do-query first)]

@@ -340,7 +340,8 @@
                       :category category}
                    user-id (assoc :user-id user-id)
                    label-id (assoc :label-id label-id)
-                   label-value (assoc :label-value (to-jsonb label-value))
+                   ((comp not nil?) label-value)
+                   (assoc :label-value (to-jsonb label-value))
                    color (assoc :color color))])
         (returning :*)
         do-query)))

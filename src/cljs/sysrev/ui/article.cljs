@@ -113,7 +113,8 @@
                           :span
                           {:class class
                            :on-click
-                           (when (and kw label label-value
+                           (when (and kw label
+                                      ((comp not nil?) label-value)
                                       (l/editing-article-labels?))
                              #(enable-label-value
                                (:label-id label) label-value))}

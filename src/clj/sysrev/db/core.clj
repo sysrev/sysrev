@@ -73,13 +73,10 @@
   (sql/call :cast x sql-type))
 
 (defn to-jsonb [x]
-  ;; unfortunately to-jsonb itself returns a map, so
-  ;; make sure `x` hasn't already been passed through to-jsonb
+  ;; don't convert to jsonb if `x` is a honeysql function call
   (if (and (map? x)
-           (= (:name x) :cast)
-           (contains? x :args)
-           (seq? (:args x))
-           (in? (:args x) :jsonb))
+           (= (set (keys x))
+              (set [:name :args])))
     x
     (sql-cast (clojure.data.json/write-str x) :jsonb)))
 
