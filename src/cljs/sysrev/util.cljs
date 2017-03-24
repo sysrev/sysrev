@@ -2,7 +2,10 @@
   (:require [pushy.core :as pushy]
             [sysrev.base :refer [history]]
             [clojure.string :as str :refer [split join]]
-            [goog.string :refer [unescapeEntities]]))
+            [goog.string :refer [unescapeEntities]]
+            [cljs-time.core :as t]
+            [cljs-time.format :as tformat]))
+
 
 (defn scroll-top []
   (. js/window (scrollTo 0 0)))
@@ -65,3 +68,12 @@
 
 (defn short-uuid [uuid-str]
   (last (str/split uuid-str #"\-")))
+
+(def date-from-string tformat/parse)
+
+(defn is-today? [date]
+  (let [today (t/today)]
+    (and
+      (= (t/day today) (t/day date))
+      (= (t/month today) (t/month date))
+      (= (t/year today) (t/year date)))))

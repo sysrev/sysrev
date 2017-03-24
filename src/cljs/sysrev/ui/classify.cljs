@@ -16,6 +16,12 @@
    [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-state]]))
 
+
+(defn activity-report []
+  [:div.ui.large.label
+   [:span.ui.green.circular.label (count (l/today-labels))]
+   [:span nbsp "articles confirmed today"]])
+
 (defn classify-page []
   (when-let [article-id (data :classify-article-id)]
     (let [user-id (current-user-id)
@@ -28,25 +34,24 @@
        [label-editor-component]
        [confirm-modal-box #(scroll-top)]
        (if (full-size?)
-         [:div.ui.grid
-          [:div.ui.row
-           [:div.ui.five.wide.column]
-           [:div.ui.six.wide.column.center.aligned
-            [:div.ui.grid.centered
-             [:div.row
-              (let [missing (l/required-answers-missing label-values)
-                    disabled? ((comp not empty?) missing)
-                    confirm-button
-                    [:div.ui.primary.right.labeled.icon.button
-                     {:class (if disabled? "disabled" "")
-                      :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
-                     "Confirm labels"
-                     [:i.check.circle.outline.icon]]]
-                (if disabled?
-                  [with-tooltip [:div confirm-button]]
-                  confirm-button))
-              [:div.ui.inverted.popup.top.left.transition.hidden
-               "Answer missing for a required label"]
+         [:div.ui.three.column.center.aligned.grid
+          [:div.left.aligned.column
+           [activity-report]]
+          [:div.center.aligned.column
+           (let [missing (l/required-answers-missing label-values)
+                 disabled? ((comp not empty?) missing)
+                 confirm-button
+                 [:div.ui.primary.right.labeled.icon.button
+                  {:class (if disabled? "disabled" "")
+                   :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+                  "Confirm labels"
+                  [:i.check.circle.outline.icon]]]
+             (if disabled?
+               [with-tooltip [:div confirm-button]]
+               confirm-button))
+           [:div.ui.inverted.popup.top.left.transition.hidden
+            "Answer missing for a required label"
+             [:div.column
               [:div.ui.right.labeled.icon.button
                {:on-click
                 #(do (ga-event "labels" "next_article")
@@ -54,18 +59,18 @@
                      (ajax/pull-member-labels user-id))}
                "Next article"
                [:i.right.circle.arrow.icon]]]]]
-           (let [n-unconfirmed
-                 (count
-                  (project :member-labels user-id :unconfirmed))
-                 n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
-             [:div.ui.five.wide.column
-              [:div.ui.buttons.right.floated
-               [:div.ui.labeled.button
-                {:on-click #(nav-scroll-top (str "/user/" user-id))
-                 :class (if (= 0 n-unconfirmed) "disabled" "")}
-                [:div.ui.green.button
-                 (str "Review unconfirmed")]
-                [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]]
+          (let [n-unconfirmed
+                (count
+                 (project :member-labels user-id :unconfirmed))
+                n-str (if (zero? n-unconfirmed) "" (str n-unconfirmed " "))]
+            [:div.column
+             [:div.ui.buttons.right.floated
+              [:div.ui.labeled.button
+               {:on-click #(nav-scroll-top (str "/user/" user-id))
+                :class (if (= 0 n-unconfirmed) "disabled" "")}
+               [:div.ui.green.button
+                (str "Review unconfirmed")]
+               [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]
          [:div.ui.grid
           {:style {:margin "0px"}}
           [:div.ui.row

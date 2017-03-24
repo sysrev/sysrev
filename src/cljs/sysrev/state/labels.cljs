@@ -2,7 +2,9 @@
   (:require [sysrev.base :refer [st work-state]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :refer [project]]
-            [sysrev.shared.util :refer [map-values in?]])
+            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.util :refer [date-from-string is-today?]])
+
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defn set-member-labels [user-id lmap]
@@ -218,3 +220,19 @@
           (label-answer-valid? label-id answer)))
        (apply concat)
        (apply hash-map)))
+
+
+(defn user-labels []
+  (let [project-id (st/current-project-id)
+        user-id (st/current-user-id)]
+    (data [:project project-id :member-labels user-id])))
+
+(defn today-labels []
+  (let [not-empty? (comp empty?)
+        today-label? #(-> % :confirm-time date-from-string is-today?)]
+    (->> (user-labels)
+         :confirmed
+         vals
+         (mapv first)
+         (filterv :confirm-time)
+         (filterv today-label?))))

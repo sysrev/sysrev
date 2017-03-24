@@ -249,8 +249,8 @@
                   do-query)
               (map
                #(-> %
-                    (assoc :confirmed (not (nil? (:confirm-time %))))
-                    (dissoc :confirm-time))))
+                    (assoc :confirmed (not (nil? (:confirm-time %)))))))
+                    ;(dissoc :confirm-time))))
              (->>
               (-> (q/select-project-articles
                    project-id
