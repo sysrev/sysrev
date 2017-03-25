@@ -85,7 +85,9 @@
                    (get label-values overall-label-id))
                 "disabled"
                 "")
-              :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+              :on-click
+              #_ #(do (.modal (js/$ ".ui.modal") "show"))
+              (fn [] (ajax/confirm-active-labels #(scroll-top)))}
              "Confirm"
              [:i.small.check.circle.outline.right.icon]]
             [:div.ui.small.button
