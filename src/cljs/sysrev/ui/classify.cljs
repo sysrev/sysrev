@@ -32,7 +32,7 @@
        [article-info-component
         article-id false user-id (data :classify-review-status) true]
        [label-editor-component]
-       [confirm-modal-box #(scroll-top)]
+       #_ [confirm-modal-box #(scroll-top)]
        (if (full-size?)
          [:div.ui.center.aligned.grid
           [:div.left.aligned.four.wide.column
@@ -45,7 +45,9 @@
                    confirm-button
                    [:div.ui.primary.right.labeled.icon.button
                     {:class (if disabled? "disabled" "")
-                     :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+                     :on-click
+                     #_ #(do (.modal (js/$ ".ui.modal") "show"))
+                     (fn [] (ajax/confirm-active-labels #(scroll-top)))}
                     "Confirm labels"
                     [:i.check.circle.outline.icon]]]
                (if disabled?

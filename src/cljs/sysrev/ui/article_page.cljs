@@ -46,13 +46,15 @@
           "Your labels for this article are not yet confirmed."]]
         [article-info-component article-id false]
         [label-editor-component]
-        [confirm-modal-box #(scroll-top)]
+        #_ [confirm-modal-box #(scroll-top)]
         (let [missing (l/required-answers-missing label-values)
               disabled? ((comp not empty?) missing)
               confirm-button
               [:div.ui.primary.right.labeled.icon.button
                {:class (if disabled? "disabled" "")
-                :on-click #(do (.modal (js/$ ".ui.modal") "show"))}
+                :on-click
+                #_ #(do (.modal (js/$ ".ui.modal") "show"))
+                (fn [] (ajax/confirm-active-labels #(scroll-top)))}
                "Confirm labels"
                [:i.check.circle.outline.icon]]]
           [:div.ui.grid.centered
