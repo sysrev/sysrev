@@ -135,80 +135,57 @@
      [chart-container bar-chart xs ynames yss]]))
 
 (defn project-page-menu-full [active-tab]
-  (let [make-class
-        #(if (= % active-tab) "active item" "item")
-        has-predict-data (not-empty (project :stats :predict :confidences))]
-    (let [tabs
-          (->>
-           [[:a
-             {:class (make-class :overview)
-              :href "/project"}
-             [:h4.ui.header "Overview"]]
-            [:a
-             {:class (make-class :user-profile)
-              :href "/user"}
-             [:h4.ui.header "User profile"]]
-            [:a
-             {:class (make-class :labels)
-              :href "/project/labels"}
-             [:h4.ui.header "Labels"]]
-            (when has-predict-data
-              [:a
-               {:class (make-class :predict)
-                :href "/project/predict"}
-               [:h4.ui.header "Prediction"]])
-            #_
-            (when (project-admin?)
-              [:a
-               {:class (make-class :settings)
-                :href "/project/settings"}
-               [:h4.ui.header "Settings"]])
-            [:a
-             {:class (make-class :classify)
-              :href "/project/classify"}
-             [:div.ui.large.basic.button.classify
-              "Classify"]]]
-           (remove nil?))]
-      [:div.ui
-       {:class
-        (str (num-to-english (count tabs))
-             " item secondary pointing menu project-menu")}
-       (doall tabs)])))
+  (let [make-class #(if (= % active-tab) "active item" "item")
+        has-predict-data (not-empty (project :stats :predict :confidences))
+        make-tab (fn [tab path label]
+                   ^{:key {:menu-tab tab}}
+                   [:a {:class (make-class tab) :href path}
+                    [:h4.ui.header label]])
+        n-tabs (+ 4
+                  (if has-predict-data 1 0)
+                  #_ (if (project-admin?) 1 0))]
+    [:div.ui
+     {:class
+      (str (num-to-english n-tabs)
+           " item secondary pointing menu project-menu")}
+     [make-tab :overview "/project" "Overview"]
+     [make-tab :user-profile "/user" "User profile"]
+     [make-tab :labels "/project/labels" "Labels"]
+     (when has-predict-data
+       [make-tab :predict "/project/predict" "Prediction"])
+     #_
+     (when (project-admin?)
+       [make-tab :settings "/project/settings" "Settings"])
+     [:a
+      {:class (make-class :classify) :href "/project/classify"}
+      [:div.ui.large.basic.button.classify "Classify"]]]))
 
 (defn project-page-menu-mobile [active-tab]
-  (let [make-class
-        #(if (= % active-tab) "active item" "item")]
-    (let [tabs
-          (->>
-           [[:a
-             {:class (make-class :overview)
-              :href "/project"}
-             [:h4.ui.header "Overview"]]
-            [:a
-             {:class (make-class :user-profile)
-              :href "/user"}
-             [:h4.ui.header "User"]]
-            [:a
-             {:class (make-class :labels)
-              :href "/project/labels"}
-             [:h4.ui.header "Labels"]]
-            #_
-            (when (project-admin?)
-              [:a
-               {:class (make-class :settings)
-                :href "/project/settings"}
-               [:h4.ui.header "Settings"]])
-            [:a
-             {:class (make-class :classify)
-              :href "/project/classify"}
-             [:div.ui.basic.button.classify
-              "Classify"]]]
-           (remove nil?))]
-      [:div.ui
-       {:class
-        (str (num-to-english (count tabs))
-             " item secondary pointing menu project-menu")}
-       (doall tabs)])))
+  (let [make-class #(if (= % active-tab) "active item" "item")
+        has-predict-data (not-empty (project :stats :predict :confidences))
+        make-tab (fn [tab path label]
+                   ^{:key {:menu-tab tab}}
+                   [:a {:class (make-class tab) :href path}
+                    [:h4.ui.header label]])
+        n-tabs (+ 4
+                  #_ (if has-predict-data 1 0)
+                  #_ (if (project-admin?) 1 0))]
+    [:div.ui
+     {:class
+      (str (num-to-english n-tabs)
+           " item secondary pointing menu project-menu")}
+     [make-tab :overview "/project" "Overview"]
+     [make-tab :user-profile "/user" "User profile"]
+     [make-tab :labels "/project/labels" "Labels"]
+     #_
+     (when has-predict-data
+       [make-tab :predict "/project/predict" "Prediction"])
+     #_
+     (when (project-admin?)
+       [make-tab :settings "/project/settings" "Settings"])
+     [:a
+      {:class (make-class :classify) :href "/project/classify"}
+      [:div.ui.basic.button.classify "Classify"]]]))
 
 (defn project-page-menu [active-tab]
   (if (full-size?)
