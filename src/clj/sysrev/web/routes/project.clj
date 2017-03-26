@@ -11,6 +11,7 @@
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
+   [sysrev.files.store :refer [store-file]]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
@@ -128,7 +129,15 @@
                {:keys [setting value]} (:body request)]
            (project/change-project-setting
             project-id (keyword setting) value)
-           {:result {:success true}}))))
+           {:result {:success true}})))
+
+  (POST "/api/upload-file" request
+        (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               file (get-in request [:params "file"])
+               filename (get-in request [:params "filename"])]
+           {:result "uploaded..."}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

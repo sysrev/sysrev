@@ -192,12 +192,23 @@
     [project-page-menu-full active-tab]
     [project-page-menu-mobile active-tab]))
 
+
+(defn project-files-box []
+  [:div.ui.grey.segment
+   [:div.ui.dividing.header "Project resources"]
+   [:div.ui.center.aligned.container
+    [:button.ui.large.primary.icon.button
+     [:i.ui.green.add.circle.icon]
+     "Upload Document"]]])
+
+
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
-     [label-counts-box]]
+     [label-counts-box]
+     [project-files-box]]
     [:div.ui.column
      [user-summary-chart]
      [member-list-box]]]])

@@ -6,6 +6,7 @@
             [ring.middleware.defaults :as default]
             [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
+            [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [org.httpkit.server :refer [run-server]]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
@@ -42,6 +43,7 @@
         wrap-sysrev-api
         wrap-add-anti-forgery-token
         wrap-json-response
+        wrap-multipart-params
         (#(if reloadable?
             (identity %)
             (wrap-reload % {:dirs ["src/clj"]})))
