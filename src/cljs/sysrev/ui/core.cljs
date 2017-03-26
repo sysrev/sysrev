@@ -1,6 +1,6 @@
 (ns sysrev.ui.core
   (:require
-   [sysrev.base :refer [st st-if-exists display-ready]]
+   [sysrev.base :refer [st st-if-exists display-ready loading-state]]
    [sysrev.util :refer [full-size?]]
    [sysrev.state.core :as st :refer
     [data current-page on-page? logged-in? current-project-id]]
@@ -24,7 +24,8 @@
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
-  (when (not @display-ready)
+  (when (and (not @display-ready)
+             (empty? @loading-state))
     [:div.ui.small.active.inline.loader]))
 
 (defn logged-out-content []

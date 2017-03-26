@@ -1,11 +1,12 @@
 (ns sysrev.routes
   (:require
-   [sysrev.base :refer [st work-state display-state display-ready]]
+   [sysrev.base :refer
+    [st work-state display-state display-ready clear-loading-state]]
    [sysrev.state.core :as st :refer
     [data on-page? current-page current-user-id logged-in? current-project-id]]
    [sysrev.state.project :refer [project]]
    [sysrev.ajax :as ajax]
-   [sysrev.util :refer [nav dissoc-in]]
+   [sysrev.util :refer [nav dissoc-in scroll-top]]
    [sysrev.shared.util :refer [in?]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
@@ -269,8 +270,14 @@
       (let [ready (data-initialized? page new)
             prev-ready (data-initialized? page old)]
         (when ready
-          (reset! display-state new)
-          (reset! display-ready true))
+          (let [new-display (-> new (dissoc :scroll-top))]
+            (reset! display-state new-display)
+            (reset! display-ready true)
+            (when (:scroll-top new)
+              (scroll-top)
+              (swap! work-state dissoc :scroll-top))))
+        (when (and ready (not prev-ready))
+          (clear-loading-state))
         ;; show a loading indicator if waiting for >100ms
         (when (and (not ready) prev-ready)
           (js/setTimeout
@@ -280,7 +287,7 @@
                     page (with-state newer (current-page))]
                 (when (not (data-initialized? page newer))
                   (reset! display-ready false)))))
-           100)))))))
+           50)))))))
 
 (defroute home-route "/" []
   (do-route-change :project

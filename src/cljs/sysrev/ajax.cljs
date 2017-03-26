@@ -1,6 +1,6 @@
 (ns sysrev.ajax
   (:require [ajax.core :refer [GET POST]]
-            [sysrev.base :refer [st work-state ga ga-event]]
+            [sysrev.base :refer [st work-state ga ga-event force-display-ready]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.state.labels :as l]
@@ -140,12 +140,12 @@
   (ajax-get
    (str "/api/article-info/" article-id)
    (fn [response]
-     (swap! work-state (l/set-article-labels
-                        article-id (:labels response)))
-     (swap! work-state (project/merge-articles
-                        {article-id (:article response)}))
-     (swap! work-state (notes/ensure-article-note-fields
-                        article-id (:notes response))))))
+     (->>
+      (comp
+       (l/set-article-labels article-id (:labels response))
+       (project/merge-articles {article-id (:article response)})
+       (notes/ensure-article-note-fields article-id (:notes response)))
+      (swap! work-state)))))
 
 (defn pull-reset-code-info [reset-code]
   (ajax-get
@@ -182,7 +182,7 @@
      (if (:valid response)
        (do
          (ga-event "auth" "login_success")
-         (notify "Logged in" {:class "green"})
+         #_ (notify "Logged in" {:class "green"})
          ;; use dissoc to emulate pull-identity having not run yet
          (swap! work-state dissoc :identity)
          (nav-scroll-top "/")
@@ -199,7 +199,7 @@
    (fn [response]
      (if (:success response)
        (do (ga-event "auth" "register_success")
-           (notify "Account created" {:class "green"})
+           #_ (notify "Account created" {:class "green"})
            (post-login email password))
        (do (ga-event "auth" "register_failure")
            (swap! work-state assoc-in [:page :register :err] (:message response)))))))
@@ -211,7 +211,7 @@
    (fn [response]
      (if (:success response)
        (do (ga-event "auth" "password_reset_success")
-           (notify "Password reset" {:class "green"})
+           #_ (notify "Password reset" {:class "green"})
            (swap! work-state (st/log-out))
            (nav-scroll-top "/login"))
        (do (ga-event "error" "password_reset_failure")
@@ -241,7 +241,7 @@
        (ga-event "auth" "logout_failure"))
      (swap! work-state (st/log-out))
      (nav-scroll-top "/")
-     (notify "Logged out"))))
+     #_ (notify "Logged out"))))
 
 (defn post-delete-user []
   (using-work-state
@@ -252,7 +252,7 @@
       (swap! work-state (st/log-out))
       (nav-scroll-top "/")
       (notify "Account deleted")
-      (notify "Logged out")))))
+      #_ (notify "Logged out")))))
 
 (defn post-delete-member-labels []
   (using-work-state
@@ -269,7 +269,7 @@
    "/api/select-project"
    {:project-id project-id}
    (fn [result]
-     (notify "Project selected")
+     #_ (notify "Project selected")
      (swap! work-state (st/change-project project-id))
      (nav-scroll-top "/"))))
 
@@ -278,15 +278,18 @@
    "/api/join-project"
    {:project-id project-id}
    (fn [result]
-     (notify "Joined project" {:class "green" :display-ms 2000})
+     #_ (notify "Joined project" {:class "green" :display-ms 2000})
      (swap! work-state (st/change-project project-id))
      (pull-identity)
      (nav-scroll-top "/"))))
 
-(defn fetch-classify-task [& [force?]]
+(defn fetch-classify-task [& [force? on-success]]
   (using-work-state
    (let [current-id (data :classify-article-id)]
      (when (or force? (nil? current-id))
+       (when force?
+         (swap! work-state dissoc-in [:data :classify-article-id]))
+       (force-display-ready false)
        (ajax-get
         "/api/label-task"
         (fn [result]
@@ -296,8 +299,9 @@
             (st/set-classify-task (:article-id result)
                                   (:review-status result)))
            (swap! work-state))
-          (scroll-top)
-          (notify "Fetched next article")))))))
+          (when on-success
+            (on-success))
+          #_ (notify "Fetched next article")))))))
 
 (defn send-labels
   "Update the database with user label values for `article-id`."
@@ -308,11 +312,12 @@
     :label-values label-values
     :confirm false}
    (fn [result]
-     (notify "Labels saved" {:display-ms 800}))))
+     #_ (notify "Labels saved" {:display-ms 800})
+     nil)))
 
 (defn confirm-labels
   "Same as `send-labels` but also marks the labels as confirmed."
-  [article-id label-values on-confirm]
+  [article-id label-values & [on-confirm on-fetch]]
   (ajax-post
    "/api/set-labels"
    {:article-id article-id
@@ -321,12 +326,13 @@
    (fn [result]
      (ga-event "labels" "confirm_success"
                (str "article-id = " article-id))
-     (notify "Labels submitted" {:class "green"})
+     (when (= article-id (data :classify-article-id))
+       (fetch-classify-task true on-fetch))
+     #_ (notify "Labels submitted" {:class "green"})
      (pull-article-info article-id)
      (pull-member-labels (st/current-user-id))
-     (when (= article-id (data :classify-article-id))
-       (fetch-classify-task true))
-     (on-confirm))))
+     (when on-confirm
+       (on-confirm)))))
 
 (defn send-active-labels
   "Calls `send-labels` with values from the active editor."
@@ -343,12 +349,13 @@
 
 (defn confirm-active-labels
   "Calls `confirm-labels` with values from the active editor."
-  [on-confirm]
+  [& [on-confirm on-fetch]]
   (using-work-state
    (when (l/editing-article-labels?)
      (confirm-labels (l/active-editor-article-id)
                      (l/active-label-values)
-                     on-confirm))))
+                     on-confirm
+                     on-fetch))))
 
 (defn send-article-note
   [article-id note-name content]
@@ -367,7 +374,7 @@
   [ks & [force?]]
   (using-work-state
    (let [ks (if (keyword? ks) [ks] ks)]
-     (when (or force? (nil? (data ks)))
+     (when (or force? (= :not-found (data ks :not-found)))
        (case (first ks)
          :project (cond
                     (<= (count ks) 2)

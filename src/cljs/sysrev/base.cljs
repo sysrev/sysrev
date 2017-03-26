@@ -1,8 +1,10 @@
 (ns sysrev.base
-  (:require [reagent.core :as r]
+  (:require [clojure.spec :as s]
+            [reagent.core :as r]
             [secretary.core :as secretary :include-macros true]
             [pushy.core :as pushy]
-            [cljs.pprint :refer [pprint]])
+            [cljs.pprint :refer [pprint]]
+            [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defonce build-profile
@@ -15,6 +17,40 @@
 ;; Used to control visibility of loading indicator based on
 ;; whether display-state is up-to-date with work-state.
 (defonce display-ready (r/atom false))
+;; Used to render specific components (like buttons) as waiting
+;; on response from server
+(defonce loading-state (r/atom []))
+
+(defn set-loading-state
+  "Marks identifier `val` as currently waiting on a server response.
+   UI components can then use `get-loading-state` to render a loading 
+   indicator.
+
+   The state should usually be cleared automatically by the 
+   `:update-display-state` watch in sysrev.routes after the ongoing
+   requests have completed."
+  ([val]
+   (set-loading-state val true))
+  ([val loading?]
+   (if loading?
+     (swap! loading-state #(->> (conj % val) distinct vec))
+     (swap! loading-state #(->> % (remove (partial = val)) vec)))))
+
+(defn get-loading-state [val]
+  (boolean (in? @loading-state val)))
+
+(defn clear-loading-state []
+  (reset! loading-state []))
+
+(defn schedule-scroll-top []
+  (if @display-ready
+    (scroll-top)
+    (swap! work-state assoc :scroll-top true)))
+
+(defn force-display-ready [ready?]
+  (reset! display-ready ready?))
+(s/fdef force-display-ready
+        :args (s/cat :ready? boolean?))
 
 (defn init-state []
   (let [s {;; State specific to current page

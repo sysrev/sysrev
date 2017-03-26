@@ -1,7 +1,7 @@
 (ns sysrev.ui.article-page
   (:require
-   [sysrev.base :refer [st]]
-   [sysrev.util :refer [scroll-top]]
+   [sysrev.base :refer
+    [st set-loading-state get-loading-state schedule-scroll-top]]
    [sysrev.state.core :as st
     :refer [current-page current-user-id on-page?]]
    [sysrev.state.project :as project :refer [project]]
@@ -46,15 +46,18 @@
           "Your labels for this article are not yet confirmed."]]
         [article-info-component article-id false]
         [label-editor-component]
-        #_ [confirm-modal-box #(scroll-top)]
+        #_ [confirm-modal-box #(schedule-scroll-top)]
         (let [missing (l/required-answers-missing label-values)
               disabled? ((comp not empty?) missing)
               confirm-button
               [:div.ui.primary.right.labeled.icon.button
-               {:class (if disabled? "disabled" "")
+               {:class (str (if disabled? "disabled" "")
+                            " "
+                            (if (get-loading-state :confirm) "loading" ""))
                 :on-click
-                #_ #(do (.modal (js/$ ".ui.modal") "show"))
-                (fn [] (ajax/confirm-active-labels #(scroll-top)))}
+                (fn []
+                  (set-loading-state :confirm true)
+                  (ajax/confirm-active-labels #(schedule-scroll-top)))}
                "Confirm labels"
                [:i.check.circle.outline.icon]]]
           [:div.ui.grid.centered
