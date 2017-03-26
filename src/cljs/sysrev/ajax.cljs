@@ -7,7 +7,7 @@
             [sysrev.state.notes :as notes]
             [sysrev.shared.util :as us :refer [map-values]]
             [sysrev.util :refer
-             [nav scroll-top nav-scroll-top dissoc-in]]
+             [nav nav-scroll-top dissoc-in]]
             [sysrev.notify :refer [notify]])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 

@@ -42,6 +42,9 @@
 (defn clear-loading-state []
   (reset! loading-state []))
 
+(defn scroll-top []
+  (. js/window (scrollTo 0 0)))
+
 (defn schedule-scroll-top []
   (if @display-ready
     (scroll-top)

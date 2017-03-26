@@ -1,14 +1,10 @@
 (ns sysrev.util
   (:require [pushy.core :as pushy]
-            [sysrev.base :refer [history]]
+            [sysrev.base :refer [history scroll-top]]
             [clojure.string :as str :refer [split join]]
             [goog.string :refer [unescapeEntities]]
             [cljs-time.core :as t]
             [cljs-time.format :as tformat]))
-
-
-(defn scroll-top []
-  (. js/window (scrollTo 0 0)))
 
 (defn nav
   "Change the current route."
