@@ -56,7 +56,7 @@
 (defn project-labels-ordered
   "Return label definition entries ordered first by category/type and then
   by project-ordering value."
-  []
+  [& [include-disabled?]]
   (let [group-idx
         (fn [{:keys [required category value-type]}]
           (let [inclusion? (= category "inclusion criteria")
@@ -76,6 +76,7 @@
               extra? 5
               :else 6)))]
     (->> (vals (project :labels))
+         (filter #(or include-disabled? (:enabled %)))
          (sort-by #(vector
                     (group-idx %) (:project-ordering %))
                   <))))

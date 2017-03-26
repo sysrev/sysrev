@@ -98,6 +98,7 @@
            (mapv (fn [{:keys [keyword-id text]}]
                    (let [kw (and keyword-id (get keywords keyword-id))
                          label (and kw (project :labels (:label-id kw)))
+                         label-enabled? (:enabled label)
                          label-value (and kw (:label-value kw))
                          class (cond
                                  (nil? kw)
@@ -113,13 +114,14 @@
                           :span
                           {:class class
                            :on-click
-                           (when (and kw label
+                           (when (and kw label label-enabled?
                                       ((comp not nil?) label-value)
                                       (l/editing-article-labels?))
                              #(enable-label-value
                                (:label-id label) label-value))}
                           text)]
-                     (if (and kw show-tooltip (l/editing-article-labels?))
+                     (if (and kw show-tooltip label-enabled?
+                              (l/editing-article-labels?))
                        (keyword-button-elements
                         span-content (:name label) label-value)
                        [span-content]))))

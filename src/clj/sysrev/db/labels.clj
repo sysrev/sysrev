@@ -1,5 +1,7 @@
 (ns sysrev.db.labels
-  (:require [sysrev.db.core :as db :refer
+  (:require [clojure.spec :as s]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.db.core :as db :refer
              [do-query do-query-map do-execute do-transaction
               sql-now to-sql-array to-jsonb sql-cast
               with-query-cache clear-query-cache
@@ -611,3 +613,13 @@
     (log/info (format "inverted %d boolean answers"
                       (+ (count true-ids) (count false-ids))))
     true))
+
+(defn set-label-enabled [label-id enabled?]
+  (let [label-id (q/to-label-id label-id)]
+    (-> (sqlh/update :label)
+        (sset {:enabled enabled?})
+        (where [:= :label-id label-id])
+        do-execute)))
+(s/fdef set-label-enabled
+        :args (s/cat :label-id ::sc/label-id
+                     :enabled? boolean?))
