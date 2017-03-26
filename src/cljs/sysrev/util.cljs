@@ -71,8 +71,9 @@
 
 (def date-from-string tformat/parse)
 
-(defn is-today? [date]
-  (let [today (t/today)]
+(defn is-today? [utc-date]
+  (let [today (t/today)
+        date (t/to-default-time-zone utc-date)]
     (and
       (= (t/day today) (t/day date))
       (= (t/month today) (t/month date))
