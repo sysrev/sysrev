@@ -3,8 +3,8 @@ set -eu
 
 dir=/data/sysrev
 
-$dir/scripts/receive-client && true
-$dir/scripts/receive-server && true
+# $dir/scripts/receive-client && true
+# $dir/scripts/receive-server && true
 
 echo $dir/deploy/deploy-done.client | entr $dir/scripts/receive-client &
 echo $dir/deploy/deploy-done.server | entr $dir/scripts/receive-server &
