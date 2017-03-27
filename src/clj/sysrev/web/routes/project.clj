@@ -11,7 +11,7 @@
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
-   [sysrev.files.store :refer [store-file]]
+   [sysrev.files.stores :refer [store-file project-files delete-file]]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
@@ -131,13 +131,30 @@
             project-id (keyword setting) value)
            {:result {:success true}})))
 
-  (POST "/api/upload-file" request
+  (POST "/api/files/upload" request
         (wrap-permissions
          request [] ["member"]
          (let [project-id (active-project request)
                file (get-in request [:params "file"])
                filename (get-in request [:params "filename"])]
-           {:result "uploaded..."}))))
+           (println file)
+           (println filename)
+           {:result "uploaded..."})))
+
+  (GET "/api/files" request
+       (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               files (project-files project-id)]
+           {:result (into {} files)})))
+
+  (POST "/api/files/delete/:key" request
+        (wrap-permissions
+          request [] ["admin"]
+          (let [project-id (active-project request)
+                key (-> request :params :key)
+                deletion (delete-file project-id key)]
+            {:result deletion}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
@@ -370,7 +387,7 @@
 
 (defn project-info [project-id]
   (let [[predict articles labels inclusion-values label-values
-         conflicts members users keywords notes settings]
+         conflicts members users keywords notes settings files]
         (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
@@ -381,7 +398,8 @@
                  (project-users-info project-id)
                  (project-keywords project-id)
                  (project-notes project-id)
-                 (project-settings project-id))]
+                 (project-settings project-id)
+                 (project-files project-id))]
     {:project {:project-id project-id
                :members members
                :stats {:articles articles
@@ -393,5 +411,6 @@
                :labels (project-labels project-id)
                :keywords keywords
                :notes notes
-               :settings settings}
+               :settings settings
+               :files files}
      :users users}))

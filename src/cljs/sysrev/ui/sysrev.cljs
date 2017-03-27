@@ -1,5 +1,6 @@
 (ns sysrev.ui.sysrev
   (:require [sysrev.base :refer [st work-state]]
+            [sysrev.ajax :refer [send-file-url]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project
              :refer [project project-admin?]]
@@ -9,12 +10,15 @@
             [sysrev.shared.util :refer [in? num-to-english]]
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
+            [sysrev.ui.upload :refer [upload-container basic-text-button]]
             [reagent.core :as r]
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [camel-snake-kebab.extras :refer [transform-keys]]
             [sysrev.ui.charts :refer [chart-container line-chart bar-chart]]
-            [goog.string :as string])
+            [goog.string :as string]
+            [cljs-time.core :as t]
+            [cljs-time.format :as tf])
   (:require-macros
    [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
@@ -193,14 +197,37 @@
     [project-page-menu-mobile active-tab]))
 
 
-(defn project-files-box []
-  [:div.ui.grey.segment
-   [:div.ui.dividing.header "Project resources"]
-   [:div.ui.center.aligned.container
-    [:button.ui.large.primary.icon.button
-     [:i.ui.green.add.circle.icon]
-     "Upload Document"]]])
+(def file-types {"doc" "word"
+                 "docx" "word"
+                 "pdf" "pdf"
+                 "xlsx" "excel"
+                 "xls" "excel"})
 
+(defn get-file-class [fname]
+  (get file-types (-> fname (string/lastComponent ".") last) "text"))
+
+(defn project-files-box []
+  (letfn [(show-date [file]
+            (let [date (tf/parse (:upload-time file))
+                  parts (mapv #(% date) [t/month t/day t/year])]
+              (apply goog.string/format "%d/%d/%d" parts)))]
+    (fn []
+      [:div.ui.grey.segment
+       [:div.ui.dividing.header "Project resources"]
+       (when-let [files (:files (project))]
+         [:div.ui.relaxed.divided.list
+          (doall
+            (->>
+              files
+              (map
+                (fn [file]
+                  [:div.item {:key (:file-id file)}
+                   [:i.ui.outline.file.icon {:class (get-file-class (:name file))}]
+                   [:div.content
+                    [:a.header (:name file)]
+                    [:div.description (show-date file)]]]))))])
+       [:div.ui.center.aligned.container
+        [upload-container basic-text-button send-file-url "Upload Project Document"]]])))
 
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid
