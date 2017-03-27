@@ -394,3 +394,6 @@
          :classify-article-id (fetch-classify-task force?)
          :documents (pull-article-documents)
          nil)))))
+
+
+(def send-file-url "/api/files/upload")
