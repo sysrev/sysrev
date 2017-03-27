@@ -1,5 +1,6 @@
 (ns sysrev.util
-  (:require [pushy.core :as pushy]
+  (:require [clojure.test.check.generators :as gen]
+            [pushy.core :as pushy]
             [sysrev.base :refer [history scroll-top]]
             [clojure.string :as str :refer [split join]]
             [goog.string :refer [unescapeEntities]]
@@ -74,3 +75,12 @@
      (= (t/day today) (t/day date))
      (= (t/month today) (t/month date))
      (= (t/year today) (t/year date)))))
+
+
+(defn random-id
+  "Generate a random-id to use for manually rendered components."
+  ([len]
+   (let [length (or len 6)
+         char-gen (gen/fmap char (gen/one-of [(gen/choose 65 90) (gen/choose 97 122)]))]
+     (apply str (gen/sample char-gen length))))
+  ([] (random-id 6)))
