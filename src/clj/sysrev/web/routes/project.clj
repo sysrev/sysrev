@@ -11,7 +11,7 @@
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
-   [sysrev.files.stores :refer [store-file project-files delete-file]]
+   [sysrev.files.stores :refer [store-file project-files delete-file get-file]]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
@@ -22,10 +22,22 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [compojure.core :refer :all]
-   [sysrev.db.project :as project]))
+   [sysrev.db.project :as project])
+  (:import java.util.UUID))
 
 (declare project-info)
 (declare prepare-article-response)
+
+(defn input-stream-response
+  "Returns a Ring response to serve an FileInputStream, or nil if an appropriate
+  stream is not readable.
+  Options:
+    :root            - take the filepath relative to this root path
+    :index-files?    - look for index.* files in directories, defaults to true
+    :allow-symlinks? - serve files through symbolic links, defaults to false"
+  [meta stream]
+  (ring.util.response/response (slurp stream)))
+
 
 (defroutes project-routes
   ;; Returns full information for active project
@@ -96,7 +108,7 @@
             (project/project-member-article-labels project-id user-id)
             {:notes
              (project/project-member-article-notes project-id user-id)})})))
-  
+
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
        (wrap-permissions
@@ -148,6 +160,17 @@
          (let [project-id (active-project request)
                files (project-files project-id)]
            {:result files})))
+
+
+
+  (GET "/api/files/:key" request
+       (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               uuid (-> request :params :key (UUID/fromString))
+               file-data (get-file project-id uuid)]
+           (input-stream-response (:filerec file-data) (:filestream file-data)))))
+
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions

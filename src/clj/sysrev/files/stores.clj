@@ -23,3 +23,7 @@
 (defn delete-file [project-id key]
   (-> (get-store)
       (store/delete-file project-id key)))
+
+(defn get-file [project-id key]
+  (-> (get-store)
+      (store/get-file-by-key project-id key)))
