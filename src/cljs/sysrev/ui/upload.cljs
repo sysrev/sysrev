@@ -12,15 +12,16 @@
 
 (defn upload-container
   "Create uploader form component."
-  [childer upload-url & args]
+  [childer upload-url on-success & args]
   (let [id (random-id)
         opts {:url upload-url
               :headers (when-let [csrf-token (st/csrf-token)]
                          {"x-csrf-token" csrf-token})
-              :addedfile #(notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"])}]
+              :addedfile #(notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"])
+              :success on-success}]
     (letfn [(make-uploader [url]
               (js/Dropzone. (str "div#" id) (clj->js opts)))]
-      (r/create-class {:reagent-render (fn [childer upload-url & args]
+      (r/create-class {:reagent-render (fn [childer upload-url _ & args]
                                           (apply childer id args))
                        :component-did-update (fn [this [_ upload-url]]
                                                (make-uploader upload-url))

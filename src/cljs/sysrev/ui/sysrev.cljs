@@ -227,7 +227,7 @@
                     [:a.header (:name file)]
                     [:div.description (show-date file)]]]))))])
        [:div.ui.center.aligned.container
-        [upload-container basic-text-button send-file-url "Upload Project Document"]]])))
+        [upload-container basic-text-button send-file-url sysrev.ajax/pull-files "Upload Project Document"]]])))
 
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid

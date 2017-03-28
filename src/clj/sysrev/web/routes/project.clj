@@ -135,18 +135,19 @@
         (wrap-permissions
          request [] ["member"]
          (let [project-id (active-project request)
-               file (get-in request [:params "file"])
-               filename (get-in request [:params "filename"])]
-           (println file)
-           (println filename)
-           {:result "uploaded..."})))
+               file-data (get-in request [:params :file])
+               file (:tempfile file-data)
+               filename (:filename file-data)
+               user-id (current-user-id request)]
+           (store-file project-id user-id filename file)
+           {:result 1})))
 
   (GET "/api/files" request
        (wrap-permissions
          request [] ["member"]
          (let [project-id (active-project request)
                files (project-files project-id)]
-           {:result (into {} files)})))
+           {:result files})))
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions

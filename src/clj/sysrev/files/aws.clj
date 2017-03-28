@@ -17,10 +17,6 @@
   (attributes [this] [access-key secret-key endpoint]))
 
 
-(defn show [arg]
-  (println arg)
-  arg)
-
 (defrecord FileResponse [filerec filestream])
 
 (deftype S3Store [connection]
@@ -28,8 +24,10 @@
   (connect [this]
     (apply defcredential (attributes connection))
     this)
+
   store/FileStore
   (make-unique-key [this] (UUID/randomUUID))
+
   (save-file [this project-id user-id name file]
     (let [uuid (store/make-unique-key this)
           save-req
@@ -42,20 +40,21 @@
                   :user-id user-id}]
       (-> save-req
           (s3/put-object)
-          (show)
           (select-keys [:etag :content-md5])
           (merge detail)
           (files/map->Filerec)
-          (show)
           (insert-file-rec))))
+
   (list-files-for-project [this project-id]
     (files/list-files-for-project project-id))
+
   (get-file-by-key [this project-id key]
     (let [req {:key key :bucket-name (:bucket-name connection)}]
       (->FileResponse
         (files/file-by-id key project-id)
         (-> (s3/get-object req)
             :object-content))))
+
   (delete-file [this project-id key]
     (files/mark-deleted key project-id)))
 

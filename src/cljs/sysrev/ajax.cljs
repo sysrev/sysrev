@@ -397,3 +397,10 @@
 
 
 (def send-file-url "/api/files/upload")
+
+(defn pull-files []
+  (let [project-id (st/current-project-id)]
+    (ajax-get
+      "/api/files"
+      (fn [result]
+        (swap! work-state assoc-in [:data :project project-id :files] result)))))
