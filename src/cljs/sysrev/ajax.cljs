@@ -404,3 +404,12 @@
       "/api/files"
       (fn [result]
         (swap! work-state assoc-in [:data :project project-id :files] result)))))
+
+(defn delete-file [key]
+  (ajax-post
+    (str "/api/files/delete/" key)
+    pull-files))
+
+(defn get-file [key]
+  (-> js/window
+      (aset "location" (str "/api/files/" key))))

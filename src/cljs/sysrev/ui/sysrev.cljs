@@ -1,6 +1,6 @@
 (ns sysrev.ui.sysrev
   (:require [sysrev.base :refer [st work-state]]
-            [sysrev.ajax :refer [send-file-url]]
+            [sysrev.ajax :refer [send-file-url pull-files delete-file get-file]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project
              :refer [project project-admin?]]
@@ -201,33 +201,44 @@
                  "docx" "word"
                  "pdf" "pdf"
                  "xlsx" "excel"
-                 "xls" "excel"})
+                 "xls" "excel"
+                 "gz" "archive"
+                 "tgz" "archive"
+                 "zip" "archive"})
 
 (defn get-file-class [fname]
-  (get file-types (-> fname (string/lastComponent ".") last) "text"))
+  (get file-types (-> fname (.split ".") last) "text"))
+
+
+(defonce editing-files (r/atom false))
+(defn toggle-editing [] (swap! editing-files not))
 
 (defn project-files-box []
   (letfn [(show-date [file]
             (let [date (tf/parse (:upload-time file))
                   parts (mapv #(% date) [t/month t/day t/year])]
               (apply goog.string/format "%d/%d/%d" parts)))]
-    (fn []
-      [:div.ui.grey.segment
-       [:div.ui.dividing.header "Project resources"]
-       (when-let [files (:files (project))]
-         [:div.ui.relaxed.divided.list
-          (doall
-            (->>
-              files
-              (map
-                (fn [file]
-                  [:div.item {:key (:file-id file)}
-                   [:i.ui.outline.file.icon {:class (get-file-class (:name file))}]
-                   [:div.content
-                    [:a.header (:name file)]
-                    [:div.description (show-date file)]]]))))])
-       [:div.ui.center.aligned.container
-        [upload-container basic-text-button send-file-url sysrev.ajax/pull-files "Upload Project Document"]]])))
+    [:div.ui.grey.segment
+     [:h4.item {:style {:margin-bottom "0px"}}
+      "Project resources"]
+     (when-let [files (:files (project))]
+       [:div.ui.celled.list
+        (doall
+          (->>
+            files
+            (map
+              (fn [file]
+                [:div.icon.item {:key (:file-id file)}
+                 (if @editing-files
+                   [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
+                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
+                 [:div.content {:on-click #(get-file (:file-id file))}
+                  [:a.header (:name file)]
+                  [:div.description (show-date file)]]]))))])
+     [:div.ui.container
+      [upload-container basic-text-button send-file-url pull-files "Upload Project Document"]
+      [:div.ui.right.floated.basic.icon.button {:on-click toggle-editing :class (when @editing-files "red")}
+       [:i.ui.small.small.blue.pencil.icon]]]]))
 
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid

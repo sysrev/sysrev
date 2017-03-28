@@ -50,7 +50,7 @@
 
   (get-file-by-key [this project-id key]
     (let [req {:key key :bucket-name (:bucket-name connection)}]
-      (->FileResponse
+      (store/->FileResponse
         (files/file-by-id key project-id)
         (-> (s3/get-object req)
             :object-content))))

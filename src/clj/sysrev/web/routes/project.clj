@@ -151,10 +151,11 @@
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions
-          request [] ["admin"]
+          ;TODO: This should be file owner or admin?
+          request [] ["member"]
           (let [project-id (active-project request)
                 key (-> request :params :key)
-                deletion (delete-file project-id key)]
+                deletion (delete-file project-id (UUID/fromString key))]
             {:result deletion}))))
 
 (defn prepare-article-response

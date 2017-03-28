@@ -26,7 +26,9 @@
   (->>
     (-> (select :*)
         (from :filestore)
-        (where [:= :project-id project-id])
+        (where [:and
+                [:= nil :delete-time]
+                [:= :project-id project-id]])
         (order-by [[:ordering :asc :nulls-first] [:upload-time :asc]])
         (do-query))
     (mapv map->Filerec)))
@@ -46,9 +48,9 @@
     map->Filerec))
 
 (defn mark-deleted [id project-id]
-  (-> (update :filestore)
-      (sset {:deleted-time (java.util.Date.)})
+  (-> (sqlh/update :filestore)
+      (sset {:delete-time (sql-now)})
       (where [:and
-              [:= :key id]
+              [:= :file-id id]
               [:= :project-id project-id]])
       (do-execute)))

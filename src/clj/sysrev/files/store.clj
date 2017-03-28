@@ -1,6 +1,8 @@
 (ns sysrev.files.store
   (:require [config.core :refer [env]]))
 
+(defrecord FileResponse [filerec filestream])
+
 (defprotocol FileStore
   (save-file [this project-id user-id name file]
     "Save file should save the file, link to project, and

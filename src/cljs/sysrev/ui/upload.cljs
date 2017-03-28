@@ -6,7 +6,7 @@
             [sysrev.notify :refer [notify]]))
 
 (defn basic-text-button [id & args]
-  [:div.ui.basic.label {:id id :style {:cursor "pointer"}}
+  [:div.ui.basic.button {:id id :style {:cursor "pointer"}}
    [:i.ui.green.add.circle.icon]
    (first args)])
 
