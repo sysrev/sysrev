@@ -14,7 +14,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [clj-time.format :as tf]
             [clj-time.coerce :as tc]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [clojure.string :as str])
   (:import (java.sql Timestamp Date Connection)
            java.util.UUID))

@@ -6,7 +6,7 @@
             [cljs.build.api :as cljs]
             [clj-webdriver.driver :as driver]
             [clj-webdriver.taxi :as taxi]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [sysrev.test.core :refer [default-fixture get-selenium-config]]
             [sysrev.db.users :refer
              [delete-user create-user get-user-by-email]]

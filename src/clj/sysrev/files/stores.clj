@@ -1,6 +1,6 @@
 (ns sysrev.files.stores
   (:require [sysrev.files.aws :as aws]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [sysrev.files.store :as store]))
 
 (defmulti get-store (fn [] (get-in env [:filestore :type])))

@@ -3,7 +3,7 @@
             [clojure.spec :as s]
             [clojure.spec.test :as t]
             [clojure.tools.logging :as log]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [sysrev.init :refer [start-app]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :refer [set-active-db! make-db-config close-active-db

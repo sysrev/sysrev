@@ -1,5 +1,5 @@
 (ns sysrev.files.store
-  (:require [config.core :refer [env]]))
+  (:require [sysrev.config.core :refer [env]]))
 
 (defrecord FileResponse [filerec filestream])
 

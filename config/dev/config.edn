@@ -6,4 +6,5 @@
   :port 5432}
  :server
  {:port 4041}
- :profile :dev}
+ :profile :dev
+ :private-config ".config.local.edn"}

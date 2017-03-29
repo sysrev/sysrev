@@ -47,8 +47,6 @@
                  [crypto-random "1.2.0"]
                  ;; Email
                  [com.draines/postal "2.0.2"]
-                 ;; Project config file support
-                 [yogthos/config "0.8"]
                  ;; Logging
                  [org.clojure/tools.logging "0.3.1"]
                  [org.slf4j/slf4j-log4j12 "1.7.22"]

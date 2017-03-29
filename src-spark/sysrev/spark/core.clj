@@ -4,7 +4,7 @@
             [flambo.tuple :as ft]
             [flambo.sql :as fs]
             [clojure.string :as str]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [honeysql.core :as hsql])
   (:import [org.apache.spark.sql SQLContext SparkSession Dataset]
            [org.apache.spark SparkConf SparkContext]
