@@ -11,7 +11,7 @@
              [do-query do-query-map do-execute do-transaction
               to-sql-array with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.users :refer
-             [get-user-by-email set-user-permissions]]
+             [get-user-by-email set-user-permissions generate-api-token]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
@@ -310,9 +310,9 @@
                 (q/join-article-labels)
                 (merge-where [:= :al.inclusion nil])
                 do-query)]
-        (println
-         (format "updating inclusion fields for %d rows"
-                 (count alabels)))
+        (when (not= 0 (count alabels))
+          (println (format "updating inclusion fields for %d rows"
+                           (count alabels))))
         (doall
          (->>
           alabels
@@ -348,6 +348,23 @@
     (when (not= n 0)
       (println (format "initialized %d project settings fields" n)))))
 
+(defn ensure-admin-user-api-tokens []
+  (let [user-ids
+        (-> (select :user-id :email :api-token)
+            (from :web-user)
+            (where [:and
+                    [:!= nil (sql/call "array_position"
+                                       :permissions (sql-cast "admin" :text))]
+                    [:= nil :api-token]])
+            (->> do-query (map :user-id)))]
+    (doseq [user-id user-ids]
+      (-> (sqlh/update :web-user)
+          (sset {:api-token (generate-api-token)})
+          (where [:= :user-id user-id])
+          do-execute))
+    (when (not= 0 (count user-ids))
+      (println (format "generated %d admin user api tokens" (count user-ids))))))
+
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
@@ -363,4 +380,5 @@
   (ensure-predict-label-ids)
   (ensure-label-inclusion-values)
   (ensure-no-null-authors)
-  (ensure-project-settings-entry))
+  (ensure-project-settings-entry)
+  (ensure-admin-user-api-tokens))

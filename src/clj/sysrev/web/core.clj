@@ -14,6 +14,7 @@
             [sysrev.web.routes.auth :refer [auth-routes]]
             [sysrev.web.routes.site :refer [site-routes]]
             [sysrev.web.routes.project :refer [project-routes]]
+            [sysrev.web.routes.api :refer [api-routes]]
             [sysrev.web.app :refer
              [wrap-no-cache wrap-add-anti-forgery-token
               wrap-sysrev-api not-found-response]]))
@@ -24,6 +25,7 @@
    auth-routes
    site-routes
    project-routes
+   api-routes
    (GET "*" {:keys [uri] :as request}
         (if (-> uri (str/split #"/") last (str/index-of \.))
           ;; Fail if request appears to be for a static file

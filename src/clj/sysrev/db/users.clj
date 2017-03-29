@@ -6,6 +6,8 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [buddy.core.hash :as hash]
+            [buddy.core.codecs :as codecs]
             buddy.hashers
             crypto.random
             [sysrev.db.core :as db]
@@ -45,6 +47,21 @@
       do-query
       first))
 
+(defn get-user-by-api-token [api-token]
+  (assert (string? api-token))
+  (-> (select :*)
+      (from :web-user)
+      (where [:= :api-token api-token])
+      do-query first))
+
+(defn generate-api-token []
+  (->> (crypto.random/bytes 16)
+       hash/sha256
+       vec
+       (take 12)
+       byte-array
+       codecs/bytes->hex))
+
 (defn encrypt-password [password]
   (buddy.hashers/encrypt
    password {:algorithm :bcrypt+sha512
@@ -74,7 +91,9 @@
              ;; TODO: implement email verification
              :verified true
              :date-created (sql-now)
-             :user-uuid (UUID/randomUUID)}
+             :user-uuid (UUID/randomUUID)
+             :api-token (if (in? permissions "admin")
+                          (generate-api-token) nil)}
           user-id (assoc :user-id user-id))]
     (when project-id
       (assert (-> (q/query-project-by-id project-id [:project-id])
