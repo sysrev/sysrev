@@ -61,6 +61,7 @@
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
+                 [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
                  [reagent "0.6.0"]
                  [secretary "1.2.3"]

@@ -22,22 +22,24 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [compojure.core :refer :all]
+   [ring.util.response :as response]
    [sysrev.db.project :as project])
-  (:import java.util.UUID))
+  (:import [java.util UUID]
+           [java.io InputStream]
+           [java.io ByteArrayInputStream]
+           [org.apache.commons.io IOUtils]))
 
 (declare project-info)
 (declare prepare-article-response)
 
-(defn input-stream-response
-  "Returns a Ring response to serve an FileInputStream, or nil if an appropriate
-  stream is not readable.
-  Options:
-    :root            - take the filepath relative to this root path
-    :index-files?    - look for index.* files in directories, defaults to true
-    :allow-symlinks? - serve files through symbolic links, defaults to false"
-  [meta stream]
-  (ring.util.response/response (slurp stream)))
 
+(defn slurp-bytes
+  "Slurp the bytes from a slurpable thing.
+  Taken from http://stackoverflow.com/a/26372677"
+  [x]
+  (with-open [out (java.io.ByteArrayOutputStream.)]
+    (clojure.java.io/copy (clojure.java.io/input-stream x) out)
+    (.toByteArray out)))
 
 (defroutes project-routes
   ;; Returns full information for active project
@@ -161,16 +163,14 @@
                files (project-files project-id)]
            {:result files})))
 
-
-
   (GET "/api/files/:key" request
        (wrap-permissions
          request [] ["member"]
          (let [project-id (active-project request)
                uuid (-> request :params :key (UUID/fromString))
-               file-data (get-file project-id uuid)]
-           (input-stream-response (:filerec file-data) (:filestream file-data)))))
-
+               file-data (get-file project-id uuid)
+               data (slurp-bytes (:filestream file-data))]
+           (response/response (ByteArrayInputStream. data)))))
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions
