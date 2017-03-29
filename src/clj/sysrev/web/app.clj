@@ -73,9 +73,9 @@
                   ;; If no :error or :result key, wrap the value in :result
                   (map? body) (update response :body #(hash-map :result %))
                   ;;
-                  (empty? body) (make-error-response
-                                 500 :empty "Server error (no data returned)"
-                                 nil response)
+                  (and (seqable? body) (empty? body)) (make-error-response
+                                                        500 :empty "Server error (no data returned)"
+                                                        nil response)
                   :else response))
             session-meta (-> body meta :session)]
         ;; If the request handler attached a :session meta value to the result,
