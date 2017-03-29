@@ -80,7 +80,7 @@
         abstract (-> (xml-find pxml [:MedlineCitation :Article :Abstract :AbstractText]) parse-abstract)
         authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
                     parse-pubmed-author-names)
-        pmid (xml-find-value pxml [:PMID])
+        pmid (xml-find-value pxml [:MedlineCitation :PMID])
         keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
         locations (extract-article-location-entries pxml)
         year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])

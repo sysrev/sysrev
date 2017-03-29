@@ -27,4 +27,12 @@
         parsed (parse-pmid-xml xml)]
     (is (str/starts-with? (:abstract parsed) "OBJECTIVE: To determine"))
     (is (str/includes? (:abstract parsed) "\n\nSAMPLE POPULATION: Corneal"))
-    (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))))
+    (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))
+    (is (= (:public-id parsed) "11592337"))))
+
+; Fails to get public-id for this pubmed article
+(deftest parse-pmid-test-2
+  (let [xml (fetch-pmid-xml 28280522)
+        parsed (parse-pmid-xml xml)]
+    (is (= (:public-id parsed) "28280522"))))
+  
