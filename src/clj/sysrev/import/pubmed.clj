@@ -160,6 +160,12 @@
        csv/parse-csv
        (mapv (comp #(Integer/parseInt %) first))))
 
+(defn import-from-pmids-file
+  "Imports articles from PubMed API into project from linebreak-separated text
+  file of PMIDs."
+  [project-id path]
+  (import-pmids-to-project (load-pmids-file path) project-id))
+
 ;; Used to import project from PMID list file
 #_
 (let [{:keys [project-id]} (create-project "Tox21")]
