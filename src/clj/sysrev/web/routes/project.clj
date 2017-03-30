@@ -163,7 +163,7 @@
                files (project-files project-id)]
            {:result files})))
 
-  (GET "/api/files/:key" request
+  (GET "/api/files/:key/:name" request
        (wrap-permissions
          request [] ["member"]
          (let [project-id (active-project request)

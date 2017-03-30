@@ -410,6 +410,9 @@
     (str "/api/files/delete/" key)
     pull-files))
 
-(defn get-file [key]
+(defn get-file-url [key name]
+  (str "api/files/" key "/" name))
+
+(defn get-file [key name]
   (-> js/window
-      (aset "location" (str "/api/files/" key))))
+      (aset "location" (get-file-url key name))))
