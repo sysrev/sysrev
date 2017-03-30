@@ -7,4 +7,4 @@
  :server
  {:port 4041}
  :profile :dev
- :private-config ".config.local.edn"}
+ :private-config "config.local.edn"}
