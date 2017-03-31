@@ -9,4 +9,5 @@
  :selenium
  {:protocol "https"
   :host "sysrev.us"}
- :profile :remote-test}
+ :profile :remote-test
+ :private-config "config.local.edn"}

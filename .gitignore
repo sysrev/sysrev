@@ -177,3 +177,9 @@ fabric.properties
 
 # Semantic build directory
 resources/public/semantic
+
+# files starting with a dot should be ignored by default
+.*
+
+# files marked local
+*.local.*

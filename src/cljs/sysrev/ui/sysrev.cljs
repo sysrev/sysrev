@@ -1,5 +1,6 @@
 (ns sysrev.ui.sysrev
   (:require [sysrev.base :refer [st work-state]]
+            [sysrev.ajax :refer [send-file-url pull-files delete-file get-file get-file-url]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project
              :refer [project project-admin?]]
@@ -9,12 +10,15 @@
             [sysrev.shared.util :refer [in? num-to-english]]
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
+            [sysrev.ui.upload :refer [upload-container basic-text-button]]
             [reagent.core :as r]
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [camel-snake-kebab.extras :refer [transform-keys]]
             [sysrev.ui.charts :refer [chart-container line-chart bar-chart]]
-            [goog.string :as string])
+            [goog.string :as string]
+            [cljs-time.core :as t]
+            [cljs-time.format :as tf])
   (:require-macros
    [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
@@ -192,12 +196,57 @@
     [project-page-menu-full active-tab]
     [project-page-menu-mobile active-tab]))
 
+
+(def file-types {"doc" "word"
+                 "docx" "word"
+                 "pdf" "pdf"
+                 "xlsx" "excel"
+                 "xls" "excel"
+                 "gz" "archive"
+                 "tgz" "archive"
+                 "zip" "archive"})
+
+(defn get-file-class [fname]
+  (get file-types (-> fname (.split ".") last) "text"))
+
+
+(defonce editing-files (r/atom false))
+(defn toggle-editing [] (swap! editing-files not))
+
+(defn project-files-box []
+  (letfn [(show-date [file]
+            (let [date (tf/parse (:upload-time file))
+                  parts (mapv #(% date) [t/month t/day t/year])]
+              (apply goog.string/format "%d/%d/%d" parts)))]
+    [:div.ui.grey.segment
+     [:h4.item {:style {:margin-bottom "0px"}}
+      "Project resources"]
+     (when-let [files (:files (project))]
+       [:div.ui.celled.list
+        (doall
+          (->>
+            files
+            (map
+              (fn [file]
+                [:div.icon.item {:key (:file-id file)}
+                 (if @editing-files
+                   [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
+                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
+                 [:div.content {:on-click #(get-file (:file-id file) (:name file))}
+                  [:a.header {:href (get-file-url (:file-id file) (:name file))} (:name file)]
+                  [:div.description (show-date file)]]]))))])
+     [:div.ui.container
+      [upload-container basic-text-button send-file-url pull-files "Upload Project Document"]
+      [:div.ui.right.floated.basic.icon.button {:on-click toggle-editing :class (when @editing-files "red")}
+       [:i.ui.small.small.blue.pencil.icon]]]]))
+
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
-     [label-counts-box]]
+     [label-counts-box]
+     [project-files-box]]
     [:div.ui.column
      [user-summary-chart]
      [member-list-box]]]])

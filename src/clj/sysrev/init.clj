@@ -1,7 +1,7 @@
 (ns sysrev.init
   (:require [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
             [sysrev.web.core :refer [run-web]]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [clojure.tools.logging :as log]))
 
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]

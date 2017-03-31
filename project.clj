@@ -23,6 +23,7 @@
                    org.clojure/java.jdbc
                    clj-time
                    joda-time
+                   com.fasterxml.jackson.databind
                    com.fasterxml.jackson.dataformat/jackson-dataformat-smile
                    com.fasterxml.jackson.core/jackson-core
                    commons-codec
@@ -37,7 +38,7 @@
                  [javax.servlet/servlet-api "2.5"]
                  [ring "1.5.1"]
                  [ring/ring-defaults "0.2.3"]
-                 [ring/ring-json "0.4.0"]
+                 [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
                  [buddy "1.3.0"]
@@ -46,12 +47,19 @@
                  [crypto-random "1.2.0"]
                  ;; Email
                  [com.draines/postal "2.0.2"]
-                 ;; Project config file support
-                 [yogthos/config "0.8"]
                  ;; Logging
                  [org.clojure/tools.logging "0.3.1"]
                  [org.slf4j/slf4j-log4j12 "1.7.22"]
                  [log4j/log4j "1.2.17"]
+                 ; enforce jackson version to easier catch dependency conflicts.
+                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
+                 [amazonica "0.3.93"
+                  :exclusions [com.taoensso/encore
+                               com.fasterxml.jackson.dataformat/jackson-dataformat-smile
+                               com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+                               com.fasterxml.jackson.core/jackson-databind
+                               org.slf4j/slf4j-api]]
+                 [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
                  [reagent "0.6.0"]
                  [secretary "1.2.3"]
@@ -62,6 +70,7 @@
                  [cljsjs/semantic-ui "2.2.4-0"]
                  [camel-snake-kebab "0.4.0"]
                  [cljsjs/chartjs "2.5.0-0"]
+                 [cljsjs/dropzone "4.3.0-0"]
                  [org.clojure/test.check "0.9.0"]
                  ;; [com.andrewmcveigh/cljs-time "0.4.0"]
                  [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]]
@@ -138,6 +147,8 @@
              {:resource-paths ["config/test-aws-dev"]}
              :test-aws-prod
              {:resource-paths ["config/test-aws-prod"]}
+             :test-s3-dev
+             {:resource-paths ["config/test-s3-dev"]}
              :dev
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
               :resource-paths ["config/dev"]

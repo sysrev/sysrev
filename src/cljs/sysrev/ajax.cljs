@@ -394,3 +394,25 @@
          :classify-article-id (fetch-classify-task force?)
          :documents (pull-article-documents)
          nil)))))
+
+
+(def send-file-url "/api/files/upload")
+
+(defn pull-files []
+  (let [project-id (st/current-project-id)]
+    (ajax-get
+      "/api/files"
+      (fn [result]
+        (swap! work-state assoc-in [:data :project project-id :files] result)))))
+
+(defn delete-file [key]
+  (ajax-post
+    (str "/api/files/delete/" key)
+    pull-files))
+
+(defn get-file-url [key name]
+  (str "api/files/" key "/" name))
+
+(defn get-file [key name]
+  (-> js/window
+      (aset "location" (get-file-url key name))))

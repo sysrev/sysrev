@@ -7,7 +7,7 @@
             sysrev.test.all
             [sysrev.test.core :refer [get-selenium-config]]
             [clojure.pprint :as pprint]
-            [config.core :refer [env]]))
+            [sysrev.config.core :refer [env]]))
 
 (defn -main [& args]
   (log/info (str "running database tests with config:\n"

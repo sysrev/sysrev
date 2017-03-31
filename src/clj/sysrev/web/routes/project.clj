@@ -11,6 +11,7 @@
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
+   [sysrev.files.stores :refer [store-file project-files delete-file get-file]]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
@@ -21,10 +22,24 @@
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [compojure.core :refer :all]
-   [sysrev.db.project :as project]))
+   [ring.util.response :as response]
+   [sysrev.db.project :as project])
+  (:import [java.util UUID]
+           [java.io InputStream]
+           [java.io ByteArrayInputStream]
+           [org.apache.commons.io IOUtils]))
 
 (declare project-info)
 (declare prepare-article-response)
+
+
+(defn slurp-bytes
+  "Slurp the bytes from a slurpable thing.
+  Taken from http://stackoverflow.com/a/26372677"
+  [x]
+  (with-open [out (java.io.ByteArrayOutputStream.)]
+    (clojure.java.io/copy (clojure.java.io/input-stream x) out)
+    (.toByteArray out)))
 
 (defroutes project-routes
   ;; Returns full information for active project
@@ -95,7 +110,7 @@
             (project/project-member-article-labels project-id user-id)
             {:notes
              (project/project-member-article-notes project-id user-id)})})))
-  
+
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
        (wrap-permissions
@@ -128,7 +143,43 @@
                {:keys [setting value]} (:body request)]
            (project/change-project-setting
             project-id (keyword setting) value)
-           {:result {:success true}}))))
+           {:result {:success true}})))
+
+  (POST "/api/files/upload" request
+        (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               file-data (get-in request [:params :file])
+               file (:tempfile file-data)
+               filename (:filename file-data)
+               user-id (current-user-id request)]
+           (store-file project-id user-id filename file)
+           {:result 1})))
+
+  (GET "/api/files" request
+       (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               files (project-files project-id)]
+           {:result files})))
+
+  (GET "/api/files/:key/:name" request
+       (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               uuid (-> request :params :key (UUID/fromString))
+               file-data (get-file project-id uuid)
+               data (slurp-bytes (:filestream file-data))]
+           (response/response (ByteArrayInputStream. data)))))
+
+  (POST "/api/files/delete/:key" request
+        (wrap-permissions
+          ;TODO: This should be file owner or admin?
+          request [] ["member"]
+          (let [project-id (active-project request)
+                key (-> request :params :key)
+                deletion (delete-file project-id (UUID/fromString key))]
+            {:result deletion}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
@@ -361,7 +412,7 @@
 
 (defn project-info [project-id]
   (let [[predict articles labels inclusion-values label-values
-         conflicts members users keywords notes settings]
+         conflicts members users keywords notes settings files]
         (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
@@ -372,7 +423,8 @@
                  (project-users-info project-id)
                  (project-keywords project-id)
                  (project-notes project-id)
-                 (project-settings project-id))]
+                 (project-settings project-id)
+                 (project-files project-id))]
     {:project {:project-id project-id
                :members members
                :stats {:articles articles
@@ -384,5 +436,6 @@
                :labels (project-labels project-id)
                :keywords keywords
                :notes notes
-               :settings settings}
+               :settings settings
+               :files files}
      :users users}))

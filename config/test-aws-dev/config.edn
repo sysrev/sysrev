@@ -9,4 +9,5 @@
  :selenium
  {:protocol "http"
   :host "isysrev-dev.ddns.net"}
- :profile :remote-test}
+ :profile :remote-test
+ :private-config "config.local.edn"}

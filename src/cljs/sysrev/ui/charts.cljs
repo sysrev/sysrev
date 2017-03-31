@@ -1,17 +1,7 @@
 (ns sysrev.ui.charts
   (:require [cljsjs.chartjs]
-            [clojure.test.check.generators :as gen]
-            [reagent.core :as r]))
-
-
-(defn random-id
-  "Generate a random-id to use for manually rendered components."
-  ([len]
-   (let [length (or len 6)
-         char-gen (gen/fmap char (gen/one-of [(gen/choose 65 90) (gen/choose 97 122)]))]
-     (apply str (gen/sample char-gen length))))
-  ([] (random-id 6)))
-
+            [reagent.core :as r]
+            [sysrev.util :refer [random-id]]))
 
 (defn get-canvas-context
   "Lookup canvas context, expecting that canvas is the first child of the element with supplied id"

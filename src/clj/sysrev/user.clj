@@ -42,7 +42,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
-            [config.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [me.raynes.fs :as fs]
             [clojure.test :refer :all]
             [clojure.test.junit :refer :all]
