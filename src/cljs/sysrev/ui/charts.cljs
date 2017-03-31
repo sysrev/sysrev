@@ -67,9 +67,15 @@
                                                              :labelString "Value"}}]
                                        :xAxes [{:display true
                                                 :scaleLabel {:display true
-                                                             :labelString "Confidence"}}]
-                                       ;:responsive true
-                                       :showXLabels 10}}
+                                                             :labelString "Confidence"}
+                                                :ticks {:maxTicksLimit 20
+                                                        :autoSkip true
+                                                        ;; Don't show last, usually looks funky with distribution limit
+                                                        :callback (fn [value idx values]
+                                                                    (if (= idx (dec (count values)))
+                                                                      ""
+                                                                      value))}}]}
+                              :responsive true}
                     :data {:labels xs
                            :datasets (get-datasets ynames yss)}}]
     (js/Chart. context (clj->js chart-data))))
