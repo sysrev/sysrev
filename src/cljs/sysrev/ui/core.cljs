@@ -62,7 +62,7 @@
       [article-page])))
 
 (defmethod logged-in-content :classify [] [project-page :classify [classify-page]])
-(defmethod logged-in-content :select-project [select-project-page])
+(defmethod logged-in-content :select-project [] [select-project-page])
 
 (defmethod logged-in-content :default []
   (if (nil? current-project-id)
