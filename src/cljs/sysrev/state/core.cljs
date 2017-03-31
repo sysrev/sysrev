@@ -20,10 +20,6 @@
 (defn current-project-id []
   (st :current-project-id))
 
-(defn on-page?
-  [page-key]
-  (= (current-page) page-key))
-
 (defn logged-in? []
   (integer? (current-user-id)))
 

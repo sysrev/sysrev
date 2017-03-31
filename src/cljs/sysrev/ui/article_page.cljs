@@ -3,7 +3,7 @@
    [sysrev.base :refer
     [st set-loading-state get-loading-state schedule-scroll-top]]
    [sysrev.state.core :as st
-    :refer [current-page current-user-id on-page?]]
+    :refer [current-page current-user-id]]
    [sysrev.state.project :as project :refer [project]]
    [sysrev.state.labels :as l]
    [sysrev.ajax :as ajax]

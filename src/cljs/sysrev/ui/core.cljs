@@ -3,8 +3,8 @@
    [sysrev.base :refer [st st-if-exists display-ready loading-state]]
    [sysrev.util :refer [full-size?]]
    [sysrev.state.core :as st :refer
-    [data current-page on-page? logged-in? current-project-id]]
-   [sysrev.routes :refer [data-initialized? on-public-page?]]
+    [data current-page logged-in? current-project-id]]
+   [sysrev.routes :refer [data-initialized?]]
    [sysrev.notify :refer [active-notification]]
    [sysrev.ui.components :refer [notifier]]
    [sysrev.shared.components :refer [loading-content]]
@@ -28,46 +28,54 @@
              (empty? @loading-state))
     [:div.ui.small.active.inline.loader]))
 
-(defn logged-out-content []
+
+(defmulti logged-out-content current-page)
+(defmethod logged-out-content :login [] [login-register-page {:register? false}])
+(defmethod logged-out-content :register [] [login-register-page {:register? true}])
+(defmethod logged-out-content :request-password-reset [] [request-password-reset-page])
+(defmethod logged-out-content :reset-password [] [password-reset-page])
+(defmethod logged-out-content :default []
   [:div.ui.segments
    [:div.ui.center.aligned.header.segment
     [:h2 "Please log in or register to access a project"]]])
 
+
+(defmulti logged-in-content current-page)
+(defmethod logged-in-content :project []
+  [project-page (st :page :project :tab)
+   (case (st :page :project :tab)
+     :overview [project-overview-box]
+     :predict [project-predict-report-box]
+     nil)])
+
+(defmethod logged-in-content :labels [] [project-page :labels [labels-page]])
+(defmethod logged-in-content :project-settings [] [project-page :settings [project-settings-page]])
+(defmethod logged-in-content :user-profile [] [project-page :user-profile [user-profile-page]])
+(defmethod logged-in-content :article []
+  (let [project-id (current-project-id)
+        article-id (st :page :article :id)
+        article-project-id
+        (and article-id (data [:articles article-id :project-id]))]
+    (if (and project-id article-project-id
+             (= project-id article-project-id))
+      [project-page :article [article-page]]
+      [article-page])))
+
+(defmethod logged-in-content :classify [] [project-page :classify [classify-page]])
+(defmethod logged-in-content :select-project [select-project-page])
+
+(defmethod logged-in-content :default []
+  (if (nil? current-project-id)
+    [select-project-page]
+    [:div [:h1 "Route not found"]]))
+
+
 (defn current-page-content []
-  (cond (nil? (current-page)) [:div [:h1 "Route not found"]]
-        (and (not (logged-in?))
-             (not (on-public-page?))) [logged-out-content]
-        (and (logged-in?)
-             (nil? (current-project-id))) [select-project-page]
-        (on-page? :project)
-        [project-page (st :page :project :tab)
-         (case (st :page :project :tab)
-           :overview [project-overview-box]
-           :predict [project-predict-report-box]
-           nil)]
-        (on-page? :labels)
-        [project-page :labels [labels-page]]
-        (on-page? :project-settings)
-        [project-page :settings [project-settings-page]]
-        (on-page? :user-profile)
-        [project-page :user-profile [user-profile-page]]
-        (on-page? :classify)
-        [project-page :classify [classify-page]]
-        (on-page? :article)
-        (let [project-id (current-project-id)
-              article-id (st :page :article :id)
-              article-project-id
-              (and article-id (data [:articles article-id :project-id]))]
-          (if (and project-id article-project-id
-                   (= project-id article-project-id))
-            [project-page :article [article-page]]
-            [article-page]))
-        (on-page? :select-project) [select-project-page]
-        (on-page? :login) [login-register-page {:register? false}]
-        (on-page? :register) [login-register-page {:register? true}]
-        (on-page? :request-password-reset) [request-password-reset-page]
-        (on-page? :reset-password) [password-reset-page]
-        true [:div [:h1 "Route not found"]]))
+  (if-not (logged-in?)
+    [logged-out-content]
+    [:div.ui.container
+     [logged-in-content]]))
+
 
 (defn header-menu-full []
   (let [{:keys [user-id email name]} (st :identity)
@@ -150,6 +158,6 @@
          (if (full-size?)
            [header-menu-full]
            [header-menu-mobile]))
-       [:div.ui.container.page-content
+       [:div.ui
         [current-page-content]]
        [notifier (active-notification)]])))

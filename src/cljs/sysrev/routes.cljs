@@ -3,7 +3,7 @@
    [sysrev.base :refer
     [st work-state display-state display-ready clear-loading-state scroll-top]]
    [sysrev.state.core :as st :refer
-    [data on-page? current-page current-user-id logged-in? current-project-id]]
+    [data current-page current-user-id logged-in? current-project-id]]
    [sysrev.state.project :refer [project]]
    [sysrev.ajax :as ajax]
    [sysrev.util :refer [nav dissoc-in]]
@@ -20,9 +20,6 @@
 
 (defn public-data? [data-key]
   (some #(= % data-key) public-data-fields))
-
-(defn on-public-page? []
-  (some on-page? public-pages))
 
 (defn page-authorized? [page]
   (or (some #(= % page) public-pages)
