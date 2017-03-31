@@ -58,16 +58,6 @@ node {
       throw exc
     }
   }
-  stage('Build') {
-    echo 'Building...'
-    try {
-      sh './jenkins/build'
-    } catch (exc) {
-      currentBuild.result = 'FAILURE'
-      sendFlowdockMsg ('Build stage failed')
-      throw exc
-    }
-  }
   stage('Test') {
     if (currentBuild.result != 'FAILURE') {
       echo 'Running build tests...'
@@ -85,6 +75,21 @@ node {
         sendFlowdockMsg ('Tests failed')
       } finally {
         junit 'target/junit-all.xml'
+      }
+    }
+  }
+  stage('Build') {
+    if (branch == 'staging' ||
+        branch == 'production') {
+      if (currentBuild.result == 'SUCCESS') {
+        echo 'Building...'
+        try {
+          sh './jenkins/build'
+        } catch (exc) {
+          currentBuild.result = 'FAILURE'
+          sendFlowdockMsg ('Build stage failed')
+          throw exc
+        }
       }
     }
   }

@@ -9,5 +9,4 @@ for profile in ${profiles[@]}; do
 done
 
 ./setup.sh > /dev/null
-./scripts/install-flyway > /dev/null
 lein clean
