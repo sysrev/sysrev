@@ -73,7 +73,8 @@
 
 (defn current-page-content []
   (if-not (logged-in?)
-    [logged-out-content]
+    [:div.ui.container
+     [logged-out-content]]
     [:div.ui.container
      [logged-in-content]]))
 
