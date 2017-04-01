@@ -66,17 +66,16 @@
 (defmethod logged-in-content :select-project [] [select-project-page])
 
 (defmethod logged-in-content :default []
-  (if (nil? current-project-id)
-    [select-project-page]
-    [:div [:h1 "Route not found"]]))
-
+  [:div [:h1 "Route not found"]])
 
 (defn current-page-content []
   (if-not (logged-in?)
     [:div.ui.container
      [logged-out-content]]
     [:div.ui.container
-     [logged-in-content]]))
+     (if (nil? (current-project-id))
+       [select-project-page]
+       [logged-in-content])]))
 
 
 (defn header-menu-full []
