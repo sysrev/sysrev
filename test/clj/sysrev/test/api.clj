@@ -4,7 +4,8 @@
             [clojure.spec.test :as t]
             [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
-            [sysrev.test.core :refer [default-fixture completes?]]
+            [sysrev.test.core :refer
+             [default-fixture completes? get-selenium-config]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
@@ -15,12 +16,14 @@
 (use-fixtures :once default-fixture)
 
 (deftest test-get-api-token
-  (let [email "test+apitest@insilica.co"
+  (let [url (:url (get-selenium-config))
+        email "test+apitest@insilica.co"
         password "1234567890"
         {:keys [user-id]} (users/create-user email password)]
     (try
       (let [response (webapi-get "get-api-token"
-                                 {:email email :password password})]
+                                 {:email email :password password}
+                                 :url url)]
         (is (contains? response :result))
         (is (true? (-> response :result :success)))
         (is (string? (-> response :result :api-token))))
@@ -28,7 +31,8 @@
         (when user-id (users/delete-user user-id))))))
 
 (deftest test-import-pmids
-  (let [email "test+apitest@insilica.co"
+  (let [url (:url (get-selenium-config))
+        email "test+apitest@insilica.co"
         password "1234567890"
         {:keys [user-id api-token]} (users/create-user email password)
         {:keys [project-id]
@@ -37,7 +41,8 @@
       (let [response (webapi-post "import-pmids"
                                   {:api-token api-token
                                    :project-id project-id
-                                   :pmids [12345 12346]})]
+                                   :pmids [12345 12346]}
+                                  :url url)]
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
       (finally
@@ -45,7 +50,8 @@
         (when project-id (project/delete-project project-id))))))
 
 (deftest test-check-allow-answers
-  (let [email "test+apitest@insilica.co"
+  (let [url (:url (get-selenium-config))
+        email "test+apitest@insilica.co"
         password "1234567890"
         {:keys [user-id api-token]} (users/create-user email password)
         {:keys [project-id]
@@ -57,7 +63,8 @@
       (let [response (webapi-post "import-pmids"
                                   {:api-token api-token
                                    :project-id project-id
-                                   :pmids [12345 12346]})]
+                                   :pmids [12345 12346]}
+                                  :url url)]
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
       (let [article-id
@@ -74,7 +81,8 @@
         (let [response (webapi-post "import-pmids"
                                     {:api-token api-token
                                      :project-id project-id
-                                     :pmids [12347]})]
+                                     :pmids [12347]}
+                                    :url url)]
           (is (contains? response :error))
           (is (not (-> response :result :success)))))
       (finally

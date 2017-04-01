@@ -82,17 +82,19 @@
                       (project/project-article-count project-id)}}))))))))
 
 ;; HTTP client functions for testing API handlers
-(defn webapi-request [method route body & {:keys [host port]}]
+(defn webapi-request [method route body & {:keys [host port url]}]
   (let [port (or port (-> env :server :port))
         host (or host "localhost")]
     (-> @(client/request
-          {:url (format "http://%s:%d/web-api/%s"
-                        host port route)
+          {:url (if url
+                  (format "%sweb-api/%s" url route)
+                  (format "http://%s:%d/web-api/%s"
+                          host port route))
            :method method
            :body (json/write-str body)
            :headers {"Content-Type" "application/json"}})
         :body (json/read-str :key-fn keyword))))
-(defn webapi-get [route body & {:keys [host port]}]
-  (webapi-request :get route body :host host :port port))
-(defn webapi-post [route body & {:keys [host port]}]
-  (webapi-request :post route body :host host :port port))
+(defn webapi-get [route body & opts]
+  (apply webapi-request :get route body opts))
+(defn webapi-post [route body & opts]
+  (apply webapi-request :post route body opts))
