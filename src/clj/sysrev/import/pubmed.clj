@@ -1,5 +1,6 @@
 (ns sysrev.import.pubmed
-  (:require [sysrev.db.core :refer [do-query do-execute do-transaction]]
+  (:require [sysrev.db.core :refer
+             [do-query do-execute do-transaction clear-project-cache]]
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.util :refer
@@ -12,7 +13,8 @@
             [clj-http.client :as http]
             [clojure-csv.core :as csv]
             [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]))
 
 (defn fetch-pmid-xml [pmid]
   (-> (str "https://eutils.ncbi.nlm.nih.gov"
@@ -106,25 +108,28 @@
 (defn import-pmids-to-project
   "Imports into project all articles referenced in list of PubMed IDs."
   [pmids project-id]
-  (doseq [pmid pmids]
-    ;; skip article if already loaded in project
-    (when-not (project/project-contains-public-id pmid project-id)
-      (println (str "importing project article #"
-                    (project/project-article-count project-id)))
-      (when-let [article (fetch-pmid-entry pmid)]
-        (doseq [[k v] article]
-          (when (or (nil? v)
-                    (and (coll? v) (empty? v)))
-            (println (format "* field `%s` is empty" (pr-str k)))))
-        (when-let [article-id
-                   (articles/add-article
-                    (dissoc article :locations) project-id)]
-          (when (not-empty (:locations article))
-            (-> (sqlh/insert-into :article-location)
-                (values
-                 (->> (:locations article)
-                      (mapv #(assoc % :article-id article-id))))
-                do-execute)))))))
+  (try
+    (doseq [pmid pmids]
+      ;; skip article if already loaded in project
+      (when-not (project/project-contains-public-id (str pmid) project-id)
+        (log/info "importing project article #"
+                  (project/project-article-count project-id))
+        (when-let [article (fetch-pmid-entry pmid)]
+          (doseq [[k v] article]
+            (when (or (nil? v)
+                      (and (coll? v) (empty? v)))
+              (log/info (format "* field `%s` is empty" (pr-str k)))))
+          (when-let [article-id
+                     (articles/add-article
+                      (dissoc article :locations) project-id)]
+            (when (not-empty (:locations article))
+              (-> (sqlh/insert-into :article-location)
+                  (values
+                   (->> (:locations article)
+                        (mapv #(assoc % :article-id article-id))))
+                  do-execute))))))
+    (finally
+      (clear-project-cache project-id))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

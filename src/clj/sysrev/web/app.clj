@@ -7,15 +7,20 @@
             [clojure.string :as str]
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.web.index :as index]
-            [sysrev.db.users :refer [get-user-by-id]]
+            [sysrev.db.users :refer [get-user-by-id get-user-by-api-token]]
             [sysrev.db.project :refer [project-member]]
             [sysrev.shared.util :refer [in?]]))
 
 (defn current-user-id [request]
-  (-> request :session :identity :user-id))
+  (or (-> request :session :identity :user-id)
+      (when-let [api-token (-> request :body :api-token)]
+        (:user-id (get-user-by-api-token api-token)))))
 
 (defn active-project [request]
-  (-> request :session :active-project))
+  (or (-> request :session :active-project)
+      (when-let [api-token (-> request :body :api-token)]
+        (when (get-user-by-api-token api-token)
+          (-> request :body :project-id)))))
 
 (defn make-error-response
   [http-code etype emessage & [exception response]]
@@ -113,7 +118,7 @@
        (not (integer? user-id#))
        {:error {:status 401
                 :type :authentication
-                :message "Not logged in"}}
+                :message "Not logged in / Invalid API token"}}
 
        (not (every? (in? uperms#) uperms-required#))
        {:error {:status 403

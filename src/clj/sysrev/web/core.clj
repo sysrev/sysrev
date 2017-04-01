@@ -38,10 +38,11 @@
 (defn sysrev-app [& [reloadable?]]
   (let [config
         (-> default/site-defaults
+            (assoc-in [:security :anti-forgery] false)
             (assoc-in [:session :store] (sysrev-session-store)))]
     (-> (app-routes)
         wrap-sysrev-api
-        wrap-add-anti-forgery-token
+        ;; wrap-add-anti-forgery-token
         wrap-json-response
         wrap-multipart-params
         (#(if reloadable?

@@ -6,5 +6,6 @@
             sysrev.test.db.core
             sysrev.test.db.project
             sysrev.test.db.labels
+            sysrev.test.api
             sysrev.test.browser.core
             sysrev.test.browser.simple))

@@ -98,15 +98,16 @@
     (when project-id
       (assert (-> (q/query-project-by-id project-id [:project-id])
                   :project-id)))
-    (let [user-id (-> (insert-into :web-user)
-                      (values [entry])
-                      (returning :user-id)
-                      do-query
-                      first :user-id)]
+    (let [{:keys [user-id] :as user}
+          (-> (insert-into :web-user)
+              (values [entry])
+              (returning :*)
+              do-query
+              first)]
       (when project-id
-        (add-project-member project-id user-id)))
-    (db/clear-query-cache)
-    true))
+        (add-project-member project-id user-id))
+      (db/clear-query-cache)
+      user)))
 
 (defn set-user-password [email new-password]
   (-> (sqlh/update :web-user)
