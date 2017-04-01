@@ -39,6 +39,22 @@
        (body-fn#))))
 
 (defroutes api-routes
+  (GET "/web-api/doc" request
+       {:result
+        {:api
+         [{:get-api-token
+           {:method :GET
+            :required [:email :password]
+            :doc "Returns an API token for authentication in other API calls."}}
+          {:import-pmids
+           {:method :POST
+            :required [:api-token :project-id :pmids]
+            :optional [:allow-answers]
+            :doc (->> ["\"pmids\": array of integer PubMed IDs"
+                       ""
+                       "Imports articles from PubMed."
+                       "On success, returns the project article count after completing import."]
+                      (str/join "\n"))}}]}})
   (GET "/web-api/get-api-token" request
        (let [request (dissoc request :session)
              {:keys [email password] :as body} (:body request)
