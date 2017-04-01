@@ -73,6 +73,7 @@ node {
       } catch (exc) {
         currentBuild.result = 'UNSTABLE'
         sendFlowdockMsg ('Tests failed')
+        sh 'cat target/junit-all.xml'
       } finally {
         junit 'target/junit-all.xml'
       }
@@ -108,6 +109,7 @@ node {
               currentBuild.result = 'SUCCESS'
             } catch (exc) {
               currentBuild.result = 'UNSTABLE'
+              sh 'cat target/junit-all.xml'
             } finally {
               junit 'target/junit-all.xml'
             }
@@ -189,6 +191,7 @@ node {
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
           sendFlowdockMsg ('PostDeployTest failed')
+          sh 'cat target/junit-browser.xml'
         } finally {
           junit 'target/junit-browser.xml'
         }
