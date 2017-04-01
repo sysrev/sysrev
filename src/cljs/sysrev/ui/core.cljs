@@ -20,6 +20,7 @@
    [sysrev.ui.select-project :refer [select-project-page]]
    [sysrev.ui.password-reset :refer
     [password-reset-page request-password-reset-page]]
+   [sysrev.ui.dev-tools :refer [site-dev-tools-component]]
    [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
@@ -159,5 +160,6 @@
            [header-menu-full]
            [header-menu-mobile]))
        [:div.ui
-        [current-page-content]]
+        [current-page-content]
+        [site-dev-tools-component]]
        [notifier (active-notification)]])))

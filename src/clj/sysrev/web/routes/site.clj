@@ -4,7 +4,8 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer [do-query with-query-cache]]
+            [sysrev.db.core :refer
+             [do-query with-query-cache clear-query-cache]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.shared.util :refer [map-values in?]]
@@ -51,7 +52,13 @@
            (users/delete-user user-id)
            (with-meta
              {:success true}
-             {:session {}})))))
+             {:session {}}))))
+
+  (POST "/api/clear-query-cache" request
+        (wrap-permissions
+         request ["admin"] []
+         (do (clear-query-cache)
+             {:success true}))))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

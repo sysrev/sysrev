@@ -416,3 +416,11 @@
 (defn get-file [key name]
   (-> js/window
       (aset "location" (get-file-url key name))))
+
+(defn post-clear-query-cache []
+  (ajax-post
+   "/api/clear-query-cache"
+   (fn [result]
+     (if (:success result)
+       (notify "Cache cleared")
+       (notify "Failed to clear cache" {:class "red"})))))
