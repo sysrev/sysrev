@@ -10,7 +10,8 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
-            [sysrev.web.routes.api :refer [webapi-get webapi-post]]
+            [sysrev.web.routes.api.core :refer [webapi-get webapi-post]]
+            sysrev.web.routes.api.handlers
             [sysrev.db.queries :as q]))
 
 (use-fixtures :once default-fixture)
@@ -25,7 +26,6 @@
                                  {:email email :password password}
                                  :url url)]
         (is (contains? response :result))
-        (is (true? (-> response :result :success)))
         (is (string? (-> response :result :api-token))))
       (finally
         (when user-id (users/delete-user user-id))))))

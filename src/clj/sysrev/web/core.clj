@@ -15,18 +15,65 @@
             [sysrev.web.routes.auth :refer [auth-routes]]
             [sysrev.web.routes.site :refer [site-routes]]
             [sysrev.web.routes.project :refer [project-routes]]
-            [sysrev.web.routes.api :refer [api-routes]]
+            [sysrev.web.routes.api.core :refer
+             [api-routes wrap-web-api]]
+            sysrev.web.routes.api.handlers
             [sysrev.web.app :refer
              [wrap-no-cache wrap-add-anti-forgery-token
-              wrap-sysrev-api not-found-response]]))
+              wrap-sysrev-response not-found-response]]))
 
-(defn app-routes []
+(defroutes app-routes
+  auth-routes
+  site-routes
+  project-routes)
+
+(defn wrap-sysrev-app
+  "Ring handler wrapper for web app routes"
+  [handler & [reloadable?]]
+  (let [config
+        (-> default/site-defaults
+            (assoc-in [:session :store] (sysrev-session-store)))]
+    (-> handler
+        wrap-sysrev-response
+        wrap-add-anti-forgery-token
+        wrap-json-response
+        wrap-multipart-params
+        (#(if reloadable?
+            (wrap-reload % {:dirs ["src/clj"]})
+            (identity %)))
+        wrap-no-cache
+        (default/wrap-defaults config)
+        (wrap-json-body {:keywords? true}))))
+
+(defn wrap-sysrev-api
+  "Ring handler wrapper for JSON API (non-browser) routes"
+  [handler & [reloadable?]]
+  (let [config
+        (-> default/site-defaults
+            ;; (assoc-in [:session :store] (sysrev-session-store))
+            (assoc-in [:security :anti-forgery] false))]
+    (-> handler
+        wrap-web-api
+        wrap-sysrev-response
+        (wrap-json-response {:pretty true})
+        wrap-multipart-params
+        (#(if reloadable?
+            (wrap-reload % {:dirs ["src/clj"]})
+            (identity %)))
+        wrap-no-cache
+        (default/wrap-defaults config)
+        (wrap-json-body {:keywords? true}))))
+
+(defn sysrev-handler
+  "Root handler for web server"
+  [& [reloadable?]]
   (routes
    (GET "/" [] index/index)
-   auth-routes
-   site-routes
-   project-routes
-   api-routes
+   (ANY "/web-api/*" []
+        (wrap-routes (api-routes) wrap-sysrev-api reloadable?))
+   (ANY "/api/*" []
+        (wrap-routes app-routes wrap-sysrev-app reloadable?))
+   (compojure.route/resources "/")
    (GET "*" {:keys [uri] :as request}
         (if (-> uri (str/split #"/") last (str/index-of \.))
           ;; Fail if request appears to be for a static file
@@ -34,23 +81,6 @@
           ;; Otherwise serve index.html
           (index/index request)))
    (not-found (index/not-found nil))))
-
-(defn sysrev-app [& [reloadable?]]
-  (let [config
-        (-> default/site-defaults
-            (assoc-in [:security :anti-forgery] false)
-            (assoc-in [:session :store] (sysrev-session-store)))]
-    (-> (app-routes)
-        wrap-sysrev-api
-        ;; wrap-add-anti-forgery-token
-        wrap-json-response
-        wrap-multipart-params
-        (#(if reloadable?
-            (identity %)
-            (wrap-reload % {:dirs ["src/clj"]})))
-        wrap-no-cache
-        (default/wrap-defaults config)
-        (wrap-json-body {:keywords? true}))))
 
 (defonce web-server (atom nil))
 (defonce web-port (atom nil))
@@ -71,7 +101,7 @@
           (reset! web-server-config config)
           (stop-web-server)
           (reset! web-server
-                  (run-server (sysrev-app (if prod? false true))
+                  (run-server (sysrev-handler (if prod? false true))
                               {:port port
                                :join? (if prod? true false)}))
           (println (format "web server started (port %s)" port))

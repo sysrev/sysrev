@@ -37,8 +37,8 @@
       (cond-> (= (:request-method request) :head) (assoc :body nil))))
 
 (defn wrap-no-cache [handler]
-  #(-> (handler %)
-       (r/header "Cache-Control" "no-cache, no-store")))
+  #(some-> (handler %)
+           (r/header "Cache-Control" "no-cache, no-store")))
 
 (defn wrap-add-anti-forgery-token
   "Attach csrf token value to response if request did not contain it."
@@ -52,7 +52,7 @@
          (assoc-in response [:body :csrf-token] *anti-forgery-token*)
          response))))
 
-(defn wrap-sysrev-api [handler]
+(defn wrap-sysrev-response [handler]
   (fn [request]
     (try
       (let [{{{:keys [status type message exception]
@@ -78,9 +78,10 @@
                   ;; If no :error or :result key, wrap the value in :result
                   (map? body) (update response :body #(hash-map :result %))
                   ;;
-                  (and (seqable? body) (empty? body)) (make-error-response
-                                                        500 :empty "Server error (no data returned)"
-                                                        nil response)
+                  (and (seqable? body) (empty? body))
+                  (make-error-response
+                   500 :empty "Server error (no data returned)"
+                   nil response)
                   :else response))
             session-meta (-> body meta :session)]
         ;; If the request handler attached a :session meta value to the result,

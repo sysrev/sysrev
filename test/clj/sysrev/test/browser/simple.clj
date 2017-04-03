@@ -28,7 +28,8 @@
     (doseq [path paths]
       (go-route path)
       (is (on-unauth-home-page?)
-          (format "Invalid content on path '%s'" path)))))
+          (format "Invalid content on path '%s':\n%s"
+                  path (taxi/text "body"))))))
 
 (deftest invalid-route-fails
   (let [paths ["/x"]]
