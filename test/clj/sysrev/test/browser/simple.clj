@@ -8,6 +8,8 @@
             [sysrev.test.browser.core :refer
              [webdriver-fixture-once webdriver-fixture-each go-route
               on-unauth-home-page?]]
+            [sysrev.test.browser.navigate :refer
+             [log-in register-user]]
             [clojure.string :as str]
             [sysrev.db.users :refer [delete-user create-user]]))
 
@@ -37,3 +39,22 @@
       (go-route path)
       (is (not (on-unauth-home-page?))
           (format "Invalid path should not load normal content: '%s'" path)))))
+
+(deftest login-page
+  (go-route "/")
+  (taxi/click "a[href*='login']")
+  (is (str/includes? (taxi/text "body")
+                     "Forgot password")))
+
+#_
+(deftest log-in-content
+  (log-in)
+  (is (str/includes? (taxi/text "body")
+                     "Classify")))
+
+#_
+(deftest register-test-account
+  (go-route "/register")
+  (register-user)
+  (is (str/includes? (taxi/text "body")
+                     "Please select the project")))

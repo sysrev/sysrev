@@ -35,6 +35,21 @@
      (group-by :label-id)
      (map-values first))))
 
+(defn delete-label-entry [project-id label-id]
+  (let [label (-> (q/select-label-where
+                   [:and
+                    [:= :label-id label-id]
+                    [:= :project-id project-id]])
+                  do-query first)]
+    (if (nil? label)
+      false
+      (do (-> (delete-from :label)
+              (where [:and
+                      [:= :label-id label-id]
+                      [:= :project-id project-id]])
+              do-execute)
+          true))))
+
 (defn add-label-entry
   "Creates an entry for a label definition.
 

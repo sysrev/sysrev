@@ -68,14 +68,18 @@
     (taxi/quit)
     (reset! active-webdriver nil)))
 
+(def test-login
+  {:email "browser+test@insilica.co"
+   :password "1234567890"})
+
 (defn delete-test-user []
-  (let [email "test@insilica.co"]
+  (let [email (-> test-login :email)]
     (when-let [user-id (-> (get-user-by-email email) :user-id)]
       (delete-user user-id))))
 
 (defn create-test-user []
-  (let [email "test@insilica.co"
-        password "test1test"]
+  (let [email (-> test-login :email)
+        password (-> test-login :password)]
     (delete-test-user)
     (create-user email password)))
 

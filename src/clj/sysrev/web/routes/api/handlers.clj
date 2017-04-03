@@ -23,7 +23,8 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.web.routes.api.core :refer
-             [def-webapi web-api-routes web-api-routes-order]]))
+             [def-webapi web-api-routes web-api-routes-order]]
+            [sysrev.db.labels :as labels]))
 
 (def-webapi
   :doc :get
@@ -159,3 +160,61 @@
       (assert (q/query-project-by-id project-id [:project-id]))
       (project/delete-project-articles project-id)
       {:result {:success true}})))
+
+(def-webapi
+  :delete-user :post
+  {:required [:email]
+   :require-admin? true
+   :doc "Deletes user and all entries belonging to the user."}
+  (fn [request]
+    (let [{:keys [email] :as body}
+          (-> request :body)
+          {:keys [user-id] :as user}
+          (users/get-user-by-email email)]
+      (cond
+        (nil? user)
+        (make-error-response
+         500 :api (format "user not found (email=%s)" email))
+        :else
+        (do (users/delete-user user-id)
+            {:result {:success true}})))))
+
+(def-webapi
+  :create-user :post
+  {:required [:email :password]
+   :optional [:permissions]
+   :require-admin? true}
+  (fn [request]
+    (let [{:keys [email password permissions] :as body}
+          (-> request :body)
+          user (users/get-user-by-email email)]
+      (if (nil? user)
+        {:result
+         {:success true
+          :user
+          (if (nil? permissions)
+            (users/create-user email password)
+            (users/create-user email password :permissions permissions))}}
+        (make-error-response
+         500 :api "A user with that email already exists")))))
+
+(def-webapi
+  :delete-label :post
+  {:required [:project-id :label-name]
+   :project-role "admin"
+   :doc "Deletes entry for label in project. Any answers for the label will be deleted also."}
+  (fn [request]
+    (let [{:keys [project-id name] :as body}
+          (-> request :body)]
+      (let [{:keys [label-id] :as entry}
+            (-> (q/select-label-where
+                 project-id [:= :l.name name] [:*])
+                do-query first)]
+        (cond
+          (nil? entry)
+          (make-error-response
+           500 :api
+           (format "No label found with name: '%s'" name))
+          :else
+          (do (labels/delete-label-entry project-id label-id)
+              {:result {:success true}}))))))
