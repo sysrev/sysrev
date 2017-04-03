@@ -51,7 +51,7 @@
                  [org.clojure/tools.logging "0.3.1"]
                  [org.slf4j/slf4j-log4j12 "1.7.22"]
                  [log4j/log4j "1.2.17"]
-                 ; enforce jackson version to easier catch dependency conflicts.
+                 ;; enforce jackson version to easier catch dependency conflicts.
                  [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
                  [amazonica "0.3.93"
                   :exclusions [com.taoensso/encore
@@ -80,7 +80,7 @@
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
-  :source-paths ["src/clj" "src/cljc" "src/scripts"]
+  :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
             "test-aws-dev-browser"
@@ -100,7 +100,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs" "src/cljc" "src/scripts"]
+     :source-paths ["src/cljs" "src/cljc"]
      :figwheel true
      :compiler {:main "sysrev.user"
                 :output-to "resources/public/out-dev/sysrev.js"
@@ -152,12 +152,9 @@
              :dev
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
               :resource-paths ["config/dev"]
-              :source-paths ["src/clj" "src/cljc" "src/scripts" "test/clj"]
+              :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
-                             [figwheel-sidecar "0.5.9"]
-                             [org.clojure/tools.nrepl "0.2.12"]
-                             [com.cemerick/piggieback "0.2.1"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-java "3.1.0"]
                              [org.seleniumhq.selenium/selenium-remote-driver "3.1.0"
@@ -168,12 +165,16 @@
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
                                org.seleniumhq.selenium/selenium-support]]
-                             [com.codeborne/phantomjsdriver "1.4.1"]]
+                             [com.codeborne/phantomjsdriver "1.4.1"]]}
+             :repl
+             {:dependencies [[figwheel-sidecar "0.5.9"]
+                             [org.clojure/tools.nrepl "0.2.12"]
+                             [com.cemerick/piggieback "0.2.1"]]
               :plugins [[lein-figwheel "0.5.9"]
                         [cider/cider-nrepl "0.14.0"]
                         [refactor-nrepl "2.2.0"]]}
              :dev-spark
-             {:source-paths ["src/clj" "src/cljc" "src/scripts" "src-spark" "test/clj"]
+             {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
               :resource-paths ["config/dev"]
               :dependencies
@@ -191,7 +192,7 @@
              {:jvm-opts ["-Dlog4j.configuration=log4j.properties.test"
                          "-Djava.util.logging.config.file=logging.properties"]
               :resource-paths ["config/test"]
-              :source-paths ["src/clj" "src/cljc" "src/scripts" "test/clj"]
+              :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
                              [clj-webdriver "0.7.2"]
