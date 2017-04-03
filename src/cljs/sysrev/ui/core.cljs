@@ -36,9 +36,8 @@
 (defmethod logged-out-content :request-password-reset [] [request-password-reset-page])
 (defmethod logged-out-content :reset-password [] [password-reset-page])
 (defmethod logged-out-content :default []
-  [:div.ui.segments
-   [:div.ui.center.aligned.header.segment
-    [:h2 "Please log in or register to access a project"]]])
+  [:div.ui.center.aligned.segment
+   [:h3 "Please log in to access a project, or register using the link you received for your project"]])
 
 
 (defmulti logged-in-content current-page)
@@ -108,8 +107,8 @@
         [:div.right.menu
          [:a.item.distinct {:href "/login"}
           "Log in"]
-         [:a.item.distinct {:href "/register"}
-          "Register"]])]]))
+         #_ [:a.item.distinct {:href "/register"}
+             "Register"]])]]))
 
 (defn header-menu-mobile []
   (let [{:keys [user-id email name]} (st :identity)
@@ -145,8 +144,8 @@
         [:div.right.menu
          [:a.item.distinct {:href "/login"}
           "Log in"]
-         [:a.item.distinct {:href "/register"}
-          "Register"]])]]))
+         #_ [:a.item.distinct {:href "/register"}
+             "Register"]])]]))
 
 (defn main-content []
   (binding [sysrev.base/read-from-work-state false]
