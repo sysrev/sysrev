@@ -179,7 +179,15 @@
           (let [project-id (active-project request)
                 key (-> request :params :key)
                 deletion (delete-file project-id (UUID/fromString key))]
-            {:result deletion}))))
+            {:result deletion})))
+
+  (GET "/api/label-activity/:label-id" request
+       (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               uuid (-> request :params :label-id (UUID/fromString))]
+           {:result (labels/select-article-labels uuid)}))))
+
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
@@ -439,3 +447,4 @@
                :settings settings
                :files files}
      :users users}))
+

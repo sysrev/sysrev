@@ -638,3 +638,17 @@
 (s/fdef set-label-enabled
         :args (s/cat :label-id ::sc/label-id
                      :enabled? boolean?))
+
+
+
+
+
+
+(defn select-article-labels [label-id]
+  (-> (select :primary-title :article.article-id :answer :web-user.user-id)
+      (from :article)
+      (join :article-label [:= :article.article_id :article-label.article_id]
+            :web-user [:= :article-label.user-id :web-user.user-id])
+      (where [:= :label-id label-id])
+      (order-by :article.article-id)
+      (do-query)))

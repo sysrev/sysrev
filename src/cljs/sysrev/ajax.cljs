@@ -163,6 +163,13 @@
        (notes/ensure-article-note-fields article-id (:notes response)))
       (swap! work-state)))))
 
+(defn pull-label-activity [label-id]
+  (ajax-get
+    (str "/api/label-activity/" label-id)
+    (fn [response]
+      (swap! work-state assoc-in [:data :label-activity label-id] response))))
+
+
 (defn pull-reset-code-info [reset-code]
   (ajax-get
    "/api/auth/lookup-reset-code"
@@ -408,6 +415,9 @@
          :article-labels (let [[_ article-id] ks]
                            (pull-article-info article-id))
          :classify-article-id (fetch-classify-task force?)
+         :label-activity (let [[_ {:keys [label-id]}] ks]
+                           (println (str "TRYING TO GET ACTIVITY FOR " label-id))
+                           (pull-label-activity label-id))
          :documents (pull-article-documents)
          nil)))))
 

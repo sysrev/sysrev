@@ -452,7 +452,7 @@
                 (str
                  (if left-action? "labeled" "")
                  " " (if right-action? "right action input" "input")
-                 " " )}
+                 " ")}
                (when left-action?
                  [:div.ui.label.input-remove
                   [:div.ui.button
@@ -511,7 +511,7 @@
                 (str
                  (if left-action? "labeled" "")
                  " " (if right-action? "right action input" "input")
-                 " " )}
+                 " ")}
                (when left-action?
                  [:div.ui.label.input-remove
                   [:div.ui.button
@@ -570,7 +570,7 @@
        (let [active-vals (->> (l/active-label-values nil label-id)
                               (str/join ","))
              comp-vals (-> (js/$ (r/dom-node c))
-                           (.dropdown "get value")) ]
+                           (.dropdown "get value"))]
          (when (and (not= comp-vals active-vals))
            (-> (js/$ (r/dom-node c))
                (.dropdown "set exactly" active-vals))))))

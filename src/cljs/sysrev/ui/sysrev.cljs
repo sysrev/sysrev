@@ -447,7 +447,7 @@
         (case active-tab
           :overview false
           true)]
-    [:div
+    [:div.ui.container
      [:div.ui.top.attached.center.aligned.segment.project-header
       [:h5 (data [:all-projects (st/current-project-id) :name])]]
      [:div.ui.segment.project-segment

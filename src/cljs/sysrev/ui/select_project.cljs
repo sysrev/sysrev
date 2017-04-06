@@ -11,7 +11,7 @@
         active-id (or (st/page-state :selected)
                       (st/current-project-id))
         self-projects (st :identity :projects)]
-    [:div
+    [:div.ui.container
      (when (empty? self-projects)
        [:div.ui.green.segment
         [:h3 "Please select the project you are registering for"]])

@@ -31,6 +31,9 @@
     (when-let [project-id (current-project-id)]
       [:project project-id :member-labels user-id])))
 
+
+
+
 ;; This var records the elements of `(:data @state)` that are required by each
 ;; page on the web site.
 ;;
@@ -135,7 +138,14 @@
     (fn [old new]
       (with-state new
         [(user-labels-path (-> new :page :user-profile :user-id))]))}
-   
+
+   :summary
+   {:required (fn [s]
+                (with-state s
+                  [[:label-activity (-> s :page :summary)]]))
+    :reload   (fn [old new]
+                (with-state new
+                  [[:label-activity (-> new :page :summary)]]))}
    :labels
    {:required
     (fn [s]
@@ -241,7 +251,6 @@
                (with-state new (current-project-id))))
         (with-state new
           (doall (map ajax/fetch-data (page-required-data page))))
-        
         (and page old-page (= page old-page))
         (let [reqs (page-required-data page new)
               old-reqs (page-required-data page old)
@@ -255,7 +264,6 @@
                            (remove #(in? fetch-reqs %)))]
           (doall (map ajax/fetch-data fetch-reqs))
           (doall (map #(ajax/fetch-data % true) reloads)))
-
         true nil)))))
 
 ;; Update `display-state` value when `data-initialized?` is true.
@@ -375,3 +383,7 @@
 
 (defroute labels-route-old "/labels" []
   (do-route-change :labels {}))
+
+(defroute summary "/summary/:label-id" [label-id]
+  (do-route-change :summary {:label-id label-id}))
+
