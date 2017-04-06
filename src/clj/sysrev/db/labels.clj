@@ -645,10 +645,10 @@
 
 
 (defn select-article-labels [label-id]
-  (-> (select :primary-title :article.article-id :answer :web-user.user-id)
-      (from :article)
-      (join :article-label [:= :article.article_id :article-label.article_id]
-            :web-user [:= :article-label.user-id :web-user.user-id])
-      (where [:= :label-id label-id])
-      (order-by :article.article-id)
+  (-> (select :primary-title :a.article-id :answer :wu.user-id)
+      (from [:article :a])
+      (join [:article-label :al] [:= :a.article_id :al.article_id]
+            [:web-user :wu] [:= :al.user-id :wu.user-id])
+      (where [:= :al.label-id label-id])
+      (order-by :a.article-id)
       (do-query)))
