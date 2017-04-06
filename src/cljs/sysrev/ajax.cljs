@@ -415,8 +415,7 @@
          :article-labels (let [[_ article-id] ks]
                            (pull-article-info article-id))
          :classify-article-id (fetch-classify-task force?)
-         :label-activity (let [[_ {:keys [label-id]}] ks]
-                           (println (str "TRYING TO GET ACTIVITY FOR " label-id))
+         :label-activity (let [[_ label-id] ks]
                            (pull-label-activity label-id))
          :documents (pull-article-documents)
          nil)))))

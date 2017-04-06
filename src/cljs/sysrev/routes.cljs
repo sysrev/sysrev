@@ -142,10 +142,10 @@
    :summary
    {:required (fn [s]
                 (with-state s
-                  [[:label-activity (-> s :page :summary)]]))
+                  [[:label-activity (-> s :page :summary :label-id)]]))
     :reload   (fn [old new]
                 (with-state new
-                  [[:label-activity (-> new :page :summary)]]))}
+                  [[:label-activity (-> new :page :summary :label-id)]]))}
    :labels
    {:required
     (fn [s]
@@ -386,4 +386,3 @@
 
 (defroute summary "/summary/:label-id" [label-id]
   (do-route-change :summary {:label-id label-id}))
-
