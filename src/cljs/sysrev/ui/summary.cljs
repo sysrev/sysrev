@@ -171,7 +171,8 @@
                             [:div.item {:key (str key "-label-" lid)}
                              (label-name-by-id lid)
                              ": "
-                             (str answer)])))]]))
+                             (str answer)]))
+                        (doall))]]))
              (doall))]]]]))
 
 (defn summary [id-grouped-articles row-select]
