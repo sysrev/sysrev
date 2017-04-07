@@ -138,9 +138,10 @@
              (doall))]))
 
 (defn article-workspace [article-label]
-  [:tr {:key (str "workspace-" (:article-id article-label))}
-   [:td {:colspan 2}
-    [:pre (with-out-str (cljs.pprint/pprint article-label))]]])
+  (let [key (str "workspace-" (:article-id article-label))]
+    [:tr {:key key}
+     [:td {:colSpan 2}
+      [:pre (with-out-str (cljs.pprint/pprint article-label))]]]))
 
 (defn summary [id-grouped-articles row-select]
   (let [selected-label ((project :labels) (st :page :summary :label-id))]
@@ -167,7 +168,7 @@
                         [:td>p title]
                         [answer-cell las]]]
                    (if (is-selected? key)
-                     (seq [row [article-workspace las]])
+                     (seq [row (article-workspace las)])
                      row))))
            (doall))]]))
 
