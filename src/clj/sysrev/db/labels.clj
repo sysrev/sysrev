@@ -649,6 +649,8 @@
       (from [:article :a])
       (join [:article-label :al] [:= :a.article_id :al.article_id]
             [:web-user :wu] [:= :al.user-id :wu.user-id])
-      (where [:= :al.label-id label-id])
+      (where [:and
+              [:= :al.label-id label-id]
+              [:= :a.enabled true]])
       (order-by :a.article-id)
       (do-query)))
