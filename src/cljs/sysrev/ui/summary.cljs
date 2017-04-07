@@ -5,9 +5,8 @@
             [sysrev.base :refer [st]]
             [sysrev.state.project :refer [project]]
             [sysrev.ui.components :refer [selection-dropdown]]
-            [sysrev.routes :as routes]))
-
-(def fake-data [{:title "Some title here" :status "Some status" :key "123123"}])
+            [sysrev.routes :as routes]
+            [clojure.string :as string]))
 
 (defonce summary-filter (r/atom {:conflicts-only false
                                  :selected-key nil
@@ -31,6 +30,11 @@
 (defprotocol Groupable
   (num-groups [this]))
 
+(defprotocol UserGroupable
+  (user-grouped [this]))
+
+(defrecord UserGrouping [user-id article-label])
+
 (defrecord ArticleLabel [article-id primary-title user-id answer])
 
 (defrecord LabelGrouping [answer articles]
@@ -42,12 +46,15 @@
   (num-groups [this] (count article-labels))
   AnswerGroupable
   (label-grouped [this] (mapv (fn [[k v]] (->LabelGrouping k v)) (group-by :answer article-labels)))
+  UserGroupable
+  (user-grouped [this] (mapv (fn [[k v]] (->UserGrouping k (first v))) (group-by :user-id article-labels)))
   Conflictable
   (is-resolved? [this] (->> article-labels (mapv :resolves) (filterv identity) first))
   (resolution [this] (->> article-labels (filterv :resolves) first))
   (is-discordance? [this] (-> (label-grouped this) (keys) (count) (> 1)))
   (is-single? [this] (= 1 (num-groups this)))
   (is-concordance? [this] (-> (label-grouped this) (count) (= 1) (and (not (is-single? this))))))
+
 
 (defrecord ArticleLabels [articles]
   IdGroupable
@@ -104,12 +111,30 @@
                            :on-click (:conflicts-only handlers)}]]]))
 
 
+(defmulti answer-cell-icon identity)
+(defmethod answer-cell-icon true [] [:i.ui.green.circle.checkmark.icon])
+(defmethod answer-cell-icon false [] [:i.ui.red.delete.icon])
+(defmethod answer-cell-icon :default [] [:i.ui.grey.question.mark.icon])
+
 (defn answer-cell [label-groups]
   (cond
     (is-resolved? label-groups) [:td (resolution label-groups)]
     (is-concordance? label-groups) [:td "Concordance"]
     (is-single? label-groups) [:td "Single"]
-    :else [:td "Discordance"]))
+    :else
+      [:td
+       "Discordance"
+        (->> (user-grouped label-groups)
+             (map (fn [u]
+                    (let [user-id (:user-id u)
+                          article-label (:article-label u)
+                          article-id (:article-id article-label)
+                          answer (:answer article-label)
+                          key (str "discord-" user-id "-" article-id)]
+                      [:div.item {:key key}
+                       (str user-id ": ")
+                       (answer-cell-icon answer)])))
+             (doall))]))
 
 (defn summary [id-grouped-articles row-select]
   [:table.ui.celled.fluid.table
@@ -122,11 +147,15 @@
            (fn [las]
              (let [fla (first (:article-labels las))
                    key (:article-id las)
-                   title (:primary-title fla)]
-                [:tr {:on-click #(row-select key) :key key :class (when (is-selected? key) "active")}
+                   title (:primary-title fla)
+                   classes (remove nil?
+                             [(when (is-selected? key) "active")
+                              (when (is-discordance? las) "negative")
+                              (when (is-concordance? las) "positive")])]
+                [:tr {:style {:cursor "pointer"} :on-click #(row-select key) :key key :class (string/join " " classes)}
                  [:td>p title]
                  [answer-cell las]])))
-        (doall))]])
+         (doall))]])
 
 (defn summary-page []
   (let [label-id (st :page :summary :label-id)
@@ -140,10 +169,4 @@
     [:div
      [:div.ui.segment
       [summary-filter-view @summary-filter handlers]]
-     [summary filtered-articles select-key]
-     [:div.ui.segment
-      (when (:conflicts-only @summary-filter)
-        [:p "Showing only conflicts"])
-      [:pre
-       (with-out-str
-         (cljs.pprint/pprint (->> filtered-articles first)))]]]))
+     [summary filtered-articles select-key]]))
