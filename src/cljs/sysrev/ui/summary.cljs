@@ -81,29 +81,30 @@
       [:i.search.icon]]]))
 
 
-(defn label-selector [labels selected-key]
+(defn label-selector [labels selected-label]
   (letfn [(select-key [key] (nav (routes/summary {:label-id key})))
-          (is-selected? [key] (= selected-key key))]
-    (let [selected-label (->> labels (filter (comp is-selected? :label-id)) first)]
-      [selection-dropdown
-       [:div.text (:name selected-label)]
-       (->> labels
-            (mapv
-              (fn [{:keys [label-id name]}]
-                [:div.item
-                 (into {:key label-id :on-click #(select-key label-id)}
-                   (when (is-selected? label-id)
-                     {:class "active selected"}))
-                 name])))])))
+          (is-selected? [key] (= (:label-id selected-label) key))]
+    [selection-dropdown
+     [:div.text (:name selected-label)]
+     (->> labels
+          (mapv
+            (fn [{:keys [label-id name]}]
+              [:div.item
+               (into {:key label-id :on-click #(select-key label-id)}
+                 (when (is-selected? label-id)
+                   {:class "active selected"}))
+               name])))]))
 
 (defn summary-filter-view [state handlers]
   (let [search-value (:search-value state)
-        search-update (:search-update handlers)]
+        search-update (:search-update handlers)
+        labels (vals (project :labels))
+        selected-label ((project :labels) (st :page :summary :label-id))]
     [:div
      [:div.ui.dividing.header "Filter"]
      [search-box search-value search-update]
      [:div.ui.field
-      [label-selector (vals (project :labels)) (st :page :summary :label-id)]]
+      [label-selector labels selected-label]]
      [:div.ui.form>div.field
       [:label "Conflicts only"]
       [:input.ui.checkbox {:type "checkbox"
@@ -137,25 +138,26 @@
              (doall))]))
 
 (defn summary [id-grouped-articles row-select]
-  [:table.ui.celled.fluid.table
-   [:thead>tr
-    [:th "Title"]
-    [:th "Answer"]]
-   [:tbody
-    (->> (take 30 id-grouped-articles)
-         (map
-           (fn [las]
-             (let [fla (first (:article-labels las))
-                   key (:article-id las)
-                   title (:primary-title fla)
-                   classes (remove nil?
-                             [(when (is-selected? key) "active")
-                              (when (is-discordance? las) "negative")
-                              (when (is-concordance? las) "positive")])]
-                [:tr {:style {:cursor "pointer"} :on-click #(row-select key) :key key :class (string/join " " classes)}
-                 [:td>p title]
-                 [answer-cell las]])))
-         (doall))]])
+  (let [selected-label ((project :labels) (st :page :summary :label-id))]
+    [:table.ui.celled.fluid.table
+     [:thead>tr
+      [:th "Title"]
+      [:th "Responses" [:br] (str "\"" (:name selected-label) "\"")]]
+     [:tbody
+      (->> (take 30 id-grouped-articles)
+           (map
+             (fn [las]
+               (let [fla (first (:article-labels las))
+                     key (:article-id las)
+                     title (:primary-title fla)
+                     classes (remove nil?
+                               [(when (is-selected? key) "active")
+                                (when (is-discordance? las) "negative")
+                                (when (is-concordance? las) "positive")])]
+                  [:tr {:style {:cursor "pointer"} :on-click #(row-select key) :key key :class (string/join " " classes)}
+                   [:td>p title]
+                   [answer-cell las]])))
+           (doall))]]))
 
 (defn summary-page []
   (let [label-id (st :page :summary :label-id)
@@ -166,6 +168,7 @@
           (if (:conflicts-only @summary-filter)
             (filterv is-discordance? grouped-articles)
             grouped-articles)]
+
     [:div
      [:div.ui.segment
       [summary-filter-view @summary-filter handlers]]
