@@ -155,23 +155,24 @@
         labels (data [:article-labels article-id])]
     [:tr {:key key}
      [:td {:colSpan 2}
-      [article-info-component article-id]
-      [:div.ui.dividing.header "Existing Labels"]
-      [:div.ui.equal.width.grid
-       (->> labels
-            (map
-              (fn [[uid v]]
-                [:div.column {:key (str key "-user-" uid)}
-                 [:div.ui.dividing.header (user-name-by-id uid)]
-                 [:div.ui.celled.list
-                  (->> v
-                       (map
-                         (fn [[lid answer]]
-                           [:div.item {:key (str key "-label-" lid)}
-                            (label-name-by-id lid)
-                            ": "
-                            (str answer)])))]]))
-            (doall))]]]))
+      [:div.ui.container
+       [article-info-component article-id]
+       [:div.ui.dividing.header "Existing Labels"]
+       [:div.ui.equal.width.grid
+        (->> labels
+             (map
+               (fn [[uid v]]
+                 [:div.column {:key (str key "-user-" uid)}
+                  [:div.ui.dividing.header (user-name-by-id uid)]
+                  [:div.ui.celled.list
+                   (->> v
+                        (map
+                          (fn [[lid answer]]
+                            [:div.item {:key (str key "-label-" lid)}
+                             (label-name-by-id lid)
+                             ": "
+                             (str answer)])))]]))
+             (doall))]]]]))
 
 (defn summary [id-grouped-articles row-select]
   (let [selected-label ((project :labels) (st :page :summary :label-id))]
