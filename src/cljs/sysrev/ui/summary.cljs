@@ -1,5 +1,7 @@
 (ns sysrev.ui.summary
   (:require [reagent.core :as r]
+            [sysrev.ui.article :refer [article-info-component]]
+            [sysrev.ajax :refer [pull-article-info]]
             [sysrev.util :refer [nav]]
             [sysrev.state.core :refer [data current-project-id]]
             [sysrev.base :refer [st]]
@@ -70,7 +72,9 @@
 (defn select-key [key]
   (if (is-selected? key)
     (swap! summary-filter dissoc :selected-key)
-    (swap! summary-filter assoc :selected-key key)))
+    (do
+      (pull-article-info key)
+      (swap! summary-filter assoc :selected-key key))))
 
 
 (defn search-box [current-value value-changed]
@@ -138,10 +142,13 @@
              (doall))]))
 
 (defn article-workspace [article-label]
-  (let [key (str "workspace-" (:article-id article-label))]
+  (let [aid (:article-id article-label)
+        key (str "workspace-" aid)
+        article-info (data [:articles aid])]
     [:tr {:key key}
      [:td {:colSpan 2}
-      [:pre (with-out-str (cljs.pprint/pprint article-label))]]]))
+      [:pre (with-out-str (cljs.pprint/pprint article-label))]
+      [article-info-component aid]]]))
 
 (defn summary [id-grouped-articles row-select]
   (let [selected-label ((project :labels) (st :page :summary :label-id))]
