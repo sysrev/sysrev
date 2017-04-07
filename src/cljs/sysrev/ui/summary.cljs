@@ -137,6 +137,11 @@
                        (answer-cell-icon answer)])))
              (doall))]))
 
+(defn article-workspace [article-label]
+  [:tr {:key (str "workspace-" (:article-id article-label))}
+   [:td {:colspan 2}
+    [:pre (with-out-str (cljs.pprint/pprint article-label))]]])
+
 (defn summary [id-grouped-articles row-select]
   (let [selected-label ((project :labels) (st :page :summary :label-id))]
     [:table.ui.celled.fluid.table
@@ -153,10 +158,17 @@
                      classes (remove nil?
                                [(when (is-selected? key) "active")
                                 (when (is-discordance? las) "negative")
-                                (when (is-concordance? las) "positive")])]
-                  [:tr {:style {:cursor "pointer"} :on-click #(row-select key) :key key :class (string/join " " classes)}
-                   [:td>p title]
-                   [answer-cell las]])))
+                                (when (is-concordance? las) "positive")])
+                     row
+                       [:tr {:style {:cursor "pointer"}
+                             :on-click #(row-select key)
+                             :key key
+                             :class (string/join " " classes)}
+                        [:td>p title]
+                        [answer-cell las]]]
+                   (if (is-selected? key)
+                     (seq [row [article-workspace las]])
+                     row))))
            (doall))]]))
 
 (defn summary-page []
