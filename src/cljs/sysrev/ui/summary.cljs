@@ -14,7 +14,12 @@
                                  :selected-key nil
                                  :search-value ""
                                  :page 0}))
+(defn user-name-by-id [id]
+  (let [user (data [:users id])]
+    (or (:name user)
+        (-> (:email user) (string/split "@") first))))
 
+(defn label-name-by-id [id] (project :labels id :name))
 
 (defprotocol Conflictable
   (is-resolved? [this])
@@ -129,6 +134,7 @@
     :else
       [:td
        "Discordance"
+       [:div.ui.divided.list
         (->> (user-grouped label-groups)
              (map (fn [u]
                     (let [user-id (:user-id u)
@@ -137,18 +143,35 @@
                           answer (:answer article-label)
                           key (str "discord-" user-id "-" article-id)]
                       [:div.item {:key key}
-                       (str user-id ": ")
-                       (answer-cell-icon answer)])))
-             (doall))]))
+                       (answer-cell-icon answer)
+                       [:div.content>div.header
+                         (user-name-by-id user-id)]])))
+             (doall))]]))
 
-(defn article-workspace [article-label]
-  (let [aid (:article-id article-label)
-        key (str "workspace-" aid)
-        article-info (data [:articles aid])]
+(defn article-workspace [las]
+  (let [article-id (:article-id las)
+        key (str "workspace-" article-id)
+        article-info (data [:articles article-id])
+        labels (data [:article-labels article-id])]
     [:tr {:key key}
      [:td {:colSpan 2}
-      [:pre (with-out-str (cljs.pprint/pprint article-label))]
-      [article-info-component aid]]]))
+      [article-info-component article-id]
+      [:div.ui.dividing.header "Existing Labels"]
+      [:div.ui.equal.width.grid
+       (->> labels
+            (map
+              (fn [[uid v]]
+                [:div.column {:key (str key "-user-" uid)}
+                 [:div.ui.dividing.header (user-name-by-id uid)]
+                 [:div.ui.celled.list
+                  (->> v
+                       (map
+                         (fn [[lid answer]]
+                           [:div.item {:key (str key "-label-" lid)}
+                            (label-name-by-id lid)
+                            ": "
+                            (str answer)])))]]))
+            (doall))]]]))
 
 (defn summary [id-grouped-articles row-select]
   (let [selected-label ((project :labels) (st :page :summary :label-id))]
