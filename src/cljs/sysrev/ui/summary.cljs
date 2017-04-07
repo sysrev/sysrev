@@ -163,10 +163,10 @@
                (let [fla (first (:article-labels las))
                      key (:article-id las)
                      title (:primary-title fla)
-                     classes (remove nil?
-                               [(when (is-selected? key) "active")
-                                (when (is-discordance? las) "negative")
-                                (when (is-concordance? las) "positive")])
+                     classes (cond-> []
+                               (is-selected? key) (conj "active")
+                               (is-discordance? las) (conj "negative")
+                               (is-concordance? las) (conj "positive"))
                      row
                        [:tr {:style {:cursor "pointer"}
                              :on-click #(row-select key)
