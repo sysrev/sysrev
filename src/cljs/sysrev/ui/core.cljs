@@ -12,7 +12,7 @@
     [project-page project-overview-box project-predict-report-box
      project-settings-page]]
    [sysrev.ui.labels :refer [labels-page]]
-   [sysrev.ui.login :refer [login-register-page]]
+   [sysrev.ui.login :refer [login-register-page join-project-page]]
    [sysrev.ui.user-profile :refer [user-profile-page]]
    [sysrev.ajax :as ajax]
    [sysrev.ui.classify :refer [classify-page]]
@@ -48,6 +48,7 @@
      :predict [project-predict-report-box]
      nil)])
 
+(defmethod logged-in-content :register [] [join-project-page])
 (defmethod logged-in-content :labels [] [project-page :labels [labels-page]])
 (defmethod logged-in-content :project-settings [] [project-page :settings [project-settings-page]])
 (defmethod logged-in-content :user-profile [] [project-page :user-profile [user-profile-page]])
@@ -95,7 +96,8 @@
           [:div
            [:i.blue.user.icon]
            display-name]]
-         (when (st/admin-user? user-id)
+         (when (or (st/admin-user? user-id)
+                   (< 1 (count (st :identity :projects))))
            [:a.item {:href "/select-project"}
             "Change project"])
          [:a.item.distinct.middle.aligned {:on-click ajax/post-logout}

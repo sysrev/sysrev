@@ -3,7 +3,8 @@
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.ajax :as ajax]
-            [sysrev.util :refer [validate]])
+            [sysrev.util :refer [validate]]
+            [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (def login-validation
@@ -78,3 +79,30 @@
         [:div.center.aligned
          [:a {:href "/request-password-reset"}
           "Forgot password?"]])]]))
+
+(defn join-project-page []
+  (let [project-hash (st :page :register :project-hash)
+        project-id (and project-hash
+                        (project/project-id-from-hash project-hash))
+        member? (in? (st :identity :projects) project-id)]
+    (cond
+      (nil? project-id)
+      [:div "Project not found"]
+      member?
+      [:div.ui.padded.segments.auto-margin
+       {:style {:max-width "550px" :margin-top "10px"}}
+       [:div.ui.top.attached.segment
+        [:h4 (str (data [:all-projects project-id :name]))]]
+       [:div.ui.bottom.attached.center.aligned.segment
+        [:h3 "You are already a member of this project."]]]
+      :else
+      [:div.ui.padded.segments.auto-margin
+       {:style {:max-width "550px" :margin-top "10px"}}
+       [:h3.ui.top.attached.center.aligned.header
+        "You have been invited to join:"]
+       [:div.ui.attached.segment
+        [:h4 (str (data [:all-projects project-id :name]))]]
+       [:div.ui.bottom.attached.center.aligned.segment
+        [:button.ui.primary.button
+         {:on-click #(ajax/join-project project-id)}
+         "Join project"]]])))
