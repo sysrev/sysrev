@@ -122,5 +122,8 @@
                    (reset! active-route x)
                    x))))
 
+(defn force-dispatch [uri]
+  (secretary/dispatch! uri))
+
 (defn history-init []
   (pushy/start! history))

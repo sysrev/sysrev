@@ -1,7 +1,8 @@
 (ns sysrev.ajax
   (:require [ajax.core :refer [GET POST]]
             [sysrev.base :refer
-             [st work-state ga ga-event force-display-ready active-route]]
+             [st work-state ga ga-event force-display-ready
+              active-route force-dispatch]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.state.labels :as l]
@@ -125,7 +126,8 @@
 (defn nav-login-redirect []
   (let [path (get-login-redirect-path)]
     (swap! work-state dissoc :login-redirect)
-    (nav-scroll-top path)))
+    (nav-scroll-top path)
+    (force-dispatch path)))
 
 (defn pull-member-labels [user-id]
   (ajax-get
