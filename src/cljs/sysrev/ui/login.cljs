@@ -75,6 +75,9 @@
         [:div.center.aligned
          [:a {:href "/login"}
           "Already have an account?"]])
+      [:div.center.aligned
+       [:h4 "If you haven't created an account yet, please register using the link you received for your project."]
+       [:div.ui.divider]]
       (when (= page :login)
         [:div.center.aligned
          [:a {:href "/request-password-reset"}

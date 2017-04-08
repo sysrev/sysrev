@@ -1,6 +1,7 @@
 (ns sysrev.ajax
   (:require [ajax.core :refer [GET POST]]
-            [sysrev.base :refer [st work-state ga ga-event force-display-ready]]
+            [sysrev.base :refer
+             [st work-state ga ga-event force-display-ready active-route]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.state.labels :as l]
@@ -185,7 +186,9 @@
          #_ (notify "Logged in" {:class "green"})
          ;; use dissoc to emulate pull-identity having not run yet
          (swap! work-state dissoc :identity)
-         (nav-scroll-top "/")
+         (nav-scroll-top
+          (if (= (st :active-page) :login)
+            "/" @active-route))
          (pull-identity))
        (do
          (ga-event "auth" "login_failure")

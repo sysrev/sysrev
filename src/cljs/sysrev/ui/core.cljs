@@ -31,13 +31,16 @@
 
 
 (defmulti logged-out-content current-page)
-(defmethod logged-out-content :login [] [login-register-page {:register? false}])
-(defmethod logged-out-content :register [] [login-register-page {:register? true}])
-(defmethod logged-out-content :request-password-reset [] [request-password-reset-page])
-(defmethod logged-out-content :reset-password [] [password-reset-page])
+(defmethod logged-out-content :login []
+  [login-register-page {:register? false}])
+(defmethod logged-out-content :register []
+  [login-register-page {:register? true}])
+(defmethod logged-out-content :request-password-reset []
+  [request-password-reset-page])
+(defmethod logged-out-content :reset-password []
+  [password-reset-page])
 (defmethod logged-out-content :default []
-  [:div.ui.center.aligned.segment
-   [:h3 "Please log in to access a project, or register using the link you received for your project"]])
+  [login-register-page {:register? false}])
 
 
 (defmulti logged-in-content current-page)
@@ -48,10 +51,14 @@
      :predict [project-predict-report-box]
      nil)])
 
-(defmethod logged-in-content :register [] [join-project-page])
-(defmethod logged-in-content :labels [] [project-page :labels [labels-page]])
-(defmethod logged-in-content :project-settings [] [project-page :settings [project-settings-page]])
-(defmethod logged-in-content :user-profile [] [project-page :user-profile [user-profile-page]])
+(defmethod logged-in-content :register []
+  [join-project-page])
+(defmethod logged-in-content :labels []
+  [project-page :labels [labels-page]])
+(defmethod logged-in-content :project-settings []
+  [project-page :settings [project-settings-page]])
+(defmethod logged-in-content :user-profile []
+  [project-page :user-profile [user-profile-page]])
 (defmethod logged-in-content :article []
   (let [project-id (current-project-id)
         article-id (st :page :article :id)
@@ -62,8 +69,10 @@
       [project-page :article [article-page]]
       [article-page])))
 
-(defmethod logged-in-content :classify [] [project-page :classify [classify-page]])
-(defmethod logged-in-content :select-project [] [select-project-page])
+(defmethod logged-in-content :classify []
+  [project-page :classify [classify-page]])
+(defmethod logged-in-content :select-project []
+  [select-project-page])
 
 (defmethod logged-in-content :default []
   [:div [:h1 "Route not found"]])

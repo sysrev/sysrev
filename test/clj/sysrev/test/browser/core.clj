@@ -109,6 +109,6 @@
     (taxi/to full-url)
     (Thread/sleep wait-ms)))
 
-(defn on-unauth-home-page? []
+(defn login-form-shown? []
   (str/includes? (taxi/text "body")
-                 "Please log in"))
+                 "Forgot password"))

@@ -7,7 +7,7 @@
             [sysrev.test.core :refer [default-fixture completes?]]
             [sysrev.test.browser.core :refer
              [webdriver-fixture-once webdriver-fixture-each go-route
-              on-unauth-home-page?]]
+              login-form-shown?]]
             [sysrev.test.browser.navigate :refer
              [log-in register-user]]
             [clojure.string :as str]
@@ -18,7 +18,7 @@
 
 (deftest home-page-loads
   (go-route "/")
-  (is (on-unauth-home-page?)))
+  (is (login-form-shown?)))
 
 (deftest unauthorized-pages-load
   (let [paths ["/project"
@@ -29,7 +29,7 @@
                "/select-project"]]
     (doseq [path paths]
       (go-route path)
-      (is (on-unauth-home-page?)
+      (is (login-form-shown?)
           (format "Invalid content on path '%s':\n%s"
                   path (taxi/text "body"))))))
 
@@ -37,7 +37,7 @@
   (let [paths ["/x"]]
     (doseq [path paths]
       (go-route path)
-      (is (not (on-unauth-home-page?))
+      (is (not (login-form-shown?))
           (format "Invalid path should not load normal content: '%s'" path)))))
 
 (deftest login-page
