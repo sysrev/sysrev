@@ -1,9 +1,9 @@
 (ns sysrev.ui.login
-  (:require [sysrev.base :refer [st work-state]]
+  (:require [sysrev.base :refer [st work-state active-route]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
             [sysrev.ajax :as ajax]
-            [sysrev.util :refer [validate]]
+            [sysrev.util :refer [validate nav-scroll-top]]
             [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
@@ -11,10 +11,13 @@
   {:email [not-empty "Must enter an email address"]
    :password [#(>= (count %) 6) (str "Password must be at least six characters")]})
 
-(defn login-register-page
-  [& [{:keys [register?]
-       :or {register? false}}]]
-  (let [page (if register? :register :login)
+(defn login-register-page []
+  (let [login-to-join? (and (= (st/current-page) :register)
+                            (st :page :register :login?))
+        page (if (and (= (st/current-page) :register)
+                      (not login-to-join?))
+               :register :login)
+        register? (= page :register)
         project-hash (st :page page :project-hash)
         project-id (and project-hash (project/project-id-from-hash project-hash))
         validator #(validate (st :page page) login-validation)
@@ -71,17 +74,19 @@
        (when-let [err (st :page page :err)]
          [:div.ui.negative.message err])]
       [:div.ui.divider]
-      (when (= page :register)
+      (when register?
         [:div.center.aligned
-         [:a {:href "/login"}
+         [:a {:href (if project-id
+                      (str @active-route "/login")
+                      "/login")}
           "Already have an account?"]])
-      [:div.center.aligned
-       [:h4 "If you haven't created an account yet, please register using the link you received for your project."]
-       [:div.ui.divider]]
-      (when (= page :login)
+      (when (not register?)
         [:div.center.aligned
-         [:a {:href "/request-password-reset"}
-          "Forgot password?"]])]]))
+         [:h4 "If you haven't created an account yet, please register using the link you received for your project."]
+         [:div.ui.divider]
+         [:div.center.aligned
+          [:a {:href "/request-password-reset"}
+           "Forgot password?"]]])]]))
 
 (defn join-project-page []
   (let [project-hash (st :page :register :project-hash)

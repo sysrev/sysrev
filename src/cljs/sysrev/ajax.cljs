@@ -114,6 +114,19 @@
   ([url handler]
    (ajax-post url nil handler)))
 
+(defn get-login-redirect-path []
+  (using-work-state
+   (or (st :login-redirect)
+       (if (or (= (st/current-page) :login)
+               (= (st/current-page) :register))
+         "/" @active-route))))
+(defn set-login-redirect-path [path]
+  (swap! work-state assoc :login-redirect path))
+(defn nav-login-redirect []
+  (let [path (get-login-redirect-path)]
+    (swap! work-state dissoc :login-redirect)
+    (nav-scroll-top path)))
+
 (defn pull-member-labels [user-id]
   (ajax-get
    (str "/api/member-labels/" user-id)
@@ -186,9 +199,7 @@
          #_ (notify "Logged in" {:class "green"})
          ;; use dissoc to emulate pull-identity having not run yet
          (swap! work-state dissoc :identity)
-         (nav-scroll-top
-          (if (= (st :active-page) :login)
-            "/" @active-route))
+         (nav-login-redirect)
          (pull-identity))
        (do
          (ga-event "auth" "login_failure")

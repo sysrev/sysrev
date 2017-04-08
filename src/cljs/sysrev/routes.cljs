@@ -298,10 +298,20 @@
   (do-route-change :register
                    {:email "" :password "" :submit false}))
 
-(defroute register-project-route "/register/:project-hash" [project-hash]
+(defroute register-project-route
+  "/register/:project-hash" [project-hash]
   (do-route-change :register
                    {:email "" :password "" :submit false
                     :project-hash project-hash}))
+
+(defroute register-project-login-route
+  "/register/:project-hash/login" [project-hash]
+  (do-route-change :register
+                   {:email "" :password "" :submit false
+                    :project-hash project-hash
+                    :login? true})
+  (ajax/set-login-redirect-path
+   (str "/register/" project-hash)))
 
 (defroute request-password-reset-route "/request-password-reset" []
   (do-route-change :request-password-reset

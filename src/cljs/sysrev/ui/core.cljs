@@ -32,15 +32,15 @@
 
 (defmulti logged-out-content current-page)
 (defmethod logged-out-content :login []
-  [login-register-page {:register? false}])
+  [login-register-page])
 (defmethod logged-out-content :register []
-  [login-register-page {:register? true}])
+  [login-register-page])
 (defmethod logged-out-content :request-password-reset []
   [request-password-reset-page])
 (defmethod logged-out-content :reset-password []
   [password-reset-page])
 (defmethod logged-out-content :default []
-  [login-register-page {:register? false}])
+  [login-register-page])
 
 
 (defmulti logged-in-content current-page)
@@ -100,7 +100,7 @@
       (if (logged-in?)
         [:div.right.menu
          ;; {:style {:border-left "none"}}
-         [:a.item {:href "/project"} "Project"]
+         #_ [:a.item {:href "/project"} "Project"]
          [:a.item.blue-text {:href (str "/user/" user-id)}
           [:div
            [:i.blue.user.icon]
