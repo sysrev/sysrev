@@ -249,14 +249,14 @@
                   do-query)
               (map
                #(-> %
-                    (assoc :confirmed (not (nil? (:confirm-time %)))))))
-                    ;(dissoc :confirm-time))))
+                    (assoc :confirmed (not (nil? (:confirm-time %))))
+                    #_ (dissoc :confirm-time))))
              (->>
               (-> (q/select-project-articles
                    project-id
                    [:a.article-id :a.primary-title :a.secondary-title :a.authors
                     :a.year :a.remote-database-name])
-                  (q/with-article-predict-score predict-run-id)
+                  ;; (q/with-article-predict-score predict-run-id)
                   (merge-where
                    [:exists
                     (q/select-user-article-labels
