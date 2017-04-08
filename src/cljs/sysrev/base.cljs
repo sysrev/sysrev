@@ -111,16 +111,18 @@
 (defonce history
   (pushy/pushy secretary/dispatch!
                (fn [x]
-                 (when (secretary/locate-route x)
-                   (when (not= x @active-route)
-                     (ga "set" "location" (str js/window.location.origin))
-                     (ga "set" "page" (str x))
-                     (ga "set" "userId"
-                         (using-work-state
-                          (str (st :identity :user-uuid))))
-                     (ga "send" "pageview"))
-                   (reset! active-route x)
-                   x))))
+                 (if (secretary/locate-route x)
+                   (do (when (not= x @active-route)
+                         (ga "set" "location" (str js/window.location.origin))
+                         (ga "set" "page" (str x))
+                         (ga "set" "userId"
+                             (using-work-state
+                              (str (st :identity :user-uuid))))
+                         (ga "send" "pageview"))
+                       (reset! active-route x)
+                       x)
+                   (do (pushy/set-token! history "/")
+                       nil)))))
 
 (defn force-dispatch [uri]
   (secretary/dispatch! uri))

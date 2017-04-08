@@ -33,12 +33,12 @@
           (format "Invalid content on path '%s':\n%s"
                   path (taxi/text "body"))))))
 
-(deftest invalid-route-fails
+(deftest invalid-route-redirect
   (let [paths ["/x"]]
     (doseq [path paths]
       (go-route path)
-      (is (not (login-form-shown?))
-          (format "Invalid path should not load normal content: '%s'" path)))))
+      (is (login-form-shown?)
+          (format "Invalid path should go to /" path)))))
 
 (deftest login-page
   (go-route "/")
