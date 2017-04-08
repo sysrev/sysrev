@@ -245,11 +245,11 @@
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
-     [label-counts-box]
-     [project-files-box]]
+     [label-counts-box]]
     [:div.ui.column
+     [project-files-box]
      [user-summary-chart]
-     [member-list-box]]]])
+     #_ [member-list-box]]]])
 
 (defn train-input-summary-box []
   (let [label-id (selected-label-id)
