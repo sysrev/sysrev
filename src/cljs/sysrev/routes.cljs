@@ -139,13 +139,21 @@
       (with-state new
         [(user-labels-path (-> new :page :user-profile :user-id))]))}
 
-   :summary
-   {:required (fn [s]
-                (with-state s
-                  [[:label-activity (-> s :page :summary :label-id)]]))
-    :reload   (fn [old new]
-                (with-state new
-                  [[:label-activity (-> new :page :summary :label-id)]]))}
+   :articles
+   {:required
+    (fn [s]
+      (with-state s
+        [(when (and (current-project-id) (project :labels))
+           (let [label-id (or (st :page :articles :label-id)
+                              (project :overall-label-id))]
+             [:label-activity label-id]))]))
+    :reload
+    (fn [old new]
+      (with-state new
+        [(when (and (current-project-id) (project :labels))
+           (let [label-id (or (st :page :articles :label-id)
+                              (project :overall-label-id))]
+             [:label-activity label-id]))]))}
    :labels
    {:required
     (fn [s]
@@ -384,5 +392,5 @@
 (defroute labels-route-old "/labels" []
   (do-route-change :labels {}))
 
-(defroute summary "/summary/:label-id" [label-id]
-  (do-route-change :summary {:label-id label-id}))
+(defroute articles "/project/articles" []
+  (do-route-change :articles {:label-id nil}))

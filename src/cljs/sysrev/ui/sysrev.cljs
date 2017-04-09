@@ -145,7 +145,7 @@
                    ^{:key {:menu-tab tab}}
                    [:a {:class (make-class tab) :href path}
                     [:h4.ui.header label]])
-        n-tabs (+ 4
+        n-tabs (+ 5
                   (if has-predict-data 1 0)
                   #_ (if (project-admin?) 1 0))]
     [:div.ui
@@ -153,7 +153,8 @@
       (str (num-to-english n-tabs)
            " item secondary pointing menu project-menu")}
      [make-tab :overview "/project" "Overview"]
-     [make-tab :user-profile "/user" "User profile"]
+     [make-tab :user-profile "/user" "User"]
+     [make-tab :articles "/project/articles" "Articles"]
      [make-tab :labels "/project/labels" "Labels"]
      (when has-predict-data
        [make-tab :predict "/project/predict" "Prediction"])
@@ -171,7 +172,7 @@
                    ^{:key {:menu-tab tab}}
                    [:a {:class (make-class tab) :href path}
                     [:h4.ui.header label]])
-        n-tabs (+ 4
+        n-tabs (+ 5
                   #_ (if has-predict-data 1 0)
                   #_ (if (project-admin?) 1 0))]
     [:div.ui
@@ -179,7 +180,8 @@
       (str (num-to-english n-tabs)
            " item secondary pointing menu project-menu")}
      [make-tab :overview "/project" "Overview"]
-     [make-tab :user-profile "/user" "User profile"]
+     [make-tab :user-profile "/user" "User"]
+     [make-tab :articles "/project/articles" "Articles"]
      [make-tab :labels "/project/labels" "Labels"]
      #_
      (when has-predict-data

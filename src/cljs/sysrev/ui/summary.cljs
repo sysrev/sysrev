@@ -4,11 +4,12 @@
             [sysrev.ajax :refer [pull-article-info]]
             [sysrev.util :refer [nav]]
             [sysrev.state.core :refer [data current-project-id]]
-            [sysrev.base :refer [st]]
+            [sysrev.base :refer [st work-state]]
             [sysrev.state.project :refer [project]]
             [sysrev.ui.components :refer [selection-dropdown]]
             [sysrev.routes :as routes]
-            [clojure.string :as string]))
+            [clojure.string :as string])
+  (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defonce summary-filter (r/atom {:conflicts-only false
                                  :selected-key nil
@@ -89,26 +90,33 @@
       [:input {:placeholder "Search..." :on-change update-value :value current-value}]
       [:i.search.icon]]]))
 
+(defn selected-label-id []
+  (or (st :page :articles :label-id)
+      (project :overall-label-id)))
+
 
 (defn label-selector [labels selected-label]
-  (letfn [(select-key [key] (nav (routes/summary {:label-id key})))
-          (is-selected? [key] (= (:label-id selected-label) key))]
+  (letfn [(select-key [key]
+            (swap! work-state assoc-in
+                   [:page :articles :label-id] key))
+          (is-selected? [key]
+            (= (:label-id selected-label) key))]
     [selection-dropdown
      [:div.text (:name selected-label)]
      (->> labels
           (mapv
-            (fn [{:keys [label-id name]}]
-              [:div.item
-               (into {:key label-id :on-click #(select-key label-id)}
-                 (when (is-selected? label-id)
-                   {:class "active selected"}))
-               name])))]))
+           (fn [{:keys [label-id name]}]
+             [:div.item
+              (into {:key label-id :on-click #(select-key label-id)}
+                    (when (is-selected? label-id)
+                      {:class "active selected"}))
+              name])))]))
 
 (defn summary-filter-view [state handlers]
   (let [search-value (:search-value state)
         search-update (:search-update handlers)
         labels (vals (project :labels))
-        selected-label ((project :labels) (st :page :summary :label-id))]
+        selected-label (project :labels (selected-label-id))]
     [:div
      [:div.ui.dividing.header "Filter"]
      [search-box search-value search-update]
@@ -116,9 +124,10 @@
       [label-selector labels selected-label]]
      [:div.ui.form>div.field
       [:label "Conflicts only"]
-      [:input.ui.checkbox {:type "checkbox"
-                           :checked (when (:conflicts-only state) "checked")
-                           :on-click (:conflicts-only handlers)}]]]))
+      [:input.ui.checkbox
+       {:type "checkbox"
+        :default-checked (when (:conflicts-only state) "checked")
+        :on-change (:conflicts-only handlers)}]]]))
 
 
 (defmulti answer-cell-icon identity)
@@ -176,7 +185,7 @@
              (doall))]]]]))
 
 (defn summary [id-grouped-articles row-select]
-  (let [selected-label ((project :labels) (st :page :summary :label-id))]
+  (let [selected-label (project :labels (selected-label-id))]
     [:table.ui.celled.fluid.table
      [:thead>tr
       [:th "Title"]
@@ -184,36 +193,35 @@
      [:tbody
       (->> (take 30 id-grouped-articles)
            (map
-             (fn [las]
-               (let [fla (first (:article-labels las))
-                     key (:article-id las)
-                     title (:primary-title fla)
-                     classes (cond-> []
-                               (is-selected? key) (conj "active")
-                               (is-discordance? las) (conj "negative")
-                               (is-concordance? las) (conj "positive"))
-                     row
-                       [:tr {:style {:cursor "pointer"}
-                             :on-click #(row-select key)
-                             :key key
-                             :class (string/join " " classes)}
-                        [:td>p title]
-                        [answer-cell las]]]
-                   (if (is-selected? key)
-                     (seq [row (article-workspace las)])
-                     row))))
+            (fn [las]
+              (let [fla (first (:article-labels las))
+                    key (:article-id las)
+                    title (:primary-title fla)
+                    classes (cond-> []
+                              (is-selected? key) (conj "active")
+                              (is-discordance? las) (conj "negative")
+                              (is-concordance? las) (conj "positive"))
+                    row
+                    [:tr {:style {:cursor "pointer"}
+                          :on-click #(row-select key)
+                          :key key
+                          :class (string/join " " classes)}
+                     [:td>p title]
+                     [answer-cell las]]]
+                (if (is-selected? key)
+                  (seq [row (article-workspace las)])
+                  row))))
            (doall))]]))
 
-(defn summary-page []
-  (let [label-id (st :page :summary :label-id)
+(defn articles-page []
+  (let [label-id (selected-label-id)
         label-activity (data :label-activity)
         labeled-articles (->ArticleLabels (mapv map->ArticleLabel (get label-activity label-id)))
         grouped-articles (id-grouped labeled-articles)
         filtered-articles
-          (if (:conflicts-only @summary-filter)
-            (filterv is-discordance? grouped-articles)
-            grouped-articles)]
-
+        (if (:conflicts-only @summary-filter)
+          (filterv is-discordance? grouped-articles)
+          grouped-articles)]
     [:div
      [:div.ui.segment
       [summary-filter-view @summary-filter handlers]]

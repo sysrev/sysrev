@@ -20,7 +20,7 @@
    [sysrev.ui.select-project :refer [select-project-page]]
    [sysrev.ui.password-reset :refer
     [password-reset-page request-password-reset-page]]
-   [sysrev.ui.summary :refer [summary-page]]
+   [sysrev.ui.summary :refer [articles-page]]
    [sysrev.ui.dev-tools :refer [site-dev-tools-component]]
    [reagent.core :as r])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
@@ -74,8 +74,8 @@
   [project-page :classify [classify-page]])
 (defmethod logged-in-content :select-project []
   [select-project-page])
-(defmethod logged-in-content :summary []
-  [summary-page])
+(defmethod logged-in-content :articles []
+  [project-page :articles [articles-page]])
 
 (defmethod logged-in-content :default []
   [:div [:h1 "Route not found"]])
