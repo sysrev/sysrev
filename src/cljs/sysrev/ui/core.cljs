@@ -103,8 +103,10 @@
       [:a.item.loading-indicator [loading-indicator]]
       (if (logged-in?)
         [:div.right.menu
-         ;; {:style {:border-left "none"}}
-         #_ [:a.item {:href "/project"} "Project"]
+         (when (st/admin-user? user-id)
+           [:a.item
+            {:on-click #(ajax/post-clear-query-cache)}
+            "Clear query cache"])
          [:a.item.blue-text {:href (str "/user/" user-id)}
           [:div
            [:i.blue.user.icon]
@@ -114,10 +116,7 @@
            [:a.item {:href "/select-project"}
             "Change project"])
          [:a.item.distinct.middle.aligned {:on-click ajax/post-logout}
-          "Log out"
-          #_ [:i.blue.sign.out.fitted.icon
-              {:style {:padding-left "4px"
-                       :margin-bottom "-3px"}}]]
+          "Log out"]
          [:a.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          [:a.item.distinct {:href "/login"}
@@ -175,5 +174,5 @@
            [header-menu-mobile]))
        [:div.ui
         [current-page-content]
-        [site-dev-tools-component]]
+        #_ [site-dev-tools-component]]
        [notifier (active-notification)]])))
