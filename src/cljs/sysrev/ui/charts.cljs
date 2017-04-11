@@ -39,8 +39,9 @@
 
 
 (defn get-datasets
-  ([ynames yss colors] (->> (mapv vector series-colors ynames yss)
-                            (mapv (partial zipmap [:backgroundColor :label :data]))))
+  ([ynames yss colors]
+   (->> (mapv vector series-colors ynames yss)
+        (mapv (partial zipmap [:backgroundColor :label :data]))))
   ([ynames yss] (get-datasets ynames yss series-colors)))
 
 
@@ -51,23 +52,26 @@
   TODO: Need to figure out how to space x-axis labels."
   [id xs ynames yss]
   (let [context (get-canvas-context id)
-        chart-data {:type "line"
-                    :options {:unitStepSize 10
-                              :scales {:yAxes [{:scaleLabel {:display true
-                                                             :labelString "Value"}}]
-                                       :xAxes [{:display true
-                                                :scaleLabel {:display true
-                                                             :labelString "Confidence"}
-                                                :ticks {:maxTicksLimit 20
-                                                        :autoSkip true
-                                                        ;; Don't show last, usually looks funky with distribution limit
-                                                        :callback (fn [value idx values]
-                                                                    (if (= idx (dec (count values)))
-                                                                      ""
-                                                                      value))}}]}
-                              :responsive true}
-                    :data {:labels xs
-                           :datasets (get-datasets ynames yss)}}]
+        chart-data
+        {:type "line"
+         :options
+         {:unitStepSize 10
+          :scales
+          {:yAxes [{:scaleLabel {:display true
+                                 :labelString "Value"}}]
+           :xAxes [{:display true
+                    :scaleLabel {:display true
+                                 :labelString "Confidence"}
+                    :ticks {:maxTicksLimit 20
+                            :autoSkip true
+                            ;; Don't show last, usually looks funky with distribution limit
+                            :callback (fn [value idx values]
+                                        (if (= idx (dec (count values)))
+                                          ""
+                                          value))}}]}
+          :responsive true}
+         :data {:labels xs
+                :datasets (get-datasets ynames yss)}}]
     (js/Chart. context (clj->js chart-data))))
 
 
@@ -79,4 +83,17 @@
         chart-data {:type "bar"
                     :data {:labels xs
                            :datasets (get-datasets ynames yss)}}]
+    (js/Chart. context (clj->js chart-data))))
+
+(defn pie-chart
+  [id labels values & [colors]]
+  (let [colors (or colors series-colors)
+        context (get-canvas-context id)
+        dataset
+        {:data values
+         :backgroundColor (take (count values) colors)}
+        chart-data
+        {:type "doughnut"
+         :data {:labels labels
+                :datasets [dataset]}}]
     (js/Chart. context (clj->js chart-data))))

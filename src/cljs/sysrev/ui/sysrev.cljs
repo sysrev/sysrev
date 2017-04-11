@@ -1,6 +1,7 @@
 (ns sysrev.ui.sysrev
   (:require [sysrev.base :refer [st work-state]]
-            [sysrev.ajax :refer [send-file-url pull-files delete-file get-file get-file-url]]
+            [sysrev.ajax :refer
+             [send-file-url pull-files delete-file get-file get-file-url]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project
              :refer [project project-admin?]]
@@ -11,11 +12,13 @@
             [sysrev.ui.components :refer [true-false-nil-tag]]
             [sysrev.ui.labels :refer [labels-page]]
             [sysrev.ui.upload :refer [upload-container basic-text-button]]
+            [sysrev.ui.article-list :refer [select-answer-status]]
             [reagent.core :as r]
             [sysrev.shared.predictions :as predictions]
             [camel-snake-kebab.core :refer [->kebab-case-keyword]]
             [camel-snake-kebab.extras :refer [transform-keys]]
-            [sysrev.ui.charts :refer [chart-container line-chart bar-chart]]
+            [sysrev.ui.charts :refer
+             [chart-container line-chart bar-chart pie-chart]]
             [goog.string :as string]
             [cljs-time.core :as t]
             [cljs-time.format :as tf])
@@ -57,32 +60,56 @@
       (project :overall-label-id)))
 
 (defn project-summary-box []
-  (let [stats (project :stats)]
-    [:div.ui.grey.two.column.celled.grid.segment.project-stats
-     [:div.row.top-row
-      [:div.ui.column.top-left
-       [:span.attention (str (-> stats :articles))]
-       " total articles"]
-      [:div.ui.column.top-right
-       [:span.attention
-        (str (-> stats :labels :any))]
-       " total reviewed"]]
-     [:div.row
-      [:div.ui.column
-       [:span.attention
-        (str (- (-> stats :labels :any)
-                (-> stats :labels :single)))]
-       " reviewed twice"]
-      [:div.ui.column
-       [:span.attention
-        (str (-> stats :conflicts :resolved))]
-       " resolved conflicts"]]
-     [:div.row
-      [:div.ui.column.bottom-left
-       [:span.attention
-        (str (-> stats :conflicts :pending))]
-       " awaiting extra review"]
-      [:div.ui.column.bottom-right]]]))
+  (let [stats (project :stats)
+        total (-> stats :articles)
+        reviewed (-> stats :labels :any)
+        unreviewed (- total reviewed)
+        single (-> stats :labels :single)
+        double (-> stats :labels :double)
+        pending (-> stats :conflicts :pending)
+        resolved (-> stats :conflicts :resolved)
+        consistent (- double pending)
+        colors {:grey "rgba(160,160,160,0.5)"
+                :green "rgba(20,200,20,0.5)"
+                :red "rgba(220,30,30,0.5)"
+                :blue "rgba(30,100,230,0.5)"
+                :purple "rgba(146,29,252,0.5)"}]
+    [:div
+     [:div.ui.top.attached.grey.segment
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.left.aligned.column
+        {:style {:padding-top "6px"
+                 :padding-bottom "6px"}}
+        [:h4.ui.header "Review status"]]
+       [:div.right.aligned.column
+        {:style {:padding-top "6px"
+                 :padding-bottom "6px"}}
+        [:a.ui.tiny.button
+         {:on-click
+          #(do (nav "/project/articles")
+               (select-answer-status :conflict))}
+         (str "View conflicts")]]]]
+     [:div.ui.bottom.attached.segment
+      [:div.ui.two.column.grid
+       [:div.row
+        [:div.column
+         (let [entries
+               [["Reviewed" reviewed]
+                ["Unreviewed" unreviewed]]
+               labels (mapv first entries)
+               values (mapv second entries)]
+           [chart-container pie-chart labels values
+            (map colors [:green :grey])])]
+        [:div.column
+         (let [entries
+               [["Single" single]
+                ["Double" consistent]
+                ["Conflicting" pending]
+                ["Resolved" resolved]]
+               labels (mapv first entries)
+               values (mapv second entries)]
+           [chart-container pie-chart labels values
+            (map colors [:blue :green :red :purple])])]]]]]))
 
 (defn label-counts-box []
   (let [stats (project :stats)]
@@ -152,10 +179,10 @@
      {:class
       (str (num-to-english n-tabs)
            " item secondary pointing menu project-menu")}
-     [make-tab :overview "/project" "Overview"]
-     [make-tab :user-profile "/user" "User"]
+     [make-tab :overview "/project" "Project overview"]
      [make-tab :articles "/project/articles" "Articles"]
-     [make-tab :labels "/project/labels" "Labels"]
+     [make-tab :user-profile "/user" "User"]
+     [make-tab :labels "/project/labels" "Label definitions"]
      (when has-predict-data
        [make-tab :predict "/project/predict" "Prediction"])
      #_
@@ -180,8 +207,8 @@
       (str (num-to-english n-tabs)
            " item secondary pointing menu project-menu")}
      [make-tab :overview "/project" "Overview"]
-     [make-tab :user-profile "/user" "User"]
      [make-tab :articles "/project/articles" "Articles"]
+     [make-tab :user-profile "/user" "User"]
      [make-tab :labels "/project/labels" "Labels"]
      #_
      (when has-predict-data
@@ -221,36 +248,46 @@
                   parts (mapv #(% date) [t/month t/day t/year])]
               (apply goog.string/format "%d/%d/%d" parts)))]
     [:div.ui.grey.segment
-     [:h4.item {:style {:margin-bottom "0px"}}
-      "Project resources"]
+     [:h4.ui.dividing.header "Project resources"]
      (when-let [files (:files (project))]
        [:div.ui.celled.list
         (doall
-          (->>
-            files
-            (map
-              (fn [file]
-                [:div.icon.item {:key (:file-id file)}
-                 (if @editing-files
-                   [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
-                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
-                 [:div.content {:on-click #(get-file (:file-id file) (:name file))}
-                  [:a.header {:href (get-file-url (:file-id file) (:name file))} (:name file)]
-                  [:div.description (show-date file)]]]))))])
+         (->>
+          files
+          (map
+           (fn [file]
+             [:div.icon.item {:key (:file-id file)}
+              (if @editing-files
+                [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
+                [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
+              [:div.content {:on-click #(get-file (:file-id file) (:name file))}
+               [:a.header {:href (get-file-url (:file-id file) (:name file))} (:name file)]
+               [:div.description (show-date file)]]]))))])
      [:div.ui.container
       [upload-container basic-text-button send-file-url pull-files "Upload Project Document"]
       [:div.ui.right.floated.basic.icon.button {:on-click toggle-editing :class (when @editing-files "red")}
        [:i.ui.small.small.blue.pencil.icon]]]]))
+
+(defn invite-link-segment []
+  [:div.ui.grey.segment
+   ;; {:style {:padding "10px"}}
+   [:div.ui.fluid.labeled.input
+    [:div.ui.label "Project invite link"]
+    [:input.ui.input
+     {:readOnly true
+      :value (project/project-invite-url (st/current-project-id))}]]])
 
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
+     [project-files-box]
+     #_
      [label-counts-box]]
     [:div.ui.column
-     [project-files-box]
      [user-summary-chart]
+     [invite-link-segment]
      #_ [member-list-box]]]])
 
 (defn train-input-summary-box []
@@ -403,14 +440,6 @@
             ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
             [ppvs npvs coverages]]]]]))))
 
-(defn project-invite-link-segment []
-  [:div.ui.bottom.attached.segment.invite-link
-   [:div.ui.fluid.labeled.input
-    [:div.ui.label "Project invite URL"]
-    [:input.ui.input
-     {:readOnly true
-      :value (project/project-invite-url (st/current-project-id))}]]])
-
 (defn project-setting-wrapper [name description content]
   [:div.ui.middle.aligned.grid
    [:div.ui.row
@@ -455,6 +484,4 @@
      [:div.ui.segment.project-segment
       {:class (if bottom-segment? "bottom attached" "attached")}
       [project-page-menu active-tab]
-      [:div.padded content]]
-     (when (= active-tab :overview)
-       [project-invite-link-segment])]))
+      [:div.padded content]]]))

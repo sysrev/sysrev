@@ -251,22 +251,20 @@
               [:div.item
                [:div.ui.large.label (:short-label label)]]))]]]]])))
 
-
-
 (defn selection-dropdown [selected-item items]
   (r/create-class
-    {:component-did-mount
-     (fn [el]
-       (-> el
-           (r/dom-node)
-           (js/$)
-           (.dropdown)))
-     :reagent-render
-     (fn [selected-item items]
-       [:div.ui.selection.dropdown
-        [:i.dropdown.icon]
-        selected-item
-        (into [:div.menu] items)])}))
+   {:component-did-mount
+    (fn [el]
+      (-> el
+          (r/dom-node)
+          (js/$)
+          (.dropdown)))
+    :reagent-render
+    (fn [selected-item items]
+      [:div.ui.selection.dropdown
+       [:i.dropdown.icon]
+       selected-item
+       (into [:div.menu] items)])}))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML

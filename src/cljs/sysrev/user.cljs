@@ -13,6 +13,7 @@
             sysrev.ui.components
             sysrev.ui.article
             sysrev.ui.article-page
+            sysrev.ui.article-list
             sysrev.ui.labels
             sysrev.ui.password-reset
             sysrev.ui.sysrev
