@@ -149,10 +149,7 @@
   (fn [article-id & [user-id]]
     (let [labels (l/project-labels-ordered)
           values (l/user-label-values article-id user-id)]
-      [:div {:style {:margin-top "-8px"
-                     :margin-bottom "-9px"
-                     :margin-left "-6px"
-                     :margin-right "-6px"}}
+      [:div.label-values-segment
        (doall
         (->>
          labels

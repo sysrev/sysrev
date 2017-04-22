@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [sysrev.ui.article :refer [article-info-component]]
             [sysrev.ajax :refer [pull-article-info]]
-            [sysrev.util :refer [nav]]
+            [sysrev.util :refer [nav full-size?]]
             [sysrev.shared.util :refer [in?]]
             [sysrev.state.core :refer [data current-project-id]]
             [sysrev.base :refer [st work-state]]
@@ -159,12 +159,14 @@
 
 (defn answer-cell [label-groups]
   (cond
-    (is-resolved? label-groups) [:td (resolution label-groups)]
+    (is-resolved? label-groups)
+    [:div (resolution label-groups)]
     (is-concordance? label-groups)
-    [:td {:class "positive"} "Consistent"]
-    (is-single? label-groups) [:td "Single"]
+    [:div {:class "positive"} "Consistent"]
+    (is-single? label-groups)
+    [:div "Single"]
     :else
-    [:td
+    [:div
      {:class "negative"}
      [:div.ui.divided.list
       (->> (user-grouped label-groups)
@@ -234,16 +236,6 @@
         :style {:border-radius "0"}}
        "Go to article"]]]))
 
-(defn article-workspace [las]
-  (let [article-id (:article-id las)
-        key (str "workspace-" article-id)
-        article-info (data [:articles article-id])
-        labels (data [:article-labels article-id])]
-    [:tr {:key key}
-     [:td {:colSpan 2}
-      #_ [article-info-component article-id]
-      [article-labels-view article-id]]]))
-
 (defn article-list-view [id-grouped-articles]
   (let [max-count 30
         total-count (count id-grouped-articles)
@@ -254,35 +246,51 @@
       {:style {:padding "10px"}}
       [:h5 (str "Showing " visible-count " of "
                 total-count " matching articles")]]
-     [:table.ui.celled.fluid.table.bottom.attached.segment
-      [:thead>tr
-       [:th {:style {:width "75%"}}
-        "Article"]
-       [:th "Answer status"
-        (str " (" (pr-str (:short-label selected-label)) ")")]]
-      [:tbody
-       (->>
-        (take max-count id-grouped-articles)
-        (map
-         (fn [las]
-           (let [article-id (:article-id las)
-                 fla (first (:article-labels las))
-                 title (:primary-title fla)
-                 active? (= article-id (selected-article-id))
-                 classes
-                 (cond-> []
-                   active? (conj "active"))
-                 row
-                 [:tr {:style {:cursor "pointer"}
-                       :on-click #(toggle-article article-id)
-                       :key article-id
-                       :class (str/join " " classes)}
-                  [:td>p title]
+     [:div.ui.bottom.attached.segment.article-list-segment
+      (->>
+       (take max-count id-grouped-articles)
+       (map
+        (fn [las]
+          (let [article-id (:article-id las)
+                fla (first (:article-labels las))
+                title (:primary-title fla)
+                active? (= article-id (selected-article-id))
+                classes
+                (cond-> []
+                  active? (conj "active"))]
+            [:div.article-list-segments
+             {:key article-id}
+             [:div.ui.top.attached.middle.aligned.grid.segment.article-list-article
+              {:class (if active? "active" "")
+               :style {:cursor "pointer"}
+               :on-click #(toggle-article article-id)}
+              (if (full-size?)
+                [:div.ui.row
+                 [:div.ui.twelve.wide.column.article-title
+                  [:span.article-title title]]
+                 [:div.ui.four.wide.center.aligned.column
                   [answer-cell las]]]
-             (if active?
-               (seq [row (article-workspace las)])
-               row))))
-        (doall))]]]))
+                [:div.ui.row
+                 [:div.ui.ten.wide.column.article-title
+                  [:span.article-title title]]
+                 [:div.ui.six.wide.center.aligned.column
+                  [answer-cell las]]])]
+             [:div
+              {:class (if active?
+                        "ui attached segment"
+                        "ui bottom attached segment")
+               :style {:padding "0"}
+               :on-click #(toggle-article article-id)}
+              [:div.ui.small.fluid.button.fluid-bottom
+               (if active?
+                 [:i.ui.up.chevron.icon]
+                 [:i.ui.down.chevron.icon])]]
+             (when active?
+               [:div.ui.bottom.attached.grid.segment.article-list-expanded
+                [:div.ui.row
+                 [:div.ui.sixteen.wide.column
+                  [article-labels-view article-id]]]])])))
+       (doall))]]))
 
 (defn articles-page []
   (let [filtered-articles

@@ -74,25 +74,21 @@
                 :red "rgba(220,30,30,0.5)"
                 :blue "rgba(30,100,230,0.5)"
                 :purple "rgba(146,29,252,0.5)"}]
-    [:div
-     [:div.ui.top.attached.grey.segment
+    [:div.project-summary
+     [:div.ui.top.attached.grey.segment.header-with-buttons
       [:div.ui.two.column.middle.aligned.grid
        [:div.left.aligned.column
-        {:style {:padding-top "6px"
-                 :padding-bottom "6px"}}
         [:h4.ui.header "Review status"]]
        [:div.right.aligned.column
-        {:style {:padding-top "6px"
-                 :padding-bottom "6px"}}
         [:a.ui.tiny.button
          {:on-click
           #(do (nav "/project/articles")
                (select-answer-status :conflict))}
          (str "View conflicts")]]]]
      [:div.ui.bottom.attached.segment
-      [:div.ui.two.column.grid
+      [:div.ui.two.column.stackable.grid
        [:div.row
-        [:div.column
+        [:div.column.pie-chart
          (let [entries
                [["Reviewed" reviewed]
                 ["Unreviewed" unreviewed]]
@@ -100,7 +96,7 @@
                values (mapv second entries)]
            [chart-container pie-chart labels values
             (map colors [:green :grey])])]
-        [:div.column
+        [:div.column.pie-chart
          (let [entries
                [["Single" single]
                 ["Double" consistent]
@@ -278,7 +274,7 @@
       :value (project/project-invite-url (st/current-project-id))}]]])
 
 (defn project-overview-box []
-  [:div.ui.two.column.stackable.grid
+  [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]

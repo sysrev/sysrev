@@ -19,9 +19,13 @@
 
 
 (defn activity-report []
-  [:div.ui.large.label
-   [:span.ui.green.circular.label (count (l/today-labels))]
-   [:span nbsp "finished today"]])
+  (if (full-size?)
+    [:div.ui.large.label.activity-report
+     [:span.ui.green.circular.label (count (l/today-labels))]
+     [:span nbsp "finished today"]]
+    [:div.ui.large.label.activity-report
+     [:span.ui.tiny.green.circular.label (count (l/today-labels))]
+     [:span nbsp "today"]]))
 
 (defn classify-page []
   (when-let [article-id (data :classify-article-id)]
@@ -83,10 +87,11 @@
                 (str "Review unconfirmed")]
                [:a.ui.label n-str nbsp [:i.file.text.icon]]]]])]
          [:div.ui.grid
-          {:style {:margin "0px"}}
+          {:style {:margin "-0.5em"}}
           [:div.ui.row
-           [:div.ui.three.wide.column]
-           [:div.ui.ten.wide.center.aligned.column
+           [:div.ui.four.wide.column.left-column
+            [activity-report]]
+           [:div.ui.eight.wide.center.aligned.column
             (let [disabled? ((comp not empty?) missing)]
               [:div.ui.primary.small.button
                {:class
@@ -110,8 +115,7 @@
                 (ajax/pull-member-labels user-id))}
              "Next"
              [:i.small.right.circle.arrow.icon]]]
-           [:div.ui.three.wide.column
-            {:style {:padding-right "0px"}}
+           [:div.ui.four.wide.column.right-column
             (let [n-unconfirmed
                   (count
                    (project :member-labels user-id :unconfirmed))

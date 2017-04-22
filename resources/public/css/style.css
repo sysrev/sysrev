@@ -488,6 +488,61 @@ table.ui.table.user-labels th {
     padding-bottom: 7px;
 }
 
+div.article-list-article.active,
+div.article-list-article.active:hover {
+    background-color: rgba(225,225,225,1.0);
+}
+
+div.article-list-article:hover {
+    background-color: rgba(245,245,245,1.0);
+}
+
+div.article-list-article .article-title {
+    font-weight: bold;
+}
+
+div.article-list-article div.ui.row {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+div.article-list-article div.ui.column.article-title {
+    padding-left: 10px;
+}
+
+.ui.fluid.button.fluid-bottom {
+    border-radius: 0;
+    padding: 4px;
+}
+
+div.article-list-segments {
+    margin-top: 7px;
+    margin-bottom: 7px;
+}
+
+div.ui.segment.article-list-segment {
+    padding: 7px;
+}
+
+.ui.segment.header-with-buttons > .ui.grid > div.aligned.column {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.ui.segment.header-with-buttons > .ui.grid > div.aligned.column > .ui.button {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+div.label-values-segment {
+    margin-left: -6px;
+    margin-right: -6px;
+    margin-top: -8px;
+    margin-bottom: -8px;
+}
+
 @media only screen and (max-width: 900px) {
     body {
         font-size: 13px;
@@ -495,6 +550,14 @@ table.ui.table.user-labels th {
     
     .ui.segment {
         padding: 0.5em;
+    }
+
+    .ui.segment > .ui.grid {
+        margin: -0.5em;
+    }
+
+    .ui.grid.segment {
+        padding: 0;
     }
 
     .ui.label-section.grid.segment {
@@ -586,8 +649,53 @@ table.ui.table.user-labels th {
         margin-bottom: 1px;
     }
 
-    .ui.stackable.grid > .row > .column {
+    .ui.stackable.grid.project-overview > .ui.row > .ui.column {
         padding-left: 0 !important;
         padding-right: 0 !important;
+    }
+
+    div.project-summary > .ui.segment > .ui.stackable.grid > .row > .column {
+        padding: 0 !important;
+        width: 60% !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    .ui.small.button {
+        padding-left: 0.85em;
+        padding-right: 0.85em;
+        padding-top: 0.75em;
+        padding-bottom: 0.75em;
+    }
+
+    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.eight.wide.column {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+
+    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column.left-column {
+        padding-right: 0;
+    }
+
+    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column .ui.small.button {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+
+    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column .ui.small.button i.small.right.icon {
+        margin-left: 2px;
+        margin-right: 2px;
+    }
+
+    div.label-values-segment {
+        margin-left: -4px;
+        margin-right: -4px;
+        margin-top: -2px;
+        margin-bottom: -2px;
     }
 }
