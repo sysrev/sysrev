@@ -501,13 +501,18 @@ div.article-list-article .article-title {
     font-weight: bold;
 }
 
-div.article-list-article div.ui.row {
+div.article-list-article {
     padding-top: 10px;
     padding-bottom: 10px;
 }
 
+div.article-list-article div.ui.row {
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+
 div.article-list-article div.ui.column.article-title {
-    padding-left: 10px;
+    padding: 10px;
 }
 
 .ui.fluid.button.fluid-bottom {
@@ -516,12 +521,12 @@ div.article-list-article div.ui.column.article-title {
 }
 
 div.article-list-segments {
-    margin-top: 7px;
-    margin-bottom: 7px;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 div.ui.segment.article-list-segment {
-    padding: 7px;
+    padding: 10px;
 }
 
 .ui.segment.header-with-buttons > .ui.grid > div.aligned.column {
@@ -541,6 +546,31 @@ div.label-values-segment {
     margin-right: -6px;
     margin-top: -8px;
     margin-bottom: -8px;
+}
+
+div.ui.column.article-answers {
+    height: 100%;
+}
+div.ui.column.article-answers>div.ui.grid {
+    margin-top: 0;
+    margin-bottom: 0;
+    height: 100%;
+}
+div.ui.column.article-answers>div.ui.grid>div.row {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+div.article-answers.single {
+    background-color: rgba(230,245,255,1.0);
+}
+div.article-answers.consistent {
+    background-color: rgba(235,255,225,1.0);
+}
+div.article-answers.conflict {
+    background-color: rgba(255,235,235,1.0);
+}
+div.article-answers.resolved {
+    background-color: rgba(235,215,255,1.0);
 }
 
 @media only screen and (max-width: 900px) {
@@ -697,5 +727,10 @@ div.label-values-segment {
         margin-right: -4px;
         margin-top: -2px;
         margin-bottom: -2px;
+    }
+
+    div.ui.column.article-answers>div.ui.grid>div.row>div.column {
+        padding-left: 10px;
+        padding-right: 10px;
     }
 }

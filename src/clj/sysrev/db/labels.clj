@@ -639,11 +639,6 @@
         :args (s/cat :label-id ::sc/label-id
                      :enabled? boolean?))
 
-
-
-
-
-
 (defn select-article-labels [label-id]
   (-> (select :primary-title :a.article-id :answer :wu.user-id)
       (from [:article :a])

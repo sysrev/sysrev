@@ -15,7 +15,7 @@
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (def answer-types
-  [:conflict :resolved :consistent :single])
+  [:conflict :single :consistent :resolved])
 
 (defn user-name-by-id [id]
   (let [user (data [:users id])]
@@ -53,20 +53,35 @@
   Groupable
   (num-groups [this] (count article-labels))
   AnswerGroupable
-  (label-grouped [this] (mapv (fn [[k v]] (->LabelGrouping k v)) (group-by :answer article-labels)))
+  (label-grouped [this]
+    (->> article-labels
+         (filterv
+          (fn [{:keys [answer]}]
+            (not (or (nil? answer)
+                     (and (coll? answer) (empty? answer))))))
+         (group-by :answer)
+         (mapv (fn [[k v]] (->LabelGrouping k v)))))
   UserGroupable
-  (user-grouped [this] (mapv (fn [[k v]] (->UserGrouping k (first v))) (group-by :user-id article-labels)))
+  (user-grouped [this]
+    (mapv (fn [[k v]] (->UserGrouping k (first v)))
+          (group-by :user-id article-labels)))
   Conflictable
-  (is-resolved? [this] (->> article-labels (mapv :resolves) (filterv identity) first))
-  (resolution [this] (->> article-labels (filterv :resolves) first))
-  (is-discordance? [this] (-> (label-grouped this) (keys) (count) (> 1)))
-  (is-single? [this] (= 1 (num-groups this)))
-  (is-concordance? [this] (-> (label-grouped this) (count) (= 1) (and (not (is-single? this))))))
-
+  (is-resolved? [this]
+    (->> article-labels (mapv :resolves) (filterv identity) first))
+  (resolution [this]
+    (->> article-labels (filterv :resolves) first))
+  (is-discordance? [this]
+    (-> (label-grouped this) (keys) (count) (> 1)))
+  (is-single? [this]
+    (= 1 (num-groups this)))
+  (is-concordance? [this]
+    (-> (label-grouped this) (count) (= 1) (and (not (is-single? this))))))
 
 (defrecord ArticleLabels [articles]
   IdGroupable
-  (id-grouped [this] (mapv (fn [[k v]] (->IdGrouping k v)) (group-by :article-id articles))))
+  (id-grouped [this]
+    (mapv (fn [[k v]] (->IdGrouping k v))
+          (group-by :article-id articles))))
 
 (defn search-box [current-value value-changed]
   (let [update-value #(-> % .-target .-value value-changed)]
@@ -88,8 +103,10 @@
                [:page :articles :article-id] article-id))))
 
 (defn select-label [label-id]
-  (swap! work-state assoc-in
-         [:page :articles :label-id] label-id))
+  (swap! work-state
+         (comp
+          #(assoc-in % [:page :articles :label-id] label-id)
+          #(assoc-in % [:page :articles :answer-value] nil))))
 (defn selected-label-id []
   (or (st :page :articles :label-id)
       (project :overall-label-id)))
@@ -98,14 +115,32 @@
   (swap! work-state assoc-in
          [:page :articles :answer-status] status))
 (defn selected-answer-status []
-  (or (st :page :articles :answer-status) :conflict))
-(defn selected-answer-filter []
+  (st :page :articles :answer-status))
+(defn answer-status-filter []
   (case (selected-answer-status)
     :conflict is-discordance?
     :resolved is-resolved?
     :consistent is-concordance?
     :single is-single?
-    identity))
+    #(do true)))
+
+(defn selected-answer-value []
+  (st :page :articles :answer-value))
+(defn select-answer-value [value]
+  (swap! work-state assoc-in
+         [:page :articles :answer-value] value))
+(defn answer-value-filter []
+  (let [active (selected-answer-value)]
+    (if (nil? active)
+      #(do true)
+      (fn [article-group]
+        (let [answers (->> article-group
+                           :article-labels
+                           (mapv :answer)
+                           (mapv #(if (sequential? %) % [%]))
+                           (apply concat)
+                           distinct)]
+          (in? answers active))))))
 
 (defn label-selector []
   (let [active-id (selected-label-id)
@@ -124,33 +159,62 @@
 
 (defn answer-status-selector []
   (let [active-status (selected-answer-status)
-        status-name #(-> % name str/capitalize)]
+        status-name #(if %
+                       (-> % name str/capitalize)
+                       "<Any>")]
     [selection-dropdown
      [:div.text (status-name active-status)]
-     (->> answer-types
+     (->> (concat [nil] answer-types)
           (mapv
            (fn [status]
              [:div.item
-              (into {:key status
+              (into {:key (str status)
                      :on-click #(select-answer-status status)}
                     (when (= status active-status)
                       {:class "active selected"}))
               (status-name status)])))]))
 
+(defn answer-value-selector []
+  (when-let [active-id (selected-label-id)]
+    (let [active-label (project :labels active-id)
+          all-values (labels/label-possible-values active-id)
+          active-value (selected-answer-value)]
+      [selection-dropdown
+       [:div.text
+        (if (nil? active-value) "<Any>" (str active-value))]
+       (vec
+        (concat
+         [[:div.item {:on-click #(select-answer-value nil)} "<Any>"]]
+         (->> all-values
+              (mapv
+               (fn [value]
+                 [:div.item
+                  (into {:key (str value)
+                         :on-click #(select-answer-value value)}
+                        (when (= value active-value)
+                          {:class "active selected"}))
+                  (str value)])))))])))
+
 (defn article-filter-form []
-  [:div.ui.secondary.segment
-   {:style {:padding "10px"}}
-   [:div.ui.small.dividing.header "Article filters"]
-   [:form.ui.form
-    #_ [search-box search-value search-update]
-    [:div.field
-     [:div.fields
-      [:div.ui.small.three.wide.field
-       [:label "Label"]
-       [label-selector]]
-      [:div.ui.small.three.wide.field
-       [:label "Answer status"]
-       [answer-status-selector]]]]]])
+  (let [label-id (selected-label-id)]
+    [:div.ui.secondary.segment
+     {:style {:padding "10px"}}
+     [:div.ui.small.dividing.header "Article filters"]
+     [:form.ui.form
+      #_ [search-box search-value search-update]
+      [:div.field
+       [:div.fields
+        [:div.ui.small.three.wide.field
+         [:label "Label"]
+         [label-selector]]
+        [:div.ui.small.three.wide.field
+         [:label "Answer status"]
+         [answer-status-selector]]
+        (when (and label-id
+                   (not-empty (labels/label-possible-values label-id)))
+          [:div.ui.small.three.wide.field
+           [:label "Answer value"]
+           [answer-value-selector]])]]]]))
 
 (defmulti answer-cell-icon identity)
 (defmethod answer-cell-icon true [] [:i.ui.green.circle.plus.icon])
@@ -158,29 +222,19 @@
 (defmethod answer-cell-icon :default [] [:i.ui.grey.question.mark.icon])
 
 (defn answer-cell [label-groups]
-  (cond
-    (is-resolved? label-groups)
-    [:div (resolution label-groups)]
-    (is-concordance? label-groups)
-    [:div {:class "positive"} "Consistent"]
-    (is-single? label-groups)
-    [:div "Single"]
-    :else
-    [:div
-     {:class "negative"}
-     [:div.ui.divided.list
-      (->> (user-grouped label-groups)
-           (map (fn [u]
-                  (let [user-id (:user-id u)
-                        article-label (:article-label u)
-                        article-id (:article-id article-label)
-                        answer (:answer article-label)
-                        key (str "discord-" user-id "-" article-id)]
-                    [:div.item {:key key}
-                     (answer-cell-icon answer)
-                     [:div.content>div.header
-                      (user-name-by-id user-id)]])))
-           (doall))]]))
+  [:div.ui.divided.list
+   (->> (user-grouped label-groups)
+        (map (fn [u]
+               (let [user-id (:user-id u)
+                     article-label (:article-label u)
+                     article-id (:article-id article-label)
+                     answer (:answer article-label)
+                     key (str "discord-" user-id "-" article-id)]
+                 [:div.item {:key key}
+                  (answer-cell-icon answer)
+                  [:div.content>div.header
+                   (user-name-by-id user-id)]])))
+        (doall))])
 
 (defn article-labels-view [article-id]
   (let [answers (data [:article-labels article-id])
@@ -255,6 +309,12 @@
                 fla (first (:article-labels las))
                 title (:primary-title fla)
                 active? (= article-id (selected-article-id))
+                answer-class
+                (cond
+                  (is-resolved? las) "resolved"
+                  (is-concordance? las) "consistent"
+                  (is-single? las) "single"
+                  :else "conflict")
                 classes
                 (cond-> []
                   active? (conj "active"))]
@@ -268,13 +328,17 @@
                 [:div.ui.row
                  [:div.ui.twelve.wide.column.article-title
                   [:span.article-title title]]
-                 [:div.ui.four.wide.center.aligned.column
-                  [answer-cell las]]]
+                 [:div.ui.four.wide.center.aligned.middle.aligned.column.article-answers
+                  {:class answer-class}
+                  [:div.ui.middle.aligned.grid>div.row>div.column
+                   [answer-cell las]]]]
                 [:div.ui.row
                  [:div.ui.ten.wide.column.article-title
                   [:span.article-title title]]
-                 [:div.ui.six.wide.center.aligned.column
-                  [answer-cell las]]])]
+                 [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
+                  {:class answer-class}
+                  [:div.ui.middle.aligned.grid>div.row>div.column
+                   [answer-cell las]]]])]
              [:div
               {:class (if active?
                         "ui attached segment"
@@ -298,7 +362,8 @@
              (mapv map->ArticleLabel)
              (->ArticleLabels)
              (id-grouped)
-             (filterv (selected-answer-filter)))]
+             (filterv (answer-status-filter))
+             (filterv (answer-value-filter)))]
     [:div
      [article-filter-form]
      [article-list-view filtered-articles]]))

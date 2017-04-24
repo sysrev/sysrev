@@ -159,6 +159,13 @@
           (or (empty? regex)
               (some #(re-matches (re-pattern %) val) regex))))))))
 
+(defn label-possible-values [label-id]
+  (let [{:keys [definition value-type]} (project :labels label-id)]
+    (case value-type
+      "boolean" [true false]
+      "categorical" (:all-values definition)
+      nil)))
+
 (defn label-answer-valid? [label-id answer]
   (let [{:keys [definition value-type]} (project :labels label-id)]
     (boolean
