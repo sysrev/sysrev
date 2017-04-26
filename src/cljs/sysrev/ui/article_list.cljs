@@ -1,14 +1,17 @@
 (ns sysrev.ui.article-list
   (:require [reagent.core :as r]
-            [sysrev.ui.article :refer [article-info-component]]
-            [sysrev.ajax :refer [pull-article-info]]
+            [sysrev.ui.article :refer
+             [article-info-component label-editor-component]]
+            [sysrev.ajax :as ajax :refer [pull-article-info]]
             [sysrev.util :refer [nav full-size?]]
             [sysrev.shared.util :refer [in?]]
-            [sysrev.state.core :refer [data current-project-id]]
-            [sysrev.base :refer [st work-state]]
+            [sysrev.state.core :as st :refer [data current-project-id]]
+            [sysrev.base :refer
+             [st work-state get-loading-state set-loading-state]]
             [sysrev.state.project :refer [project]]
             [sysrev.state.labels :as labels]
-            [sysrev.ui.components :refer [selection-dropdown]]
+            [sysrev.ui.components :refer
+             [selection-dropdown with-tooltip]]
             [sysrev.routes :as routes]
             [clojure.string :as str]
             [goog.string :refer [unescapeEntities]])
@@ -287,6 +290,7 @@
       {:style {:padding "0"}}
       [:a.ui.small.fluid.button
        {:href (str "/article/" article-id)
+        ;; :on-click #(swap! work-state (st/set-modal-article-id article-id))
         :style {:border-radius "0"}}
        "Go to article"]]]))
 
@@ -356,6 +360,36 @@
                   [article-labels-view article-id]]]])])))
        (doall))]]))
 
+(defn article-list-article-view [article-id]
+  (let [label-values (labels/active-label-values article-id)
+        overall-label-id (project :overall-label-id)
+        user-id (st/current-user-id)
+        status (labels/user-article-status article-id)]
+    [:div
+     [article-info-component article-id false]
+     [label-editor-component]
+     #_ [confirm-modal-box #(schedule-scroll-top)]
+     (let [missing (labels/required-answers-missing label-values)
+           disabled? ((comp not empty?) missing)
+           confirm-button
+           [:div.ui.primary.right.labeled.icon.button
+            {:class (str (if disabled? "disabled" "")
+                         " "
+                         (if (get-loading-state :confirm) "loading" ""))
+             :on-click
+             (fn []
+               (set-loading-state :confirm true)
+               (ajax/confirm-active-labels))}
+            "Confirm labels"
+            [:i.check.circle.outline.icon]]]
+       [:div.ui.grid.centered
+        [:div.row
+         (if disabled?
+           [with-tooltip [:div confirm-button]]
+           confirm-button)
+         [:div.ui.inverted.popup.top.left.transition.hidden
+          "Answer missing for a required label"]]])]))
+
 (defn articles-page []
   (let [filtered-articles
         (->> (data [:label-activity (selected-label-id)])
@@ -364,6 +398,9 @@
              (id-grouped)
              (filterv (answer-status-filter))
              (filterv (answer-value-filter)))]
-    [:div
-     [article-filter-form]
-     [article-list-view filtered-articles]]))
+    (if (st/modal-article-id)
+      [:div
+       [article-list-article-view (st/modal-article-id)]]
+      [:div
+       [article-filter-form]
+       [article-list-view filtered-articles]])))

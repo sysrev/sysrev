@@ -90,3 +90,11 @@
 (defn set-reset-code-info [reset-code rmap]
   (fn [s]
     (assoc-in s [:data :reset-code reset-code] rmap)))
+
+(defn set-modal-article-id [article-id]
+  (fn [s]
+    (let [page (:active-page s)]
+      (assoc-in s [:page page :modal-article-id] article-id))))
+
+(defn modal-article-id []
+  (st :page (current-page) :modal-article-id))

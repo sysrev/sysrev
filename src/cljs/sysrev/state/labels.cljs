@@ -82,20 +82,26 @@
                   <))))
 
 (defn editing-article-labels? []
-  (boolean
-   (and (st/current-user-id)
-        (or (and (= (st/current-page) :classify)
-                 (data :classify-article-id))
-            (and (= (st/current-page) :article)
-                 (= (user-article-status (st :page :article :id))
-                    :unconfirmed))))))
+  (let [page (st/current-page)
+        modal-id (st/modal-article-id)
+        page-id (and (= page :article) (st :page :article :id))]
+    (boolean
+     (and (st/current-user-id)
+          (or (and (= page :classify)
+                   (data :classify-article-id))
+              (and (= page :article)
+                   (= (user-article-status page-id)
+                      :unconfirmed))
+              (and modal-id
+                   (= (user-article-status modal-id)
+                      :unconfirmed)))))))
 
 (defn active-editor-article-id []
   (when (editing-article-labels?)
     (case (st/current-page)
       :classify (data :classify-article-id)
       :article (st :page :article :id)
-      nil)))
+      (st/modal-article-id))))
 
 (defn active-labels-path
   "Returns the path in the global state map where label input values for the
@@ -105,7 +111,8 @@
     (case (st/current-page)
       :classify [:page :classify :label-values article-id]
       :article [:page :article :label-values article-id]
-      nil)))
+      (when (st/modal-article-id)
+        (st :page (st/current-page) :article :label-values)))))
 
 (defn active-label-values
   "Get the active label values for `article-id` by taking the values
