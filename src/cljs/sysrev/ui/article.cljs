@@ -41,29 +41,30 @@
 (defn label-help-popup-element [label-id]
   (when-let [{:keys [category required question definition] :as label}
              (project :labels label-id)]
-    [:div.ui.inverted.grid.popup.transition.hidden.label-help
-     [:div.middle.aligned.center.aligned.row.label-help-header
-      [:div.ui.sixteen.wide.column
-       (case category
-         "inclusion criteria"
-         (if required
-           [:span "Inclusion criteria [Required]"]
-           [:span "Inclusion criteria"])
-         [:span "Extra label"])]]
-     [:div.middle.aligned.center.aligned.row.label-help-question
-      [:div.sixteen.wide.column.label-help
-       [:div [:span (str question)]]
-       (when-let [examples (:examples definition)]
-         [:div
-          [:div.ui.small.divider]
-          [:div
-           [:strong "Examples: "]
-           (doall
-            (map-indexed
-             (fn [i ex]
-               ^{:key {:label-popup-example [label-id i]}}
-               [:div.ui.small.green.label (str ex)])
-             examples))]])]]]))
+    (when (full-size?)
+      [:div.ui.inverted.grid.popup.transition.hidden.label-help
+       [:div.middle.aligned.center.aligned.row.label-help-header
+        [:div.ui.sixteen.wide.column
+         (case category
+           "inclusion criteria"
+           (if required
+             [:span "Inclusion criteria [Required]"]
+             [:span "Inclusion criteria"])
+           [:span "Extra label"])]]
+       [:div.middle.aligned.center.aligned.row.label-help-question
+        [:div.sixteen.wide.column.label-help
+         [:div [:span (str question)]]
+         (when-let [examples (:examples definition)]
+           [:div
+            [:div.ui.small.divider]
+            [:div
+             [:strong "Examples: "]
+             (doall
+              (map-indexed
+               (fn [i ex]
+                 ^{:key {:label-popup-example [label-id i]}}
+                 [:div.ui.small.green.label (str ex)])
+               examples))]])]]])))
 
 (defn keyword-button-elements [content label-name label-value]
   [[with-tooltip content
