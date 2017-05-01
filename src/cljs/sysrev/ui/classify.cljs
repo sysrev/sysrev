@@ -19,6 +19,7 @@
 
 
 (defn activity-report []
+  nil #_
   (if (full-size?)
     [:div.ui.large.label.activity-report
      [:span.ui.green.circular.label (count (l/today-labels))]

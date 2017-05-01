@@ -236,7 +236,6 @@
        (apply concat)
        (apply hash-map)))
 
-
 (defn user-labels []
   (let [project-id (st/current-project-id)
         user-id (st/current-user-id)]
