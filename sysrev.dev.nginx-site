@@ -23,6 +23,10 @@ server {
     location /files {
     }
 
+    location ~ /(out|css|semantic)/.* {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
     location / {
         expires -1;
         try_files $uri @clj-site;
