@@ -19,14 +19,14 @@
 
 
 (defn activity-report []
-  nil #_
-  (if (full-size?)
-    [:div.ui.large.label.activity-report
-     [:span.ui.green.circular.label (count (l/today-labels))]
-     [:span nbsp "finished today"]]
-    [:div.ui.large.label.activity-report
-     [:span.ui.tiny.green.circular.label (count (l/today-labels))]
-     [:span nbsp "today"]]))
+  (when-let [today-count (data :classify-today-count)]
+    (if (full-size?)
+      [:div.ui.large.label.activity-report
+       [:span.ui.green.circular.label today-count]
+       [:span nbsp "finished today"]]
+      [:div.ui.large.label.activity-report
+       [:span.ui.tiny.green.circular.label today-count]
+       [:span nbsp "today"]])))
 
 (defn classify-page []
   (when-let [article-id (data :classify-article-id)]

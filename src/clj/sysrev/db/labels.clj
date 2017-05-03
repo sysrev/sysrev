@@ -323,14 +323,23 @@
      #(math/abs (- (:score %) 0.5))
      predict-run-id)))
 
+(defn user-confirmed-today-count [project-id user-id]
+  (-> (q/select-project-article-labels project-id true [:al.article-id])
+      (q/filter-label-user user-id)
+      (merge-where [:=
+                    (sql/call :date_trunc "day" :al.confirm-time)
+                    (sql/call :date_trunc "day" :%now)])
+      (->> do-query (map :article-id) distinct count)))
+
 (defn get-user-label-task [project-id user-id]
   (let [{:keys [second-review-prob]
          :or {second-review-prob 0.5}} (project-settings project-id)
         articles (get-articles-with-label-users project-id)
-        [pending unlabeled]
+        [pending unlabeled today-count]
         (pvalues
          (ideal-single-labeled-article project-id user-id nil articles)
-         (ideal-unlabeled-article project-id nil articles))
+         (ideal-unlabeled-article project-id nil articles)
+         (user-confirmed-today-count project-id user-id))
         [article status]
         (cond
           (and pending unlabeled)
@@ -342,6 +351,7 @@
     (when (and article status)
       (-> article
           (assoc :review-status status)
+          (assoc :today-count today-count)
           (dissoc :raw)))))
 
 (defn article-user-labels-map [project-id article-id]

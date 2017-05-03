@@ -241,6 +241,7 @@
         user-id (st/current-user-id)]
     (data [:project project-id :member-labels user-id])))
 
+#_
 (defn today-labels []
   (let [not-empty? (comp empty?)
         today-label? #(-> % :confirm-time date-from-string is-today?)]

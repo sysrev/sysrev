@@ -320,7 +320,8 @@
            (comp
             (project/merge-article result)
             (st/set-classify-task (:article-id result)
-                                  (:review-status result)))
+                                  (:review-status result)
+                                  (:today-count result)))
            (swap! work-state))
           (when on-success
             (on-success))

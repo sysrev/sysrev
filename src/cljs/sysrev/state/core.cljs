@@ -49,11 +49,12 @@
         (assoc :data {})
         (assoc :page {}))))
 
-(defn set-classify-task [article-id review-status]
+(defn set-classify-task [article-id review-status today-count]
   (fn [s]
     (-> s
         (assoc-in [:data :classify-article-id] article-id)
         (assoc-in [:data :classify-review-status] review-status)
+        (assoc-in [:data :classify-today-count] today-count)
         (assoc-in [:page :classify :label-values] {}))))
 
 (defn set-csrf-token [csrf-token]
