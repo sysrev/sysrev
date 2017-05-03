@@ -122,6 +122,7 @@
                                (:label-id label) label-value))}
                           text)]
                      (if (and kw show-tooltip label-enabled?
+                              (full-size?)
                               (l/editing-article-labels?))
                        (keyword-button-elements
                         span-content (:name label) label-value)
