@@ -1,7 +1,8 @@
 (ns sysrev.ui.article-page
   (:require
    [sysrev.base :refer
-    [st set-loading-state get-loading-state schedule-scroll-top]]
+    [st set-loading-state get-loading-state]]
+   [sysrev.routes :refer [schedule-scroll-top]]
    [sysrev.state.core :as st
     :refer [current-page current-user-id]]
    [sysrev.state.project :as project :refer [project]]

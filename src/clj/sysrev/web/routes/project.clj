@@ -83,12 +83,12 @@
         (wrap-permissions
          request [] ["member"]
          (let [user-id (current-user-id request)
-               {:keys [article-id label-values confirm] :as body}
+               {:keys [article-id label-values confirm resolve] :as body}
                (-> request :body integerify-map-keys uuidify-map-keys)]
-           (assert (not (labels/user-article-confirmed? user-id article-id)))
+           (assert (or resolve (not (labels/user-article-confirmed? user-id article-id))))
            (labels/set-user-article-labels user-id article-id label-values false)
            (when confirm
-             (labels/confirm-user-article-labels user-id article-id))
+             (labels/confirm-user-article-labels user-id article-id resolve))
            {:result body})))
 
   (POST "/api/set-article-note" request

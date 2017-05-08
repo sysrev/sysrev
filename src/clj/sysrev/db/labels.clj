@@ -558,7 +558,7 @@
 
 (defn confirm-user-article-labels
   "Mark all labels by `user-id` on `article-id` as being confirmed at current time."
-  [user-id article-id]
+  [user-id article-id & [resolve]]
   (assert (not (user-article-confirmed? user-id article-id)))
   (do-transaction
    nil
@@ -574,7 +574,8 @@
      (assert ((comp not empty?) required))
      (assert (every? (comp not nil?) required))
      (-> (sqlh/update :article-label)
-         (sset {:confirm-time (sql-now)})
+         (sset {:confirm-time (sql-now)
+                :resolve (boolean resolve)})
          (where [:and
                  [:= :user-id user-id]
                  [:= :article-id article-id]])
@@ -660,3 +661,11 @@
               [:!= :al.confirm-time nil]])
       (order-by :a.article-id)
       (do-query)))
+
+(defn article-review-status [article-id]
+  (-> (q/select-article-by-id
+       article-id [:a.article-id :al.user-id :al.answer :al.resolve])
+      (q/join-article-labels)
+      (q/join-article-label-defs)
+      (q/filter-overall-label)
+      (->> do-query (group-by :article-id))))

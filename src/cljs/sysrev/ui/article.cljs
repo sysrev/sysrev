@@ -253,6 +253,28 @@
               {:style {:text-align "justify"}}
               note-content]]])]))))
 
+(defn article-review-status-label [review-status]
+  (when review-status
+    (let [sstr
+          (cond (= review-status "conflict")
+                "Resolving conflict in user labels"
+                (= review-status "single")
+                "Reviewed by one other user"
+                (= review-status "fresh")
+                "Not yet reviewed"
+                :else nil)
+          color
+          (cond (= review-status "conflict") "purple"
+                :else "")]
+      (when sstr
+        [:div {:style {:float "right"}}
+         [:div.ui.basic.label
+          {:class color
+           :style {:margin-top "-3px"
+                   :margin-bottom "-3px"
+                   :margin-right "0px"}}
+          (str sstr)]]))))
+
 (defn article-info-component
   "Shows an article with a representation of its match quality and how it
   has been manually classified.
@@ -261,7 +283,7 @@
   user values for labels on the article.
   `user-id` is optional, if specified then only input from that user will
   be included."
-  [article-id & [show-labels user-id review-status classify?]]
+  [article-id & [show-labels user-id review-status classify? header]]
   (fn [article-id & [show-labels user-id review-status classify?]]
     (when-let [article (data [:articles article-id])]
       (let [unote (and user-id (notes/get-note-field
@@ -287,31 +309,15 @@
             have-labels? (if labels true false)
             docs (project/article-documents article-id)]
         [:div
-         [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
-          [:div.ui
-           {:style {:float "left"}}
-           [:h4 "Article info"]]
-          (when review-status
-            (let [sstr
-                  (cond (= review-status "conflict")
-                        "Resolving conflict in user labels"
-                        (= review-status "single")
-                        "Reviewed by one other user"
-                        (= review-status "fresh")
-                        "Not yet reviewed"
-                        :else nil)
-                  color
-                  (cond (= review-status "conflict") "purple"
-                        :else "")]
-              (when sstr
-                [:div {:style {:float "right"}}
-                 [:div.ui.basic.label
-                  {:class color
-                   :style {:margin-top "-3px"
-                           :margin-bottom "-3px"
-                           :margin-right "0px"}}
-                  (str sstr)]])))
-          [:div {:style {:clear "both"}}]]
+         (if header
+           header
+           [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
+            [:div.ui
+             {:style {:float "left"}}
+             [:h4 "Article info"]]
+            (when review-status
+              [article-review-status-label review-status])
+            [:div {:style {:clear "both"}}]])
          (when (and classify?
                     (= review-status "conflict")
                     (not (empty? all-labels))

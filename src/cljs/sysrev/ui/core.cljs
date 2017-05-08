@@ -1,6 +1,7 @@
 (ns sysrev.ui.core
   (:require
-   [sysrev.base :refer [st st-if-exists display-ready loading-state]]
+   [sysrev.base :refer
+    [st st-if-exists display-ready loading-state display-state]]
    [sysrev.util :refer [full-size?]]
    [sysrev.state.core :as st :refer
     [data current-page logged-in? current-project-id]]
@@ -164,7 +165,7 @@
 (defn main-content []
   (binding [sysrev.base/read-from-work-state false]
     (if (or (empty? (st :data))
-            (not (data-initialized? (current-page))))
+            (not (data-initialized? (current-page) @display-state)))
       loading-content
       [:div.main-content
        (when (not= :not-found

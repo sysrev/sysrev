@@ -3,7 +3,7 @@
             [sysrev.ui.article :refer
              [article-info-component label-editor-component]]
             [sysrev.ajax :as ajax :refer [pull-article-info]]
-            [sysrev.util :refer [nav full-size?]]
+            [sysrev.util :refer [full-size? nav]]
             [sysrev.shared.util :refer [in?]]
             [sysrev.state.core :as st :refer [data current-project-id]]
             [sysrev.base :refer
@@ -98,12 +98,8 @@
 (defn selected-article-id []
   (st :page :articles :article-id))
 (defn toggle-article [article-id]
-  (if (= article-id (selected-article-id))
-    (swap! work-state assoc-in
-           [:page :articles :article-id] nil)
-    (do (pull-article-info article-id)
-        (swap! work-state assoc-in
-               [:page :articles :article-id] article-id))))
+  (swap! work-state assoc-in
+         [:page :articles :article-id] article-id))
 
 (defn select-label [label-id]
   (swap! work-state
@@ -259,46 +255,42 @@
                               (and (coll? answer)
                                    (empty? answer))))))
                  user-ids))))]
-    [:div
-     [:table.ui.top.attached.table.user-labels
-      [:thead
-       [:tr {:style {:font-weight "bold"}}
-        [:th "Label"]
+    [:div.ui.segment
+     [:h4.ui.dividing.header "Existing labels"]
+     [:div
+      [:table.ui.top.attached.table.user-labels
+       [:thead
+        [:tr {:style {:font-weight "bold"}}
+         [:th "Label"]
+         (doall
+          (for [user-id user-ids]
+            (let [user-name (user-name-by-id user-id)]
+              [:th {:key user-id} user-name])))]]
+       [:tbody
         (doall
-         (for [user-id user-ids]
-           (let [user-name (user-name-by-id user-id)]
-             [:th {:key user-id} user-name])))]]
-      [:tbody
-       (doall
-        (for [label-id label-ids]
-          (let [{:keys [short-label value-type]}
-                (project :labels label-id)]
-            [:tr {:key label-id}
-             [:td short-label]
-             (doall
-              (for [user-id user-ids]
-                [:td {:key [label-id user-id]}
-                 (let [answer (get-in answers [user-id label-id])
-                       values (case value-type
-                                "boolean" (if (boolean? answer)
-                                            [answer] [])
-                                "categorical" answer
-                                "numeric" answer
-                                "string" answer)]
-                   (str/join ", " values))]))])))]]
-     [:div.ui.bottom.attached.segment
-      {:style {:padding "0"}}
-      [:a.ui.small.fluid.button
-       {:href (str "/article/" article-id)
-        ;; :on-click #(swap! work-state (st/set-modal-article-id article-id))
-        :style {:border-radius "0"}}
-       "Go to article"]]]))
+         (for [label-id label-ids]
+           (let [{:keys [short-label value-type]}
+                 (project :labels label-id)]
+             [:tr {:key label-id}
+              [:td short-label]
+              (doall
+               (for [user-id user-ids]
+                 [:td {:key [label-id user-id]}
+                  (let [answer (get-in answers [user-id label-id])
+                        values (case value-type
+                                 "boolean" (if (boolean? answer)
+                                             [answer] [])
+                                 "categorical" answer
+                                 "numeric" answer
+                                 "string" answer)]
+                    (str/join ", " values))]))])))]]]]))
 
 (defn article-list-view [id-grouped-articles]
   (let [max-count 30
         total-count (count id-grouped-articles)
         visible-count (min max-count total-count)
-        selected-label (project :labels (selected-label-id))]
+        selected-label (project :labels (selected-label-id))
+        active-aid (selected-article-id)]
     [:div
      [:div.ui.top.attached.segment
       {:style {:padding "10px"}}
@@ -312,7 +304,7 @@
           (let [article-id (:article-id las)
                 fla (first (:article-labels las))
                 title (:primary-title fla)
-                active? (= article-id (selected-article-id))
+                active? (= article-id active-aid)
                 answer-class
                 (cond
                   (is-resolved? las) "resolved"
@@ -324,40 +316,39 @@
                   active? (conj "active"))]
             [:div.article-list-segments
              {:key article-id}
-             [:div.ui.top.attached.middle.aligned.grid.segment.article-list-article
+             [:div.ui.middle.aligned.grid.segment.article-list-article
               {:class (if active? "active" "")
                :style {:cursor "pointer"}
-               :on-click #(toggle-article article-id)}
+               :on-click #(do (set-loading-state [:article-list article-id])
+                              (nav (str "/project/articles/" article-id))
+                              (toggle-article article-id))}
+              [:div.ui.inverted.dimmer
+               {:class (if (get-loading-state [:article-list article-id])
+                         "active" "")}
+               [:div.ui.small.loader]]
               (if (full-size?)
                 [:div.ui.row
+                 [:div.ui.one.wide.center.aligned.column
+                  [:div.ui.fluid.labeled.center.aligned.button
+                   [:i.ui.right.chevron.center.aligned.icon
+                    {:style {:width "100%"}}]]]
                  [:div.ui.twelve.wide.column.article-title
                   [:span.article-title title]]
-                 [:div.ui.four.wide.center.aligned.middle.aligned.column.article-answers
+                 [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
                   {:class answer-class}
                   [:div.ui.middle.aligned.grid>div.row>div.column
                    [answer-cell las]]]]
                 [:div.ui.row
-                 [:div.ui.ten.wide.column.article-title
+                 [:div.ui.one.wide.center.aligned.column
+                  [:div.ui.fluid.labeled.center.aligned.button
+                   [:i.ui.right.chevron.center.aligned.icon
+                    {:style {:width "100%"}}]]]
+                 [:div.ui.nine.wide.column.article-title
                   [:span.article-title title]]
                  [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
                   {:class answer-class}
                   [:div.ui.middle.aligned.grid>div.row>div.column
-                   [answer-cell las]]]])]
-             [:div
-              {:class (if active?
-                        "ui attached segment"
-                        "ui bottom attached segment")
-               :style {:padding "0"}
-               :on-click #(toggle-article article-id)}
-              [:div.ui.small.fluid.button.fluid-bottom
-               (if active?
-                 [:i.ui.up.chevron.icon]
-                 [:i.ui.down.chevron.icon])]]
-             (when active?
-               [:div.ui.bottom.attached.grid.segment.article-list-expanded
-                [:div.ui.row
-                 [:div.ui.sixteen.wide.column
-                  [article-labels-view article-id]]]])])))
+                   [answer-cell las]]]])]])))
        (doall))]]))
 
 (defn article-list-article-view [article-id]
@@ -366,29 +357,54 @@
         user-id (st/current-user-id)
         status (labels/user-article-status article-id)]
     [:div
-     [article-info-component article-id false]
-     [label-editor-component]
-     #_ [confirm-modal-box #(schedule-scroll-top)]
-     (let [missing (labels/required-answers-missing label-values)
-           disabled? ((comp not empty?) missing)
-           confirm-button
-           [:div.ui.primary.right.labeled.icon.button
-            {:class (str (if disabled? "disabled" "")
-                         " "
-                         (if (get-loading-state :confirm) "loading" ""))
-             :on-click
-             (fn []
-               (set-loading-state :confirm true)
-               (ajax/confirm-active-labels))}
-            "Confirm labels"
-            [:i.check.circle.outline.icon]]]
-       [:div.ui.grid.centered
-        [:div.row
-         (if disabled?
-           [with-tooltip [:div confirm-button]]
-           confirm-button)
-         [:div.ui.inverted.popup.top.left.transition.hidden
-          "Answer missing for a required label"]]])]))
+     [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
+      {:style {:padding "0"}}
+      [:a.ui.large.fluid.button
+       {:href "/project/articles"
+        :style {:border-bottom-left-radius "0"
+                :border-bottom-right-radius "0"
+                :text-align "left"
+                :padding-left "1em"}}
+       [:i.ui.left.chevron.icon]
+       "Close article"]]
+     [:div.ui.bottom.attached.middle.aligned.segment
+      (when (= status :confirmed)
+        [:div.ui.segment.article-status
+         [:h3.ui.green.header.middle.aligned
+          {:style {:margin "0"}}
+          [:i.green.info.circle.icon]
+          "You have confirmed your labels for this article."]])
+      (if (= status :confirmed)
+        [article-info-component article-id true user-id]
+        [article-info-component article-id false])
+      [article-labels-view article-id]
+      (when-not (= status :confirmed)
+        [:div
+         [label-editor-component]
+         (let [missing (labels/required-answers-missing label-values)
+               disabled? ((comp not empty?) missing)
+               confirm-button
+               [:div.ui.primary.right.labeled.icon.button
+                {:class (str (if disabled? "disabled" "")
+                             " "
+                             (if (get-loading-state :confirm) "loading" ""))
+                 :on-click
+                 (fn []
+                   (set-loading-state :confirm true)
+                   (ajax/confirm-active-labels
+                    #(do (nav "/project/articles")
+                         (using-work-state
+                          (ajax/fetch-data
+                           [:label-activity (selected-label-id)] true)))))}
+                "Confirm labels"
+                [:i.check.circle.outline.icon]]]
+           [:div.ui.grid.centered
+            [:div.row
+             (if disabled?
+               [with-tooltip [:div confirm-button]]
+               confirm-button)
+             [:div.ui.inverted.popup.top.left.transition.hidden
+              "Answer missing for a required label"]]])])]]))
 
 (defn articles-page []
   (let [filtered-articles

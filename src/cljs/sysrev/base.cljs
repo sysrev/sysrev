@@ -42,13 +42,12 @@
 (defn clear-loading-state []
   (reset! loading-state []))
 
+(defn get-scroll-position []
+  (.-scrollY js/window))
+(defn set-scroll-position [pos]
+  (-> js/window (.scrollTo 0 pos)))
 (defn scroll-top []
-  (. js/window (scrollTo 0 0)))
-
-(defn schedule-scroll-top []
-  (if @display-ready
-    (scroll-top)
-    (swap! work-state assoc :scroll-top true)))
+  (set-scroll-position 0))
 
 (defn force-display-ready [ready?]
   (reset! display-ready ready?))

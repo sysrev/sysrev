@@ -1,12 +1,13 @@
 (ns sysrev.routes
   (:require
    [sysrev.base :refer
-    [st work-state display-state display-ready clear-loading-state scroll-top]]
+    [st work-state display-state display-ready clear-loading-state
+     scroll-top get-scroll-position set-scroll-position]]
    [sysrev.state.core :as st :refer
     [data current-page current-user-id logged-in? current-project-id]]
    [sysrev.state.project :refer [project]]
    [sysrev.ajax :as ajax]
-   [sysrev.util :refer [nav dissoc-in]]
+   [sysrev.util :refer [dissoc-in]]
    [sysrev.shared.util :refer [in?]]
    [secretary.core :include-macros true :refer-macros [defroute]]
    [reagent.core :as r])
@@ -143,17 +144,25 @@
    {:required
     (fn [s]
       (with-state s
-        [(when (and (current-project-id) (project :labels))
+        [[:documents]
+         [:project (current-project-id) :keywords]
+         (user-labels-path (current-user-id))
+         (when (and (current-project-id) (project :labels))
            (let [label-id (or (st :page :articles :label-id)
                               (project :overall-label-id))]
-             [:label-activity label-id]))]))
+             [:label-activity label-id]))
+         (when-let [article-id (st :page :articles :modal-article-id)]
+           [:article-labels article-id])]))
     :reload
     (fn [old new]
       (with-state new
-        [(when (and (current-project-id) (project :labels))
-           (let [label-id (or (st :page :articles :label-id)
-                              (project :overall-label-id))]
-             [:label-activity label-id]))]))}
+        [(when (and (current-project-id) (project :labels)
+                    (not= (:active-page old) :articles))
+           (when-let [label-id (or (st :page :articles :label-id)
+                                   (project :overall-label-id))]
+             [:label-activity label-id]))
+         (when-let [article-id (st :page :articles :modal-article-id)]
+           [:article-labels article-id])]))}
    :labels
    {:required
     (fn [s]
@@ -180,6 +189,16 @@
          fields
          (filter public-data? fields))))))
 
+(defn page-missing-data
+  "Test whether all server data required for a page has been received."
+  ([page-key]
+   (page-missing-data page-key @work-state))
+  ([page-key state-map]
+   (let [required-fields (page-required-data page-key state-map)]
+     (filter #(= :not-found
+                 (get-in state-map (concat [:data] %) :not-found))
+             required-fields))))
+
 (defn data-initialized?
   "Test whether all server data required for a page has been received."
   ([page-key]
@@ -187,10 +206,7 @@
   ([page-key state-map]
    (and (contains? state-map :identity)
         (contains? state-map :current-project-id)
-        (let [required-fields (page-required-data page-key state-map)]
-          (every? #(not= :not-found
-                         (get-in state-map (concat [:data] %) :not-found))
-                  required-fields)))))
+        (empty? (page-missing-data page-key state-map)))))
 
 (defn page-reload-data
   ([page-key]
@@ -205,6 +221,18 @@
        (if (page-authorized? page-key)
          fields
          (filter public-data? fields))))))
+
+(defn do-timeout-scroll [pos]
+  (set-scroll-position pos)
+  (doseq [toffset [1 25 100]]
+    (js/setTimeout #(set-scroll-position pos) toffset)))
+(defn schedule-scroll [& [pos]]
+  (let [pos (or pos 0)]
+    (if (data-initialized? (current-page))
+      (do-timeout-scroll pos)
+      (swap! work-state assoc :scroll-to pos))))
+(defn schedule-scroll-top []
+  (schedule-scroll 0))
 
 (defn do-route-change
   "This should be called in each route handler, to set the page state
@@ -259,6 +287,7 @@
                (with-state new (current-project-id))))
         (with-state new
           (doall (map ajax/fetch-data (page-required-data page))))
+        
         (and page old-page (= page old-page))
         (let [reqs (page-required-data page new)
               old-reqs (page-required-data page old)
@@ -272,6 +301,7 @@
                            (remove #(in? fetch-reqs %)))]
           (doall (map ajax/fetch-data fetch-reqs))
           (doall (map #(ajax/fetch-data % true) reloads)))
+        
         true nil)))))
 
 ;; Update `display-state` value when `data-initialized?` is true.
@@ -283,12 +313,12 @@
       (let [ready (data-initialized? page new)
             prev-ready (data-initialized? page old)]
         (when ready
-          (let [new-display (-> new (dissoc :scroll-top))]
+          (let [new-display (-> new (dissoc :scroll-to))]
             (reset! display-state new-display)
             (reset! display-ready true)
-            (when (:scroll-top new)
-              (scroll-top)
-              (swap! work-state dissoc :scroll-top))))
+            (when-let [pos (:scroll-to new)]
+              (do-timeout-scroll pos)
+              (swap! work-state dissoc :scroll-to))))
         (when (and ready (not prev-ready))
           (clear-loading-state))
         ;; show a loading indicator if waiting for >100ms
@@ -393,4 +423,27 @@
   (do-route-change :labels {}))
 
 (defroute articles "/project/articles" []
-  (do-route-change :articles {:label-id nil}))
+  (using-work-state
+   (let [on-page? (= (current-page) :articles)
+         scroll-pos (and on-page? (st :page :articles :scroll-pos))]
+     (do-route-change :articles (if on-page?
+                                  (merge (st :page :articles)
+                                         {:modal-article-id nil
+                                          :scroll-pos nil})
+                                  {:label-id nil}))
+     (when scroll-pos
+       (schedule-scroll scroll-pos)))))
+
+(defroute articles-id "/project/articles/:article-id" [article-id]
+  (using-work-state
+   (let [article-id (js/parseInt article-id)
+         on-page? (= (current-page) :articles)
+         scroll-pos (get-scroll-position)]
+     (do-route-change :articles (if on-page?
+                                  (merge (st :page :articles)
+                                         {:modal-article-id article-id
+                                          :scroll-pos scroll-pos})
+                                  {:label-id nil
+                                   :modal-article-id article-id
+                                   :scroll-pos scroll-pos}))
+     (schedule-scroll 0))))

@@ -93,8 +93,8 @@
                    (= (user-article-status page-id)
                       :unconfirmed))
               (and modal-id
-                   (= (user-article-status modal-id)
-                      :unconfirmed)))))))
+                   (not= (user-article-status modal-id)
+                         :confirmed)))))))
 
 (defn active-editor-article-id []
   (when (editing-article-labels?)
@@ -112,7 +112,7 @@
       :classify [:page :classify :label-values article-id]
       :article [:page :article :label-values article-id]
       (when (st/modal-article-id)
-        (st :page (st/current-page) :article :label-values)))))
+        [:page (st/current-page) :article article-id :label-values]))))
 
 (defn active-label-values
   "Get the active label values for `article-id` by taking the values

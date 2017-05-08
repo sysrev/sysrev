@@ -573,6 +573,14 @@ div.article-answers.resolved {
     background-color: rgba(235,215,255,1.0);
 }
 
+.ui.segment.article-status {
+    padding: 0.5em;
+}
+.ui.segment.article-status > h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
 @media only screen and (max-width: 900px) {
     body {
         font-size: 13px;
@@ -670,7 +678,7 @@ div.article-answers.resolved {
     }
 
     .ui.segment.article-status > h3 {
-        padding-top: 2px;
+        margin: 0;
         font-size: 14px;
     }
     

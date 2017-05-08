@@ -1,13 +1,13 @@
 (ns sysrev.ui.classify
   (:require
    [sysrev.base :refer
-    [st ga-event get-loading-state set-loading-state schedule-scroll-top]]
+    [st ga-event get-loading-state set-loading-state]]
    [sysrev.state.core :as st :refer
     [data current-user-id current-page]]
    [sysrev.state.project :as project :refer [project]]
    [sysrev.state.labels :as l]
    [sysrev.util :refer [nav-scroll-top nbsp full-size?]]
-   [sysrev.routes :refer [data-initialized?]]
+   [sysrev.routes :refer [data-initialized? schedule-scroll-top]]
    [sysrev.ui.components :refer
     [three-state-selection with-tooltip confirm-modal-box
      inconsistent-answers-notice]]
