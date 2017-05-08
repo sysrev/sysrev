@@ -656,6 +656,7 @@
             [:web-user :wu] [:= :al.user-id :wu.user-id])
       (where [:and
               [:= :al.label-id label-id]
-              [:= :a.enabled true]])
+              [:= :a.enabled true]
+              [:!= :al.confirm-time nil]])
       (order-by :a.article-id)
       (do-query)))
