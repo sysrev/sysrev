@@ -151,7 +151,7 @@
   (fn [article-id & [user-id]]
     (let [labels (l/project-labels-ordered)
           values (l/user-label-values article-id user-id)]
-      [:div.label-values-segment
+      [:div
        (doall
         (->>
          labels
@@ -159,12 +159,55 @@
          (map #(do [% (get values %)]))
          (map-indexed
           (fn [i [label-id answer]]
-            (let [label-name (project :labels label-id :name)
-                  answer-str (if (nil? answer)
-                               "unknown"
-                               (str answer))]
-              ^{:key {:label-value (str i "__" article-id)}}
-              [label-answer-tag label-id answer])))))])))
+            (when-not (or (nil? answer)
+                          (and (coll? answer) (empty? answer)))
+              (let [label-name (project :labels label-id :name)
+                    answer-str (if (nil? answer)
+                                 "unknown"
+                                 (str answer))]
+                ^{:key {:label-value (str i "__" article-id)}}
+                [label-answer-tag label-id answer]))))))])))
+
+(defn article-labels-view [article-id]
+  (let [answers (data [:article-labels article-id])
+        user-ids (sort (keys answers))
+        label-ids-answered (->> (vals answers)
+                                (map keys)
+                                (apply concat)
+                                distinct)
+        label-ids
+        (->> (labels/project-labels-ordered)
+             (map :label-id)
+             (filter (in? label-ids-answered))
+             (filter
+              (fn [label-id]
+                (some
+                 (fn [user-id]
+                   (let [answer (get-in answers [user-id label-id :answer])]
+                     (not (or (nil? answer)
+                              (and (coll? answer)
+                                   (empty? answer))))))
+                 user-ids))))
+        user-ids-resolved
+        (->> user-ids (filter #(labels/user-article-resolved? article-id %)))
+        user-ids-other
+        (->> user-ids (remove #(labels/user-article-resolved? article-id %)))]
+    [:div.ui.segments.article-labels-view
+     (doall
+      (for [user-id (concat user-ids-resolved user-ids-other)]
+        (let [user-name (st/user-name-by-id user-id)]
+          [:div.ui.attached.segment {:key user-id}
+           [:h5.ui.dividing.header user-name
+            (when (labels/user-article-resolved? article-id user-id)
+              [:div.ui.tiny.basic.purple.label "Resolved"])]
+           [label-values-component article-id user-id]
+           (when-let [unote (notes/get-note-field article-id user-id "default")]
+             [:div.notes
+              [:div.ui.divider]
+              [:div.ui.tiny.labeled.button.user-note
+               [:div.ui.button "Notes"]
+               [:div.ui.basic.label {:style {:text-align "justify"}}
+                (:active unote)]]])])))]))
 
 (defn article-docs-component [article-id]
   (let [docs (project/article-documents article-id)]
@@ -219,7 +262,7 @@
                     "attached segment"
                     "top attached segment")}
           [:h3.header
-           [:a.ui.link {:href (str "/article/" article-id)}
+           [:a.ui.link {:href (str "/project/articles/" article-id)}
             (:primary-title article)]
            (when-let [journal-name (:secondary-title article)]
              (str  " - " journal-name))]
@@ -230,41 +273,41 @@
            [:div.ui.attached.segment
             [:div {:style {:padding-top "1rem"}}
              [article-docs-component article-id]]])
-         [:div.ui.segment
+         [:div.ui.segment.label-values
           {:class (if (empty? note-content) "bottom attached" "attached")}
           (when (and show-labels
                      ((comp not empty?)
                       (l/user-label-values article-id user-id)))
             [label-values-component article-id user-id])]
          (when-not (empty? note-content)
-           [:div.ui.bottom.attached.segment
-            {:style {:padding-top "0.2em"
-                     :padding-bottom "0.2em"
-                     :padding-left "0.5em"
-                     :padding-right "0.5em"}}
-            [:div.ui.labeled.button
-             {:style {:margin-left "4px"
-                      :margin-right "4px"
-                      :margin-top "3px"
-                      :margin-bottom "4px"}}
-             [:div.ui.small.blue.button.flex-center-children
-              [:div "Notes"]]
-             [:div.ui.basic.label
-              {:style {:text-align "justify"}}
+           [:div.ui.bottom.attached.segment.labeled-notes
+            [:div.ui.tiny.labeled.button
+             [:div.ui.button "Notes"]
+             [:div.ui.basic.label {:style {:text-align "justify"}}
               note-content]]])]))))
 
 (defn article-review-status-label [review-status]
   (when review-status
-    (let [sstr
-          (cond (= review-status "conflict")
-                "Resolving conflict in user labels"
+    (let [resolving? (and (= review-status "conflict")
+                          (project/project-resolver?))
+          sstr
+          (cond (= review-status "resolved")
+                "Resolved"
+                resolving?
+                "Resolving conflict"
+                (= review-status "conflict")
+                "Conflicting labels"
                 (= review-status "single")
-                "Reviewed by one other user"
-                (= review-status "fresh")
+                "Reviewed by one user"
+                (= review-status "consistent")
+                "Consistent labels"
+                (= review-status "unreviewed")
                 "Not yet reviewed"
                 :else nil)
           color
-          (cond (= review-status "conflict") "purple"
+          (cond (= review-status "resolved") "purple"
+                (= review-status "conflict") "orange"
+                (= review-status "consistent") "green"
                 :else "")]
       (when sstr
         [:div {:style {:float "right"}}
@@ -283,11 +326,12 @@
   user values for labels on the article.
   `user-id` is optional, if specified then only input from that user will
   be included."
-  [article-id & [show-labels user-id review-status classify? header]]
+  [article-id & [show-labels user-id review-status classify?]]
   (fn [article-id & [show-labels user-id review-status classify?]]
     (when-let [article (data [:articles article-id])]
-      (let [unote (and user-id (notes/get-note-field
-                                article-id user-id "default"))
+      (let [unote (when (not= show-labels :all)
+                    (and user-id (notes/get-note-field
+                                  article-id user-id "default"))) 
             note-content (and unote (:active unote))
             keywords (project :keywords)
             similarity (:score article)
@@ -302,48 +346,29 @@
                            :counts :labeled)
                   (not= 0)))
             percent (Math/round (* 100 similarity))
-            all-labels (l/article-label-values article-id)
             labels (and show-labels
                         user-id
                         (l/user-label-values article-id user-id))
             have-labels? (if labels true false)
+            showing-labels-segment
+            (or (and show-labels have-labels?)
+                (and (= show-labels :all)
+                     (not-empty
+                      (data [:article-labels article-id]))))
             docs (project/article-documents article-id)]
         [:div
-         (if header
-           header
-           [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
-            [:div.ui
-             {:style {:float "left"}}
-             [:h4 "Article info"]]
-            (when review-status
-              [article-review-status-label review-status])
-            [:div {:style {:clear "both"}}]])
-         (when (and classify?
-                    (= review-status "conflict")
-                    (not (empty? all-labels))
-                    (not (= (keys all-labels) [user-id])))
-           (doall
-            (for [label-user-id (keys all-labels)]
-              (when (and
-                     (not= label-user-id user-id)
-                     (not (empty?
-                           (->> (get all-labels label-user-id)
-                                vals
-                                (filter (comp not nil?))))))
-                ^{:key {:classify-existing-labels [article-id label-user-id]}}
-                [:div.ui.attached.segment.middle.aligned
-                 [:h3
-                  {:style {:margin-bottom "7px"}}
-                  [:a
-                   {:href (str "/user/" label-user-id)}
-                   (str (project/project-user label-user-id :user :email))]
-                  " saved labels"]
-                 [label-values-component article-id label-user-id true]]))))
+         [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
+          [:div.ui
+           {:style {:float "left"}}
+           [:h4 "Article info"]]
+          (when review-status
+            [article-review-status-label review-status])
+          [:div {:style {:clear "both"}}]]
          (when show-similarity?
            [:div.ui.attached.segment
             [similarity-bar similarity]])
          [:div.ui
-          {:class (if (and show-labels have-labels?)
+          {:class (if showing-labels-segment
                     "attached segment"
                     "bottom attached segment")}
           [:div.content
@@ -377,12 +402,17 @@
                                             :url-idx idx}}}
                       [out-link url]))
                    doall)])]]
-         (when (and show-labels have-labels?)
-           [:div.ui.segment
-            {:class (if (empty? note-content)
-                      "bottom attached" "attached")}
-            [:div.content
-             [label-values-component article-id user-id]]])
+         (cond (= show-labels :all)
+               [:div.ui.segment
+                {:class (if (empty? note-content)
+                          "bottom attached" "attached")}
+                [article-labels-view article-id]]
+               (and show-labels have-labels?)
+               [:div.ui.segment
+                {:class (if (empty? note-content)
+                          "bottom attached" "attached")}
+                [:div.content
+                 [label-values-component article-id user-id]]])
          (when (and show-labels ((comp not empty?) note-content))
            [:div.ui.bottom.attached.segment
             {:style {:padding "0.5em"}}
@@ -747,7 +777,8 @@
     [:div.ui.segments
      [:div.ui.top.attached.header
       [:h3
-       "Edit labels "
+       (if (labels/resolving-article-labels?)
+         "Resolve labels " "Edit labels ")
        [with-tooltip
         [:a {:href "/project/labels"}
          [:i.medium.grey.help.circle.icon]]]

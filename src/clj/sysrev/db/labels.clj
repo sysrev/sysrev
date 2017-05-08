@@ -9,6 +9,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer
              [project-labels project-overall-label-id project-settings]]
+            [sysrev.db.articles :refer [query-article-by-id-full]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.util :refer [crypto-rand crypto-rand-nth]]
@@ -294,7 +295,7 @@
                     (take n-closest)
                     (#(when-not (empty? %) (crypto-rand-nth %)))
                     :article-id)]
-      (-> (q/query-article-by-id-full
+      (-> (query-article-by-id-full
            article-id {:predict-run-id predict-run-id})
           (dissoc :raw)))))
 
@@ -344,9 +345,9 @@
         (cond
           (and pending unlabeled)
           (if (<= (crypto-rand) second-review-prob)
-            [pending :single] [unlabeled :fresh])
+            [pending :single] [unlabeled :unreviewed])
           pending [pending :single]
-          unlabeled [unlabeled :fresh]
+          unlabeled [unlabeled :unreviewed]
           :else nil)]
     (when (and article status)
       (-> article
@@ -355,18 +356,20 @@
           (dissoc :raw)))))
 
 (defn article-user-labels-map [project-id article-id]
-  (with-project-cache
-    project-id [:article article-id :labels :user-labels-map]
-    (->>
-     (-> (q/select-article-by-id article-id [:al.*])
-         (q/join-article-labels)
-         do-query)
-     (group-by :user-id)
-     (map-values
-      #(->> %
-            (group-by :label-id)
-            (map-values first)
-            (map-values :answer))))))
+  (->>
+   (-> (q/select-article-by-id article-id [:al.*])
+       (q/join-article-labels)
+       do-query)
+   (group-by :user-id)
+   (map-values
+    (fn [ulabels]
+      (->> ulabels
+           (group-by :label-id)
+           (map-values first)
+           (map-values
+            (fn [entry]
+              (merge (select-keys entry [:answer :resolve])
+                     {:confirmed (not (nil? (:confirm-time entry)))}))))))))
 
 (defn merge-article-labels [article-ids]
   (let [labels
@@ -559,7 +562,7 @@
 (defn confirm-user-article-labels
   "Mark all labels by `user-id` on `article-id` as being confirmed at current time."
   [user-id article-id & [resolve]]
-  (assert (not (user-article-confirmed? user-id article-id)))
+  (assert (or resolve (not (user-article-confirmed? user-id article-id))))
   (do-transaction
    nil
    ;; TODO - does this check that all required labels are set?
@@ -651,7 +654,7 @@
                      :enabled? boolean?))
 
 (defn select-article-labels [label-id]
-  (-> (select :primary-title :a.article-id :answer :wu.user-id)
+  (-> (select :a.primary-title :a.article-id :al.answer :al.resolve :wu.user-id)
       (from [:article :a])
       (join [:article-label :al] [:= :a.article_id :al.article_id]
             [:web-user :wu] [:= :al.user-id :wu.user-id])
@@ -661,11 +664,3 @@
               [:!= :al.confirm-time nil]])
       (order-by :a.article-id)
       (do-query)))
-
-(defn article-review-status [article-id]
-  (-> (q/select-article-by-id
-       article-id [:a.article-id :al.user-id :al.answer :al.resolve])
-      (q/join-article-labels)
-      (q/join-article-label-defs)
-      (q/filter-overall-label)
-      (->> do-query (group-by :article-id))))

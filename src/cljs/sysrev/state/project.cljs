@@ -116,4 +116,14 @@
 
 (defn project-admin? [& [user-id]]
   (let [user-id (or user-id (st/current-user-id))]
-    (boolean (in? (member-permissions user-id) "admin"))))
+    (or (st/admin-user? user-id)
+        (boolean (in? (member-permissions user-id) "admin")))))
+
+(defn project-resolver? [& [user-id]]
+  (let [user-id (or user-id (st/current-user-id))]
+    (or (st/admin-user? user-id)
+        (project-admin? user-id)
+        (boolean (in? (member-permissions user-id) "resolve")))))
+
+(defn article-review-status [article-id]
+  (data [:articles article-id :review-status]))

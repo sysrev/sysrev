@@ -10,7 +10,8 @@
             [sysrev.shared.util :as us :refer [map-values]]
             [sysrev.util :refer
              [nav nav-scroll-top dissoc-in]]
-            [sysrev.notify :refer [notify]])
+            [sysrev.notify :refer [notify]]
+            [sysrev.state.labels :as labels])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (declare join-project)
@@ -341,12 +342,13 @@
 
 (defn confirm-labels
   "Same as `send-labels` but also marks the labels as confirmed."
-  [article-id label-values & [on-confirm on-fetch]]
+  [article-id label-values resolve & [on-confirm on-fetch]]
   (ajax-post
    "/api/set-labels"
    {:article-id article-id
     :label-values label-values
-    :confirm true}
+    :confirm true
+    :resolve (boolean resolve)}
    (fn [result]
      (ga-event "labels" "confirm_success"
                (str "article-id = " article-id))
@@ -363,13 +365,14 @@
   []
   (using-work-state
    (when-let [article-id (l/active-editor-article-id)]
-     (let [active-values
-           (->> (l/active-label-values)
-                (l/filter-valid-label-values))]
-       (swap! work-state
-              assoc-in [:page (st/current-page) :label-values-sent article-id]
-              active-values)
-       (send-labels article-id active-values)))))
+     (when (not= (labels/user-article-status article-id) :confirmed)
+       (let [active-values
+             (->> (l/active-label-values)
+                  (l/filter-valid-label-values))]
+         (swap! work-state
+                assoc-in [:page (st/current-page) :label-values-sent article-id]
+                active-values)
+         (send-labels article-id active-values))))))
 
 (defn confirm-active-labels
   "Calls `confirm-labels` with values from the active editor."
@@ -378,6 +381,7 @@
    (when (l/editing-article-labels?)
      (confirm-labels (l/active-editor-article-id)
                      (l/active-label-values)
+                     (l/resolving-article-labels?)
                      on-confirm
                      on-fetch))))
 

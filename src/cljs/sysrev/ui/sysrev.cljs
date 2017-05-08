@@ -59,6 +59,27 @@
   (or (st :page :project :active-label-id)
       (project :overall-label-id)))
 
+(defn- chart-value-labels [entries]
+  [:div.ui.one.column.center.aligned.grid
+   {:style {:padding "8px"}}
+   (->>
+    (partition-all 4 entries)
+    (map-indexed
+     (fn [i row]
+       [:div.column {:key (str i)}
+        (->>
+         row
+         (map-indexed
+          (fn [i [value color]]
+            [:div.ui.small.basic.button
+             {:key (str i)
+              :style {:padding "4px"
+                      :margin "3px"
+                      :border (str "1px solid " color)}}
+             [:span (str value)]]))
+         doall)]))
+    doall)])
+
 (defn project-summary-box []
   (let [stats (project :stats)
         total (-> stats :articles)
@@ -88,24 +109,32 @@
      [:div.ui.bottom.attached.segment
       [:div.ui.two.column.stackable.grid
        [:div.row
-        [:div.column.pie-chart
-         (let [entries
-               [["Reviewed" reviewed]
-                ["Unreviewed" unreviewed]]
-               labels (mapv first entries)
-               values (mapv second entries)]
+        (let [entries
+              [["Reviewed" reviewed]
+               ["Unreviewed" unreviewed]]
+              labels (mapv first entries)
+              values (mapv second entries)]
+          [:div.column.pie-chart
            [chart-container pie-chart labels values
-            (map colors [:green :grey])])]
-        [:div.column.pie-chart
-         (let [entries
-               [["Single" single]
-                ["Double" consistent]
-                ["Conflicting" pending]
-                ["Resolved" resolved]]
-               labels (mapv first entries)
-               values (mapv second entries)]
+            (map colors [:green :grey])]
+           [chart-value-labels
+            [[reviewed (:green colors)]
+             [unreviewed (:grey colors)]]]])
+        (let [entries
+              [["Single" single]
+               ["Double" consistent]
+               ["Conflicting" pending]
+               ["Resolved" resolved]]
+              labels (mapv first entries)
+              values (mapv second entries)]
+          [:div.column.pie-chart
            [chart-container pie-chart labels values
-            (map colors [:blue :green :red :purple])])]]]]]))
+            (map colors [:blue :green :red :purple])]
+           [chart-value-labels
+            [[single (:blue colors)]
+             [consistent (:green colors)]
+             [pending (:red colors)]
+             [resolved (:purple colors)]]]])]]]]))
 
 (defn label-counts-box []
   (let [stats (project :stats)]

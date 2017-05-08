@@ -137,6 +137,7 @@
       [:a.item.loading-indicator [loading-indicator]]
       (if (logged-in?)
         [:div.right.menu
+         #_
          (when (st/admin-user? user-id)
            [:div.item
             (let [dropdown
@@ -150,17 +151,18 @@
                 [:div.menu
                  (when (st/admin-user? user-id)
                    [:a.item {:href "/select-project"} "Change project"])]]])])
-         [:a.item {:href "/project"} "Project"]
          [:a.item.blue-text {:href (str "/user/" user-id)}
           [:i.large.blue.fitted.user.icon {:style {:margin "0px"}}]]
+         (when (or (st/admin-user? user-id)
+                   (< 1 (count (st :identity :projects))))
+           [:a.item {:href "/select-project"}
+            "Change project"])
          [:a.item.distinct.middle.aligned {:on-click ajax/post-logout}
           "Log out"]
          [:a.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          [:a.item.distinct {:href "/login"}
-          "Log in"]
-         #_ [:a.item.distinct {:href "/register"}
-             "Register"]])]]))
+          "Log in"]])]]))
 
 (defn main-content []
   (binding [sysrev.base/read-from-work-state false]

@@ -7,7 +7,7 @@
    [sysrev.shared.spec.article :as sa]
    [sysrev.db.core :as db :refer
     [do-query do-execute to-sql-array sql-now with-project-cache
-     clear-project-cache to-jsonb]]
+     with-query-cache clear-project-cache to-jsonb]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -134,3 +134,62 @@
                      :disable? boolean?
                      :meta (s/? ::sa/meta))
         :ret map?)
+
+(defn article-review-status [article-id]
+  (let [entries
+        (-> (q/select-article-by-id
+             article-id [:al.user-id :al.resolve :al.answer])
+            (q/join-article-labels)
+            (q/join-article-label-defs)
+            (q/filter-valid-article-label true)
+            (q/filter-overall-label)
+            do-query)]
+    (cond
+      (empty? entries) :unreviewed
+      (some :resolve entries) :resolved
+      (= 1 (count entries)) :single
+      (= 1 (->> entries (map :answer) distinct count)) :consistent
+      :else :conflict)))
+
+(defn query-article-by-id-full
+  "Queries for an article ID with data from other tables included."
+  [article-id & [{:keys [predict-run-id include-disabled?]
+                  :or {include-disabled? false}}]]
+  (let [[article score locations review-status]
+        (pvalues
+         (-> (q/select-article-by-id
+              article-id [:a.*] {:include-disabled? include-disabled?})
+             do-query first)
+         (-> (q/select-article-by-id
+              article-id [:a.article-id] {:include-disabled? include-disabled?})
+             (q/with-article-predict-score
+               (or predict-run-id
+                   (q/article-latest-predict-run-id article-id)))
+             do-query first :score)
+         (->> (q/query-article-locations-by-id
+               article-id [:al.source :al.external-id])
+              (group-by :source))
+         (article-review-status article-id))]
+    (when (not-empty article)
+      (-> article
+          (assoc :locations locations)
+          (assoc :score (or score 0.0))
+          (assoc :review-status review-status)))))
+
+(defn to-article
+  "Queries by id argument or returns article map argument unmodified."
+  [article-or-id]
+  (let [in (s/conform ::sa/article-or-id article-or-id)]
+    (if (= in ::s/invalid)
+      nil
+      (let [[t v] in]
+        (cond
+          (= t :map) v
+          (= t :id) (let [[_ id] v]
+                      (->> (query-article-by-id-full id)
+                           (s/assert (s/nilable ::sa/article))))
+          :else nil)))))
+;;
+(s/fdef to-article
+        :args (s/cat :article-or-id ::sa/article-or-id)
+        :ret (s/nilable ::sa/article))

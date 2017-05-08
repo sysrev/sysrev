@@ -1,7 +1,8 @@
 (ns sysrev.state.core
   (:require [sysrev.base :refer [st st-if-exists]]
             [sysrev.shared.util :refer [in?]]
-            [reagent.core :as r])
+            [reagent.core :as r]
+            [clojure.string :as str])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defn data
@@ -99,3 +100,8 @@
 
 (defn modal-article-id []
   (st :page (current-page) :modal-article-id))
+
+(defn user-name-by-id [id]
+  (let [user (data [:users id])]
+    (or (:name user)
+        (-> (:email user) (str/split "@") first))))

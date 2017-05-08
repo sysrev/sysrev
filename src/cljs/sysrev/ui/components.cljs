@@ -157,15 +157,9 @@
                  "string" answer)
         display-label (case value-type
                         "boolean" (str short-label "?")
-                        short-label)
-        style {:margin-left "4px"
-               :margin-right "4px"
-               :margin-top "3px"
-               :margin-bottom "4px"}]
-    [:div.ui.labeled.button
-     {:style style}
-     [:div.ui.small.button
-      {:class color}
+                        short-label)]
+    [:div.ui.tiny.labeled.button.label-answer-tag
+     [:div.ui.button {:class color}
       (str display-label " ")]
      [:div.ui.basic.label
       (if (empty? values)

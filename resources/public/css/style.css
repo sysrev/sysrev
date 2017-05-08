@@ -541,11 +541,48 @@ div.ui.segment.article-list-segment {
     padding-right: 14px;
 }
 
-div.label-values-segment {
-    margin-left: -6px;
-    margin-right: -6px;
-    margin-top: -8px;
-    margin-bottom: -8px;
+div.ui.segment.label-values {
+    padding-top: 0.4em;
+    padding-bottom: 0.4em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+}
+div.ui.segment.labeled-notes {
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    padding-left: 0.9em;
+    padding-right: 0.9em;
+}
+
+div.ui.segment.labeled-notes > div.ui.labeled.button > .ui.basic.label {
+    font-weight: normal;
+}
+
+div.article-labels-view > .ui.segment {
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+}
+div.article-labels-view > .ui.segment > .ui.dividing.header {
+    margin-bottom: 7px;
+    padding-top: 2px;
+    padding-bottom: 4px;
+}
+div.article-labels-view > .ui.segment > .ui.dividing.header > .ui.tiny.label {
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+div.article-labels-view > .ui.segment > div.notes {
+    margin-top: 4px;
+    margin-left: 3px;
+}
+div.article-labels-view > .ui.segment > div.notes > .ui.divider {
+    margin-top: 7px;
+    margin-bottom: 7px;
+}
+div.article-labels-view > .ui.segment > div.notes > .ui.labeled.button > .ui.basic.label {
+    font-weight: normal;
 }
 
 div.ui.column.article-answers {
@@ -579,6 +616,33 @@ div.article-answers.resolved {
 .ui.segment.article-status > h3 {
     margin: 0;
     font-size: 15px;
+}
+
+.ui.labeled.button.label-answer-tag {
+    margin-top: 2px;
+    margin-bottom: 2px;
+    margin-left: 3px;
+    margin-right: 3px;
+}
+
+.ui.labeled.button.label-answer-tag > .ui.button,
+.ui.labeled.button.label-answer-tag > .ui.basic.label,
+.ui.labeled.button.user-note > .ui.button,
+.ui.labeled.button.user-note > .ui.basic.label,
+.labeled-notes > .ui.labeled.button > .ui.button,
+.labeled-notes > .ui.labeled.button > .ui.basic.label {
+    padding-top: 0.7em;
+    padding-bottom: 0.7em;
+    padding-left: 1em;
+    padding-right: 1em;
+    font-size: 0.9rem;
+}
+
+div.article-info-header > .ui.large.fluid.button {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    text-align: left;
+    padding-left: 1em;
 }
 
 @media only screen and (max-width: 900px) {
@@ -664,7 +728,6 @@ div.article-answers.resolved {
     }
 
     .ui.segment.project-segment {
-        // padding: 0.5em;
         padding: 0;
     }
 
@@ -730,15 +793,46 @@ div.article-answers.resolved {
         margin-right: 2px;
     }
 
-    div.label-values-segment {
-        margin-left: -4px;
-        margin-right: -4px;
-        margin-top: -2px;
-        margin-bottom: -2px;
+    div.ui.segment.label-values {
+        padding-top: 0.4em;
+        padding-bottom: 0.4em;
+        padding-left: 0.5em;
+        padding-right: 0.5em;
     }
 
     div.ui.column.article-answers>div.ui.grid>div.row>div.column {
         padding-left: 10px;
         padding-right: 10px;
+    }
+
+    .ui.labeled.button.label-answer-tag > .ui.button,
+    .ui.labeled.button.label-answer-tag > .ui.basic.label,
+    .ui.labeled.button.user-note > .ui.button,
+    .ui.labeled.button.user-note > .ui.basic.label,
+    .labeled-notes > .ui.labeled.button > .ui.button,
+    .labeled-notes > .ui.labeled.button > .ui.basic.label {
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+        font-size: 0.9rem;
+    }
+
+    div.ui.segment.labeled-notes {
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+    }
+
+    div.article-labels-view > .ui.segment {
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+
+    div.article-info-header > .ui.large.fluid.button {
+        padding: 10px;
     }
 }

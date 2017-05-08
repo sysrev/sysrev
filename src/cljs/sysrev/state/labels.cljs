@@ -3,7 +3,8 @@
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :refer [project]]
             [sysrev.shared.util :refer [map-values in?]]
-            [sysrev.util :refer [date-from-string is-today?]])
+            [sysrev.util :refer [date-from-string is-today?]]
+            [sysrev.state.project :as project])
 
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
@@ -22,10 +23,14 @@
   (fn [s]
     (assoc-in s [:data :article-labels article-id] lmap)))
 
-(defn article-label-values [article-id & [user-id]]
-  (let [path (cond-> [:data :article-labels article-id]
-               user-id (conj user-id))]
-    (apply st path)))
+(defn article-label-values [article-id user-id]
+  (->> (data [:article-labels article-id user-id])
+       (map-values :answer)))
+
+(defn user-article-resolved? [article-id user-id]
+  (boolean
+   (->> (data [:article-labels article-id user-id])
+        vals (map :resolve) first)))
 
 (defn user-label-values [article-id user-id]
   (let [lmap (project :member-labels user-id)
@@ -93,8 +98,11 @@
                    (= (user-article-status page-id)
                       :unconfirmed))
               (and modal-id
-                   (not= (user-article-status modal-id)
-                         :confirmed)))))))
+                   (or (not= (user-article-status modal-id)
+                             :confirmed)
+                       (and (= (project/article-review-status modal-id)
+                               "conflict")
+                            (project/project-resolver?)))))))))
 
 (defn active-editor-article-id []
   (when (editing-article-labels?)
@@ -102,6 +110,12 @@
       :classify (data :classify-article-id)
       :article (st :page :article :id)
       (st/modal-article-id))))
+
+(defn resolving-article-labels? []
+  (boolean
+   (when-let [article-id (active-editor-article-id)]
+     (and (= (project/article-review-status article-id) "conflict")
+          (project/project-resolver?)))))
 
 (defn active-labels-path
   "Returns the path in the global state map where label input values for the

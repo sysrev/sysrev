@@ -119,7 +119,7 @@
               article-id (-> request :params :article-id Integer/parseInt)]
           (let [[article user-labels user-notes]
                 (pvalues
-                 (q/query-article-by-id-full article-id)
+                 (articles/query-article-by-id-full article-id)
                  (labels/article-user-labels-map project-id article-id)
                  (articles/article-user-notes-map project-id article-id))]
             {:article (prepare-article-response article)
@@ -158,35 +158,35 @@
 
   (GET "/api/files" request
        (wrap-permissions
-         request [] ["member"]
-         (let [project-id (active-project request)
-               files (project-files project-id)]
-           {:result files})))
+        request [] ["member"]
+        (let [project-id (active-project request)
+              files (project-files project-id)]
+          {:result files})))
 
   (GET "/api/files/:key/:name" request
        (wrap-permissions
-         request [] ["member"]
-         (let [project-id (active-project request)
-               uuid (-> request :params :key (UUID/fromString))
-               file-data (get-file project-id uuid)
-               data (slurp-bytes (:filestream file-data))]
-           (response/response (ByteArrayInputStream. data)))))
+        request [] ["member"]
+        (let [project-id (active-project request)
+              uuid (-> request :params :key (UUID/fromString))
+              file-data (get-file project-id uuid)
+              data (slurp-bytes (:filestream file-data))]
+          (response/response (ByteArrayInputStream. data)))))
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions
-          ;TODO: This should be file owner or admin?
-          request [] ["member"]
-          (let [project-id (active-project request)
-                key (-> request :params :key)
-                deletion (delete-file project-id (UUID/fromString key))]
-            {:result deletion})))
+                                        ;TODO: This should be file owner or admin?
+         request [] ["member"]
+         (let [project-id (active-project request)
+               key (-> request :params :key)
+               deletion (delete-file project-id (UUID/fromString key))]
+           {:result deletion})))
 
   (GET "/api/label-activity/:label-id" request
        (wrap-permissions
-         request [] ["member"]
-         (let [project-id (active-project request)
-               uuid (-> request :params :label-id (UUID/fromString))]
-           {:result (labels/select-article-labels uuid)}))))
+        request [] ["member"]
+        (let [project-id (active-project request)
+              uuid (-> request :params :label-id (UUID/fromString))]
+          {:result (labels/select-article-labels uuid)}))))
 
 
 (defn prepare-article-response
@@ -210,7 +210,7 @@
     (->>
      (-> (q/select-project-article-labels
           project-id true
-          [:a.article-id :al.user-id :al.answer])
+          [:a.article-id :al.user-id :al.answer :al.resolve])
          (q/filter-overall-label)
          do-query)
      (group-by :article-id))))
@@ -289,11 +289,11 @@
   (with-project-cache
     project-id [:label-values :confirmed :conflict-counts]
     (let [conflicts (project-include-label-conflicts project-id)
-          resolved? (fn [[aid labels :as conflict]]
-                      (> (count labels) 2))
+          resolved? (fn [[aid labels]]
+                      (some :resolve labels))
           n-total (count conflicts)
-          n-pending (->> conflicts (remove resolved?) count)
-          n-resolved (- n-total n-pending)]
+          n-resolved (->> conflicts (filter resolved?) count) 
+          n-pending (- n-total n-resolved)]
       {:total n-total
        :pending n-pending
        :resolved n-resolved})))
