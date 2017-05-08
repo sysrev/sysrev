@@ -1,2 +1,2 @@
 #!/bin/bash
-lein with-profile +dev,+repl figwheel
+lein with-profile +dev,+repl,+local-repl figwheel
