@@ -161,16 +161,20 @@
 ;; HTTP client functions for testing API handlers
 (defn webapi-request [method route body & {:keys [host port url]}]
   (let [port (or port (-> env :server :port))
-        host (or host "localhost")]
-    (-> @(client/request
-          {:url (if url
-                  (format "%sweb-api/%s" url route)
-                  (format "http://%s:%d/web-api/%s"
-                          host port route))
-           :method method
-           :body (json/write-str body)
-           :headers {"Content-Type" "application/json"}})
-        :body (json/read-str :key-fn keyword))))
+        host (or host "localhost")
+        result
+        (-> @(client/request
+              {:url (if url
+                      (format "%sweb-api/%s" url route)
+                      (format "http://%s:%d/web-api/%s"
+                              host port route))
+               :method method
+               :body (json/write-str body)
+               :headers {"Content-Type" "application/json"}})
+            :body)]
+    (try (json/read-str result :key-fn keyword)
+         (catch Throwable e
+           result))))
 (defn webapi-get [route body & opts]
   (apply webapi-request :get route body opts))
 (defn webapi-post [route body & opts]

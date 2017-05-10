@@ -199,9 +199,20 @@
          500 :api "A user with that email already exists")))))
 
 (def-webapi
+  :project-labels :get
+  {:required [:project-id]
+   :project-role "member"
+   :doc "Returns a map of all label definitions for the project."}
+  (fn [request]
+    (let [{:keys [project-id] :as body}
+          (-> request :body)]
+      {:result (project/project-labels project-id)})))
+
+(def-webapi
   :delete-label :post
-  {:required [:project-id :label-name]
+  {:required [:project-id :name]
    :project-role "admin"
+   :check-answers? true
    :doc "Deletes entry for label in project. Any answers for the label will be deleted also."}
   (fn [request]
     (let [{:keys [project-id name] :as body}
@@ -218,3 +229,104 @@
           :else
           (do (labels/delete-label-entry project-id label-id)
               {:result {:success true}}))))))
+
+(def-webapi
+  :define-label-boolean :post
+  {:required [:project-id :name :question :short-label :inclusion-value :required]
+   :project-role "admin"
+   :check-answers? true
+   :doc "Create an entry for a boolean label.
+  * `required` is a boolean.
+  * `inclusion-value` may be true or false to require that value for inclusion, or null to define no inclusion relationship.
+  * descriptive string values:
+    * `name` functions primarily as a short internal identifier
+    * `short-label` is generally what will be displayed to users
+    * `question` is displayed as an longer description of the label"}
+  (fn [request]
+    (let [{:keys [project-id name question short-label
+                  inclusion-value required] :as body}
+          (-> request :body)
+          _ (do (assert (integer? project-id))
+                (assert (string? name))
+                (assert (string? question))
+                (assert (string? short-label))
+                (assert (or (boolean? inclusion-value)
+                            (nil? inclusion-value)))
+                (assert (or (boolean? required)
+                            (nil? required))))
+          result (labels/add-label-entry-boolean
+                  project-id
+                  {:name name :question question :short-label short-label
+                   :inclusion-value inclusion-value :required required})]
+      {:result result})))
+
+(def-webapi
+  :define-label-categorical :post
+  {:required [:project-id :name :question :short-label :all-values :required]
+   :optional [:inclusion-values :multi?]
+   :project-role "admin"
+   :check-answers? true
+   :doc "Create an entry for a categorical label.
+  * `required` is a boolean.
+  * `all-values` is a vector of strings listing the allowable values for the label.
+  * `inclusion-values` is an optional vector of strings which should be a subset of `all-values` and defines which values are acceptable for inclusion; if `inclusion-values` is present, other values will be treated as implying exclusion.
+  * descriptive string values:
+    * `name` functions primarily as a short internal identifier
+    * `short-label` is generally what will be displayed to users
+    * `question` is displayed as an longer description of the label
+  * `multi?` is an optional boolean (currently ignored, all labels allow multiple values)."}
+  (fn [request]
+    (let [{:keys [project-id name question short-label all-values
+                  inclusion-values required multi?] :as body}
+          (-> request :body)
+          _ (do (assert (integer? project-id))
+                (assert (string? name))
+                (assert (string? question))
+                (assert (string? short-label))
+                (assert (every? string? all-values))
+                (assert (every? string? inclusion-values))
+                (assert (or (boolean? required) (nil? required)))
+                (assert (or (boolean? multi?) (nil? multi?))))
+          result (labels/add-label-entry-categorical
+                  project-id
+                  {:name name :question question :short-label short-label
+                   :all-values all-values :inclusion-values inclusion-values
+                   :required required :multi? multi?})]
+      {:result result})))
+
+(def-webapi
+  :define-label-string :post
+  {:required [:project-id :name :question :short-label :max-length :required :multi?]
+   :optional [:regex :examples :entity]
+   :project-role "admin"
+   :check-answers? true
+   :doc
+   "Creates an entry for a string label definition. Value is provided by user
+  in a text input field.
+
+  `max-length` is a required integer.
+  `regex` is an optional vector of strings to require that answers must match
+  one of the regex values.
+  `entity` is an optional string to identify what the value represents.
+  `examples` is an optional list of example strings to indicate to users
+  the required format.
+  `multi?` if true allows multiple string values in answer."}
+  (fn [request]
+    (let [{:keys [project-id name question short-label max-length regex
+                  examples entity required multi?] :as body}
+          (-> request :body)
+          _ (do (assert (integer? project-id))
+                (assert (string? name))
+                (assert (string? question))
+                (assert (string? short-label))
+                (assert (every? string? regex))
+                (assert (every? string? examples))
+                (assert (or (nil? entity) (string? entity)))
+                (assert (or (boolean? required) (nil? required)))
+                (assert (or (boolean? multi?) (nil? multi?))))
+          result (labels/add-label-entry-string
+                  project-id
+                  {:name name :question question :short-label short-label
+                   :max-length max-length :regex regex :examples examples
+                   :entity entity :required required :multi? multi?})]
+      {:result result})))

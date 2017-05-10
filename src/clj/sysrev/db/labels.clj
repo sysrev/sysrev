@@ -38,9 +38,7 @@
 
 (defn delete-label-entry [project-id label-id]
   (let [label (-> (q/select-label-where
-                   [:and
-                    [:= :label-id label-id]
-                    [:= :project-id project-id]])
+                   project-id [:= :label-id label-id] [:*])
                   do-query first)]
     (if (nil? label)
       false
