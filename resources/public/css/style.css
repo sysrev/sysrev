@@ -645,6 +645,15 @@ div.article-info-header > .ui.large.fluid.button {
     padding-left: 1em;
 }
 
+.ui.grid > .row > div.column.pie-chart {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.ui.grid.pie-charts > .row {
+    padding-top: 0.5em;
+}
+
 @media only screen and (max-width: 900px) {
     body {
         font-size: 13px;

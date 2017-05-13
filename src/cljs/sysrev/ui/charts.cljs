@@ -15,13 +15,14 @@
   "Create reagent container to hold a chart. make-chart should be a function taking container-id and args."
   [make-chart & args]
   (let [id (random-id)]
-    (r/create-class {:reagent-render (fn [make-chart & args]
-                                         [:div
-                                          [:canvas {:id id}]])
-                      :component-will-update (fn [this [_ make-chart & args]]
-                                              (apply make-chart id args))
-                      :component-did-mount #(apply make-chart id args)
-                      :display-name "chart-container"})))
+    (r/create-class
+     {:reagent-render (fn [make-chart & args]
+                        [:div
+                         [:canvas {:id id}]])
+      :component-will-update (fn [this [_ make-chart & args]]
+                               (apply make-chart id args))
+      :component-did-mount #(apply make-chart id args)
+      :display-name "chart-container"})))
 
 
 (def series-colors ["rgba(29,252,35,0.4)"   ;light green
@@ -86,14 +87,37 @@
     (js/Chart. context (clj->js chart-data))))
 
 (defn pie-chart
-  [id labels values & [colors]]
+  [id labels values on-click & [colors]]
   (let [colors (or colors series-colors)
         context (get-canvas-context id)
         dataset
         {:data values
-         :backgroundColor (take (count values) colors)}
+         :backgroundColor (take (count values) colors)
+         :label labels}
         chart-data
         {:type "doughnut"
          :data {:labels labels
-                :datasets [dataset]}}]
+                :datasets [dataset]}
+         :options
+         {:legend
+          {:labels {:boxWidth 30
+                    :fontSize 13
+                    :padding 8
+                    :fontStyle (when on-click "bold")
+                    :fontFamily "Arial"
+                    :fontColor
+                    (when on-click
+                      "rgba(70, 140, 230, 0.8)")}
+           :onClick
+           (when on-click
+             (fn [event item]
+               (when-let [idx (.-index item)]
+                 (on-click idx))))}
+          :onClick
+          (when on-click
+            (fn [event elts]
+              (let [elts (-> elts js->clj)]
+                (when (and (coll? elts) (not-empty elts))
+                  (when-let [idx (-> elts first (aget "_index"))]
+                    (on-click idx))))))}}]
     (js/Chart. context (clj->js chart-data))))

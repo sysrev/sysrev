@@ -59,25 +59,36 @@
   (or (st :page :project :active-label-id)
       (project :overall-label-id)))
 
+(defn nav-article-status [status]
+  (nav "/project/articles")
+  (select-answer-status status))
+
 (defn- chart-value-labels [entries]
-  [:div.ui.one.column.center.aligned.grid
-   {:style {:padding "8px"}}
+  [:div.ui.one.column.center.aligned.middle.aligned.grid
+   {:style {:padding-top "2em"
+            :padding-botom "2em"}}
    (->>
     (partition-all 4 entries)
     (map-indexed
      (fn [i row]
-       [:div.column {:key (str i)}
-        (->>
-         row
-         (map-indexed
-          (fn [i [value color]]
-            [:div.ui.small.basic.button
-             {:key (str i)
-              :style {:padding "4px"
-                      :margin "3px"
-                      :border (str "1px solid " color)}}
-             [:span (str value)]]))
-         doall)]))
+       [:div.ui.middle.aligned.column
+        {:key (str i)
+         :style {:padding-right "2em"
+                 :padding-left "0.5em"}}
+        [:div.ui.middle-aligned.list
+         (->>
+          row
+          (map-indexed
+           (fn [i [value color label status]]
+             [:div.item
+              [:div.ui.fluid.basic.button
+               {:key (str i)
+                :style {:padding "7px"
+                        :margin "4px"
+                        :border (str "2px solid " color)}
+                :on-click #(nav-article-status status)}
+               [:span (str "View " label " (" value ")")]]]))
+          doall)]]))
     doall)])
 
 (defn project-summary-box []
@@ -96,45 +107,32 @@
                 :blue "rgba(30,100,230,0.5)"
                 :purple "rgba(146,29,252,0.5)"}]
     [:div.project-summary
-     [:div.ui.top.attached.grey.segment.header-with-buttons
-      [:div.ui.two.column.middle.aligned.grid
-       [:div.left.aligned.column
-        [:h4.ui.header "Review status"]]
-       [:div.right.aligned.column
-        [:a.ui.tiny.button
-         {:on-click
-          #(do (nav "/project/articles")
-               (select-answer-status :conflict))}
-         (str "View conflicts")]]]]
-     [:div.ui.bottom.attached.segment
-      [:div.ui.two.column.stackable.grid
-       [:div.row
-        (let [entries
-              [["Reviewed" reviewed]
-               ["Unreviewed" unreviewed]]
-              labels (mapv first entries)
-              values (mapv second entries)]
-          [:div.column.pie-chart
-           [chart-container pie-chart labels values
-            (map colors [:green :grey])]
+     [:div.ui.grey.segment
+      [:h4.ui.center.aligned.dividing.header
+       (str reviewed " articles reviewed of " total " total")]
+      [:div.ui.two.column.stackable.grid.pie-charts
+       (let [entries
+             [["Single" single :single]
+              ["Double" consistent :consistent]
+              ["Conflicting" pending :conflict]
+              ["Resolved" resolved :resolved]]
+             labels (mapv #(nth % 0) entries)
+             values (mapv #(nth % 1) entries)
+             statuses (mapv #(nth % 2) entries)
+             view-status (fn [status]
+                           (nav "/project/articles")
+                           (select-answer-status status))
+             on-click #(view-status (nth statuses %))]
+         [:div.row
+          [:div.column
+           [chart-container pie-chart labels values on-click
+            (map colors [:blue :green :red :purple])]]
+          [:div.column
            [chart-value-labels
-            [[reviewed (:green colors)]
-             [unreviewed (:grey colors)]]]])
-        (let [entries
-              [["Single" single]
-               ["Double" consistent]
-               ["Conflicting" pending]
-               ["Resolved" resolved]]
-              labels (mapv first entries)
-              values (mapv second entries)]
-          [:div.column.pie-chart
-           [chart-container pie-chart labels values
-            (map colors [:blue :green :red :purple])]
-           [chart-value-labels
-            [[single (:blue colors)]
-             [consistent (:green colors)]
-             [pending (:red colors)]
-             [resolved (:purple colors)]]]])]]]]))
+            [[single (:blue colors) "single-reviewed" :single]
+             [consistent (:green colors) "double-reviewed" :consistent]
+             [pending (:red colors) "conflicting" :conflict]
+             [resolved (:purple colors) "resolved" :resolved]]]]])]]]))
 
 (defn label-counts-box []
   (let [stats (project :stats)]
