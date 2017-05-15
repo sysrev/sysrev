@@ -81,9 +81,9 @@
           (map-indexed
            (fn [i [value color label status]]
              [:div.item
+              {:key (str i)}
               [:div.ui.fluid.basic.button
-               {:key (str i)
-                :style {:padding "7px"
+               {:style {:padding "7px"
                         :margin "4px"
                         :border (str "2px solid " color)}
                 :on-click #(nav-article-status status)}
