@@ -5,6 +5,7 @@
               active-route force-dispatch]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project]
+            [sysrev.state.settings :as settings]
             [sysrev.state.labels :as l]
             [sysrev.state.notes :as notes]
             [sysrev.shared.util :as us :refer [map-values]]
@@ -454,3 +455,33 @@
      (if (:success result)
        (notify "Cache cleared")
        (notify "Failed to clear cache" {:class "red"})))))
+
+(defn pull-project-settings []
+  (when-let [project-id (st/current-project-id)]
+    (ajax-get
+     "/api/project-settings"
+     (fn [result]
+       (when-let [settings (:settings result)]
+         (swap! work-state assoc-in
+                [:data :project project-id :settings]
+                settings))))))
+
+(defn change-project-setting [skey value]
+  (ajax-post
+   "/api/change-project-setting"
+   {:setting skey :value value}
+   (fn [result]
+     (if (:success result)
+       nil
+       (notify "Failed to change setting value" {:class "red"})))))
+
+(defn save-project-settings []
+  (when (settings/editing-settings?)
+    (let [active (settings/active-settings)
+          saved (settings/saved-settings)]
+      (doseq [skey (keys active)]
+        (when (not= (get active skey)
+                    (get saved skey))
+          (change-project-setting skey (get active skey))))
+      (notify "Settings saved")
+      (js/setTimeout #(pull-project-settings) 250))))

@@ -127,3 +127,9 @@
 
 (defn article-review-status [article-id]
   (data [:articles article-id :review-status]))
+
+(defn permission-members [permission]
+  (let [user-ids (keys (project :members))]
+    (filter (fn [user-id]
+              (in? (member-permissions user-id) permission))
+            user-ids)))

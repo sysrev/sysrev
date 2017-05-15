@@ -3,6 +3,7 @@
             sysrev.util
             sysrev.state.core
             sysrev.state.project
+            sysrev.state.settings
             sysrev.state.labels
             sysrev.state.notes
             sysrev.ajax
@@ -41,6 +42,7 @@
   (import-vars 'sysrev.util)
   (import-vars 'sysrev.state.core)
   (import-vars 'sysrev.state.project)
+  (import-vars 'sysrev.state.settings)
   (import-vars 'sysrev.state.labels)
   (import-vars 'sysrev.state.notes)
   (import-vars 'sysrev.ajax)

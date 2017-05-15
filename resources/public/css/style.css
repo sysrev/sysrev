@@ -654,6 +654,10 @@ div.article-info-header > .ui.large.fluid.button {
     padding-top: 0.5em;
 }
 
+.ui.popup.tooltip {
+    min-width: 35em;
+}
+
 @media only screen and (max-width: 900px) {
     body {
         font-size: 13px;
@@ -843,5 +847,9 @@ div.article-info-header > .ui.large.fluid.button {
 
     div.article-info-header > .ui.large.fluid.button {
         padding: 10px;
+    }
+
+    .ui.popup.tooltip {
+        min-width: 30em;
     }
 }

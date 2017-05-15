@@ -387,7 +387,7 @@
 
 (defroute project-settings-route "/project/settings" []
   (do-route-change :project-settings
-                   {:active-values (project :settings)}))
+                   {:active-values {}}))
 
 (defroute self-profile-route "/user" []
   (do-route-change :user-profile

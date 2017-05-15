@@ -5,11 +5,13 @@
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project
              :refer [project project-admin?]]
+            [sysrev.state.settings :as settings]
             [sysrev.state.labels :as labels]
             [sysrev.util :refer
              [nav number-to-word full-size?]]
             [sysrev.shared.util :refer [in? num-to-english]]
-            [sysrev.ui.components :refer [true-false-nil-tag]]
+            [sysrev.ui.components :refer
+             [true-false-nil-tag with-tooltip selection-dropdown]]
             [sysrev.ui.labels :refer [labels-page]]
             [sysrev.ui.upload :refer [upload-container basic-text-button]]
             [sysrev.ui.article-list :refer [select-answer-status]]
@@ -21,7 +23,8 @@
              [chart-container line-chart bar-chart pie-chart]]
             [goog.string :as string]
             [cljs-time.core :as t]
-            [cljs-time.format :as tf])
+            [cljs-time.format :as tf]
+            [sysrev.ajax :as ajax])
   (:require-macros
    [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
@@ -300,6 +303,12 @@
      {:readOnly true
       :value (project/project-invite-url (st/current-project-id))}]]])
 
+(defn open-settings-box []
+  [:div.ui.grey.segment
+   [:a.ui.fluid.right.labeled.icon.button {:href "/project/settings"}
+    [:i.settings.icon]
+    "Project settings"]])
+
 (defn project-overview-box []
   [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
@@ -310,6 +319,7 @@
      [label-counts-box]]
     [:div.ui.column
      [user-summary-chart]
+     [open-settings-box]
      [invite-link-segment]
      #_ [member-list-box]]]])
 
@@ -463,38 +473,107 @@
             ["Positive Predictive Value" "Negative Predictive Value" "Coverage"]
             [ppvs npvs coverages]]]]]))))
 
-(defn project-setting-wrapper [name description content]
-  [:div.ui.middle.aligned.grid
-   [:div.ui.row
-    [:span.name [:span.inner name]]]
-   [:div.ui.row
-    [:span.description [:span.inner description]]]
-   [:div.ui.row [:div.inner content]]])
+(defn project-options-box []
+  (let [active (settings/active-settings)
+        modified? (settings/settings-modified?)
+        valid? (settings/valid-setting-inputs?)
+        field-class (fn [skey]
+                      (if (settings/valid-setting-input? skey)
+                        "" "error"))]
+    [:div.ui.grey.segment
+     [:h4.ui.dividing.header "Configuration options"]
+     [:form.ui.equal.width.form {:class (if valid? "" "warning")}
+      (let [skey :second-review-prob]
+        [:div.fields
+         [:div.field {:class (field-class skey)}
+          [with-tooltip
+           [:label "Double-review priority "
+            [:i.ui.large.grey.circle.question.mark.icon]]
+           {:delay {:show 200
+                    :hide 0}
+            :hoverable false}]
+          [:div.ui.popup.transition.hidden.tooltip
+           [:p "Controls proportion of articles assigned for second review in Classify task."]
+           [:p "0% will assign unreviewed articles whenever possible."]
+           [:p "100% will assign for second review whenever possible."]]
+          [:div.ui.right.labeled.input
+           [:input
+            {:type "text"
+             :name (str skey)
+             :value (settings/render-setting skey)
+             :on-change
+             #(->> % .-target .-value (settings/edit-setting skey))}]
+           [:div.ui.basic.label "%"]]]
+         [:div.field]])]
+     [:div.ui.divider]
+     [:div
+      [:button.ui.primary.button
+       {:class (if (and valid? modified?) "" "disabled")
+        :on-click #(ajax/save-project-settings)}
+       "Save changes"]
+      [:button.ui.button
+       {:class (if modified? "" "disabled")
+        :on-click #(settings/reset-settings-fields)}
+       "Reset"]]]))
+
+(defn edit-permissions-form [permission]
+  (let [active-ids (project/permission-members permission)
+        selected-user nil
+        select-user (fn [user-id] nil)]
+    [:div
+     [:div.ui.middle.aligned.divided.list
+      (doall
+       (for [user-id active-ids]
+         [:div.item {:key user-id}
+          [:div.right.floated.middle.aligned.content
+           [:div.ui.tiny.button "Remove"]]
+          [:i.ui.large.grey.user.icon]
+          [:div.middle.aligned.content
+           [:div.ui.basic.label
+            (st/user-name-by-id user-id)]]]))]
+     [:div.ui.divider]
+     [:form.ui.form
+      {:style {:width "100%"}}
+      [:div.fields
+       [:div.twelve.wide.field
+        [selection-dropdown
+         [:div.text
+          (if selected-user
+            (st/user-name-by-id selected-user)
+            "Select user")]
+         (->> (project/project-member-user-ids false)
+              (remove (in? active-ids))
+              (mapv
+               (fn [user-id]
+                 [:div.item
+                  (into
+                   {:key user-id
+                    :on-click #(select-user user-id)}
+                   (when (= user-id selected-user)
+                     {:class "active selected"}))
+                  (st/user-name-by-id user-id)])))]]
+       [:div.four.wide.field
+        [:div.ui.fluid.button "Add"]]]]]))
+
+(defn project-permissions-box []
+  [:div.ui.grey.segment
+   [:h4.ui.dividing.header "User permissions"]
+   [:div.ui.segment
+    [:h5.ui.dividing.header "Admin"]
+    [edit-permissions-form "admin"]]
+   [:div.ui.segment
+    [:h5.ui.dividing.header "Resolve conflicts"]
+    [edit-permissions-form "resolve"]]])
 
 (defn project-settings-page []
-  (using-work-state
-   (when (and (empty? (st :page :settings :active-values))
-              (not-empty (project :settings)))
-     (swap! work-state assoc-in
-            [:page :settings :active-values]
-            (project :settings))))
-  (let [active (st :page :settings :active-values)
-        saved (project :settings)
-        row-size (if (full-size?) 2 1)
-        row-size-word (if (full-size?) "two" "one")]
-    [:div
-     {:class (str "ui "
-                  (if (full-size?) "two" "one")
-                  " column celled grid segment")}
-     (let [columns
-           [[:div.ui.column
-             [project-setting-wrapper
-              "Double-review priority"
-              "This controls classify task frequency of assigning an article for review by a second user. Setting to 100% will assign for second review always when any single-reviewed articles are available. Setting to 0% will assign unreviewed articles always when any are available."
-              [:div]]]]]
-       (doall
-        (for [row (partition-all row-size columns)]
-          [:div.ui.row (doall row)])))]))
+  [:div.ui.segment
+   [:h3.ui.dividing.header "Project settings"]
+   [:div.ui.two.column.stackable.grid.project-settings
+    [:div.ui.row
+     [:div.ui.column
+      [project-options-box]]
+     [:div.ui.column
+      [project-permissions-box]]]]])
 
 (defn project-page [active-tab content]
   (let [bottom-segment?
