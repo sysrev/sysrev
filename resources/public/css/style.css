@@ -638,10 +638,12 @@ div.article-answers.resolved {
     font-size: 0.9rem;
 }
 
-div.article-info-header > .ui.large.fluid.button {
+div.article-info-header > .ui.fluid.button {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     text-align: left;
+    font-size: 18px;
+    padding: 0.5em;
     padding-left: 1em;
 }
 

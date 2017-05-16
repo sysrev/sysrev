@@ -4,7 +4,7 @@
    [sysrev.ui.article :refer
     [article-info-component label-editor-component label-values-component]]
    [sysrev.ajax :as ajax :refer [pull-article-info]]
-   [sysrev.util :refer [full-size? nav]]
+   [sysrev.util :refer [full-size? nav nav-scroll-top]]
    [sysrev.shared.util :refer [in?]]
    [sysrev.state.core :as st :refer [data current-project-id]]
    [sysrev.base :refer
@@ -305,17 +305,24 @@
         status (labels/user-article-status article-id)
         review-status (project/article-review-status article-id)
         resolving? (and (= review-status "conflict")
-                        (project/project-resolver? user-id))]
+                        (project/project-resolver? user-id))
+        close-article #(if-let [prev (st :page :articles :prev-uri)]
+                         (nav-scroll-top prev)
+                         (do (nav "/project/articles")
+                             (using-work-state
+                              (ajax/fetch-data
+                               [:label-activity (selected-label-id)] true))))
+        on-confirm #(if resolving?
+                      (do (set-loading-state :confirm false)
+                          (schedule-scroll-top))
+                      (close-article))]
     [:div
      [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
       {:style {:padding "0"}}
       [:a.ui.large.fluid.button
-       {:on-click #(do (nav "/project/articles")
-                       (using-work-state
-                        (ajax/fetch-data
-                         [:label-activity (selected-label-id)] true)))}
-       [:i.ui.left.chevron.icon]
-       "Close article"]]
+       {:on-click close-article}
+       [:i.close.icon]
+       "Close"]]
      [:div.ui.bottom.attached.middle.aligned.segment
       (let [show-labels (if (= status :unconfirmed) false :all)]
         [article-info-component article-id show-labels user-id review-status])
@@ -334,7 +341,7 @@
                  :on-click
                  (fn []
                    (set-loading-state :confirm true)
-                   (ajax/confirm-active-labels #(schedule-scroll-top)))}
+                   (ajax/confirm-active-labels on-confirm))}
                 (if resolving? "Resolve conflict" "Confirm labels")
                 [:i.check.circle.outline.icon]]]
            [:div.ui.grid.centered

@@ -85,7 +85,7 @@
               [:div.ui.fluid.basic.button
                {:style {:padding "7px"
                         :margin "4px"
-                        :border (str "2px solid " color)}
+                        :border (str "1px solid " color)}
                 :on-click #(nav-article-status status)}
                [:span (str "View " label " (" value ")")]]]))
           doall)]]))

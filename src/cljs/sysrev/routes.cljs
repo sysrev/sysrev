@@ -2,7 +2,7 @@
   (:require
    [sysrev.base :refer
     [st work-state display-state display-ready clear-loading-state
-     scroll-top get-scroll-position set-scroll-position]]
+     scroll-top get-scroll-position set-scroll-position active-route]]
    [sysrev.state.core :as st :refer
     [data current-page current-user-id logged-in? current-project-id]]
    [sysrev.state.project :refer [project]]
@@ -253,7 +253,8 @@
                  (apply comp))
             ;; update page state
             #(assoc-in % [:page page-key] page-map)
-            #(assoc % :active-page page-key)))
+            #(assoc % :active-page page-key)
+            #(assoc % :uri @active-route)))
     (when-not (contains? @work-state :identity)
       (ajax/pull-identity))
     (doall (map ajax/fetch-data (page-required-data page-key)))))
@@ -436,14 +437,17 @@
 
 (defroute articles-id "/project/articles/:article-id" [article-id]
   (using-work-state
-   (let [article-id (js/parseInt article-id)
+   (let [prev-uri (st :uri)
+         article-id (js/parseInt article-id)
          on-page? (= (current-page) :articles)
          scroll-pos (get-scroll-position)]
      (do-route-change :articles (if on-page?
                                   (merge (st :page :articles)
                                          {:modal-article-id article-id
-                                          :scroll-pos scroll-pos})
+                                          :scroll-pos scroll-pos
+                                          :prev-uri nil})
                                   {:label-id nil
                                    :modal-article-id article-id
-                                   :scroll-pos scroll-pos}))
+                                   :scroll-pos scroll-pos
+                                   :prev-uri prev-uri}))
      (schedule-scroll 0))))
