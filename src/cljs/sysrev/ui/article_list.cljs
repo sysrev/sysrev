@@ -94,6 +94,8 @@
                :value current-value}]
       [:i.search.icon]]]))
 
+(defn reset-display-offset []
+  (swap! work-state assoc-in [:page :articles :display-offset] 0))
 (defn selected-article-id []
   (st :page :articles :article-id))
 (defn toggle-article [article-id]
@@ -104,14 +106,16 @@
   (swap! work-state
          (comp
           #(assoc-in % [:page :articles :label-id] label-id)
-          #(assoc-in % [:page :articles :answer-value] nil))))
+          #(assoc-in % [:page :articles :answer-value] nil)))
+  (reset-display-offset))
 (defn selected-label-id []
   (or (st :page :articles :label-id)
       (project :overall-label-id)))
 
 (defn select-answer-status [status]
   (swap! work-state assoc-in
-         [:page :articles :answer-status] status))
+         [:page :articles :answer-status] status)
+  (reset-display-offset))
 (defn selected-answer-status []
   (st :page :articles :answer-status))
 (defn answer-status-filter []
@@ -126,7 +130,8 @@
   (st :page :articles :answer-value))
 (defn select-answer-value [value]
   (swap! work-state assoc-in
-         [:page :articles :answer-value] value))
+         [:page :articles :answer-value] value)
+  (reset-display-offset))
 (defn answer-value-filter []
   (let [active (selected-answer-value)]
     (if (nil? active)
@@ -237,19 +242,46 @@
         (doall))])
 
 (defn article-list-view [id-grouped-articles]
-  (let [max-count 30
+  (let [display-count 10
         total-count (count id-grouped-articles)
-        visible-count (min max-count total-count)
+        display-offset (or (st :page :articles :display-offset) 0)
+        visible-count (min display-count total-count)
         selected-label (project :labels (selected-label-id))
-        active-aid (selected-article-id)]
+        active-aid (selected-article-id)
+        on-next
+        #(when (< (+ display-offset display-count) total-count)
+           (swap! work-state assoc-in
+                  [:page :articles :display-offset]
+                  (+ display-offset display-count)))
+        on-previous
+        #(when (>= display-offset display-count)
+           (swap! work-state assoc-in
+                  [:page :articles :display-offset]
+                  (- display-offset display-count)))]
     [:div
      [:div.ui.top.attached.segment
       {:style {:padding "10px"}}
-      [:h5 (str "Showing " visible-count " of "
-                total-count " matching articles")]]
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column
+        [:h5 (str "Showing " (+ display-offset 1)
+                  "-" (min total-count (+ display-offset display-count))
+                  " of "
+                  total-count " matching articles")]]
+       [:div.ui.right.aligned.column
+        [:div.ui.tiny.button
+         {:class (if (= display-offset 0) "disabled" "")
+          :on-click on-previous}
+         "Previous"]
+        [:div.ui.tiny.button
+         {:class (if (>= (+ display-offset display-count) total-count)
+                   "disabled" "")
+          :on-click on-next}
+         "Next"]]]]
      [:div.ui.bottom.attached.segment.article-list-segment
       (->>
-       (take max-count id-grouped-articles)
+       (->> id-grouped-articles
+            (drop display-offset)
+            (take display-count))
        (map
         (fn [las]
           (let [article-id (:article-id las)
