@@ -3,6 +3,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.util :refer [should-never-happen-exception]]
+            [sysrev.shared.util :refer [in?]]
             [sysrev.web.routes.site :refer [user-info]]
             [sysrev.mail.core :refer [send-email]]
             [sysrev.db.core :as db]))
@@ -32,6 +33,34 @@
                       :identity (select-keys
                                  user [:user-id :user-uuid :email])
                       :active-project (:default-project-id user))}))))
+
+  (POST "/api/auth/login-as" request
+        (let [{session :session
+               {:keys [auth-email password ident-email] :as body} :body} request
+              valid (users/valid-password? auth-email password)
+              auth-user (users/get-user-by-email auth-email)
+              admin? (in? (:permissions auth-user) "admin")
+              ident-user (when valid (users/get-user-by-email ident-email))
+              {verified :verified :or {verified false}} ident-email
+              success (boolean (and admin? auth-user ident-user
+                                    valid verified))]
+          (cond->
+              {:success success
+               :valid valid
+               :verified verified}
+            (not valid)
+            (assoc :message "Invalid username or password")
+            (and valid (not verified))
+            (assoc :message "Your account's email has not been verified yet")
+            (not admin?)
+            (assoc :message "User does not have admin permissions")
+            success
+            (with-meta
+              {:session
+               (assoc session
+                      :identity (select-keys
+                                 ident-user [:user-id :user-uuid :email])
+                      :active-project (:default-project-id ident-user))}))))
   
   (POST "/api/auth/logout" request
         (let [{{identity :identity :as session} :session} request
