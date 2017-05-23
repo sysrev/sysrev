@@ -545,8 +545,7 @@
                (where [:and
                        [:= :article-id article-id]
                        [:= :user-id user-id]
-                       [:= :label-id label-id]
-                       [:or imported? [:= :confirm-time nil]]])
+                       [:= :label-id label-id]])
                do-execute))))
      (when-not (empty? new-entries)
        (-> (insert-into :article-label)
