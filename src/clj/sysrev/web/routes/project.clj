@@ -136,6 +136,12 @@
            (project/delete-member-labels-notes project-id user-id)
            {:result {:success true}})))
 
+  (GET "/api/project-settings" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [project-id (active-project request)]
+          {:result {:settings (project-settings project-id)}})))
+
   (POST "/api/change-project-setting" request
         (wrap-permissions
          request [] ["admin"]
