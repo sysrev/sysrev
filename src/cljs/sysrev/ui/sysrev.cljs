@@ -319,7 +319,7 @@
      [label-counts-box]]
     [:div.ui.column
      [user-summary-chart]
-     [open-settings-box]
+     #_ [open-settings-box]
      [invite-link-segment]
      #_ [member-list-box]]]])
 
