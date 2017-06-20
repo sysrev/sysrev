@@ -128,3 +128,6 @@
 
 (defn history-init []
   (pushy/start! history))
+
+(defonce build-id (atom nil))
+(defonce build-time (atom nil))

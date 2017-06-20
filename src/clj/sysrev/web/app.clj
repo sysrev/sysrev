@@ -9,7 +9,8 @@
             [sysrev.web.index :as index]
             [sysrev.db.users :refer [get-user-by-id get-user-by-api-token]]
             [sysrev.db.project :refer [project-member]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.shared.util :refer [in?]]
+            [sysrev.resources :as res]))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
@@ -86,8 +87,11 @@
             session-meta (-> body meta :session)]
         ;; If the request handler attached a :session meta value to the result,
         ;; set that session value in the response.
-        (cond-> response
-          session-meta (assoc :session session-meta)))
+        (merge
+         (cond-> response
+           session-meta (assoc :session session-meta)
+           res/build-id (assoc-in [:body :build-id] res/build-id)
+           res/build-time (assoc-in [:body :build-time] res/build-time))))
       (catch Throwable e
         (println "************************")
         (println (pr-str request))

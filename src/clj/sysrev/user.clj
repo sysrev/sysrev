@@ -30,6 +30,7 @@
         sysrev.custom.facts
         sysrev.misc
         sysrev.init
+        sysrev.resources
         sysrev.shared.util
         sysrev.shared.keywords
         sysrev.test.core

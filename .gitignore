@@ -183,3 +183,5 @@ resources/public/semantic
 
 # files marked local
 *.local.*
+/resources/git-commit
+/resources/build-time

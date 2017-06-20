@@ -1,6 +1,6 @@
 (ns sysrev.ajax
   (:require [ajax.core :refer [GET POST]]
-            [sysrev.base :refer
+            [sysrev.base :as base :refer
              [st work-state ga ga-event force-display-ready
               active-route force-dispatch]]
             [sysrev.state.core :as st :refer [data]]
@@ -67,6 +67,18 @@
   (println (str url " - " message))
   (println (pr-str data)))
 
+(defn- handle-response-build-version [response]
+  (let [{:keys [build-id build-time]} response]
+    (when (nil? @base/build-id)
+      (reset! base/build-id build-id))
+    (when (nil? @base/build-time)
+      (reset! base/build-time build-time))
+    (when (or (and build-id @base/build-id
+                   (not= build-id @base/build-id))
+              (and build-time @base/build-time
+                   (not= build-time @base/build-time)))
+      (-> js/window .-location (.reload true)))))
+
 (defn ajax-get
   "Performs an AJAX GET call with proper JSON handling.
   Calls function `handler` on the response map."
@@ -83,6 +95,7 @@
          #(using-work-state
            (when (contains? % :csrf-token)
              (swap! work-state (st/set-csrf-token (:csrf-token %))))
+           (handle-response-build-version %)
            (if (contains? % :result)
              (-> % :result integerify-map-keys uuidify-map-keys handler)
              (request-error url "Server error (empty result from request)" %)))

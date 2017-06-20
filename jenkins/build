@@ -1,5 +1,16 @@
 #!/bin/bash
 set -eux
 
+rm -f ./resources/git-commit
+git rev-parse HEAD > ./resources/git-commit
+rm -f ./resources/build-time
+date +"%s" > ./resources/build-time
+
 lein with-profile +prod uberjar
 lein cljsbuild once production
+
+commit=$(cat ./resources/git-commit)
+
+cd ./resources/public/out-production
+cp sysrev.js sysrev-"$commit".js
+cd ../../..

@@ -1,6 +1,8 @@
 (ns sysrev.web.index
   (:require [hiccup.page :as page]
-            [sysrev.shared.components :refer [loading-content]]))
+            [sysrev.shared.components :refer [loading-content]]
+            [sysrev.config.core :refer [env]]
+            [sysrev.resources :as res]))
 
 (defonce web-asset-path (atom "/out"))
 
@@ -20,7 +22,10 @@
     (page/include-js "/ga.js")]
    [:body
     [:div {:id "app"} loading-content]
-    (page/include-js (str @web-asset-path "/sysrev.js"))]))
+    (let [js-name (if (= (:profile env) :prod)
+                    (str "sysrev-" res/build-id ".js")
+                    "sysrev.js")]
+      (page/include-js (str @web-asset-path "/" js-name)))]))
 
 (defn not-found [& [request]]
   (page/html5
