@@ -12,7 +12,8 @@
             [sysrev.db.labels :as labels]
             [sysrev.web.routes.api.core :refer [webapi-get webapi-post]]
             sysrev.web.routes.api.handlers
-            [sysrev.db.queries :as q]))
+            [sysrev.db.queries :as q]
+            [sysrev.shared.util :refer [in?]]))
 
 (use-fixtures :once default-fixture)
 
@@ -77,6 +78,39 @@
       (finally
         (when user-id (users/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
+
+(deftest test-create-project
+  (let [url (:url (get-selenium-config))
+        email "test+apitest@insilica.co"
+        password "1234567890"
+        {:keys [user-id api-token]}
+        (users/create-user email password :permissions ["user" "admin"])
+        project-name "test-create-project"]
+    (try
+      (let [response (webapi-post
+                      "create-project"
+                      {:api-token api-token
+                       :project-name project-name
+                       :add-self? true}
+                      :url url)
+            {:keys [success project]} (:result response)
+            {:keys [project-id name]} project]
+        (try
+          (do (is (true? success))
+              (is (integer? project-id))
+              (is (string? name))
+              (is (= name project-name))
+              (is (q/query-project-by-id project-id [:project-id]))
+              (is (in? (->> (q/query-project-labels project-id [:name])
+                            (map :name))
+                       "overall include"))
+              (is (= (:name (q/query-project-by-id project-id [:name]))
+                     project-name)))
+          (finally
+            (when project-id
+              (project/delete-project project-id)))))
+      (finally
+        (when user-id (users/delete-user user-id))))))
 
 (deftest test-check-allow-answers
   (let [url (:url (get-selenium-config))

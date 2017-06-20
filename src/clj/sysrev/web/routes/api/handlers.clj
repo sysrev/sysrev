@@ -227,6 +227,32 @@
          500 :api "A user with that email already exists")))))
 
 (def-webapi
+  :create-project :post
+  {:required [:project-name]
+   :optional [:add-self?]
+   :require-admin? true}
+  (fn [request]
+    (let [{:keys [api-token project-name add-self?] :as body}
+          (-> request :body)
+          _ (assert (string? project-name))
+          {:keys [project-id] :as project}
+          (project/create-project project-name)]
+      (labels/add-label-entry-boolean
+       project-id {:name "overall include"
+                   :question "Include this article?"
+                   :short-label "Include"
+                   :inclusion-value true
+                   :required true})
+      (project/add-project-note project-id {})
+      (when add-self?
+        (let [{:keys [user-id]} (users/get-user-by-api-token api-token)]
+          (project/add-project-member project-id user-id
+                                      :permissions ["member" "admin"])))
+      {:result
+       {:success true
+        :project (select-keys project [:project-id :name])}})))
+
+(def-webapi
   :project-labels :get
   {:required [:project-id]
    :project-role "member"
