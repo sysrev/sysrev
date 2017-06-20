@@ -119,9 +119,9 @@
             (when (or (nil? v)
                       (and (coll? v) (empty? v)))
               (log/info (format "* field `%s` is empty" (pr-str k)))))
-          (when-let [article-id
-                     (articles/add-article
-                      (dissoc article :locations) project-id)]
+          (when-let [article-id (articles/add-article
+                                 (dissoc article :locations)
+                                 project-id)]
             (when (not-empty (:locations article))
               (-> (sqlh/insert-into :article-location)
                   (values

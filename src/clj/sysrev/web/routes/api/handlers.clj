@@ -9,6 +9,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.import.pubmed :as pubmed]
+            [sysrev.custom.facts :as facts]
             [sysrev.web.app :refer
              [wrap-permissions current-user-id active-project
               make-error-response]]
@@ -103,6 +104,33 @@
          500 :api "pmids must be an array of integers")
         :else
         (do (pubmed/import-pmids-to-project pmids project-id)
+            {:result
+             {:success true
+              :project-articles
+              (project/project-article-count project-id)}})))))
+
+(def-webapi
+  :import-pmid-nct-arms :post
+  {:required [:project-id :arm-imports]
+   :check-answers? true
+   :doc (->> ["\"arm-imports\": array of article entries to import"
+              "Each entry should have keys: [\"pmid\", \"nct\", \"arm-name\", \"arm-desc\"]"
+              "\"pmid\": integer, PubMed ID"
+              "\"nct\": string, NCT identifier following format: \"NCT12345\""
+              "\"arm-name\": string, name of trial arm"
+              "\"arm-desc\": string, description of trial arm"]
+             (str/join "\n"))}
+  (fn [request]
+    (let [{:keys [api-token project-id arm-imports] :as body}
+          (-> request :body)]
+      (cond
+        (not (s/valid? ::swa/nct-arm-imports arm-imports))
+        (make-error-response
+         500 :api (->> ["invalid value for \"arm-imports\":"
+                        (s/explain-str ::swa/nct-arm-imports arm-imports)]
+                       (str/join "\n")))
+        :else
+        (do (facts/import-pmid-nct-arms-to-project arm-imports project-id)
             {:result
              {:success true
               :project-articles

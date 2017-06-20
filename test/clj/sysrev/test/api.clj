@@ -34,15 +34,44 @@
   (let [url (:url (get-selenium-config))
         email "test+apitest@insilica.co"
         password "1234567890"
-        {:keys [user-id api-token]} (users/create-user email password)
-        {:keys [project-id]
-         :as project} (project/create-project "test-import-pmids")]
+        {:keys [user-id api-token]}
+        (users/create-user email password)
+        {:keys [project-id] :as project}
+        (project/create-project "test-import-pmids")]
     (try
       (let [response (webapi-post "import-pmids"
                                   {:api-token api-token
                                    :project-id project-id
                                    :pmids [12345 12346]}
                                   :url url)]
+        (is (true? (-> response :result :success)))
+        (is (= 2 (-> response :result :project-articles))))
+      (finally
+        (when user-id (users/delete-user user-id))
+        (when project-id (project/delete-project project-id))))))
+
+(deftest test-import-pmid-nct-arms
+  (let [url (:url (get-selenium-config))
+        email "test+apitest@insilica.co"
+        password "1234567890"
+        {:keys [user-id api-token]}
+        (users/create-user email password)
+        {:keys [project-id] :as project}
+        (project/create-project "test-import-pmid-nct-arms")]
+    (try
+      (let [response (webapi-post
+                      "import-pmid-nct-arms"
+                      {:api-token api-token
+                       :project-id project-id
+                       :arm-imports [{:pmid 12345
+                                      :nct "NCT67890"
+                                      :arm-name "arm #1"
+                                      :arm-desc "first arm"}
+                                     {:pmid 12345
+                                      :nct "NCT67890"
+                                      :arm-name "arm #2"
+                                      :arm-desc "second arm"}]}
+                      :url url)]
         (is (true? (-> response :result :success)))
         (is (= 2 (-> response :result :project-articles))))
       (finally
