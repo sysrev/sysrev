@@ -355,7 +355,8 @@
                 (and (= show-labels :all)
                      (not-empty
                       (data [:article-labels article-id]))))
-            docs (project/article-documents article-id)]
+            docs (project/article-documents article-id)
+            have-arm? (string? (:nct-arm-name article))]
         [:div
          [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
           [:div.ui
@@ -368,7 +369,7 @@
            [:div.ui.attached.segment
             [similarity-bar similarity]])
          [:div.ui
-          {:class (if showing-labels-segment
+          {:class (if (or showing-labels-segment have-arm?)
                     "attached segment"
                     "bottom attached segment")}
           [:div.content
@@ -404,15 +405,29 @@
                    doall)])]]
          (cond (= show-labels :all)
                [:div.ui.segment
-                {:class (if (empty? note-content)
+                {:class (if (and (empty? note-content) (not have-arm?))
                           "bottom attached" "attached")}
                 [article-labels-view article-id]]
                (and show-labels have-labels?)
                [:div.ui.segment
-                {:class (if (empty? note-content)
+                {:class (if (and (empty? note-content) (not have-arm?))
                           "bottom attached" "attached")}
                 [:div.content
                  [label-values-component article-id user-id]]])
+         (when have-arm?
+           (let [{:keys [nct-arm-name nct-arm-desc]} article]
+             (when (and (string? nct-arm-name)
+                        (not-empty nct-arm-name))
+               (when-let [nct-url
+                          (-> article :locations (select-keys [:nct])
+                              project/article-location-urls first)]
+                 [:div.ui.segment
+                  {:class (if (empty? note-content)
+                            "bottom attached" "attached")}
+                  [:h3 [:a {:href nct-url} nct-arm-name]]
+                  (when (and (string? nct-arm-desc)
+                             (not-empty nct-arm-desc))
+                    [:h5 nct-arm-desc])]))))
          (when (and show-labels ((comp not empty?) note-content))
            [:div.ui.bottom.attached.segment
             {:style {:padding "0.5em"}}
