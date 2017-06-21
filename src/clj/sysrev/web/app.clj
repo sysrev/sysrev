@@ -90,8 +90,12 @@
         (merge
          (cond-> response
            session-meta (assoc :session session-meta)
-           res/build-id (assoc-in [:body :build-id] res/build-id)
-           res/build-time (assoc-in [:body :build-time] res/build-time))))
+           
+           (and (map? body) res/build-id)
+           (assoc-in [:body :build-id] res/build-id)
+           
+           (and (map? body) res/build-time)
+           (assoc-in [:body :build-time] res/build-time))))
       (catch Throwable e
         (println "************************")
         (println (pr-str request))
