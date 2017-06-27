@@ -8,7 +8,7 @@
             [sysrev.state.settings :as settings]
             [sysrev.state.labels :as labels]
             [sysrev.util :refer
-             [nav number-to-word full-size?]]
+             [nav number-to-word full-size? nbsp]]
             [sysrev.shared.util :refer [in? num-to-english]]
             [sysrev.ui.components :refer
              [true-false-nil-tag with-tooltip selection-dropdown]]
@@ -274,7 +274,7 @@
                   parts (mapv #(% date) [t/month t/day t/year])]
               (apply goog.string/format "%d/%d/%d" parts)))]
     [:div.ui.grey.segment
-     [:h4.ui.dividing.header "Project resources"]
+     [:h4.ui.dividing.header "Project documents"]
      (when-let [files (:files (project))]
        [:div.ui.celled.list
         (doall
@@ -290,7 +290,7 @@
                [:a.header {:href (get-file-url (:file-id file) (:name file))} (:name file)]
                [:div.description (show-date file)]]]))))])
      [:div.ui.container
-      [upload-container basic-text-button send-file-url pull-files "Upload Project Document"]
+      [upload-container basic-text-button send-file-url pull-files "Upload document"]
       [:div.ui.right.floated.basic.icon.button {:on-click toggle-editing :class (when @editing-files "red")}
        [:i.ui.small.small.blue.pencil.icon]]]]))
 
@@ -305,7 +305,7 @@
 
 (defn open-settings-box []
   [:div.ui.grey.segment
-   [:a.ui.fluid.right.labeled.icon.button {:href "/project/settings"}
+   [:a.ui.fluid.left.labeled.icon.button {:href "/project/settings"}
     [:i.settings.icon]
     "Project settings"]])
 
@@ -319,7 +319,7 @@
      [label-counts-box]]
     [:div.ui.column
      [user-summary-chart]
-     #_ [open-settings-box]
+     [open-settings-box]
      [invite-link-segment]
      #_ [member-list-box]]]])
 
@@ -474,7 +474,9 @@
             [ppvs npvs coverages]]]]]))))
 
 (defn project-options-box []
-  (let [active (settings/active-settings)
+  (let [user-id (st/current-user-id)
+        admin? (in? (project/member-permissions user-id) "admin")
+        active (settings/active-settings)
         modified? (settings/settings-modified?)
         valid? (settings/valid-setting-inputs?)
         field-class (fn [skey]
@@ -502,78 +504,118 @@
              :name (str skey)
              :value (settings/render-setting skey)
              :on-change
-             #(->> % .-target .-value (settings/edit-setting skey))}]
+             #(->> % .-target .-value (settings/edit-setting skey))
+             :readOnly (if admin? false true)}]
            [:div.ui.basic.label "%"]]]
          [:div.field]])]
-     [:div.ui.divider]
-     [:div
-      [:button.ui.primary.button
-       {:class (if (and valid? modified?) "" "disabled")
-        :on-click #(ajax/save-project-settings)}
-       "Save changes"]
-      [:button.ui.button
-       {:class (if modified? "" "disabled")
-        :on-click #(settings/reset-settings-fields)}
-       "Reset"]]]))
+     (when admin?
+       [:div
+        [:div.ui.divider]
+        [:div
+         [:button.ui.primary.button
+          {:class (if (and valid? modified?) "" "disabled")
+           :on-click #(ajax/save-project-settings)}
+          "Save changes"]
+         [:button.ui.button
+          {:class (if modified? "" "disabled")
+           :on-click #(settings/reset-settings-fields)}
+          "Reset"]]])]))
 
-(defn edit-permissions-form [permission]
-  (let [active-ids (project/permission-members permission)
-        selected-user nil
-        select-user (fn [user-id] nil)]
-    [:div
-     [:div.ui.middle.aligned.divided.list
-      (doall
-       (for [user-id active-ids]
-         [:div.item {:key user-id}
-          [:div.right.floated.middle.aligned.content
-           [:div.ui.tiny.button "Remove"]]
-          [:i.ui.large.grey.user.icon]
-          [:div.middle.aligned.content
-           [:div.ui.basic.label
-            (st/user-name-by-id user-id)]]]))]
-     [:div.ui.divider]
-     [:form.ui.form
-      {:style {:width "100%"}}
-      [:div.fields
-       [:div.twelve.wide.field
-        [selection-dropdown
-         [:div.text
-          (if selected-user
-            (st/user-name-by-id selected-user)
-            "Select user")]
-         (->> (project/project-member-user-ids false)
-              (remove (in? active-ids))
-              (mapv
-               (fn [user-id]
-                 [:div.item
-                  (into
-                   {:key user-id
-                    :on-click #(select-user user-id)}
-                   (when (= user-id selected-user)
-                     {:class "active selected"}))
-                  (st/user-name-by-id user-id)])))]]
-       [:div.four.wide.field
-        [:div.ui.fluid.button "Add"]]]]]))
+(defn project-members-dropdown [page-field on-click]
+  (let [path [:page (st/current-page) :fields page-field]
+        active-id (apply st path)
+        active-name (some-> active-id (st/user-name-by-id))
+        set-user-id #(swap! work-state assoc-in path %)
+        all-ids (project/project-member-user-ids true)]
+    [:div.field
+     [:label "User"]
+     [selection-dropdown
+      [:div.text
+       (if active-name active-name "")]
+      (mapv (fn [user-id]
+              [:div.item
+               (into {:key user-id
+                      :on-click #(do (set-user-id user-id)
+                                     (when on-click (on-click)))}
+                     (when (= user-id active-id)
+                       {:class "active selected"}))
+               (str (st/user-name-by-id user-id))])
+            all-ids)]]))
+
+(defn permissions-dropdown [page-field all-perms]
+  (let [path [:page (st/current-page) :fields page-field]
+        active-perm (apply st path)
+        set-perm #(swap! work-state assoc-in path %)]
+    [:div.field
+     [:label "Permission"]
+     [selection-dropdown
+      [:div.text
+       (if active-perm active-perm "")]
+      (mapv (fn [perm]
+              [:div.item
+               (into {:key perm
+                      :on-click #(set-perm perm)}
+                     (when (= perm active-perm)
+                       {:class "active selected"}))
+               (str perm)])
+            all-perms)]]))
 
 (defn project-permissions-box []
-  [:div.ui.grey.segment
-   [:h4.ui.dividing.header "User permissions"]
-   [:div.ui.segment
-    [:h5.ui.dividing.header "Admin"]
-    [edit-permissions-form "admin"]]
-   [:div.ui.segment
-    [:h5.ui.dividing.header "Resolve conflicts"]
-    [edit-permissions-form "resolve"]]])
+  (let [;; TODO: implement "owner" permission
+        owner? false
+        all-perms (if owner? ["admin" "resolve"] ["resolve"])
+        reset-field #(let [path [:page (st/current-page) :fields %]]
+                       (swap! work-state assoc-in path nil))]
+    [:div.ui.grey.segment
+     [:h4.ui.dividing.header "Users"]
+     [:div.ui.relaxed.divided.list
+      (doall
+       (for [user-id (project/project-member-user-ids true)]
+         [:div.item {:key user-id}
+          [:div.right.floated.content
+           (let [permissions (project/member-permissions user-id)]
+             (doall
+              (for [perm permissions]
+                [:div.ui.tiny.label {:key perm} perm])))]
+          [:div.content
+           {:style {:padding-top "4px"
+                    :padding-bottom "4px"}}
+           [:i.user.icon]
+           (st/user-name-by-id user-id)]]))]
+     ;; TODO: finish permissions editor interface
+     (when false
+       [:div
+        [:div.ui.divider]
+        [:form.ui.form
+         [:div.fields
+          [project-members-dropdown :add-permission-user
+           #(reset-field :add-permission-perm)]
+          [permissions-dropdown :add-permission-perm all-perms]
+          [:div.field
+           [:label nbsp]
+           [:div.ui.fluid.icon.button [:i.plus.icon]]]]]
+        [:form.ui.form
+         [:div.fields
+          [project-members-dropdown :remove-permission-user
+           #(reset-field :remove-permission-perm)]
+          [permissions-dropdown :remove-permission-perm all-perms]
+          [:div.field
+           [:label nbsp]
+           [:div.ui.fluid.icon.button [:i.minus.icon]]]]]])]))
 
 (defn project-settings-page []
-  [:div.ui.segment
-   [:h3.ui.dividing.header "Project settings"]
-   [:div.ui.two.column.stackable.grid.project-settings
-    [:div.ui.row
-     [:div.ui.column
-      [project-options-box]]
-     [:div.ui.column
-      [project-permissions-box]]]]])
+  (let [user-id (st/current-user-id)
+        admin? (in? (project/member-permissions user-id) "admin")]
+    [:div.ui.segment
+     [:h3.ui.dividing.header "Project settings"
+      (when (not admin?)
+        [:span.ui.large.label "Read-only"])]
+     [:div.ui.two.column.stackable.grid.project-settings
+      [:div.ui.row
+       [:div.ui.column
+        [project-options-box]]
+       [:div.ui.column
+        [project-permissions-box]]]]]))
 
 (defn project-page [active-tab content]
   (let [bottom-segment?
