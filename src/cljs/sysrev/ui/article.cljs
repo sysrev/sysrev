@@ -627,7 +627,16 @@
     :reagent-render
     (fn [label-id]
       (let [all-values
-            (project/project :labels label-id :definition :all-values)
+            (as-> (project/project :labels label-id :definition :all-values) vs
+              (if (and ;; (>= (count vs) 10)
+                   (every? string? vs))
+                (concat
+                 (->> vs (filter #(in? ["none" "other"] (str/lower-case %))))
+                 (->> vs (remove #(in? ["none" "other"] (str/lower-case %)))
+                      (sort #(compare (str/lower-case %1)
+                                      (str/lower-case %2)))))
+                vs)
+              (vec vs))
             article-id (l/active-editor-article-id)
             current-values (l/active-label-values article-id label-id)
             dom-id (str "label-edit-" article-id "-" label-id)]
