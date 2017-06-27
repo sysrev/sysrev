@@ -14,7 +14,7 @@
                  [clojure-csv/clojure-csv "2.0.1"]
                  ;; Database
                  [org.clojure/java.jdbc "0.6.1"]
-                 [org.postgresql/postgresql "42.0.0"]
+                 [org.postgresql/postgresql "42.1.1"]
                  [postgre-types "0.0.4"]
                  [hikari-cp "1.7.5"]
                  [clj-postgresql "0.4.0"
@@ -28,28 +28,28 @@
                    com.fasterxml.jackson.core/jackson-core
                    commons-codec
                    cheshire]]
-                 [joda-time "2.9.7"]
+                 [joda-time "2.9.9"]
                  [clj-time "0.13.0"
                   :exclusions [joda-time]]
                  [honeysql "0.8.2"]
                  [nilenso/honeysql-postgres "0.2.2"]
                  ;; Web server
-                 [compojure "1.5.2"]
+                 [compojure "1.6.0"]
                  [javax.servlet/servlet-api "2.5"]
-                 [ring "1.5.1"]
-                 [ring/ring-defaults "0.2.3"]
+                 [ring "1.6.1"]
+                 [ring/ring-defaults "0.3.0"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
                  [buddy "1.3.0"]
                  ;; Web client
-                 [clj-http "3.4.1"]
+                 [clj-http "3.6.1"]
                  [crypto-random "1.2.0"]
                  ;; Email
                  [com.draines/postal "2.0.2"]
                  ;; Logging
                  [org.clojure/tools.logging "0.3.1"]
-                 [org.slf4j/slf4j-log4j12 "1.7.22"]
+                 [org.slf4j/slf4j-log4j12 "1.7.25"]
                  [log4j/log4j "1.2.17"]
                  ;; enforce jackson version to easier catch dependency conflicts.
                  [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
@@ -61,11 +61,11 @@
                                org.slf4j/slf4j-api]]
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
-                 [reagent "0.6.0"]
+                 [reagent "0.6.2"]
                  [secretary "1.2.3"]
-                 [kibu/pushy "0.3.6"]
-                 [cljs-ajax "0.5.8"]
-                 [cljs-http "0.1.42"]
+                 [kibu/pushy "0.3.7"]
+                 [cljs-ajax "0.6.0"]
+                 [cljs-http "0.1.43"]
                  [cljsjs/jquery "2.2.4-0"]
                  [cljsjs/semantic-ui "2.2.4-0"]
                  [camel-snake-kebab "0.4.0"]
@@ -89,9 +89,9 @@
             ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
             "test-aws-dev-all"
             ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
-  :plugins [[lein-cljsbuild "1.1.5"]
+  :plugins [[lein-cljsbuild "1.1.6"]
             [lein-bower "0.5.2"]
-            [lein-ring "0.11.0"]]
+            [lein-ring "0.12.0"]]
   :clean-targets ^{:protect false}
   ["target"
    "resources/public/out-dev"
@@ -166,14 +166,14 @@
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
                                org.seleniumhq.selenium/selenium-support]]
-                             [com.codeborne/phantomjsdriver "1.4.1"]]}
+                             [com.codeborne/phantomjsdriver "1.4.3"]]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.9"]
-                             [org.clojure/tools.nrepl "0.2.12"]
-                             [com.cemerick/piggieback "0.2.1"]]
-              :plugins [[lein-figwheel "0.5.9"]
+             {:dependencies [[figwheel-sidecar "0.5.10"]
+                             [org.clojure/tools.nrepl "0.2.13"]
+                             [com.cemerick/piggieback "0.2.2"]]
+              :plugins [[lein-figwheel "0.5.10"]
                         [cider/cider-nrepl "0.14.0"]
-                        [refactor-nrepl "2.2.0"]]}
+                        [refactor-nrepl "2.3.1"]]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
@@ -206,6 +206,6 @@
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
                                org.seleniumhq.selenium/selenium-support]]
-                             [com.codeborne/phantomjsdriver "1.4.1"]]}
+                             [com.codeborne/phantomjsdriver "1.4.3"]]}
              :autotest
              {:dependencies {}}})
