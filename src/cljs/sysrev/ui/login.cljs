@@ -23,17 +23,21 @@
         validator #(validate (st :page page) login-validation)
         on-submit (fn [event]
                     (using-work-state
-                     (let [errors (validator)]
-                       (swap! work-state assoc-in [:page page :submit] true)
-                       (when (empty? errors)
-                         (let [{:keys [email password]} (st :page page)]
-                           (if register?
-                             (ajax/post-register email password project-id)
-                             (ajax/post-login email password)))))
-                     (when (.-preventDefault event)
-                       (.preventDefault event))
-                     (set! (.-returnValue event) false)
-                     false))
+                     (let [email (-> (js/$ "#login-email-input") (.val))
+                           password (-> (js/$ "#login-password-input") (.val))]
+                       (if (and (empty? email)
+                                (empty? password))
+                         (do nil)
+                         (let [errors (validator)]
+                           (swap! work-state assoc-in [:page page :submit] true)
+                           (when (empty? errors)
+                             (if register?
+                               (ajax/post-register email password project-id)
+                               (ajax/post-login email password)))))
+                       (when (.-preventDefault event)
+                         (.preventDefault event))
+                       #_ (set! (.-returnValue event) false)
+                       false)))
         input-change (fn [field-key]
                        #(using-work-state
                          (swap! work-state assoc-in [:page page field-key]
@@ -58,13 +62,15 @@
        [:div.field {:class (error-class :email)}
         [:label "Email"]
         [:input
-         {:type "email"
+         {:id "login-email-input"
+          :type "email"
           :name "email"
           :on-change (input-change :email)}]]
        [:div.field {:class (error-class :password)}
         [:label "Password"]
         [:input
-         {:type "password"
+         {:id "login-password-input"
+          :type "password"
           :name "password"
           :on-change (input-change :password)}]]
        [error-msg :email]
