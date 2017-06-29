@@ -227,6 +227,17 @@
     (->> (project-include-labels project-id)
          (filter (fn [[aid labels]]
                    (< 1 (->> labels (map :answer) distinct count))))
+         (filter (fn [[aid labels]]
+                   (= 0 (->> labels (filter :resolve) count))))
+         (apply concat)
+         (apply hash-map))))
+
+(defn project-include-label-resolved [project-id]
+  (with-project-cache
+    project-id [:label-values :confirmed :include-label-resolved]
+    (->> (project-include-labels project-id)
+         (filter (fn [[aid labels]]
+                   (not= 0 (->> labels (filter :resolve) count))))
          (apply concat)
          (apply hash-map))))
 
@@ -294,12 +305,9 @@
 (defn project-conflict-counts [project-id]
   (with-project-cache
     project-id [:label-values :confirmed :conflict-counts]
-    (let [conflicts (project-include-label-conflicts project-id)
-          resolved? (fn [[aid labels]]
-                      (some :resolve labels))
-          n-total (count conflicts)
-          n-resolved (->> conflicts (filter resolved?) count) 
-          n-pending (- n-total n-resolved)]
+    (let [n-pending (count (project-include-label-conflicts project-id))
+          n-resolved (count (project-include-label-resolved project-id))
+          n-total (+ n-pending n-resolved)]
       {:total n-total
        :pending n-pending
        :resolved n-resolved})))
@@ -308,11 +316,20 @@
   (with-project-cache
     project-id [:label-values :confirmed :include-label-counts]
     (let [labels (project-include-labels project-id)
-          counts (->> labels vals (map count))]
+          pending (project-include-label-conflicts project-id)
+          resolved (project-include-label-resolved project-id)
+          status (->> labels
+                      (map (fn [[aid labels]]
+                             (let [n-users (count labels)]
+                               (cond (or (contains? pending aid)
+                                         (contains? resolved aid)) nil
+                                     (= n-users 1) :single
+                                     (= n-users 2) :double
+                                     (> n-users 2) :multi)))))]
       {:any (count labels)
-       :single (->> counts (filter #(= % 1)) count)
-       :double (->> counts (filter #(= % 2)) count)
-       :multi (->> counts (filter #(> % 2)) count)})))
+       :single (->> status (filter #(= % :single)) count)
+       :double (->> status (filter #(= % :double)) count)
+       :multi (->> status (filter #(= % :multi)) count)})))
 
 (defn project-label-value-counts
   "Returns counts of all possible values for each label. `nil` values are

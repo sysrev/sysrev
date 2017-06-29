@@ -100,10 +100,9 @@
         reviewed (-> stats :labels :any)
         unreviewed (- total reviewed)
         single (-> stats :labels :single)
-        double (-> stats :labels :double)
+        consistent (-> stats :labels :double)
         pending (-> stats :conflicts :pending)
         resolved (-> stats :conflicts :resolved)
-        consistent (- double pending)
         colors {:grey "rgba(160,160,160,0.5)"
                 :green "rgba(20,200,20,0.5)"
                 :red "rgba(220,30,30,0.5)"
