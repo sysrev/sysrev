@@ -1,7 +1,7 @@
 (ns sysrev.ui.sysrev
   (:require [sysrev.base :refer [st work-state]]
             [sysrev.ajax :refer
-             [send-file-url pull-files delete-file get-file get-file-url]]
+             [send-file-url pull-files delete-file get-file-url]]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project
              :refer [project project-admin?]]
@@ -286,8 +286,11 @@
               (if @editing-files
                 [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
                 [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
-              [:div.content {:on-click #(get-file (:file-id file) (:name file))}
-               [:a.header {:href (get-file-url (:file-id file) (:name file))} (:name file)]
+              [:div.content
+               [:a.header {:href (get-file-url (:file-id file) (:name file))
+                           :target "_blank"
+                           :download (:name file)}
+                (:name file)]
                [:div.description (show-date file)]]]))))])
      [:div.ui.container
       [upload-container basic-text-button send-file-url pull-files "Upload document"]

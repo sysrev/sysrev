@@ -455,11 +455,7 @@
     pull-files))
 
 (defn get-file-url [key name]
-  (str "api/files/" key "/" name))
-
-(defn get-file [key name]
-  (-> js/window
-      (aset "location" (get-file-url key name))))
+  (str "/api/files/" key "/" name))
 
 (defn post-clear-query-cache []
   (ajax-post
