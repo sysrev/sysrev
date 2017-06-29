@@ -384,10 +384,19 @@
              [:div.ui.inverted.popup.top.left.transition.hidden
               "Answer missing for a required label"]]])])]]))
 
+(defn include-user-filter []
+  (let [self-id (st/current-user-id)]
+    (fn [article-label]
+      (let [{:keys [user-id]} article-label]
+        ;; Keep dev user labels to avoid mismatch with other
+        ;; displayed article counts
+        true))))
+
 (defn articles-page []
   (let [filtered-articles
         (->> (data [:label-activity (selected-label-id)])
              (mapv map->ArticleLabel)
+             (filterv (include-user-filter))
              (->ArticleLabels)
              (id-grouped)
              (filterv (answer-status-filter))
