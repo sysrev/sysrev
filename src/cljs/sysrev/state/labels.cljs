@@ -4,8 +4,9 @@
             [sysrev.state.project :refer [project]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [date-from-string is-today?]]
-            [sysrev.state.project :as project])
-
+            [sysrev.state.project :as project]
+            [cljs-time.format :as tf]
+            [cljs-time.core :as t])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (defn set-member-labels [user-id lmap]
@@ -98,8 +99,8 @@
                    (= (user-article-status page-id)
                       :unconfirmed))
               (and modal-id
-                   (or (not= (user-article-status modal-id)
-                             :confirmed)
+                   (or (= (user-article-status modal-id)
+                          :unconfirmed)
                        (and (= (project/article-review-status modal-id)
                                "conflict")
                             (project/project-resolver?)))))))))

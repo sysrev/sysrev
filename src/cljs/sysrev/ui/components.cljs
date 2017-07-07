@@ -2,7 +2,8 @@
   (:require [cljs.pprint :refer [pprint]]
             [clojure.string :as str]
             [sysrev.base :refer [st work-state]]
-            [sysrev.util :refer [url-domain nbsp full-size?]]
+            [sysrev.util :refer
+             [url-domain nbsp full-size? time-elapsed-string]]
             [sysrev.ajax :as ajax]
             [sysrev.state.core :as st :refer [data]]
             [sysrev.state.project :as project :refer [project]]
@@ -259,6 +260,9 @@
        [:i.dropdown.icon]
        selected-item
        (into [:div.menu] items)])}))
+
+(defn updated-time-label [dt]
+  [:div.ui.tiny.label (time-elapsed-string dt)])
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML

@@ -18,7 +18,8 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.math.numeric-tower :as math]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [clj-time.coerce :as tc])
   (:import java.util.UUID))
 
 (def valid-label-categories
@@ -365,9 +366,14 @@
            (group-by :label-id)
            (map-values first)
            (map-values
-            (fn [entry]
+            (fn [{:keys [confirm-time updated-time] :as entry}]
               (merge (select-keys entry [:answer :resolve])
-                     {:confirmed (not (nil? (:confirm-time entry)))}))))))))
+                     {:confirmed (not (nil? confirm-time))
+                      :confirm-epoch
+                      (max (if (nil? confirm-time) 0
+                               (tc/to-epoch confirm-time))
+                           (if (nil? updated-time) 0
+                               (tc/to-epoch updated-time)))}))))))))
 
 (defn merge-article-labels [article-ids]
   (let [labels
@@ -651,7 +657,8 @@
                      :enabled? boolean?))
 
 (defn select-article-labels [label-id]
-  (-> (select :a.primary-title :a.article-id :al.answer :al.resolve :wu.user-id)
+  (-> (select :a.primary-title :a.article-id :al.answer :al.resolve :wu.user-id
+              :al.confirm-time)
       (from [:article :a])
       (join [:article-label :al] [:= :a.article_id :al.article_id]
             [:web-user :wu] [:= :al.user-id :wu.user-id])
@@ -660,4 +667,7 @@
               [:= :a.enabled true]
               [:!= :al.confirm-time nil]])
       (order-by :a.article-id)
-      (do-query)))
+      (->> (do-query)
+           (mapv #(-> (assoc % :confirm-epoch
+                             (tc/to-epoch (:confirm-time %)))
+                      (dissoc :confirm-time))))))

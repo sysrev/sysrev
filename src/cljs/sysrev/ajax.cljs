@@ -180,10 +180,9 @@
 
 (defn pull-label-activity [label-id]
   (ajax-get
-    (str "/api/label-activity/" label-id)
-    (fn [response]
-      (swap! work-state assoc-in [:data :label-activity label-id] response))))
-
+   (str "/api/label-activity/" label-id)
+   (fn [response]
+     (swap! work-state assoc-in [:data :label-activity label-id] response))))
 
 (defn pull-reset-code-info [reset-code]
   (ajax-get

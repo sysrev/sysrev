@@ -16,7 +16,8 @@
    [sysrev.routes :as routes :refer [schedule-scroll-top]]
    [clojure.string :as str]
    [goog.string :refer [unescapeEntities]]
-   [sysrev.state.project :as project])
+   [sysrev.state.project :as project]
+   [cljs-time.core :as t])
   (:require-macros [sysrev.macros :refer [using-work-state]]))
 
 (def answer-types
@@ -49,7 +50,7 @@
   Groupable
   (num-groups [this] (count articles)))
 
-(defrecord IdGrouping [article-id article-labels]
+(defrecord IdGrouping [article-id article-labels updated-time]
   Groupable
   (num-groups [this] (count article-labels))
   AnswerGroupable
@@ -82,8 +83,11 @@
 (defrecord ArticleLabels [articles]
   IdGroupable
   (id-grouped [this]
-    (mapv (fn [[k v]] (->IdGrouping k v))
-          (group-by :article-id articles))))
+    (letfn [(updated-time [alabels]
+              (let [times (mapv :confirm-epoch alabels)]
+                (if (empty? times) 0 (apply max times))))]
+      (mapv (fn [[k v]] (->IdGrouping k v (updated-time v)))
+            (group-by :article-id articles)))))
 
 (defn search-box [current-value value-changed]
   (let [update-value #(-> % .-target .-value value-changed)]
@@ -400,7 +404,8 @@
              (->ArticleLabels)
              (id-grouped)
              (filterv (answer-status-filter))
-             (filterv (answer-value-filter)))]
+             (filterv (answer-value-filter))
+             (sort-by :updated-time >))]
     (if (st/modal-article-id)
       [:div
        [article-list-article-view (st/modal-article-id)]]

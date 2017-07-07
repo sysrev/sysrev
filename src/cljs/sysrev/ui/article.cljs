@@ -12,11 +12,11 @@
    [sysrev.ui.components :refer
     [similarity-bar truncated-horizontal-list out-link label-answer-tag
      with-tooltip three-state-selection dangerous
-     inconsistent-answers-notice]]
-   [sysrev.util :refer [full-size? mobile?]]
+     inconsistent-answers-notice updated-time-label]]
+   [sysrev.util :refer [full-size? mobile? time-from-epoch]]
    [sysrev.ajax :as ajax]
    [reagent.core :as r]
-   [sysrev.state.labels :as labels])
+   [cljs-time.core :as t])
   (:require-macros [sysrev.macros :refer [with-mount-hook using-work-state]]))
 
 (defn enable-label-value
@@ -176,7 +176,7 @@
                                 (apply concat)
                                 distinct)
         label-ids
-        (->> (labels/project-labels-ordered)
+        (->> (l/project-labels-ordered)
              (map :label-id)
              (filter (in? label-ids-answered))
              (filter
@@ -189,17 +189,30 @@
                                    (empty? answer))))))
                  user-ids))))
         user-ids-resolved
-        (->> user-ids (filter #(labels/user-article-resolved? article-id %)))
+        (->> user-ids (filter #(l/user-article-resolved? article-id %)))
         user-ids-other
-        (->> user-ids (remove #(labels/user-article-resolved? article-id %)))]
+        (->> user-ids (remove #(l/user-article-resolved? article-id %)))]
     [:div.ui.segments.article-labels-view
      (doall
       (for [user-id (concat user-ids-resolved user-ids-other)]
-        (let [user-name (st/user-name-by-id user-id)]
+        (let [user-name (st/user-name-by-id user-id)
+              all-times (->> (vals (get answers user-id))
+                             (map :confirm-epoch)
+                             (remove nil?)
+                             (remove zero?))
+              updated-time (if (empty? all-times)
+                             (t/now)
+                             (time-from-epoch (apply max all-times)))]
           [:div.ui.attached.segment {:key user-id}
-           [:h5.ui.dividing.header user-name
-            (when (labels/user-article-resolved? article-id user-id)
-              [:div.ui.tiny.basic.purple.label "Resolved"])]
+           [:h5.ui.dividing.header
+            [:div.ui.two.column.middle.aligned.grid
+             [:div.row
+              [:div.column
+               user-name
+               (when (l/user-article-resolved? article-id user-id)
+                 [:div.ui.tiny.basic.purple.label "Resolved"])]
+              [:div.right.aligned.column
+               [updated-time-label updated-time]]]]]
            [label-values-component article-id user-id]
            (when-let [unote (notes/get-note-field article-id user-id "default")]
              [:div.notes
@@ -801,7 +814,7 @@
     [:div.ui.segments
      [:div.ui.top.attached.header
       [:h3
-       (if (labels/resolving-article-labels?)
+       (if (l/resolving-article-labels?)
          "Resolve labels " "Edit labels ")
        [with-tooltip
         [:a {:href "/project/labels"}
