@@ -136,6 +136,8 @@
   :repl-options {:timeout 120000
                  :init-ns sysrev.user
                  :port 45019}
+  :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]
+             :config-files ["eastwood.clj"]}
   :profiles {:prod
              {:resource-paths ["config/prod"]
               :main sysrev.web-main
@@ -188,8 +190,11 @@
                         [cider/cider-nrepl "0.14.0"]
                         [refactor-nrepl "2.3.1"]
                         [lein-environ "1.1.0"]]
-              :env {:squiggly {:checkers [:eastwood]
-                               :eastwood-exclude-linters [:unlimited-use]}}}
+              :env {:squiggly
+                    {:checkers [:eastwood #_ :kibit]
+                     :eastwood-exclude-linters
+                     [:unlimited-use :unused-ret-vals :constant-test]
+                     :eastwood-options {:config-files ["eastwood.clj"]}}}}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
