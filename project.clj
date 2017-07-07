@@ -2,7 +2,7 @@
   :dependencies [;; Clojure (JVM) libraries
                  ;;
                  [org.clojure/clojure "1.9.0-alpha14"]
-                 [org.clojure/clojurescript "1.9.495"]
+                 [org.clojure/clojurescript "1.9.521"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
@@ -61,10 +61,12 @@
                                org.slf4j/slf4j-api]]
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
-                 [reagent "0.6.2"]
+                 ;; [reagent "0.6.2"]
+                 [re-frame "0.9.3"]
+                 [day8.re-frame/http-fx "0.1.3"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.7"]
-                 [cljs-ajax "0.6.0"]
+                 ;; [cljs-ajax "0.6.0"]
                  [cljs-http "0.1.43"]
                  [cljsjs/jquery "2.2.4-0"]
                  [cljsjs/semantic-ui "2.2.4-0"]
@@ -72,8 +74,8 @@
                  [cljsjs/chartjs "2.5.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [org.clojure/test.check "0.9.0"]
-                 ;; [com.andrewmcveigh/cljs-time "0.4.0"]
-                 [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]]
+                 ;; [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]
+                 [com.andrewmcveigh/cljs-time "0.5.0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms800m"
              "-Xmx1500m"
@@ -100,20 +102,22 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs" "src/cljc"]
-     :figwheel true
+     :source-paths ["src-new/cljs" "src/cljc"]
+     :figwheel {:on-jsload "sysrev.core/mount-root"}
      :compiler {:main "sysrev.user"
                 :output-to "resources/public/out-dev/sysrev.js"
                 :output-dir "resources/public/out-dev"
                 :asset-path "/out"
-                ;; :preloads      [devtools.preload]
                 :optimizations :none
                 :pretty-print true
                 :source-map true
-                :source-map-timestamp true}}
+                :source-map-timestamp true
+                ;; :preloads [devtools.preload]
+                ;; :external-config {:devtools/config {:features-to-install :all}}
+                }}
     {:id "production"
-     :source-paths ["src/cljs" "src/cljc"]
-     :compiler {:main "sysrev.main"
+     :source-paths ["src-new/cljs" "src/cljc"]
+     :compiler {:main "sysrev.core"
                 :output-to "resources/public/out-production/sysrev.js"
                 :output-dir "resources/public/out-production"
                 :asset-path "/out"
@@ -156,6 +160,7 @@
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
+                             ;; [binaryage/devtools "0.9.4"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-java "3.1.0"]
                              [org.seleniumhq.selenium/selenium-remote-driver "3.1.0"
@@ -182,12 +187,12 @@
               [[yieldbot/flambo "0.8.0"
                 :exclusions
                 [com.google.guava/guava]]
-               [org.apache.spark/spark-core_2.11 "2.1.0"]
-               [org.apache.spark/spark-mllib_2.11 "2.1.0"]
-               [org.apache.spark/spark-streaming_2.11 "2.1.0"]
-               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.1.0"]
-               [org.apache.spark/spark-sql_2.11 "2.1.0"]
-               [org.apache.spark/spark-hive_2.11 "2.1.0"]]
+               [org.apache.spark/spark-core_2.11 "2.1.1"]
+               [org.apache.spark/spark-mllib_2.11 "2.1.1"]
+               [org.apache.spark/spark-streaming_2.11 "2.1.1"]
+               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.1.1"]
+               [org.apache.spark/spark-sql_2.11 "2.1.1"]
+               [org.apache.spark/spark-hive_2.11 "2.1.1"]]
               :aot :all}
              :test
              {:jvm-opts ["-Dlog4j.configuration=log4j.properties.test"

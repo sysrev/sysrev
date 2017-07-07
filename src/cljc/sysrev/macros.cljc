@@ -1,13 +1,6 @@
 (ns sysrev.macros
-  (:require [cljs.analyzer.api :as ana-api]))
-
-(defmacro with-state [state-map & body]
-  `(binding [sysrev.base/work-state (reagent.core/atom ~state-map)]
-     ~@body))
-
-(defmacro using-work-state [& body]
-  `(binding [sysrev.base/read-from-work-state true]
-     ~@body))
+  (:require [cljs.analyzer.api :as ana-api]
+            [re-frame.core :refer [subscribe dispatch]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
@@ -24,3 +17,21 @@
         (remove (comp :macro second))
         (map (fn [[k# _]]
                `(def ~(symbol k#) ~(symbol (name ns) (name k#))))))))
+
+(defmacro with-loader
+  "Wraps a UI component to define required data and delay rendering until
+  data has been loaded."
+  [reqs options content-form]
+  `(let [reqs# ~reqs
+         options# ~options
+         loading# (some #(deref (subscribe [:loading? %])) reqs#)
+         have-data# (every? #(deref (subscribe [:have? %])) reqs#)
+         content# (fn [] [:div ~content-form])]
+     (doseq [item# reqs#]
+       (dispatch [:require item#]))
+     [:div
+      (when (:dimmer options#)
+        [:div.ui.inverted.dimmer
+         {:class (if loading# "active" "")}
+         [:div.ui.loader]])
+      (if have-data# [content#] [:div])]))

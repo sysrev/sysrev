@@ -16,10 +16,12 @@
 (use-fixtures :once default-fixture webdriver-fixture-once)
 (use-fixtures :each webdriver-fixture-each)
 
+#_
 (deftest home-page-loads
   (go-route "/")
   (is (login-form-shown?)))
 
+#_
 (deftest unauthorized-pages-load
   (let [paths ["/project"
                "/user"
@@ -33,6 +35,7 @@
           (format "Invalid content on path '%s':\n%s"
                   path (taxi/text "body"))))))
 
+#_
 (deftest invalid-route-redirect
   (let [paths ["/x"]]
     (doseq [path paths]
@@ -40,6 +43,7 @@
       (is (login-form-shown?)
           (format "Invalid path should go to /" path)))))
 
+#_
 (deftest login-page
   (go-route "/")
   (taxi/click "a[href*='login']")

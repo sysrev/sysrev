@@ -22,10 +22,11 @@
              [wrap-no-cache wrap-add-anti-forgery-token
               wrap-sysrev-response not-found-response]]))
 
-(defroutes app-routes
-  auth-routes
-  site-routes
-  project-routes)
+(defn load-app-routes []
+  (defroutes app-routes
+    auth-routes
+    site-routes
+    project-routes))
 
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
@@ -94,6 +95,7 @@
 (defn run-web [& [port prod? only-if-new]]
   (let [port (or port @web-port 4041)
         config {:port port :prod? prod?}]
+    (load-app-routes)
     (if (and only-if-new
              (= config @web-server-config))
       nil

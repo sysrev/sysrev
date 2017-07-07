@@ -442,9 +442,10 @@
            (apply hash-map)))))
 
 (defn project-info [project-id]
-  (let [[predict articles labels inclusion-values label-values
+  (let [[fields predict articles labels inclusion-values label-values
          conflicts members users keywords notes settings files]
-        (pvalues (predict-summary (q/project-latest-predict-run-id project-id))
+        (pvalues (q/query-project-by-id project-id [:*])
+                 (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
                  (project-label-counts project-id)
                  (project-inclusion-value-counts project-id)
@@ -457,6 +458,8 @@
                  (project-settings project-id)
                  (project-files project-id))]
     {:project {:project-id project-id
+               :name (:name fields)
+               :project-uuid (:project-uuid fields)
                :members members
                :stats {:articles articles
                        :labels labels

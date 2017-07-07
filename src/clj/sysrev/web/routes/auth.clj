@@ -104,8 +104,11 @@
        (let [{{{:keys [user-id] :as identity} :identity
                active-project :active-project
                :as session} :session} request]
-         {:identity (user-info user-id true)
-          :active-project active-project}))
+         (if user-id
+           {:identity (user-info user-id true)
+            :active-project active-project}
+           {:identity nil
+            :active-project nil})))
 
   (GET "/api/auth/lookup-reset-code" request
        (let [{{:keys [reset-code] :as params}
