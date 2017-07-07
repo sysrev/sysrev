@@ -23,7 +23,7 @@
             [sysrev.spec.identity :as csi]
             [clojure.string :as str]
             [cljs-time.core :as t]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]])
   (:require-macros [sysrev.macros :refer [import-vars]]))

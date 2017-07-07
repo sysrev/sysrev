@@ -1,8 +1,8 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [;; Clojure (JVM) libraries
                  ;;
-                 [org.clojure/clojure "1.9.0-alpha14"]
-                 [org.clojure/clojurescript "1.9.521"]
+                 [org.clojure/clojure "1.9.0-alpha17"]
+                 [org.clojure/clojurescript "1.9.671"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
@@ -16,7 +16,7 @@
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "42.1.1"]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "1.7.5"]
+                 [hikari-cp "1.7.6"]
                  [clj-postgresql "0.4.0"
                   :exclusions
                   [postgres
@@ -31,7 +31,7 @@
                  [joda-time "2.9.9"]
                  [clj-time "0.13.0"
                   :exclusions [joda-time]]
-                 [honeysql "0.8.2"]
+                 [honeysql "0.9.0"]
                  [nilenso/honeysql-postgres "0.2.2"]
                  ;; Web server
                  [compojure "1.6.0"]
@@ -62,8 +62,8 @@
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
                  ;; [reagent "0.6.2"]
-                 [re-frame "0.9.3"]
-                 [day8.re-frame/http-fx "0.1.3"]
+                 [re-frame "0.9.4"]
+                 [day8.re-frame/http-fx "0.1.4"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.7"]
                  ;; [cljs-ajax "0.6.0"]
@@ -162,29 +162,40 @@
               :dependencies [[org.clojure/test.check "0.9.0"]
                              ;; [binaryage/devtools "0.9.4"]
                              [clj-webdriver "0.7.2"]
-                             [org.seleniumhq.selenium/selenium-java "3.1.0"]
-                             [org.seleniumhq.selenium/selenium-remote-driver "3.1.0"
+                             [org.seleniumhq.selenium/selenium-api "3.4.0"]
+                             [org.seleniumhq.selenium/selenium-support "3.4.0"]
+                             [org.seleniumhq.selenium/selenium-java "3.4.0"
+                              :exclusions
+                              [org.seleniumhq.selenium/selenium-api
+                               org.seleniumhq.selenium/selenium-support]]
+                             [org.seleniumhq.selenium/selenium-remote-driver "3.4.0"
                               :exclusions
                               [com.google.guava/guava]]
-                             [org.seleniumhq.selenium/selenium-server "3.1.0"
+                             [org.seleniumhq.selenium/selenium-server "3.4.0"
                               :exclusions
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
+                               org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]
                              [com.codeborne/phantomjsdriver "1.4.3"]]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.10"]
+             {:dependencies [[figwheel-sidecar "0.5.11"]
                              [org.clojure/tools.nrepl "0.2.13"]
-                             [com.cemerick/piggieback "0.2.2"]]
-              :plugins [[lein-figwheel "0.5.10"]
+                             [com.cemerick/piggieback "0.2.2"]
+                             [acyclic/squiggly-clojure "0.1.8"
+                              :exclusions [org.clojure/tools.reader]]]
+              :plugins [[lein-figwheel "0.5.11"]
                         [cider/cider-nrepl "0.14.0"]
-                        [refactor-nrepl "2.3.1"]]}
+                        [refactor-nrepl "2.3.1"]
+                        [lein-environ "1.1.0"]]
+              :env {:squiggly {:checkers [:eastwood]
+                               :eastwood-exclude-linters [:unlimited-use]}}}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
               :resource-paths ["config/dev"]
               :dependencies
-              [[yieldbot/flambo "0.8.0"
+              [[yieldbot/flambo "0.8.1"
                 :exclusions
                 [com.google.guava/guava]]
                [org.apache.spark/spark-core_2.11 "2.1.1"]
@@ -202,14 +213,20 @@
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
                              [clj-webdriver "0.7.2"]
-                             [org.seleniumhq.selenium/selenium-java "3.1.0"]
-                             [org.seleniumhq.selenium/selenium-remote-driver "3.1.0"
+                             [org.seleniumhq.selenium/selenium-api "3.4.0"]
+                             [org.seleniumhq.selenium/selenium-support "3.4.0"]
+                             [org.seleniumhq.selenium/selenium-java "3.4.0"
+                              :exclusions
+                              [org.seleniumhq.selenium/selenium-api
+                               org.seleniumhq.selenium/selenium-support]]
+                             [org.seleniumhq.selenium/selenium-remote-driver "3.4.0"
                               :exclusions
                               [com.google.guava/guava]]
-                             [org.seleniumhq.selenium/selenium-server "3.1.0"
+                             [org.seleniumhq.selenium/selenium-server "3.4.0"
                               :exclusions
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
+                               org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]
                              [com.codeborne/phantomjsdriver "1.4.3"]]}
              :autotest

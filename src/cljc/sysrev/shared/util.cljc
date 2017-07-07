@@ -1,5 +1,5 @@
 (ns sysrev.shared.util
-  (:require [clojure.spec :as s])
+  (:require [clojure.spec.alpha :as s])
   #?(:clj (:import java.util.UUID)))
 
 #?(:clj

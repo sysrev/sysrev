@@ -1,5 +1,5 @@
 (ns sysrev.base
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [reagent.core :as r]
             [secretary.core :as secretary :include-macros true]
             [pushy.core :as pushy]

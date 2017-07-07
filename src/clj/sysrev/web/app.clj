@@ -112,8 +112,6 @@
   (assert ((comp not empty?) body)
           "wrap-permissions: missing body form")
   `(let [request# ~request
-         uperms-required# ~uperms-required
-         mperms-required# ~mperms-required
          user-id# (current-user-id request#)
          project-id# (active-project request#)
          user# (and user-id# (get-user-by-id user-id#))
@@ -129,28 +127,28 @@
                 :type :authentication
                 :message "Not logged in / Invalid API token"}}
 
-       (not (every? (in? uperms#) uperms-required#))
+       (not (every? (in? uperms#) ~uperms-required))
        {:error {:status 403
                 :type :user
                 :message "Not authorized"}}
        
-       (and (empty? uperms-required#)
-            (empty? mperms-required#))
+       (and (empty? ~uperms-required)
+            (empty? ~mperms-required))
        (body-fn#)
        
-       (and (not (empty? mperms-required#))
+       (and (not (empty? ~mperms-required))
             (not (integer? project-id#)))
        {:error {:status 403
                 :type :project
                 :message "No project selected"}}
        
-       (and (not (empty? mperms-required#))
+       (and (not (empty? ~mperms-required))
             (nil? member#))
        {:error {:status 403
                 :type :member
                 :message "Not authorized (project)"}}
        
-       (not (every? (in? mperms#) mperms-required#))
+       (not (every? (in? mperms#) ~mperms-required))
        {:error {:status 403
                 :type :project
                 :message "Not authorized"}}

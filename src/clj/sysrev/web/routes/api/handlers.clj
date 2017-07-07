@@ -1,5 +1,5 @@
 (ns sysrev.web.routes.api.handlers
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.web-api :as swa]
             [compojure.core :refer :all]

@@ -1,5 +1,5 @@
 (ns sysrev.shared.spec.web-api
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [in?]]
             [clojure.string :as str]))

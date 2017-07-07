@@ -1,6 +1,6 @@
 (ns sysrev.views.components
   (:require
-   [clojure.spec :as s]
+   [clojure.spec.alpha :as s]
    [sysrev.shared.util :refer [num-to-english]]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]

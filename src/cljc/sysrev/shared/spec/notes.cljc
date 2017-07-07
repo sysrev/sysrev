@@ -1,5 +1,5 @@
 (ns sysrev.shared.spec.notes
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]))
 
 ;;;

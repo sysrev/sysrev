@@ -1,6 +1,6 @@
 (ns sysrev.db.project
   (:require
-   [clojure.spec :as s]
+   [clojure.spec.alpha :as s]
    [sysrev.shared.spec.core :as sc]
    [sysrev.shared.spec.article :as sa]
    [sysrev.shared.spec.project :as sp]

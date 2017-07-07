@@ -1,5 +1,5 @@
 (ns sysrev.db.labels
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.db.core :as db :refer
              [do-query do-query-map do-execute do-transaction

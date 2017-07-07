@@ -1,7 +1,7 @@
 (ns sysrev.test.api
   (:require [clojure.test :refer :all]
-            [clojure.spec :as s]
-            [clojure.spec.test :as t]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as t]
             [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
             [sysrev.test.core :refer

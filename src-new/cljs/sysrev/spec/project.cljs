@@ -1,5 +1,5 @@
 (ns sysrev.spec.project
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.spec.core :as csc]
             [sysrev.shared.spec.core :as sc]))
 

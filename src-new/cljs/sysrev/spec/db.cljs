@@ -1,5 +1,5 @@
 (ns sysrev.spec.db
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.spec.core :as csc]
             [sysrev.spec.identity :as csi]))
 

@@ -1,8 +1,8 @@
 (ns sysrev.test.profile
   (:require
    [clojure.test :refer :all]
-   [clojure.spec :as s]
-   [clojure.spec.test :as t]
+   [clojure.spec.alpha :as s]
+   [clojure.spec.test.alpha :as t]
    [clojure.tools.logging :as log]
    [sysrev.test.core :refer [default-fixture completes?]]
    [sysrev.db.users :refer [create-user get-user-by-email delete-user]]

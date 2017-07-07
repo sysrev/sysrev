@@ -1,5 +1,5 @@
 (ns sysrev.shared.spec.core
-  (:require [clojure.spec :as s]))
+  (:require [clojure.spec.alpha :as s]))
 
 (s/def ::uuid uuid?)
 (s/def ::sql-serial-id (s/and int? nat-int?))

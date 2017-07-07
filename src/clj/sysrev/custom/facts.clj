@@ -12,7 +12,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.tools.logging :as log]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [sysrev.shared.spec.web-api :as swa]))
 
 (defn parse-pmid-nct-csv [path]

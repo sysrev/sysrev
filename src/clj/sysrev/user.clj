@@ -35,8 +35,8 @@
         sysrev.shared.keywords
         sysrev.test.core
         sysrev.test.browser.core)
-  (:require [clojure.spec :as s]
-            [clojure.spec.test :as t]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
             [honeysql.core :as sql]

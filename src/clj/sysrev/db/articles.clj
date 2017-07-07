@@ -1,18 +1,17 @@
 (ns sysrev.db.articles
-  (:require
-   [clojure.spec :as s]
-   [clojure.java.jdbc :as j]
-   [sysrev.shared.util :as u]
-   [sysrev.shared.spec.core :as sc]
-   [sysrev.shared.spec.article :as sa]
-   [sysrev.db.core :as db :refer
-    [do-query do-execute to-sql-array sql-now with-project-cache
-     with-query-cache clear-project-cache to-jsonb]]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [honeysql-postgres.format :refer :all]
-   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-   [sysrev.db.queries :as q]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.java.jdbc :as j]
+            [sysrev.shared.util :as u]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.db.core :as db :refer
+             [do-query do-execute to-sql-array sql-now with-project-cache
+              with-query-cache clear-project-cache to-jsonb]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.db.queries :as q]))
 
 (defn article-to-sql
   "Converts some fields in an article map to values that can be passed

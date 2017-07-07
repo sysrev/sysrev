@@ -1,5 +1,5 @@
 (ns sysrev.shared.spec.keywords
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]))
 
 (s/def ::keyword-id ::sc/uuid)

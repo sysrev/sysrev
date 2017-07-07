@@ -1,6 +1,6 @@
 (ns sysrev.events.ajax
   (:require
-   [clojure.spec :as s]
+   [clojure.spec.alpha :as s]
    [day8.re-frame.http-fx]
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx subscribe dispatch trim-v reg-fx]]

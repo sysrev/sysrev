@@ -1,5 +1,5 @@
 (ns sysrev.db.core
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [map-to-arglist]]
@@ -207,24 +207,25 @@
         :ret boolean?)
 
 (defmacro with-query-cache [field-path form]
-  `(if (not @query-cache-enabled)
-     (do ~form)
-     (let [field-path# ~field-path
-           field-path# (if (keyword? field-path#)
-                         [field-path#] field-path#)
-           cache-val# (get-in @query-cache field-path# :not-found)]
-       (if (= cache-val# :not-found)
-         (let [new-val# (do ~form)]
-           (swap! query-cache assoc-in field-path# new-val#)
-           new-val#)
-         cache-val#))))
+  (let [field-path (if (keyword? field-path)
+                     [field-path] field-path)]
+    `(if (not @query-cache-enabled)
+       (do ~form)
+       (let [field-path# ~field-path
+             cache-val# (get-in @query-cache field-path# :not-found)]
+         (if (= cache-val# :not-found)
+           (let [new-val# (do ~form)]
+             (swap! query-cache assoc-in field-path# new-val#)
+             new-val#)
+           cache-val#)))))
 
 (defmacro with-project-cache [project-id field-path form]
-  `(let [project-id# ~project-id
-         field-path# ~(if (keyword? field-path)
-                        `[~field-path] `~field-path)
-         full-path# (concat [:project project-id#] field-path#)]
-     (with-query-cache full-path# ~form)))
+  (let [field-path (if (keyword? field-path)
+                     [field-path] field-path)]
+    `(let [project-id# ~project-id
+           field-path# ~field-path
+           full-path# (concat [:project project-id#] field-path#)]
+       (with-query-cache full-path# ~form))))
 
 (defn cached-project-ids []
   (keys (get @query-cache :project)))

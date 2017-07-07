@@ -35,7 +35,7 @@
             [cljs-time.core :as t]
             [cljs-time.format :as tf]
             [cljs-time.coerce :as tc]
-            [clojure.spec :as s])
+            [clojure.spec.alpha :as s])
   (:require-macros
    [sysrev.macros :refer [import-vars using-work-state with-state]]))
 

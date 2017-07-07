@@ -1,5 +1,5 @@
 (ns sysrev.spec.identity
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.users :as su]))
 
