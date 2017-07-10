@@ -26,7 +26,10 @@
          options# ~options
          loading# (some #(deref (subscribe [:loading? %])) reqs#)
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
-         content# (fn [] [:div ~content-form])]
+         content# (fn [] [:div {:style (if (and (:dimmer options#) loading#)
+                                         {:visibility "hidden"}
+                                         {})}
+                          ~content-form])]
      (doseq [item# reqs#]
        (dispatch [:require item#]))
      [:div
