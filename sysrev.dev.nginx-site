@@ -1,15 +1,15 @@
-upstream sysrev-clj {
-    server 127.0.0.1:4041;
+upstream sysrev-clj-rf {
+    server 127.0.0.1:4061;
 }
 
 server {
     listen 80;
-    server_name localhost sysrev.dev
+    server_name sysrev-rf;
 
     access_log /var/log/nginx/sysrev.access_log;
     error_log /var/log/nginx/sysrev.error_log info;
 
-    root /var/www/sysrev;
+    root /var/www/sysrev-rf;
 
     sendfile off;
 
@@ -17,7 +17,7 @@ server {
         proxy_next_upstream error;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
-        proxy_pass http://sysrev-clj;
+        proxy_pass http://sysrev-clj-rf;
     }
 
     location /files {

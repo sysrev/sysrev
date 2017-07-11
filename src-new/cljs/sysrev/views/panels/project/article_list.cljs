@@ -1,18 +1,17 @@
-(ns sysrev.views.panels.article-list
+(ns sysrev.views.panels.project.article-list
   (:require
    [clojure.string :as str]
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
    [reagent.ratom :refer [reaction]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.project :refer [project-wrapper]]
    [sysrev.views.components :refer [selection-dropdown]]
    [sysrev.subs.label-activity :refer [answer-types]]
    [sysrev.util :refer [nbsp full-size? number-to-word]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def ^:private panel-name :articles)
+(def ^:private panel-name [:project :project :articles])
 
 (reg-sub
  ::label-id
@@ -159,10 +158,8 @@
         [:div
          [:p (str "Found " (count articles) " articles")]]))))
 
-(defn article-list-panel []
-  [:div
-   [article-filter-form]
-   [article-list-view]])
-
-(defmethod panel-content :articles []
-  [project-wrapper [article-list-panel]])
+(defmethod panel-content [:project :project :articles] []
+  (fn [child]
+    [:div
+     [article-filter-form]
+     [article-list-view]]))

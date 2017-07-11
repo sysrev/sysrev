@@ -36,6 +36,7 @@
   (import-vars 'sysrev.fx)
   (import-vars 'sysrev.subs.core)
   (import-vars 'sysrev.data.core)
+  (import-vars 'sysrev.views.base)
   (import-vars 'sysrev.views.main)
   (import-vars 'sysrev.shared.util)
   (import-vars 'sysrev.shared.keywords)

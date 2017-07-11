@@ -1,12 +1,11 @@
-(ns sysrev.views.panels.overview
+(ns sysrev.views.panels.project.overview
   (:require
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.project :refer [project-wrapper]]
    [sysrev.views.components :refer [labeled-input]]
    [sysrev.views.charts :refer [chart-container pie-chart]]
-   [sysrev.views.panels.article-list :as article-list]
+   [sysrev.views.panels.project.article-list :as article-list]
    [sysrev.routes :refer [nav nav-scroll-top]]
    [sysrev.util :refer [full-size? mobile?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -109,5 +108,8 @@
      #_ [user-summary-chart]
      [invite-link-segment]]]])
 
-(defmethod panel-content :project-overview []
-  [project-wrapper [project-overview-panel]])
+(defmethod panel-content [:project :project :overview] []
+  (fn [child]
+    [:div
+     [project-overview-panel]
+     child]))

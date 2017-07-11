@@ -8,6 +8,10 @@
     padding: 0.5em;
 }
 
+.ui.segment.project-header > h5 {
+    font-weight: normal;
+}
+
 div.segment.labels-warning {
     padding: 0.5em;
 }
@@ -207,25 +211,6 @@ div.page-content {
     padding-bottom: 0.5em;
 }
 
-.ui.secondary.pointing.menu.project-menu a.active.item {
-    background-color: rgba(240,240,240,1);
-}
-
-.ui.menu.project-menu h4.header {
-    font-weight: normal;
-    font-size: 14px;
-}
-
-.ui.menu.project-menu .ui.basic.button.classify {
-    background-color: rgba(252,252,252,1) !important;
-    color: rgba(64, 121, 191, 0.925) !important;
-    font-weight: bold;
-    border: 1.5px solid rgba(64, 121, 191, 0.7) !important;
-    box-shadow: none;
-    padding-top: 0.5em;
-    padding-bottom: 0.5em;
-}
-
 .grid.project-stats {
     font-size: 100%;
 }
@@ -316,10 +301,6 @@ div.ui.segment.label-section-header {
     padding-top: 2px;
     padding-bottom: 2px;
     font-size: 13px;
-}
-
-.project-menu .ui.large.basic.button {
-    font-weight: bold;
 }
 
 .bold {
@@ -663,6 +644,35 @@ div.article-info-header > .ui.fluid.button {
     min-width: 35em;
 }
 
+.ui.item.menu.primary-menu {
+    min-height: 0;
+    margin-top: -0.5em;
+}
+
+.ui.item.menu.primary-menu a.item {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    color: rgba(64, 121, 191, 1);
+    font-weight: bold;
+}
+
+div.secondary-menu-wrapper {
+    margin-left: 1.25em;
+    margin-right: 1.25em;
+    margin-bottom: 1em;
+}
+
+.ui.item.menu.secondary-menu {
+    min-height: 0;
+    margin-top: -0.5em;
+}
+
+.ui.item.menu.secondary-menu a.item {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    color: rgba(64, 121, 191, 1);
+}
+
 @media only screen and (max-width: 900px) {
     body {
         font-size: 13px;
@@ -697,10 +707,6 @@ div.article-info-header > .ui.fluid.button {
         padding: 0.75em;
     }
 
-    .ui.menu.project-menu.item h4 {
-        font-size: 13px;
-    }
-    
     .ui.menu .item,
     .ui.menu .menu .item {
         padding-left: 8px;
@@ -714,15 +720,6 @@ div.article-info-header > .ui.fluid.button {
 
     .content.confirm-modal h3 {
         font-size: 1.0em;
-    }
-
-    .ui.menu.project-menu .ui.basic.button.classify {
-        font-size: 13px;
-        box-shadow: none;
-        padding-top: 0.5em;
-        padding-bottom: 0.5em;
-        padding-left: 0.9em;
-        padding-right: 0.9em;
     }
 
     .ui.label,

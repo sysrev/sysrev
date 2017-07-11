@@ -13,10 +13,6 @@
      [:div.ui.label label-attrs label-text]
      input-elt]))
 
-;;;
-;;; primary-tabbed-menu
-;;;
-
 (s/def ::tab-id keyword?)
 (s/def ::content any?)
 (s/def ::action (or string? fn?))
@@ -30,7 +26,7 @@
         n-tabs-word (num-to-english n-tabs)]
     [:div.ui
      {:class
-      (str n-tabs-word " item secondary pointing menu tabbed-menu " menu-class)}
+      (str n-tabs-word " item " " pointing menu primary-menu " menu-class)}
      (doall
       (map-indexed
        (fn [i {:keys [tab-id action content]}]
@@ -40,8 +36,7 @@
            [:a
             (merge attrs (if (string? action)
                            {:href action} {:on-click action}))
-            (if (string? content)
-              [:h4.ui.header content] content)]))
+            content]))
        entries))]))
 (s/fdef
  primary-tabbed-menu
@@ -49,7 +44,31 @@
               :active-tab-id ::tab-id
               :menu-class (s/? string?)))
 
-;;;
+(defn secondary-tabbed-menu [entries active-tab-id & [menu-class]]
+  (let [menu-class (or menu-class "")
+        entries (remove nil? entries)
+        n-tabs (count entries)
+        n-tabs-word (num-to-english n-tabs)]
+    [:div.secondary-menu-wrapper
+     [:div.ui
+      {:class
+       (str n-tabs-word " item " "tiny" " pointing menu secondary-menu " menu-class)}
+      (doall
+       (map-indexed
+        (fn [i {:keys [tab-id action content]}]
+          (let [attrs {:key i
+                       :class (if (= tab-id active-tab-id)
+                                "active item" "item")}]
+            [:a
+             (merge attrs (if (string? action)
+                            {:href action} {:on-click action}))
+             content]))
+        entries))]]))
+(s/fdef
+ secondary-tabbed-menu
+ :args (s/cat :entries (s/coll-of ::menu-tab)
+              :active-tab-id ::tab-id
+              :menu-class (s/? string?)))
 
 (defn selection-dropdown [selected-item items]
   (r/create-class

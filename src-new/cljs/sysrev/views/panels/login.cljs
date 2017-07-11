@@ -191,12 +191,12 @@
           [:a {:href "/request-password-reset"}
            "Forgot password?"]]])]]))
 
-(defmethod logged-out-content :login []
+(defmethod logged-out-content [:login] []
   [login-register-panel])
-(defmethod logged-out-content :register []
+(defmethod logged-out-content [:register] []
   [login-register-panel])
 
-(defmethod panel-content :login []
+(defmethod panel-content [:login] []
   (do (nav-scroll-top "/") [:div]))
-(defmethod panel-content :register []
+(defmethod panel-content [:register] []
   [login-register-panel])

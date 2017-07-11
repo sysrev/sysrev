@@ -126,8 +126,8 @@
                 :pretty-print false
                 :source-map "resources/public/out-production/sysrev.js.map"
                 :source-map-timestamp true}}]}
-  :figwheel {:nrepl-port 7888
-             :server-port 3449
+  :figwheel {:nrepl-port 7889
+             :server-port 3450
              ;; these should work with both Cider and Cursive
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 "refactor-nrepl.middleware/wrap-refactor"
@@ -135,7 +135,7 @@
              :css-dirs ["resources/public/css"]}
   :repl-options {:timeout 120000
                  :init-ns sysrev.user
-                 :port 45019}
+                 :port 45021}
   :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]
              :config-files ["eastwood.clj"]}
   :profiles {:prod
