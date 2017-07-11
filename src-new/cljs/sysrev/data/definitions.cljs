@@ -28,14 +28,6 @@
      (list [:project/load project]
            [:user/store-multi (vals users)])}))
 
-(def-data :member/labels
-  :sub (fn [user-id] [:member/labels user-id])
-  :uri (fn [user-id] (str "/api/member-labels/" user-id))
-  :process
-  (fn [_ [user-id] {:keys [articles labels notes]}]
-    ;; TODO - store result
-    {}))
-
 (def-data :project/label-activity
   :sub (fn [label-id] [:label-activity/raw label-id])
   :uri (fn [label-id] (str "/api/label-activity/" label-id))
@@ -43,3 +35,11 @@
   :process
   (fn [_ [label-id] result]
     {:dispatch [:project/load-label-activity label-id result]}))
+
+(def-data :review/article-id
+  :sub (fn [] [:review/article-id])
+  :uri (fn [] "/api/label-task")
+  :prereqs (fn [] [[:project/raw] [:user-id]])
+  :process
+  (fn [_ _ {:keys [article today-count]}]
+    {:dispatch [:review/load-task article today-count]}))

@@ -12,8 +12,9 @@
    [sysrev.views.panels.project.article-list]
    [sysrev.views.panels.project.labels]
    [sysrev.views.panels.project.settings]
+   [sysrev.views.panels.project.invite-link]
    [sysrev.views.panels.project.member-account]
-   [sysrev.views.panels.project.classify]
+   [sysrev.views.panels.project.review]
    [sysrev.views.menu :refer [header-menu]]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch reg-sub reg-event-db]]

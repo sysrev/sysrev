@@ -1,7 +1,7 @@
 (ns sysrev.events.project
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe trim-v reg-fx]]
+    [reg-event-db reg-event-fx subscribe trim-v]]
    [sysrev.util :refer [dissoc-in]]))
 
 (reg-event-db

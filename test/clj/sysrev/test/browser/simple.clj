@@ -24,10 +24,10 @@
 #_
 (deftest unauthorized-pages-load
   (let [paths ["/project"
-               "/user"
+               "/project/user"
                "/project/labels"
                "/project/predict"
-               "/project/classify"
+               "/project/review"
                "/select-project"]]
     (doseq [path paths]
       (go-route path)

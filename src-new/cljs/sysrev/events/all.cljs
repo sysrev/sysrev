@@ -6,5 +6,7 @@
             sysrev.events.users
             sysrev.events.project
             sysrev.events.ui
+            sysrev.events.articles
+            sysrev.events.review
             sysrev.events.post.core
             sysrev.events.post.auth))

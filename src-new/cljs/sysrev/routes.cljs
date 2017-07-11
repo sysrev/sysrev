@@ -30,11 +30,14 @@
 (defroute project-labels "/project/labels" []
   (dispatch [:set-active-panel [:project :project :labels]]))
 
-(defroute classify "/project/classify" []
-  (dispatch [:set-active-panel [:project :classify]]))
+(defroute review "/project/review" []
+  (dispatch [:set-active-panel [:project :review]]))
 
 (defroute project-settings "/project/settings" []
   (dispatch [:set-active-panel [:project :project :settings]]))
+
+(defroute invite-link "/project/invite-link" []
+  (dispatch [:set-active-panel [:project :project :invite-link]]))
 
 (defroute login "/login" []
   (dispatch [:set-active-panel [:login]]))

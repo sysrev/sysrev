@@ -111,6 +111,14 @@
             {:notes
              (project/project-member-article-notes project-id user-id)})})))
 
+  #_
+  (GET "/api/user-articles/:user-id" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [user-id (-> request :params :user-id Integer/parseInt)
+              project-id (active-project request)]
+          {:result nil})))
+
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
        (wrap-permissions

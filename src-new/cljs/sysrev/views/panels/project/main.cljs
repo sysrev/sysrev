@@ -10,14 +10,14 @@
   (let [active-tab (->> @(subscribe [:active-panel]) (drop 1) first)]
     [primary-tabbed-menu
      [{:tab-id :project
-       :content "Project"
+       :content "Project Status"
        :action "/project"}
       {:tab-id :member-account
        :content "My Labels"
        :action "/project/user"}
-      {:tab-id :classify
-       :content "Classify Articles"
-       :action "/project/classify"}]
+      {:tab-id :review
+       :content "Review Articles"
+       :action "/project/review"}]
      active-tab
      "project-menu"]))
 
@@ -36,7 +36,10 @@
       (when false
         {:tab-id :predict
          :content "Prediction"
-         :action "/project/predict"})
+         :action "/project/predict"})]
+     [{:tab-id :invite-link
+       :content "Invite Link"
+       :action "/project/invite-link"}
       {:tab-id :settings
        :content "Settings"
        :action "/project/settings"}]
@@ -46,10 +49,19 @@
 (defmethod panel-content [:project] []
   (fn [child]
     (with-loader [[:project]] {}
-      (let [project-name @(subscribe [:project/name])]
+      (let [project-name @(subscribe [:project/name])
+            admin? @(subscribe [:user/admin?])
+            project-ids @(subscribe [:user/project-ids])]
         [:div.ui.container
-         [:div.ui.top.attached.center.aligned.segment.project-header
-          [:h5 (str project-name)]]
+         [:div.ui.top.attached.clearing.segment.project-header
+          [:h5.ui.left.floated.header
+           [:div.ui.basic.label (str project-name)]]
+          [:h5.ui.right.floated.header
+           [:a.ui.tiny.basic.grey.button
+            {:href "/select-project"
+             :class (if (or admin? (< 1 (count project-ids)))
+                      "" "disabled")}
+            [:span.black-text "Change project"]]]]
          [:div.ui.bottom.attached.segment
           [project-page-menu]
           child]]))))

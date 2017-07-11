@@ -26,22 +26,21 @@
                         2 10)]
           (let [single-labeled (l/single-labeled-articles project-id user-id)]
             (dotimes [i n-tests]
-              (let [result (l/get-user-label-task project-id user-id)]
+              (let [{:keys [article] :as result} (l/get-user-label-task project-id user-id)
+                    {:keys [article-id review-status]} article]
                 (if (and (empty? unlabeled) (empty? single-labeled))
                   (is (nil? result)
                       (format "project=%s,user=%s : %s"
                               project-id user-id
                               "get-user-label-task should return nothing"))
-                  (is (s/valid? ::sa/article-partial result)
+                  (is (s/valid? ::sa/article-partial article)
                       (format "project=%s,user=%s,article=%s : %s"
-                              project-id user-id (:article-id result)
+                              project-id user-id article-id
                               "invalid result")))
                 (when result
-                  (let [article-id (:article-id result)
-                        _ (is (s/valid? ::sc/article-id article-id))
-                        labels (l/get-user-article-labels user-id article-id)]
+                  (is (s/valid? ::sc/article-id article-id))
+                  (let [labels (l/get-user-article-labels user-id article-id)]
                     (is (empty? labels)
                         (format "project=%s,user=%s,article=%s,status=%s : %s"
-                                project-id user-id
-                                (:article-id result) (:review-status result)
+                                project-id user-id article-id review-status
                                 "user should not have saved labels"))))))))))))

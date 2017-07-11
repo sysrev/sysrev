@@ -349,10 +349,8 @@
           unlabeled [unlabeled :unreviewed]
           :else nil)]
     (when (and article status)
-      (-> article
-          (assoc :review-status status)
-          (assoc :today-count today-count)
-          (dissoc :raw)))))
+      {:article (dissoc article :raw)
+       :today-count today-count})))
 
 (defn article-user-labels-map [project-id article-id]
   (->>

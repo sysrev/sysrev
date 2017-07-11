@@ -10,14 +10,6 @@
    [sysrev.util :refer [full-size? mobile?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(defn- invite-link-segment []
-  (let [invite-url @(subscribe [:project/invite-url])]
-    [:div.ui.grey.segment
-     [labeled-input
-      "Project invite link"
-      [:input.ui.input {:readOnly true :value invite-url}]
-      {:class "fluid"}]]))
-
 (defn nav-article-status [status]
   (nav-scroll-top "/project/articles")
   (dispatch [::article-list/set-answer-status status])
@@ -105,8 +97,7 @@
      [project-summary-box]
      #_ [project-files-box]]
     [:div.ui.column
-     #_ [user-summary-chart]
-     [invite-link-segment]]]])
+     #_ [user-summary-chart]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

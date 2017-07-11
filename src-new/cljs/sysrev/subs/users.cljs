@@ -2,7 +2,8 @@
   (:require
    [re-frame.core :as re-frame :refer
     [subscribe reg-sub]]
-   [sysrev.shared.util :refer [in?]]))
+   [sysrev.shared.util :refer [in?]]
+   [clojure.string :as str]))
 
 (reg-sub
  ::users
@@ -44,7 +45,7 @@
  (fn [[_ user-id]]
    [(subscribe [:user/email user-id])])
  (fn [[email]]
-   email))
+   (first (str/split email #"@"))))
 
 (reg-sub
  :user/permissions
