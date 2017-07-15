@@ -36,10 +36,20 @@
   (fn [_ [label-id] result]
     {:dispatch [:project/load-label-activity label-id result]}))
 
-(def-data :review/article-id
-  :sub (fn [] [:review/article-id])
+(def-data :review/task
+  :sub (fn [] [:review/task-id])
   :uri (fn [] "/api/label-task")
   :prereqs (fn [] [[:project/raw] [:user-id]])
   :process
-  (fn [_ _ {:keys [article today-count]}]
-    {:dispatch [:review/load-task article today-count]}))
+  (fn [_ _ {:keys [article labels notes today-count]}]
+    {:dispatch-n
+     (list [:article/load (merge article {:labels labels :notes notes})]
+           [:review/load-task (:article-id article) today-count])}))
+
+(def-data :article
+  :sub (fn [article-id] [:article/raw article-id])
+  :uri (fn [article-id] (str "/api/article-info/" article-id))
+  :prereqs (fn [_] [[:project/raw] [:have-identity?]])
+  :process
+  (fn [_ [article-id] {:keys [article labels notes]}]
+    {:dispatch [:article/load (merge article {:labels labels :notes notes})]}))

@@ -64,7 +64,7 @@
             [:span.black-text "Change project"]]]]
          [:div.ui.bottom.attached.segment
           [project-page-menu]
-          child]]))))
+          [:div child]]]))))
 
 (defmethod panel-content [:project :project] []
   (fn [child]

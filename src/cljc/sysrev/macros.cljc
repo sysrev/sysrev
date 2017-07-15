@@ -24,16 +24,19 @@
   [reqs options content-form]
   `(let [reqs# ~reqs
          options# ~options
+         dimmer# (:dimmer options#)
+         min-height# (:min-height options#)
          loading# (some #(deref (subscribe [:loading? %])) reqs#)
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
-         content# (fn [] [:div {:style (if (and (:dimmer options#) loading#)
-                                         {:visibility "hidden"}
-                                         {})}
+         content# (fn [] [:div (when (and dimmer# loading#)
+                                 {:style {:visibility "hidden"}})
                           ~content-form])]
      (doseq [item# reqs#]
        (dispatch [:require item#]))
-     [:div
-      (when (:dimmer options#)
+     [:div (when (and (not have-data#) dimmer# min-height#)
+             {:class "ui segment"
+              :style {:min-height min-height#}})
+      (when dimmer#
         [:div.ui.inverted.dimmer
          {:class (if loading# "active" "")}
          [:div.ui.loader]])

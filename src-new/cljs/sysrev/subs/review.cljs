@@ -3,11 +3,30 @@
              [subscribe reg-sub reg-sub-raw]]))
 
 (reg-sub
- :review/article-id
+ :review/task-id
  (fn [db]
-   (get-in db [:data :review :article-id])))
+   (get-in db [:data :review :task-id])))
 
 (reg-sub
  :review/today-count
  (fn [db]
    (get-in db [:data :review :today-count])))
+
+(reg-sub
+ :review/on-review-task?
+ :<- [:active-panel]
+ (fn [panel]
+   (= panel [:project :review])))
+
+(reg-sub
+ :review/editing-id
+ :<- [:review/on-review-task?]
+ :<- [:review/task-id]
+ (fn [[on-review-task? task-id]]
+   (cond on-review-task? task-id)))
+
+(reg-sub
+ :review/editing?
+ :<- [:review/editing-id]
+ (fn [editing-id]
+   (if editing-id true false)))

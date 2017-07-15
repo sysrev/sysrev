@@ -88,17 +88,3 @@
       :consistent consistent
       :conflict pending
       :resolved resolved})))
-
-(reg-sub
- ::members
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]]
-   (:members project)))
-
-(reg-sub
- :project/member-user-ids
- (fn [[_ project-id]]
-   [(subscribe [::members project-id])])
- (fn [[members]]
-   (keys members)))

@@ -9,6 +9,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
             [sysrev.db.labels :as l]
+            [sysrev.db.articles :as a]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.test.core :refer [default-fixture completes?]]
@@ -26,8 +27,11 @@
                         2 10)]
           (let [single-labeled (l/single-labeled-articles project-id user-id)]
             (dotimes [i n-tests]
-              (let [{:keys [article] :as result} (l/get-user-label-task project-id user-id)
-                    {:keys [article-id review-status]} article]
+              (let [{:keys [article-id today-count] :as result}
+                    (l/get-user-label-task project-id user-id)
+                    {:keys [review-status] :as article}
+                    (when article-id
+                      (a/query-article-by-id-full article-id))]
                 (if (and (empty? unlabeled) (empty? single-labeled))
                   (is (nil? result)
                       (format "project=%s,user=%s : %s"

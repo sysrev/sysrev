@@ -7,7 +7,8 @@
    [reagent.ratom :refer [reaction]]
    [sysrev.subs.core :refer [not-found-value try-get]]
    [sysrev.events.ajax :refer
-    [reg-event-ajax reg-event-ajax-fx run-ajax]]))
+    [reg-event-ajax reg-event-ajax-fx run-ajax]]
+   [sysrev.shared.util :refer [in?]]))
 
 ;; Holds static definitions for data items fetched from server
 (defonce data-defs (atom {}))
@@ -103,7 +104,7 @@
          new-db (require-item db prereqs item)
          changed? (not= (:needed new-db) (:needed db))]
      (cond-> {:db new-db}
-       changed? (merge {::fetch-missing true})))))
+       changed? (merge {::fetch-if-missing item})))))
 
 (reg-event-db
  :data/reset-required
@@ -166,6 +167,11 @@
                (get-in counts [:returned item] 0)))
           (keys (get-in counts [:sent]))))))
 
+;; TODO: replace this with a queue for items to fetch in @app-db
+(defonce
+  ^{:doc "Atom used to ensure a minimal delay between :fetch events."}
+  last-fetch-millis (atom 0))
+
 ;; Fetch data item from server, unless identical request is pending.
 ;;
 ;; Usually this should be triggered from :require via `with-loader`,
@@ -174,20 +180,28 @@
  :fetch
  [trim-v]
  (fn [_ [item]]
-   (let [[name & args] item]
-     (when-let [entry (get @data-defs name)]
-       (when-not @(subscribe [:loading? item])
-         (let [uri (apply (:uri entry) args)
-               content (some-> (:content entry) (apply args))]
-           (merge
-            {::sent item}
-            (run-ajax
-             (cond->
-                 {:method :get
-                  :uri uri
-                  :on-success [::on-success [name args]]
-                  :on-failure [::on-failure [name args]]}
-               content (assoc :content content))))))))))
+   (let [[name & args] item
+         entry (get @data-defs name)
+         elapsed-millis (- (js/Date.now) @last-fetch-millis)]
+     (when entry
+       (if (< elapsed-millis 25)
+         (do (js/setTimeout #(dispatch [:fetch item])
+                            (- 30 elapsed-millis))
+             {})
+         (when-not @(subscribe [:loading? item])
+           (reset! last-fetch-millis (js/Date.now))
+           (let [uri (apply (:uri entry) args)
+                 content (some-> (:content entry) (apply args))]
+             (merge
+              {::sent item}
+              (run-ajax
+               (cond->
+                   {:method :get
+                    :uri uri
+                    :on-success [::on-success [name args]]
+                    :on-failure [::on-failure [name args]]}
+                 content (assoc :content content)))))))))))
+
 (reg-event-ajax-fx
  ::on-success
  (fn [cofx [[name args] result]]
@@ -224,6 +238,16 @@
     (map (fn [item] [:fetch item])
          @(subscribe [:data/missing]))}))
 
+;; used to trigger :fetch directly from :require
+(reg-fx
+ ::fetch-if-missing
+ (fn [item]
+   (js/setTimeout
+    #(let [missing @(subscribe [:data/missing])]
+       (when (and item (in? missing item))
+         (dispatch [:fetch item])))
+    10)))
+
 ;; re-frame effect to trigger :fetch-missing from event handlers
 (reg-fx
  ::fetch-missing
@@ -231,7 +255,7 @@
    (when fetch?
      ;; use setTimeout to ensure that changes to app-db from any
      ;; simultaneously dispatched events will have completed first
-     (js/setTimeout #(dispatch [:fetch-missing]) 25))))
+     (js/setTimeout #(dispatch [:fetch-missing]) 30))))
 
 ;; (Re-)fetches all required data. This shouldn't be needed.
 (reg-event-fx

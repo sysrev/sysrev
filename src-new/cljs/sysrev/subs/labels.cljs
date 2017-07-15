@@ -42,6 +42,13 @@
         first)))
 
 (reg-sub
+ :label/name
+ (fn [[_ label-id project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label]]
+   (:name label)))
+
+(reg-sub
  :label/display
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
@@ -86,3 +93,10 @@
      "boolean" [true false]
      "categorical" (:all-values definition)
      nil)))
+
+(reg-sub
+ :label/enabled?
+ (fn [[_ label-id project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label]]
+   (:enabled label)))

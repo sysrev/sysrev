@@ -1,10 +1,20 @@
 (ns sysrev.views.components
   (:require
    [clojure.spec.alpha :as s]
-   [sysrev.shared.util :refer [num-to-english]]
+   [clojure.string :as str]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
-   [reagent.core :as r]))
+   [reagent.core :as r]
+   [sysrev.util :refer [url-domain nbsp]]
+   [sysrev.shared.util :refer [num-to-english]]))
+
+(defn dangerous
+  "Produces a react component using dangerouslySetInnerHTML
+   Ex: (dangerous :div (:abstract record))"
+  ([comp content]
+   (dangerous comp nil content))
+  ([comp props content]
+   [comp (assoc props :dangerouslySetInnerHTML {:__html content})]))
 
 (defn labeled-input [label-text input-elt & [attrs label-attrs]]
   (let [attrs (or attrs {})
@@ -34,7 +44,7 @@
                           content]))]
     [:div.ui
      {:class
-      (str n-tabs-word " item " "small" " tabular menu primary-menu " menu-class)}
+      (str n-tabs-word " item " "small" " pointing menu primary-menu " menu-class)}
      (doall
       (for [entry entries]
         (render-entry entry)))]))
@@ -109,3 +119,23 @@
           [:a.item {:href (when (string? action) action)
                     :on-click (when-not (string? action) action)}
            content])))]]])
+
+(defn with-tooltip [content & [popup-options]]
+  (r/create-class
+   {:component-did-mount
+    #(.popup (js/$ (r/dom-node %))
+             (clj->js
+              (merge
+               {:inline true
+                :hoverable true
+                :position "top center"
+                :delay {:show 400
+                        :hide 0}
+                :transition "fade up"}
+               (or popup-options {}))))
+    :reagent-render
+    (fn [content] content)}))
+
+(defn out-link [url]
+  [:div.item>a {:target "_blank" :href url}
+   (url-domain url) nbsp [:i.external.icon]])

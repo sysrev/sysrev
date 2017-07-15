@@ -1,7 +1,6 @@
 (ns sysrev.subs.users
   (:require
-   [re-frame.core :as re-frame :refer
-    [subscribe reg-sub]]
+   [re-frame.core :as re-frame :refer [subscribe reg-sub]]
    [sysrev.shared.util :refer [in?]]
    [clojure.string :as str]))
 
