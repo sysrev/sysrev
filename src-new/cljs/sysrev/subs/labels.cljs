@@ -1,6 +1,9 @@
 (ns sysrev.subs.labels
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [re-frame.core :as re-frame :refer
+             [subscribe reg-sub reg-sub-raw]]
+            [sysrev.shared.util :refer [in?]]))
 
 (reg-sub
  ::labels
@@ -15,13 +18,41 @@
  (fn [[labels] [_ label-id]]
    (get labels label-id)))
 
+(defn- label-ordering-key
+  "Sort key function for project label entries. Used to order labels for
+  display in label editor, and for all other purposes where labels are
+  displayed sequentially."
+  [{:keys [required category value-type project-ordering]}]
+  (let [inclusion? (= category "inclusion criteria")
+        extra? (= category "extra")
+        boolean? (= value-type "boolean")
+        categorical? (= value-type "categorical")]
+    [(cond
+       (and required inclusion? boolean?) -10
+       (and required inclusion?) -9
+       (and required boolean?) -8
+       required -7
+       (and inclusion? boolean?) 0
+       (and inclusion? categorical?) 1
+       inclusion? 2
+       (and extra? boolean?) 3
+       (and extra? categorical?) 4
+       extra? 5
+       :else 6)
+     project-ordering]))
+
+;; Use this to get a sequence of label-id in project, in a consistent
+;; sorted order.
 (reg-sub
  :project/label-ids
- (fn [[_ project-id]]
+ (fn [[_ project-id include-disabled?]]
    [(subscribe [::labels project-id])])
- (fn [[labels]]
+ (fn [[labels] [_ _ include-disabled?]]
    ;; TODO: sort by display order
-   (keys labels)))
+   (->> (vals labels)
+        (filter #(or include-disabled? (:enabled %)))
+        (sort-by label-ordering-key <)
+        (mapv :label-id))))
 
 (reg-sub
  :project/have-label?
@@ -84,6 +115,13 @@
  (fn [[value-type]] (= value-type "string")))
 
 (reg-sub
+ :label/category
+ (fn [[_ label-id project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label]]
+   (:category label)))
+
+(reg-sub
  :label/all-values
  (fn [[_ label-id project-id]]
    [(subscribe [:label/value-type label-id project-id])
@@ -100,3 +138,30 @@
    [(subscribe [::label label-id project-id])])
  (fn [[label]]
    (:enabled label)))
+
+(reg-sub
+ :label/answer-inclusion
+ (fn [[_ label-id _ project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label] [_ _ answer _]]
+   (let [{:keys [definition value-type]} label
+         ivals (:inclusion-values definition)]
+     (case value-type
+       "boolean"
+       (cond
+         (empty? ivals) nil
+         (nil? answer) nil
+         :else (boolean (in? ivals answer)))
+       "categorical"
+       (cond
+         (empty? ivals) nil
+         (nil? answer) nil
+         (empty? answer) nil
+         :else (boolean (some (in? ivals) answer)))
+       nil))))
+
+(defn real-answer? [answer]
+  (if (or (nil? answer)
+          ((every-pred coll? empty?) answer))
+    false true))
+

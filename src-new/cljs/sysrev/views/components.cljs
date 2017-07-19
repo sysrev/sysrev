@@ -5,7 +5,7 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
    [reagent.core :as r]
-   [sysrev.util :refer [url-domain nbsp]]
+   [sysrev.util :refer [url-domain nbsp time-elapsed-string]]
    [sysrev.shared.util :refer [num-to-english]]))
 
 (defn dangerous
@@ -139,3 +139,6 @@
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
    (url-domain url) nbsp [:i.external.icon]])
+
+(defn updated-time-label [dt]
+  [:div.ui.tiny.label (time-elapsed-string dt)])

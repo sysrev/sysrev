@@ -71,7 +71,8 @@
  (fn [[stats]]
    (let [total (-> stats :articles)
          reviewed (-> stats :labels :any)]
-     {:reviewed reviewed
+     {:total total
+      :reviewed reviewed
       :unreviewed (- total reviewed)})))
 
 (reg-sub
@@ -80,10 +81,9 @@
    [(subscribe [::stats project-id])])
  (fn [[stats]]
    (let [single (-> stats :labels :single)
-         double (-> stats :labels :double)
+         consistent (-> stats :labels :double)
          pending (-> stats :conflicts :pending)
-         resolved (-> stats :conflicts :resolved)
-         consistent (- double pending)]
+         resolved (-> stats :conflicts :resolved)]
      {:single single
       :consistent consistent
       :conflict pending

@@ -4,7 +4,9 @@
    [clojure.string :as str]
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [sysrev.views.keywords :refer [render-keywords render-abstract]]
-   [sysrev.views.components :refer [out-link]])
+   [sysrev.views.components :refer [out-link]]
+   [sysrev.views.labels :refer
+    [label-values-component article-labels-view]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn- author-names-text [nmax coll]
@@ -66,8 +68,16 @@
                           ^{:key [idx]} [out-link url])
                         urls))])])))
 
-(defn article-info-view [article-id]
-  (let [status @(subscribe [:article/review-status article-id])]
+(defn article-info-view
+  [article-id & {:keys [show-labels?]
+                 :or {show-labels? false}}]
+  (let [status @(subscribe [:article/review-status article-id])
+        segments (->> [:header :main
+                       (when show-labels? :labels)]
+                      (remove nil?))
+        sclass (fn [sname]
+                 (if (= sname (last segments))
+                   "bottom attached segment" "attached segment"))]
     (with-loader (if @(subscribe [:review/on-review-task?])
                    [[:review/task]]
                    []) {:dimmer true}
@@ -79,5 +89,8 @@
           [:div {:style {:float "right"}}
            [review-status-label status]])
         [:div {:style {:clear "both"}}]]
-       [:div.ui.bottom.attached.segment
-        [article-info-main-content article-id]]])))
+       [:div.ui {:class (sclass :main)}
+        [article-info-main-content article-id]]
+       (when (= show-labels? :all)
+         [:div.ui {:class (sclass :labels)}
+          [article-labels-view article-id]])])))

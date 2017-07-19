@@ -185,3 +185,6 @@ resources/public/semantic
 *.local.*
 /resources/git-commit
 /resources/build-time
+
+/docs
+/resources/public/docs

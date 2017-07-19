@@ -5,6 +5,7 @@
    [re-frame.core :as re-frame]
    [goog.string :refer [unescapeEntities]]
    [cljs-time.core :as t]
+   [cljs-time.coerce :as tc]
    [cljs-time.format :as tformat]
    [cljsjs.jquery]))
 
@@ -136,3 +137,30 @@
       (.preventDefault event))
     (set! (.-returnValue event) false)
     false))
+
+(defn time-from-epoch [epoch]
+  (tc/from-long (* epoch 1000)))
+
+(defn time-elapsed-string [dt]
+  (let [;; formatter (tf/formatter "yyyy-MM-dd")
+        ;; s (tf/unparse formatter dt)
+        now (t/now)
+        intv (if (t/after? now dt)
+               (t/interval dt now)
+               (t/interval now now))
+        minutes (t/in-minutes intv)
+        hours (t/in-hours intv)
+        days (t/in-days intv)
+        weeks (t/in-weeks intv)
+        months (t/in-months intv)
+        years (t/in-years intv)
+        pluralize (fn [n unit]
+                    (str n " " (if (= n 1) (str unit) (str unit "s"))
+                         " ago"))]
+    (cond
+      (>= years 1)   (pluralize years "year")
+      (>= months 1)  (pluralize months "month")
+      (>= weeks 1)   (pluralize weeks "week")
+      (>= days 1)    (pluralize days "day")
+      (>= hours 1)   (pluralize hours "hour")
+      :else          (pluralize minutes "minute"))))

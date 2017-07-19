@@ -110,3 +110,19 @@
     (subscribe [:article/locations article-id])])
  (fn [[urls locations]]
    (concat urls (article-location-urls locations))))
+
+(reg-sub
+ :article/user-labels
+ (fn [[_ article-id user-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article] [_ article-id user-id]]
+   (cond-> (:labels article)
+     user-id (get user-id))))
+
+(reg-sub
+ :article/user-resolved?
+ (fn [[_ article-id user-id]]
+   (assert user-id ":article/user-resolved? - user-id must be passed")
+   [(subscribe [:article/user-labels article-id user-id])])
+ (fn [[ulmap]]
+   (->> (vals ulmap) (map :resolve) first)))

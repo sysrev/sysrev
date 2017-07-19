@@ -6,7 +6,7 @@
    [reagent.ratom :refer [reaction]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [selection-dropdown]]
-   [sysrev.subs.label-activity :refer [answer-types]]
+   [sysrev.subs.label-activity :refer [answer-statuses]]
    [sysrev.util :refer [nbsp full-size? number-to-word]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -87,10 +87,10 @@
 
 (defn answer-status-selector []
   (let [active-status @(subscribe [::answer-status])
-        status-name #(if (nil? %) "<Any>" (-> % name str/capitalize))]
+        status-name #(if (nil? %) "<Multi>" (-> % name str/capitalize))]
     [selection-dropdown
      [:div.text (status-name active-status)]
-     (->> (concat [nil] answer-types)
+     (->> (concat [nil] answer-statuses)
           (mapv
            (fn [status]
              [:div.item

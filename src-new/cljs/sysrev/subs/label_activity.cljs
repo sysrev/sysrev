@@ -3,8 +3,8 @@
              [subscribe reg-sub reg-sub-raw]]
             [sysrev.shared.util :refer [in?]]))
 
-(def answer-types
-  [:single :consistent :conflict :resolved])
+(def answer-statuses
+  [#_ :single :consistent :conflict :resolved])
 
 (defprotocol Conflictable
   (is-resolved? [this])
