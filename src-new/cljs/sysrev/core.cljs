@@ -10,6 +10,8 @@
             [sysrev.subs.all]
             [sysrev.data.core :as data]
             [sysrev.data.definitions]
+            [sysrev.action.core]
+            [sysrev.action.definitions]
             [sysrev.routes :as routes]
             [sysrev.views.main :refer [main-content]]
             [sysrev.spec.core]

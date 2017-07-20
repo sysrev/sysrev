@@ -10,11 +10,13 @@
     [reg-event-ajax reg-event-ajax-fx run-ajax]]
    [sysrev.shared.util :refer [in?]]))
 
-;; Holds static definitions for data items fetched from server
-(defonce data-defs (atom {}))
+(defonce
+  ^{:doc "Holds static definitions for data items fetched from server"}
+  data-defs (atom {}))
 
-;; Create definition for a data item
-(defn def-data [name & {:keys [prereqs sub uri process] :as fields}]
+(defn def-data
+  "Create definition for a data item to fetch from server."
+  [name & {:keys [prereqs sub uri process] :as fields}]
   (swap! data-defs assoc name fields))
 
 (defn- get-req-sub [item]
@@ -213,7 +215,7 @@
           (merge (apply process [cofx args result])
                  ;; Run :fetch-missing in case this request provided
                  ;; any missing data prerequisites
-                 {::fetch-missing true})))))))
+                 {:fetch-missing true})))))))
 (reg-event-ajax-fx
  ::on-failure
  (fn [cofx [[name args] result]]
@@ -250,7 +252,7 @@
 
 ;; re-frame effect to trigger :fetch-missing from event handlers
 (reg-fx
- ::fetch-missing
+ :fetch-missing
  (fn [fetch?]
    (when fetch?
      ;; use setTimeout to ensure that changes to app-db from any

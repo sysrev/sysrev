@@ -26,3 +26,10 @@
  (fn [{:keys [db]} [article-id label-id value]]
    {:db (assoc-in db [:state :review :labels article-id label-id]
                   value)}))
+
+(reg-event-fx
+ :review/send-labels
+ [trim-v]
+ (fn [{:keys [db]} [article-id]]
+   ;; TODO: send labels
+   nil))

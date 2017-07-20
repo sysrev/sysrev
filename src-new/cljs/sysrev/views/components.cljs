@@ -100,12 +100,13 @@
     selected-item
     (into [:div.menu] items)]])
 
-(defn dropdown-menu [entries & {:keys [icon-class dropdown-class label]
-                                :or {icon-class "dropdown"
+(defn dropdown-menu [entries & {:keys [icon-class dropdown-class label style]
+                                :or {icon-class "small down chevron"
                                      dropdown-class "dropdown"
-                                     label ""}}]
+                                     label ""
+                                     style {}}}]
   [wrap-dropdown
-   [:div.ui {:class dropdown-class}
+   [:div.ui {:class dropdown-class :style style}
     label
     [:i {:class (str icon-class " icon")
          :style (when-not (and (seqable? label)

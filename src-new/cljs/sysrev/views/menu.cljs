@@ -7,14 +7,15 @@
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
-  (let [ready? @(subscribe [:data/ready?])
-        loading? @(subscribe [:any-loading?])]
-    (when (or (not ready?) loading?)
+  (let [;; ready? @(subscribe [:data/ready?])
+        loading? @(subscribe [:any-loading?])
+        action? @(subscribe [:action/any-running?])]
+    (when (or loading? action? #_ (not ready?))
       [:div.ui.small.active.inline.loader])))
 
 (defn header-menu []
-  (let [logged-in? @(subscribe [:logged-in?])
-        user-id @(subscribe [:user-id])
+  (let [logged-in? @(subscribe [:self/logged-in?])
+        user-id @(subscribe [:self/user-id])
         user-display @(subscribe [:user/display])
         admin? @(subscribe [:user/admin?])
         project-ids @(subscribe [:user/project-ids])
@@ -26,24 +27,25 @@
        [:h3.ui.blue.header
         "sysrev.us"]]
       (when admin?
-        [dropdown-menu [{:content "Clear query cache"}]
+        [dropdown-menu [{:content "Clear query cache"
+                         :action #(dispatch [:action [:clear-query-cache]])}]
          :dropdown-class "dropdown item"
          :label [:i.fitted.code.icon]])
-      [:a.item.loading-indicator
+      [:div.item.loading-indicator
        [loading-indicator]]
       (if logged-in?
         [:div.right.menu
-         [dropdown-menu [{:content "Project page"
-                          :action "/project/user"}
-                         {:content "Account settings"
-                          :action "/user/settings"}]
+         [dropdown-menu [{:content "Account settings"
+                          :action "/user/settings"}
+                         {:content "Log out"
+                          :action #(dispatch [:action [:log-out]])}]
           :dropdown-class "dropdown item"
+          :style {:padding-left "2.5em"
+                  :padding-right "2.5em"}
           :label [:span.blue-text
                   [:i.user.icon] user-display]]
-         [:a.item.middle.aligned
-          {:on-click #(dispatch [:log-out])}
-          "Log out"]
-         [:a.item {:style {:width "0" :padding "0"}}]]
+         [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          [:a.item.distinct {:href "/login"}
-          "Log in"]])]]))
+          "Log in"]
+         [:div.item {:style {:width "0" :padding "0"}}]])]]))

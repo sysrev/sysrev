@@ -41,7 +41,7 @@
 
 (defn label-values-component [article-id user-id]
   (let [label-ids @(subscribe [:project/label-ids])
-        values @(subscribe [:article/user-labels article-id user-id])]
+        values @(subscribe [:article/labels article-id user-id])]
     [:div
      (doall
       (->>
@@ -54,7 +54,7 @@
             [label-answer-tag label-id answer])))))]))
 
 (defn article-labels-view [article-id]
-  (let [user-labels @(subscribe [:article/user-labels article-id])
+  (let [user-labels @(subscribe [:article/labels article-id])
         user-ids (sort (keys user-labels))
         label-ids
         (->> (vals user-labels)

@@ -55,8 +55,8 @@
   [label-id]
   (let [required? @(subscribe [:label/required? label-id])
         criteria? @(subscribe [:label/inclusion-criteria? label-id])
-        answer @(subscribe [:review/label-answer label-id])
-        article-id @(subscribe [:review/editing-id])]
+        article-id @(subscribe [:review/editing-id])
+        answer @(subscribe [:review/label-answer article-id label-id])]
     [:div.ui.column.label-edit
      {:class (cond required?       "required"
                    (not criteria?) "extra"

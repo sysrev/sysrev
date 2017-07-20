@@ -11,17 +11,23 @@
 
 (reg-sub
  :have-identity?
- (fn [db]
-   (contains? (:state db) :identity)))
+ (fn [db] (contains? (:state db) :identity)))
+
+(defn current-user-id [db]
+  (get-in db [:state :identity :user-id]))
+
+(reg-sub :self/user-id current-user-id)
 
 (reg-sub
- :user-id
- :<- [::identity]
- (fn [identity _]
-   (:user-id identity)))
+ :self/logged-in?
+ :<- [:self/user-id]
+ (fn [user-id] ((comp not nil?) user-id)))
 
 (reg-sub
- :logged-in?
- :<- [:user-id]
- (fn [user-id _]
-   ((comp not nil?) user-id)))
+ ::self-state
+ (fn [db] (get-in db [:state :self])))
+
+(reg-sub
+ :self/projects
+ :<- [::self-state]
+ (fn [self] (:projects self)))

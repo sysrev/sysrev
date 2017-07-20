@@ -55,7 +55,8 @@
         [:div.ui.container
          [:div.ui.top.attached.clearing.segment.project-header
           [:h5.ui.left.floated.header
-           [:div.ui.basic.label (str project-name)]]
+           [:div.ui.basic.label
+            [:span.black-text (str project-name)]]]
           [:h5.ui.right.floated.header
            [:a.ui.tiny.basic.grey.button
             {:href "/select-project"

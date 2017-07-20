@@ -17,29 +17,32 @@
  ::project-hash
  (fn [_]
    [(subscribe [:view-field :login [:project-hash]])])
- (fn [[project-hash]]
-   project-hash))
+ (fn [[project-hash]] project-hash))
 
 (reg-sub
  ::email
- (fn [_]
-   [(subscribe [:view-field :login [:email]])])
- (fn [[email]]
-   (or email "")))
+ :<- [:view-field :login [:email]]
+ (fn [email] (or email "")))
 
 (reg-sub
  ::password
- (fn [_]
-   [(subscribe [:view-field :login [:password]])])
- (fn [[password]]
-   (or password "")))
+ :<- [:view-field :login [:password]]
+ (fn [password] (or password "")))
+
+(defn- email-input []
+  (let [val (-> (js/$ "#login-email-input") (.val))]
+    (dispatch [::set-email val])
+    val))
+
+(defn- password-input []
+  (let [val (-> (js/$ "#login-password-input") (.val))]
+    (dispatch [::set-password val])
+    val))
 
 (reg-sub
  ::submitted
- (fn [_]
-   [(subscribe [:view-field :login [:submitted]])])
- (fn [[submitted]]
-   submitted))
+ :<- [:view-field :login [:submitted]]
+ (fn [submitted] submitted))
 
 (reg-event-fx
  ::set-email
@@ -93,29 +96,30 @@
  ::submit-form
  [trim-v]
  (fn [_]
-   (let [register? @(subscribe [::register?])
-         {:keys [email password] :as fields} @(subscribe [::fields])
+   (let [[email password] [(email-input) (password-input)]
+         fields @(subscribe [::fields])
+         register? @(subscribe [::register?])
          project-id @(subscribe [::register-project-id])
          errors (validate fields login-validation)]
      (cond
+       (or (empty? email) (empty? password))
+       {}
        (not-empty errors)
        {:dispatch-n
         (list [::set-submitted])}
        register?
        {:dispatch-n
         (list [::set-submitted]
-              [:register-user email password project-id])}
+              [:action [:register-user email password project-id]])}
        :else
        {:dispatch-n
         (list [::set-submitted]
-              [:log-in email password])}))))
+              [:action [:log-in email password]])}))))
 
 (reg-sub
  ::login-error-msg
- (fn [_]
-   [(subscribe [:view-field :login [:err]])])
- (fn [[error-msg]]
-   error-msg))
+ :<- [:view-field :login [:err]]
+ (fn [error-msg] error-msg))
 
 (reg-event-fx
  :set-login-error-msg
@@ -164,11 +168,13 @@
        [:div.field {:class (field-class :email)}
         [:label "Email"]
         [:input {:type "email" :name "email"
+                 :id "login-email-input"
                  :on-change
                  #(dispatch [::set-email (-> % .-target .-value)])}]]
        [:div.field {:class (field-class :password)}
         [:label "Password"]
         [:input {:type "password" :name "password"
+                 :id "login-password-input"
                  :on-change
                  #(dispatch [::set-password (-> % .-target .-value)])}]]
        [field-error :email]

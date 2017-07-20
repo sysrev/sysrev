@@ -21,7 +21,7 @@
  ::member
  (fn [[_ user-id project-id]]
    [(subscribe [::members project-id])
-    (subscribe [:user-id])])
+    (subscribe [:self/user-id])])
  (fn [[members self-id] [_ user-id project-id]]
    (get members (or user-id self-id))))
 

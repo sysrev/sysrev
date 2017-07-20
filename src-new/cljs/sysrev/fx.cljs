@@ -22,4 +22,4 @@
 (reg-fx
  :ajax-failure
  (fn [response]
-   (dispatch [:ajax-failure response])))
+   nil))

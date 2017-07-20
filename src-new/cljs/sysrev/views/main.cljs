@@ -31,7 +31,7 @@
   [login-register-panel])
 
 (defn active-panel-content []
-  (if @(subscribe [:logged-in?])
+  (if @(subscribe [:self/logged-in?])
     [render-panel-tree @(subscribe [:active-panel])]
     [logged-out-content]))
 

@@ -12,10 +12,11 @@
   :sub (fn [] [:sysrev.subs.auth/identity])
   :uri (fn [] "/api/auth/identity")
   :process
-  (fn [_ _ {:keys [identity active-project]}]
+  (fn [_ _ {:keys [identity active-project projects]}]
     {:dispatch-n
-     (list [:set-identity identity]
-           [:set-active-project active-project]
+     (list [:self/set-identity identity]
+           [:self/set-active-project active-project]
+           [:self/set-projects projects]
            [:user/store identity])}))
 
 (def-data :project
@@ -39,7 +40,7 @@
 (def-data :review/task
   :sub (fn [] [:review/task-id])
   :uri (fn [] "/api/label-task")
-  :prereqs (fn [] [[:project/raw] [:user-id]])
+  :prereqs (fn [] [[:project/raw] [:self/user-id]])
   :process
   (fn [_ _ {:keys [article labels notes today-count]}]
     {:dispatch-n

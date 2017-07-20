@@ -1,28 +1,52 @@
 (ns sysrev.events.auth
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe trim-v]]
+    [reg-event-db reg-event-fx subscribe dispatch trim-v reg-fx]]
    [sysrev.routes :refer [nav nav-scroll-top force-dispatch]]
    [sysrev.util :refer [dissoc-in]]
    [sysrev.shared.util :refer [to-uuid]]))
 
+(reg-event-fx
+ :reset-data
+ (fn [{:keys [db]}]
+   {:db (-> db
+            (assoc :data {}
+                   :needed [])
+            (dissoc-in [:state :review]))
+    :dispatch [:fetch [:identity]]
+    :fetch-missing true}))
+
+(reg-fx
+ :reset-data
+ (fn [reset?] (when reset? (dispatch [:reset-data]))))
+
 (reg-event-db
- :set-identity
+ :self/set-identity
  [trim-v]
  (fn [db [imap]]
    (let [imap (some-> imap (update :user-uuid to-uuid))]
      (assoc-in db [:state :identity] imap))))
 
 (reg-event-db
- :unset-identity
+ :self/unset-identity
  (fn [db]
    (dissoc-in db [:state :identity])))
 
-(reg-event-db
- :set-active-project
+(reg-event-fx
+ :self/set-active-project
  [trim-v]
- (fn [db [project-id]]
-   (assoc-in db [:state :active-project-id] project-id)))
+ (fn [{:keys [db]} [project-id]]
+   (let [old-id (get-in db [:state :active-project-id])
+         changed? (and old-id (not= old-id project-id))]
+     (cond-> {:db (assoc-in db [:state :active-project-id] project-id)}
+       changed?
+       (merge {:reset-data true})))))
+
+(reg-event-db
+ :self/set-projects
+ [trim-v]
+ (fn [db [projects]]
+   (assoc-in db [:state :self :projects] projects)))
 
 (reg-event-db
  :set-login-redirect-url

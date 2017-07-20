@@ -22,10 +22,13 @@
    :before
    (fn [context]
      (let [response (-> context :coeffects :event last)
-           success? (contains? response :result)
-           result (when-let [result (:result response)]
+           success? (and (map? response)
+                         (contains? response :result))
+           result (when-let [result (and (map? response)
+                                         (:result response))]
                     (-> result integerify-map-keys uuidify-map-keys))
-           csrf-token (:csrf-token response)]
+           csrf-token (and (map? response)
+                           (:csrf-token response))]
        (-> context
            (update-in [:coeffects :event]
                       #(vec (concat (butlast %) [result])))
@@ -50,8 +53,7 @@
    (reg-event-db
     id (concat interceptors [trim-v handle-ajax])
     (fn [db event]
-      (when (last event)
-        (db-handler db event))))))
+      (db-handler db event)))))
 
 (defn reg-event-ajax-fx
   "Wrapper for standard event-fx handler for ajax response"
@@ -61,8 +63,7 @@
    (reg-event-fx
     id (concat interceptors [trim-v handle-ajax])
     (fn [db event]
-      (when (last event)
-        (fx-handler db event))))))
+      (fx-handler db event)))))
 
 (defn run-ajax [{:keys [method uri content on-success on-failure action-params]}]
   (let [csrf-token @(subscribe [:csrf-token])

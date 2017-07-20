@@ -19,7 +19,7 @@
 (reg-sub
  ::user
  :<- [::users]
- :<- [:user-id]
+ :<- [:self/user-id]
  (fn [[users self-id] [_ user-id]]
    (let [user-id (or user-id self-id)]
      (when (and users user-id)

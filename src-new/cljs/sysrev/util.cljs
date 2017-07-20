@@ -135,7 +135,7 @@
     (f event)
     (when (.-preventDefault event)
       (.preventDefault event))
-    (set! (.-returnValue event) false)
+    #_ (set! (.-returnValue event) false)
     false))
 
 (defn time-from-epoch [epoch]
@@ -164,3 +164,6 @@
       (>= days 1)    (pluralize days "day")
       (>= hours 1)   (pluralize hours "hour")
       :else          (pluralize minutes "minute"))))
+
+(defn go-back []
+  (-> js/window .-history (.back)))
