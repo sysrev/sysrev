@@ -5,10 +5,10 @@
     [subscribe reg-sub reg-sub-raw]]
    [sysrev.subs.core :refer [not-found-value try-get]]))
 
-(reg-sub
- :active-panel
- (fn [db _]
-   (get-in db [:state :active-panel])))
+(defn active-panel [db]
+  (get-in db [:state :active-panel]))
+
+(reg-sub :active-panel active-panel)
 
 (reg-sub
  ::panels

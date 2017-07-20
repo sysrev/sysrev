@@ -5,7 +5,8 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
    [reagent.core :as r]
-   [sysrev.util :refer [url-domain nbsp time-elapsed-string]]
+   [sysrev.util :refer
+    [url-domain nbsp time-elapsed-string full-size?]]
    [sysrev.shared.util :refer [num-to-english]]))
 
 (defn dangerous
@@ -142,3 +143,50 @@
 
 (defn updated-time-label [dt]
   [:div.ui.tiny.label (time-elapsed-string dt)])
+
+(defn three-state-selection [on-change curval]
+  ;; nil for unset, true, false
+  (let [size (if (full-size?) "large" "small")
+        class (str "ui " size " buttons three-state")
+        bclass (fn [secondary? selected?]
+                 (str "ui " size " "
+                      (cond (not selected?) ""
+                            secondary?        "grey"
+                            :else             "primary")
+                      " icon button"))]
+    [:div {:class class}
+     [:div.ui {:class (bclass false (false? curval))
+               :on-click #(on-change false)}
+      "No"]
+     [:div.ui {:class (bclass true (nil? curval))
+               :on-click #(on-change nil)}
+      "?"]
+     [:div.ui {:class (bclass false (true? curval))
+               :on-click #(on-change true)}
+      "Yes"]]))
+
+(defn true-false-nil-tag
+  "UI component for representing an optional boolean value.
+  `value` is one of true, false, nil."
+  [label value &
+   {:keys [size style show-icon? value color?]
+    :or {size "large", style {}, show-icon? true, color? true}}]
+  (let [vclass (cond
+                 (not color?) ""
+                 (true? value) "green"
+                 (false? value) "orange"
+                 (string? value) value
+                 :else "")
+        iclass (case value
+                 true "add circle icon"
+                 false "minus circle icon"
+                 "help circle icon")]
+    [:div.ui.label
+     {:class (str vclass " " size)
+      :style style}
+     (str label " ")
+     (when (and iclass show-icon?)
+       [:i {:class iclass
+            :aria-hidden true
+            :style {:margin-left "0.25em"
+                    :margin-right "0"}}])]))

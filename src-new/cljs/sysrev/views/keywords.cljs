@@ -28,7 +28,7 @@
        [:div.ui.row.label-value (str label-value)]]]]]])
 
 (defn- render-keyword
-  [{:keys [keyword-id text] :as entry}
+  [{:keys [keyword-id text] :as entry} article-id
    & [{:keys [keywords editing? full-size? show-tooltip? label-class]}]]
   (let [{:keys [label-id label-value category] :as kw}
         (and keyword-id (get keywords keyword-id))]
@@ -50,7 +50,8 @@
              {:class class
               :on-click
               (when (and enabled? has-value? editing?)
-                #(dispatch [:review/enable-label-value label-id label-value]))}
+                #(dispatch [:review/enable-label-value
+                            article-id label-id label-value]))}
              text)]
         (if (and show-tooltip? enabled? editing? full-size?)
           (with-keyword-tooltip
@@ -67,11 +68,12 @@
      (concat
       [:span]
       (->> content
-           (mapv #(render-keyword % {:keywords keywords
-                                     :editing? editing?
-                                     :full-size? full-size?
-                                     :show-tooltip? show-tooltip?
-                                     :label-class label-class}))
+           (mapv #(render-keyword % article-id
+                                  {:keywords keywords
+                                   :editing? editing?
+                                   :full-size? full-size?
+                                   :show-tooltip? show-tooltip?
+                                   :label-class label-class}))
            (apply concat)
            vec)))))
 

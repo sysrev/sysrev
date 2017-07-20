@@ -4,7 +4,8 @@
             [sysrev.db.project :as project]
             [sysrev.util :refer [should-never-happen-exception]]
             [sysrev.shared.util :refer [in?]]
-            [sysrev.web.routes.site :refer [user-info]]
+            [sysrev.web.routes.site :refer
+             [user-identity-info user-self-info]]
             [sysrev.mail.core :refer [send-email]]
             [sysrev.db.core :as db]
             [sysrev.config.core :refer [env]]))
@@ -105,8 +106,10 @@
                active-project :active-project
                :as session} :session} request]
          (if user-id
-           {:identity (user-info user-id true)
-            :active-project active-project}
+           (merge
+            {:identity (user-identity-info user-id true)
+             :active-project active-project}
+            (user-self-info user-id))
            {:identity nil
             :active-project nil})))
 

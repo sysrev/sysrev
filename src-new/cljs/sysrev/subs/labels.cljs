@@ -73,25 +73,34 @@
         first)))
 
 (reg-sub
+ :label/required?
+ (fn [[_ label-id project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label]] (:required label)))
+
+(reg-sub
  :label/name
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
- (fn [[label]]
-   (:name label)))
+ (fn [[label]] (:name label)))
 
 (reg-sub
  :label/display
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
- (fn [[label]]
-   (or (:short-label label)
-       (:name label))))
+ (fn [[label]] (or (:short-label label) (:name label))))
 
 (reg-sub
  ::definition
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
  (fn [[label]] (:definition label)))
+
+(reg-sub
+ :label/question
+ (fn [[_ label-id project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label]] (:question label)))
 
 (reg-sub
  :label/value-type
@@ -118,8 +127,13 @@
  :label/category
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
- (fn [[label]]
-   (:category label)))
+ (fn [[label]] (:category label)))
+
+(reg-sub
+ :label/inclusion-criteria?
+ (fn [[_ label-id project-id]]
+   [(subscribe [:label/category label-id project-id])])
+ (fn [[category]] (= category "inclusion criteria")))
 
 (reg-sub
  :label/all-values
@@ -133,11 +147,22 @@
      nil)))
 
 (reg-sub
+ :label/inclusion-values
+ (fn [[_ label-id project-id]]
+   [(subscribe [::definition label-id project-id])])
+ (fn [[definition]] (:inclusion-values definition)))
+
+(reg-sub
+ :label/examples
+ (fn [[_ label-id project-id]]
+   [(subscribe [::definition label-id project-id])])
+ (fn [[definition]] (:examples definition)))
+
+(reg-sub
  :label/enabled?
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
- (fn [[label]]
-   (:enabled label)))
+ (fn [[label]] (:enabled label)))
 
 (reg-sub
  :label/answer-inclusion

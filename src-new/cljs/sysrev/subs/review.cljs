@@ -1,11 +1,13 @@
 (ns sysrev.subs.review
-  (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]))
+  (:require
+   [re-frame.core :as re-frame :refer
+    [subscribe reg-sub reg-sub-raw]]
+   [sysrev.subs.ui :refer [active-panel]]))
 
-(reg-sub
- :review/task-id
- (fn [db]
-   (get-in db [:data :review :task-id])))
+(defn task-id [db]
+  (get-in db [:data :review :task-id]))
+
+(reg-sub :review/task-id task-id)
 
 (reg-sub
  :review/today-count

@@ -87,7 +87,7 @@
 
 (defn answer-status-selector []
   (let [active-status @(subscribe [::answer-status])
-        status-name #(if (nil? %) "<Multi>" (-> % name str/capitalize))]
+        status-name #(if (nil? %) "<Any>" (-> % name str/capitalize))]
     [selection-dropdown
      [:div.text (status-name active-status)]
      (->> (concat [nil] answer-statuses)
