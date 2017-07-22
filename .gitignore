@@ -15,7 +15,9 @@ target/
 /semantic/*
 !/semantic/src/
 /semantic/src/*
-!/semantic/src/site/
+!/semantic/src/site
+!/semantic/src/site.default/
+!/semantic/src/site.dark/
 
 /resources/public/out-dev
 /resources/public/out-production

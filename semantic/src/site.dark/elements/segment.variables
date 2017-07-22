@@ -1,0 +1,13 @@
+/*******************************
+    User Variable Overrides
+*******************************/
+
+@background: lighten(@pageBackground, 15);
+@loaderDimmerColor: lighten(@pageBackground, 10);
+@invertedBackground: @lightBackground;
+
+@secondaryBackground: lighten(@pageBackground, 8);
+@secondaryColor: @mutedTextColor;
+
+@tertiaryBackground: darken(@pageBackground, 8);
+@tertiaryColor: @mutedTextColor;

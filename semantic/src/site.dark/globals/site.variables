@@ -1,0 +1,28 @@
+/*******************************
+     User Global Variables
+*******************************/
+@pageBackground : rgba(40, 40, 40, 1.0);
+@lighterBackground : lighten(@pageBackground, 20);
+@lightBackground: rgba(200, 200, 200, 1.0);
+@textColor : rgba(230, 230, 230, 0.925);
+@mutedTextColor : rgba(200, 200, 200, 0.85);
+@primaryColor : @blue;
+@lightPrimaryColor : @lightBlue;
+@secondaryColor : rgba(180, 180, 180, 1.0);
+@lightSecondaryColor : rgba(140, 140, 140, 1.0);
+@inputBackground : @secondaryColor;
+
+@borderColor: rgba(180, 180, 180, 0.7);
+@solidBorderColor: rgba(180, 180, 180, 0.9);
+
+
+
+// copied from chemsim
+//
+// @textColor : rgba(0, 0, 0, 0.925);
+// @primaryColor : @blue;
+// @secondaryColor : #bfbfbf;
+// @lightPrimaryColor : @lightBlue;
+// @lightSecondaryColor : #cccccc;
+// @inputBackground : @secondaryColor;
+
