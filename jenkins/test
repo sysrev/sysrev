@@ -3,3 +3,5 @@ set -eux
 
 rm -f target/junit-all.xml
 lein junit
+
+./scripts/build-css

@@ -8,6 +8,7 @@ date +"%s" > ./resources/build-time
 
 lein with-profile +prod uberjar
 lein cljsbuild once production
+./scripts/build-css
 
 commit=$(cat ./resources/git-commit)
 

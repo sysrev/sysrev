@@ -1,0 +1,4 @@
+#!/bin/bash
+set -eu
+
+find src/less -name \*.less | entr ./scripts/build-css

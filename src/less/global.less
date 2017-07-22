@@ -1,0 +1,115 @@
+.no-padding {
+    padding: 0px !important;
+}
+
+.blue-text {
+    color: @blue !important;
+}
+
+.green-text {
+    color: @green !important;
+}
+
+.black-text {
+    color: @text !important;
+}
+
+.medium-weight {
+    font-weight: 600;
+}
+
+.bold {
+    font-weight: bold !important;
+}
+
+.auto-margin {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.flex-center-children {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+}
+
+.main-content {
+    margin-bottom: 80px;
+}
+
+h4 {
+    margin-bottom: 0.6rem;
+}
+
+.ui.menu i.fitted.icon {
+    margin: 0;
+}
+
+.field.success .ui.input input {
+    // background-color: rgba(220,255,220,1.0);
+    background-color: mix(@inputBackground, @green, 80%);
+}
+
+.ui.label.small {
+    padding-left: 7px;
+    padding-right: 7px;
+}
+
+.ui.popup.tooltip {
+    min-width: 35em;
+}
+
+span.attention {
+    font-size: 100%;
+    font-weight: bold;
+    color: green;
+    padding: 1px;
+}
+
+@media only screen and (max-width: 900px) {
+    body {
+        font-size: 13px;
+    }
+
+    .ui.segment {
+        padding: 0.5em;
+    }
+
+    .ui.segment > .ui.grid {
+        margin: -0.5em;
+    }
+
+    .ui.grid.segment {
+        padding: 0;
+    }
+
+    .ui.large.menu {
+        font-size: 14px;
+    }
+
+    h5 {
+        font-size: 13px;
+    }
+
+    .ui.label,
+    .ui.large.label {
+        padding: 0.5em;
+        font-size: 12px;
+    }
+
+    h3 > i.icon {
+        font-size: 20px !important;
+        margin-bottom: 1px;
+    }
+
+    .ui.small.button {
+        padding-left: 0.85em;
+        padding-right: 0.85em;
+        padding-top: 0.75em;
+        padding-bottom: 0.75em;
+    }
+
+    .ui.popup.tooltip {
+        min-width: 30em;
+    }
+}

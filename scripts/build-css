@@ -1,0 +1,14 @@
+#!/bin/bash
+set -eu
+
+mkdir -p resources/public/css
+
+cd src/less
+
+rm -f ../../resources/public/css/style.css
+lessc main.less > ../../resources/public/css/style.css
+
+rm -f ../../resources/public/css/style.dark.css
+lessc main.dark.less > ../../resources/public/css/style.dark.css
+
+cd ../..

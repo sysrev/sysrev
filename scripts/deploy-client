@@ -16,6 +16,7 @@ rm -f $dir/deploy/client.tgz
 
 if [[ $SYSREV_REBUILD == "1" ]]; then
     lein cljsbuild once production
+    ./scripts/build-css
 fi
 
 cd ./resources/public
