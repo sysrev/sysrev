@@ -1,7 +1,7 @@
 (ns sysrev.events.users
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe dispatch trim-v]]))
+    [reg-event-db reg-event-fx dispatch trim-v]]))
 
 (defn- store-user-map [db umap]
   (let [{:keys [user-id]} umap]

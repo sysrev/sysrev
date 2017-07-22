@@ -2,14 +2,19 @@
   (:require
    [re-frame.core :as re-frame :refer
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.data.core :refer [def-data]]))
+   [sysrev.data.core :refer [def-data]]
+   [sysrev.subs.auth :refer [have-identity?]]
+   [sysrev.subs.project :refer [project-loaded? active-project-id]]
+   [sysrev.subs.label-activity :refer [have-label-activity?]]
+   [sysrev.subs.review :refer [task-id]]
+   [sysrev.subs.articles :refer [have-article?]]))
 
 ;;
 ;; Definitions for all data items fetched from server
 ;;
 
 (def-data :identity
-  :sub (fn [] [:sysrev.subs.auth/identity])
+  :loaded-p have-identity?
   :uri (fn [] "/api/auth/identity")
   :process
   (fn [_ _ {:keys [identity active-project projects]}]
@@ -20,9 +25,9 @@
            [:user/store identity])}))
 
 (def-data :project
-  :sub (fn [] [:project/raw])
+  :loaded-p project-loaded?
   :uri (fn [] "/api/project-info")
-  :prereqs (fn [] [[:active-project-id]])
+  :prereqs (fn [] [[:identity]])
   :process
   (fn [_ _ {:keys [project users]}]
     {:dispatch-n
@@ -30,17 +35,17 @@
            [:user/store-multi (vals users)])}))
 
 (def-data :project/label-activity
-  :sub (fn [label-id] [:label-activity/raw label-id])
+  :loaded-p have-label-activity?
   :uri (fn [label-id] (str "/api/label-activity/" label-id))
-  :prereqs (fn [label-id] [[:project/have-label? label-id]])
+  :prereqs (fn [label-id] [[:identity] [:project]])
   :process
   (fn [_ [label-id] result]
     {:dispatch [:project/load-label-activity label-id result]}))
 
 (def-data :review/task
-  :sub (fn [] [:review/task-id])
+  :loaded-p task-id
   :uri (fn [] "/api/label-task")
-  :prereqs (fn [] [[:project/raw] [:self/user-id]])
+  :prereqs (fn [] [[:identity] [:project]])
   :process
   (fn [_ _ {:keys [article labels notes today-count]}]
     {:dispatch-n
@@ -48,9 +53,9 @@
            [:review/load-task (:article-id article) today-count])}))
 
 (def-data :article
-  :sub (fn [article-id] [:article/raw article-id])
+  :loaded-p have-article?
   :uri (fn [article-id] (str "/api/article-info/" article-id))
-  :prereqs (fn [_] [[:project/raw] [:have-identity?]])
+  :prereqs (fn [_] [[:identity] [:project]])
   :process
   (fn [_ [article-id] {:keys [article labels notes]}]
     {:dispatch [:article/load (merge article {:labels labels :notes notes})]}))

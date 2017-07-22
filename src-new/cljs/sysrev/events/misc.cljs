@@ -1,7 +1,7 @@
 (ns sysrev.events.misc
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe trim-v reg-fx]]
+    [reg-event-db reg-event-fx trim-v reg-fx]]
    [sysrev.base :as base :refer [ga-event]]
    [sysrev.util :refer [scroll-top]]
    [sysrev.routes :refer [nav nav-scroll-top force-dispatch]]))
@@ -35,22 +35,21 @@
    (ga-event category action label)
    db))
 
-(defn- schedule-notify-display []
-  (when-let [{:keys [display-ms] :as entry}
-             @(subscribe [:active-notification])]
+(defn- schedule-notify-display [entry]
+  (when-let [{:keys [display-ms]} entry]
     (js/setTimeout #(do #_ something)
                    display-ms)))
 
-(reg-event-db
+(reg-event-fx
  :notify
  [trim-v]
- (fn [db [message & [{:keys [class display-ms]
-                      :or {class "blue" display-ms 1500}
-                      :as options}]]]
+ (fn [{:keys [db]} [message & {:keys [class display-ms]
+                               :or {class "blue" display-ms 1500}
+                               :as options}]]
    (let [entry {:message message
                 :class class
                 :display-ms display-ms}
          inactive? nil #_ (empty? (visible-notifications))]
-     #_ (add-notify-entry)
+     #_ (add-notify-entry entry)
      (when inactive?
-       (schedule-notify-display)))))
+       (schedule-notify-display entry)))))

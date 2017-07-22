@@ -3,10 +3,11 @@
    [clojure.spec.alpha :as s]
    [day8.re-frame.http-fx]
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe dispatch trim-v reg-fx]]
+    [reg-event-db reg-event-fx dispatch trim-v reg-fx]]
+   [ajax.core :as ajax]
    [sysrev.shared.util :refer [in? to-uuid]]
    [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
-   [ajax.core :as ajax]))
+   [sysrev.subs.core :refer [get-csrf-token]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
 (s/def ::uri string?)
@@ -65,8 +66,8 @@
     (fn [db event]
       (fx-handler db event)))))
 
-(defn run-ajax [{:keys [method uri content on-success on-failure action-params]}]
-  (let [csrf-token @(subscribe [:csrf-token])
+(defn run-ajax [{:keys [db method uri content on-success on-failure action-params]}]
+  (let [csrf-token (get-csrf-token db)
         on-failure (or on-failure [:ajax/default-failure])]
     {:http-xhrio
      {:method method

@@ -16,79 +16,13 @@
 
 (defn def-data
   "Create definition for a data item to fetch from server."
-  [name & {:keys [prereqs sub uri process] :as fields}]
+  [name & {:keys [prereqs loaded-p uri process] :as fields}]
   (swap! data-defs assoc name fields))
 
-(defn- get-req-sub [item]
-  (let [[name & args] (if (sequential? item) item [item])]
-    (if-let [sub (get-in @data-defs [name :sub])]
-      (apply sub args)
-      item)))
+;; Gets raw list of data requirements
+(defn- get-needed-raw [db] (get db :needed []))
 
-(defn- have-value? [val]
-  (boolean
-   (and (not (nil? val))
-        (not= not-found-value val))))
-
-(defn- have-item? [item]
-  (have-value? @(subscribe [::value item])))
-
-(reg-sub
- ::needed
- (fn [db]
-   (get db :needed [])))
-
-;; Gets raw value of `item` from db to test if loaded
-(reg-sub-raw
- ::value
- (fn [_ [_ item]]
-   (reaction
-    @(subscribe (get-req-sub item)))))
-
-;; Tests if `item` is loaded
-(reg-sub
- :have?
- (fn [[_ item]]
-   [(subscribe [::value item])])
- (fn [[value] [_ item]]
-   (have-value? value)))
-
-;; Returns list of required items with no missing prerequisites
-(reg-sub-raw
- :data/needed
- (fn [db _]
-   (reaction
-    (->> @(subscribe [::needed])
-         (mapv (fn [[prereqs item]]
-                 (when (every? have-item? prereqs)
-                   item)))
-         (filterv (comp not nil?))))))
-
-(reg-sub-raw
- ::needed-values
- (fn [db _]
-   (reaction
-    (mapv #(subscribe [::value %])
-          @(subscribe [:data/needed])))))
-
-;; Returns list of required items that are not yet loaded
-(reg-sub
- :data/missing
- :<- [:data/needed]
- :<- [::needed-values]
- (fn [[items values]]
-   (->> (map vector items values)
-        (remove #(have-value? @(second %)))
-        (mapv first))))
-
-;; Tests whether all required data has been loaded
-(reg-sub
- :data/ready?
- :<- [:initialized?]
- :<- [:data/missing]
- (fn [[initialized? missing]]
-   (boolean (and initialized? (empty? missing)))))
-
+;; Adds an item to list of requirements
 (defn- require-item
   ([db prereqs item]
    (update db :needed
@@ -113,50 +47,71 @@
  (fn [db]
    (assoc db :needed [])))
 
-;; Maintain counters for start/completion of AJAX data requests
+;; Tests if `item` is loaded
+(defn- have-item? [db item]
+  (let [[name & args] item
+        {:keys [loaded-p] :as entry} (get @data-defs name)]
+    (apply loaded-p db args)))
+(reg-sub :have? (fn [db [_ item]] (have-item? db item)))
+
+;; Returns list of required items with no missing prerequisites
+(defn- get-needed-items [db]
+  (->> (get-needed-raw db)
+       (mapv (fn [[prereqs item]]
+               (when (every? #(have-item? db %) prereqs)
+                 item)))
+       (filterv (comp not nil?))))
+
+;; Returns list of required items that are not yet loaded
+(defn- get-missing-items [db]
+  (->> (get-needed-items db)
+       (remove (partial have-item? db))
+       vec))
+(reg-sub ::missing get-missing-items)
+
+;; Tests whether all required data has been loaded
+(reg-sub
+ :data/ready?
+ :<- [:initialized?]
+ :<- [::missing]
+ (fn [[initialized? missing]]
+   (boolean (and initialized? (empty? missing)))))
+
+;;
+;; Maintain counters for start/completion of AJAX requests
+;;
+
 (reg-event-db
  ::sent
  [trim-v]
  (fn [db [item]]
    (update-in db [:ajax :data :sent item]
               #(-> % (or 0) inc))))
+(reg-fx ::sent (fn [item] (dispatch [::sent item])))
+
 (reg-event-db
  ::returned
  [trim-v]
  (fn [db [item]]
    (update-in db [:ajax :data :returned item]
               #(-> % (or 0) inc))))
-(reg-fx
- ::sent
- (fn [item]
-   (dispatch [::sent item])))
-(reg-fx
- ::returned
- (fn [item]
-   (dispatch [::returned item])))
-(reg-sub
- ::ajax-data-counts
- (fn [db]
-   (get-in db [:ajax :data])))
-(reg-sub
- ::sent-count
- :<- [::ajax-data-counts]
- (fn [counts [_ item]]
-   (get-in counts [:sent item] 0)))
-(reg-sub
- ::returned-count
- :<- [::ajax-data-counts]
- (fn [counts [_ item]]
-   (get-in counts [:returned item] 0)))
+(reg-fx ::returned (fn [item] (dispatch [::returned item])))
+
+(reg-sub ::ajax-data-counts (fn [db] (get-in db [:ajax :data])))
+
+(defn- get-sent-count [db item]
+  (get-in db [:ajax :data :sent item] 0))
+(reg-sub ::sent-count (fn [db [_ item]] (get-sent-count db item)))
+
+(defn- get-returned-count [db item]
+  (get-in db [:ajax :data :returned item] 0))
+(reg-sub ::returned-count (fn [db [_ item]] (get-returned-count db item)))
 
 ;; Tests if an AJAX request for `item` is currently pending
-(reg-sub
- :loading?
- (fn [[_ item]]
-   [(subscribe [::sent-count item])
-    (subscribe [::returned-count item])])
- (fn [[sent-count returned-count]]
-   (> sent-count returned-count)))
+(defn- item-loading? [db item]
+  (> (get-sent-count db item)
+     (get-returned-count db item)))
+(reg-sub :loading? (fn [db [_ item]] (item-loading? db item)))
 
 ;; Tests if any AJAX data request is currently pending
 (reg-sub
@@ -181,7 +136,7 @@
 (reg-event-fx
  :fetch
  [trim-v]
- (fn [_ [item]]
+ (fn [{:keys [db]} [item]]
    (let [[name & args] item
          entry (get @data-defs name)
          elapsed-millis (- (js/Date.now) @last-fetch-millis)]
@@ -190,7 +145,7 @@
          (do (js/setTimeout #(dispatch [:fetch item])
                             (- 30 elapsed-millis))
              {})
-         (when-not @(subscribe [:loading? item])
+         (when-not (item-loading? db item)
            (reset! last-fetch-millis (js/Date.now))
            (let [uri (apply (:uri entry) args)
                  content (some-> (:content entry) (apply args))]
@@ -198,7 +153,8 @@
               {::sent item}
               (run-ajax
                (cond->
-                   {:method :get
+                   {:db db
+                    :method :get
                     :uri uri
                     :on-success [::on-success [name args]]
                     :on-failure [::on-failure [name args]]}
@@ -213,59 +169,57 @@
       (when-let [entry (get @data-defs name)]
         (when-let [process (:process entry)]
           (merge (apply process [cofx args result])
-                 ;; Run :fetch-missing in case this request provided
-                 ;; any missing data prerequisites
+                 ;; Run :fetch-missing in case this request provided any
+                 ;; missing data prerequisites.
                  {:fetch-missing true})))))))
+
 (reg-event-ajax-fx
  ::on-failure
  (fn [cofx [[name args] result]]
    (let [item (vec (concat [name] args))]
-     (merge
-      {::returned item}))))
+     {::returned item})))
 
 ;; Reload data item from server if already loaded.
 (reg-event-fx
  :reload
  [trim-v]
- (fn [_ [item]]
-   (when (and @(subscribe [:have? item])
-              (not @(subscribe [:loading? item])))
+ (fn [{:keys [db]} [item]]
+   (when (and (have-item? db item)
+              (not (item-loading? db item)))
      {:dispatch [:fetch item]})))
 
 ;; Fetches any missing required data
 (reg-event-fx
  :fetch-missing
- (fn []
+ (fn [{:keys [db]}]
    {:dispatch-n
     (map (fn [item] [:fetch item])
-         @(subscribe [:data/missing]))}))
+         (get-missing-items db))}))
 
-;; used to trigger :fetch directly from :require
 (reg-fx
  ::fetch-if-missing
  (fn [item]
    (js/setTimeout
-    #(let [missing @(subscribe [:data/missing])]
+    #(let [missing (get-missing-items @app-db)]
        (when (and item (in? missing item))
          (dispatch [:fetch item])))
     10)))
 
-;; re-frame effect to trigger :fetch-missing from event handlers
 (reg-fx
  :fetch-missing
  (fn [fetch?]
    (when fetch?
-     ;; use setTimeout to ensure that changes to app-db from any
-     ;; simultaneously dispatched events will have completed first
+     ;; Use setTimeout to ensure that changes to app-db from any simultaneously
+     ;; dispatched events will have completed first.
      (js/setTimeout #(dispatch [:fetch-missing]) 30))))
 
 ;; (Re-)fetches all required data. This shouldn't be needed.
 (reg-event-fx
  :data/fetch-all
- (fn []
+ (fn [{:keys [db]}]
    {:dispatch-n
     (map (fn [item] [:fetch item])
-         @(subscribe [:data/needed]))}))
+         (get-needed-items db))}))
 
 (defn init-data []
   (dispatch [:fetch [:identity]]))

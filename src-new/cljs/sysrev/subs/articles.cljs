@@ -7,6 +7,8 @@
  (fn [db]
    (get-in db [:data :articles])))
 
+(defn have-article? [db article-id]
+  (contains? (get-in db [:data :articles]) article-id))
 (reg-sub
  :article/raw
  :<- [:articles/all]

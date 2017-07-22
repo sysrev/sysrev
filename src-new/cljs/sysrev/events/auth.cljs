@@ -1,10 +1,11 @@
 (ns sysrev.events.auth
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe dispatch trim-v reg-fx]]
+    [reg-event-db reg-event-fx dispatch trim-v reg-fx]]
    [sysrev.routes :refer [nav nav-scroll-top force-dispatch]]
    [sysrev.util :refer [dissoc-in]]
-   [sysrev.shared.util :refer [to-uuid]]))
+   [sysrev.shared.util :refer [to-uuid]]
+   [sysrev.subs.ui :refer [get-login-redirect-url]]))
 
 (reg-event-fx
  :reset-data
@@ -12,7 +13,8 @@
    {:db (-> db
             (assoc :data {}
                    :needed [])
-            (dissoc-in [:state :review]))
+            (dissoc-in [:state :review])
+            (dissoc-in [:state :panels]))
     :dispatch [:fetch [:identity]]
     :fetch-missing true}))
 
@@ -57,7 +59,7 @@
 (reg-event-db
  :do-login-redirect
  (fn [db]
-   (let [url @(subscribe [:login-redirect-url])]
+   (let [url (get-login-redirect-url db)]
      (nav-scroll-top url)
      (force-dispatch url)
      (dissoc db :login-redirect))))

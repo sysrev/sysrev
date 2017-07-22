@@ -95,11 +95,8 @@
 (reg-event-fx
  ::submit-form
  [trim-v]
- (fn [_]
-   (let [[email password] [(email-input) (password-input)]
-         fields @(subscribe [::fields])
-         register? @(subscribe [::register?])
-         project-id @(subscribe [::register-project-id])
+ (fn [_ [{:keys [email password register? project-id]}]]
+   (let [fields {:email email :password password}
          errors (validate fields login-validation)]
      (cond
        (or (empty? email) (empty? password))
@@ -146,7 +143,7 @@
      (validate fields login-validation))))
 
 (defn login-register-panel []
-  (let [register? (subscribe [::register?])
+  (let [register? @(subscribe [::register?])
         project-id @(subscribe [::register-project-id])
         form-errors @(subscribe [::form-errors])
         field-class #(if (get form-errors %) "error" "")
@@ -164,7 +161,12 @@
       [:form.ui.form
        {:class form-class
         :on-submit
-        (wrap-prevent-default #(dispatch [::submit-form]))}
+        (wrap-prevent-default
+         #(let [email (email-input), password (password-input)]
+            (dispatch [::submit-form {:email email
+                                      :password password
+                                      :register? register?
+                                      :project-id project-id}])))}
        [:div.field {:class (field-class :email)}
         [:label "Email"]
         [:input {:type "email" :name "email"

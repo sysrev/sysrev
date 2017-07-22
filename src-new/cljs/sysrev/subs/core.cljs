@@ -19,19 +19,8 @@
  (fn [db]
    (:app-name db)))
 
-(reg-sub
- :csrf-token
- (fn [db]
-   (:csrf-token db)))
-
-(reg-sub-raw
- :login-redirect-url
- (fn [db]
-   (reaction
-    (or (:login-redirect db)
-        (let [panel @(subscribe [:active-panel])]
-          (if (in? [:login :register] panel)
-            "/" @active-route))))))
+(defn get-csrf-token [db] (:csrf-token db))
+(reg-sub :csrf-token get-csrf-token)
 
 (reg-sub
  :active-notification

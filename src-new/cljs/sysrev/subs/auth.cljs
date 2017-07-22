@@ -9,9 +9,9 @@
  (fn [db]
    (get-in db [:state :identity])))
 
-(reg-sub
- :have-identity?
- (fn [db] (contains? (:state db) :identity)))
+(defn have-identity? [db]
+  (contains? (:state db) :identity))
+(reg-sub :have-identity? have-identity?)
 
 (defn current-user-id [db]
   (get-in db [:state :identity :user-id]))

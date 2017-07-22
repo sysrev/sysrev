@@ -1,7 +1,8 @@
 (ns sysrev.subs.label-activity
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.shared.util :refer [in?]]
+            [sysrev.subs.project :refer [active-project-id get-project-raw]]))
 
 (def answer-statuses
   [#_ :single :consistent :conflict :resolved])
@@ -93,6 +94,10 @@
 ;;;
 ;;;
 
+(defn have-label-activity? [db label-id]
+  (let [project (get-project-raw db (active-project-id db))]
+    (if (get-in project [:label-activity label-id])
+      true false)))
 (reg-sub
  :label-activity/raw
  (fn [[_ label-id]]

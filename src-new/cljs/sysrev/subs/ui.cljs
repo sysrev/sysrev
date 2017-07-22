@@ -3,12 +3,21 @@
    [reagent.ratom :refer [reaction]]
    [re-frame.core :as re-frame :refer
     [subscribe reg-sub reg-sub-raw]]
+   [sysrev.base :refer [active-route]]
+   [sysrev.shared.util :refer [in?]]
    [sysrev.subs.core :refer [not-found-value try-get]]))
 
 (defn active-panel [db]
   (get-in db [:state :active-panel]))
 
 (reg-sub :active-panel active-panel)
+
+(defn get-login-redirect-url [db]
+  (or (:login-redirect db)
+      (let [panel (active-panel db)]
+        (if (in? [[:login] [:register]] panel)
+          "/" @active-route))))
+(reg-sub :login-redirect-url get-login-redirect-url)
 
 (reg-sub
  ::panels

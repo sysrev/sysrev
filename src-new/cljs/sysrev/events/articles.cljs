@@ -1,7 +1,7 @@
 (ns sysrev.events.articles
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe trim-v]]))
+    [reg-event-db reg-event-fx trim-v]]))
 
 (reg-event-db
  :articles/clear-all

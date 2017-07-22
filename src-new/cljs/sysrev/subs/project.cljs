@@ -3,16 +3,19 @@
              [subscribe reg-sub reg-sub-raw]]
             [sysrev.util :refer [short-uuid]]))
 
-(reg-sub
- :active-project-id
- (fn [db]
-   (get-in db [:state :active-project-id])))
+(defn active-project-id [db]
+  (get-in db [:state :active-project-id]))
+(reg-sub :active-project-id active-project-id)
 
 (reg-sub
  :projects
  (fn [db]
    (get-in db [:data :project])))
 
+(defn project-loaded? [db]
+  (contains? (get-in db [:data :project]) (active-project-id db)))
+(defn get-project-raw [db project-id]
+  (get-in db [:data :project project-id]))
 (reg-sub
  :project/raw
  :<- [:projects]

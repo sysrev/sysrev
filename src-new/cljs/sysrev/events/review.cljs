@@ -1,7 +1,7 @@
 (ns sysrev.events.review
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe trim-v]]
+    [reg-event-db reg-event-fx trim-v]]
    [sysrev.subs.review :as review]))
 
 (reg-event-db

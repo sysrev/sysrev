@@ -1,8 +1,9 @@
 (ns sysrev.events.project
   (:require
    [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx subscribe trim-v]]
-   [sysrev.util :refer [dissoc-in]]))
+    [reg-event-db reg-event-fx trim-v]]
+   [sysrev.util :refer [dissoc-in]]
+   [sysrev.subs.project :refer [active-project-id]]))
 
 (reg-event-db
  :project/load
@@ -15,7 +16,7 @@
  :project/clear-data
  [trim-v]
  (fn [db]
-   (if-let [project-id @(subscribe [:active-project-id])]
+   (if-let [project-id (active-project-id db)]
      (dissoc-in db [:data :project project-id])
      db)))
 
@@ -23,6 +24,6 @@
  :project/load-label-activity
  [trim-v]
  (fn [db [label-id content]]
-   (let [project-id @(subscribe [:active-project-id])]
+   (let [project-id (active-project-id db)]
      (assoc-in db [:data :project project-id :label-activity label-id]
                content))))

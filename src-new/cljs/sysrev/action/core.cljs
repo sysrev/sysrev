@@ -12,36 +12,37 @@
 
 (defn def-action
   "Creates definition for a server request action."
-  [name & {:keys [uri content process method] :as fields}]
+  [name & {:keys [uri method content process] :as fields}]
   (swap! action-defs assoc name fields))
 
-;; Maintain counters for start/completion of AJAX data requests
+;;
+;; Maintain counters for start/completion of AJAX requests
+;;
+
 (reg-event-db
  ::sent
  [trim-v]
  (fn [db [item]]
    (update-in db [:ajax :action :sent item]
               #(-> % (or 0) inc))))
+(reg-fx ::sent (fn [item] (dispatch [::sent item])))
+
 (reg-event-db
  ::returned
  [trim-v]
  (fn [db [item]]
    (update-in db [:ajax :action :returned item]
               #(-> % (or 0) inc))))
-(reg-fx
- ::sent
- (fn [item] (dispatch [::sent item])))
-(reg-fx
- ::returned
- (fn [item] (dispatch [::returned item])))
-(reg-sub
- ::ajax-action-counts
- (fn [db] (get-in db [:ajax :action])))
+(reg-fx ::returned (fn [item] (dispatch [::returned item])))
+
+(reg-sub ::ajax-action-counts (fn [db] (get-in db [:ajax :action])))
+
 (reg-sub
  ::sent-count
  :<- [::ajax-action-counts]
  (fn [counts [_ item]]
    (get-in counts [:sent item] 0)))
+
 (reg-sub
  ::returned-count
  :<- [::ajax-action-counts]
@@ -57,7 +58,7 @@
  (fn [[sent-count returned-count]]
    (> sent-count returned-count)))
 
-;; Tests if any AJAX data request is currently pending
+;; Tests if any AJAX action is currently pending
 (reg-sub
  :action/any-running?
  :<- [::ajax-action-counts]
@@ -68,6 +69,7 @@
                (get-in counts [:returned item] 0)))
           (keys (get-in counts [:sent]))))))
 
+;; Runs an AJAX action specified by `item`
 (reg-event-fx
  :action
  [trim-v]
@@ -79,7 +81,8 @@
              content (some-> (:content entry) (apply args))]
          (run-ajax
           (cond->
-              {:method (or (:method entry) :post)
+              {:db db
+               :method (or (:method entry) :post)
                :uri uri
                :on-success [::on-success [name args]]
                :on-failure [::on-failure [name args]]}
