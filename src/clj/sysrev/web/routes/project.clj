@@ -29,9 +29,8 @@
            [java.io ByteArrayInputStream]
            [org.apache.commons.io IOUtils]))
 
-(declare project-info)
-(declare prepare-article-response)
-
+(declare project-info
+         prepare-article-response)
 
 (defn slurp-bytes
   "Slurp the bytes from a slurpable thing.
@@ -110,24 +109,12 @@
            (articles/set-user-article-note article-id user-id name content)
            {:result body})))
 
-  (GET "/api/member-labels/:user-id" request
+  (GET "/api/member-articles/:user-id" request
        (wrap-permissions
         request [] ["member"]
         (let [user-id (-> request :params :user-id Integer/parseInt)
               project-id (active-project request)]
-          {:result
-           (merge
-            (project/project-member-article-labels project-id user-id)
-            {:notes
-             (project/project-member-article-notes project-id user-id)})})))
-
-  #_
-  (GET "/api/user-articles/:user-id" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [user-id (-> request :params :user-id Integer/parseInt)
-              project-id (active-project request)]
-          {:result nil})))
+          {:result (labels/query-member-articles project-id user-id)})))
 
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
@@ -210,8 +197,7 @@
         request [] ["member"]
         (let [project-id (active-project request)
               uuid (-> request :params :label-id (UUID/fromString))]
-          {:result (labels/select-article-labels uuid)}))))
-
+          {:result (labels/query-article-labels uuid)}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

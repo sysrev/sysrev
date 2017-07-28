@@ -5,7 +5,7 @@
     [subscribe dispatch dispatch-sync]]
    [sysrev.views.components :refer
     [with-tooltip three-state-selection]]
-   [sysrev.util :refer [full-size?]]))
+   [sysrev.util :refer [full-size? mobile?]]))
 
 (defn- inclusion-tag [label-id answer]
   (if @(subscribe [:label/inclusion-criteria?])
@@ -56,7 +56,7 @@
   (let [required? @(subscribe [:label/required? label-id])
         criteria? @(subscribe [:label/inclusion-criteria? label-id])
         article-id @(subscribe [:review/editing-id])
-        answer @(subscribe [:review/label-answer article-id label-id])]
+        answer @(subscribe [:review/active-labels article-id label-id])]
     [:div.ui.column.label-edit
      {:class (cond required?       "required"
                    (not criteria?) "extra"
@@ -81,5 +81,48 @@
          (fn [new-value]
            (dispatch-sync [:review/set-label-value
                            article-id label-id new-value])
-           (dispatch [:review/send-labels]))
+           (dispatch [:review/send-labels {:article-id article-id
+                                           :confirm? false
+                                           :resolve? false}]))
          answer]]]]]))
+
+(defmethod label-column "categorical"
+  [label-id]
+  nil)
+
+(defn label-editor-view []
+  (let [label-ids @(subscribe [:project/label-ids])
+        resolving? @(subscribe [:review/resolving?])
+        n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
+        n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
+        make-rows
+        (fn [label-ids n-cols]
+          (doall
+           (for [row (partition-all n-cols label-ids)]
+             ^{:key [(first row)]}
+             [:div.row
+              (doall
+               (concat
+                (map (fn [label-id]
+                       ^{:key label-id}
+                       [label-column label-id])
+                     row)
+                (when (< (count row) n-cols)
+                  [^{:key {:label-row-end (last row)}}
+                   [:div.column]])))])))]
+    [:div
+     [:div.ui.top.attached.header.segment
+      [:h3
+       (if resolving? "Resolve labels " "Edit labels ")
+       [with-tooltip
+        [:a {:href "/project/labels"}
+         [:i.medium.grey.help.circle.icon]]]
+       [:div.ui.inverted.popup.top.left.transition.hidden
+        "View label definitions"]]]
+     [:div.ui.label-section
+      {:class (str "attached "
+                   n-cols-str " column "
+                   "celled grid segment")}
+      (make-rows label-ids n-cols)]
+     #_ [inconsistent-answers-notice label-values]
+     #_ [note-input-element article-id]]))

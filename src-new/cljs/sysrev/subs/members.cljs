@@ -1,7 +1,8 @@
 (ns sysrev.subs.members
   (:require
    [re-frame.core :as re-frame :refer [subscribe reg-sub]]
-   [sysrev.shared.util :refer [in?]]))
+   [sysrev.shared.util :refer [in?]]
+   [sysrev.subs.project :as project]))
 
 (reg-sub
  ::members
@@ -48,3 +49,17 @@
    (or admin-user?
        (in? permissions "admin")
        (in? permissions "resolve"))))
+
+(defn have-member-articles? [db user-id project-id]
+  (let [project-id (or project-id (project/active-project-id db))
+        project (project/get-project-raw db project-id)]
+    (contains? (:member-articles project) user-id)))
+
+(reg-sub
+ :member/articles
+ (fn [[_ user-id project-id]]
+   [(subscribe [:project/raw project-id])
+    (subscribe [:self/user-id])])
+ (fn [[project self-id] [_ user-id _]]
+   (let [user-id (or user-id self-id)]
+     (get-in project [:member-articles user-id]))))

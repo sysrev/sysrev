@@ -2,6 +2,7 @@
   (:require
    [re-frame.core :as re-frame :refer
     [subscribe reg-sub reg-sub-raw]]
+   [reagent.ratom :refer [reaction]]
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.subs.articles :as articles]
    [sysrev.subs.auth :refer [current-user-id]]))
@@ -35,16 +36,23 @@
  (fn [editing-id]
    (if editing-id true false)))
 
+(reg-sub-raw
+ :review/resolving?
+ (fn []
+   (reaction
+    (when-let [article-id @(subscribe [:review/editing-id])]
+      (let [status @(subscribe [:article/review-status article-id])
+            resolver? @(subscribe [:member/resolver?])]
+        (and (= status "conflict") resolver?))))))
+
 (reg-sub
  ::labels
  (fn [db]
    (get-in db [:state :review :labels])))
 
-;; TODO: delete these functions if not needed
-#_
 (defn review-ui-labels [db article-id]
   (get-in db [:state :review :labels article-id]))
-#_
+
 (defn active-labels [db article-id]
   (when-let [user-id (current-user-id db)]
     (merge (articles/article-labels db article-id user-id)

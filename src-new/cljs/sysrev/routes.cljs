@@ -25,7 +25,9 @@
     (dispatch [:reload [:project/label-activity label-id]])))
 
 (defroute member-account "/project/user" []
-  (dispatch [:set-active-panel [:project :member-account]]))
+  (dispatch [:set-active-panel [:project :member-account]])
+  (when-let [user-id @(subscribe [:self/user-id])]
+    (dispatch [:reload [:member/articles user-id]])))
 
 (defroute project-labels "/project/labels" []
   (dispatch [:set-active-panel [:project :project :labels]]))

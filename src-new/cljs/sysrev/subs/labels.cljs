@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
+            [sysrev.subs.project :refer [get-project-raw active-project-id]]
             [sysrev.shared.util :refer [in?]]))
 
 (reg-sub
@@ -10,6 +11,14 @@
  (fn [[_ project-id]]
    [(subscribe [:project/raw project-id])])
  (fn [[project]] (:labels project)))
+
+(defn project-labels [db & [project-id]]
+  (let [project-id (or project-id (active-project-id db))
+        project (get-project-raw db project-id)]
+    (:labels project)))
+
+(defn get-label-raw [db label-id & [project-id]]
+  (get (project-labels db project-id) label-id))
 
 (reg-sub
  ::label
@@ -189,4 +198,3 @@
   (if (or (nil? answer)
           ((every-pred coll? empty?) answer))
     false true))
-

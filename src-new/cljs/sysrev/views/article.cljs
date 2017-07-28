@@ -16,8 +16,7 @@
     (str display extra)))
 
 (defn- review-status-label [status]
-  (let [resolving? (and (= status "conflict")
-                        @(subscribe [:member/resolver?]))
+  (let [resolving? @(subscribe [:review/resolving?])
         sstr
         (cond (= status "resolved")    "Resolved"
               resolving?               "Resolving conflict"

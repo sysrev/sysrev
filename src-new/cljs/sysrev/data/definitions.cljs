@@ -7,7 +7,8 @@
    [sysrev.subs.project :refer [project-loaded? active-project-id]]
    [sysrev.subs.label-activity :refer [have-label-activity?]]
    [sysrev.subs.review :refer [task-id]]
-   [sysrev.subs.articles :refer [have-article?]]))
+   [sysrev.subs.articles :refer [have-article?]]
+   [sysrev.subs.members :refer [have-member-articles?]]))
 
 ;;
 ;; Definitions for all data items fetched from server
@@ -41,6 +42,14 @@
   :process
   (fn [_ [label-id] result]
     {:dispatch [:project/load-label-activity label-id result]}))
+
+(def-data :member/articles
+  :loaded-p have-member-articles?
+  :uri (fn [user-id] (str "/api/member-articles/" user-id))
+  :prereqs (fn [user-id] [[:identity] [:project]])
+  :process
+  (fn [_ [user-id] result]
+    {:dispatch [:member/load-articles user-id result]}))
 
 (def-data :review/task
   :loaded-p task-id

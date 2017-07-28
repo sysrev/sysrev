@@ -5,7 +5,7 @@
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components]
    [sysrev.views.article :refer [article-info-view]]
-   [sysrev.views.review])
+   [sysrev.views.review :refer [label-editor-view]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmethod panel-content [:project :review] []
@@ -14,4 +14,5 @@
       (let [article-id @(subscribe [:review/task-id])]
         [:div
          [article-info-view article-id]
+         [label-editor-view]
          child]))))

@@ -3,6 +3,7 @@
    [re-frame.core :as re-frame :refer
     [dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.action.core :refer [def-action]]
+   [sysrev.subs.review :as review]
    [sysrev.util :refer [dissoc-in]]))
 
 (def-action :log-in
@@ -61,3 +62,15 @@
   (fn [_ [id] result]
     {:dispatch [:self/set-active-project id]
      :nav-scroll-top "/"}))
+
+(def-action :send-labels
+  :uri (fn [_] "/api/set-labels")
+  :content (fn [{:keys [article-id label-values confirm? resolve?]}]
+             {:article-id article-id
+              ;; TODO: pass value from #'review/active-labels
+              :label-values label-values
+              :confirm (boolean confirm?)
+              :resolve (boolean resolve?)})
+  :process
+  (fn [_ [{:keys [article-id label-values confirm? resolve?]}] result]
+    {}))

@@ -654,9 +654,9 @@
         :args (s/cat :label-id ::sc/label-id
                      :enabled? boolean?))
 
-(defn select-article-labels [label-id]
-  (-> (select :a.primary-title :a.article-id :al.answer :al.resolve :wu.user-id
-              :al.confirm-time)
+(defn query-article-labels [label-id]
+  (-> (select :a.article-id :a.primary-title :al.answer :al.resolve
+              :al.confirm-time :wu.user-id)
       (from [:article :a])
       (join [:article-label :al] [:= :a.article_id :al.article_id]
             [:web-user :wu] [:= :al.user-id :wu.user-id])
@@ -669,3 +669,31 @@
            (mapv #(-> (assoc % :confirm-epoch
                              (tc/to-epoch (:confirm-time %)))
                       (dissoc :confirm-time))))))
+
+(defn query-member-articles [project-id user-id]
+  (-> (select :a.article-id :a.primary-title :al.answer :al.resolve
+              :al.confirm-time :al.label-id)
+      (from [:article :a])
+      (join [:project :p] [:= :p.project-id :a.project-id]
+            [:article-label :al] [:= :al.article-id :a.article-id]
+            [:label :l] [:= :l.label-id :al.label-id]
+            [:web-user :wu] [:= :wu.user-id :al.user-id])
+      (where [:and
+              [:= :p.project-id project-id]
+              [:= :wu.user-id user-id]
+              [:= :a.enabled true]
+              [:= :l.enabled true]])
+      (order-by :a.article-id)
+      (->> (do-query)
+           (remove (fn [{:keys [answer]}]
+                     (or (nil? answer)
+                         (and (coll? answer) (empty? answer)))))
+           (map #(-> (assoc % :confirm-epoch
+                            (some-> (:confirm-time %) (tc/to-epoch)))
+                     (dissoc :confirm-time)))
+           (group-by :article-id)
+           (map-values
+            (fn [xs]
+              (let [primary-title (:primary-title (first xs))]
+                {:primary-title primary-title
+                 :labels (->> xs (mapv #(dissoc % :primary-title :article-id)))}))))))
