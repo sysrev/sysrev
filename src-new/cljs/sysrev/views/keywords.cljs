@@ -50,7 +50,7 @@
              {:class class
               :on-click
               (when (and enabled? has-value? editing?)
-                #(dispatch [:review/enable-label-value
+                #(dispatch [:review/trigger-enable-label-value
                             article-id label-id label-value]))}
              text)]
         (if (and show-tooltip? enabled? editing? full-size?)

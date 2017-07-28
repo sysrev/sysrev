@@ -174,6 +174,27 @@
  (fn [[label]] (:enabled label)))
 
 (reg-sub
+ :label/multi?
+ (fn [[_ label-id project-id]]
+   [(subscribe [::definition label-id project-id])])
+ (fn [[definition]] (boolean (:multi? definition))))
+
+(reg-sub
+ :label/valid-string-value?
+ (fn [[_ label-id val project-id]]
+   [(subscribe [:label/string? label-id project-id])
+    (subscribe [::definition label-id project-id])])
+ (fn [[string-label? definition] [_ label-id val _]]
+   (when string-label?
+     (let [{:keys [regex max-length]} definition]
+       (boolean
+        (and
+         (string? val)
+         (<= (count val) max-length)
+         (or (empty? regex)
+             (some #(re-matches (re-pattern %) val) regex))))))))
+
+(reg-sub
  :label/answer-inclusion
  (fn [[_ label-id _ project-id]]
    [(subscribe [::label label-id project-id])])
