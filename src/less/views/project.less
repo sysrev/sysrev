@@ -27,7 +27,7 @@
     padding: 0.5em;
 }
 
-.ui.segment.project-header > h5.ui.header {
+.ui.segment.project-header .ui.grid .row {
     padding-left: 0.5em;
     margin-top: 2px;
     margin-bottom: 2px;
@@ -40,12 +40,17 @@
     font-size: 0.925rem;
 }
 
-.ui.segment.project-header > h5 .ui.tiny.button {
-    padding-left: 1em;
-    padding-right: 1em;
-    padding-top: 0.6em;
-    padding-bottom: 0.6em;
-    font-size: 0.9rem;
+.ui.segment.project-header .project-title {
+    font-size: 1.0rem;
+    font-family: 'Open Sans', sans-serif;
+    .medium-weight;
+}
+
+.ui.segment.project-header .ui.icon.button {
+    padding: 0.6em;
+}
+.ui.segment.project-header .ui.icon.button > i.icon {
+    font-size: 1.2em;
 }
 
 @media only screen and (max-width: 900px) {

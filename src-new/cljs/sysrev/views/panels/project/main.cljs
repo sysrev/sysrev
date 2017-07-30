@@ -53,16 +53,17 @@
             admin? @(subscribe [:user/admin?])
             project-ids @(subscribe [:user/project-ids])]
         [:div.ui.container
-         [:div.ui.top.attached.clearing.segment.project-header
-          [:h5.ui.left.floated.header
-           [:div.ui.basic.label
-            [:span.black-text (str project-name)]]]
-          [:h5.ui.right.floated.header
-           [:a.ui.tiny.basic.grey.button
-            {:href "/select-project"
-             :class (if (or admin? (< 1 (count project-ids)))
-                      "" "disabled")}
-            [:span.black-text "Change project"]]]]
+         [:div.ui.top.attached.segment.project-header
+          [:div.ui.middle.aligned.grid
+           [:div.row
+            [:div.twelve.wide.column.project-title
+             project-name]
+            [:div.four.wide.right.aligned.column
+             [:a.ui.icon.button
+              {:href "/select-project"
+               :class (if (or admin? (< 1 (count project-ids)))
+                        "" "disabled")}
+              [:i.horizontal.ellipsis.icon]]]]]]
          [:div.ui.bottom.attached.segment
           [project-page-menu]
           [:div child]]]))))

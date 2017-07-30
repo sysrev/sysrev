@@ -137,7 +137,7 @@
                 vs))
             current-values @(subscribe [:review/active-labels article-id label-id])
             dom-id (str "label-edit-" article-id "-" label-id)]
-        [:div.ui.large.fluid.multiple.selection.dropdown
+        [:div.ui.large.fluid.multiple.selection.search.dropdown
          {:id dom-id
           ;; hide dropdown on click anywhere in main dropdown box
           :on-click #(when (or (= dom-id (-> % .-target .-id))
