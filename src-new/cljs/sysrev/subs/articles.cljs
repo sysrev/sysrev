@@ -129,6 +129,26 @@
      (and user-id label-id)  (get label-id))))
 
 (reg-sub
+ :article/user-status
+ (fn [[_ article-id user-id]]
+   [(subscribe [:self/user-id])
+    (subscribe [:article/labels article-id])])
+ (fn [[self-id alabels] [_ _ user-id]]
+   (let [user-id (or user-id self-id)
+         ulmap (get alabels user-id)]
+     (cond (nil? user-id)
+           :logged-out
+
+           (empty? ulmap)
+           :none
+
+           (some :confirm-epoch (vals ulmap))
+           :confirmed
+
+           :else
+           :unconfirmed))))
+
+(reg-sub
  :article/user-resolved?
  (fn [[_ article-id user-id]]
    (assert user-id ":article/user-resolved? - user-id must be passed")

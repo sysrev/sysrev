@@ -6,7 +6,11 @@
    [reagent.ratom :refer [reaction]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [selection-dropdown]]
-   [sysrev.subs.label-activity :refer [answer-statuses]]
+   [sysrev.views.article :refer [article-info-view]]
+   [sysrev.views.review :refer [label-editor-view]]
+   [sysrev.subs.ui :refer [get-panel-field]]
+   [sysrev.subs.label-activity :as la]
+   [sysrev.routes :refer [nav nav-scroll-top]]
    [sysrev.util :refer [nbsp full-size? number-to-word]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -14,7 +18,7 @@
 (def ^:private panel-name [:project :project :articles])
 
 (reg-sub
- ::label-id
+ :article-list/label-id
  (fn []
    [(subscribe [:panel-field [:label-id] panel-name])
     (subscribe [:project/overall-label-id])])
@@ -65,14 +69,55 @@
  ::articles
  (fn [_ _]
    (reaction
-    (when-let [label-id @(subscribe [::label-id])]
+    (when-let [label-id @(subscribe [:article-list/label-id])]
       @(subscribe
         [:label-activity/articles
          label-id {:answer-status @(subscribe [::answer-status])
                    :answer-value @(subscribe [::answer-value])}])))))
 
-(defn label-selector []
-  (let [active-id @(subscribe [::label-id])]
+(reg-event-fx
+ ::select-article
+ [trim-v]
+ (fn [_ [article-id]]
+   {:dispatch [:set-panel-field [:selected-article-id] article-id panel-name]}))
+(reg-sub
+ ::selected-article-id
+ (fn []
+   [(subscribe [:panel-field [:selected-article-id] panel-name])])
+ (fn [[article-id]] article-id))
+
+(reg-event-fx
+ :article-list/show-article
+ [trim-v]
+ (fn [_ [article-id]]
+   {:dispatch [:set-panel-field [:article-id] article-id panel-name]}))
+(reg-event-fx
+ :article-list/hide-article
+ [trim-v]
+ (fn []
+   {:dispatch [:set-panel-field [:article-id] nil panel-name]}))
+(reg-sub
+ ::article-id
+ (fn []
+   [(subscribe [:panel-field [:article-id] panel-name])])
+ (fn [[article-id]] article-id))
+
+(reg-sub
+ ::display-offset
+ (fn []
+   [(subscribe [:panel-field [:display-offset] panel-name])])
+ (fn [[offset]] (or offset 0)))
+
+(reg-event-fx
+ ::change-display-offset
+ [trim-v]
+ (fn [{:keys [db]} [delta]]
+   (let [offset (or (get-panel-field db [:display-offset] panel-name) 0)
+         new-offset (+ offset delta)]
+     {:dispatch [:set-panel-field [:display-offset] new-offset panel-name]})))
+
+(defn- label-selector []
+  (let [active-id @(subscribe [:article-list/label-id])]
     [selection-dropdown
      [:div.text @(subscribe [:label/display active-id])]
      (->> @(subscribe [:project/label-ids])
@@ -85,12 +130,12 @@
                       {:class "active selected"}))
               @(subscribe [:label/display label-id])])))]))
 
-(defn answer-status-selector []
+(defn- answer-status-selector []
   (let [active-status @(subscribe [::answer-status])
         status-name #(if (nil? %) "<Any>" (-> % name str/capitalize))]
     [selection-dropdown
      [:div.text (status-name active-status)]
-     (->> (concat [nil] answer-statuses)
+     (->> (concat [nil] la/answer-statuses)
           (mapv
            (fn [status]
              [:div.item
@@ -100,8 +145,8 @@
                       {:class "active selected"}))
               (status-name status)])))]))
 
-(defn answer-value-selector []
-  (let [label-id @(subscribe [::label-id])]
+(defn- answer-value-selector []
+  (let [label-id @(subscribe [:article-list/label-id])]
     (let [all-values @(subscribe [:label/all-values label-id])
           active-value @(subscribe [::answer-value])]
       [selection-dropdown
@@ -121,8 +166,8 @@
                           {:class "active selected"}))
                   (str value)])))))])))
 
-(defn article-filter-form []
-  (when-let [label-id @(subscribe [::label-id])]
+(defn- article-filter-form []
+  (when-let [label-id @(subscribe [:article-list/label-id])]
     (let [all-values @(subscribe [:label/all-values label-id])
           n-columns (+ 3 3 (if (empty? all-values) 0 3) 2)
           whitespace-columns (- 16 n-columns)]
@@ -151,15 +196,167 @@
             {:on-click #(dispatch [::reset-filters])}
             "Reset filters"]]]]]])))
 
-(defn article-list-view []
-  (when-let [label-id @(subscribe [::label-id])]
+(defmulti answer-cell-icon identity)
+(defmethod answer-cell-icon true [] [:i.ui.green.circle.plus.icon])
+(defmethod answer-cell-icon false [] [:i.ui.orange.circle.minus.icon])
+(defmethod answer-cell-icon :default [] [:i.ui.grey.question.mark.icon])
+
+(defn- answer-cell [label-groups answer-class]
+  [:div.ui.divided.list
+   (->> (la/user-grouped label-groups)
+        (map (fn [u]
+               (let [user-id (:user-id u)
+                     article-label (:article-label u)
+                     article-id (:article-id article-label)
+                     answer (:answer article-label)]
+                 (when (or (not= answer-class "resolved")
+                           (:resolve article-label))
+                   [:div.item {:key [:answer article-id user-id]}
+                    (answer-cell-icon answer)
+                    [:div.content>div.header
+                     @(subscribe [:user/display user-id])]]))))
+        (doall))])
+
+(defn- article-list-view []
+  (when-let [label-id @(subscribe [:article-list/label-id])]
     (with-loader [[:project/label-activity label-id]] {}
-      (let [articles @(subscribe [::articles])]
+      (let [full-size? (full-size?)
+            articles @(subscribe [::articles])
+            display-count 10
+            total-count (count articles)
+            display-offset @(subscribe [::display-offset])
+            visible-count (min display-count total-count)
+            active-aid @(subscribe [::selected-article-id])
+            on-next
+            #(when (< (+ display-offset display-count) total-count)
+               (dispatch [::change-display-offset display-count]))
+            on-previous
+            #(when (>= display-offset display-count)
+               (dispatch [::change-display-offset (- display-count)]))]
         [:div
-         [:p (str "Found " (count articles) " articles")]]))))
+         [:div.ui.top.attached.segment
+          {:style {:padding "10px"}}
+          [:div.ui.two.column.middle.aligned.grid
+           [:div.ui.left.aligned.column
+            [:h5 (str "Showing " (+ display-offset 1)
+                      "-" (min total-count (+ display-offset display-count))
+                      " of "
+                      total-count " matching articles")]]
+           [:div.ui.right.aligned.column
+            [:div.ui.tiny.button
+             {:class (if (= display-offset 0) "disabled" "")
+              :on-click on-previous}
+             "Previous"]
+            [:div.ui.tiny.button
+             {:class (if (>= (+ display-offset display-count) total-count)
+                       "disabled" "")
+              :on-click on-next}
+             "Next"]]]]
+         [:div.ui.bottom.attached.segment.article-list-segment
+          (->>
+           (->> articles
+                (drop display-offset)
+                (take display-count))
+           (map
+            (fn [las]
+              (let [article-id (:article-id las)
+                    fla (first (:article-labels las))
+                    title (:primary-title fla)
+                    active? (= article-id active-aid)
+                    answer-class
+                    (cond
+                      (la/is-resolved? las) "resolved"
+                      (la/is-concordance? las) "consistent"
+                      (la/is-single? las) "single"
+                      :else "conflict")
+                    classes
+                    (cond-> []
+                      active? (conj "active"))]
+                [:div.article-list-segments
+                 {:key article-id}
+                 [:div.ui.middle.aligned.grid.segment.article-list-article
+                  {:class (if active? "active" "")
+                   :style {:cursor "pointer"}
+                   :on-click #(do (dispatch [::select-article article-id])
+                                  (nav-scroll-top (str "/project/articles/" article-id)))}
+                  (if full-size?
+                    [:div.ui.row
+                     [:div.ui.one.wide.center.aligned.column
+                      [:div.ui.fluid.labeled.center.aligned.button
+                       [:i.ui.right.chevron.center.aligned.icon
+                        {:style {:width "100%"}}]]]
+                     [:div.ui.twelve.wide.column.article-title
+                      [:span.article-title title]]
+                     [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
+                      {:class answer-class}
+                      [:div.ui.middle.aligned.grid>div.row>div.column
+                       [answer-cell las answer-class]]]]
+                    [:div.ui.row
+                     [:div.ui.ten.wide.column.article-title
+                      [:span.article-title title]]
+                     [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
+                      {:class answer-class}
+                      [:div.ui.middle.aligned.grid>div.row>div.column
+                       [answer-cell las answer-class]]]])]])))
+           (doall))]]))))
+
+(defn- article-list-article-view []
+  (when-let [article-id @(subscribe [::article-id])]
+    (with-loader [[:article article-id]] {}
+      (let [label-values @(subscribe [:review/active-labels article-id])
+            overall-label-id @(subscribe [:project/overall-label-id])
+            user-id @(subscribe [:self/user-id])
+            user-status @(subscribe [:article/user-status article-id user-id])
+            review-status @(subscribe [:article/review-status article-id])
+            resolving? (and (= review-status "conflict")
+                            @(subscribe [:member/resolver? user-id]))
+            close-article #(nav-scroll-top "/project/articles")
+            on-confirm #(if resolving?
+                          (dispatch [:scroll-top])
+                          (do (dispatch [:scroll-top])
+                              (dispatch [:article-list/hide-article])))]
+        [:div
+         [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
+          {:style {:padding "0"}}
+          [:a.ui.large.fluid.button
+           {:on-click close-article}
+           [:i.close.icon]
+           "Close"]]
+         [:div.ui.bottom.attached.middle.aligned.segment
+          (let [show-labels (if (= user-status :unconfirmed) false :all)]
+            [article-info-view article-id
+             :show-labels show-labels])
+          (when (or (= user-status :unconfirmed) resolving?)
+            [:div {:style {:margin-top "1em"}}
+             [label-editor-view]
+             #_
+             (let [missing (labels/required-answers-missing label-values)
+                   disabled? ((comp not empty?) missing)
+                   confirm-button
+                   [:div.ui.right.labeled.icon
+                    {:class (str (if disabled? "disabled" "")
+                                 " "
+                                 (if (get-loading-state :confirm) "loading" "")
+                                 " "
+                                 (if resolving? "purple button" "primary button"))
+                     :on-click
+                     (fn []
+                       (set-loading-state :confirm true)
+                       (ajax/confirm-active-labels on-confirm))}
+                    (if resolving? "Resolve conflict" "Confirm labels")
+                    [:i.check.circle.outline.icon]]]
+               [:div.ui.grid.centered
+                [:div.row
+                 (if disabled?
+                   [with-tooltip [:div confirm-button]]
+                   confirm-button)
+                 [:div.ui.inverted.popup.top.left.transition.hidden
+                  "Answer missing for a required label"]]])])]]))))
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
-    [:div
-     [article-filter-form]
-     [article-list-view]]))
+    (if @(subscribe [::article-id])
+      [article-list-article-view]
+      [:div
+       [article-filter-form]
+       [article-list-view]])))

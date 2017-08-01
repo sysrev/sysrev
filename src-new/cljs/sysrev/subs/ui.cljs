@@ -41,6 +41,11 @@
    (when (and pstate view)
      (get-in pstate [:views view]))))
 
+(defn get-panel-field [db path & [panel]]
+  (let [panel (or panel (active-panel db))
+        path (if (sequential? path) path [path])]
+    (get-in db (concat [:state :panels panel] path) )))
+
 (reg-sub
  :panel-field
  (fn [[_ path & [panel]]]
@@ -49,6 +54,11 @@
    (when (and pstate path)
      (let [path (if (sequential? path) path [path])]
        (get-in pstate path)))))
+
+(defn get-view-field [db path view]
+  (let [panel (active-panel db)
+        path (if (sequential? path) path [path])]
+    (get-in db (concat [:state :panels panel :views view] path))))
 
 (reg-sub
  :view-field

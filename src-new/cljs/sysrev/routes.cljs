@@ -5,8 +5,7 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
    [sysrev.util :refer [scroll-top]]
-   [sysrev.base :refer [history]]
-   [sysrev.views.panels.project.article-list :as article-list])
+   [sysrev.base :refer [history]])
   (:require-macros [secretary.core :refer [defroute]]))
 
 (defn- go-project-panel []
@@ -19,10 +18,16 @@
 (defroute project "/project" []
   (go-project-panel))
 
-(defroute article-list "/project/articles" []
+(defroute articles "/project/articles" []
   (dispatch [:set-active-panel [:project :project :articles]])
-  (when-let [label-id @(subscribe [::article-list/label-id])]
+  (dispatch [:article-list/hide-article])
+  (when-let [label-id @(subscribe [:article-list/label-id])]
     (dispatch [:reload [:project/label-activity label-id]])))
+
+(defroute articles-id "/project/articles/:article-id" [article-id]
+  (let [article-id (js/parseInt article-id)]
+    (dispatch [:set-active-panel [:project :project :articles]])
+    (dispatch [:article-list/show-article article-id])))
 
 (defroute member-account "/project/user" []
   (dispatch [:set-active-panel [:project :member-account]])

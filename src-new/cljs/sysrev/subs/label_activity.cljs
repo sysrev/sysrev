@@ -116,4 +116,5 @@
         (->ArticleLabels)
         (id-grouped)
         (filter (answer-status-filter answer-status))
-        (filter (answer-value-filter answer-value)))))
+        (filter (answer-value-filter answer-value))
+        (sort-by :updated-time >))))
