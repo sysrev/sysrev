@@ -97,10 +97,40 @@
  (fn []
    {:dispatch [:set-panel-field [:article-id] nil panel-name]}))
 (reg-sub
- ::article-id
+ :article-list/article-id
  (fn []
-   [(subscribe [:panel-field [:article-id] panel-name])])
- (fn [[article-id]] article-id))
+   [(subscribe [:active-panel])
+    (subscribe [:panel-field [:article-id] panel-name])])
+ (fn [[active-panel article-id]]
+   (when (= active-panel panel-name)
+     article-id)))
+
+(reg-sub-raw
+ :article-list/editing?
+ (fn []
+   (reaction
+    (boolean
+     (let [article-id @(subscribe [:article-list/article-id])
+           user-id @(subscribe [:self/user-id])]
+       (when (and article-id user-id)
+         (let [user-status @(subscribe [:article/user-status article-id user-id])
+               review-status @(subscribe [:article/review-status article-id])
+               resolving? (and (= review-status "conflict")
+                               @(subscribe [:member/resolver? user-id]))]
+           (or (= user-status :unconfirmed) resolving?))))))))
+
+(reg-sub-raw
+ :article-list/resolving?
+ (fn []
+   (reaction
+    (boolean
+     (when @(subscribe [:article-list/editing?])
+       (let [article-id @(subscribe [:article-list/article-id])
+             user-id @(subscribe [:self/user-id])]
+         (when (and article-id user-id)
+           (let [review-status @(subscribe [:article/review-status article-id])]
+             (and (= review-status "conflict")
+                  @(subscribe [:member/resolver? user-id]))))))))))
 
 (reg-sub
  ::display-offset
@@ -301,15 +331,14 @@
            (doall))]]))))
 
 (defn- article-list-article-view []
-  (when-let [article-id @(subscribe [::article-id])]
+  (when-let [article-id @(subscribe [:article-list/article-id])]
     (with-loader [[:article article-id]] {}
       (let [label-values @(subscribe [:review/active-labels article-id])
             overall-label-id @(subscribe [:project/overall-label-id])
             user-id @(subscribe [:self/user-id])
             user-status @(subscribe [:article/user-status article-id user-id])
-            review-status @(subscribe [:article/review-status article-id])
-            resolving? (and (= review-status "conflict")
-                            @(subscribe [:member/resolver? user-id]))
+            editing? @(subscribe [:article-list/editing?])
+            resolving? @(subscribe [:article-list/resolving?])
             close-article #(nav-scroll-top "/project/articles")
             on-confirm #(if resolving?
                           (dispatch [:scroll-top])
@@ -326,7 +355,7 @@
           (let [show-labels (if (= user-status :unconfirmed) false :all)]
             [article-info-view article-id
              :show-labels show-labels])
-          (when (or (= user-status :unconfirmed) resolving?)
+          (when editing?
             [:div {:style {:margin-top "1em"}}
              [label-editor-view]
              #_
@@ -355,7 +384,7 @@
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
-    (if @(subscribe [::article-id])
+    (if @(subscribe [:article-list/article-id])
       [article-list-article-view]
       [:div
        [article-filter-form]

@@ -1,6 +1,7 @@
 (ns sysrev.subs.articles
   (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]))
+             [subscribe reg-sub reg-sub-raw]]
+            [sysrev.subs.auth :as auth]))
 
 (reg-sub
  :articles/all
@@ -128,6 +129,24 @@
      user-id                 (get user-id)
      (and user-id label-id)  (get label-id))))
 
+(defn- article-user-status-impl [user-id ulmap]
+  (cond (nil? user-id)
+        :logged-out
+
+        (empty? ulmap)
+        :none
+
+        (some :confirm-epoch (vals ulmap))
+        :confirmed
+
+        :else
+        :unconfirmed))
+
+(defn article-user-status [db article-id & [user-id]]
+  (let [user-id (or user-id (auth/current-user-id db))
+        ulmap (article-labels db article-id user-id)]
+    (article-user-status-impl user-id ulmap)))
+
 (reg-sub
  :article/user-status
  (fn [[_ article-id user-id]]
@@ -136,17 +155,7 @@
  (fn [[self-id alabels] [_ _ user-id]]
    (let [user-id (or user-id self-id)
          ulmap (get alabels user-id)]
-     (cond (nil? user-id)
-           :logged-out
-
-           (empty? ulmap)
-           :none
-
-           (some :confirm-epoch (vals ulmap))
-           :confirmed
-
-           :else
-           :unconfirmed))))
+     (article-user-status-impl user-id ulmap))))
 
 (reg-sub
  :article/user-resolved?

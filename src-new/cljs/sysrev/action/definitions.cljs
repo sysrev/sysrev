@@ -65,12 +65,12 @@
 
 (def-action :send-labels
   :uri (fn [_] "/api/set-labels")
-  :content (fn [{:keys [article-id label-values confirm? resolve?]}]
+  :content (fn [{:keys [article-id label-values change? confirm? resolve?]}]
              {:article-id article-id
-              ;; TODO: pass value from #'review/active-labels
               :label-values label-values
-              :confirm (boolean confirm?)
-              :resolve (boolean resolve?)})
+              :confirm? (boolean confirm?)
+              :resolve? (boolean resolve?)
+              :change? (boolean change?)})
   :process
   (fn [_ [{:keys [article-id label-values confirm? resolve?]}] result]
     {}))

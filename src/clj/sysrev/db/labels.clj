@@ -496,26 +496,40 @@
        (apply concat)
        (apply hash-map)))
 
-(defn set-user-article-labels [user-id article-id label-values imported?]
+;; TODO: check that all required labels are answered
+(defn set-user-article-labels
+  [user-id article-id label-values &
+   {:keys [imported? confirm? change? resolve?]}]
   (assert (integer? user-id))
   (assert (integer? article-id))
   (assert (map? label-values))
   (do-transaction
    nil
-   (let [valid-values (->> label-values filter-valid-label-values)
-         [now project-id]
+   (let [[valid-values
+          now
+          project-id
+          current-entries]
          (pvalues
+          (->> label-values filter-valid-label-values)
           (sql-now)
-          (:project-id (q/query-article-by-id article-id [:project-id])))
+          (:project-id (q/query-article-by-id article-id [:project-id]))
+          (when change?
+            (-> (q/select-article-by-id article-id [:al.*])
+                (q/join-article-labels)
+                (q/filter-label-user user-id)
+                (->> (do-query)
+                     (map #(dissoc %
+                                   :article-label-id
+                                   :article-label-local-id))))))
          overall-label-id (project-overall-label-id project-id)
-         confirm? (and imported?
-                       ((comp not nil?)
-                        (get valid-values overall-label-id)))
+         confirm? (if imported?
+                    (boolean (get valid-values overall-label-id))
+                    confirm?)
          existing-label-ids
          (-> (q/select-article-by-id article-id [:al.label-id])
              (q/join-article-labels)
              (q/filter-label-user user-id)
-             (do-query-map :label-id))
+             (->> do-query (map :label-id)))
          new-label-ids
          (->> (keys valid-values)
               (remove (in? existing-label-ids)))
@@ -527,13 +541,16 @@
                                        (cleanup-label-answer label))
                            _ (assert (label-answer-valid? label-id answer))
                            inclusion (label-answer-inclusion label-id answer)]
-                       {:label-id label-id
-                        :article-id article-id
-                        :user-id user-id
-                        :answer (to-jsonb answer)
-                        :confirm-time (if confirm? now nil)
-                        :imported imported?
-                        :inclusion inclusion}))))]
+                       (cond->
+                           {:label-id label-id
+                            :article-id article-id
+                            :user-id user-id
+                            :answer (to-jsonb answer)
+                            :added-time now
+                            :updated-time now
+                            :imported (boolean imported?)
+                            :inclusion inclusion}
+                         confirm? (merge {:confirm-time now}))))))]
      (doseq [label-id existing-label-ids]
        (when (contains? valid-values label-id)
          (let [label (get (all-labels-cached) label-id)
@@ -542,10 +559,12 @@
                _ (assert (label-answer-valid? label-id answer))
                inclusion (label-answer-inclusion label-id answer)]
            (-> (sqlh/update :article-label)
-               (sset {:answer (to-jsonb answer)
-                      :updated-time now
-                      :imported imported?
-                      :inclusion inclusion})
+               (sset (cond->
+                         {:answer (to-jsonb answer)
+                          :updated-time now
+                          :imported imported?
+                          :inclusion inclusion}
+                       confirm? (merge {:confirm-time now})))
                (where [:and
                        [:= :article-id article-id]
                        [:= :user-id user-id]
@@ -555,36 +574,11 @@
        (-> (insert-into :article-label)
            (values new-entries)
            do-execute))
+     (when (and change? (not-empty current-entries))
+       (-> (insert-into :article-label-history)
+           (values current-entries)
+           do-execute))
      (db/clear-project-label-values-cache project-id confirm? user-id)
-     (db/clear-project-member-cache project-id user-id)
-     (db/clear-project-article-cache project-id article-id)
-     true)))
-
-(defn confirm-user-article-labels
-  "Mark all labels by `user-id` on `article-id` as being confirmed at current time."
-  [user-id article-id & [resolve]]
-  (assert (or resolve (not (user-article-confirmed? user-id article-id))))
-  (do-transaction
-   nil
-   ;; TODO - does this check that all required labels are set?
-   (let [project-id (:project-id
-                     (q/query-article-by-id article-id [:project-id]))
-         required (-> (q/select-article-by-id article-id [:al.answer])
-                      (q/join-article-labels)
-                      (q/join-article-label-defs)
-                      (q/filter-label-user user-id)
-                      (merge-where [:= :l.required true])
-                      (do-query-map :answer))]
-     (assert ((comp not empty?) required))
-     (assert (every? (comp not nil?) required))
-     (-> (sqlh/update :article-label)
-         (sset {:confirm-time (sql-now)
-                :resolve (boolean resolve)})
-         (where [:and
-                 [:= :user-id user-id]
-                 [:= :article-id article-id]])
-         do-execute)
-     (db/clear-project-label-values-cache project-id true user-id)
      (db/clear-project-member-cache project-id user-id)
      (db/clear-project-article-cache project-id article-id)
      true)))

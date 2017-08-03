@@ -43,12 +43,13 @@
                               :href (when (string? action) action)
                               :on-click (when-not (string? action) action)}
                           content]))]
-    [:div.ui
-     {:class
-      (str n-tabs-word " item " "small" " pointing menu primary-menu " menu-class)}
-     (doall
-      (for [entry entries]
-        (render-entry entry)))]))
+    [:div.project-menu-wrapper
+     [:div.ui
+      {:class
+       (str n-tabs-word " item " "small" " secondary pointing menu primary-menu " menu-class)}
+      (doall
+       (for [entry entries]
+         (render-entry entry)))]]))
 (s/fdef
  primary-tabbed-menu
  :args (s/cat :entries (s/coll-of ::menu-tab)

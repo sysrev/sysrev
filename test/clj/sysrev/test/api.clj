@@ -140,7 +140,11 @@
         (is (s/valid? ::sc/article-id article-id))
         (is (s/valid? ::sc/label-id label-id))
         (labels/set-user-article-labels
-         user-id article-id {label-id true} false)
+         user-id article-id {label-id true}
+         :imported? false
+         :change? false
+         :confirm? true
+         :resolve? false)
         (let [response (webapi-post "import-pmids"
                                     {:api-token api-token
                                      :project-id project-id

@@ -2,8 +2,10 @@
   (:require
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx trim-v reg-fx]]
+   [sysrev.subs.auth :as auth]
    [sysrev.subs.labels :as labels]
-   [sysrev.subs.review :as review]))
+   [sysrev.subs.review :as review]
+   [sysrev.subs.articles :as articles]))
 
 (reg-event-db
  :review/load-task
@@ -17,8 +19,11 @@
  :review/send-labels
  [trim-v]
  (fn [{:keys [db]} [{:keys [article-id confirm? resolve?]}]]
-   (let [label-values (review/active-labels db article-id)]
+   (let [label-values (review/active-labels db article-id)
+         change? (= (articles/article-user-status db article-id)
+                    :confirmed)]
      {:dispatch [:action [:send-labels {:article-id article-id
                                         :label-values label-values
                                         :confirm? confirm?
-                                        :resolve? resolve?}]]})))
+                                        :resolve? resolve?
+                                        :change? change?}]]})))

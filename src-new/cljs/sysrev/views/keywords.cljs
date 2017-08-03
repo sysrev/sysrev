@@ -33,7 +33,7 @@
   (let [{:keys [label-id label-value category] :as kw}
         (and keyword-id (get keywords keyword-id))]
     (if (nil? kw)
-      [[:span text]]
+      [(dangerous :span text)]
       (let [has-value? ((comp not nil?) label-value)
             label-name @(subscribe [:label/name label-id])
             enabled? @(subscribe [:label/enabled? label-id])

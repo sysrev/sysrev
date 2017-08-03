@@ -27,8 +27,11 @@
  :review/editing-id
  :<- [:review/on-review-task?]
  :<- [:review/task-id]
- (fn [[on-review-task? task-id]]
-   (cond on-review-task? task-id)))
+ :<- [:article-list/editing?]
+ :<- [:article-list/article-id]
+ (fn [[on-review-task? task-id list-editing? list-id]]
+   (cond on-review-task? task-id
+         list-editing? list-id)))
 
 (reg-sub
  :review/editing?

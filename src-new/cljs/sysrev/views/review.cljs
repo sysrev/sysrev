@@ -10,6 +10,7 @@
    [sysrev.views.components :refer [with-tooltip three-state-selection]]
    [sysrev.subs.review :as review]
    [sysrev.subs.labels :as labels]
+   [sysrev.subs.articles :as articles]
    [sysrev.util :refer [full-size? mobile?]]
    [sysrev.shared.util :refer [in?]]))
 
@@ -24,9 +25,13 @@
 (reg-event-fx
  ::send-labels
  [trim-v]
- (fn [_ [args]]
-   (when args
-     {:dispatch-later [{:ms 50 :dispatch [:review/send-labels args]}]})))
+ (fn [{:keys [db]} [force? args]]
+   (when-let [article-id (:article-id args)]
+     (let [label-values (review/active-labels db article-id)
+           confirmed? (= (articles/article-user-status db article-id)
+                         :confirmed)]
+       (when (or (not confirmed?) force?)
+         {:dispatch-later [{:ms 50 :dispatch [:review/send-labels args]}]})))))
 
 (reg-event-db
  ::set-label-value
@@ -90,7 +95,7 @@
      (condp = value-type
        "boolean"
        {:db (set-label-value db article-id label-id label-value)
-        :dispatch [::send-labels {:article-id article-id}]}
+        :dispatch [::send-labels false {:article-id article-id}]}
 
        "categorical"
        {::select-categorical-value [article-id label-id label-value]}))))
@@ -105,11 +110,11 @@
         {:onAdd
          (fn [v t]
            (dispatch [::add-label-value article-id label-id v])
-           (dispatch [::send-labels {:article-id article-id}]))
+           (dispatch [::send-labels false {:article-id article-id}]))
          :onRemove
          (fn [v t]
            (dispatch [::remove-label-value article-id label-id v])
-           (dispatch [::send-labels {:article-id article-id}]))
+           (dispatch [::send-labels false {:article-id article-id}]))
          :onChange
          (fn [_] (.dropdown (js/$ (r/dom-node c))
                             "hide"))})))
@@ -294,7 +299,7 @@
         [three-state-selection
          (fn [new-value]
            (dispatch [::set-label-value article-id label-id new-value])
-           (dispatch [::send-labels {:article-id article-id}]))
+           (dispatch [::send-labels false {:article-id article-id}]))
          answer]]]]]))
 
 (defmethod label-column "categorical"
