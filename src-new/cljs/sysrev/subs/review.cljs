@@ -5,7 +5,8 @@
    [reagent.ratom :refer [reaction]]
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.subs.articles :as articles]
-   [sysrev.subs.auth :refer [current-user-id]]))
+   [sysrev.subs.auth :refer [current-user-id]]
+   [sysrev.shared.util :refer [map-values]]))
 
 (defn task-id [db]
   (get-in db [:data :review :task-id]))
@@ -64,13 +65,12 @@
 (reg-sub
  :review/active-labels
  (fn [[_ article-id label-id]]
-   [(subscribe [:review/editing-id])
-    (subscribe [:self/user-id])
+   [(subscribe [:self/user-id])
     (subscribe [::labels])
     (subscribe [:article/labels article-id])])
- (fn [[editing-id user-id ui-labels article-labels] [_ article-id label-id]]
-   (let [article-id (or article-id editing-id)
-         ui-vals (get-in ui-labels [article-id] {})
-         article-vals (get-in article-labels [user-id] {})]
+ (fn [[user-id ui-labels article-labels] [_ article-id label-id]]
+   (let [ui-vals (get-in ui-labels [article-id] {})
+         article-vals (->> (get-in article-labels [user-id] {})
+                           (map-values :answer))]
      (cond-> (merge article-vals ui-vals)
        label-id (get label-id)))))

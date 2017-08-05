@@ -134,7 +134,9 @@
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 "refactor-nrepl.middleware/wrap-refactor"
                                 "cemerick.piggieback/wrap-cljs-repl"]
-             :css-dirs ["resources/public/css"]}
+             :css-dirs ["resources/public/css"
+                        "resources/public/semantic/default/semantic.min.css"
+                        "resources/public/semantic/dark/semantic.min.css"]}
   :repl-options {:timeout 120000
                  :init-ns sysrev.user
                  :port 45021}

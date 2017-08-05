@@ -50,16 +50,20 @@ div.ui.column.article-answers>div.ui.grid>div.row {
     padding-bottom: 5px;
 }
 div.article-answers.single {
-    background-color: rgba(230,245,255,1.0);
+    background-color: @blueBackground;
 }
 div.article-answers.consistent {
-    background-color: rgba(235,255,225,1.0);
+    background-color: @greenBackground;
 }
 div.article-answers.conflict {
-    background-color: rgba(255,235,235,1.0);
+    background-color: @redBackground;
 }
 div.article-answers.resolved {
-    background-color: rgba(235,215,255,1.0);
+    background-color: @purpleBackground;
+}
+
+div.article-filters>form.ui.form {
+    margin-bottom: -1em;
 }
 
 @media only screen and (max-width: 900px) {

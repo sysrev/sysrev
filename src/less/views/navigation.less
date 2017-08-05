@@ -33,13 +33,17 @@ div.project-menu-wrapper {
     font-weight: 600;
 }
 
-.ui.secondary.pointing.menu.primary-menu a.active.item {
-    background-color: rgba(240,240,240,1);
+.ui.secondary.pointing.menu.primary-menu .active.item,
+.ui.secondary.pointing.menu.primary-menu .active.item:hover
+{
+    background-color: @menuActiveBackground;
+    color: @darkText;
 }
 
 div.secondary-menu-wrapper {
-    margin-left: 0.25rem;
-    margin-right: 0.25rem;
+    margin-top: -0.5em;
+    margin-left: 0.25em;
+    margin-right: 0.25em;
     margin-bottom: 1em;
 }
 

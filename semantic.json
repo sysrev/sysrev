@@ -8,12 +8,12 @@
       "themes": "src/themes/"
     },
     "output": {
-      "packaged": "../resources/public/semantic/",
-      "uncompressed": "../resources/public/semantic/components/",
-      "compressed": "../resources/public/semantic/components/",
-      "themes": "../resources/public/semantic/themes/"
+      "packaged": "target/",
+      "uncompressed": "target/components/",
+      "compressed": "target/components/",
+      "themes": "target/themes/"
     },
-    "clean": "../resources/public/semantic/"
+    "clean": "target/"
   },
   "permission": false,
   "autoInstall": true,

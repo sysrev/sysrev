@@ -368,9 +368,8 @@
               (merge (select-keys entry [:answer :resolve])
                      {:confirmed (not (nil? confirm-time))
                       :confirm-epoch
-                      (max (if (nil? confirm-time) 0
-                               (tc/to-epoch confirm-time))
-                           (if (nil? updated-time) 0
+                      (if (nil? confirm-time) 0
+                          (max (tc/to-epoch confirm-time)
                                (tc/to-epoch updated-time)))}))))))))
 
 (defn merge-article-labels [article-ids]

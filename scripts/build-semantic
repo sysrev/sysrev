@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+if [[ -z "$1" ]]; then
+    theme="default"
+else
+    theme="$1"
+fi
+
+set -u
+
+echo "building semantic (\"$theme\")"
+
+cd semantic/src
+rm -f site
+ln -s "site.$theme" site
+cd ..
+gulp clean > /dev/null
+gulp build-css > /dev/null
+gulp build-assets > /dev/null
+cd ..
+out_dir="resources/public/semantic/$theme"
+mkdir -p "$out_dir"
+rm -rf "$out_dir"
+cp -r semantic/target "$out_dir"
+
+echo "wrote $out_dir"

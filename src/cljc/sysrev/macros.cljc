@@ -34,8 +34,7 @@
      (doseq [item# reqs#]
        (dispatch [:require item#]))
      [:div (when (and (not have-data#) dimmer# min-height#)
-             {:class "ui segment"
-              :style {:min-height min-height#}})
+             {:style {:min-height min-height#}})
       (when dimmer#
         [:div.ui.inverted.dimmer
          {:class (if loading# "active" "")}

@@ -98,6 +98,12 @@
   (let [project (get-project-raw db (active-project-id db))]
     (if (get-in project [:label-activity label-id])
       true false)))
+
+
+(defn- label-activity-raw [db label-id]
+  (let [project (get-project-raw db (active-project-id))]
+    (get-in project [:label-activity label-id])))
+
 (reg-sub
  :label-activity/raw
  (fn [[_ label-id]]
@@ -105,16 +111,23 @@
  (fn [[project] [_ label-id]]
    (get-in project [:label-activity label-id])))
 
+(defn- label-activity-articles-impl
+  [entries {:keys [answer-status answer-value]
+            :as filters}]
+  (->> entries
+       (mapv map->ArticleLabel)
+       (->ArticleLabels)
+       (id-grouped)
+       (filter (answer-status-filter answer-status))
+       (filter (answer-value-filter answer-value))
+       (sort-by :updated-time >)))
+
+(defn label-activity-articles [db label-id filters]
+  (label-activity-articles-impl (label-activity-raw db label-id) filters))
+
 (reg-sub
  :label-activity/articles
  (fn [[_ label-id filters]]
    [(subscribe [:label-activity/raw label-id])])
- (fn [[entries] [_ label-id {:keys [answer-status answer-value]
-                             :as filters}]]
-   (->> entries
-        (mapv map->ArticleLabel)
-        (->ArticleLabels)
-        (id-grouped)
-        (filter (answer-status-filter answer-status))
-        (filter (answer-value-filter answer-value))
-        (sort-by :updated-time >))))
+ (fn [[entries] [_ label-id filters]]
+   (label-activity-articles-impl entries filters)))

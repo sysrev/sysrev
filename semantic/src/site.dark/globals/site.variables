@@ -1,28 +1,26 @@
 /*******************************
      User Global Variables
 *******************************/
-@pageBackground : rgba(40, 40, 40, 1.0);
-@lighterBackground : lighten(@pageBackground, 20);
+@pageBackground : rgba(55, 55, 55, 1.0);
+@lighterBackground : lighten(@pageBackground, 7);
 @lightBackground: rgba(200, 200, 200, 1.0);
-@textColor : rgba(230, 230, 230, 0.925);
+
+@siteTextColor: rgba(230, 230, 230, 0.925);
+@textColor : @siteTextColor;
+@invertedTextColor: rgba(0, 0, 0, 0.925);
 @mutedTextColor : rgba(200, 200, 200, 0.85);
+
 @primaryColor : @blue;
 @lightPrimaryColor : @lightBlue;
-@secondaryColor : rgba(180, 180, 180, 1.0);
+@secondaryColor : lighten(@pageBackground, 20);
 @lightSecondaryColor : rgba(140, 140, 140, 1.0);
-@inputBackground : @secondaryColor;
+
+@inputBackground : rgba(230,230,230,1.0);
+@inputColor: @invertedTextColor;
+@inputPlaceholderColor: rgba(50,50,50,1.0);
+@inputPlaceholderFocusColor: rgba(30,30,30,1.0);
 
 @borderColor: rgba(180, 180, 180, 0.7);
 @solidBorderColor: rgba(180, 180, 180, 0.9);
 
-
-
-// copied from chemsim
-//
-// @textColor : rgba(0, 0, 0, 0.925);
-// @primaryColor : @blue;
-// @secondaryColor : #bfbfbf;
-// @lightPrimaryColor : @lightBlue;
-// @lightSecondaryColor : #cccccc;
-// @inputBackground : @secondaryColor;
-
+@grey: rgba(180, 180, 180, 0.925);

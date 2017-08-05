@@ -23,15 +23,16 @@
              update-fn))
 
 (reg-event-fx
- ::send-labels
+ :review/send-active-labels
  [trim-v]
  (fn [{:keys [db]} [force? args]]
    (when-let [article-id (:article-id args)]
-     (let [label-values (review/active-labels db article-id)
-           confirmed? (= (articles/article-user-status db article-id)
-                         :confirmed)]
-       (when (or (not confirmed?) force?)
-         {:dispatch-later [{:ms 50 :dispatch [:review/send-labels args]}]})))))
+     (when-not (empty? (review/review-ui-labels db article-id))
+       (let [label-values (review/active-labels db article-id)
+             confirmed? (= (articles/article-user-status db article-id)
+                           :confirmed)]
+         (when (or (not confirmed?) force?)
+           {:dispatch-later [{:ms 50 :dispatch [:review/send-labels args]}]}))))))
 
 (reg-event-db
  ::set-label-value
@@ -94,8 +95,7 @@
    (let [{:keys [value-type]} (labels/get-label-raw db label-id)]
      (condp = value-type
        "boolean"
-       {:db (set-label-value db article-id label-id label-value)
-        :dispatch [::send-labels false {:article-id article-id}]}
+       {:db (set-label-value db article-id label-id label-value)}
 
        "categorical"
        {::select-categorical-value [article-id label-id label-value]}))))
@@ -109,12 +109,10 @@
        (clj->js
         {:onAdd
          (fn [v t]
-           (dispatch [::add-label-value article-id label-id v])
-           (dispatch [::send-labels false {:article-id article-id}]))
+           (dispatch [::add-label-value article-id label-id v]))
          :onRemove
          (fn [v t]
-           (dispatch [::remove-label-value article-id label-id v])
-           (dispatch [::send-labels false {:article-id article-id}]))
+           (dispatch [::remove-label-value article-id label-id v]))
          :onChange
          (fn [_] (.dropdown (js/$ (r/dom-node c))
                             "hide"))})))
@@ -142,7 +140,7 @@
                 vs))
             current-values @(subscribe [:review/active-labels article-id label-id])
             dom-id (str "label-edit-" article-id "-" label-id)]
-        [:div.ui.large.fluid.multiple.selection.search.dropdown
+        [:div.ui.fluid.multiple.selection.search.dropdown
          {:id dom-id
           ;; hide dropdown on click anywhere in main dropdown box
           :on-click #(when (or (= dom-id (-> % .-target .-id))
@@ -298,8 +296,7 @@
        [:div.inner
         [three-state-selection
          (fn [new-value]
-           (dispatch [::set-label-value article-id label-id new-value])
-           (dispatch [::send-labels false {:article-id article-id}]))
+           (dispatch [::set-label-value article-id label-id new-value]))
          answer]]]]]))
 
 (defmethod label-column "categorical"
@@ -370,7 +367,7 @@
                   [^{:key {:label-row-end (last row)}}
                    [:div.column]])))])))]
     [:div
-     [:div.ui.top.attached.header.segment
+     [:div.ui.top.attached.segment
       [:h3
        (if resolving? "Resolve labels " "Edit labels ")
        [with-tooltip

@@ -39,7 +39,7 @@
        (str sstr)])))
 
 (defn article-info-main-content [article-id]
-  (with-loader [[:article article-id]] {:dimmer true}
+  (with-loader [[:article article-id]] {}
     (let [authors @(subscribe [:article/authors article-id])
           journal-name @(subscribe [:article/journal-name article-id])
           abstract @(subscribe [:article/abstract article-id])
@@ -76,12 +76,12 @@
                       (remove nil?))
         sclass (fn [sname]
                  (if (= sname (last segments))
-                   "bottom attached segment" "attached segment"))]
-    (with-loader (if @(subscribe [:review/on-review-task?])
-                   [[:review/task]]
-                   []) {:dimmer true}
+                   "bottom attached segment" "attached segment"))
+        review-task? @(subscribe [:review/on-review-task?])]
+    (with-loader (if review-task? [[:review/task]] [])
+      (if review-task? {:dimmer true} {})
       [:div
-       [:div.ui.top.attached.middle.aligned.header.segment
+       [:div.ui.top.attached.middle.aligned.segment
         [:div {:style {:float "left"}}
          [:h4 "Article info"]]
         (when status

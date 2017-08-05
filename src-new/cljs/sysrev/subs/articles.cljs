@@ -136,7 +136,7 @@
         (empty? ulmap)
         :none
 
-        (some :confirm-epoch (vals ulmap))
+        (some :confirmed (vals ulmap))
         :confirmed
 
         :else

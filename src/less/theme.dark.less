@@ -1,11 +1,25 @@
-@text: rgba(0, 0, 0, 0.925);
-@invertedText: rgba(230, 230, 230, 0.925);
+@darkText: rgba(0, 0, 0, 0.925);
+@lightText: rgba(230, 230, 230, 0.925);
+
+@text: @lightText;
+@invertedText: @darkText;
+
+@mutedText: fadeout(@text, 15%, relative);
+@mutedInvertedText: fadeout(@invertedText, 20%, relative);
+
 @green: rgba(33, 186, 69, 1);
 @blue: rgba(64, 121, 191, 1);
 @mediumGrey: rgba(100, 100, 100, 1);
 
-@background: rgba(255, 255, 255, 1.0);
-@background1: rgba(230, 230, 230, 1.0);
-@background2: rgba(200, 200, 200, 1.0);
+@background: rgba(78, 78, 78, 1.0);
+@background1: rgba(98, 98, 98, 1.0);
+@background2: rgba(110, 110, 110, 1.0);
+
+@blueBackground: screen(@background, rgba(50,100,160,1.0));
+@greenBackground: screen(@background, rgba(60,140,60,1.0));
+@redBackground: screen(@background, rgba(140,60,60,1.0));
+@purpleBackground: screen(@background, rgba(100,60,140,1.0));
 
 @inputBackground: @background;
+
+@menuActiveBackground: rgba(255,255,255,0.75);

@@ -152,7 +152,7 @@
         form-class (when-not (empty? form-errors) "warning")]
     [:div.ui.padded.segments.auto-margin
      {:style {:max-width "550px" :margin-top "10px"}}
-     [:h2.ui.top.attached.header
+     [:div.ui.top.attached.segment>h2
       @(subscribe [::header-title])]
      (when project-id
        [:div.ui.attached.segment>h4

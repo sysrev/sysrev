@@ -76,21 +76,12 @@
                    :answer-value @(subscribe [::answer-value])}])))))
 
 (reg-event-fx
- ::select-article
- [trim-v]
- (fn [_ [article-id]]
-   {:dispatch [:set-panel-field [:selected-article-id] article-id panel-name]}))
-(reg-sub
- ::selected-article-id
- (fn []
-   [(subscribe [:panel-field [:selected-article-id] panel-name])])
- (fn [[article-id]] article-id))
-
-(reg-event-fx
  :article-list/show-article
  [trim-v]
  (fn [_ [article-id]]
-   {:dispatch [:set-panel-field [:article-id] article-id panel-name]}))
+   {:dispatch-n
+    (list [:set-panel-field [:article-id] article-id panel-name]
+          [:set-panel-field [:selected-article-id] article-id panel-name])}))
 (reg-event-fx
  :article-list/hide-article
  [trim-v]
@@ -104,6 +95,33 @@
  (fn [[active-panel article-id]]
    (when (= active-panel panel-name)
      article-id)))
+(reg-sub
+ ::selected-article-id
+ :<- [:panel-field [:selected-article-id] panel-name]
+ identity)
+
+(reg-sub
+ ::next-article-id
+ :<- [:article-list/article-id]
+ :<- [::articles]
+ (fn [[article-id articles]]
+   (when (some #(= (:article-id %) article-id) articles)
+     (->> articles
+          (drop-while #(not= (:article-id %) article-id))
+          (drop 1)
+          first
+          :article-id))))
+
+(reg-sub
+ ::prev-article-id
+ :<- [:article-list/article-id]
+ :<- [::articles]
+ (fn [[article-id articles]]
+   (when (some #(= (:article-id %) article-id) articles)
+     (->> articles
+          (take-while #(not= (:article-id %) article-id))
+          last
+          :article-id))))
 
 (reg-sub-raw
  :article-list/editing?
@@ -201,9 +219,8 @@
     (let [all-values @(subscribe [:label/all-values label-id])
           n-columns (+ 3 3 (if (empty? all-values) 0 3) 2)
           whitespace-columns (- 16 n-columns)]
-      [:div.ui.secondary.segment
+      [:div.ui.secondary.segment.article-filters
        {:style {:padding "10px"}}
-       [:div.ui.small.dividing.header "Article filters"]
        [:form.ui.form
         [:div.field
          [:div.fields
@@ -248,144 +265,161 @@
         (doall))])
 
 (defn- article-list-view []
-  (when-let [label-id @(subscribe [:article-list/label-id])]
-    (with-loader [[:project/label-activity label-id]] {}
-      (let [full-size? (full-size?)
-            articles @(subscribe [::articles])
-            display-count 10
-            total-count (count articles)
-            display-offset @(subscribe [::display-offset])
-            visible-count (min display-count total-count)
-            active-aid @(subscribe [::selected-article-id])
-            on-next
-            #(when (< (+ display-offset display-count) total-count)
-               (dispatch [::change-display-offset display-count]))
-            on-previous
-            #(when (>= display-offset display-count)
-               (dispatch [::change-display-offset (- display-count)]))]
-        [:div
-         [:div.ui.top.attached.segment
-          {:style {:padding "10px"}}
-          [:div.ui.two.column.middle.aligned.grid
-           [:div.ui.left.aligned.column
-            [:h5 (str "Showing " (+ display-offset 1)
-                      "-" (min total-count (+ display-offset display-count))
-                      " of "
-                      total-count " matching articles")]]
-           [:div.ui.right.aligned.column
-            [:div.ui.tiny.button
-             {:class (if (= display-offset 0) "disabled" "")
-              :on-click on-previous}
-             "Previous"]
-            [:div.ui.tiny.button
-             {:class (if (>= (+ display-offset display-count) total-count)
-                       "disabled" "")
-              :on-click on-next}
-             "Next"]]]]
-         [:div.ui.bottom.attached.segment.article-list-segment
-          (->>
-           (->> articles
-                (drop display-offset)
-                (take display-count))
-           (map
-            (fn [las]
-              (let [article-id (:article-id las)
-                    fla (first (:article-labels las))
-                    title (:primary-title fla)
-                    active? (= article-id active-aid)
-                    answer-class
-                    (cond
-                      (la/is-resolved? las) "resolved"
-                      (la/is-concordance? las) "consistent"
-                      (la/is-single? las) "single"
-                      :else "conflict")
-                    classes
-                    (cond-> []
-                      active? (conj "active"))]
-                [:div.article-list-segments
-                 {:key article-id}
-                 [:div.ui.middle.aligned.grid.segment.article-list-article
-                  {:class (if active? "active" "")
-                   :style {:cursor "pointer"}
-                   :on-click #(do (dispatch [::select-article article-id])
-                                  (nav-scroll-top (str "/project/articles/" article-id)))}
-                  (if full-size?
-                    [:div.ui.row
-                     [:div.ui.one.wide.center.aligned.column
-                      [:div.ui.fluid.labeled.center.aligned.button
-                       [:i.ui.right.chevron.center.aligned.icon
-                        {:style {:width "100%"}}]]]
-                     [:div.ui.twelve.wide.column.article-title
-                      [:span.article-title title]]
-                     [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
-                      {:class answer-class}
-                      [:div.ui.middle.aligned.grid>div.row>div.column
-                       [answer-cell las answer-class]]]]
-                    [:div.ui.row
-                     [:div.ui.ten.wide.column.article-title
-                      [:span.article-title title]]
-                     [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
-                      {:class answer-class}
-                      [:div.ui.middle.aligned.grid>div.row>div.column
-                       [answer-cell las answer-class]]]])]])))
-           (doall))]]))))
+  (let [full-size? (full-size?)
+        articles @(subscribe [::articles])
+        display-count 10
+        total-count (count articles)
+        display-offset @(subscribe [::display-offset])
+        visible-count (min display-count total-count)
+        active-aid @(subscribe [::selected-article-id])
+        on-next
+        #(when (< (+ display-offset display-count) total-count)
+           (dispatch [::change-display-offset display-count]))
+        on-previous
+        #(when (>= display-offset display-count)
+           (dispatch [::change-display-offset (- display-count)]))
+        on-show-article
+        (fn [article-id]
+          #(nav (str "/project/articles/" article-id)))]
+    [:div
+     [:div.ui.top.attached.segment
+      {:style {:padding "10px"}}
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column
+        [:h5 (str "Showing " (+ display-offset 1)
+                  "-" (min total-count (+ display-offset display-count))
+                  " of "
+                  total-count " matching articles")]]
+       [:div.ui.right.aligned.column
+        [:div.ui.tiny.button
+         {:class (if (= display-offset 0) "disabled" "")
+          :on-click on-previous}
+         "Previous"]
+        [:div.ui.tiny.button
+         {:class (if (>= (+ display-offset display-count) total-count)
+                   "disabled" "")
+          :on-click on-next}
+         "Next"]]]]
+     [:div.ui.bottom.attached.segment.article-list-segment
+      (->>
+       (->> articles
+            (drop display-offset)
+            (take display-count))
+       (map
+        (fn [las]
+          (let [article-id (:article-id las)
+                fla (first (:article-labels las))
+                title (:primary-title fla)
+                active? (= article-id active-aid)
+                answer-class
+                (cond
+                  (la/is-resolved? las) "resolved"
+                  (la/is-concordance? las) "consistent"
+                  (la/is-single? las) "single"
+                  :else "conflict")
+                classes
+                (cond-> []
+                  active? (conj "active"))]
+            [:div.article-list-segments
+             {:key article-id}
+             [:div.ui.middle.aligned.grid.segment.article-list-article
+              {:class (if active? "active" "")
+               :style {:cursor "pointer"}
+               :on-click (on-show-article article-id)}
+              (if full-size?
+                [:div.ui.row
+                 [:div.ui.one.wide.center.aligned.column
+                  [:div.ui.fluid.labeled.center.aligned.button
+                   [:i.ui.right.chevron.center.aligned.icon
+                    {:style {:width "100%"}}]]]
+                 [:div.ui.twelve.wide.column.article-title
+                  [:span.article-title title]]
+                 [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
+                  {:class answer-class}
+                  [:div.ui.middle.aligned.grid>div.row>div.column
+                   [answer-cell las answer-class]]]]
+                [:div.ui.row
+                 [:div.ui.ten.wide.column.article-title
+                  [:span.article-title title]]
+                 [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
+                  {:class answer-class}
+                  [:div.ui.middle.aligned.grid>div.row>div.column
+                   [answer-cell las answer-class]]]])]])))
+       (doall))]]))
 
 (defn- article-list-article-view []
   (when-let [article-id @(subscribe [:article-list/article-id])]
-    (with-loader [[:article article-id]] {}
-      (let [label-values @(subscribe [:review/active-labels article-id])
-            overall-label-id @(subscribe [:project/overall-label-id])
-            user-id @(subscribe [:self/user-id])
-            user-status @(subscribe [:article/user-status article-id user-id])
-            editing? @(subscribe [:article-list/editing?])
-            resolving? @(subscribe [:article-list/resolving?])
-            close-article #(nav-scroll-top "/project/articles")
-            on-confirm #(if resolving?
-                          (dispatch [:scroll-top])
-                          (do (dispatch [:scroll-top])
-                              (dispatch [:article-list/hide-article])))]
-        [:div
-         [:div.ui.top.attached.header.segment.middle.aligned.article-info-header
-          {:style {:padding "0"}}
-          [:a.ui.large.fluid.button
-           {:on-click close-article}
-           [:i.close.icon]
-           "Close"]]
-         [:div.ui.bottom.attached.middle.aligned.segment
-          (let [show-labels (if (= user-status :unconfirmed) false :all)]
-            [article-info-view article-id
-             :show-labels show-labels])
-          (when editing?
-            [:div {:style {:margin-top "1em"}}
-             [label-editor-view]
-             #_
-             (let [missing (labels/required-answers-missing label-values)
-                   disabled? ((comp not empty?) missing)
-                   confirm-button
-                   [:div.ui.right.labeled.icon
-                    {:class (str (if disabled? "disabled" "")
-                                 " "
-                                 (if (get-loading-state :confirm) "loading" "")
-                                 " "
-                                 (if resolving? "purple button" "primary button"))
-                     :on-click
-                     (fn []
-                       (set-loading-state :confirm true)
-                       (ajax/confirm-active-labels on-confirm))}
-                    (if resolving? "Resolve conflict" "Confirm labels")
-                    [:i.check.circle.outline.icon]]]
-               [:div.ui.grid.centered
-                [:div.row
-                 (if disabled?
-                   [with-tooltip [:div confirm-button]]
-                   confirm-button)
-                 [:div.ui.inverted.popup.top.left.transition.hidden
-                  "Answer missing for a required label"]]])])]]))))
+    (let [articles @(subscribe [::articles])
+          label-values @(subscribe [:review/active-labels article-id])
+          overall-label-id @(subscribe [:project/overall-label-id])
+          user-id @(subscribe [:self/user-id])
+          user-status @(subscribe [:article/user-status article-id user-id])
+          editing? @(subscribe [:article-list/editing?])
+          resolving? @(subscribe [:article-list/resolving?])
+          close-article #(nav "/project/articles")
+          next-id @(subscribe [::next-article-id])
+          prev-id @(subscribe [::prev-article-id])
+          on-next #(when next-id
+                     (nav (str "/project/articles/" next-id)))
+          on-prev #(when prev-id
+                     (nav (str "/project/articles/" prev-id)))
+          ;; on-confirm #(dispatch [:article-list/hide-article])
+          on-confirm nil]
+      [:div
+       [:div.ui.top.attached.segment
+        {:style {:padding "10px"}}
+        [:div.ui.two.column.middle.aligned.grid
+         [:div.ui.left.aligned.column
+          [:div.ui.tiny.button {:on-click close-article}
+           "Back to list"]]
+         [:div.ui.right.aligned.column
+          [:div.ui.tiny.button
+           {:class (if (nil? prev-id) "disabled" "")
+            :on-click on-prev}
+           "Previous"]
+          [:div.ui.tiny.button
+           {:class (if (nil? next-id) "disabled" "")
+            :on-click on-next}
+           "Next"]]]]
+       [:div.ui.bottom.attached.middle.aligned.segment
+        (with-loader [[:article article-id]] {:dimmer true :min-height "300px"}
+          [:div
+           (let [show-labels (if (= user-status :unconfirmed) false :all)]
+             [article-info-view article-id
+              :show-labels show-labels])
+           (when editing?
+             [:div {:style {:margin-top "1em"}}
+              [label-editor-view]
+              #_
+              (let [missing (labels/required-answers-missing label-values)
+                    disabled? ((comp not empty?) missing)
+                    confirm-button
+                    [:div.ui.right.labeled.icon
+                     {:class (str (if disabled? "disabled" "")
+                                  " "
+                                  (if (get-loading-state :confirm) "loading" "")
+                                  " "
+                                  (if resolving? "purple button" "primary button"))
+                      :on-click
+                      (fn []
+                        (set-loading-state :confirm true)
+                        (ajax/confirm-active-labels on-confirm))}
+                     (if resolving? "Resolve conflict" "Confirm labels")
+                     [:i.check.circle.outline.icon]]]
+                [:div.ui.grid.centered
+                 [:div.row
+                  (if disabled?
+                    [with-tooltip [:div confirm-button]]
+                    confirm-button)
+                  [:div.ui.inverted.popup.top.left.transition.hidden
+                   "Answer missing for a required label"]]])])])]])))
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
-    (if @(subscribe [:article-list/article-id])
-      [article-list-article-view]
-      [:div
-       [article-filter-form]
-       [article-list-view]])))
+    (when-let [label-id @(subscribe [:article-list/label-id])]
+      (with-loader [[:project/label-activity label-id]] {}
+        [:div
+         [article-filter-form]
+         (if @(subscribe [:article-list/article-id])
+           [article-list-article-view]
+           [article-list-view])]))))
