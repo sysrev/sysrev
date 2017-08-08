@@ -5,11 +5,12 @@
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
    [reagent.ratom :refer [reaction]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer [selection-dropdown]]
+   [sysrev.views.components :refer
+    [selection-dropdown with-ui-help-tooltip ui-help-icon]]
    [sysrev.views.article :refer [article-info-view]]
    [sysrev.views.review :refer [label-editor-view]]
    [sysrev.subs.ui :refer [get-panel-field]]
-   [sysrev.subs.label-activity :as la]
+   [sysrev.subs.public-labels :as pl]
    [sysrev.routes :refer [nav nav-scroll-top]]
    [sysrev.util :refer [nbsp full-size? number-to-word]]
    [sysrev.shared.util :refer [in?]])
@@ -28,19 +29,27 @@
  ::set-label-id
  [trim-v]
  (fn [_ [label-id]]
-   {:dispatch-n
-    (list [:set-panel-field [:label-id] label-id panel-name]
-          [::set-answer-value nil])}))
+   {:dispatch [:set-panel-field [:label-id] label-id panel-name]}))
 
 (reg-sub
- ::answer-status
- :<- [:panel-field [:answer-status] panel-name]
+ ::group-status
+ :<- [:panel-field [:group-status] panel-name]
  (fn [status] status))
 (reg-event-fx
- ::set-answer-status
+ ::set-group-status
  [trim-v]
  (fn [_ [status]]
-   {:dispatch [:set-panel-field [:answer-status] status panel-name]}))
+   {:dispatch [:set-panel-field [:group-status] status panel-name]}))
+
+(reg-sub
+ ::inclusion-status
+ :<- [:panel-field [:inclusion-status] panel-name]
+ (fn [status] status))
+(reg-event-fx
+ ::set-inclusion-status
+ [trim-v]
+ (fn [_ [status]]
+   {:dispatch [:set-panel-field [:inclusion-status] status panel-name]}))
 
 (reg-sub
  ::answer-value
@@ -59,10 +68,12 @@
    {:dispatch-n
     (->> (list (when-not (in? keep :label-id)
                  [::set-label-id nil])
-               (when-not (in? keep :answer-status)
-                 [::set-answer-status nil])
+               (when-not (in? keep :group-status)
+                 [::set-group-status nil])
                (when-not (in? keep :answer-value)
-                 [::set-answer-value nil]))
+                 [::set-answer-value nil])
+               (when-not (in? keep :inclusion-status)
+                 [::set-inclusion-status nil]))
          (remove nil?))}))
 
 (reg-sub-raw
@@ -71,9 +82,10 @@
    (reaction
     (when-let [label-id @(subscribe [:article-list/label-id])]
       @(subscribe
-        [:label-activity/articles
-         label-id {:answer-status @(subscribe [::answer-status])
-                   :answer-value @(subscribe [::answer-value])}])))))
+        [:public-labels/query-articles
+         label-id {:group-status @(subscribe [::group-status])
+                   :answer-value @(subscribe [::answer-value])
+                   :inclusion-status @(subscribe [::inclusion-status])}])))))
 
 (reg-event-fx
  :article-list/show-article
@@ -173,22 +185,40 @@
            (fn [label-id]
              [:div.item
               (into {:key label-id
-                     :on-click #(dispatch [::set-label-id label-id])}
+                     :on-click #(do (dispatch [::set-label-id label-id])
+                                    (dispatch [::reset-filters [:label-id]]))}
                     (when (= label-id active-id)
                       {:class "active selected"}))
               @(subscribe [:label/display label-id])])))]))
 
-(defn- answer-status-selector []
-  (let [active-status @(subscribe [::answer-status])
+(defn- group-status-selector []
+  (let [active-status @(subscribe [::group-status])
         status-name #(if (nil? %) "<Any>" (-> % name str/capitalize))]
     [selection-dropdown
      [:div.text (status-name active-status)]
-     (->> (concat [nil] la/answer-statuses)
+     (->> (concat [nil] pl/group-statuses)
           (mapv
            (fn [status]
              [:div.item
               (into {:key status
-                     :on-click #(dispatch [::set-answer-status status])}
+                     :on-click #(do (dispatch [::set-group-status status])
+                                    (when (= status :conflict)
+                                      (dispatch [::set-inclusion-status nil])))}
+                    (when (= status active-status)
+                      {:class "active selected"}))
+              (status-name status)])))]))
+
+(defn- inclusion-status-selector []
+  (let [active-status @(subscribe [::inclusion-status])
+        status-name #(if (nil? %) "<Any>" (str %))]
+    [selection-dropdown
+     [:div.text (status-name active-status)]
+     (->> [nil true false]
+          (mapv
+           (fn [status]
+             [:div.item
+              (into {:key status
+                     :on-click #(dispatch [::set-inclusion-status status])}
                     (when (= status active-status)
                       {:class "active selected"}))
               (status-name status)])))]))
@@ -216,8 +246,19 @@
 
 (defn- article-filter-form []
   (when-let [label-id @(subscribe [:article-list/label-id])]
-    (let [all-values @(subscribe [:label/all-values label-id])
-          n-columns (+ 3 3 (if (empty? all-values) 0 3) 2)
+    (let [overall? @(subscribe [:label/overall-include? label-id])
+          boolean? @(subscribe [:label/boolean? label-id])
+          all-values @(subscribe [:label/all-values label-id])
+          criteria? @(subscribe [:label/inclusion-criteria? label-id])
+          group-status @(subscribe [::group-status])
+          select-answer? (and (not (and boolean? criteria?))
+                              (not-empty all-values))
+          select-group-status? (and criteria? (not= group-status :conflict))
+          n-columns (+ 3
+                       (if criteria? 3 0)
+                       (if select-group-status? 3 0)
+                       (if select-answer? 3 0)
+                       2)
           whitespace-columns (- 16 n-columns)]
       [:div.ui.secondary.segment.article-filters
        {:style {:padding "10px"}}
@@ -225,14 +266,35 @@
         [:div.field
          [:div.fields
           [:div.ui.small.three.wide.field
-           [:label "Label"]
+           (doall
+            (with-ui-help-tooltip
+              [:label "Label " [ui-help-icon :size ""]]
+              :help-content
+              ["Filter articles by answers for this label"]))
            [label-selector]]
-          [:div.ui.small.three.wide.field
-           [:label "Answer status"]
-           [answer-status-selector]]
-          (when-not (empty? all-values)
+          (when criteria?
             [:div.ui.small.three.wide.field
-             [:label "Answer value"]
+             (doall
+              (with-ui-help-tooltip
+                [:label "Group Status " [ui-help-icon :size ""]]
+                :help-content
+                ["Filter by group agreement on inclusion status for selected label"]))
+             [group-status-selector]])
+          (when select-group-status?
+            [:div.ui.small.three.wide.field
+             (doall
+              (with-ui-help-tooltip
+                [:label "Inclusion Status " [ui-help-icon :size ""]]
+                :help-content
+                ["Filter by answer inclusion status for selected label"]))
+             [inclusion-status-selector]])
+          (when select-answer?
+            [:div.ui.small.three.wide.field
+             (doall
+              (with-ui-help-tooltip
+                [:label "Answer Value " [ui-help-icon :size ""]]
+                :help-content
+                ["Filter by presence of answer value for selected label"]))
              [answer-value-selector]])
           (when (full-size?)
             [:div {:class (str (number-to-word whitespace-columns)
@@ -240,7 +302,7 @@
           [:div.ui.small.two.wide.field
            [:label nbsp]
            [:div.ui.button
-            {:on-click #(dispatch [::reset-filters])}
+            {:on-click #(dispatch [::reset-filters [:label-id]])}
             "Reset filters"]]]]]])))
 
 (defmulti answer-cell-icon identity)
@@ -248,24 +310,23 @@
 (defmethod answer-cell-icon false [] [:i.ui.orange.circle.minus.icon])
 (defmethod answer-cell-icon :default [] [:i.ui.grey.question.mark.icon])
 
-(defn- answer-cell [label-groups answer-class]
+(defn- answer-cell [article-id labels answer-class]
   [:div.ui.divided.list
-   (->> (la/user-grouped label-groups)
-        (map (fn [u]
-               (let [user-id (:user-id u)
-                     article-label (:article-label u)
-                     article-id (:article-id article-label)
-                     answer (:answer article-label)]
+   (->> labels
+        (map (fn [entry]
+               (let [user-id (:user-id entry)
+                     inclusion (:inclusion entry)]
                  (when (or (not= answer-class "resolved")
-                           (:resolve article-label))
+                           (:resolve entry))
                    [:div.item {:key [:answer article-id user-id]}
-                    (answer-cell-icon answer)
+                    (answer-cell-icon inclusion)
                     [:div.content>div.header
                      @(subscribe [:user/display user-id])]]))))
         (doall))])
 
 (defn- article-list-view []
   (let [full-size? (full-size?)
+        label-id @(subscribe [:article-list/label-id])
         articles @(subscribe [::articles])
         display-count 10
         total-count (count articles)
@@ -286,10 +347,18 @@
       {:style {:padding "10px"}}
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
-        [:h5 (str "Showing " (+ display-offset 1)
-                  "-" (min total-count (+ display-offset display-count))
-                  " of "
-                  total-count " matching articles")]]
+        (doall
+         (with-ui-help-tooltip
+           [:h5.no-margin
+            (str "Showing " (+ display-offset 1)
+                 "-" (min total-count (+ display-offset display-count))
+                 " of "
+                 total-count " matching articles ")
+            [ui-help-icon]]
+           :help-content
+           ["Public listing of articles reviewed by multiple users"
+            [:div.ui.divider]
+            "Articles are hidden for 12 hours after any edit to labels"]))]
        [:div.ui.right.aligned.column
         [:div.ui.tiny.button
          {:class (if (= display-offset 0) "disabled" "")
@@ -306,16 +375,14 @@
             (drop display-offset)
             (take display-count))
        (map
-        (fn [las]
-          (let [article-id (:article-id las)
-                fla (first (:article-labels las))
-                title (:primary-title fla)
+        (fn [{:keys [article-id title updated-time labels]}]
+          (let [labels (get labels label-id)
                 active? (= article-id active-aid)
                 answer-class
                 (cond
-                  (la/is-resolved? las) "resolved"
-                  (la/is-concordance? las) "consistent"
-                  (la/is-single? las) "single"
+                  (pl/is-resolved? labels) "resolved"
+                  (pl/is-consistent? labels) "consistent"
+                  (pl/is-single? labels) "single"
                   :else "conflict")
                 classes
                 (cond-> []
@@ -337,14 +404,14 @@
                  [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
                   {:class answer-class}
                   [:div.ui.middle.aligned.grid>div.row>div.column
-                   [answer-cell las answer-class]]]]
+                   [answer-cell article-id labels answer-class]]]]
                 [:div.ui.row
                  [:div.ui.ten.wide.column.article-title
                   [:span.article-title title]]
                  [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
                   {:class answer-class}
                   [:div.ui.middle.aligned.grid>div.row>div.column
-                   [answer-cell las answer-class]]]])]])))
+                   [answer-cell article-id labels answer-class]]]])]])))
        (doall))]]))
 
 (defn- article-list-article-view []
@@ -417,9 +484,9 @@
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
     (when-let [label-id @(subscribe [:article-list/label-id])]
-      (with-loader [[:project/label-activity label-id]] {}
-        [:div
-         [article-filter-form]
+      [:div
+       [article-filter-form]
+       (with-loader [[:project/public-labels]] {}
          (if @(subscribe [:article-list/article-id])
            [article-list-article-view]
-           [article-list-view])]))))
+           [article-list-view]))])))

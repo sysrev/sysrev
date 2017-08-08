@@ -8,5 +8,5 @@
             sysrev.subs.keywords
             sysrev.subs.review
             sysrev.subs.labels
-            sysrev.subs.label-activity
+            sysrev.subs.public-labels
             sysrev.subs.ui))

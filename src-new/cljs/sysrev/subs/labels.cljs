@@ -94,6 +94,12 @@
  (fn [[label]] (:name label)))
 
 (reg-sub
+ :label/overall-include?
+ (fn [[_ label-id project-id]]
+   [(subscribe [:label/name label-id project-id])])
+ (fn [[name]] (= name "overall include")))
+
+(reg-sub
  :label/display
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])

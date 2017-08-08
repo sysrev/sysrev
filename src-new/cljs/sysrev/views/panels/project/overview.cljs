@@ -2,7 +2,7 @@
   (:require
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
-   [sysrev.subs.label-activity :refer [answer-statuses]]
+   [sysrev.subs.public-labels :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.charts :refer [chart-container pie-chart]]
    [sysrev.views.panels.project.article-list :as article-list]
@@ -11,11 +11,11 @@
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(defn nav-article-status [status]
-  (when (in? answer-statuses status)
+(defn nav-group-status [status]
+  (when (in? group-statuses status)
     (nav-scroll-top "/project/articles")
-    (dispatch [::article-list/set-answer-status status])
-    (dispatch [::article-list/reset-filters [:answer-status]])))
+    (dispatch [::article-list/reset-filters [:group-status]])
+    (dispatch [::article-list/set-group-status status])))
 
 (defn- chart-value-labels [entries]
   [:div.ui.one.column.center.aligned.middle.aligned.grid
@@ -38,7 +38,7 @@
                {:style {:padding "7px"
                         :margin "4px"
                         :border (str "1px solid " color)}
-                :on-click #(nav-article-status status)}
+                :on-click #(nav-group-status status)}
                [:span (str "View " label " (" value ")")]]]))
           doall)]]))
     doall)])
@@ -67,7 +67,7 @@
              ["Consistent" consistent green]
              ["Conflicting" conflict red]
              ["Resolved" resolved purple]]
-            #(nav-article-status
+            #(nav-group-status
               (nth [:single :consistent :conflict :resolved] %))]]
           [:div.column.pie-chart
            [chart-value-labels

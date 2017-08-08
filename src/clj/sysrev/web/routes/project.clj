@@ -198,12 +198,12 @@
                deletion (delete-file project-id (UUID/fromString key))]
            {:result deletion})))
 
-  (GET "/api/label-activity/:label-id" request
+  (GET "/api/public-labels" request
        (wrap-permissions
         request [] ["member"]
-        (let [project-id (active-project request)
-              uuid (-> request :params :label-id (UUID/fromString))]
-          {:result (labels/query-article-labels uuid)}))))
+        (let [project-id (active-project request)]
+          {:result (labels/query-public-article-labels
+                    project-id :exclude-hours 12)}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

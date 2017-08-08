@@ -39,6 +39,8 @@
             [clojure.spec.test.alpha :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
+            [clj-time.core :as time]
+            [clj-time.coerce :as tc]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]

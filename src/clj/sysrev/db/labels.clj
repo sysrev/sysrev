@@ -19,6 +19,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.math.numeric-tower :as math]
             [clojure.tools.logging :as log]
+            [clj-time.core :as t]
             [clj-time.coerce :as tc])
   (:import java.util.UUID))
 
@@ -504,22 +505,18 @@
   (assert (map? label-values))
   (do-transaction
    nil
-   (let [[valid-values
-          now
-          project-id
-          current-entries]
-         (pvalues
-          (->> label-values filter-valid-label-values)
-          (sql-now)
-          (:project-id (q/query-article-by-id article-id [:project-id]))
-          (when change?
-            (-> (q/select-article-by-id article-id [:al.*])
-                (q/join-article-labels)
-                (q/filter-label-user user-id)
-                (->> (do-query)
-                     (map #(dissoc %
-                                   :article-label-id
-                                   :article-label-local-id))))))
+   (let [valid-values (->> label-values filter-valid-label-values)
+         now (sql-now)
+         project-id (:project-id (q/query-article-by-id article-id [:project-id]))
+         current-entries
+         (when change?
+           (-> (q/select-article-by-id article-id [:al.*])
+               (q/join-article-labels)
+               (q/filter-label-user user-id)
+               (->> (do-query)
+                    (map #(dissoc %
+                                  :article-label-id
+                                  :article-label-local-id)))))
          overall-label-id (project-overall-label-id project-id)
          confirm? (if imported?
                     (boolean (get valid-values overall-label-id))
@@ -647,21 +644,91 @@
         :args (s/cat :label-id ::sc/label-id
                      :enabled? boolean?))
 
-(defn query-article-labels [label-id]
-  (-> (select :a.article-id :a.primary-title :al.answer :al.resolve
-              :al.confirm-time :wu.user-id)
-      (from [:article :a])
-      (join [:article-label :al] [:= :a.article_id :al.article_id]
-            [:web-user :wu] [:= :al.user-id :wu.user-id])
-      (where [:and
-              [:= :al.label-id label-id]
-              [:= :a.enabled true]
-              [:!= :al.confirm-time nil]])
-      (order-by :a.article-id)
-      (->> (do-query)
-           (mapv #(-> (assoc % :confirm-epoch
-                             (tc/to-epoch (:confirm-time %)))
-                      (dissoc :confirm-time))))))
+(defn query-public-article-labels
+  [project-id & {:keys [exclude-hours]}]
+  (let [cutoff-epoch
+        (when exclude-hours
+          (tc/to-epoch (t/minus (tc/from-sql-date (sql-now))
+                                (t/hours exclude-hours))))
+
+        include-article?
+        (fn [entries]
+          (cond (nil? cutoff-epoch) true
+                (empty? entries)    false
+                :else
+                (let [edit-epoch
+                      (->> entries (map :confirm-epoch) (apply max))]
+                  (< edit-epoch cutoff-epoch))))
+
+        [all-articles all-labels]
+        (pvalues
+         (-> (select :a.article-id :a.primary-title)
+             (from [:article :a])
+             (where [:and
+                     [:= :a.project-id project-id]
+                     [:= :a.enabled true]
+                     [:exists
+                      (-> (select :*)
+                          (from [:article-label :al])
+                          (where [:and
+                                  [:= :al.article-id :a.article-id]
+                                  [:!= :al.confirm-time nil]
+                                  [:!= :al.answer nil]]))]])
+             (->> do-query
+                  (group-by :article-id)
+                  (map-values first)))
+         (-> (select :a.article-id :al.label-id :al.answer :al.inclusion
+                     :al.resolve :al.confirm-time :wu.user-id)
+             (from [:article :a])
+             (join [:article-label :al] [:= :a.article_id :al.article_id]
+                   [:web-user :wu] [:= :al.user-id :wu.user-id])
+             (where [:and
+                     [:= :a.project-id project-id]
+                     [:= :a.enabled true]
+                     [:!= :al.confirm-time nil]
+                     [:!= :al.answer nil]])
+             (->> (do-query)
+                  (remove #(or (nil? (:answer %))
+                               (and (coll? (:answer %))
+                                    (empty? (:answer %)))))
+                  (map #(-> (assoc % :confirm-epoch
+                                   (tc/to-epoch (:confirm-time %)))
+                            (dissoc :confirm-time)))
+                  (group-by :article-id)
+                  (map-values (fn [entries]
+                                (let [user-ids (->> entries (map :user-id) distinct)]
+                                  (if (> (count user-ids) 1)
+                                    entries []))))
+                  (map-values (fn [entries]
+                                (if (include-article? entries)
+                                  entries [])))
+                  (filter (fn [[article-id entries]]
+                            (not-empty entries)))
+                  (apply concat)
+                  (apply hash-map)
+                  (map-values (fn [entries]
+                                (map #(dissoc % :article-id) entries)))
+                  (map-values (fn [entries]
+                                {:labels entries
+                                 :updated-time (->> entries (map :confirm-epoch)
+                                                    (apply max))})))))]
+    (->> (keys all-labels)
+         (filter #(contains? all-articles %))
+         (map
+          (fn [article-id]
+            (let [article (get all-articles article-id)
+                  updated-time (get-in all-labels [article-id :updated-time])
+                  labels
+                  (->> (get-in all-labels [article-id :labels])
+                       (group-by :label-id)
+                       (map-values
+                        (fn [entries]
+                          (map #(dissoc % :label-id :confirm-epoch) entries))))]
+              [article-id {:title (:primary-title article)
+                           :updated-time updated-time
+                           :labels labels}])))
+         (apply concat)
+         (apply hash-map))))
 
 (defn query-member-articles [project-id user-id]
   (-> (select :a.article-id :a.primary-title :al.answer :al.resolve
@@ -690,3 +757,62 @@
               (let [primary-title (:primary-title (first xs))]
                 {:primary-title primary-title
                  :labels (->> xs (mapv #(dissoc % :primary-title :article-id)))}))))))
+
+(defn article-user-multi-labels
+  "Queries article-label entries, returning a list entries for each user.
+  Multiple entries should not exist, this is only useful for fixing them.
+  (Also this is now prevented with a Postgres unique constraint)."
+  [article-id]
+  (->>
+   (-> (q/select-article-by-id article-id [:al.*])
+       (q/join-article-labels)
+       do-query)
+   (group-by :user-id)
+   (map-values
+    (fn [ulabels]
+      (->> ulabels
+           (group-by :label-id)
+           (map-values
+            (fn [entries]
+              (->> entries (sort-by :article-label-local-id >)))))))))
+
+(defn fix-duplicate-answers
+  "Queries for any multiple entries in article-label for a single (article_id, user_id, label_id)
+   and deletes all but the newest if they exist.
+   Duplicates should be prevented now by a Postgres unique constraint, but this is needed
+   for migration before the constraint can be added."
+  []
+  (let [entries
+        (-> (q/select-project-articles nil [:al.article-id :al.user-id :al.label-id :al.answer])
+            (q/join-article-labels)
+            (->> do-query
+                 (group-by (fn [{:keys [article-id user-id label-id]}]
+                             [article-id user-id label-id]))
+                 (filter (fn [[key answers]]
+                           (> (count answers) 1)))
+                 (apply concat)
+                 (apply hash-map)))
+        answers (->> entries (map-values #(map :answer %)))
+        article-ids (->> entries vals (map #(map :article-id %)) (apply concat) distinct)]
+    (when-not (empty? article-ids)
+      (doseq [article-id article-ids]
+        (when-let [multi-labels (article-user-multi-labels article-id)]
+          (doseq [user-id (keys multi-labels)]
+            (let [umap (get multi-labels user-id)]
+              (doseq [label-id (keys umap)]
+                (let [entries (get umap label-id)]
+                  (when (> (count entries) 1)
+                    (let [keep-id (->> entries (map :article-label-local-id) (apply max))]
+                      (doseq [entry entries]
+                        (when (not= keep-id (:article-label-local-id entry))
+                          (let [deleted
+                                (-> (delete-from :article-label)
+                                    (where [:and
+                                            [:= :article-id article-id]
+                                            [:= :user-id user-id]
+                                            [:= :label-id label-id]
+                                            [:= :article-label-id (:article-label-id entry)]])
+                                    do-execute)]
+                            (println (str "deleted " deleted " from article-id=" article-id)))))))))))))
+      (println (str "fixed duplicate answers for " (count article-ids) " articles")))
+    true))

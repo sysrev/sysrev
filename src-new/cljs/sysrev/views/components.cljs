@@ -192,3 +192,26 @@
             :aria-hidden true
             :style {:margin-left "0.25em"
                     :margin-right "0"}}])]))
+
+(defn ui-help-icon [& {:keys [size] :or {size "large"}}]
+  [:i.ui.grey.circle.question.mark.icon {:class size}])
+
+(defn with-ui-help-tooltip [element & {:keys [help-content help-element]}]
+  (list
+   ^{:key :tooltip-content}
+   [with-tooltip
+    element
+    {:delay {:show 400
+             :hide 0}
+     :hoverable false}]
+   ^{:key :tooltip-help}
+   [:div.ui.popup.transition.hidden.tooltip
+    (cond help-content
+          (doall (map-indexed #(if (string? %2)
+                                 ^{:key %1}
+                                 [:p %2]
+                                 ^{:key %1}
+                                 [:div %2])
+                              help-content))
+          help-element
+          help-element)]))

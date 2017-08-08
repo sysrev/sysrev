@@ -30,8 +30,7 @@
   (before-route-change)
   (dispatch [:set-active-panel [:project :project :articles]])
   (dispatch [:article-list/hide-article])
-  (when-let [label-id @(subscribe [:article-list/label-id])]
-    (dispatch [:reload [:project/label-activity label-id]])))
+  (dispatch [:reload [:project/public-labels]]))
 
 (defroute articles-id "/project/articles/:article-id" [article-id]
   (before-route-change)

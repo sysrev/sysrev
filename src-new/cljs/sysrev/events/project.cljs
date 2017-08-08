@@ -27,9 +27,9 @@
      db)))
 
 (reg-event-db
- :project/load-label-activity
+ :project/load-public-labels
  [trim-v]
- (fn [db [label-id content]]
+ (fn [db [content]]
    (let [project-id (active-project-id db)]
-     (assoc-in db [:data :project project-id :label-activity label-id]
+     (assoc-in db [:data :project project-id :public-labels]
                content))))

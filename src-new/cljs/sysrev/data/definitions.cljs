@@ -5,7 +5,7 @@
    [sysrev.data.core :refer [def-data]]
    [sysrev.subs.auth :refer [have-identity?]]
    [sysrev.subs.project :refer [project-loaded? active-project-id]]
-   [sysrev.subs.label-activity :refer [have-label-activity?]]
+   [sysrev.subs.public-labels :refer [have-public-labels?]]
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
@@ -45,13 +45,13 @@
     (let [project-id (active-project-id db)]
       {:dispatch [:project/load-settings project-id settings]})))
 
-(def-data :project/label-activity
-  :loaded-p have-label-activity?
-  :uri (fn [label-id] (str "/api/label-activity/" label-id))
-  :prereqs (fn [label-id] [[:identity] [:project]])
+(def-data :project/public-labels
+  :loaded-p have-public-labels?
+  :uri (fn [] "/api/public-labels")
+  :prereqs (fn [] [[:identity] [:project]])
   :process
-  (fn [_ [label-id] result]
-    {:dispatch [:project/load-label-activity label-id result]}))
+  (fn [_ _ result]
+    {:dispatch [:project/load-public-labels result]}))
 
 (def-data :member/articles
   :loaded-p have-member-articles?
