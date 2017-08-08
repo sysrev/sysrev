@@ -57,19 +57,20 @@
  :user/admin?
  (fn [[_ user-id]]
    [(subscribe [:user/permissions user-id])])
- (fn [[perms]]
-   (boolean (in? perms "admin"))))
+ (fn [[perms]] (boolean (in? perms "admin"))))
 
 (reg-sub
  :user/visible?
- (fn [[_ user-id]]
-   [(subscribe [:user/admin? user-id])])
- (fn [[admin?]]
-   (not admin?)))
+ (fn [[_ user-id include-self-admin?]]
+   [(subscribe [:self/user-id])
+    (subscribe [:user/admin? user-id])])
+ (fn [[self-id admin?] [_ user-id include-self-admin?]]
+   (or (not admin?)
+       (and include-self-admin?
+            (= user-id self-id)))))
 
 (reg-sub
  :user/project-ids
  (fn [[_ user-id]]
    [(subscribe [::user user-id])])
- (fn [[user]]
-   (:projects user)))
+ (fn [[user]] (:projects user)))

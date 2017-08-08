@@ -1,10 +1,13 @@
-div.article-list-article.active,
+div.article-list-article.active {
+    background-color: mix(@background, @text, 92);
+}
+
 div.article-list-article.active:hover {
-    background-color: rgba(225,225,225,1.0);
+    background-color: mix(@background, @text, 88);
 }
 
 div.article-list-article:hover {
-    background-color: rgba(245,245,245,1.0);
+    background-color: mix(@background, @text, 96);
 }
 
 div.article-list-article .article-title {

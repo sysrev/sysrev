@@ -107,11 +107,11 @@
        register?
        {:dispatch-n
         (list [::set-submitted]
-              [:action [:register-user email password project-id]])}
+              [:action [:auth/register email password project-id]])}
        :else
        {:dispatch-n
         (list [::set-submitted]
-              [:action [:log-in email password]])}))))
+              [:action [:auth/log-in email password]])}))))
 
 (reg-sub
  ::login-error-msg

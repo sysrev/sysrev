@@ -1,0 +1,4 @@
+.ui.labeled.input > .label {
+    background-color: @inputBackground;
+    color: @mutedInvertedTextColor;
+}

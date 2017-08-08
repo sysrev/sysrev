@@ -22,11 +22,22 @@
              [wrap-no-cache wrap-add-anti-forgery-token
               wrap-sysrev-response not-found-response]]))
 
+(declare app-routes)
+
 (defn load-app-routes []
   (defroutes app-routes
     auth-routes
     site-routes
     project-routes))
+
+(defroutes html-routes
+  (GET "*" {:keys [uri] :as request}
+       (if (some-> uri (str/split #"/") last (str/index-of \.))
+         ;; Fail if request appears to be for a static file
+         (not-found-response request)
+         ;; Otherwise serve index.html
+         (index/index request)))
+  (not-found (not-found-response nil)))
 
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
@@ -65,23 +76,31 @@
         (default/wrap-defaults config)
         (wrap-json-body {:keywords? true}))))
 
+(defn wrap-sysrev-html
+  "Ring handler wrapper for web HTML responses"
+  [handler & [reloadable?]]
+  (let [config
+        (-> default/site-defaults
+            (assoc-in [:session :store] (sysrev-session-store))
+            (assoc-in [:security :anti-forgery] false))]
+    (-> handler
+        (#(if reloadable?
+            (wrap-reload % {:dirs ["src/clj"]})
+            (identity %)))
+        wrap-no-cache
+        (default/wrap-defaults config))))
+
 (defn sysrev-handler
   "Root handler for web server"
   [& [reloadable?]]
   (routes
-   (GET "/" [] index/index)
    (ANY "/web-api/*" []
         (wrap-routes (api-routes) wrap-sysrev-api reloadable?))
    (ANY "/api/*" []
         (wrap-routes app-routes wrap-sysrev-app reloadable?))
    (compojure.route/resources "/")
-   (GET "*" {:keys [uri] :as request}
-        (if (-> uri (str/split #"/") last (str/index-of \.))
-          ;; Fail if request appears to be for a static file
-          (not-found-response request)
-          ;; Otherwise serve index.html
-          (index/index request)))
-   (not-found (index/not-found nil))))
+   (GET "*" []
+        (wrap-routes html-routes wrap-sysrev-html reloadable?))))
 
 (defonce web-server (atom nil))
 (defonce web-port (atom nil))

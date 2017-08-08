@@ -1,0 +1,2 @@
+@background: @segmentBackground;
+@headerBackground: @secondarySegmentBackground;

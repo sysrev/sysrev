@@ -68,6 +68,12 @@
    (:stats project)))
 
 (reg-sub
+ :project/settings
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]] (:settings project)))
+
+(reg-sub
  :project/article-counts
  (fn [[_ project-id]]
    [(subscribe [::stats project-id])])

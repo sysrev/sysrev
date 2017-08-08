@@ -26,24 +26,22 @@
        {:href "/"}
        [:h3.ui.blue.header
         "sysrev.us"]]
-      (when admin?
-        [dropdown-menu [{:content "Clear query cache"
-                         :action #(dispatch [:action [:clear-query-cache]])}]
-         :dropdown-class "dropdown item"
-         :label [:i.fitted.code.icon]])
+      [:a.item
+       {:href "/"}
+       "Projects"]
       [:div.item.loading-indicator
        [loading-indicator]]
       (if logged-in?
         [:div.right.menu
-         [dropdown-menu [{:content "Account settings"
-                          :action "/user/settings"}
-                         {:content "Log out"
-                          :action #(dispatch [:action [:log-out]])}]
-          :dropdown-class "dropdown item"
-          :style {:padding-left "2.5em"
-                  :padding-right "2.5em"}
-          :label [:span.blue-text
-                  [:i.user.icon] user-display]]
+         (when admin?
+           [dropdown-menu [{:content "Clear query cache"
+                            :action #(dispatch [:action [:dev/clear-query-cache]])}]
+            :dropdown-class "dropdown item"
+            :label [:i.fitted.code.icon]])
+         [:a.item {:href "/user/settings"}
+          "Settings"]
+         [:a.item {:on-click #(dispatch [:action [:auth/log-out]])}
+          "Log Out"]
          [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          [:a.item.distinct {:href "/login"}

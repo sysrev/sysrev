@@ -1,8 +1,3 @@
-/*******************************
-    User Variable Overrides
-*******************************/
-
-// these are just copied from chemsim
 @inputColor            : rgba(0, 0, 0, 0.925);
 @placeholderColor      : rgba(0, 0, 0, 0.875);
 @focusColor            : rgba(0, 0, 0, 0.925);

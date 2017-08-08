@@ -22,8 +22,9 @@
    (let [label-values (review/active-labels db article-id)
          change? (= (articles/article-user-status db article-id)
                     :confirmed)]
-     {:dispatch [:action [:send-labels {:article-id article-id
-                                        :label-values label-values
-                                        :confirm? confirm?
-                                        :resolve? resolve?
-                                        :change? change?}]]})))
+     {:dispatch [:action [:review/send-labels
+                          {:article-id article-id
+                           :label-values label-values
+                           :confirm? confirm?
+                           :resolve? resolve?
+                           :change? change?}]]})))

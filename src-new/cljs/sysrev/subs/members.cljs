@@ -1,6 +1,7 @@
 (ns sysrev.subs.members
   (:require
-   [re-frame.core :as re-frame :refer [subscribe reg-sub]]
+   [re-frame.core :as re-frame :refer [subscribe reg-sub reg-sub-raw]]
+   [reagent.ratom :refer [reaction]]
    [sysrev.shared.util :refer [in?]]
    [sysrev.subs.project :as project]))
 
@@ -11,12 +12,20 @@
  (fn [[project]]
    (:members project)))
 
-(reg-sub
+(reg-sub-raw
  :project/member-user-ids
- (fn [[_ project-id]]
-   [(subscribe [::members project-id])])
- (fn [[members]]
-   (keys members)))
+ (fn [_ [_ project-id include-self-admin?]]
+   (reaction
+    (let [self-id @(subscribe [:self/user-id])
+          members @(subscribe [::members project-id])]
+      (->> (keys members)
+           (filter
+            (fn [user-id]
+              (let [admin-user? @(subscribe [:user/admin? user-id])]
+                (or (not admin-user?)
+                    (and self-id include-self-admin?
+                         (= user-id self-id))))))
+           (sort <))))))
 
 (reg-sub
  ::member

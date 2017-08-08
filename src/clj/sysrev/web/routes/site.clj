@@ -59,7 +59,19 @@
         (wrap-permissions
          request ["admin"] []
          (do (clear-query-cache)
-             {:success true}))))
+             {:success true})))
+
+  (POST "/api/change-user-settings" request
+        (wrap-permissions
+         request [] ["member"]
+         (let [user-id (current-user-id request)
+               {:keys [changes]} (:body request)]
+           (doseq [{:keys [setting value]} changes]
+             (users/change-user-setting
+              user-id (keyword setting) value))
+           {:result
+            {:success true
+             :settings (users/user-settings user-id)}}))))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."
@@ -92,17 +104,16 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [self?]]
-  (with-query-cache
-    [:users user-id [:user-info self?]]
-    (-> (select :user-id
-                :user-uuid
-                :email
-                :verified
-                :permissions)
-        (from :web-user)
-        (where [:= :user-id user-id])
-        do-query
-        first)))
+  (-> (select :user-id
+              :user-uuid
+              :email
+              :verified
+              :permissions
+              :settings)
+      (from :web-user)
+      (where [:= :user-id user-id])
+      do-query
+      first))
 
 (defn user-self-info
   "Returns a map of values with various user account information.

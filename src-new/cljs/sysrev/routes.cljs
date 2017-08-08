@@ -57,6 +57,7 @@
 
 (defroute project-settings "/project/settings" []
   (before-route-change)
+  (dispatch [:reload [:project/settings]])
   (dispatch [:set-active-panel [:project :project :settings]]))
 
 (defroute invite-link "/project/invite-link" []

@@ -3,10 +3,12 @@
    [re-frame.core :as re-frame :refer
     [dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.action.core :refer [def-action]]
+   [sysrev.subs.auth :refer [current-user-id]]
+   [sysrev.subs.project :refer [active-project-id]]
    [sysrev.subs.review :as review]
    [sysrev.util :refer [dissoc-in]]))
 
-(def-action :log-in
+(def-action :auth/log-in
   :uri (fn [_ _] "/api/auth/login")
   :content (fn [email password]
              {:email email :password password})
@@ -17,13 +19,14 @@
        (list [:ga-event "auth" "login_success"]
              [:self/unset-identity]
              [:do-login-redirect]
-             [:fetch [:identity]])
-       :reset-data true}
+             #_ [:fetch [:identity]])
+       ;; :reset-data true
+       :reload-page [true 25]}
       {:dispatch-n
        (list [:ga-event "auth" "login_failure"]
              [:set-login-error-msg message])})))
 
-(def-action :log-out
+(def-action :auth/log-out
   :uri (fn [] "/api/auth/logout")
   :process
   (fn [{:keys [db]} _ result]
@@ -35,7 +38,7 @@
      :nav-scroll-top "/"
      :dispatch [:fetch [:identity]]}))
 
-(def-action :register-user
+(def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
   :content (fn [email password & [project-id]]
              {:email email :password password :project-id project-id})
@@ -44,18 +47,18 @@
     (if success
       {:dispatch-n
        (list [:ga-event "auth" "register_success"]
-             [:action [:log-in email password]])}
+             [:action [:auth/log-in email password]])}
       {:dispatch-n
        (list [:ga-event "auth" "register_failure"]
              [:set-login-error-msg message])})))
 
-(def-action :clear-query-cache
+(def-action :dev/clear-query-cache
   :uri (fn [] "/api/clear-query-cache")
   :process
   (fn [_ _ result]
     {:reset-data true}))
 
-(def-action :select-project
+(def-action :project/select
   :uri (fn [_] "/api/select-project")
   :content (fn [id] {:project-id id})
   :process
@@ -63,7 +66,7 @@
     {:dispatch [:self/set-active-project id]
      :nav-scroll-top "/"}))
 
-(def-action :send-labels
+(def-action :review/send-labels
   :uri (fn [_] "/api/set-labels")
   :content (fn [{:keys [article-id label-values change? confirm? resolve?]}]
              {:article-id article-id
@@ -74,3 +77,18 @@
   :process
   (fn [_ [{:keys [article-id label-values confirm? resolve?]}] result]
     {}))
+
+(def-action :project/change-settings
+  :uri (fn [_] "/api/change-project-settings")
+  :content (fn [changes] {:changes changes})
+  :process
+  (fn [{:keys [db]} _ {:keys [settings]}]
+    (let [project-id (active-project-id db)]
+      {:dispatch [:project/load-settings project-id settings]})))
+
+(def-action :user/change-settings
+  :uri (fn [_] "/api/change-user-settings")
+  :content (fn [changes] {:changes changes})
+  :process
+  (fn [{:keys [db]} _ {:keys [settings]}]
+    {:dispatch [:self/load-settings settings]}))

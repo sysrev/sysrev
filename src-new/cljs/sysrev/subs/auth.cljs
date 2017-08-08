@@ -31,3 +31,8 @@
  :self/projects
  :<- [::self-state]
  (fn [self] (:projects self)))
+
+(reg-sub
+ :self/settings
+ :<- [::identity]
+ (fn [identity] (:settings identity)))

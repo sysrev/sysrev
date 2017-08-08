@@ -1,0 +1,2 @@
+@basicTextColor: @siteTextColor;
+@basicBackground: inherit;

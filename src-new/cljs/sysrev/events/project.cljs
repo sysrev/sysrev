@@ -13,6 +13,12 @@
               #(merge % pmap))))
 
 (reg-event-db
+ :project/load-settings
+ [trim-v]
+ (fn [db [project-id settings]]
+   (assoc-in db [:data :project project-id :settings] settings)))
+
+(reg-event-db
  :project/clear-data
  [trim-v]
  (fn [db]

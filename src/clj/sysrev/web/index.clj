@@ -3,7 +3,8 @@
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
             [sysrev.resources :as res]
-            [sysrev.db.users :as users]))
+            [sysrev.db.users :as users]
+            [clojure.string :as str]))
 
 (defonce web-asset-path (atom "/out"))
 
@@ -14,7 +15,8 @@
 (defn- user-theme [request]
   (let [{{{:keys [user-id] :as identity} :identity
           :as session} :session} request]
-    (or (some-> user-id (users/get-user-by-id) :settings :ui-theme)
+    (or (some-> user-id (users/get-user-by-id) :settings :ui-theme
+                str/lower-case)
         "default")))
 
 (defn css-paths [& {:keys [theme] :or {theme "default"}}]

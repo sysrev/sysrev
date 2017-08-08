@@ -1,3 +1,7 @@
 /*******************************
          Site Overrides
 *******************************/
+
+.ui.segments .ui.top.attached.header {
+    background-color: @segmentBackground;
+}

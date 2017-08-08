@@ -50,6 +50,16 @@
  (fn [db [projects]]
    (assoc-in db [:state :self :projects] projects)))
 
+(reg-event-fx
+ :self/load-settings
+ [trim-v]
+ (fn [{:keys [db]} [settings]]
+   (let [old-settings (get-in db [:state :identity :settings])]
+     (cond->
+         {:db (assoc-in db [:state :identity :settings] settings)}
+       (not= (:ui-theme settings) (:ui-theme old-settings))
+       (merge {:reload-page [true]})))))
+
 (reg-event-db
  :set-login-redirect-url
  [trim-v]

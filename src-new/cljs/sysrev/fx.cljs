@@ -23,3 +23,14 @@
  :ajax-failure
  (fn [response]
    nil))
+
+(defn- reload-page []
+  (-> js/window .-location (.reload true)))
+
+(reg-fx
+ :reload-page
+ (fn [[reload? delay-ms]]
+   (when reload?
+     (if delay-ms
+       (js/setTimeout #(reload-page) delay-ms)
+       (reload-page)))))

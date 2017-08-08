@@ -1,2 +1,2 @@
-// @textColor: @invertedTextColor;
-// @menuBackground: @lighterBackground;
+@textColor: @invertedTextColor;
+@itemColor: @invertedTextColor;

@@ -101,7 +101,7 @@
 
 
 (defn- label-activity-raw [db label-id]
-  (let [project (get-project-raw db (active-project-id))]
+  (let [project (get-project-raw db (active-project-id db))]
     (get-in project [:label-activity label-id])))
 
 (reg-sub

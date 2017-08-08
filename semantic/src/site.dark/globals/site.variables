@@ -5,22 +5,29 @@
 @lighterBackground : lighten(@pageBackground, 7);
 @lightBackground: rgba(200, 200, 200, 1.0);
 
+@segmentBackground: lighten(@pageBackground, 5);
+@secondarySegmentBackground: lighten(@pageBackground, 10);
+@tertiarySegmentBackground: darken(@pageBackground, 3);
+
 @siteTextColor: rgba(230, 230, 230, 0.925);
 @textColor : @siteTextColor;
 @invertedTextColor: rgba(0, 0, 0, 0.925);
 @mutedTextColor : rgba(200, 200, 200, 0.85);
+@mutedInvertedTextColor: fadeout(@invertedTextColor, 20%, relative);
 
 @primaryColor : @blue;
 @lightPrimaryColor : @lightBlue;
 @secondaryColor : lighten(@pageBackground, 20);
 @lightSecondaryColor : rgba(140, 140, 140, 1.0);
 
-@inputBackground : rgba(230,230,230,1.0);
+@inputBackground : rgba(245,245,245,1.0);
 @inputColor: @invertedTextColor;
 @inputPlaceholderColor: rgba(50,50,50,1.0);
 @inputPlaceholderFocusColor: rgba(30,30,30,1.0);
 
-@borderColor: rgba(180, 180, 180, 0.7);
+@borderColor: rgba(180, 180, 180, 0.5);
 @solidBorderColor: rgba(180, 180, 180, 0.9);
 
 @grey: rgba(180, 180, 180, 0.925);
+
+@solidInternalBorderColor: rgba(60, 60, 60, 0.2);

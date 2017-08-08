@@ -1,11 +1,14 @@
 @darkText: rgba(0, 0, 0, 0.925);
 @lightText: rgba(230, 230, 230, 0.925);
 
+@mutedDarkText: fadeout(@text, 25%, relative);
+@mutedLightText: fadeout(@lightText, 25%, relative);
+
 @text: @darkText;
 @invertedText: @lightText;
 
-@mutedText: fadeout(@text, 25%, relative);
-@mutedInvertedText: fadeout(@invertedText, 25%, relative);
+@mutedText: @mutedDarkText;
+@mutedInvertedText: @mutedLightText;
 
 @green: rgba(33, 186, 69, 1);
 @blue: rgba(64, 121, 191, 1);

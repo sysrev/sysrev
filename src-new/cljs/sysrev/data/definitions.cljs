@@ -8,7 +8,8 @@
    [sysrev.subs.label-activity :refer [have-label-activity?]]
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
-   [sysrev.subs.members :refer [have-member-articles?]]))
+   [sysrev.subs.members :refer [have-member-articles?]]
+   [sysrev.shared.util :refer [in?]]))
 
 ;;
 ;; Definitions for all data items fetched from server
@@ -34,6 +35,15 @@
     {:dispatch-n
      (list [:project/load project]
            [:user/store-multi (vals users)])}))
+
+(def-data :project/settings
+  :loaded-p project-loaded?
+  :uri (fn [] "/api/project-settings")
+  :prereqs (fn [] [[:identity]])
+  :process
+  (fn [{:keys [db]} _ {:keys [settings]}]
+    (let [project-id (active-project-id db)]
+      {:dispatch [:project/load-settings project-id settings]})))
 
 (def-data :project/label-activity
   :loaded-p have-label-activity?

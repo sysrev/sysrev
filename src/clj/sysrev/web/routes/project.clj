@@ -150,14 +150,17 @@
         (let [project-id (active-project request)]
           {:result {:settings (project-settings project-id)}})))
 
-  (POST "/api/change-project-setting" request
+  (POST "/api/change-project-settings" request
         (wrap-permissions
          request [] ["admin"]
          (let [project-id (active-project request)
-               {:keys [setting value]} (:body request)]
-           (project/change-project-setting
-            project-id (keyword setting) value)
-           {:result {:success true}})))
+               {:keys [changes]} (:body request)]
+           (doseq [{:keys [setting value]} changes]
+             (project/change-project-setting
+              project-id (keyword setting) value))
+           {:result
+            {:success true
+             :settings (project-settings project-id)}})))
 
   (POST "/api/files/upload" request
         (wrap-permissions

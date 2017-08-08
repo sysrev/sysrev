@@ -1,18 +1,22 @@
 (ns sysrev.db.users
-  (:require [sysrev.db.core :refer
-             [do-query do-execute sql-now to-sql-array do-transaction]]
-            [sysrev.shared.util :refer [map-values in?]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [buddy.core.hash :as hash]
-            [buddy.core.codecs :as codecs]
-            buddy.hashers
-            crypto.random
-            [sysrev.db.core :as db]
-            [sysrev.db.queries :as q]
-            [sysrev.db.project :refer [add-project-member]])
+  (:require
+   [clojure.spec.alpha :as s]
+   [sysrev.shared.spec.core :as sc]
+   [sysrev.shared.spec.users :as su]
+   [sysrev.db.core :refer
+    [do-query do-execute sql-now to-sql-array do-transaction to-jsonb]]
+   [sysrev.shared.util :refer [map-values in?]]
+   [honeysql.core :as sql]
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+   [honeysql-postgres.format :refer :all]
+   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+   [buddy.core.hash :as hash]
+   [buddy.core.codecs :as codecs]
+   buddy.hashers
+   crypto.random
+   [sysrev.db.core :as db]
+   [sysrev.db.queries :as q]
+   [sysrev.db.project :refer [add-project-member]])
   (:import java.util.UUID))
 
 (defn all-users
@@ -185,3 +189,24 @@
                  (where [:= :user-id user-id])
                  do-query first :reset-code)]
     (format "https://sysrev.us/reset-password/%s" reset-code)))
+
+(defn user-settings [user-id]
+  (into {}
+        (-> (select :settings)
+            (from :web-user)
+            (where [:= :user-id user-id])
+            do-query first :settings)))
+
+(defn change-user-setting [user-id setting new-value]
+  (let [user-id (q/to-user-id user-id)
+        cur-settings (-> (select :settings)
+                         (from :web-user)
+                         (where [:= :user-id user-id])
+                         do-query first :settings)
+        new-settings (assoc cur-settings setting new-value)]
+    (assert (s/valid? ::su/settings new-settings))
+    (-> (sqlh/update :web-user)
+        (sset {:settings (to-jsonb new-settings)})
+        (where [:= :user-id user-id])
+        do-execute)
+    new-settings))

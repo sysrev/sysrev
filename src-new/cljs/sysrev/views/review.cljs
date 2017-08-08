@@ -366,8 +366,8 @@
                 (when (< (count row) n-cols)
                   [^{:key {:label-row-end (last row)}}
                    [:div.column]])))])))]
-    [:div
-     [:div.ui.top.attached.segment
+    [:div.ui.segments
+     [:div.ui.top.attached.header
       [:h3
        (if resolving? "Resolve labels " "Edit labels ")
        [with-tooltip
