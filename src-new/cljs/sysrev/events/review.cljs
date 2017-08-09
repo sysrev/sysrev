@@ -28,3 +28,8 @@
                            :confirm? confirm?
                            :resolve? resolve?
                            :change? change?}]]})))
+
+(reg-event-db
+ :review/reset-ui-labels
+ (fn [db]
+   (assoc-in db [:state :review :labels] {})))

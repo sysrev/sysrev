@@ -12,7 +12,7 @@
      [{:tab-id :project
        :content "Project"
        :action "/project"}
-      {:tab-id :member-account
+      {:tab-id :user
        :content "My Labels"
        :action "/project/user"}
       {:tab-id :review

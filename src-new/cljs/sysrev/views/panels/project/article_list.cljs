@@ -449,37 +449,37 @@
             :on-click on-next}
            "Next"]]]]
        [:div.ui.bottom.attached.middle.aligned.segment
-        (with-loader [[:article article-id]] {:dimmer true :min-height "300px"}
-          [:div
-           (let [show-labels (if (= user-status :unconfirmed) false :all)]
+        [:div
+         (let [show-labels (if (= user-status :unconfirmed) false :all)]
+           (with-loader [[:article article-id]] {:dimmer true :min-height "300px"}
              [article-info-view article-id
-              :show-labels show-labels])
-           (when editing?
-             [:div {:style {:margin-top "1em"}}
-              [label-editor-view]
-              #_
-              (let [missing (labels/required-answers-missing label-values)
-                    disabled? ((comp not empty?) missing)
-                    confirm-button
-                    [:div.ui.right.labeled.icon
-                     {:class (str (if disabled? "disabled" "")
-                                  " "
-                                  (if (get-loading-state :confirm) "loading" "")
-                                  " "
-                                  (if resolving? "purple button" "primary button"))
-                      :on-click
-                      (fn []
-                        (set-loading-state :confirm true)
-                        (ajax/confirm-active-labels on-confirm))}
-                     (if resolving? "Resolve conflict" "Confirm labels")
-                     [:i.check.circle.outline.icon]]]
-                [:div.ui.grid.centered
-                 [:div.row
-                  (if disabled?
-                    [with-tooltip [:div confirm-button]]
-                    confirm-button)
-                  [:div.ui.inverted.popup.top.left.transition.hidden
-                   "Answer missing for a required label"]]])])])]])))
+              :show-labels? show-labels]))
+         (when editing?
+           [:div {:style {:margin-top "1em"}}
+            [label-editor-view]])
+         #_
+         (let [missing (labels/required-answers-missing label-values)
+               disabled? ((comp not empty?) missing)
+               confirm-button
+               [:div.ui.right.labeled.icon
+                {:class (str (if disabled? "disabled" "")
+                             " "
+                             (if (get-loading-state :confirm) "loading" "")
+                             " "
+                             (if resolving? "purple button" "primary button"))
+                 :on-click
+                 (fn []
+                   (set-loading-state :confirm true)
+                   (ajax/confirm-active-labels on-confirm))}
+                (if resolving? "Resolve conflict" "Confirm labels")
+                [:i.check.circle.outline.icon]]]
+           [:div.ui.grid.centered
+            [:div.row
+             (if disabled?
+               [with-tooltip [:div confirm-button]]
+               confirm-button)
+             [:div.ui.inverted.popup.top.left.transition.hidden
+              "Answer missing for a required label"]]])]]])))
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]

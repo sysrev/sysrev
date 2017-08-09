@@ -6,7 +6,8 @@
    [cljs-time.core :as t]
    [sysrev.views.components :refer [updated-time-label]]
    [sysrev.subs.labels :refer [real-answer?]]
-   [sysrev.util :refer [time-from-epoch time-elapsed-string]])
+   [sysrev.util :refer [time-from-epoch time-elapsed-string]]
+   [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn label-answer-tag
@@ -14,20 +15,20 @@
   [label-id answer]
   (let [display @(subscribe [:label/display label-id])
         value-type @(subscribe [:label/value-type label-id])
-        category @(subscribe [:label/category])
+        category @(subscribe [:label/category label-id])
         inclusion @(subscribe [:label/answer-inclusion label-id answer])
         color (case inclusion
-                true "green"
-                false "orange"
-                nil "")
-        values (case value-type
-                 "boolean" (if (boolean? answer)
-                             [answer] [])
-                 "categorical" answer
-                 "numeric" answer
-                 "string" answer)
-        display-label (case value-type
-                        "boolean" (str display "?")
+                true   "green"
+                false  "orange"
+                nil    "")
+        values (if @(subscribe [:label/boolean? label-id])
+                 (if (boolean? answer)
+                   [answer] [])
+                 (cond (nil? answer)        nil
+                       (sequential? answer) answer
+                       :else                [answer]))
+        display-label (if @(subscribe [:label/boolean? label-id])
+                        (str display "?")
                         display)]
     [:div.ui.tiny.labeled.button.label-answer-tag
      [:div.ui.button {:class color}
@@ -39,19 +40,22 @@
           :aria-hidden true}]
         (str/join ", " values))]]))
 
-(defn label-values-component [article-id user-id]
-  (let [label-ids @(subscribe [:project/label-ids])
-        values @(subscribe [:article/labels article-id user-id])]
-    [:div
-     (doall
-      (->>
-       label-ids
-       (map #(do [% (get-in values [% :answer])]))
-       (map-indexed
-        (fn [i [label-id answer]]
-          (when (real-answer? answer)
-            ^{:key [i article-id]}
-            [label-answer-tag label-id answer])))))]))
+(defn label-values-component [labels]
+  [:div
+   (doall
+    (->>
+     @(subscribe [:project/label-ids])
+     (filter #(contains? labels %))
+     (map #(do [% (get-in labels [% :answer])]))
+     (map-indexed
+      (fn [i [label-id answer]]
+        (when (real-answer? answer)
+          ^{:key i}
+          [label-answer-tag label-id answer])))))])
+
+(defn article-label-values-component [article-id user-id]
+  (let [labels @(subscribe [:article/labels article-id user-id])]
+    [label-values-component labels]))
 
 (defn article-labels-view [article-id]
   (let [user-labels @(subscribe [:article/labels article-id])
@@ -102,7 +106,7 @@
                    [:div.ui.tiny.basic.purple.label "Resolved"])]
                 [:div.right.aligned.column
                  [updated-time-label updated-time]]]]]
-             [label-values-component article-id user-id]
+             [article-label-values-component article-id user-id]
              ;; TODO: Finish implementing notes to display here
              #_
              (when-let [unote (notes/get-note-field article-id user-id "default")]

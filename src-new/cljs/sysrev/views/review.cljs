@@ -14,11 +14,11 @@
    [sysrev.util :refer [full-size? mobile?]]
    [sysrev.shared.util :refer [in?]]))
 
-(defn- set-label-value [db article-id label-id label-value]
+(defn set-label-value [db article-id label-id label-value]
   (assoc-in db [:state :review :labels article-id label-id]
             label-value))
 
-(defn- update-label-value [db article-id label-id update-fn]
+(defn update-label-value [db article-id label-id update-fn]
   (update-in db [:state :review :labels article-id label-id]
              update-fn))
 
@@ -28,8 +28,7 @@
  (fn [{:keys [db]} [force? args]]
    (when-let [article-id (:article-id args)]
      (when-not (empty? (review/review-ui-labels db article-id))
-       (let [label-values (review/active-labels db article-id)
-             confirmed? (= (articles/article-user-status db article-id)
+       (let [confirmed? (= (articles/article-user-status db article-id)
                            :confirmed)]
          (when (or (not confirmed?) force?)
            {:dispatch-later [{:ms 50 :dispatch [:review/send-labels args]}]}))))))
@@ -45,16 +44,18 @@
  ::add-label-value
  [trim-v]
  (fn [db [article-id label-id label-value]]
-   (update-label-value db article-id label-id
-                       #(-> % vec (conj label-value) distinct))))
+   (let [current-values (get (review/active-labels db article-id) label-id)]
+     (set-label-value db article-id label-id
+                      (-> current-values (concat [label-value]) distinct vec)))))
 
 ;; Removes a value from an active label answer vector
 (reg-event-db
  ::remove-label-value
  [trim-v]
  (fn [db [article-id label-id label-value]]
-   (update-label-value db article-id label-id
-                       #(->> % (remove (partial = label-value)) vec))))
+   (let [current-values (get (review/active-labels db article-id) label-id)]
+     (set-label-value db article-id label-id
+                      (->> current-values (remove (partial = label-value)) vec)))))
 
 ;; Triggers "set selected" Semantic dropdown action
 (reg-fx
@@ -104,28 +105,29 @@
   (r/create-class
    {:component-did-mount
     (fn [c]
-      (.dropdown
-       (js/$ (r/dom-node c))
-       (clj->js
-        {:onAdd
-         (fn [v t]
-           (dispatch [::add-label-value article-id label-id v]))
-         :onRemove
-         (fn [v t]
-           (dispatch [::remove-label-value article-id label-id v]))
-         :onChange
-         (fn [_] (.dropdown (js/$ (r/dom-node c))
-                            "hide"))})))
+      (-> (js/$ (r/dom-node c))
+          (.dropdown
+           (clj->js
+            {:onAdd
+             (fn [v t]
+               (dispatch [::add-label-value article-id label-id v]))
+             :onRemove
+             (fn [v t]
+               (dispatch [::remove-label-value article-id label-id v]))
+             :onChange
+             (fn [_] (.dropdown (js/$ (r/dom-node c))
+                                "hide"))}))))
     :component-will-update
     (fn [c]
-      (let [db @app-db
-            active-vals (->> (get (review/active-labels db article-id) label-id)
-                             (str/join ","))
+      (let [answer (get (review/active-labels @app-db article-id) label-id)
+            active-vals (->> answer sort)
             comp-vals (-> (js/$ (r/dom-node c))
-                          (.dropdown "get value"))]
+                          (.dropdown "get value")
+                          (str/split #",")
+                          sort)]
         (when (not= comp-vals active-vals)
           (-> (js/$ (r/dom-node c))
-              (.dropdown "set exactly" active-vals)))))
+              (.dropdown "set exactly" (->> answer (str/join ",")))))))
     :reagent-render
     (fn [article-id label-id]
       (let [required? @(subscribe [:label/required? label-id])
@@ -224,9 +226,10 @@
                                 article-id label-id]))}
                   [:i.fitted.small.plus.icon]])]]])))))]))
 
-(defn- inclusion-tag [label-id answer]
+(defn- inclusion-tag [article-id label-id]
   (if @(subscribe [:label/inclusion-criteria? label-id])
-    (let [inclusion @(subscribe [:label/answer-inclusion label-id answer])
+    (let [answer @(subscribe [:review/active-labels article-id label-id])
+          inclusion @(subscribe [:label/answer-inclusion label-id answer])
           color (case inclusion
                   true   "green"
                   false  "orange"
@@ -274,6 +277,7 @@
         criteria? @(subscribe [:label/inclusion-criteria? label-id])
         article-id @(subscribe [:review/editing-id])
         answer @(subscribe [:review/active-labels article-id label-id])]
+    ^{:key {:article-label label-id}}
     [:div.ui.column.label-edit
      {:class (cond required?       "required"
                    (not criteria?) "extra"
@@ -281,7 +285,7 @@
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
        [:div.ui.row.label-edit-name
-        [inclusion-tag label-id answer]
+        [inclusion-tag article-id label-id]
         [:span.name
          [:span.inner
           (str @(subscribe [:label/display label-id]) "?")]]]
@@ -302,14 +306,14 @@
 (defmethod label-column "categorical"
   [label-id]
   (let [required? @(subscribe [:label/required? label-id])
-        article-id @(subscribe [:review/editing-id])
-        answer @(subscribe [:review/active-labels article-id label-id])]
+        article-id @(subscribe [:review/editing-id])]
+    ^{:key {:article-label label-id}}
     [:div.ui.column.label-edit
      {:class (if required? "required" nil)}
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
        [:div.ui.row.label-edit-name
-        [inclusion-tag label-id answer]
+        [inclusion-tag article-id label-id]
         [:span.name
          [:span.inner
           (str @(subscribe [:label/display label-id]))]]]
@@ -328,6 +332,7 @@
   (let [required? @(subscribe [:label/required? label-id])
         article-id @(subscribe [:review/editing-id])
         answer @(subscribe [:review/active-labels article-id label-id])]
+    ^{:key {:article-label label-id}}
     [:div.ui.column.label-edit
      {:class (if required? "required" nil)}
      [:div.ui.middle.aligned.grid.label-edit
@@ -351,7 +356,7 @@
         resolving? @(subscribe [:review/resolving?])
         n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
         n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
-        make-rows
+        make-label-columns
         (fn [label-ids n-cols]
           (doall
            (for [row (partition-all n-cols label-ids)]
@@ -359,10 +364,7 @@
              [:div.row
               (doall
                (concat
-                (map (fn [label-id]
-                       ^{:key label-id}
-                       [label-column label-id])
-                     row)
+                (map label-column row)
                 (when (< (count row) n-cols)
                   [^{:key {:label-row-end (last row)}}
                    [:div.column]])))])))]
@@ -379,6 +381,6 @@
       {:class (str "attached "
                    n-cols-str " column "
                    "celled grid segment")}
-      (make-rows label-ids n-cols)]
+      (make-label-columns label-ids n-cols)]
      #_ [inconsistent-answers-notice label-values]
      #_ [note-input-element article-id]]))

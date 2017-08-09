@@ -731,8 +731,8 @@
          (apply hash-map))))
 
 (defn query-member-articles [project-id user-id]
-  (-> (select :a.article-id :a.primary-title :al.answer :al.resolve
-              :al.confirm-time :al.label-id)
+  (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
+              :al.resolve :al.confirm-time :al.updated-time :al.label-id)
       (from [:article :a])
       (join [:project :p] [:= :p.project-id :a.project-id]
             [:article-label :al] [:= :al.article-id :a.article-id]
@@ -748,15 +748,24 @@
            (remove (fn [{:keys [answer]}]
                      (or (nil? answer)
                          (and (coll? answer) (empty? answer)))))
-           (map #(-> (assoc % :confirm-epoch
-                            (some-> (:confirm-time %) (tc/to-epoch)))
+           (map #(-> (assoc %
+                            :confirmed
+                            (not (nil? (:confirm-time %)))
+                            :updated-epoch
+                            (if (:confirm-time %)
+                              (some-> (:confirm-time %) (tc/to-epoch))
+                              (some-> (:updated-time %) (tc/to-epoch))))
                      (dissoc :confirm-time)))
            (group-by :article-id)
            (map-values
             (fn [xs]
-              (let [primary-title (:primary-title (first xs))]
-                {:primary-title primary-title
-                 :labels (->> xs (mapv #(dissoc % :primary-title :article-id)))}))))))
+              (let [primary-title (:primary-title (first xs))
+                    confirmed (:confirmed (first xs))]
+                {:title primary-title
+                 :confirmed confirmed
+                 :updated-time (->> xs (map :updated-epoch) (remove nil?) (apply max 0))
+                 :labels (->> xs (mapv #(dissoc % :primary-title :article-id
+                                                :updated-time :updated-epoch :confirmed)))}))))))
 
 (defn article-user-multi-labels
   "Queries article-label entries, returning a list entries for each user.

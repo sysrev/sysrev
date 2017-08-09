@@ -75,8 +75,11 @@
               :resolve? (boolean resolve?)
               :change? (boolean change?)})
   :process
-  (fn [_ [{:keys [article-id label-values confirm? resolve?]}] result]
-    {}))
+  (fn [{:keys [db]} [{:keys [article-id label-values confirm? resolve?]}] result]
+    (when-let [user-id (current-user-id db)]
+      {:dispatch-n (list [:reload [:member/articles user-id]]
+                         [:reload [:article article-id]]
+                         [:review/reset-ui-labels])})))
 
 (def-action :project/change-settings
   :uri (fn [_] "/api/change-project-settings")

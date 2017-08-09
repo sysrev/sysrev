@@ -40,11 +40,20 @@
     (dispatch [:set-active-panel [:project :project :articles]])
     (dispatch [:article-list/show-article article-id])))
 
-(defroute member-account "/project/user" []
+(defroute project-user "/project/user" []
   (before-route-change)
-  (dispatch [:set-active-panel [:project :member-account]])
+  (dispatch [:set-active-panel [:project :user :labels]])
+  (dispatch [:user-labels/hide-article])
   (when-let [user-id @(subscribe [:self/user-id])]
     (dispatch [:reload [:member/articles user-id]])))
+
+(defroute project-user-article "/project/user/article/:article-id" [article-id]
+  (before-route-change)
+  (let [article-id (js/parseInt article-id)]
+    (dispatch [:require [:article article-id]])
+    (dispatch [:reload [:article article-id]])
+    (dispatch [:set-active-panel [:project :user :labels]])
+    (dispatch [:user-labels/show-article article-id])))
 
 (defroute project-labels "/project/labels" []
   (before-route-change)

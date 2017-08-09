@@ -30,9 +30,12 @@
  :<- [:review/task-id]
  :<- [:article-list/editing?]
  :<- [:article-list/article-id]
- (fn [[on-review-task? task-id list-editing? list-id]]
-   (cond on-review-task? task-id
-         list-editing? list-id)))
+ :<- [:user-labels/editing?]
+ :<- [:user-labels/article-id]
+ (fn [[on-review-task? task-aid list-editing? list-aid user-editing? user-aid]]
+   (cond on-review-task? task-aid
+         list-editing? list-aid
+         user-editing? user-aid)))
 
 (reg-sub
  :review/editing?
@@ -59,7 +62,8 @@
 
 (defn active-labels [db article-id]
   (when-let [user-id (current-user-id db)]
-    (merge (articles/article-labels db article-id user-id)
+    (merge (->> (articles/article-labels db article-id user-id)
+                (map-values :answer))
            (review-ui-labels db article-id))))
 
 (reg-sub
