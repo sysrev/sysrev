@@ -6,7 +6,7 @@
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.subs.articles :as articles]
    [sysrev.subs.auth :refer [current-user-id]]
-   [sysrev.shared.util :refer [map-values]]))
+   [sysrev.shared.util :refer [in? map-values]]))
 
 (defn task-id [db]
   (get-in db [:data :review :task-id]))
@@ -78,3 +78,25 @@
                            (map-values :answer))]
      (cond-> (merge article-vals ui-vals)
        label-id (get label-id)))))
+
+(reg-sub-raw
+ :review/inconsistent-labels
+ (fn [db [_ article-id label-id]]
+   (reaction
+    (let [label-ids @(subscribe [:project/label-ids])
+          values @(subscribe [:review/active-labels article-id])
+          overall-id @(subscribe [:project/overall-label-id])
+          overall-val (some->> overall-id (get values))
+          inconsistent
+          (when (true? overall-val)
+            (->> label-ids
+                 (filter
+                  (fn [label-id]
+                    (let [label-val (get values label-id)
+                          inclusion @(subscribe [:label/answer-inclusion
+                                                 label-id label-val])]
+                      (false? inclusion))))
+                 (#(if (empty? %) % (conj % overall-id)))))]
+      (if label-id
+        (boolean (in? inconsistent label-id))
+        (vec inconsistent))))))

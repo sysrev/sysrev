@@ -27,9 +27,11 @@
 (defn sync-article-notes [article-id]
   (let [user-id @(subscribe [:self/user-id])
         ui-notes @(subscribe [:review/ui-notes article-id])
-        article-notes @(subscribe [:article/notes article-id user-id])]
-    (doseq [note-key (keys ui-notes)]
-      (when (not= (get ui-notes note-key)
-                  (get article-notes note-key))
-        (dispatch [:review/send-article-note
-                   article-id note-key (get ui-notes note-key)])))))
+        article-notes @(subscribe [:article/notes article-id user-id])
+        changed-keys (->> (keys ui-notes)
+                          (filterv #(not= (get ui-notes %)
+                                          (get article-notes %))))]
+    (doseq [note-key changed-keys]
+      (dispatch [:review/send-article-note
+                 article-id note-key (get ui-notes note-key)]))
+    changed-keys))

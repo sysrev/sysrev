@@ -5,6 +5,7 @@
      trim-v reg-fx]]
    [re-frame.db :refer [app-db]]
    [reagent.ratom :refer [reaction]]
+   [sysrev.action.core :refer [any-action-running?]]
    [sysrev.subs.core :refer [not-found-value try-get]]
    [sysrev.events.ajax :refer
     [reg-event-ajax reg-event-ajax-fx run-ajax]]
@@ -141,24 +142,29 @@
          entry (get @data-defs name)
          elapsed-millis (- (js/Date.now) @last-fetch-millis)]
      (when entry
-       (if (< elapsed-millis 25)
-         (do (js/setTimeout #(dispatch [:fetch item])
-                            (- 30 elapsed-millis))
-             {})
-         (when-not (item-loading? db item)
-           (reset! last-fetch-millis (js/Date.now))
-           (let [uri (apply (:uri entry) args)
-                 content (some-> (:content entry) (apply args))]
-             (merge
-              {::sent item}
-              (run-ajax
-               (cond->
-                   {:db db
-                    :method :get
-                    :uri uri
-                    :on-success [::on-success [name args]]
-                    :on-failure [::on-failure [name args]]}
-                 content (assoc :content content)))))))))))
+       (cond (< elapsed-millis 25)
+             (do (js/setTimeout #(dispatch [:fetch item])
+                                (- 30 elapsed-millis))
+                 {})
+             (any-action-running? db)
+             (do (js/setTimeout #(dispatch [:fetch item])
+                                50)
+                 {})
+             :else
+             (when-not (item-loading? db item)
+               (reset! last-fetch-millis (js/Date.now))
+               (let [uri (apply (:uri entry) args)
+                     content (some-> (:content entry) (apply args))]
+                 (merge
+                  {::sent item}
+                  (run-ajax
+                   (cond->
+                       {:db db
+                        :method :get
+                        :uri uri
+                        :on-success [::on-success [name args]]
+                        :on-failure [::on-failure [name args]]}
+                     content (assoc :content content)))))))))))
 
 (reg-event-ajax-fx
  ::on-success

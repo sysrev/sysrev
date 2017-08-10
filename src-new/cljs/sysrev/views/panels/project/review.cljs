@@ -12,7 +12,7 @@
   (fn [child]
     (let [article-id @(subscribe [:review/task-id])]
       [:div
-       (with-loader [[:review/task]] {:dimmer true :min-height "400px"}
+       (with-loader [[:review/task]] {}
          [article-info-view article-id :show-labels? false])
        (when article-id
          [:div {:style {:margin-top "1em"}}

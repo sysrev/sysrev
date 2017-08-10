@@ -103,3 +103,11 @@
   :process
   (fn [{:keys [db]} _ {:keys [settings]}]
     {:dispatch [:self/load-settings settings]}))
+
+(def-action :user/delete-member-labels
+  :uri (fn [_] "/api/delete-member-labels")
+  :content (fn [verify-user-id]
+             {:verify-user-id verify-user-id})
+  :process
+  (fn [_ _ result]
+    {:reset-data true}))

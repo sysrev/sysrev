@@ -58,16 +58,23 @@
  (fn [[sent-count returned-count]]
    (> sent-count returned-count)))
 
+(defn- any-running-impl [counts]
+  (boolean
+   (some (fn [item]
+           (> (get-in counts [:sent item] 0)
+              (get-in counts [:returned item] 0)))
+         (keys (get-in counts [:sent])))))
+
+(defn any-action-running? [db]
+  (let [counts (get-in db [:ajax :action])]
+    (any-running-impl counts)))
+
 ;; Tests if any AJAX action is currently pending
 (reg-sub
  :action/any-running?
  :<- [::ajax-action-counts]
  (fn [counts]
-   (boolean
-    (some (fn [item]
-            (> (get-in counts [:sent item] 0)
-               (get-in counts [:returned item] 0)))
-          (keys (get-in counts [:sent]))))))
+   (any-running-impl counts)))
 
 ;; Runs an AJAX action specified by `item`
 (reg-event-fx

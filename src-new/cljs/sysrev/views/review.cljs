@@ -93,6 +93,10 @@
        "categorical"
        {::select-categorical-value [article-id label-id label-value]}))))
 
+(defn- review-article-loading? []
+  (when-let [article-id @(subscribe [:review/editing-id])]
+    @(subscribe [:loading? [:article article-id]])))
+
 (defn category-label-input [article-id label-id]
   (r/create-class
    {:component-did-mount
@@ -268,10 +272,13 @@
   (let [required? @(subscribe [:label/required? label-id])
         criteria? @(subscribe [:label/inclusion-criteria? label-id])
         article-id @(subscribe [:review/editing-id])
-        answer @(subscribe [:review/active-labels article-id label-id])]
+        answer @(subscribe [:review/active-labels article-id label-id])
+        inconsistent? @(subscribe [:review/inconsistent-labels
+                                   article-id label-id])]
     ^{:key {:article-label label-id}}
     [:div.ui.column.label-edit
-     {:class (cond required?       "required"
+     {:class (cond inconsistent?   "inconsistent"
+                   required?       "required"
                    (not criteria?) "extra"
                    :else           "")}
      [:div.ui.middle.aligned.grid.label-edit
@@ -288,20 +295,23 @@
         :distanceAway 8
         :variation "basic"}]
       [label-help-popup label-id]
-      [:div.ui.row.label-edit-value.boolean
-       [:div.inner
-        [three-state-selection
-         (fn [new-value]
-           (dispatch [::set-label-value article-id label-id new-value]))
-         answer]]]]]))
+      [:div.ui.row.label-edit-value.boolean>div.inner
+       [three-state-selection
+        (fn [new-value]
+          (dispatch [::set-label-value article-id label-id new-value]))
+        answer]]]]))
 
 (defmethod label-column "categorical"
   [label-id]
   (let [required? @(subscribe [:label/required? label-id])
-        article-id @(subscribe [:review/editing-id])]
+        article-id @(subscribe [:review/editing-id])
+        inconsistent? @(subscribe [:review/inconsistent-labels
+                                   article-id label-id])]
     ^{:key {:article-label label-id}}
     [:div.ui.column.label-edit
-     {:class (if required? "required" nil)}
+     {:class (cond inconsistent? "inconsistent"
+                   required?     "required"
+                   :else         nil)}
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
        [:div.ui.row.label-edit-name
@@ -316,17 +326,21 @@
         :distanceAway 8
         :variation "basic"}]
       [label-help-popup label-id]
-      [:div.ui.row.label-edit-value.category
-       [:div.inner [category-label-input article-id label-id]]]]]))
+      [:div.ui.row.label-edit-value.category>div.inner
+       [category-label-input article-id label-id]]]]))
 
 (defmethod label-column "string"
   [label-id]
   (let [required? @(subscribe [:label/required? label-id])
         article-id @(subscribe [:review/editing-id])
-        answer @(subscribe [:review/active-labels article-id label-id])]
+        answer @(subscribe [:review/active-labels article-id label-id])
+        inconsistent? @(subscribe [:review/inconsistent-labels
+                                   article-id label-id])]
     ^{:key {:article-label label-id}}
     [:div.ui.column.label-edit
-     {:class (if required? "required" nil)}
+     {:class (cond inconsistent? "inconsistent"
+                   required?     "required"
+                   :else         nil)}
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
        [:div.ui.row.label-edit-name
@@ -372,35 +386,36 @@
   (when (and article-id
              (= article-id @(subscribe [:review/editing-id])))
     (with-loader [[:article article-id]] {}
-      (let [label-ids @(subscribe [:project/label-ids])
-            resolving? @(subscribe [:review/resolving?])
-            n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
-            n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
-            make-label-columns
-            (fn [label-ids n-cols]
-              (doall
-               (for [row (partition-all n-cols label-ids)]
-                 ^{:key [(first row)]}
-                 [:div.row
-                  (doall
-                   (concat
-                    (map label-column row)
-                    (when (< (count row) n-cols)
-                      [^{:key {:label-row-end (last row)}}
-                       [:div.column]])))])))]
-        [:div.ui.segments
-         [:div.ui.top.attached.header
-          [:h3
-           (if resolving? "Resolve labels " "Edit labels ")
-           [with-tooltip
-            [:a {:href "/project/labels"}
-             [:i.medium.grey.help.circle.icon]]]
-           [:div.ui.inverted.popup.top.left.transition.hidden
-            "View label definitions"]]]
-         [:div.ui.label-section
-          {:class (str "attached "
-                       n-cols-str " column "
-                       "celled grid segment")}
-          (make-label-columns label-ids n-cols)]
-         #_ [inconsistent-answers-notice label-values]
-         [note-input-element :default]]))))
+      (when-not (review-article-loading?)
+        (let [label-ids @(subscribe [:project/label-ids])
+              resolving? @(subscribe [:review/resolving?])
+              n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
+              n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
+              make-label-columns
+              (fn [label-ids n-cols]
+                (doall
+                 (for [row (partition-all n-cols label-ids)]
+                   ^{:key [(first row)]}
+                   [:div.row
+                    (doall
+                     (concat
+                      (map label-column row)
+                      (when (< (count row) n-cols)
+                        [^{:key {:label-row-end (last row)}}
+                         [:div.column]])))])))]
+          [:div.ui.segments
+           [:div.ui.top.attached.header
+            [:h3
+             (if resolving? "Resolve labels " "Edit labels ")
+             [with-tooltip
+              [:a {:href "/project/labels"}
+               [:i.medium.grey.help.circle.icon]]]
+             [:div.ui.inverted.popup.top.left.transition.hidden
+              "View label definitions"]]]
+           [:div.ui.label-section
+            {:class (str "attached "
+                         n-cols-str " column "
+                         "celled grid segment")}
+            (make-label-columns label-ids n-cols)]
+           #_ [inconsistent-answers-notice label-values]
+           [note-input-element :default]])))))

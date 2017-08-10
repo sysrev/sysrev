@@ -4,6 +4,7 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip selection-dropdown]]
+   [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]))
 
 (def ^:private panel-name [:user-settings])
@@ -146,6 +147,18 @@
          :on-click #(dispatch [::reset-fields])}
         "Reset"]]]]))
 
+(defn- user-dev-tools-box []
+  (let [user-id @(subscribe [:self/user-id])]
+    (when @(subscribe [:user/admin?])
+      [:div.ui.grey.segment
+       [:h4.ui.dividing.header "Dev Tools"]
+       [:div
+        [:buttun.ui.primary.button
+         {:on-click
+          #(do (dispatch [:action [:user/delete-member-labels user-id]])
+               (nav-scroll-top "/"))}
+         "Delete Member Labels"]]])))
+
 (defmethod panel-content [:user-settings] []
   (fn [child]
     [:div.ui.segment
@@ -155,4 +168,4 @@
        [:div.ui.column
         [user-options-box]]
        [:div.ui.column
-        [:div.ui.grey.segment]]]]]))
+        [user-dev-tools-box]]]]]))
