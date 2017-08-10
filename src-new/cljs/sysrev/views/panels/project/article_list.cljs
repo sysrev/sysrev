@@ -451,12 +451,10 @@
        [:div.ui.bottom.attached.middle.aligned.segment
         [:div
          (let [show-labels (if (= user-status :unconfirmed) false :all)]
-           (with-loader [[:article article-id]] {:dimmer true :min-height "300px"}
-             [article-info-view article-id
-              :show-labels? show-labels]))
+           [article-info-view article-id :show-labels? show-labels])
          (when editing?
            [:div {:style {:margin-top "1em"}}
-            [label-editor-view]])
+            [label-editor-view article-id]])
          #_
          (let [missing (labels/required-answers-missing label-values)
                disabled? ((comp not empty?) missing)

@@ -731,41 +731,56 @@
          (apply hash-map))))
 
 (defn query-member-articles [project-id user-id]
-  (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
-              :al.resolve :al.confirm-time :al.updated-time :al.label-id)
-      (from [:article :a])
-      (join [:project :p] [:= :p.project-id :a.project-id]
-            [:article-label :al] [:= :al.article-id :a.article-id]
-            [:label :l] [:= :l.label-id :al.label-id]
-            [:web-user :wu] [:= :wu.user-id :al.user-id])
-      (where [:and
-              [:= :p.project-id project-id]
-              [:= :wu.user-id user-id]
-              [:= :a.enabled true]
-              [:= :l.enabled true]])
-      (order-by :a.article-id)
-      (->> (do-query)
-           (remove (fn [{:keys [answer]}]
-                     (or (nil? answer)
-                         (and (coll? answer) (empty? answer)))))
-           (map #(-> (assoc %
-                            :confirmed
-                            (not (nil? (:confirm-time %)))
-                            :updated-epoch
-                            (if (:confirm-time %)
-                              (some-> (:confirm-time %) (tc/to-epoch))
-                              (some-> (:updated-time %) (tc/to-epoch))))
-                     (dissoc :confirm-time)))
-           (group-by :article-id)
-           (map-values
-            (fn [xs]
-              (let [primary-title (:primary-title (first xs))
-                    confirmed (:confirmed (first xs))]
-                {:title primary-title
-                 :confirmed confirmed
-                 :updated-time (->> xs (map :updated-epoch) (remove nil?) (apply max 0))
-                 :labels (->> xs (mapv #(dissoc % :primary-title :article-id
-                                                :updated-time :updated-epoch :confirmed)))}))))))
+  (let [articles
+        (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
+                    :al.resolve :al.confirm-time :al.updated-time :al.label-id)
+            (from [:article :a])
+            (join [:project :p] [:= :p.project-id :a.project-id]
+                  [:article-label :al] [:= :al.article-id :a.article-id]
+                  [:label :l] [:= :l.label-id :al.label-id]
+                  [:web-user :wu] [:= :wu.user-id :al.user-id])
+            (where [:and
+                    [:= :p.project-id project-id]
+                    [:= :wu.user-id user-id]
+                    [:= :a.enabled true]
+                    [:= :l.enabled true]])
+            (order-by :a.article-id)
+            (->> (do-query)
+                 (remove (fn [{:keys [answer]}]
+                           (or (nil? answer)
+                               (and (coll? answer) (empty? answer)))))
+                 (map #(-> (assoc %
+                                  :confirmed
+                                  (not (nil? (:confirm-time %)))
+                                  :updated-epoch
+                                  (if (:confirm-time %)
+                                    (some-> (:confirm-time %) (tc/to-epoch))
+                                    (some-> (:updated-time %) (tc/to-epoch))))
+                           (dissoc :confirm-time)))
+                 (group-by :article-id)
+                 (map-values
+                  (fn [xs]
+                    (let [primary-title (:primary-title (first xs))
+                          confirmed (:confirmed (first xs))]
+                      {:title primary-title
+                       :confirmed confirmed
+                       :updated-time (->> xs (map :updated-epoch) (remove nil?) (apply max 0))
+                       :labels (->> xs (mapv #(dissoc % :primary-title :article-id
+                                                      :updated-time :updated-epoch :confirmed)))})))))
+        notes
+        (-> (q/select-project-articles
+             project-id [:a.article-id :an.content :pn.name])
+            (q/with-article-note nil user-id)
+            (->> do-query
+                 (group-by :article-id)
+                 (map-values
+                  (fn [entries]
+                    (->> entries
+                         (group-by :name)
+                         (map-values first)
+                         (map-values :content)
+                         (#(hash-map :notes %)))))))]
+    (merge-with merge articles notes)))
 
 (defn article-user-multi-labels
   "Queries article-label entries, returning a list entries for each user.

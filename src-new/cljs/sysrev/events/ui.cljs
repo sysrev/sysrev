@@ -4,12 +4,13 @@
     [reg-event-db reg-event-fx dispatch trim-v]]
    [sysrev.subs.ui :refer [active-panel]]))
 
-(reg-event-db
+(reg-event-fx
  :set-active-panel
  [trim-v]
- (fn [db [panel]]
+ (fn [{:keys [db]} [panel]]
    (let [active (active-panel db)]
-     (assoc-in db [:state :active-panel] panel))))
+     {:db (assoc-in db [:state :active-panel] panel)
+      :dispatch [:review/reset-ui-labels]})))
 
 (reg-event-db
  :set-panel-field

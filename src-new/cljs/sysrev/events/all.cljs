@@ -8,4 +8,5 @@
             sysrev.events.members
             sysrev.events.ui
             sysrev.events.articles
-            sysrev.events.review))
+            sysrev.events.review
+            sysrev.events.notes))

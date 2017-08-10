@@ -5,11 +5,12 @@
    [reagent.ratom :refer [reaction]]
    [sysrev.routes :refer [nav]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components]
+   [sysrev.views.components :refer [note-content-label]]
    [sysrev.views.labels :as labels]
    [sysrev.views.article :as article]
    [sysrev.views.review :as review]
-   [sysrev.shared.util :refer [map-values]])
+   [sysrev.shared.util :refer [map-values]]
+   [clojure.string :as str])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel-name [:project :user :labels])
@@ -140,12 +141,10 @@
          "Next"]]]]
      [:div.ui.bottom.attached.middle.aligned.segment
       [:div
-       (with-loader [[:article article-id]] {:dimmer true :min-height "300px"}
-         [article/article-info-view article-id :show-labels false])
-       #_ [article/article-info-view article-id :show-labels false]
+       [article/article-info-view article-id :show-labels? false]
        (when editing?
          [:div {:style {:margin-top "1em"}}
-          [review/label-editor-view]])]]]))
+          [review/label-editor-view article-id]])]]]))
 
 (reg-sub
  ::display-offset
@@ -210,10 +209,11 @@
             (drop display-offset)
             (take display-count))
        (map
-        (fn [{:keys [article-id title updated-time labels]}]
+        (fn [{:keys [article-id title updated-time labels notes]}]
           (let [active? (= article-id active-aid)
                 classes (cond-> []
-                          active? (conj "active"))]
+                          active? (conj "active"))
+                note-content (:default notes)]
             [:div.article-list-segments
              {:key article-id}
              [:div.ui.middle.aligned.grid.segment.article-list-article
@@ -229,7 +229,16 @@
                 [:span.article-title title]
                 [:div.ui.fitted.divider]
                 (let [labels-map (->> labels (group-by :label-id) (map-values first))]
-                  [labels/label-values-component labels-map])]]]])))
+                  [labels/label-values-component labels-map])
+                (when (some #(and (string? %)
+                                  (not-empty (str/trim %)))
+                            (vals notes))
+                  [:div
+                   [:div.ui.fitted.divider]
+                   (doall
+                    (for [note-key (keys notes)]
+                      ^{:key [note-key]}
+                      [note-content-label note-key (get notes note-key)]))])]]]])))
        (doall))]]))
 
 (defmethod panel-content [:project :user] []
@@ -240,12 +249,11 @@
   (fn [child]
     (when-let [user-id @(subscribe [:self/user-id])]
       [:div
-       [:div.ui.segment
-        (with-loader [[:project]
-                      [:member/articles user-id]] {}
-          [:div
-           [user-article-filter-form]
-           (if-let [article-id @(subscribe [:user-labels/article-id])]
-             [user-article-view article-id]
-             [user-article-list-view])])]
+       (with-loader [[:project]
+                     [:member/articles user-id]] {}
+         [:div
+          [user-article-filter-form]
+          (if-let [article-id @(subscribe [:user-labels/article-id])]
+            [user-article-view article-id]
+            [user-article-list-view])])
        child])))

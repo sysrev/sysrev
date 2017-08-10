@@ -5,84 +5,83 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
    [sysrev.util :refer [scroll-top]]
-   [sysrev.base :refer [history]])
-  (:require-macros [secretary.core :refer [defroute]]))
-
-(defn before-route-change []
-  (when-let [article-id @(subscribe [:review/editing-id])]
-    ;; Send changes to unconfirmed labels before leaving page
-    (dispatch-sync [:review/send-active-labels
-                    false {:article-id article-id}])))
+   [sysrev.base :refer [history]]
+   [sysrev.events.notes :refer [sync-article-notes]])
+  (:require-macros [secretary.core :refer [defroute]]
+                   [sysrev.macros :refer [sr-defroute]]))
 
 (defn- go-project-panel []
   (dispatch [:reload [:project]])
   (dispatch [:set-active-panel [:project :project :overview]]))
 
-(defroute home "/" []
-  (before-route-change)
-  (go-project-panel))
+(sr-defroute
+ home "/" []
+ (go-project-panel))
 
-(defroute project "/project" []
-  (before-route-change)
-  (go-project-panel))
+(sr-defroute
+ project "/project" []
+ (go-project-panel))
 
-(defroute articles "/project/articles" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:project :project :articles]])
-  (dispatch [:article-list/hide-article])
-  (dispatch [:reload [:project/public-labels]]))
+(sr-defroute
+ articles "/project/articles" []
+ (dispatch [:set-active-panel [:project :project :articles]])
+ (dispatch [:article-list/hide-article])
+ (dispatch [:reload [:project/public-labels]]))
 
-(defroute articles-id "/project/articles/:article-id" [article-id]
-  (before-route-change)
-  (let [article-id (js/parseInt article-id)]
-    (dispatch [:require [:article article-id]])
-    (dispatch [:reload [:article article-id]])
-    (dispatch [:set-active-panel [:project :project :articles]])
-    (dispatch [:article-list/show-article article-id])))
+(sr-defroute
+ articles-id "/project/articles/:article-id" [article-id]
+ (let [article-id (js/parseInt article-id)]
+   (dispatch [:require [:article article-id]])
+   (dispatch [:reload [:article article-id]])
+   (dispatch [:set-active-panel [:project :project :articles]])
+   (dispatch [:article-list/show-article article-id])))
 
-(defroute project-user "/project/user" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:project :user :labels]])
-  (dispatch [:user-labels/hide-article])
-  (when-let [user-id @(subscribe [:self/user-id])]
-    (dispatch [:reload [:member/articles user-id]])))
+(sr-defroute
+ project-user "/project/user" []
+ (dispatch [:set-active-panel [:project :user :labels]])
+ (dispatch [:user-labels/hide-article])
+ (when-let [user-id @(subscribe [:self/user-id])]
+   (dispatch [:reload [:member/articles user-id]])))
 
-(defroute project-user-article "/project/user/article/:article-id" [article-id]
-  (before-route-change)
-  (let [article-id (js/parseInt article-id)]
-    (dispatch [:require [:article article-id]])
-    (dispatch [:reload [:article article-id]])
-    (dispatch [:set-active-panel [:project :user :labels]])
-    (dispatch [:user-labels/show-article article-id])))
+(sr-defroute
+ project-user-article "/project/user/article/:article-id" [article-id]
+ (let [article-id (js/parseInt article-id)]
+   (dispatch [:require [:article article-id]])
+   (dispatch [:reload [:article article-id]])
+   (dispatch [:set-active-panel [:project :user :labels]])
+   (dispatch [:user-labels/show-article article-id])))
 
-(defroute project-labels "/project/labels" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:project :project :labels]]))
+(sr-defroute
+ project-labels "/project/labels" []
+ (dispatch [:set-active-panel [:project :project :labels]]))
 
-(defroute review "/project/review" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:project :review]]))
+(sr-defroute
+ review "/project/review" []
+ (dispatch [:require [:review/task]])
+ (dispatch [:set-active-panel [:project :review]])
+ (when-let [task-id @(subscribe [:review/task-id])]
+   (dispatch [:reload [:article task-id]])))
 
-(defroute project-settings "/project/settings" []
-  (before-route-change)
-  (dispatch [:reload [:project/settings]])
-  (dispatch [:set-active-panel [:project :project :settings]]))
+(sr-defroute
+ project-settings "/project/settings" []
+ (dispatch [:reload [:project/settings]])
+ (dispatch [:set-active-panel [:project :project :settings]]))
 
-(defroute invite-link "/project/invite-link" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:project :project :invite-link]]))
+(sr-defroute
+ invite-link "/project/invite-link" []
+ (dispatch [:set-active-panel [:project :project :invite-link]]))
 
-(defroute login "/login" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:login]]))
+(sr-defroute
+ login "/login" []
+ (dispatch [:set-active-panel [:login]]))
 
-(defroute select-project "/select-project" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:select-project]]))
+(sr-defroute
+ select-project "/select-project" []
+ (dispatch [:set-active-panel [:select-project]]))
 
-(defroute user-settings "/user/settings" []
-  (before-route-change)
-  (dispatch [:set-active-panel [:user-settings]]))
+(sr-defroute
+ user-settings "/user/settings" []
+ (dispatch [:set-active-panel [:user-settings]]))
 
 (defn force-dispatch [uri]
   (secretary/dispatch! uri))

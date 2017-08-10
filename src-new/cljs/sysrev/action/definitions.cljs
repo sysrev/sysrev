@@ -76,10 +76,18 @@
               :change? (boolean change?)})
   :process
   (fn [{:keys [db]} [{:keys [article-id label-values confirm? resolve?]}] result]
+    {}))
+
+(def-action :article/send-note
+  :uri (fn [_] "/api/set-article-note")
+  :content (fn [{:keys [article-id name content] :as argmap}]
+             argmap)
+  (fn [{:keys [db]} {:keys [article-id name content]} result]
     (when-let [user-id (current-user-id db)]
-      {:dispatch-n (list [:reload [:member/articles user-id]]
-                         [:reload [:article article-id]]
-                         [:review/reset-ui-labels])})))
+      {:dispatch-n (list [:article/set-note-content
+                          article-id (keyword name) content]
+                         [:review/set-note-content
+                          article-id (keyword name) nil])})))
 
 (def-action :project/change-settings
   :uri (fn [_] "/api/change-project-settings")

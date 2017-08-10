@@ -4,7 +4,7 @@
    [clojure.string :as str]
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [cljs-time.core :as t]
-   [sysrev.views.components :refer [updated-time-label]]
+   [sysrev.views.components :refer [updated-time-label note-content-label]]
    [sysrev.subs.labels :refer [real-answer?]]
    [sysrev.util :refer [time-from-epoch time-elapsed-string]]
    [sysrev.shared.util :refer [in?]])
@@ -40,7 +40,7 @@
           :aria-hidden true}]
         (str/join ", " values))]]))
 
-(defn label-values-component [labels]
+(defn label-values-component [labels & {:keys [notes]}]
   [:div
    (doall
     (->>
@@ -51,7 +51,14 @@
       (fn [i [label-id answer]]
         (when (real-answer? answer)
           ^{:key i}
-          [label-answer-tag label-id answer])))))])
+          [label-answer-tag label-id answer])))))
+   (when notes
+     (doall
+      (concat
+       '([:span {:key [:labels] :style {:margin-left "0.5em"}}])
+       (for [note-key (keys notes)]
+         ^{:key [note-key]}
+         [note-content-label note-key (get notes note-key)]))))])
 
 (defn article-label-values-component [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])]
@@ -107,12 +114,10 @@
                 [:div.right.aligned.column
                  [updated-time-label updated-time]]]]]
              [article-label-values-component article-id user-id]
-             ;; TODO: Finish implementing notes to display here
-             #_
-             (when-let [unote (notes/get-note-field article-id user-id "default")]
-               [:div.notes
-                [:div.ui.divider]
-                [:div.ui.tiny.labeled.button.user-note
-                 [:div.ui.button "Notes"]
-                 [:div.ui.basic.label {:style {:text-align "justify"}}
-                  (:active unote)]]])])))])))
+             (let [note-content
+                   @(subscribe [:article/notes article-id user-id :default])]
+               (when (and (string? note-content)
+                          (not-empty (str/trim note-content)))
+                 [:div.notes
+                  [:div.ui.divider]
+                  [note-content-label :default note-content]]))])))])))

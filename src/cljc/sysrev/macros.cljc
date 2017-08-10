@@ -1,6 +1,8 @@
 (ns sysrev.macros
   (:require [cljs.analyzer.api :as ana-api]
-            [re-frame.core :refer [subscribe dispatch]]))
+            [re-frame.core :refer [subscribe dispatch]]
+            [secretary.core :refer [defroute]]
+            [sysrev.shared.util :refer [map-values]]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
@@ -40,3 +42,26 @@
          {:class (if loading# "active" "")}
          [:div.ui.loader]])
       (if have-data# [content#] [:div])]))
+
+(defmacro sr-defroute
+  [name uri params & body]
+  `(defroute ~name ~uri ~params
+     (let [bodyfn# #(do ~@body)]
+       (if-let [article-id# @(subscribe [:review/editing-id])]
+         (let [user-id# @(subscribe [:self/user-id])
+               article-values# (->> @(subscribe [:article/labels article-id# user-id#])
+                                    (map-values :answer))
+               active-values# @(subscribe [:review/active-labels article-id#])
+               user-status# @(subscribe [:article/user-status article-id# user-id#])
+               confirmed?# (= user-status# :confirmed)]
+           (do (when (and (not confirmed?#)
+                          (not= active-values# article-values#))
+                 (dispatch [:action [:review/send-labels
+                                     {:article-id article-id#
+                                      :label-values active-values#
+                                      :confirm? false
+                                      :resolve? false
+                                      :change? false}]]))
+               (sysrev.events.notes/sync-article-notes article-id#)
+               (js/setTimeout bodyfn# 300)))
+         (bodyfn#)))))

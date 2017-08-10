@@ -78,8 +78,7 @@
                  (if (= sname (last segments))
                    "bottom attached segment" "attached segment"))
         review-task? @(subscribe [:review/on-review-task?])]
-    (with-loader (if review-task? [[:review/task]] [])
-      (if review-task? {:dimmer true} {})
+    (with-loader [[:article article-id]] {:dimmer true :min-height "400px"}
       [:div
        [:div.ui.top.attached.middle.aligned.segment
         [:div {:style {:float "left"}}

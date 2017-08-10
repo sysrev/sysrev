@@ -10,9 +10,11 @@
 
 (defmethod panel-content [:project :review] []
   (fn [child]
-    (with-loader [[:review/task]] {}
-      (let [article-id @(subscribe [:review/task-id])]
-        [:div
-         [article-info-view article-id]
-         [label-editor-view]
-         child]))))
+    (let [article-id @(subscribe [:review/task-id])]
+      [:div
+       (with-loader [[:review/task]] {:dimmer true :min-height "400px"}
+         [article-info-view article-id :show-labels? false])
+       (when article-id
+         [:div {:style {:margin-top "1em"}}
+          [label-editor-view article-id]])
+       child])))
