@@ -23,11 +23,11 @@
     [:div.ui.top.menu.site-menu
      [:div.ui.container
       [:a.header.item
-       {:href "/"}
+       {:on-click #(dispatch [:navigate []])}
        [:h3.ui.blue.header
         "sysrev.us"]]
       [:a.item
-       {:href "/"}
+       {:on-click #(dispatch [:navigate [:project]])}
        "Projects"]
       [:div.item.loading-indicator
        [loading-indicator]]
@@ -38,12 +38,12 @@
                             :action #(dispatch [:action [:dev/clear-query-cache]])}]
             :dropdown-class "dropdown item"
             :label [:i.fitted.code.icon]])
-         [:a.item {:href "/user/settings"}
+         [:a.item {:on-click #(dispatch [:navigate [:user-settings]])}
           "Settings"]
          [:a.item {:on-click #(dispatch [:action [:auth/log-out]])}
           "Log Out"]
          [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
-         [:a.item.distinct {:href "/login"}
+         [:a.item.distinct {:on-click #(dispatch [:navigate [:login]])}
           "Log in"]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))

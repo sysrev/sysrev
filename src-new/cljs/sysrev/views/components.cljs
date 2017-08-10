@@ -41,7 +41,12 @@
                               :class (if (= tab-id active-tab-id)
                                        "active item" "item")
                               :href (when (string? action) action)
-                              :on-click (when-not (string? action) action)}
+                              :on-click (cond (vector? action)
+                                              #(dispatch [:navigate action])
+
+                                              (string? action) nil
+
+                                              :else action)}
                           content]))]
     [:div.project-menu-wrapper
      [:div.ui
@@ -64,7 +69,12 @@
                               :class (if (= tab-id active-tab-id)
                                        "active item" "item")
                               :href (when (string? action) action)
-                              :on-click (when-not (string? action) action)}
+                              :on-click (cond (vector? action)
+                                              #(dispatch [:navigate action])
+
+                                              (string? action) nil
+
+                                              :else action)}
                           content]))]
     [:div.secondary-menu-wrapper
      [:div.ui

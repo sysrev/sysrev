@@ -11,13 +11,13 @@
     [primary-tabbed-menu
      [{:tab-id :project
        :content "Project"
-       :action "/project"}
+       :action [:project :project]}
       {:tab-id :user
        :content "My Labels"
-       :action "/project/user"}
+       :action [:project :user]}
       {:tab-id :review
        :content "Review Articles"
-       :action "/project/review"}]
+       :action [:project :review]}]
      active-tab
      "project-menu"]))
 
@@ -26,23 +26,23 @@
     [secondary-tabbed-menu
      [{:tab-id :overview
        :content "Overview"
-       :action "/project"}
+       :action [:project :project :overview]}
       {:tab-id :articles
        :content "Article Activity"
-       :action "/project/articles"}
+       :action [:project :project :articles]}
       {:tab-id :labels
        :content "Label Definitions"
-       :action "/project/labels"}
+       :action [:project :project :labels]}
       (when false
         {:tab-id :predict
          :content "Prediction"
-         :action "/project/predict"})]
+         :action [:project :project :predict]})]
      [{:tab-id :invite-link
        :content "Invite Link"
-       :action "/project/invite-link"}
+       :action [:project :project :invite-link]}
       {:tab-id :settings
        :content "Settings"
-       :action "/project/settings"}]
+       :action [:project :project :settings]}]
      active-tab
      "project-menu-2"]))
 
@@ -66,7 +66,7 @@
           project-name
           [:div
            [:a.ui.icon.button
-            {:href "/select-project"
+            {:on-click #(dispatch [:navigate [:select-project]])
              :class (if (or admin? (< 1 (count project-ids)))
                       "" "disabled")}
             [:i.horizontal.ellipsis.icon]]]]

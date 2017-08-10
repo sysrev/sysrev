@@ -1,8 +1,8 @@
 (ns sysrev.data.core
   (:require
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx
-     trim-v reg-fx]]
+    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+     reg-event-db reg-event-fx trim-v reg-fx]]
    [re-frame.db :refer [app-db]]
    [reagent.ratom :refer [reaction]]
    [sysrev.action.core :refer [any-action-running?]]
@@ -228,4 +228,5 @@
          (get-needed-items db))}))
 
 (defn init-data []
+  (dispatch [:ui/load-default-panels])
   (dispatch [:fetch [:identity]]))

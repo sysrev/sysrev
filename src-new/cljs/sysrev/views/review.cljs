@@ -408,7 +408,7 @@
             [:h3
              (if resolving? "Resolve labels " "Edit labels ")
              [with-tooltip
-              [:a {:href "/project/labels"}
+              [:a {:on-click #(dispatch [:navigate [:project :project :labels]])}
                [:i.medium.grey.help.circle.icon]]]
              [:div.ui.inverted.popup.top.left.transition.hidden
               "View label definitions"]]]

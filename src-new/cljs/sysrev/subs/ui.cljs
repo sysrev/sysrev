@@ -68,3 +68,17 @@
    (when (and vstate path)
      (let [path (if (sequential? path) path [path])]
        (get-in vstate path)))))
+
+(defn panel-prefixes [path]
+  (->> (range 1 (inc (count path)))
+       (map #(vec (take % path)))
+       reverse vec))
+
+(reg-sub
+ ::active-subpanels
+ (fn [db]
+   (get-in db [:state :navigation :subpanels])))
+
+(defn active-subpanel [db path]
+  (or (get-in db [:state :navigation :subpanels path])
+      path))
