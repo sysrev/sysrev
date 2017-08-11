@@ -1,8 +1,56 @@
 #!/bin/bash
 set -eu
 
+SCRIPT_NAME="./scripts/clone-latest-db"
+PROD_TUNNEL_PORT=5470
+
+
+function env_help {
+	echo "Error: SR_DEST_PORT and SR_DEST_DB must be defined as shell or environment variables, referring to the localhost port number and postgres database name for the destination database to load into."
+	echo
+	echo "Example: bash -c 'SR_DEST_PORT=5432 SR_DEST_DB=sysrev $SCRIPT_NAME'"
+	exit
+}
+
+function prod_tunnel_help {
+	echo "Error: Production database should be tunneled to port 5470."
+	echo
+	echo "Example: ssh -nNTf -L 5470:localhost:5432 ubuntu@sysrev.us"
+	echo "If this fails, make sure you have a valid ssh key."
+	echo
+	echo "Alternatively, you can place this in your ~/.ssh/config file:"
+	echo
+	echo "Host sysrev_prod"
+	echo "  User ubuntu"
+	echo "  HostName sysrev.us"
+	echo "  IdentityFile ~/.ssh/<your_ssh_key_file>"
+	echo "  LocalForward 5470 localhost:5432"
+	echo "  ControlPath /tmp/sysrev_prod_socket"
+	echo "  ControlMaster auto"
+	echo "  IdentitiesOnly yes"
+	echo "  ExitOnForwardFailure yes"
+	echo
+	echo "And then simply execute: "
+	echo "> ssh -Nf sysrev_prod"
+	echo "to open the tunnel"
+	exit
+}
+
+# Require these vars are set and not empty.
+if [ -z ${SR_DEST_PORT+x} ] || [ -z ${SR_DEST_DB+x} ]; then
+	env_help
+fi
+
+if [ $SR_DEST_PORT = $PROD_TUNNEL_PORT ]; then
+	echo "Error: Cannot run with the production port as the destination."
+fi
+
+# Check to see if the production tunnel is open, print help message
+# if not.
+nc -z 127.0.0.1 $PROD_TUNNEL_PORT &> /dev/null || prod_tunnel_help
+
 src_db=sysrev
-src_port=5470
+src_port=$PROD_TUNNEL_PORT
 dest_db=$SR_DEST_DB
 dest_port=$SR_DEST_PORT
 
