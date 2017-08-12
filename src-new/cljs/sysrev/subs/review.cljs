@@ -28,8 +28,8 @@
  :review/editing-id
  :<- [:review/on-review-task?]
  :<- [:review/task-id]
- :<- [:article-list/editing?]
- :<- [:article-list/article-id]
+ :<- [:public-labels/editing?]
+ :<- [:public-labels/article-id]
  :<- [:user-labels/editing?]
  :<- [:user-labels/article-id]
  (fn [[on-review-task? task-aid list-editing? list-aid user-editing? user-aid]]

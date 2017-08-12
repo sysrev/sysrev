@@ -177,6 +177,31 @@
                :on-click #(on-change true)}
       "Yes"]]))
 
+(defn three-state-selection-icons
+  [on-change curval &
+   {:keys [icons] :or {icons {false [:i.minus.circle.icon]
+                              nil   [:i.help.circle.outline.icon]
+                              true  [:i.plus.circle.icon]}}}]
+  ;; nil for unset, true, false
+  (let [size (if (full-size?) "large" "small")
+        class (str "ui " size " buttons three-state-icon")
+        bclass (fn [secondary? selected?]
+                 (str "ui " size " "
+                      (cond (not selected?) ""
+                            secondary?        "grey"
+                            :else             "black")
+                      " icon button"))]
+    [:div {:class class}
+     [:div.ui {:class (bclass false (false? curval))
+               :on-click #(on-change false)}
+      (get icons false)]
+     [:div.ui {:class (bclass true (nil? curval))
+               :on-click #(on-change nil)}
+      (get icons nil)]
+     [:div.ui {:class (bclass false (true? curval))
+               :on-click #(on-change true)}
+      (get icons true)]]))
+
 (defn true-false-nil-tag
   "UI component for representing an optional boolean value.
   `value` is one of true, false, nil."

@@ -29,7 +29,7 @@
  articles "/project/articles" []
  (dispatch [:set-active-panel [:project :project :articles]
             "/project/articles"])
- (dispatch [:article-list/hide-article])
+ (dispatch [:public-labels/hide-article])
  (dispatch [:reload [:project/public-labels]]))
 
 (sr-defroute
@@ -39,7 +39,7 @@
    (dispatch [:reload [:article article-id]])
    (dispatch [:set-active-panel [:project :project :articles]
               (str "/project/articles/" article-id)])
-   (dispatch [:article-list/show-article article-id])))
+   (dispatch [:public-labels/show-article article-id])))
 
 (sr-defroute
  project-user "/project/user" []

@@ -38,10 +38,10 @@
          :content "Prediction"
          :action [:project :project :predict]})]
      [{:tab-id :invite-link
-       :content "Invite Link"
+       :content [:span "Invite Link " [:i.ui.mail.outline.icon]]
        :action [:project :project :invite-link]}
       {:tab-id :settings
-       :content "Settings"
+       :content [:span "Settings " [:i.ui.settings.icon]]
        :action [:project :project :settings]}]
      active-tab
      "project-menu-2"]))
@@ -65,11 +65,11 @@
          [project-header
           project-name
           [:div
-           [:a.ui.icon.button
+           [:a.ui.tiny.button
             {:on-click #(dispatch [:navigate [:select-project]])
              :class (if (or admin? (< 1 (count project-ids)))
                       "" "disabled")}
-            [:i.horizontal.ellipsis.icon]]]]
+            "Change"]]]
          [:div.ui.bottom.attached.segment
           [project-page-menu]
           [:div child]]]))))

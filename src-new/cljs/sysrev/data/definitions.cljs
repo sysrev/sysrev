@@ -4,8 +4,8 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.data.core :refer [def-data]]
    [sysrev.subs.auth :refer [have-identity?]]
-   [sysrev.subs.project :refer [project-loaded? active-project-id]]
-   [sysrev.subs.public-labels :refer [have-public-labels?]]
+   [sysrev.subs.project :refer
+    [project-loaded? active-project-id have-public-labels?]]
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]

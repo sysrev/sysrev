@@ -733,7 +733,8 @@
 (defn query-member-articles [project-id user-id]
   (let [articles
         (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
-                    :al.resolve :al.confirm-time :al.updated-time :al.label-id)
+                    :al.resolve :al.confirm-time :al.updated-time :al.label-id
+                    :wu.user-id)
             (from [:article :a])
             (join [:project :p] [:= :p.project-id :a.project-id]
                   [:article-label :al] [:= :al.article-id :a.article-id]
@@ -765,8 +766,14 @@
                       {:title primary-title
                        :confirmed confirmed
                        :updated-time (->> xs (map :updated-epoch) (remove nil?) (apply max 0))
-                       :labels (->> xs (mapv #(dissoc % :primary-title :article-id
-                                                      :updated-time :updated-epoch :confirmed)))})))))
+                       :labels
+                       (->> xs
+                            (mapv #(dissoc % :primary-title :article-id
+                                           :updated-time :updated-epoch :confirmed))
+                            (group-by :label-id)
+                            (map-values (fn [entries]
+                                          (->> entries
+                                               (mapv #(dissoc % :label-id))))))})))))
         notes
         (-> (q/select-project-articles
              project-id [:a.article-id :an.content :pn.name])

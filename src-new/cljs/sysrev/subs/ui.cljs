@@ -44,7 +44,7 @@
 (defn get-panel-field [db path & [panel]]
   (let [panel (or panel (active-panel db))
         path (if (sequential? path) path [path])]
-    (get-in db (concat [:state :panels panel] path) )))
+    (get-in db (concat [:state :panels panel] path))))
 
 (reg-sub
  :panel-field

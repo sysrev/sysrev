@@ -97,3 +97,14 @@
       :consistent consistent
       :conflict pending
       :resolved resolved})))
+
+(defn have-public-labels? [db]
+  (let [project-id (active-project-id db)
+        project (get-project-raw db project-id)]
+    (contains? project :public-labels)))
+
+(reg-sub
+ :project/public-labels
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]] (:public-labels project)))

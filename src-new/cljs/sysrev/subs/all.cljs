@@ -8,6 +8,5 @@
             sysrev.subs.keywords
             sysrev.subs.review
             sysrev.subs.labels
-            sysrev.subs.public-labels
             sysrev.subs.notes
             sysrev.subs.ui))

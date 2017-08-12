@@ -10,7 +10,7 @@
    [sysrev.views.panels.user-settings]
    [sysrev.views.panels.project.main]
    [sysrev.views.panels.project.overview]
-   [sysrev.views.panels.project.article-list]
+   [sysrev.views.panels.project.public-labels]
    [sysrev.views.panels.project.labels]
    [sysrev.views.panels.project.settings]
    [sysrev.views.panels.project.invite-link]

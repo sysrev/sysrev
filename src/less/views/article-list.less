@@ -65,6 +65,11 @@ div.article-answers.resolved {
     background-color: @purpleBackground;
 }
 
+.ui.grid.article-list-article .row div.column.article-updated-time {
+    padding-left: 0;
+    padding-right: 0;
+}
+
 div.article-filters>form.ui.form {
     margin-bottom: -1em;
 }
@@ -73,7 +78,21 @@ div.article-list-article > div.ui.row i.right.chevron.icon {
     color: @text;
 }
 
-// user labels page
+div.article-filters .ui.buttons.three-state-icon .ui.button {
+    text-align: center;
+    padding-top: 0.7em;
+    padding-bottom: 0.7em;
+    padding-left: 0.7em;
+    padding-right: 0.7em;
+}
+
+div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
+    font-size: 17px;
+}
+
+.article-list-article .ui.list>.item .header {
+    color: @darkText !important;
+}
 
 div.article-list-article div.article-title div.ui.fitted.divider {
     margin-top: 0.6em;

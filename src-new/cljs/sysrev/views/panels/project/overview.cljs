@@ -2,10 +2,10 @@
   (:require
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
-   [sysrev.subs.public-labels :refer [group-statuses]]
+   [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.charts :refer [chart-container pie-chart]]
-   [sysrev.views.panels.project.article-list :as article-list]
+   [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]
    [sysrev.shared.util :refer [in?]])
@@ -14,8 +14,8 @@
 (defn nav-group-status [status]
   (when (in? group-statuses status)
     (nav-scroll-top "/project/articles")
-    (dispatch [::article-list/reset-filters [:group-status]])
-    (dispatch [::article-list/set-group-status status])))
+    (dispatch [:public-labels/reset-filters [:group-status]])
+    (dispatch [:public-labels/set-group-status status])))
 
 (defn- chart-value-labels [entries]
   [:div.ui.one.column.center.aligned.middle.aligned.grid
