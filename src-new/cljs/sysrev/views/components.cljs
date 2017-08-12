@@ -5,6 +5,7 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
    [reagent.core :as r]
+   [cljsjs.clipboard]
    [sysrev.util :refer
     [url-domain nbsp time-elapsed-string full-size?]]
    [sysrev.shared.util :refer [num-to-english]]))
@@ -258,3 +259,38 @@
    [:div.ui.button "Notes"]
    [:div.ui.basic.label {:style {:text-align "justify"}}
     content]])
+
+
+(defn clipboard-button [target child]
+  (let [clip (atom nil)
+        status (r/atom nil)
+        transtime 3000
+        default-class "ui primary button"
+        success-el [:i.small.inverted.green.circular.checkmark.icon]]
+    (letfn [(reset-ui [] (reset! status nil))
+            (clip-success [_]
+              (reset! status true)
+              (-> js/window
+                  (.setTimeout reset-ui transtime)))
+            (get-clipboard [el]
+              (let [clip (js/Clipboard. (r/dom-node el))]
+                (.on clip "success" clip-success)
+                clip))
+            (reset-clip! [el] (reset! clip (get-clipboard el)))
+            (component-did-mount [this] (reset-clip! this))
+            (component-will-update [this _] (reset-clip! this))
+            (component-will-unmount []
+              (when-not (nil? @clip)
+                (.destroy @clip)
+                (reset! clip nil)))
+            (render [target child]
+              [:div
+               {:data-clipboard-target target}
+               child
+               (when @status success-el)])]
+      (r/create-class
+        {:display-name (str "clipboard-from-" target)
+         :component-will-update component-will-update
+         :component-did-mount component-did-mount
+         :component-will-unmount component-will-unmount
+         :reagent-render render}))))

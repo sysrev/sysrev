@@ -76,6 +76,7 @@
                  [cljsjs/chartjs "2.5.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [org.clojure/test.check "0.9.0"]
+                 [cljsjs/clipboard "1.6.1-1"]
                  ;; [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]
                  [com.andrewmcveigh/cljs-time "0.5.0"]]
   :min-lein-version "2.6.1"
@@ -113,7 +114,7 @@
                 :optimizations :none
                 :pretty-print true
                 :source-map true
-                :source-map-timestamp true
+                :source-map-timestamp true}}
                 ;; :preloads [devtools.preload]
                 ;; :external-config {:devtools/config {:features-to-install :all}}
                 }}
