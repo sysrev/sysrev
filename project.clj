@@ -114,7 +114,7 @@
                 :optimizations :none
                 :pretty-print true
                 :source-map true
-                :source-map-timestamp true}}
+                :source-map-timestamp true
                 ;; :preloads [devtools.preload]
                 ;; :external-config {:devtools/config {:features-to-install :all}}
                 }}

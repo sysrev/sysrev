@@ -16,6 +16,5 @@
            [:div.ui.fluid.action.input
             [:input#invite-url.ui.input {:readOnly true
                                          :value invite-url}]
-            [clipboard-button "#invite-url"
-             [:div.ui.primary.button "Copy URL"]]]]]]])
+            [clipboard-button "#invite-url" "Copy URL"]]]]]])
      child]))

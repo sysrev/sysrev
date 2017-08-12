@@ -264,9 +264,10 @@
 (defn clipboard-button [target child]
   (let [clip (atom nil)
         status (r/atom nil)
-        transtime 3000
+        transtime 1500
         default-class "ui primary button"
-        success-el [:i.small.inverted.green.circular.checkmark.icon]]
+        success-class "ui green button"
+        success-el [:span "Copied " [:i.circle.check.icon]]]
     (letfn [(reset-ui [] (reset! status nil))
             (clip-success [_]
               (reset! status true)
@@ -284,13 +285,12 @@
                 (.destroy @clip)
                 (reset! clip nil)))
             (render [target child]
-              [:div
-               {:data-clipboard-target target}
-               child
-               (when @status success-el)])]
+              [:div {:class (if @status success-class default-class)
+                     :data-clipboard-target target}
+               (if @status success-el child)])]
       (r/create-class
-        {:display-name (str "clipboard-from-" target)
-         :component-will-update component-will-update
-         :component-did-mount component-did-mount
-         :component-will-unmount component-will-unmount
-         :reagent-render render}))))
+       {:display-name (str "clipboard-from-" target)
+        :component-will-update component-will-update
+        :component-did-mount component-did-mount
+        :component-will-unmount component-will-unmount
+        :reagent-render render}))))
