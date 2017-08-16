@@ -56,9 +56,9 @@
      (doall
       (concat
        '([:span {:key [:labels] :style {:margin-left "0.5em"}}])
-       (for [note-key (keys notes)]
-         ^{:key [note-key]}
-         [note-content-label note-key (get notes note-key)]))))])
+       (for [note-name (keys notes)]
+         ^{:key [note-name]}
+         [note-content-label note-name (get notes note-name)]))))])
 
 (defn article-label-values-component [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])]
@@ -115,9 +115,9 @@
                  [updated-time-label updated-time]]]]]
              [article-label-values-component article-id user-id]
              (let [note-content
-                   @(subscribe [:article/notes article-id user-id :default])]
+                   @(subscribe [:article/notes article-id user-id "default"])]
                (when (and (string? note-content)
                           (not-empty (str/trim note-content)))
                  [:div.notes
                   [:div.ui.divider]
-                  [note-content-label :default note-content]]))])))])))
+                  [note-content-label "default" note-content]]))])))])))

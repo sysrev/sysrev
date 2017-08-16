@@ -44,7 +44,6 @@
 (defn set-user-article-note [article-id user-id note-name content]
   (let [article-id (q/to-article-id article-id)
         user-id (q/to-user-id user-id)
-        note-name (name note-name)
         pnote (-> (q/select-article-by-id article-id [:pn.*])
                   (merge-join [:project :p]
                               [:= :p.project-id :a.project-id])
@@ -79,8 +78,7 @@
 (s/fdef set-user-article-note
         :args (s/cat :article-id ::sc/article-id
                      :user-id ::sc/user-id
-                     :note-name (s/or :s string?
-                                      :k keyword?)
+                     :note-name string?
                      :content (s/nilable string?))
         :ret (s/nilable map?))
 

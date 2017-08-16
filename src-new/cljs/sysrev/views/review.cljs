@@ -357,13 +357,12 @@
       [:div.ui.row.label-edit-value.string
        [string-label-input article-id label-id]]]]))
 
-(defn note-input-element [note-key]
-  (when @(subscribe [:project/notes nil note-key])
+(defn note-input-element [note-name]
+  (when @(subscribe [:project/notes nil note-name])
     (let [article-id @(subscribe [:review/editing-id])
           user-id @(subscribe [:self/user-id])
-          note-name @(subscribe [:note/name note-key])
-          note-description @(subscribe [:note/description note-key])
-          note-content @(subscribe [:review/active-note article-id note-key])]
+          note-description @(subscribe [:note/description note-name])
+          note-content @(subscribe [:review/active-note article-id note-name])]
       [:div.ui.segment.notes
        {:class (if true "bottom attached" "attached")}
        [:div.ui.middle.aligned.form.notes
@@ -380,7 +379,7 @@
            :on-change
            #(let [content (-> % .-target .-value)]
               (dispatch [:review/set-note-content
-                         article-id note-key content]))}]]]])))
+                         article-id note-name content]))}]]]])))
 
 (defn label-editor-view [article-id]
   (when (and article-id
@@ -418,4 +417,4 @@
                          "celled grid segment")}
             (make-label-columns label-ids n-cols)]
            #_ [inconsistent-answers-notice label-values]
-           [note-input-element :default]])))))
+           [note-input-element "default"]])))))

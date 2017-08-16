@@ -99,19 +99,9 @@
       @(subscribe [:member/articles])))))
 
 (reg-sub
- :article-list/articles
- (fn [[_ panel]]
-   [(subscribe [::articles panel])])
- (fn [[articles]]
-   (->> (keys articles)
-        (mapv (fn [article-id]
-                (let [article (get articles article-id)]
-                  (merge article {:article-id article-id})))))))
-
-(reg-sub
  :article-list/filtered
  (fn [[_ panel]]
-   [(subscribe [:article-list/articles panel])
+   [(subscribe [::articles panel])
     (subscribe [:article-list/filter-value :confirm-status panel])
     (subscribe [:article-list/filter-value :label-id panel])
     (subscribe [:article-list/filter-value :group-status panel])
@@ -133,7 +123,8 @@
      (->> articles
           (filter (confirm-status-filter confirm-status))
           (filter-labels)
-          (sort-by :updated-time >)))))
+          ;; Would be sorted here, but sorted by :updated-time on server
+          ))))
 
 (reg-sub
  ::default-filter-values
@@ -202,7 +193,7 @@
 (reg-sub
  ::selected-article-id
  (fn [[_ panel]]
-   [(subscribe [:panel-field [::selected-article-id] panel])])
+   [(subscribe [:panel-field [:selected-article-id] panel])])
  (fn [[article-id]] article-id))
 
 (reg-sub
@@ -241,7 +232,7 @@
  (fn [[_ panel]]
    [(subscribe [:article-list/filtered panel])])
  (fn [[articles]]
-   (* display-count (quot (count articles) display-count))))
+   (* display-count (quot (dec (count articles)) display-count))))
 
 (reg-event-fx
  ::set-display-offset
@@ -367,13 +358,14 @@
            @(subscribe [:label/all-values label-id])
            @(subscribe [:label/inclusion-criteria? label-id])])
         group-status @(subscribe [:article-list/filter-value :group-status panel])
-        select-group-status? (and label-id criteria?)
+        user-labels-page? (= panel [:project :user :labels])
+        select-group-status? (and label-id criteria? (not user-labels-page?))
         select-inclusion? (and label-id criteria?
                                (not= group-status :conflict))
         select-answer? (and label-id
                             (not (and boolean? criteria?))
                             (not-empty all-values))
-        select-confirmed? (= panel [:project :user :labels])
+        select-confirmed? user-labels-page?
         n-columns (+ 3
                      (if select-group-status? 3 0)
                      (if select-answer? 3 0)
@@ -437,15 +429,36 @@
              #(dispatch [::reset-filters [] panel]))}
           "Reset filters"]]]]]]))
 
-(defn article-list-view [render-article-entry panel]
-  (let [full-size? (full-size?)
-        user-id @(subscribe [:self/user-id])
-        active-aid @(subscribe [::selected-article-id panel])
-        articles @(subscribe [:article-list/filtered panel])
-        total-count (count articles)
-        display-offset @(subscribe [::display-offset panel])
+(reg-sub
+ ::article-list-header-text
+ (fn [[_ panel]]
+   [(subscribe [:article-list/filtered panel])
+    (subscribe [::display-offset panel])])
+ (fn [[filtered display-offset]]
+   (let [total-count (count filtered)]
+     (if (zero? total-count)
+       "No matching articles found"
+       (str "Showing " (+ display-offset 1)
+            "-" (min total-count (+ display-offset display-count))
+            " of "
+            total-count " matching articles ")))))
+
+(defn- article-list-header-message [panel]
+  (let [text @(subscribe [::article-list-header-text panel])]
+    (if (= panel [:project :project :articles])
+      [:div
+       (with-ui-help-tooltip
+         [:h5.no-margin text [ui-help-icon]]
+         :help-content
+         ["Public listing of articles reviewed by multiple users"
+          [:div.ui.divider]
+          "Articles are hidden for 12 hours after any edit to labels"])]
+      [:h5.no-margin text])))
+
+(defn- article-list-header-buttons [panel]
+  (let [total-count (count @(subscribe [:article-list/filtered panel]))
         max-display-offset @(subscribe [::max-display-offset panel])
-        visible-count (min display-count total-count)
+        display-offset @(subscribe [::display-offset panel])
         on-first #(dispatch [::set-display-offset 0 panel])
         on-last #(dispatch [::set-display-offset max-display-offset panel])
         on-next
@@ -455,71 +468,67 @@
         on-previous
         #(when (>= display-offset display-count)
            (dispatch [::set-display-offset
-                      (max 0 (- display-offset display-count)) panel]))
-        on-show-article
-        (fn [article-id]
-          #(nav (article-uri article-id panel)))]
+                      (max 0 (- display-offset display-count)) panel]))]
+    [:div.ui.right.aligned.column
+     [:div.ui.tiny.icon.button
+      {:class (if (= display-offset 0) "disabled" "")
+       :style {:margin-right "5px"}
+       :on-click on-first}
+      [:i.angle.double.left.icon]]
+     [:div.ui.tiny.buttons
+      {:style {:margin-right "5px"}}
+      [:div.ui.tiny.button
+       {:class (if (= display-offset 0) "disabled" "")
+        :on-click on-previous}
+       [:i.chevron.left.icon] "Previous"]
+      [:div.ui.tiny.button
+       {:class (if (>= (+ display-offset display-count) total-count)
+                 "disabled" "")
+        :on-click on-next}
+       "Next" [:i.chevron.right.icon]]]
+     [:div.ui.tiny.icon.button
+      {:class (if (>= (+ display-offset display-count) total-count)
+                "disabled" "")
+       :on-click on-last}
+      [:i.angle.double.right.icon]]]))
+
+(reg-sub
+ ::visible-entries
+ (fn [[_ panel]]
+   [(subscribe [:article-list/filtered panel])
+    (subscribe [::display-offset panel])])
+ (fn [[articles display-offset]]
+   (->> articles
+        (drop display-offset)
+        (take display-count))))
+
+(defn- article-list-view-articles [render-article-entry panel]
+  (let [active-aid @(subscribe [::selected-article-id panel])
+        show-article #(nav (article-uri % panel))]
     [:div
-     [:div.ui.top.attached.segment
-      {:style {:padding "10px"}}
-      [:div.ui.two.column.middle.aligned.grid
-       [:div.ui.left.aligned.column
-        (let [header-str
-              (if (zero? total-count)
-                "No matching articles found"
-                (str "Showing " (+ display-offset 1)
-                     "-" (min total-count (+ display-offset display-count))
-                     " of "
-                     total-count " matching articles "))]
-          (if (= panel [:project :project :articles])
-            (with-ui-help-tooltip
-              [:h5.no-margin header-str [ui-help-icon]]
-              :help-content
-              ["Public listing of articles reviewed by multiple users"
-               [:div.ui.divider]
-               "Articles are hidden for 12 hours after any edit to labels"])
-            [:h5.no-margin header-str]))]
-       [:div.ui.right.aligned.column
-        [:div.ui.tiny.icon.button
-         {:class (if (= display-offset 0) "disabled" "")
-          :style {:margin-right "5px"}
-          :on-click on-first}
-         [:i.angle.double.left.icon]]
-        [:div.ui.tiny.buttons
-         {:style {:margin-right "5px"}}
-         [:div.ui.tiny.button
-          {:class (if (= display-offset 0) "disabled" "")
-           :on-click on-previous}
-          [:i.chevron.left.icon] "Previous"]
-         [:div.ui.tiny.button
-          {:class (if (>= (+ display-offset display-count) total-count)
-                    "disabled" "")
-           :on-click on-next}
-          "Next" [:i.chevron.right.icon]]]
-        [:div.ui.tiny.icon.button
-         {:class (if (>= (+ display-offset display-count) total-count)
-                   "disabled" "")
-          :on-click on-last}
-         [:i.angle.double.right.icon]]]]]
-     [:div.ui.bottom.attached.segment.article-list-segment
+     (doall
       (->>
-       (->> articles
-            (drop display-offset)
-            (take display-count))
+       @(subscribe [::visible-entries panel])
        (map
-        (fn [{:keys [article-id title updated-time labels confirmed]
-              :as article}]
+        (fn [{:keys [article-id] :as article}]
           (let [active? (= article-id active-aid)
-                classes (cond-> []
-                          active? (conj "active"))]
+                classes (if active? "active" "")]
             [:div.article-list-segments
              {:key article-id}
              [:div.ui.middle.aligned.grid.segment.article-list-article
               {:class (if active? "active" "")
-               :style {:cursor "pointer"}
-               :on-click (on-show-article article-id)}
-              [render-article-entry article full-size?]]])))
-       (doall))]]))
+               :on-click #(show-article article-id)}
+              [render-article-entry article full-size?]]])))))]))
+
+(defn article-list-view [render-article-entry panel]
+  [:div.article-list-view
+   [:div.ui.top.attached.segment
+    [:div.ui.two.column.middle.aligned.grid
+     [:div.ui.left.aligned.column
+      [article-list-header-message panel]]
+     [article-list-header-buttons panel]]]
+   [:div.ui.bottom.attached.segment.article-list-segment
+    [article-list-view-articles render-article-entry panel]]])
 
 (defn article-list-article-view [article-id panel]
   (let [label-values @(subscribe [:review/active-labels article-id])

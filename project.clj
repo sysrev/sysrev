@@ -12,6 +12,9 @@
                  [org.clojure/data.zip "0.1.2"]
                  ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
                  [clojure-csv/clojure-csv "2.0.1"]
+                 [com.cognitect/transit-clj "0.8.300"]
+                 [com.cognitect/transit-cljs "0.8.239"]
+                 [ring-transit "0.1.6"]
                  ;; Database
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "42.1.1"]

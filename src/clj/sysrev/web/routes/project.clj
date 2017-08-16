@@ -15,6 +15,7 @@
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
+   [sysrev.shared.transit :as sr-transit]
    [sysrev.util :refer
     [should-never-happen-exception integerify-map-keys uuidify-map-keys]]
    [honeysql.core :as sql]
@@ -92,8 +93,8 @@
         (wrap-permissions
          request [] ["member"]
          (let [user-id (current-user-id request)
-               {:keys [article-id label-values confirm? change? resolve?] :as body}
-               (-> request :body integerify-map-keys uuidify-map-keys)]
+               {:keys [article-id label-values confirm? change? resolve?]
+                :as body} (-> request :body)]
            (assert (or change? resolve?
                        (not (labels/user-article-confirmed? user-id article-id))))
            (labels/set-user-article-labels user-id article-id label-values
@@ -107,8 +108,8 @@
         (wrap-permissions
          request [] ["member"]
          (let [user-id (current-user-id request)
-               {:keys [article-id name content] :as body}
-               (-> request :body integerify-map-keys uuidify-map-keys)]
+               {:keys [article-id name content]
+                :as body} (-> request :body)]
            (articles/set-user-article-note article-id user-id name content)
            {:result body})))
 
@@ -117,7 +118,8 @@
         request [] ["member"]
         (let [user-id (-> request :params :user-id Integer/parseInt)
               project-id (active-project request)]
-          {:result (labels/query-member-articles project-id user-id)})))
+          {:result (sr-transit/encode-member-articles
+                    (labels/query-member-articles project-id user-id))})))
 
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
@@ -202,8 +204,9 @@
        (wrap-permissions
         request [] ["member"]
         (let [project-id (active-project request)]
-          {:result (labels/query-public-article-labels
-                    project-id :exclude-hours 12)}))))
+          {:result (sr-transit/encode-public-labels
+                    (labels/query-public-article-labels
+                     project-id :exclude-hours 12))}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

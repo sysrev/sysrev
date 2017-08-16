@@ -33,6 +33,7 @@
         sysrev.resources
         sysrev.shared.util
         sysrev.shared.keywords
+        sysrev.shared.transit
         sysrev.test.core
         sysrev.test.browser.core)
   (:require [clojure.spec.alpha :as s]
@@ -55,6 +56,7 @@
             [clojure.zip :as zip]
             [clojure.data.xml :as dxml]
             [clojure.string :as str]
+            [cognitect.transit :as transit]
             ;; [flambo.api :as f]
             ;; [flambo.conf :as fc]
             ;; [flambo.tuple :as ft]

@@ -252,14 +252,13 @@
           help-element
           help-element)]))
 
-(defn note-content-label [note-key content]
+(defn note-content-label [note-name content]
   (when (and (string? content)
              (not-empty (str/trim content))))
   [:div.ui.tiny.labeled.button.user-note
    [:div.ui.button "Notes"]
    [:div.ui.basic.label {:style {:text-align "justify"}}
     content]])
-
 
 (defn clipboard-button [target child]
   (let [clip (atom nil)

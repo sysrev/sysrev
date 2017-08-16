@@ -9,6 +9,7 @@
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
+   [sysrev.shared.transit :as sr-transit]
    [sysrev.shared.util :refer [in?]]))
 
 ;;
@@ -51,7 +52,8 @@
   :prereqs (fn [] [[:identity] [:project]])
   :process
   (fn [_ _ result]
-    {:dispatch [:project/load-public-labels result]}))
+    (let [result-decoded (sr-transit/decode-public-labels result)]
+      {:dispatch [:project/load-public-labels result-decoded]})))
 
 (def-data :member/articles
   :loaded-p have-member-articles?
@@ -59,7 +61,8 @@
   :prereqs (fn [user-id] [[:identity] [:project]])
   :process
   (fn [_ [user-id] result]
-    {:dispatch [:member/load-articles user-id result]}))
+    (let [result-decoded (sr-transit/decode-member-articles result)]
+      {:dispatch [:member/load-articles user-id result-decoded]})))
 
 (def-data :review/task
   :loaded-p task-id

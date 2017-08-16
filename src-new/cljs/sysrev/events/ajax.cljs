@@ -7,7 +7,8 @@
    [ajax.core :as ajax]
    [sysrev.shared.util :refer [in? to-uuid]]
    [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
-   [sysrev.subs.core :refer [get-csrf-token]]))
+   [sysrev.subs.core :refer [get-csrf-token]]
+   [cognitect.transit :as transit]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
 (s/def ::uri string?)
@@ -27,7 +28,7 @@
                          (contains? response :result))
            result (when-let [result (and (map? response)
                                          (:result response))]
-                    (-> result integerify-map-keys uuidify-map-keys))
+                    result)
            csrf-token (and (map? response)
                            (:csrf-token response))]
        (-> context
@@ -74,8 +75,8 @@
       :uri uri
       :params content
       :timeout 5000
-      :format (ajax/json-request-format)
-      :response-format (ajax/json-response-format {:keywords? true})
+      :format (ajax/transit-request-format)
+      :response-format (ajax/transit-response-format)
       :headers (when csrf-token {"x-csrf-token" csrf-token})
       :on-success (cond-> on-success
                     action-params (conj action-params))

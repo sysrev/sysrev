@@ -84,9 +84,9 @@
         [:div
          [:div.ui.fitted.divider]
          (doall
-          (for [note-key (keys notes)]
-            ^{:key [note-key]}
-            [note-content-label note-key (get notes note-key)]))])]]))
+          (for [note-name (keys notes)]
+            ^{:key [note-name]}
+            [note-content-label note-name (get notes note-name)]))])]]))
 
 (defn- user-article-list-view []
   [article-list-view user-article-list-entry panel])

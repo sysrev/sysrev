@@ -7,6 +7,8 @@
             [ring.middleware.reload :refer [wrap-reload]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
+            [ring.middleware.transit :refer
+             [wrap-transit-response wrap-transit-body]]
             [org.httpkit.server :refer [run-server]]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
@@ -48,14 +50,14 @@
     (-> handler
         wrap-sysrev-response
         wrap-add-anti-forgery-token
-        wrap-json-response
+        (wrap-transit-response {:encoding :json, :opts {}})
         wrap-multipart-params
         (#(if reloadable?
             (wrap-reload % {:dirs ["src/clj"]})
             (identity %)))
         wrap-no-cache
         (default/wrap-defaults config)
-        (wrap-json-body {:keywords? true}))))
+        (wrap-transit-body {:opts {}}))))
 
 (defn wrap-sysrev-api
   "Ring handler wrapper for JSON API (non-browser) routes"

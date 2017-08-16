@@ -20,7 +20,8 @@
             [clojure.math.numeric-tower :as math]
             [clojure.tools.logging :as log]
             [clj-time.core :as t]
-            [clj-time.coerce :as tc])
+            [clj-time.coerce :as tc]
+            [clojure.string :as str])
   (:import java.util.UUID))
 
 (def valid-label-categories
@@ -774,11 +775,14 @@
                             (map-values (fn [entries]
                                           (->> entries
                                                (mapv #(dissoc % :label-id))))))})))))
+        all-article-ids (apply hash-set (keys articles))
         notes
         (-> (q/select-project-articles
              project-id [:a.article-id :an.content :pn.name])
             (q/with-article-note nil user-id)
             (->> do-query
+                 (filter #(contains? all-article-ids (:article-id %)))
+                 (filter #(some-> % :content (str/trim) (not-empty)))
                  (group-by :article-id)
                  (map-values
                   (fn [entries]
