@@ -515,9 +515,10 @@
                (q/join-article-labels)
                (q/filter-label-user user-id)
                (->> (do-query)
-                    (map #(dissoc %
-                                  :article-label-id
-                                  :article-label-local-id)))))
+                    (map #(-> %
+                              (update :answer to-jsonb)
+                              (update :imported boolean)
+                              (dissoc :article-label-id :article-label-local-id))))))
          overall-label-id (project-overall-label-id project-id)
          confirm? (if imported?
                     (boolean (get valid-values overall-label-id))
@@ -546,6 +547,7 @@
                             :added-time now
                             :updated-time now
                             :imported (boolean imported?)
+                            :resolve (boolean resolve?)
                             :inclusion inclusion}
                          confirm? (merge {:confirm-time now}))))))]
      (doseq [label-id existing-label-ids]
@@ -559,7 +561,8 @@
                (sset (cond->
                          {:answer (to-jsonb answer)
                           :updated-time now
-                          :imported imported?
+                          :imported (boolean imported?)
+                          :resolve (boolean resolve?)
                           :inclusion inclusion}
                        confirm? (merge {:confirm-time now})))
                (where [:and

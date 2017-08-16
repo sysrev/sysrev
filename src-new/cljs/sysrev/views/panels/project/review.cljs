@@ -15,6 +15,5 @@
        (with-loader [[:review/task]] {}
          [article-info-view article-id :show-labels? false])
        (when article-id
-         [:div {:style {:margin-top "1em"}}
-          [label-editor-view article-id]])
+         [label-editor-view article-id])
        child])))

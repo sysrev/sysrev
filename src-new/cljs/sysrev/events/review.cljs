@@ -2,6 +2,7 @@
   (:require
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx trim-v reg-fx]]
+   [sysrev.subs.ui :as ui]
    [sysrev.subs.auth :as auth]
    [sysrev.subs.labels :as labels]
    [sysrev.subs.review :as review]
@@ -16,18 +17,50 @@
        (assoc-in [:data :review :today-count] today-count))))
 
 (reg-event-fx
+ :review/mark-saving
+ [trim-v]
+ (fn [_ [article-id panel]]
+   {:dispatch [:set-panel-field [:saving-labels article-id] true panel]}))
+
+(reg-event-fx
+ :review/reset-saving
+ [trim-v]
+ (fn [_ [article-id panel]]
+   (let [field (if article-id [:saving-labels article-id] [:saving-labels])]
+     {:dispatch [:set-panel-field field nil panel]})))
+
+(reg-event-fx
+ :review/enable-change-labels
+ [trim-v]
+ (fn [_ [article-id panel]]
+   {:dispatch [:set-panel-field [:change-labels? article-id] true panel]}))
+
+(reg-event-fx
+ :review/disable-change-labels
+ [trim-v]
+ (fn [_ [article-id panel]]
+   {:dispatch [:set-panel-field [:change-labels? article-id] false panel]}))
+
+(reg-event-fx
  :review/send-labels
  [trim-v]
- (fn [{:keys [db]} [{:keys [article-id confirm? resolve?]}]]
+ (fn [{:keys [db]} [{:keys [article-id confirm? resolve? on-success]}]]
    (let [label-values (review/active-labels db article-id)
          change? (= (articles/article-user-status db article-id)
-                    :confirmed)]
-     {:dispatch [:action [:review/send-labels
-                          {:article-id article-id
-                           :label-values label-values
-                           :confirm? confirm?
-                           :resolve? resolve?
-                           :change? change?}]]})))
+                    :confirmed)
+         panel (ui/active-panel db)]
+     {:dispatch-n
+      (doall
+       (->> (list (when confirm? [:review/mark-saving article-id panel])
+                  [:action
+                   [:review/send-labels
+                    {:article-id article-id
+                     :label-values label-values
+                     :confirm? confirm?
+                     :resolve? resolve?
+                     :change? change?
+                     :on-success on-success}]])
+            (remove nil?)))})))
 
 (reg-event-db
  :review/reset-ui-labels

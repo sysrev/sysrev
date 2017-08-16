@@ -246,13 +246,16 @@
    (reaction
     (boolean
      (let [article-id @(subscribe [:article-list/article-id panel])
-           user-id @(subscribe [:self/user-id])]
+           user-id @(subscribe [:self/user-id])
+           change-labels? @(subscribe [:review/change-labels? article-id panel])]
        (when (and article-id user-id)
          (let [user-status @(subscribe [:article/user-status article-id user-id])
                review-status @(subscribe [:article/review-status article-id])
-               resolving? (and (= review-status "conflict")
+               resolving? (and (= review-status :conflict)
                                @(subscribe [:member/resolver? user-id]))]
-           (or (= user-status :unconfirmed) resolving?))))))))
+           (or (= user-status :unconfirmed)
+               change-labels?
+               resolving?))))))))
 
 (reg-sub-raw
  :article-list/resolving?
@@ -264,7 +267,7 @@
              user-id @(subscribe [:self/user-id])]
          (when (and article-id user-id)
            (let [review-status @(subscribe [:article/review-status article-id])]
-             (and (= review-status "conflict")
+             (and (= review-status :conflict)
                   @(subscribe [:member/resolver? user-id]))))))))))
 
 (defn- confirm-status-selector [panel]
@@ -571,29 +574,11 @@
                [:project :user :labels] false
                :all)]
          [article-info-view article-id :show-labels? show-labels?])
-       (when editing?
-         [:div {:style {:margin-top "1em"}}
-          [label-editor-view article-id]])
-       #_
-       (let [missing (labels/required-answers-missing label-values)
-             disabled? ((comp not empty?) missing)
-             confirm-button
-             [:div.ui.right.labeled.icon
-              {:class (str (if disabled? "disabled" "")
-                           " "
-                           (if (get-loading-state :confirm) "loading" "")
-                           " "
-                           (if resolving? "purple button" "primary button"))
-               :on-click
-               (fn []
-                 (set-loading-state :confirm true)
-                 (ajax/confirm-active-labels on-confirm))}
-              (if resolving? "Resolve conflict" "Confirm labels")
-              [:i.check.circle.outline.icon]]]
-         [:div.ui.grid.centered
-          [:div.row
-           (if disabled?
-             [with-tooltip [:div confirm-button]]
-             confirm-button)
-           [:div.ui.inverted.popup.top.left.transition.hidden
-            "Answer missing for a required label"]]])]]]))
+       (cond editing?
+             [label-editor-view article-id]
+
+             (= user-status :confirmed)
+             [:div.ui.segment
+              [:div.ui.fluid.button
+               {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
+               "Change Answers"]])]]]))

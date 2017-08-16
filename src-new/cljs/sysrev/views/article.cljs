@@ -18,17 +18,17 @@
 (defn- review-status-label [status]
   (let [resolving? @(subscribe [:review/resolving?])
         sstr
-        (cond (= status "resolved")    "Resolved"
+        (cond (= status :resolved)     "Resolved"
               resolving?               "Resolving conflict"
-              (= status "conflict")    "Conflicting labels"
-              (= status "single")      "Reviewed by one user"
-              (= status "consistent")  "Consistent labels"
-              (= status "unreviewed")  "Not yet reviewed"
+              (= status :conflict)     "Conflicting labels"
+              (= status :single)       "Reviewed by one user"
+              (= status :consistent)   "Consistent labels"
+              (= status :unreviewed)   "Not yet reviewed"
               :else                    nil)
         color
-        (cond (= status "resolved")    "purple"
-              (= status "conflict")    "orange"
-              (= status "consistent")  "green"
+        (cond (= status :resolved)     "purple"
+              (= status :conflict)     "orange"
+              (= status :consistent)   "green"
               :else                    "")]
     (when sstr
       [:div.ui.basic.label

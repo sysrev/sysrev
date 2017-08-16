@@ -50,12 +50,24 @@
     (when-let [article-id @(subscribe [:review/editing-id])]
       (let [status @(subscribe [:article/review-status article-id])
             resolver? @(subscribe [:member/resolver?])]
-        (and (= status "conflict") resolver?))))))
+        (and resolver? (in? [:conflict :resolved] status)))))))
 
 (reg-sub
  ::labels
  (fn [db]
    (get-in db [:state :review :labels])))
+
+(reg-sub
+ :review/saving?
+ (fn [[_ article-id]]
+   [(subscribe [:panel-field [:saving-labels article-id]])])
+ (fn [[saving?]] saving?))
+
+(reg-sub
+ :review/change-labels?
+ (fn [[_ article-id panel]]
+   [(subscribe [:panel-field [:change-labels? article-id] panel])])
+ (fn [[change-labels?]] change-labels?))
 
 (defn review-ui-labels [db article-id]
   (get-in db [:state :review :labels article-id]))
@@ -100,3 +112,15 @@
       (if label-id
         (boolean (in? inconsistent label-id))
         (vec inconsistent))))))
+
+(reg-sub-raw
+ :review/missing-labels
+ (fn [_ [_ article-id]]
+   (reaction
+    (let [active-labels @(subscribe [:review/active-labels article-id])
+          required-ids (->> @(subscribe [:project/label-ids])
+                            (filter #(deref (subscribe [:label/required? %]))))
+          have-answer? (fn [label-id]
+                         @(subscribe [:label/non-empty-answer?
+                                      label-id (get active-labels label-id)]))]
+      (->> required-ids (remove have-answer?) vec)))))

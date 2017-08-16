@@ -58,23 +58,25 @@
  (fn [[sent-count returned-count]]
    (> sent-count returned-count)))
 
-(defn- any-running-impl [counts]
+(defn- any-running-impl [counts & [filter-item-name]]
   (boolean
-   (some (fn [item]
-           (> (get-in counts [:sent item] 0)
-              (get-in counts [:returned item] 0)))
-         (keys (get-in counts [:sent])))))
+   (->> (keys (get-in counts [:sent]))
+        (filter #(or (nil? filter-item-name)
+                     (= (first %) filter-item-name)))
+        (some #(> (get-in counts [:sent %] 0)
+                  (get-in counts [:returned %] 0))))))
 
-(defn any-action-running? [db]
+(defn any-action-running? [db & [filter-item-name]]
   (let [counts (get-in db [:ajax :action])]
-    (any-running-impl counts)))
+    (any-running-impl counts filter-item-name)))
 
 ;; Tests if any AJAX action is currently pending
+;; If filter-item-name is passed, only test for actions which have that name
 (reg-sub
  :action/any-running?
  :<- [::ajax-action-counts]
- (fn [counts]
-   (any-running-impl counts)))
+ (fn [counts [_ filter-item-name]]
+   (any-running-impl counts filter-item-name)))
 
 ;; Runs an AJAX action specified by `item`
 (reg-event-fx

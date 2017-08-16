@@ -15,7 +15,8 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache
-     clear-project-cache clear-query-cache cached-project-ids to-jsonb]]
+     clear-project-cache clear-query-cache cached-project-ids to-jsonb
+     do-transaction]]
    [sysrev.db.articles :refer [set-article-flag remove-article-flag]]
    [sysrev.db.queries :as q]
    [sysrev.shared.util :refer [map-values in?]]
@@ -317,25 +318,38 @@
     (assert (integer? project-id))
     (assert (integer? user-id))
     (clear-project-cache project-id)
-    (-> (delete-from [:article-label :al])
-        (q/filter-label-user user-id)
-        (merge-where
-         [:exists
-          (q/select-article-where
-           project-id [:= :a.article-id :al.article-id] [:*])])
-        do-execute)
-    (-> (delete-from [:article-note :an])
-        (merge-where
-         [:and
-          [:= :an.user-id user-id]
+    (do-transaction
+     nil
+     (-> (delete-from [:article-label :al])
+         (q/filter-label-user user-id)
+         (merge-where
           [:exists
-           (-> (select :*)
-               (from [:project-note :pn])
-               (where [:and
-                       [:= :pn.project-note-id :an.project-note-id]
-                       [:= :pn.project-id project-id]]))]])
-        do-execute)
-    true))
+           (q/select-article-where
+            project-id [:= :a.article-id :al.article-id] [:*])])
+         do-execute)
+     (-> (delete-from [:article-label-history :alh])
+         (merge-where
+          [:and
+           [:= :alh.user-id user-id]
+           [:exists
+            (-> (select :*)
+                (from [:article :a])
+                (where [:and
+                        [:= :a.project-id project-id]
+                        [:= :a.article-id :alh.article-id]]))]])
+         do-execute)
+     (-> (delete-from [:article-note :an])
+         (merge-where
+          [:and
+           [:= :an.user-id user-id]
+           [:exists
+            (-> (select :*)
+                (from [:project-note :pn])
+                (where [:and
+                        [:= :pn.project-note-id :an.project-note-id]
+                        [:= :pn.project-id project-id]]))]])
+         do-execute)
+     true)))
 ;;
 (s/fdef delete-member-labels-notes
         :args (s/cat :project-id ::sc/project-id

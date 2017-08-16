@@ -8,10 +8,11 @@
      reg-event-db reg-event-fx reg-fx trim-v]]
    [re-frame.db :refer [app-db]]
    [sysrev.views.components :refer [with-tooltip three-state-selection]]
+   [sysrev.subs.ui :refer [active-panel]]
    [sysrev.subs.review :as review]
    [sysrev.subs.labels :as labels]
    [sysrev.subs.articles :as articles]
-   [sysrev.util :refer [full-size? mobile?]]
+   [sysrev.util :refer [full-size? mobile? nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -381,6 +382,104 @@
               (dispatch [:review/set-note-content
                          article-id note-name content]))}]]]])))
 
+(defn- activity-report []
+  (when-let [today-count @(subscribe [:review/today-count])]
+    (if (full-size?)
+      [:div.ui.large.label.activity-report
+       [:span.ui.green.circular.label today-count]
+       [:span nbsp "finished today"]]
+      [:div.ui.large.label.activity-report
+       [:span.ui.tiny.green.circular.label today-count]
+       [:span nbsp "today"]])))
+
+(defn- label-editor-buttons-view [article-id resolving?]
+  (let [active-labels @(subscribe [:review/active-labels article-id])
+        resolving? @(subscribe [:review/resolving?])
+        missing @(subscribe [:review/missing-labels article-id])
+        disabled? (not-empty missing)
+        saving? (and @(subscribe [:review/saving? article-id])
+                     (or @(subscribe [:action/any-running? :review/send-labels])
+                         @(subscribe [:any-loading?])))
+        loading-task? (and (not saving?)
+                           @(subscribe [:review/on-review-task?])
+                           @(subscribe [:loading? [:review/task]]))
+        on-review-task? @(subscribe [:review/on-review-task?])
+        on-save #(do (sysrev.events.notes/sync-article-notes article-id)
+                     (dispatch [:review/send-labels
+                                {:article-id article-id
+                                 :confirm? true
+                                 :resolve? (boolean resolving?)
+                                 :on-success
+                                 (->> (list (when on-review-task?
+                                              [:fetch [:review/task]])
+                                            (when (not on-review-task?)
+                                              [:fetch [:article article-id]])
+                                            (when (not on-review-task?)
+                                              [:review/disable-change-labels article-id]))
+                                      (remove nil?)) }]))
+        save-class (str (if disabled? "disabled" "")
+                        " "
+                        (if saving? "loading" "")
+                        " "
+                        (if resolving? "purple button" "primary button"))
+        on-next #(when on-review-task?
+                   (sysrev.events.notes/sync-article-notes article-id)
+                   (dispatch [:review/send-labels
+                              {:article-id article-id
+                               :confirm? false
+                               :resolve? false}])
+                   (dispatch [:fetch [:review/task]]))]
+    (if (full-size?)
+      [:div.ui.center.aligned.grid.label-editor-buttons-view
+       [:div.left.aligned.four.wide.column
+        (when on-review-task?
+          [activity-report])]
+       [:div.center.aligned.eight.wide.column
+        [:div.ui.grid.centered
+         [:div.ui.row
+          (let [save-button
+                [:div.ui.right.labeled.icon
+                 {:class save-class
+                  :on-click on-save}
+                 (if resolving? "Resolve Labels" "Save Labels")
+                 [:i.check.circle.outline.icon]]]
+            (if disabled?
+              [with-tooltip [:div save-button]]
+              save-button))
+          [:div.ui.inverted.popup.top.left.transition.hidden
+           "Answer missing for a required label"]
+          (when on-review-task?
+            [:div.ui.right.labeled.icon.button
+             {:class (if loading-task? "loading" "")
+              :on-click on-next}
+             "Next Article"
+             [:i.right.circle.arrow.icon]])]]]
+       [:div.ui.right.aligned.four.wide.column
+        #_ (when @(subscribe [:review/on-review-task?])
+             [:div
+              [:div.ui.green.button
+               (str "Review unconfirmed")]
+              [:a.ui.label n-str nbsp [:i.file.text.icon]]])]]
+      [:div.ui.grid.label-editor-buttons.view
+       {:style {:margin "-0.5em"}}
+       [:div.ui.row
+        [:div.ui.four.wide.column.left-column
+         (when on-review-task?
+           [activity-report])]
+        [:div.ui.eight.wide.center.aligned.column
+         [:div.ui.small
+          {:class save-class
+           :on-click on-save}
+          (if resolving? "Resolve" "Save")
+          [:i.small.check.circle.outline.right.icon]]
+         [:div.ui.small.button
+          {:class (if loading-task? "loading" "")
+           :on-click on-next}
+          "Next"
+          [:i.small.right.circle.arrow.icon]]]
+        [:div.ui.four.wide.column.right-column
+         #_ [:div]]]])))
+
 (defn label-editor-view [article-id]
   (when (and article-id
              (= article-id @(subscribe [:review/editing-id])))
@@ -402,19 +501,21 @@
                       (when (< (count row) n-cols)
                         [^{:key {:label-row-end (last row)}}
                          [:div.column]])))])))]
-          [:div.ui.segments
-           [:div.ui.top.attached.header
-            [:h3
-             (if resolving? "Resolve labels " "Edit labels ")
-             [with-tooltip
-              [:a {:on-click #(dispatch [:navigate [:project :project :labels]])}
-               [:i.medium.grey.help.circle.icon]]]
-             [:div.ui.inverted.popup.top.left.transition.hidden
-              "View label definitions"]]]
-           [:div.ui.label-section
-            {:class (str "attached "
-                         n-cols-str " column "
-                         "celled grid segment")}
-            (make-label-columns label-ids n-cols)]
-           #_ [inconsistent-answers-notice label-values]
-           [note-input-element "default"]])))))
+          [:div
+           [:div.ui.segments.label-editor-view
+            [:div.ui.top.attached.header
+             [:h3
+              (if resolving? "Resolve labels " "Edit labels ")
+              [with-tooltip
+               [:a {:on-click #(dispatch [:navigate [:project :project :labels]])}
+                [:i.medium.grey.help.circle.icon]]]
+              [:div.ui.inverted.popup.top.left.transition.hidden
+               "View label definitions"]]]
+            [:div.ui.label-section
+             {:class (str "attached "
+                          n-cols-str " column "
+                          "celled grid segment")}
+             (make-label-columns label-ids n-cols)]
+            #_ [inconsistent-answers-notice label-values]
+            [note-input-element "default"]]
+           [label-editor-buttons-view article-id]])))))

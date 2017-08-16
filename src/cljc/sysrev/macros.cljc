@@ -53,8 +53,9 @@
                                     (map-values :answer))
                active-values# @(subscribe [:review/active-labels article-id#])
                user-status# @(subscribe [:article/user-status article-id# user-id#])
-               confirmed?# (= user-status# :confirmed)
-               send-labels?# (and (not confirmed?#)
+               unconfirmed?# (or (= user-status# :unconfirmed)
+                                 (= user-status# :none))
+               send-labels?# (and unconfirmed?#
                                   (not= active-values# article-values#))
                sent-notes# (sysrev.events.notes/sync-article-notes article-id#)]
            (do (when send-labels?#
@@ -66,5 +67,6 @@
                                       :change? false}]]))
                (if (or send-labels?# (not-empty sent-notes#))
                  (js/setTimeout bodyfn# 125)
-                 (bodyfn#))))
+                 (bodyfn#))
+               (dispatch [:review/reset-saving])))
          (bodyfn#)))))

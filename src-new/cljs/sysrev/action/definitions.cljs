@@ -75,8 +75,9 @@
               :resolve? (boolean resolve?)
               :change? (boolean change?)})
   :process
-  (fn [{:keys [db]} [{:keys [article-id label-values confirm? resolve?]}] result]
-    {}))
+  (fn [{:keys [db]} [{:keys [on-success]}] result]
+    (when on-success
+      {:dispatch-n on-success})))
 
 (def-action :article/send-note
   :uri (fn [_] "/api/set-article-note")

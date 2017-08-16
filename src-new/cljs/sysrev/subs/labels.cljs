@@ -201,6 +201,18 @@
              (some #(re-matches (re-pattern %) val) regex))))))))
 
 (reg-sub
+ :label/non-empty-answer?
+ (fn [[_ label-id answer project-id]]
+   [(subscribe [::label label-id project-id])])
+ (fn [[label] [_ label-id answer project-id]]
+   (let [{:keys [value-type]} label]
+     (case value-type
+       "boolean"      (boolean? answer)
+       "categorical"  (not-empty answer)
+       "string"       (not-empty (remove (comp empty? str/trim) answer))
+       nil))))
+
+(reg-sub
  :label/answer-inclusion
  (fn [[_ label-id _ project-id]]
    [(subscribe [::label label-id project-id])])
