@@ -8,8 +8,7 @@
    [sysrev.views.components :refer [note-content-label updated-time-label]]
    [sysrev.views.labels :as labels]
    [sysrev.views.article :as article]
-   [sysrev.views.article-list :refer
-    [article-list-filter-form article-list-view article-list-article-view]]
+   [sysrev.views.article-list :as al]
    [sysrev.views.review :as review]
    [sysrev.util :refer [time-from-epoch]]
    [sysrev.shared.util :refer [map-values]]
@@ -18,41 +17,28 @@
 
 (def ^:private panel [:project :user :labels])
 
-(reg-sub
- :user-labels/article-id
- :<- [:active-panel]
- :<- [:article-list/article-id panel]
- (fn [[active-panel article-id]]
-   (when (= active-panel panel)
-     article-id)))
+(defmethod al/panel-base-uri panel []
+  "/project/user")
+
+(defmethod al/article-uri panel [_ article-id]
+  (str "/project/user/article/" article-id))
+
+(defmethod al/all-articles-sub panel []
+  [:member/articles])
 
 (reg-sub
- :user-labels/editing?
- :<- [:active-panel]
- :<- [:article-list/editing? panel]
- (fn [[active-panel editing?]]
-   (when (= active-panel panel)
-     editing?)))
-
-(reg-event-fx
- :user-labels/show-article
- [trim-v]
- (fn [_ [article-id]]
-   {:dispatch [:article-list/show-article article-id panel]}))
-
-(reg-event-fx
- :user-labels/hide-article
- [trim-v]
+ ::default-filters
  (fn []
-   {:dispatch [:article-list/hide-article panel]}))
+   {:label-id nil}))
 
-(defn- user-article-filter-form []
-  [article-list-filter-form panel])
+(defmethod al/default-filters-sub panel []
+  [::default-filters])
 
-(defn- user-article-view [article-id]
-  [article-list-article-view article-id panel])
+(defmethod al/allow-null-label? panel []
+  true)
 
-(defn user-article-list-entry [article full-size?]
+(defmethod al/render-article-entry panel
+  [_ article full-size?]
   (let [{:keys [article-id title labels notes updated-time confirmed]} article
         user-id @(subscribe [:self/user-id])]
     [:div.ui.row
@@ -88,8 +74,33 @@
             ^{:key [note-name]}
             [note-content-label note-name (get notes note-name)]))])]]))
 
-(defn- user-article-list-view []
-  [article-list-view user-article-list-entry panel])
+(reg-sub
+ :user-labels/article-id
+ :<- [:active-panel]
+ :<- [:article-list/article-id panel]
+ (fn [[active-panel article-id]]
+   (when (= active-panel panel)
+     article-id)))
+
+(reg-sub
+ :user-labels/editing?
+ :<- [:active-panel]
+ :<- [:article-list/editing? panel]
+ (fn [[active-panel editing?]]
+   (when (= active-panel panel)
+     editing?)))
+
+(reg-event-fx
+ :user-labels/show-article
+ [trim-v]
+ (fn [_ [article-id]]
+   {:dispatch [:article-list/show-article article-id panel]}))
+
+(reg-event-fx
+ :user-labels/hide-article
+ [trim-v]
+ (fn []
+   {:dispatch [:article-list/hide-article panel]}))
 
 (defmethod panel-content [:project :user] []
   (fn [child]
@@ -99,11 +110,5 @@
   (fn [child]
     (when-let [user-id @(subscribe [:self/user-id])]
       [:div
-       (with-loader [[:project]
-                     [:member/articles user-id]] {}
-         [:div
-          [user-article-filter-form]
-          (if-let [article-id @(subscribe [:user-labels/article-id])]
-            [user-article-view article-id]
-            [user-article-list-view])])
+       [al/article-list-view panel [[:member/articles user-id]]]
        child])))

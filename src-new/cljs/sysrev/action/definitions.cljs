@@ -77,7 +77,10 @@
   :process
   (fn [{:keys [db]} [{:keys [on-success]}] result]
     (when on-success
-      {:dispatch-n on-success})))
+      (let [success-fns (filter fn? on-success)
+            success-events (remove fn? on-success)]
+        (doseq [f success-fns] (f))
+        {:dispatch-n success-events}))))
 
 (def-action :article/send-note
   :uri (fn [_] "/api/set-article-note")

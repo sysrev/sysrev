@@ -13,7 +13,18 @@
    [sysrev.subs.ui :refer [get-panel-field]]
    [sysrev.routes :refer [nav]]
    [sysrev.util :refer [full-size? number-to-word nbsp]]
-   [sysrev.shared.util :refer [in? map-values]]))
+   [sysrev.shared.util :refer [in? map-values]])
+  (:require-macros [sysrev.macros :refer [with-loader]]))
+
+(defmulti default-filters-sub (fn [panel] panel))
+(defmulti panel-base-uri (fn [panel] panel))
+(defmulti article-uri (fn [panel _] panel))
+(defmulti all-articles-sub (fn [panel] panel))
+(defmulti allow-null-label? (fn [panel] panel))
+(defmulti list-header-tooltip (fn [panel] panel))
+(defmulti render-article-entry (fn [panel article full-size?] panel))
+
+(defmethod list-header-tooltip :default [] nil)
 
 (def ^:private display-count 10)
 
@@ -71,33 +82,13 @@
                          distinct)]
         (in? answers value)))))
 
-(defn- article-uri [article-id panel]
-  (case panel
-    [:project :project :articles]
-    (str "/project/articles/" article-id)
-
-    [:project :user :labels]
-    (str "/project/user/article/" article-id)))
-
-(defn- panel-base-uri [panel]
-  (case panel
-    [:project :project :articles]
-    "/project/articles"
-
-    [:project :user :labels]
-    "/project/user"))
-
-(reg-sub-raw
+(reg-sub
  ::articles
- (fn [_ [_ panel]]
-   (reaction
-    (case panel
-      [:project :project :articles]
-      @(subscribe [:project/public-labels])
+ (fn [[_ panel]]
+   [(subscribe (all-articles-sub panel))])
+ (fn [[articles]] articles))
 
-      [:project :user :labels]
-      @(subscribe [:member/articles])))))
-
+;; Gets full list of article entries to display based on selected filters
 (reg-sub
  :article-list/filtered
  (fn [[_ panel]]
@@ -126,27 +117,12 @@
           ;; Would be sorted here, but sorted by :updated-time on server
           ))))
 
-(reg-sub
- ::default-filter-values
- (fn [[_ panel]]
-   [(subscribe [:project/overall-label-id])])
- (fn [[overall-id] [_ panel]]
-   (case panel
-     [:project :project :articles]
-     {:label-id overall-id}
-
-     {:label-id nil})))
-
-(defn- allow-null-label-id? [panel]
-  (case panel
-    [:project :project :articles] false
-    true))
-
+;; Gets active value of a filter option from user selection or defaults
 (reg-sub
  :article-list/filter-value
  (fn [[_ key panel]]
    [(subscribe [:panel-field [:filters key] panel])
-    (subscribe [::default-filter-values panel])])
+    (subscribe (default-filters-sub panel))])
  (fn [[value defaults] [_ key panel]]
    (if (nil? value)
      (get defaults key)
@@ -158,6 +134,7 @@
  (fn [_ [key value panel]]
    {:dispatch [:set-panel-field [:filters key] value panel]}))
 
+;; Resets all filter values, except the keys passed in vector `keep`
 (reg-event-fx
  ::reset-filters
  [trim-v]
@@ -170,6 +147,7 @@
             (map (fn [key]
                    [:article-list/set-filter-value key nil panel]))))})))
 
+;; Update state to enable display of `article-id`
 (reg-event-fx
  :article-list/show-article
  [trim-v]
@@ -177,11 +155,16 @@
    {:dispatch-n
     (list [:set-panel-field [:article-id] article-id panel]
           [:set-panel-field [:selected-article-id] article-id panel])}))
+
+;; Update state to hide any currently displayed article
+;; and render the list interface.
 (reg-event-fx
  :article-list/hide-article
  [trim-v]
  (fn [_ [panel]]
    {:dispatch [:set-panel-field [:article-id] nil panel]}))
+
+;; Gets id of article currently being individually displayed
 (reg-sub
  :article-list/article-id
  (fn [[_ panel]]
@@ -190,12 +173,17 @@
  (fn [[active-panel article-id] [_ panel]]
    (when (= active-panel panel)
      article-id)))
+
+;; Gets id of most recent article to have been individually displayed,
+;; so it can be indicated visually in list interface.
 (reg-sub
  ::selected-article-id
  (fn [[_ panel]]
    [(subscribe [:panel-field [:selected-article-id] panel])])
  (fn [[article-id]] article-id))
 
+;; Get ids of articles immediately before/after active id in filtered list.
+;; Will return nil if active id is not currently present in list.
 (reg-sub
  ::next-article-id
  (fn [[_ panel]]
@@ -208,7 +196,7 @@
           (drop 1)
           first
           :article-id))))
-
+;;
 (reg-sub
  ::prev-article-id
  (fn [[_ panel]]
@@ -221,19 +209,20 @@
           last
           :article-id))))
 
+;; Offset index for visible articles within filtered list
 (reg-sub
  ::display-offset
  (fn [[_ panel]]
    [(subscribe [:panel-field [:display-offset] panel])])
  (fn [[offset]] (or offset 0)))
-
+;;
 (reg-sub
  ::max-display-offset
  (fn [[_ panel]]
    [(subscribe [:article-list/filtered panel])])
  (fn [[articles]]
    (* display-count (quot (dec (count articles)) display-count))))
-
+;;
 (reg-event-fx
  ::set-display-offset
  [trim-v]
@@ -270,6 +259,9 @@
              (and (= review-status :conflict)
                   @(subscribe [:member/resolver? user-id]))))))))))
 
+;;;
+;;; Input components for controlling article list filters
+;;;
 (defn- confirm-status-selector [panel]
   (let [active-status @(subscribe [:article-list/filter-value :confirm-status panel])
         status-name #(cond (nil? %)   "<Any>"
@@ -282,13 +274,13 @@
       :icons {false [:i.remove.circle.outline.icon]
               nil   [:i.help.circle.outline.icon]
               true  [:i.check.circle.outline.icon]}]]))
-
+;;;
 (defn- label-selector [panel]
   (let [active-id @(subscribe [:article-list/filter-value :label-id panel])
         label-name #(if (nil? %) "<Any>" @(subscribe [:label/display %]))]
     [selection-dropdown
      [:div.text (label-name active-id)]
-     (->> (if (allow-null-label-id? panel)
+     (->> (if (allow-null-label? panel)
             (concat [nil] @(subscribe [:project/label-ids]))
             @(subscribe [:project/label-ids]))
           (mapv
@@ -301,7 +293,7 @@
                                          :label-id label-id panel])
                               (dispatch [::reset-filters [:label-id :confirm-status] panel]))}
               (label-name label-id)])))]))
-
+;;;
 (defn- group-status-selector [panel]
   (let [active-status @(subscribe [:article-list/filter-value :group-status panel])
         status-name #(if (nil? %) "<Any>" (-> % name str/capitalize))]
@@ -321,14 +313,14 @@
                       (dispatch [:article-list/set-filter-value
                                  :inclusion-status nil panel])))}
               (status-name status)])))]))
-
+;;;
 (defn- inclusion-status-selector [panel]
   (let [active-status @(subscribe [:article-list/filter-value :inclusion-status panel])
         status-name #(if (nil? %) "<Any>" (str %))]
     [three-state-selection-icons
      #(dispatch [:article-list/set-filter-value :inclusion-status % panel])
      active-status]))
-
+;;;
 (defn- answer-value-selector [panel]
   (let [label-id @(subscribe [:article-list/filter-value :label-id panel])]
     (let [all-values @(subscribe [:label/all-values label-id])
@@ -427,7 +419,7 @@
          [:label nbsp]
          [:div.ui.button
           {:on-click
-           (if (allow-null-label-id? panel)
+           (if (allow-null-label? panel)
              #(dispatch [::reset-filters [] panel])
              #(dispatch [::reset-filters [] panel]))}
           "Reset filters"]]]]]]))
@@ -447,17 +439,16 @@
             total-count " matching articles ")))))
 
 (defn- article-list-header-message [panel]
-  (let [text @(subscribe [::article-list-header-text panel])]
-    (if (= panel [:project :project :articles])
+  (let [text @(subscribe [::article-list-header-text panel])
+        tooltip-content (list-header-tooltip panel)]
+    (if (nil? tooltip-content)
+      [:h5.no-margin text]
       [:div
        (with-ui-help-tooltip
          [:h5.no-margin text [ui-help-icon]]
-         :help-content
-         ["Public listing of articles reviewed by multiple users"
-          [:div.ui.divider]
-          "Articles are hidden for 12 hours after any edit to labels"])]
-      [:h5.no-margin text])))
+         :help-content tooltip-content)])))
 
+;; Render directional navigation buttons for article list interface
 (defn- article-list-header-buttons [panel]
   (let [total-count (count @(subscribe [:article-list/filtered panel]))
         max-display-offset @(subscribe [::max-display-offset panel])
@@ -505,9 +496,9 @@
         (drop display-offset)
         (take display-count))))
 
-(defn- article-list-view-articles [render-article-entry panel]
+(defn- article-list-view-articles [panel]
   (let [active-aid @(subscribe [::selected-article-id panel])
-        show-article #(nav (article-uri % panel))]
+        show-article #(nav (article-uri panel %))]
     [:div
      (doall
       (->>
@@ -521,9 +512,9 @@
              [:div.ui.middle.aligned.grid.segment.article-list-article
               {:class (if active? "active" "")
                :on-click #(show-article article-id)}
-              [render-article-entry article full-size?]]])))))]))
+              [render-article-entry panel article full-size?]]])))))]))
 
-(defn article-list-view [render-article-entry panel]
+(defn- article-list-list-view [panel]
   [:div.article-list-view
    [:div.ui.top.attached.segment
     [:div.ui.two.column.middle.aligned.grid
@@ -531,9 +522,9 @@
       [article-list-header-message panel]]
      [article-list-header-buttons panel]]]
    [:div.ui.bottom.attached.segment.article-list-segment
-    [article-list-view-articles render-article-entry panel]]])
+    [article-list-view-articles panel]]])
 
-(defn article-list-article-view [article-id panel]
+(defn- article-list-article-view [article-id panel]
   (let [label-values @(subscribe [:review/active-labels article-id])
         overall-label-id @(subscribe [:project/overall-label-id])
         user-id @(subscribe [:self/user-id])
@@ -543,10 +534,8 @@
         close-article #(nav (panel-base-uri panel))
         next-id @(subscribe [::next-article-id panel])
         prev-id @(subscribe [::prev-article-id panel])
-        on-next #(when next-id (nav (article-uri next-id panel)))
-        on-prev #(when prev-id (nav (article-uri prev-id panel)))
-        ;; on-confirm #(dispatch [:article-list/hide-article panel])
-        on-confirm nil]
+        on-next #(when next-id (nav (article-uri panel next-id)))
+        on-prev #(when prev-id (nav (article-uri panel prev-id)))]
     [:div
      [:div.ui.top.attached.segment
       {:style {:padding "10px"}}
@@ -582,3 +571,12 @@
               [:div.ui.fluid.button
                {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
                "Change Answers"]])]]]))
+
+;; Top-level component for article list interface
+(defn article-list-view [panel & [loader-items]]
+  [:div
+   [article-list-filter-form panel]
+   (with-loader (concat [[:project]] loader-items) {}
+     (if-let [article-id @(subscribe [:article-list/article-id panel])]
+       [article-list-article-view article-id panel]
+       [article-list-list-view panel]))])

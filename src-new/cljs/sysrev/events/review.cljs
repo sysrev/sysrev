@@ -8,6 +8,7 @@
    [sysrev.subs.review :as review]
    [sysrev.subs.articles :as articles]))
 
+;; Update review interface state based response from task request
 (reg-event-db
  :review/load-task
  [trim-v]
@@ -16,12 +17,15 @@
        (assoc-in [:data :review :task-id] article-id)
        (assoc-in [:data :review :today-count] today-count))))
 
+;; Record POST action to send labels having been initiated,
+;; to show loading indicator on the button that was clicked.
 (reg-event-fx
  :review/mark-saving
  [trim-v]
  (fn [_ [article-id panel]]
    {:dispatch [:set-panel-field [:saving-labels article-id] true panel]}))
 
+;; Reset state set by :review/mark-saving
 (reg-event-fx
  :review/reset-saving
  [trim-v]
@@ -29,18 +33,23 @@
    (let [field (if article-id [:saving-labels article-id] [:saving-labels])]
      {:dispatch [:set-panel-field field nil panel]})))
 
+;; Change interface state to enable label editor for an article where
+;; user has confirmed answers.
 (reg-event-fx
  :review/enable-change-labels
  [trim-v]
  (fn [_ [article-id panel]]
    {:dispatch [:set-panel-field [:change-labels? article-id] true panel]}))
 
+;; Hide label editor for article where user has confirmed answers
 (reg-event-fx
  :review/disable-change-labels
  [trim-v]
  (fn [_ [article-id panel]]
    {:dispatch [:set-panel-field [:change-labels? article-id] false panel]}))
 
+;; Runs the :review/send-labels POST action using label values
+;; taken from active review interface.
 (reg-event-fx
  :review/send-labels
  [trim-v]
@@ -62,6 +71,7 @@
                      :on-success on-success}]])
             (remove nil?)))})))
 
+;; Reset state of locally changed label values in review interface
 (reg-event-db
  :review/reset-ui-labels
  (fn [db]

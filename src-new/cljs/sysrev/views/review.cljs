@@ -4,7 +4,7 @@
    [clojure.string :as str]
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync
+    [subscribe dispatch dispatch-sync reg-sub
      reg-event-db reg-event-fx reg-fx trim-v]]
    [re-frame.db :refer [app-db]]
    [sysrev.views.components :refer [with-tooltip three-state-selection]]
@@ -12,6 +12,7 @@
    [sysrev.subs.review :as review]
    [sysrev.subs.labels :as labels]
    [sysrev.subs.articles :as articles]
+   [sysrev.routes :refer [nav nav-scroll-top]]
    [sysrev.util :refer [full-size? mobile? nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -98,7 +99,19 @@
   (when-let [article-id @(subscribe [:review/editing-id])]
     @(subscribe [:loading? [:article article-id]])))
 
-(defn category-label-input [article-id label-id]
+;; Renders input component for label
+(defmulti label-input-el
+  (fn [label-id article-id] @(subscribe [:label/value-type label-id])))
+
+(defmethod label-input-el "boolean"
+  [label-id article-id]
+  (let [answer @(subscribe [:review/active-labels article-id label-id])]
+    [three-state-selection
+     #(dispatch [::set-label-value article-id label-id %])
+     answer]))
+
+(defmethod label-input-el "categorical"
+  [label-id article-id]
   (r/create-class
    {:component-did-mount
     (fn [c]
@@ -124,7 +137,7 @@
           (-> (js/$ (r/dom-node c))
               (.dropdown "set exactly" active-vals)))))
     :reagent-render
-    (fn [article-id label-id]
+    (fn [label-id article-id]
       (when (= article-id @(subscribe [:review/editing-id]))
         (let [required? @(subscribe [:label/required? label-id])
               all-values
@@ -162,18 +175,22 @@
              [:div.default.text "No answer selected"])
            [:div.menu
             (doall
-             (for [lval all-values]
-               ^{:key [label-id lval]}
-               [:div.item {:data-value (str lval)}
-                (str lval)]))]])))}))
+             (->>
+              all-values
+              (map-indexed
+               (fn [i lval]
+                 ^{:key [i]}
+                 [:div.item {:data-value (str lval)}
+                  (str lval)]))))]])))}))
 
-(defn string-label-input [article-id label-id]
+(defmethod label-input-el "string"
+  [label-id article-id]
   (let [curvals (as-> @(subscribe [:review/active-labels article-id label-id]) vs
                   (if (empty? vs) [""] vs))
         multi? @(subscribe [:label/multi? label-id])
         nvals (count curvals)]
     (when (= article-id @(subscribe [:review/editing-id]))
-      [:div.inner {:style {:width "100%"}}
+      [:div.inner
        (doall
         (->>
          curvals
@@ -188,7 +205,7 @@
                 {:class (cond (empty? val)  ""
                               valid?        "success"
                               :else         "error")}
-                [:div.ui.fluid.small
+                [:div.ui.fluid
                  {:class
                   (str
                    (if left-action? "labeled" "")
@@ -204,7 +221,7 @@
                       (fn [ev]
                         (dispatch [::remove-string-value
                                    article-id label-id i]))}
-                     [:i.fitted.small.remove.icon]]])
+                     [:i.fitted.remove.icon]]])
                  [:input
                   {:type "text"
                    :name (str label-id "__" i)
@@ -221,7 +238,7 @@
                      (fn [ev]
                        (dispatch [::extend-string-answer
                                   article-id label-id]))}
-                    [:i.fitted.small.plus.icon]])]]])))))])))
+                    [:i.fitted.plus.icon]])]]])))))])))
 
 (defn- inclusion-tag [article-id label-id]
   (if @(subscribe [:label/inclusion-criteria? label-id])
@@ -265,23 +282,25 @@
                  [:div.ui.small.green.label (str ex)])
                examples))]])]]])))
 
-(defmulti label-column
-  (fn [label-id] @(subscribe [:label/value-type label-id])))
+(reg-sub
+ ::label-css-class
+ (fn [[_ article-id label-id]]
+   [(subscribe [:review/inconsistent-labels article-id label-id])
+    (subscribe [:label/required? label-id])
+    (subscribe [:label/inclusion-criteria? label-id])])
+ (fn [[inconsistent? required? criteria?]]
+   (cond inconsistent?   "inconsistent"
+         required?       "required"
+         (not criteria?) "extra"
+         :else           "")))
 
-(defmethod label-column "boolean"
-  [label-id]
-  (let [required? @(subscribe [:label/required? label-id])
-        criteria? @(subscribe [:label/inclusion-criteria? label-id])
-        article-id @(subscribe [:review/editing-id])
-        answer @(subscribe [:review/active-labels article-id label-id])
-        inconsistent? @(subscribe [:review/inconsistent-labels
-                                   article-id label-id])]
+;; Component for label column in inputs grid
+(defn- label-column [label-id]
+  (let [article-id @(subscribe [:review/editing-id])
+        value-type @(subscribe [:label/value-type label-id])
+        label-css-class @(subscribe [::label-css-class article-id label-id])]
     ^{:key {:article-label label-id}}
-    [:div.ui.column.label-edit
-     {:class (cond inconsistent?   "inconsistent"
-                   required?       "required"
-                   (not criteria?) "extra"
-                   :else           "")}
+    [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
        [:div.ui.row.label-edit-name
@@ -289,76 +308,22 @@
         [:span.name
          [:span.inner
           (str @(subscribe [:label/display label-id]) "?")]]]
-       {:delay {:show 400
-                :hide 0}
+       {:delay {:show 400, :hide 0}
         :hoverable false
         :transition "fade up"
         :distanceAway 8
         :variation "basic"}]
       [label-help-popup label-id]
-      [:div.ui.row.label-edit-value.boolean>div.inner
-       [three-state-selection
-        (fn [new-value]
-          (dispatch [::set-label-value article-id label-id new-value]))
-        answer]]]]))
+      [:div.ui.row.label-edit-value
+       {:class (case value-type
+                 "boolean"      "boolean"
+                 "categorical"  "category"
+                 "string"       "string"
+                 "")}
+       [:div.inner
+        [label-input-el label-id article-id]]]]]))
 
-(defmethod label-column "categorical"
-  [label-id]
-  (let [required? @(subscribe [:label/required? label-id])
-        article-id @(subscribe [:review/editing-id])
-        inconsistent? @(subscribe [:review/inconsistent-labels
-                                   article-id label-id])]
-    ^{:key {:article-label label-id}}
-    [:div.ui.column.label-edit
-     {:class (cond inconsistent? "inconsistent"
-                   required?     "required"
-                   :else         nil)}
-     [:div.ui.middle.aligned.grid.label-edit
-      [with-tooltip
-       [:div.ui.row.label-edit-name
-        [inclusion-tag article-id label-id]
-        [:span.name
-         [:span.inner
-          (str @(subscribe [:label/display label-id]))]]]
-       {:delay {:show 400
-                :hide 0}
-        :hoverable false
-        :transition "fade up"
-        :distanceAway 8
-        :variation "basic"}]
-      [label-help-popup label-id]
-      [:div.ui.row.label-edit-value.category>div.inner
-       [category-label-input article-id label-id]]]]))
-
-(defmethod label-column "string"
-  [label-id]
-  (let [required? @(subscribe [:label/required? label-id])
-        article-id @(subscribe [:review/editing-id])
-        answer @(subscribe [:review/active-labels article-id label-id])
-        inconsistent? @(subscribe [:review/inconsistent-labels
-                                   article-id label-id])]
-    ^{:key {:article-label label-id}}
-    [:div.ui.column.label-edit
-     {:class (cond inconsistent? "inconsistent"
-                   required?     "required"
-                   :else         nil)}
-     [:div.ui.middle.aligned.grid.label-edit
-      [with-tooltip
-       [:div.ui.row.label-edit-name
-        [:span.name
-         [:span.inner
-          (str @(subscribe [:label/display label-id]))]]]
-       {:delay {:show 400
-                :hide 0}
-        :hoverable false
-        :transition "fade up"
-        :distanceAway 8
-        :variation "basic"}]
-      [label-help-popup label-id]
-      [:div.ui.row.label-edit-value.string
-       [string-label-input article-id label-id]]]]))
-
-(defn note-input-element [note-name]
+(defn- note-input-element [note-name]
   (when @(subscribe [:project/notes nil note-name])
     (let [article-id @(subscribe [:review/editing-id])
           user-id @(subscribe [:self/user-id])
@@ -392,6 +357,7 @@
        [:span.ui.tiny.green.circular.label today-count]
        [:span nbsp "today"]])))
 
+;; Component for row of action buttons below label inputs grid
 (defn- label-editor-buttons-view [article-id resolving?]
   (let [active-labels @(subscribe [:review/active-labels article-id])
         resolving? @(subscribe [:review/resolving?])
@@ -404,19 +370,25 @@
                            @(subscribe [:review/on-review-task?])
                            @(subscribe [:loading? [:review/task]]))
         on-review-task? @(subscribe [:review/on-review-task?])
-        on-save #(do (sysrev.events.notes/sync-article-notes article-id)
-                     (dispatch [:review/send-labels
-                                {:article-id article-id
-                                 :confirm? true
-                                 :resolve? (boolean resolving?)
-                                 :on-success
-                                 (->> (list (when on-review-task?
-                                              [:fetch [:review/task]])
-                                            (when (not on-review-task?)
-                                              [:fetch [:article article-id]])
-                                            (when (not on-review-task?)
-                                              [:review/disable-change-labels article-id]))
-                                      (remove nil?)) }]))
+        review-task-id @(subscribe [:review/task-id])
+        on-save
+        (fn []
+          (sysrev.events.notes/sync-article-notes article-id)
+          (dispatch
+           [:review/send-labels
+            {:article-id article-id
+             :confirm? true
+             :resolve? (boolean resolving?)
+             :on-success
+             (->> (list (when (or on-review-task? (= article-id review-task-id))
+                          [:fetch [:review/task]])
+                        (when (not on-review-task?)
+                          [:fetch [:article article-id]])
+                        (when (not on-review-task?)
+                          [:review/disable-change-labels article-id])
+                        (when @(subscribe [:user-labels/article-id])
+                          #(nav-scroll-top "/project/user")))
+                  (remove nil?))}]))
         save-class (str (if disabled? "disabled" "")
                         " "
                         (if saving? "loading" "")
@@ -480,6 +452,7 @@
         [:div.ui.four.wide.column.right-column
          #_ [:div]]]])))
 
+;; Top-level component for label editor
 (defn label-editor-view [article-id]
   (when (and article-id
              (= article-id @(subscribe [:review/editing-id])))
