@@ -29,3 +29,8 @@ Structure
     * Use `./scripts/deploy-client` to build production client and send to AWS instance.
 * AWS (production server)
     * `./systemd/` contains systemd services. `./scripts/server/` contains scripts.
+
+Browser Tests
+===
+
+The test suite (run with `lein test`) includes browser tests using Selenium with PhantomJS. `phantomjs` needs to be installed on system and runnable via `$PATH` for these to work. It should be installed from the official binary release (phantomjs-2.1.1-linux-x86_64.tar.bz2 on http://phantomjs.org/download.html).

@@ -38,12 +38,15 @@
                             :action #(dispatch [:action [:dev/clear-query-cache]])}]
             :dropdown-class "dropdown item"
             :label [:i.fitted.code.icon]])
-         [:a.item {:on-click #(dispatch [:navigate [:user-settings]])}
+         [:a.item {:id "user-settings-link"
+                   :on-click #(dispatch [:navigate [:user-settings]])}
           "Settings"]
-         [:a.item {:on-click #(dispatch [:action [:auth/log-out]])}
+         [:a.item {:id "log-out-link"
+                   :on-click #(dispatch [:action [:auth/log-out]])}
           "Log Out"]
          [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
-         [:a.item.distinct {:on-click #(dispatch [:navigate [:login]])}
+         [:a.item.distinct {:id "log-in-link"
+                            :on-click #(dispatch [:navigate [:login]])}
           "Log in"]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))

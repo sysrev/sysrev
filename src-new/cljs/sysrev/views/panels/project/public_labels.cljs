@@ -1,4 +1,4 @@
-(ns sysrev.views.panels.project.public_labels
+(ns sysrev.views.panels.project.public-labels
   (:require
    [clojure.string :as str]
    [re-frame.core :refer

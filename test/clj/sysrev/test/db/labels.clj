@@ -24,7 +24,7 @@
         (let [n-tests (if (-> (q/select-project-article-labels project-id nil [:%count.*])
                               (q/filter-label-user user-id)
                               (->> do-query first :count (= 0)))
-                        2 10)]
+                        1 4)]
           (let [single-labeled (l/single-labeled-articles project-id user-id)]
             (dotimes [i n-tests]
               (let [{:keys [article-id today-count] :as result}

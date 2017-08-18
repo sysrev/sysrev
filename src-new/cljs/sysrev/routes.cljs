@@ -6,7 +6,8 @@
     [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
    [sysrev.util :refer [scroll-top]]
    [sysrev.base :refer [history]]
-   [sysrev.events.notes :refer [sync-article-notes]])
+   [sysrev.events.notes :refer [sync-article-notes]]
+   [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
                    [sysrev.macros :refer [sr-defroute]]))
 

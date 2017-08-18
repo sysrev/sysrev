@@ -1,4 +1,4 @@
-(ns sysrev.views.panels.project.user_labels
+(ns sysrev.views.panels.project.user-labels
   (:require
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]

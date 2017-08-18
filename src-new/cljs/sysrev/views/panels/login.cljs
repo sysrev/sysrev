@@ -151,7 +151,8 @@
                        [:div.ui.warning.message msg])
         form-class (when-not (empty? form-errors) "warning")]
     [:div.ui.padded.segments.auto-margin
-     {:style {:max-width "550px" :margin-top "10px"}}
+     {:id "login-register-panel"
+      :style {:max-width "550px" :margin-top "10px"}}
      [:div.ui.top.attached.segment>h2
       @(subscribe [::header-title])]
      (when project-id

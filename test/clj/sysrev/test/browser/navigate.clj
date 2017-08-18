@@ -15,12 +15,15 @@
 (defn log-in [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
-    (go-route "/")
-    (taxi/click "a[href*='login']")
+    (go-route "/login")
     (taxi/input-text "input[name='email']" email)
     (taxi/input-text "input[name='password']" password)
     (taxi/click "button[name='submit']")
     (Thread/sleep 1000)))
+
+(defn log-out []
+  (taxi/click "a[id='log-out-link']")
+  (Thread/sleep 500))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))

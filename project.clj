@@ -65,7 +65,7 @@
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
                  ;; [reagent "0.6.2"]
-                 [re-frame "0.9.4"]
+                 [re-frame "0.10.1"]
                  [day8.re-frame/http-fx "0.1.4"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.7"]
@@ -118,9 +118,8 @@
                 :pretty-print true
                 :source-map true
                 :source-map-timestamp true
-                ;; :preloads [devtools.preload]
-                ;; :external-config {:devtools/config {:features-to-install :all}}
-                }}
+                :preloads [devtools.preload]
+                :external-config {:devtools/config {:features-to-install :all}}}}
     {:id "production"
      :source-paths ["src-new/cljs" "src/cljc"]
      :compiler {:main "sysrev.core"
@@ -170,7 +169,7 @@
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
-                             ;; [binaryage/devtools "0.9.4"]
+                             [binaryage/devtools "0.9.4"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.4.0"]
                              [org.seleniumhq.selenium/selenium-support "3.4.0"]

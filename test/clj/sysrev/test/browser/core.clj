@@ -20,8 +20,8 @@
   "Builds CLJS project for integration testing."
   []
   (cljs/build
-   "src"
-   {:main "sysrev.main"
+   (cljs/inputs "src-new/cljs" "src/cljc")
+   {:main "sysrev.core"
     :output-to "resources/public/integration/sysrev.js"
     :output-dir "resources/public/integration"
     :asset-path "/integration"
@@ -81,7 +81,7 @@
   (let [email (-> test-login :email)
         password (-> test-login :password)]
     (delete-test-user)
-    (create-user email password)))
+    (create-user email password :project-id 100)))
 
 (defn webdriver-fixture-once
   [f]
@@ -109,6 +109,15 @@
     (taxi/to full-url)
     (Thread/sleep wait-ms)))
 
+(defn element-rendered? [tag id]
+  (not (nil?
+        (try (taxi/find-element {:css (str (if tag tag "")
+                                           "#" id)})
+             (catch Throwable e
+               nil)))))
+
+(defn panel-rendered? [panel]
+  (element-rendered? "div" (str/join "_" (map name panel))))
+
 (defn login-form-shown? []
-  (str/includes? (taxi/text "body")
-                 "Forgot password"))
+  (element-rendered? "div" "login-register-panel"))
