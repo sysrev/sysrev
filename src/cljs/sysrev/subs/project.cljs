@@ -39,6 +39,13 @@
    (:name project)))
 
 (reg-sub
+  :project/files
+  (fn [[_ project-id]]
+    [(subscribe [:project/raw project-id])])
+  (fn [[project]]
+    (:files project)))
+
+(reg-sub
  :project/uuid
  (fn [[_ project-id]]
    [(subscribe [:project/raw project-id])])

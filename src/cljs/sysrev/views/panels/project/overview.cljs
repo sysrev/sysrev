@@ -1,13 +1,17 @@
 (ns sysrev.views.panels.project.overview
   (:require
+   [reagent.core :as r]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.charts :refer [chart-container pie-chart]]
    [sysrev.views.panels.project.public-labels :as public-labels]
+   [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]
+   [cljs-time.core :as t]
+   [cljs-time.format :as tf]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -75,6 +79,68 @@
              [conflict red "conflicting" :conflict]
              [resolved purple "resolved" :resolved]]]]]])]]))
 
+
+
+(defonce editing-files (r/atom false))
+(defn toggle-editing [] (swap! editing-files not))
+
+
+(def file-types {"doc" "word"
+                 "docx" "word"
+                 "pdf" "pdf"
+                 "xlsx" "excel"
+                 "xls" "excel"
+                 "gz" "archive"
+                 "tgz" "archive"
+                 "zip" "archive"})
+
+(defn get-file-class [fname]
+  (get file-types (-> fname (.split ".") last) "text"))
+
+(def send-file-url "/api/files/upload")
+
+(defn get-file-url [key name]
+  (str "/api/files/" key "/" name))
+
+(defn project-files-box []
+  (letfn [(show-date [file]
+            (let [date (tf/parse (:upload-time file))
+                  parts (mapv #(% date) [t/month t/day t/year])]
+              (apply goog.string/format "%d/%d/%d" parts)))
+          (delete-file [file-id] (dispatch [:files/delete-file file-id]))
+          (pull-files [] (dispatch [:files/pull-files]))]
+    [:div.ui.grey.segment
+     [:h4.ui.dividing.header "Project documents"]
+     (let [files @(subscribe [:project/files])]
+       [:div.ui.celled.list
+        (doall
+          (->>
+            files
+            (map
+              (fn [file]
+                [:div.icon.item {:key (:file-id file)}
+                 (if @editing-files
+                   [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
+                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
+                 [:div.content
+                  [:a.header {:href (get-file-url (:file-id file) (:name file))
+                              :target "_blank"
+                              :download (:name file)}
+                   (:name file)
+;                  [:div.description (show-date file)]]]))))
+                   [:div.description (str (:upload-time file))]]]]))))
+        [:div.ui.container
+         [upload-container basic-text-button send-file-url pull-files "Upload document"]
+         [:div.ui.right.floated.basic.icon.button {:on-click toggle-editing :class (when @editing-files "red")}
+          [:i.ui.small.small.blue.pencil.icon]]]])]))
+
+
+;(defn project-files-box []
+;  (let [files (subscribe [:project/files])]
+;    [:div.ui.grey.segment
+;     [:h4.ui.dividing.header "Project documents"
+;      (print @files)]]))
+
 #_
 (defn user-summary-chart []
   (let [user-ids @(subscribe [:project/member-user-ids])
@@ -95,9 +161,9 @@
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
-     #_ [project-files-box]]
-    #_ [:div.ui.column
-        [user-summary-chart]]]])
+     [project-files-box]]
+    [:div.ui.column
+     #_ [user-summary-chart]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

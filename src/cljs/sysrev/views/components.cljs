@@ -8,7 +8,8 @@
    [cljsjs.clipboard]
    [sysrev.util :refer
     [url-domain nbsp time-elapsed-string full-size?]]
-   [sysrev.shared.util :refer [num-to-english]]))
+   [sysrev.shared.util :refer [num-to-english]]
+   [sysrev.util :refer [random-id]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -304,3 +305,26 @@
         :component-did-mount component-did-mount
         :component-will-unmount component-will-unmount
         :reagent-render render}))))
+
+(defn basic-text-button [id & args]
+  [:div.ui.basic.button {:id id :style {:cursor "pointer"}}
+   [:i.ui.green.add.circle.icon]
+   (first args)])
+
+(defn upload-container
+  "Create uploader form component."
+  [childer upload-url on-success & args]
+  (let [id (random-id)
+        opts {:url upload-url
+              :headers (when-let [csrf-token (st/csrf-token)]
+                         {"x-csrf-token" csrf-token})
+              :addedfile #(notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"])
+              :success on-success}]
+    (letfn [(make-uploader [url]
+              (js/Dropzone. (str "div#" id) (clj->js opts)))]
+      (r/create-class {:reagent-render (fn [childer upload-url _ & args]
+                                         (apply childer id args))
+                       :component-did-update (fn [this [_ upload-url]]
+                                               (make-uploader upload-url))
+                       :component-did-mount #(make-uploader upload-url)
+                       :display-name "upload-container"}))))
