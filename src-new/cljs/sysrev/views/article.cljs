@@ -73,14 +73,15 @@
   (let [status @(subscribe [:article/review-status article-id])]
     (with-loader [[:article article-id]] {:dimmer true :min-height "500px"}
       [:div
-       [:div.ui.top.attached.middle.aligned.segment
-        [:div {:style {:float "left"}}
-         [:h4 "Article info"]]
-        (when status
-          [:div {:style {:float "right"}}
-           [review-status-label status]])
-        [:div {:style {:clear "both"}}]]
-       [:div.ui.bottom.attached.segment
-        [article-info-main-content article-id]]
+       [:div.ui.segments
+        [:div.ui.top.attached.middle.aligned.header
+         [:div {:style {:float "left"}}
+          [:h4 "Article info"]]
+         (when status
+           [:div {:style {:float "right"}}
+            [review-status-label status]])
+         [:div {:style {:clear "both"}}]]
+        [:div.ui.attached.segment
+         [article-info-main-content article-id]]]
        (when (= show-labels? :all)
          [article-labels-view article-id])])))

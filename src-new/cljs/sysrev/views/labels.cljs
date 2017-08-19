@@ -113,11 +113,13 @@
                    [:div.ui.tiny.basic.purple.label "Resolved"])]
                 [:div.right.aligned.column
                  [updated-time-label updated-time]]]]]
-             [article-label-values-component article-id user-id]
+             [:div.labels
+              [article-label-values-component article-id user-id]]
              (let [note-content
                    @(subscribe [:article/notes article-id user-id "default"])]
                (when (and (string? note-content)
                           (not-empty (str/trim note-content)))
-                 [:div.notes
+                 [:div
                   [:div.ui.divider]
-                  [note-content-label "default" note-content]]))])))])))
+                  [:div.notes
+                   [note-content-label "default" note-content]]]))])))])))

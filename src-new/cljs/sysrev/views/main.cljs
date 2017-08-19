@@ -14,6 +14,7 @@
    [sysrev.views.panels.project.labels]
    [sysrev.views.panels.project.settings]
    [sysrev.views.panels.project.invite-link]
+   [sysrev.views.panels.project.export-data]
    [sysrev.views.panels.project.user-labels]
    [sysrev.views.panels.project.review]
    [sysrev.views.menu :refer [header-menu]]

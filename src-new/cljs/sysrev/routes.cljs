@@ -84,6 +84,11 @@
             "/project/invite-link"]))
 
 (sr-defroute
+ project-export "/project/export" []
+ (dispatch [:set-active-panel [:project :project :export-data]
+            "/project/export"]))
+
+(sr-defroute
  login "/login" []
  (dispatch [:set-active-panel [:login]
             "/login"]))
@@ -134,6 +139,9 @@
 
         [[:project :project :invite-link]
          "/project/invite-link"]
+
+        [[:project :project :export-data]
+         "/project/export"]
 
         [[:login]
          "/login"]

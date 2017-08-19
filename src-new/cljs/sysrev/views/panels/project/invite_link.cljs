@@ -11,7 +11,7 @@
        [:div.ui.two.column.stackable.grid
         [:div.row
          [:div.column
-          [:div.ui.segment
+          [:div.ui.grey.segment
            [:h5 "Send this link to invite another person to join the project:"]
            [:div.ui.fluid.action.input
             [:input#invite-url.ui.input {:readOnly true

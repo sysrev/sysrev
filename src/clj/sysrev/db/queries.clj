@@ -214,6 +214,14 @@
         (where [:= :al.article-id article-id])
         do-query)))
 
+(defn join-article-locations [m & [{:keys [tname-a tname-aloc]
+                                    :or {tname-a :a
+                                         tname-aloc :aloc}}]]
+  (-> m (merge-join [:article-location tname-aloc]
+                    [:=
+                     (sql-field tname-aloc :article-id)
+                     (sql-field tname-a :article-id)])))
+
 ;;;
 ;;; labels
 ;;;

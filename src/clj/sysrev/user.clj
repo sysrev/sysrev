@@ -9,6 +9,7 @@
         sysrev.db.project
         sysrev.db.migration
         sysrev.db.transfer
+        sysrev.db.export
         ;; sysrev.spark.core
         ;; sysrev.spark.similarity
         sysrev.import.pubmed

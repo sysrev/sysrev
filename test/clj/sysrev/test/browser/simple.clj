@@ -32,6 +32,8 @@
   (is (panel-rendered? [:project :project :settings]))
   (go-route "/project/invite-link")
   (is (panel-rendered? [:project :project :invite-link]))
+  (go-route "/project/export")
+  (is (panel-rendered? [:project :project :export-data]))
   (go-route "/project/user")
   (is (panel-rendered? [:project :user :labels]))
   (go-route "/project/review")

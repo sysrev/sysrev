@@ -86,6 +86,11 @@
 
 (def date-from-string tformat/parse)
 
+(defn today-string []
+  (let [now (t/now)
+        fmt (tformat/formatters :basic-date)]
+    (tformat/unparse fmt now)))
+
 (defn is-today? [utc-date]
   (let [today (t/today)
         date (t/to-default-time-zone utc-date)]

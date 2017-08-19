@@ -123,7 +123,7 @@
                        "" "error")]
     [:div.ui.grey.segment
      [:h4.ui.dividing.header "Configuration options"]
-     [:form.ui.equal.with.form {:class (if valid? "" "warning")}
+     [:div.ui.form {:class (if valid? "" "warning")}
       (let [skey :second-review-prob]
         [:div.fields
          [:div.field {:class (field-class skey)}
@@ -145,7 +145,8 @@
              :on-change
              #(let [input (-> % .-target .-value)]
                 (dispatch [::edit-setting skey input]))
-             :readOnly (if admin? false true)}]
+             :readOnly (if admin? false true)
+             :autoComplete "off"}]
            [:div.ui.basic.label "%"]]]])]
      (when admin?
        [:div

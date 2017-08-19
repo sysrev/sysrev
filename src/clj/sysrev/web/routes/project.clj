@@ -8,6 +8,7 @@
    [sysrev.db.project :refer
     [project-labels project-member project-article-count project-keywords
      project-notes project-settings]]
+   [sysrev.db.export :refer [export-project]]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
@@ -24,7 +25,8 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [compojure.core :refer :all]
    [ring.util.response :as response]
-   [sysrev.db.project :as project])
+   [sysrev.db.project :as project]
+   [clojure.data.json :as json])
   (:import [java.util UUID]
            [java.io InputStream]
            [java.io ByteArrayInputStream]
@@ -190,6 +192,15 @@
               file-data (get-file project-id uuid)
               data (slurp-bytes (:filestream file-data))]
           (response/response (ByteArrayInputStream. data)))))
+
+  (GET "/api/export-project" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [project-id (active-project request)
+              data (json/write-str (export-project project-id))]
+          (-> (response/response data)
+              (response/header "Content-Type"
+                               "application/json; charset=utf-8")))))
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions

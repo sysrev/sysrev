@@ -40,6 +40,9 @@
      [{:tab-id :invite-link
        :content [:span "Invite Link " [:i.ui.mail.outline.icon]]
        :action [:project :project :invite-link]}
+      {:tab-id :export-data
+       :content [:span "Export " [:i.ui.download.icon]]
+       :action [:project :project :export-data]}
       {:tab-id :settings
        :content [:span "Settings " [:i.ui.settings.icon]]
        :action [:project :project :settings]}]
