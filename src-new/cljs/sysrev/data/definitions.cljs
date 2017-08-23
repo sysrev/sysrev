@@ -9,6 +9,7 @@
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
+   [sysrev.subs.ui :refer [active-panel]]
    [sysrev.shared.transit :as sr-transit]
    [sysrev.shared.util :refer [in?]]))
 
@@ -69,10 +70,14 @@
   :uri (fn [] "/api/label-task")
   :prereqs (fn [] [[:identity] [:project]])
   :process
-  (fn [_ _ {:keys [article labels notes today-count]}]
-    {:dispatch-n
-     (list [:article/load (merge article {:labels labels :notes notes})]
-           [:review/load-task (:article-id article) today-count])}))
+  (fn [{:keys [db]} _ {:keys [article labels notes today-count]}]
+    (cond->
+        {:dispatch-n
+         (list [:article/load (merge article {:labels labels :notes notes})]
+               [:review/load-task (:article-id article) today-count])}
+
+      (= (active-panel db) [:project :review])
+      (merge {:scroll-top true}))))
 
 (def-data :article
   :loaded-p have-article?

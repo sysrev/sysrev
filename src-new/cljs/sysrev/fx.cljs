@@ -2,7 +2,13 @@
   (:require
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx subscribe dispatch trim-v reg-fx]]
-   [sysrev.routes :refer [nav nav-scroll-top]]))
+   [sysrev.routes :refer [nav nav-scroll-top]]
+   [sysrev.util :refer [scroll-top]]))
+
+(reg-fx
+ :scroll-top
+ (fn [_]
+   (scroll-top)))
 
 (reg-fx
  :nav

@@ -28,20 +28,35 @@
          options# ~options
          dimmer# (:dimmer options#)
          min-height# (:min-height options#)
+         class# (:class options#)
          loading# (some #(deref (subscribe [:loading? %])) reqs#)
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
-         content# (fn [] [:div (when (and dimmer# loading#)
-                                 {:style {:visibility "hidden"}})
-                          ~content-form])]
+         content-form# ~content-form
+         dimmer-active# (and dimmer# (or loading# (and class# (not have-data#))))]
      (doseq [item# reqs#]
        (dispatch [:require item#]))
-     [:div (when (and (not have-data#) dimmer# min-height#)
-             {:style {:min-height min-height#}})
-      (when dimmer#
+     [:div {:style (when (and (not have-data#) min-height#)
+                     {:min-height min-height#})
+            :class (cond class# class#
+
+                         (and (not have-data#) dimmer#)
+                         "ui segment dimmer-segment")}
+      (when dimmer-active#
         [:div.ui.inverted.dimmer
-         {:class (if loading# "active" "")}
+         {:class "active"}
          [:div.ui.loader]])
-      (if have-data# [content#] [:div])]))
+      (cond (and dimmer-active# have-data#)
+            [:div {:style {:visibility "hidden"}}
+             (if (seq? content-form#)
+               (doall content-form#)
+               content-form#)]
+
+            have-data#
+            (if (seq? content-form#)
+              (doall content-form#)
+              content-form#)
+
+            :else [:div])]))
 
 (defmacro sr-defroute
   [name uri params & body]

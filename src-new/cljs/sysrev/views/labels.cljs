@@ -103,34 +103,37 @@
         (cond->> (concat user-ids-resolved user-ids-other)
           self-only? (filter (partial = self-id)))]
     (when (seq user-ids-ordered)
-      [:div.ui.segments.article-labels-view
-       (doall
-        (for [user-id user-ids-ordered]
-          (let [user-name @(subscribe [:user/display user-id])
-                all-times (->> (vals (get user-labels user-id))
-                               (map :confirm-epoch)
-                               (remove nil?)
-                               (remove zero?))
-                updated-time (if (empty? all-times)
-                               (t/now)
-                               (time-from-epoch (apply max all-times)))]
-            [:div.ui.attached.segment {:key user-id}
-             [:h5.ui.dividing.header
-              [:div.ui.two.column.middle.aligned.grid
-               [:div.row
-                [:div.column
-                 (if self-only? "Your Labels" user-name)
-                 (when (resolved? user-id)
-                   [:div.ui.tiny.basic.purple.label "Resolved"])]
-                [:div.right.aligned.column
-                 [updated-time-label updated-time]]]]]
-             [:div.labels
-              [article-label-values-component article-id user-id]]
-             (let [note-content
-                   @(subscribe [:article/notes article-id user-id "default"])]
-               (when (and (string? note-content)
-                          (not-empty (str/trim note-content)))
-                 [:div
-                  [:div.ui.divider]
-                  [:div.notes
-                   [note-content-label "default" note-content]]]))])))])))
+      (with-loader [[:article article-id]]
+        {:dimmer true
+         :min-height "50px"
+         :class "ui segments article-labels-view"}
+        (doall
+         (for [user-id user-ids-ordered]
+           (let [user-name @(subscribe [:user/display user-id])
+                 all-times (->> (vals (get user-labels user-id))
+                                (map :confirm-epoch)
+                                (remove nil?)
+                                (remove zero?))
+                 updated-time (if (empty? all-times)
+                                (t/now)
+                                (time-from-epoch (apply max all-times)))]
+             [:div.ui.attached.segment {:key user-id}
+              [:h5.ui.dividing.header
+               [:div.ui.two.column.middle.aligned.grid
+                [:div.row
+                 [:div.column
+                  (if self-only? "Your Labels" user-name)
+                  (when (resolved? user-id)
+                    [:div.ui.tiny.basic.purple.label "Resolved"])]
+                 [:div.right.aligned.column
+                  [updated-time-label updated-time]]]]]
+              [:div.labels
+               [article-label-values-component article-id user-id]]
+              (let [note-content
+                    @(subscribe [:article/notes article-id user-id "default"])]
+                (when (and (string? note-content)
+                           (not-empty (str/trim note-content)))
+                  [:div
+                   [:div.ui.divider]
+                   [:div.notes
+                    [note-content-label "default" note-content]]]))])))))))

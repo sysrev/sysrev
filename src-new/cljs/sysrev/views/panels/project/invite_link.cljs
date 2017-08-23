@@ -6,7 +6,7 @@
 
 (defmethod panel-content [:project :project :invite-link] []
   (fn [child]
-    [:div
+    [:div.project-content
      (when-let [invite-url @(subscribe [:project/invite-url])]
        [:div.ui.two.column.stackable.grid
         [:div.row

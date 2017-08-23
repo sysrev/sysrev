@@ -76,6 +76,7 @@
           (al/is-single? labels) "single"
           :else "conflict")]
     (if full-size?
+      ;; non-mobile view
       [:div.ui.row
        [:div.ui.thirteen.wide.column.article-title
         [:div.ui.middle.aligned.grid
@@ -92,9 +93,12 @@
         {:class answer-class}
         [:div.ui.middle.aligned.grid>div.row>div.column
          [answer-cell article-id labels answer-class]]]]
+      ;; mobile view
       [:div.ui.row
        [:div.ui.ten.wide.column.article-title
-        [:span.article-title title]]
+        [:span.article-title title]
+        (when-let [updated-time (some-> updated-time (time-from-epoch))]
+          [updated-time-label updated-time])]
        [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
         {:class answer-class}
         [:div.ui.middle.aligned.grid>div.row>div.column
@@ -150,6 +154,6 @@
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
-    [:div
+    [:div.project-content
      [al/article-list-view panel [[:project/public-labels]]]
      child]))

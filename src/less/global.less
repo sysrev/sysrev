@@ -87,13 +87,33 @@ span.attention {
     background-color: @greyButtonBackground;
 }
 
+.ui.selection.dropdown {
+    min-width: 0;
+}
+
+@media only screen and (min-width: 1160px) {
+    .ui.container {
+        width: 1127px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}
+
+@media only screen and (max-width: 1159px) and (min-width: 992px) {
+    .ui.container {
+        width: 975px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}
+
 @media only screen and (max-width: 900px) {
     body {
         font-size: 13px;
     }
 
     .ui.segment {
-        padding: 0.5em;
+        padding: 0.6em;
     }
 
     .ui.segment > .ui.grid {

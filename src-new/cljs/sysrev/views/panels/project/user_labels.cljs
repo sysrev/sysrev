@@ -43,39 +43,78 @@
 (defmethod al/render-article-entry panel
   [_ article full-size?]
   (let [{:keys [article-id title labels notes updated-time confirmed]} article
-        user-id @(subscribe [:self/user-id])]
-    [:div.ui.row
-     [:div.ui.one.wide.center.aligned.column
-      [:div.ui.fluid.labeled.center.aligned.button
-       [:i.ui.right.chevron.center.aligned.icon
-        {:style {:width "100%"}}]]]
-     [:div.ui.fifteen.wide.column.article-title
-      [:div.ui.middle.aligned.grid
-       [:div.row
-        [:div.twelve.wide.column>span.article-title title]
-        [:div.four.wide.right.aligned.column
-         (when (false? confirmed)
-           [:div.ui.tiny.label "Unconfirmed"])
-         (when-let [updated-time (some-> updated-time (time-from-epoch))]
-           [updated-time-label updated-time])]]]
-      [:div.ui.fitted.divider]
-      (let [user-labels
-            (->> labels (map-values
-                         #(->> %
-                               (filter
-                                (fn [label]
-                                  (= (:user-id label) user-id)))
-                               first)))]
-        [labels/label-values-component user-labels])
-      (when (some #(and (string? %)
-                        (not-empty (str/trim %)))
-                  (vals notes))
-        [:div
-         [:div.ui.fitted.divider]
-         (doall
-          (for [note-name (keys notes)]
-            ^{:key [note-name]}
-            [note-content-label note-name (get notes note-name)]))])]]))
+        user-id @(subscribe [:self/user-id])
+        have-notes? (some #(and (string? %)
+                                (not-empty (str/trim %)))
+                          (vals notes))]
+    (if full-size?
+      ;; non-mobile view
+      [:div.ui.row
+       [:div.ui.one.wide.center.aligned.column
+        [:div.ui.fluid.labeled.center.aligned.button
+         [:i.ui.right.chevron.center.aligned.icon
+          {:style {:width "100%"}}]]]
+       [:div.ui.fifteen.wide.column.article-title
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.twelve.wide.column>span.article-title title]
+          [:div.four.wide.right.aligned.column
+           (when (false? confirmed)
+             [:div.ui.tiny.label "Unconfirmed"])
+           (when-let [updated-time (some-> updated-time (time-from-epoch))]
+             [updated-time-label updated-time])]]]
+        [:div.ui.fitted.divider]
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.sixteen.wide.column
+           (let [user-labels
+                 (->> labels (map-values
+                              #(->> %
+                                    (filter
+                                     (fn [label]
+                                       (= (:user-id label) user-id)))
+                                    first)))]
+             [labels/label-values-component user-labels])]]]
+        (when have-notes?
+          [:div
+           [:div.ui.fitted.divider]
+           (doall
+            (for [note-name (keys notes)]
+              ^{:key [note-name]}
+              [note-content-label note-name (get notes note-name)]))])]]
+      ;; mobile view
+      [:div.ui.row.user-article
+       [:div.ui.sixteen.wide.column
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.twelve.wide.column>span.article-title title]
+          [:div.four.wide.right.aligned.column
+           (when (false? confirmed)
+             [:div.ui.tiny.label "Unconfirmed"])
+           (when-let [updated-time (some-> updated-time (time-from-epoch))]
+             [updated-time-label updated-time])]]]
+        [:div.ui.fitted.divider]
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.sixteen.wide.column.label-values
+           (let [user-labels
+                 (->> labels (map-values
+                              #(->> %
+                                    (filter
+                                     (fn [label]
+                                       (= (:user-id label) user-id)))
+                                    first)))]
+             [labels/label-values-component user-labels])]]]
+        (when have-notes?
+          [:div.ui.fitted.divider])
+        (when have-notes?
+          [:div.ui.middle.aligned.grid
+           [:div.row
+            [:div.sixteen.wide.column.label-values
+             (doall
+              (for [note-name (keys notes)]
+                ^{:key [note-name]}
+                [note-content-label note-name (get notes note-name)]))]]])]])))
 
 (reg-sub
  :user-labels/article-id
@@ -112,6 +151,6 @@
 (defmethod panel-content [:project :user :labels] []
   (fn [child]
     (when-let [user-id @(subscribe [:self/user-id])]
-      [:div
+      [:div.project-content
        [al/article-list-view panel [[:member/articles user-id]]]
        child])))

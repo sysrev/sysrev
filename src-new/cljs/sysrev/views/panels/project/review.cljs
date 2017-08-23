@@ -11,7 +11,7 @@
 (defmethod panel-content [:project :review] []
   (fn [child]
     (let [article-id @(subscribe [:review/task-id])]
-      [:div
+      [:div.project-content
        (with-loader [[:review/task]] {}
          [article-info-view article-id :show-labels? false])
        (when article-id

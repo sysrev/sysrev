@@ -209,11 +209,12 @@
     (let [user-id @(subscribe [:self/user-id])
           admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))]
-      [:div.ui.segment
+      [:div.project-content
        (when (not admin?)
-         [:h3 [:div.ui.large.fluid.label
-               {:style {:text-align "center"}}
-               "Read-only"]])
+         [:h3.ui.dividing.header
+          [:div.ui.large.fluid.label
+           {:style {:text-align "center"}}
+           "Read-only"]])
        [:div.ui.two.column.stackable.grid.project-settings
         [:div.ui.row
          [:div.ui.column

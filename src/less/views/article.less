@@ -83,31 +83,34 @@ div.ui.segment.labeled-notes > div.ui.labeled.button > .ui.basic.label {
     font-weight: normal;
 }
 
-div.article-labels-view > .ui.segment {
+.article-labels-view > .ui.segment {
     padding-top: 0.5em;
     padding-bottom: 0.5em;
     padding-left: 0.75em;
     padding-right: 0.75em;
 }
-div.article-labels-view > .ui.segment > .ui.dividing.header {
+.article-labels-view > .ui.segment > .ui.dividing.header {
     margin-bottom: 7px;
     padding-top: 2px;
     padding-bottom: 4px;
 }
-div.article-labels-view > .ui.segment > .ui.dividing.header > .ui.tiny.label {
+.article-labels-view > .ui.segment > .ui.dividing.header > .ui.tiny.label {
     padding-top: 4px;
     padding-bottom: 4px;
 }
-div.article-labels-view > .ui.segment div.labels,
-div.article-labels-view > .ui.segment div.notes {
-    margin-left: 2px;
+
+.article-labels-view > .ui.segment > div.labels,
+.article-labels-view > .ui.segment div.notes
+{
+    margin-left: -3px;
     margin-right: 2px;
 }
-div.article-labels-view > .ui.segment .ui.divider {
+
+.article-labels-view > .ui.segment .ui.divider {
     margin-top: 7px;
     margin-bottom: 7px;
 }
-div.article-labels-view > .ui.segment div.notes > .ui.labeled.button > .ui.basic.label {
+.article-labels-view > .ui.segment div.notes > .ui.labeled.button > .ui.basic.label {
     font-weight: normal;
 }
 
@@ -140,13 +143,10 @@ div.article-labels-view > .ui.segment div.notes > .ui.labeled.button > .ui.basic
     font-size: 0.9rem;
 }
 
-div.article-info-header > .ui.fluid.button {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    text-align: left;
-    font-size: 18px;
-    padding: 0.5em;
-    padding-left: 1em;
+.ui.basic.label.review-status {
+    margin-top: -3px;
+    margin-bottom: -3px;
+    margin-right: -3px;
 }
 
 @media only screen and (max-width: 900px) {
@@ -190,14 +190,14 @@ div.article-info-header > .ui.fluid.button {
         padding-right: 0.75em;
     }
 
-    div.article-labels-view > .ui.segment {
+    .article-labels-view > .ui.segment {
         padding-top: 0.5em;
         padding-bottom: 0.5em;
         padding-left: 0.5em;
         padding-right: 0.5em;
     }
 
-    div.article-info-header > .ui.large.fluid.button {
-        padding: 10px;
+    .article-info .ui.segments.article-info > .top.attached.header {
+        padding: 0.75em;
     }
 }

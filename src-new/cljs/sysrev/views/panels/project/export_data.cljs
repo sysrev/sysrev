@@ -9,7 +9,7 @@
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]
     (when-let [project-id @(subscribe [:active-project-id])]
-      [:div
+      [:div.project-content
        [:div.ui.two.column.stackable.grid
         [:div.row
          [:div.column

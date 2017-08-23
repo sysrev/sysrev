@@ -1,4 +1,4 @@
-div.article-list-view > div.ui.top.attached.segment {
+.article-list-view > .ui.top.attached.segment {
     padding: 10px;
 }
 
@@ -18,7 +18,7 @@ div.article-list-article:hover {
     background-color: mix(@background, @text, 96);
 }
 
-div.article-list-article .article-title {
+.article-list-article .article-title {
     font-weight: bold;
 }
 
@@ -32,7 +32,11 @@ div.article-list-article div.ui.row {
     padding-bottom: 0px;
 }
 
-div.article-list-article div.ui.column.article-title {
+.article-list-article div.ui.column.article-title {
+    padding: 10px;
+}
+
+.article-list-article .ui.row.user-article {
     padding: 10px;
 }
 
@@ -102,14 +106,113 @@ div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
     color: @darkText !important;
 }
 
-div.article-list-article div.article-title div.ui.fitted.divider {
+.article-list-article div.article-title div.ui.fitted.divider {
     margin-top: 0.6em;
     margin-bottom: 0.6em;
 }
 
+.article-view > .ui.segment.article-nav {
+    padding: 10px;
+}
+
 @media only screen and (max-width: 900px) {
-    div.ui.column.article-answers>div.ui.grid>div.row>div.column {
+    div.ui.column.article-answers >div.ui.grid > div.row > div.column {
         padding-left: 10px;
         padding-right: 10px;
+        font-size: 13px;
+    }
+
+    div.ui.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
+        padding-left: 3px;
+    }
+
+    .article-list-view > .ui.segment.article-nav,
+    .article-view > .ui.segment.article-nav {
+        padding: 0.5em;
+    }
+
+    .article-view > .ui.segment.article-nav > .ui.grid > .column,
+    .article-list-view > .ui.segment.article-nav > .ui.grid > .column {
+        padding: 0.75em;
+    }
+
+    .article-list-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column {
+        padding-left: 0;
+        padding-right: 0.5em;
+    }
+
+    .article-view > .ui.segment.article-nav > .ui.grid > .left.aligned.column .ui.tiny.button {
+        font-size: 11px;
+    }
+
+    .article-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button,
+    .article-list-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button {
+        font-size: 11px;
+        padding: 0.75em;
+    }
+
+    div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
+        font-size: 15px;
+    }
+
+    div.article-filters .ui.form .field .fields {
+        margin-top: 0;
+        margin-bottom: 0.5em;
+    }
+
+    div.article-filters .ui.form .field .fields .field {
+        padding-top: 0.25em;
+        padding-bottom: 0.25em;
+    }
+
+    .article-list-article .ui.row.user-article {
+        padding: 0.6em;
+    }
+
+    .article-list-article .ui.row.user-article > .column {
+        padding: 0;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .grid {
+        margin: -0.6em;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .ui.fitted.divider {
+        margin-top: 0.3em;
+        margin-bottom: 0.3em;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .grid > .row {
+        padding-top: 0.8em;
+        padding-bottom: 0.8em;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .grid > .row > .column {
+        padding-left: 0.6em;
+        padding-right: 0.6em;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .grid > .row > .column.label-values {
+        margin-left: -3px;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column {
+        padding-left: 0;
+    }
+
+    .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column > .ui.label {
+        margin-top: 1px;
+        margin-bottom: 2px;
+    }
+
+    .article-list-article .article-title {
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .article-list-article .article-title div.ui.tiny.label {
+        margin-left: 5px;
+        margin-top: 1px;
+        margin-bottom: 1px;
     }
 }

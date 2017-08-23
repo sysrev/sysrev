@@ -378,7 +378,8 @@
                      (if select-inclusion? 2 0)
                      (if select-confirmed? 2 0)
                      2)
-        whitespace-columns (- 16 n-columns)]
+        whitespace-columns (- 16 n-columns)
+        full-size? (full-size?)]
     [:div.ui.secondary.segment.article-filters
      {:style {:padding "10px"}}
      [:form.ui.form
@@ -423,12 +424,13 @@
               :help-content
               ["Filter by whether your answers are confirmed or in-progress"]))
            [confirm-status-selector panel]])
-        (when (full-size?)
+        (when full-size?
           [:div {:class (str (number-to-word whitespace-columns)
                              " wide field")}])
         [:div.ui.small.two.wide.field
-         [:label nbsp]
-         [:div.ui.button
+         (when full-size?
+           [:label nbsp])
+         [:div.ui.small.fluid.button
           {:on-click
            (if (allow-null-label? panel)
              #(dispatch [::reset-filters [] panel])
@@ -473,29 +475,55 @@
         on-previous
         #(when (>= display-offset display-count)
            (dispatch [::set-display-offset
-                      (max 0 (- display-offset display-count)) panel]))]
-    [:div.ui.right.aligned.column
-     [:div.ui.tiny.icon.button
-      {:class (if (= display-offset 0) "disabled" "")
-       :style {:margin-right "5px"}
-       :on-click on-first}
-      [:i.angle.double.left.icon]]
-     [:div.ui.tiny.buttons
-      {:style {:margin-right "5px"}}
-      [:div.ui.tiny.button
-       {:class (if (= display-offset 0) "disabled" "")
-        :on-click on-previous}
-       [:i.chevron.left.icon] "Previous"]
-      [:div.ui.tiny.button
-       {:class (if (>= (+ display-offset display-count) total-count)
-                 "disabled" "")
-        :on-click on-next}
-       "Next" [:i.chevron.right.icon]]]
-     [:div.ui.tiny.icon.button
-      {:class (if (>= (+ display-offset display-count) total-count)
-                "disabled" "")
-       :on-click on-last}
-      [:i.angle.double.right.icon]]]))
+                      (max 0 (- display-offset display-count)) panel]))
+        full-size? (full-size?)]
+    (if full-size?
+      ;; non-mobile view
+      [:div.ui.right.aligned.column
+       [:div.ui.tiny.icon.button
+        {:class (if (= display-offset 0) "disabled" "")
+         :style {:margin-right "5px"}
+         :on-click on-first}
+        [:i.angle.double.left.icon]]
+       [:div.ui.tiny.buttons
+        {:style {:margin-right "5px"}}
+        [:div.ui.tiny.button
+         {:class (if (= display-offset 0) "disabled" "")
+          :on-click on-previous}
+         [:i.chevron.left.icon] "Previous"]
+        [:div.ui.tiny.button
+         {:class (if (>= (+ display-offset display-count) total-count)
+                   "disabled" "")
+          :on-click on-next}
+         "Next" [:i.chevron.right.icon]]]
+       [:div.ui.tiny.icon.button
+        {:class (if (>= (+ display-offset display-count) total-count)
+                  "disabled" "")
+         :on-click on-last}
+        [:i.angle.double.right.icon]]]
+      ;; mobile view
+      [:div.ui.right.aligned.nine.wide.column
+       [:div.ui.tiny.icon.button
+        {:class (if (= display-offset 0) "disabled" "")
+         :style {:margin-right "4px"}
+         :on-click on-first}
+        [:i.angle.double.left.icon]]
+       [:div.ui.tiny.buttons
+        {:style {:margin-right "4px"}}
+        [:div.ui.tiny.button
+         {:class (if (= display-offset 0) "disabled" "")
+          :on-click on-previous}
+         [:i.chevron.left.icon] "Previous"]
+        [:div.ui.tiny.button
+         {:class (if (>= (+ display-offset display-count) total-count)
+                   "disabled" "")
+          :on-click on-next}
+         "Next" [:i.chevron.right.icon]]]
+       [:div.ui.tiny.icon.button
+        {:class (if (>= (+ display-offset display-count) total-count)
+                  "disabled" "")
+         :on-click on-last}
+        [:i.angle.double.right.icon]]])))
 
 (reg-sub
  ::visible-entries
@@ -509,7 +537,8 @@
 
 (defn- article-list-view-articles [panel]
   (let [active-aid @(subscribe [::selected-article-id panel])
-        show-article #(nav (article-uri panel %))]
+        show-article #(nav (article-uri panel %))
+        full-size? (full-size?)]
     [:div
      (doall
       (->>
@@ -526,14 +555,23 @@
               [render-article-entry panel article full-size?]]])))))]))
 
 (defn- article-list-list-view [panel]
-  [:div.article-list-view
-   [:div.ui.top.attached.segment
-    [:div.ui.two.column.middle.aligned.grid
-     [:div.ui.left.aligned.column
-      [article-list-header-message panel]]
-     [article-list-header-buttons panel]]]
-   [:div.ui.bottom.attached.segment.article-list-segment
-    [article-list-view-articles panel]]])
+  (if (full-size?)
+    [:div.article-list-view
+     [:div.ui.top.attached.segment.article-nav
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column
+        [article-list-header-message panel]]
+       [article-list-header-buttons panel]]]
+     [:div.ui.bottom.attached.segment.article-list-segment
+      [article-list-view-articles panel]]]
+    [:div.article-list-view
+     [:div.ui.segment.article-nav
+      [:div.ui.middle.aligned.grid
+       [:div.ui.left.aligned.seven.wide.column
+        [article-list-header-message panel]]
+       [article-list-header-buttons panel]]]
+     [:div.article-list-segment
+      [article-list-view-articles panel]]]))
 
 (defn- article-list-article-view [article-id panel]
   (let [label-values @(subscribe [:review/active-labels article-id])
@@ -549,27 +587,50 @@
         prev-id @(subscribe [::prev-article-id panel])
         on-next #(when next-id (nav (article-uri panel next-id)))
         on-prev #(when prev-id (nav (article-uri panel prev-id)))]
-    [:div
-     [:div.ui.top.attached.segment
-      {:style {:padding "10px"}}
-      [:div.ui.three.column.middle.aligned.grid
-       [:div.ui.left.aligned.column
-        [:div.ui.tiny.fluid.button {:on-click close-article}
-         [:span {:style {:float "left"}}
-          [:i.list.icon]]
-         "Back to list"]]
-       [:div.ui.center.aligned.column]
-       [:div.ui.right.aligned.column
-        [:div.ui.tiny.buttons
-         [:div.ui.tiny.button
-          {:class (if (nil? prev-id) "disabled" "")
-           :on-click on-prev}
-          [:i.chevron.left.icon] "Previous"]
-         [:div.ui.tiny.button
-          {:class (if (nil? next-id) "disabled" "")
-           :on-click on-next}
-          "Next" [:i.chevron.right.icon]]]]]]
-     [:div.ui.bottom.attached.middle.aligned.segment
+    [:div.article-view
+     (if (full-size?)
+       ;; non-mobile view
+       [:div.ui.top.attached.segment.article-nav
+        {:style {:padding "10px"}}
+        [:div.ui.three.column.middle.aligned.grid
+         [:div.ui.left.aligned.column
+          [:div.ui.tiny.fluid.button {:on-click close-article}
+           [:span {:style {:float "left"}}
+            [:i.list.icon]]
+           "Back to list"]]
+         [:div.ui.center.aligned.column]
+         [:div.ui.right.aligned.column
+          [:div.ui.tiny.buttons
+           [:div.ui.tiny.button
+            {:class (if (nil? prev-id) "disabled" "")
+             :on-click on-prev}
+            [:i.chevron.left.icon] "Previous"]
+           [:div.ui.tiny.button
+            {:class (if (nil? next-id) "disabled" "")
+             :on-click on-next}
+            "Next" [:i.chevron.right.icon]]]]]]
+       ;; mobile view
+       [:div.ui.segment.article-nav
+        [:div.ui.middle.aligned.grid
+         [:div.ui.six.wide.left.aligned.column
+          [:div.ui.tiny.fluid.button {:on-click close-article}
+           [:span {:style {:float "left"}}
+            [:i.list.icon]]
+           "Back to list"]]
+         [:div.ui.ten.wide.right.aligned.column
+          [:div.ui.tiny.buttons
+           [:div.ui.tiny.button
+            {:class (if (nil? prev-id) "disabled" "")
+             :on-click on-prev}
+            [:i.chevron.left.icon] "Previous"]
+           [:div.ui.tiny.button
+            {:class (if (nil? next-id) "disabled" "")
+             :on-click on-next}
+            "Next" [:i.chevron.right.icon]]]]]])
+     [:div
+      {:class (if (full-size?)
+                "ui bottom attached middle aligned segment"
+                "")}
       [:div
        [article-info-view article-id
         :show-labels? true
@@ -585,9 +646,10 @@
 
 ;; Top-level component for article list interface
 (defn article-list-view [panel & [loader-items]]
-  [:div
-   [article-list-filter-form panel]
-   (with-loader (concat [[:project]] loader-items) {}
-     (if-let [article-id @(subscribe [:article-list/article-id panel])]
-       [article-list-article-view article-id panel]
-       [article-list-list-view panel]))])
+  (let [article-id @(subscribe [:article-list/article-id panel])]
+    [:div
+     [article-list-filter-form panel]
+     (with-loader (concat [[:project]] loader-items) {}
+       (if article-id
+         [article-list-article-view article-id panel]
+         [article-list-list-view panel]))]))

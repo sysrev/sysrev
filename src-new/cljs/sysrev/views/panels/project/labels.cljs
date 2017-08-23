@@ -7,59 +7,60 @@
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
-    [:table.ui.celled.unstackable.table.project-labels
-     [:thead
-      [:tr
-       [:th {:style {:width "16%"}} "Name"]
-       [:th {:style {:width "49%"}} "Description"]
-       [:th.center.aligned "Values allowed for inclusion"]]]
-     [:tbody
-      (doall
-       (->>
-        @(subscribe [:project/label-ids])
-        (map
-         (fn [label-id]
-           (let [name @(subscribe [:label/name label-id])
-                 question @(subscribe [:label/question label-id])
-                 inclusion-values @(subscribe [:label/inclusion-values
-                                               label-id])
-                 group-style {:margin-top "-5px"
-                              :margin-bottom "-5px"}
-                 label-style {:margin-top "3px"
-                              :margin-bottom "3px"}]
-             ^{:key label-id}
-             [:tr
-              [:td name]
-              [:td question]
-              [:td.center.aligned
-               (cond
-                 (= inclusion-values [true])
-                 [:div.ui.labels {:style group-style}
-                  [true-false-nil-tag
-                   "Yes" true
-                   :show-icon? false
-                   :color? false
-                   :style label-style]]
-                 (= inclusion-values [false])
-                 [:div.ui.labels {:style group-style}
-                  [true-false-nil-tag
-                   "No" false
-                   :show-icon? false
-                   :color? false
-                   :style label-style]]
-                 (empty? inclusion-values)
-                 [:div.ui.labels {:style group-style}
-                  [true-false-nil-tag
-                   "Extra label" "basic grey"
-                   :show-icon? false
-                   :color? true
-                   :style label-style]]
-                 :else
-                 [:div.ui.labels {:style group-style}
-                  (for [v inclusion-values]
-                    ^{:key [label-id v]}
-                    [true-false-nil-tag
-                     (str v) nil
-                     :show-icon? false
-                     :color? true
-                     :style label-style])])]])))))]]))
+    [:div.project-content
+     [:table.ui.celled.unstackable.table.project-labels
+      [:thead
+       [:tr
+        [:th {:style {:width "16%"}} "Name"]
+        [:th {:style {:width "49%"}} "Description"]
+        [:th.center.aligned "Values allowed for inclusion"]]]
+      [:tbody
+       (doall
+        (->>
+         @(subscribe [:project/label-ids])
+         (map
+          (fn [label-id]
+            (let [name @(subscribe [:label/name label-id])
+                  question @(subscribe [:label/question label-id])
+                  inclusion-values @(subscribe [:label/inclusion-values
+                                                label-id])
+                  group-style {:margin-top "-5px"
+                               :margin-bottom "-5px"}
+                  label-style {:margin-top "3px"
+                               :margin-bottom "3px"}]
+              ^{:key label-id}
+              [:tr
+               [:td name]
+               [:td question]
+               [:td.center.aligned
+                (cond
+                  (= inclusion-values [true])
+                  [:div.ui.labels {:style group-style}
+                   [true-false-nil-tag
+                    "Yes" true
+                    :show-icon? false
+                    :color? false
+                    :style label-style]]
+                  (= inclusion-values [false])
+                  [:div.ui.labels {:style group-style}
+                   [true-false-nil-tag
+                    "No" false
+                    :show-icon? false
+                    :color? false
+                    :style label-style]]
+                  (empty? inclusion-values)
+                  [:div.ui.labels {:style group-style}
+                   [true-false-nil-tag
+                    "Extra label" "basic grey"
+                    :show-icon? false
+                    :color? true
+                    :style label-style]]
+                  :else
+                  [:div.ui.labels {:style group-style}
+                   (for [v inclusion-values]
+                     ^{:key [label-id v]}
+                     [true-false-nil-tag
+                      (str v) nil
+                      :show-icon? false
+                      :color? true
+                      :style label-style])])]])))))]]]))

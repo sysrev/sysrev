@@ -91,16 +91,16 @@
      [chart-container bar-chart xs ynames yss]]))
 
 (defn project-overview-panel []
-  [:div.ui.two.column.stackable.grid
+  [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
      #_ [project-files-box]]
-    [:div.ui.column
-     #_ [user-summary-chart]]]])
+    #_ [:div.ui.column
+        [user-summary-chart]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
-    [:div
+    [:div.project-content
      [project-overview-panel]
      child]))

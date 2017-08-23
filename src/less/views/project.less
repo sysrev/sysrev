@@ -4,6 +4,11 @@
     padding-right: 0;
 }
 
+div.project-content {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
 .ui.segment.project-segment .padded {
     padding-left: 1em;
     padding-right: 1em;
@@ -53,53 +58,62 @@
     font-size: 13px;
 }
 
+@media only screen and (max-width: 767px) {
+    .ui.column.stackable.grid.project-overview {
+        margin-top: -0.5em;
+        margin-bottom: 0;
+    }
+
+    .project-content > .ui.two.column.stackable.grid > .row > .column {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0.5em !important;
+        padding-bottom: 0.5em !important;
+    }
+}
+
 @media only screen and (max-width: 900px) {
     .ui.top.attached.segment.project-header {
         text-align: justify;
         padding: 0.75em;
+        font-size: 12px;
     }
 
-    .ui.segment.project-segment .padded {
-        padding: 0.75em;
+    .ui.segment.project-header .project-title {
+    }
+
+    .ui.top.attached.segment.project-header .ui.grid {
+        margin: -1em;
+    }
+
+    .ui.top.attached.segment.project-header .ui.grid > .row {
+        padding: 0.6em;
+    }
+
+    .ui.top.attached.segment.project-header .ui.grid > .row > .column {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
     }
 
     .ui.segment.project-segment {
         padding: 0;
     }
 
-    .ui.stackable.grid.project-overview > .ui.row > .ui.column {
-        padding-left: 0 !important;
-        padding-right: 0 !important;
+    div.project-content {
+        padding: 0.5em;
     }
 
-    div.project-summary > .ui.segment > .ui.stackable.grid > .row > .column {
-        padding: 0 !important;
+    div.project-content > .column.stackable.grid {
+        margin-bottom: -0.5em;
+    }
+
+    div.project-summary div.stackable.grid.pie-charts > .row > .column {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
         width: 60% !important;
         margin-left: auto !important;
         margin-right: auto !important;
-    }
-
-    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.eight.wide.column {
-        padding-left: 0;
-        padding-right: 0;
-    }
-
-    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column {
-        padding-left: 0.5em;
-        padding-right: 0.5em;
-    }
-
-    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column.left-column {
-        padding-right: 0;
-    }
-
-    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column .ui.small.button {
-        padding-left: 0.5em;
-        padding-right: 0.5em;
-    }
-
-    .ui.segment.project-segment .padded .ui.grid .ui.row .ui.four.wide.column .ui.small.button i.small.right.icon {
-        margin-left: 2px;
-        margin-right: 2px;
     }
 }

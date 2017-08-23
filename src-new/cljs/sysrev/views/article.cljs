@@ -6,7 +6,8 @@
    [sysrev.views.keywords :refer [render-keywords render-abstract]]
    [sysrev.views.components :refer [out-link]]
    [sysrev.views.labels :refer
-    [label-values-component article-labels-view]])
+    [label-values-component article-labels-view]]
+   [sysrev.util :refer [full-size?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn- author-names-text [nmax coll]
@@ -32,11 +33,8 @@
               (= status :consistent)   "green"
               :else                    "")]
     (when sstr
-      [:div.ui.basic.label
-       {:class color
-        :style {:margin-top "-3px"
-                :margin-bottom "-3px"
-                :margin-right "0px"}}
+      [:div.ui.basic.label.review-status
+       {:class color}
        (str sstr)])))
 
 (defn article-info-main-content [article-id]
@@ -71,10 +69,14 @@
 (defn article-info-view
   [article-id & {:keys [show-labels? private-view?]}]
   (let [status @(subscribe [:article/review-status article-id])]
-    (with-loader [[:article article-id]] {:dimmer true :min-height "500px"}
-      [:div
-       [:div.ui.segments
+    [:div
+     (with-loader [[:article article-id]]
+       {:dimmer true
+        :min-height "500px"
+        :class "ui segments"}
+       (list
         [:div.ui.top.attached.middle.aligned.header
+         {:key [:article-header]}
          [:div {:style {:float "left"}}
           [:h4 "Article Info"]]
          (when (or status private-view?)
@@ -82,6 +84,7 @@
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         [:div.ui.attached.segment
-         [article-info-main-content article-id]]]
-       (when show-labels?
-         [article-labels-view article-id :self-only? private-view?])])))
+         {:key [:article-content]}
+         [article-info-main-content article-id]]))
+     (when show-labels?
+       [article-labels-view article-id :self-only? private-view?])]))

@@ -127,12 +127,12 @@
         valid? @(subscribe [::valid-input?])
         field-class #(if @(subscribe [::valid-input? %])
                        "" "error")]
-    [:div.ui.grey.segment
+    [:div.ui.grey.segment.user-options
      [:h4.ui.dividing.header "Options"]
-     [:form.ui.equal.with.form {:class (if valid? "" "warning")}
+     [:div.ui.unstackable.form {:class (if valid? "" "warning")}
       (let [skey :ui-theme]
         [:div.fields
-         [:div.field {:class (field-class skey)}
+         [:div.eight.wide.field {:class (field-class skey)}
           [:label "Web Theme"]
           [theme-selector]]])]
      [:div

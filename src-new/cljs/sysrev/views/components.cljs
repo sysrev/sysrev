@@ -25,6 +25,49 @@
      [:div.ui.label label-attrs label-text]
      input-elt]))
 
+(defn wrap-dropdown [elt]
+  (r/create-class
+   {:component-did-mount
+    #(-> (js/$ (r/dom-node %))
+         (.dropdown))
+    :reagent-render
+    (fn [elt]
+      elt)}))
+
+(defn selection-dropdown [selected-item items]
+  [wrap-dropdown
+   [:div.ui.selection.dropdown
+    [:i.dropdown.icon]
+    selected-item
+    (into [:div.menu] items)]])
+
+(defn dropdown-menu [entries & {:keys [icon-class dropdown-class label style]
+                                :or {icon-class "small down chevron"
+                                     dropdown-class "dropdown"
+                                     label ""
+                                     style {}}}]
+  [wrap-dropdown
+   [:div.ui {:class dropdown-class :style style}
+    label
+    [:i {:class (str icon-class " icon")
+         :style (when-not (and (seqable? label)
+                               (empty? label))
+                  {:margin-left "0.7em"
+                   :margin-right "0em"})}]
+    [:div.menu
+     (doall
+      (for [{:keys [action content] :as entry} entries]
+        (when entry
+          ^{:key entry}
+          [:a.item {:href (when (string? action) action)
+                    :on-click (cond (vector? action)
+                                    #(dispatch [:navigate action])
+
+                                    (string? action) nil
+
+                                    :else action)}
+           content])))]]])
+
 (s/def ::tab-id keyword?)
 (s/def ::content any?)
 (s/def ::action (or string? fn?))
@@ -62,7 +105,7 @@
               :active-tab-id ::tab-id
               :menu-class (s/? string?)))
 
-(defn secondary-tabbed-menu [left-entries right-entries active-tab-id & [menu-class]]
+(defn secondary-tabbed-menu [left-entries right-entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         render-entry (fn [{:keys [tab-id action content] :as entry}]
                        (when entry
@@ -85,54 +128,22 @@
        (for [entry left-entries]
          (render-entry entry)))
       (when-not (empty? right-entries)
-        [:div.right.menu
-         (doall
-          (for [entry right-entries]
-            (render-entry entry)))])]]))
+        (if mobile?
+          [:div.right.menu
+           [dropdown-menu right-entries
+            :dropdown-class "dropdown item"
+            :label "More"]]
+          [:div.right.menu
+           (doall
+            (for [entry right-entries]
+              (render-entry entry)))]))]]))
 (s/fdef
  secondary-tabbed-menu
  :args (s/cat :left-entries (s/coll-of ::menu-tab)
               :right-entries (s/coll-of ::menu-tab)
               :active-tab-id ::tab-id
-              :menu-class (s/? string?)))
-
-(defn wrap-dropdown [elt]
-  (r/create-class
-   {:component-did-mount
-    #(-> (js/$ (r/dom-node %))
-         (.dropdown))
-    :reagent-render
-    (fn [elt]
-      elt)}))
-
-(defn selection-dropdown [selected-item items]
-  [wrap-dropdown
-   [:div.ui.selection.dropdown
-    [:i.dropdown.icon]
-    selected-item
-    (into [:div.menu] items)]])
-
-(defn dropdown-menu [entries & {:keys [icon-class dropdown-class label style]
-                                :or {icon-class "small down chevron"
-                                     dropdown-class "dropdown"
-                                     label ""
-                                     style {}}}]
-  [wrap-dropdown
-   [:div.ui {:class dropdown-class :style style}
-    label
-    [:i {:class (str icon-class " icon")
-         :style (when-not (and (seqable? label)
-                               (empty? label))
-                  {:margin-left "0.7em"
-                   :margin-right "0em"})}]
-    [:div.menu
-     (doall
-      (for [{:keys [action content] :as entry} entries]
-        (when entry
-          ^{:key entry}
-          [:a.item {:href (when (string? action) action)
-                    :on-click (when-not (string? action) action)}
-           content])))]]])
+              :menu-class (s/? string?)
+              :mobile? (s/? boolean?)))
 
 (defn with-tooltip [content & [popup-options]]
   (r/create-class
@@ -185,7 +196,7 @@
                               true  [:i.plus.circle.icon]}}}]
   ;; nil for unset, true, false
   (let [size (if (full-size?) "large" "small")
-        class (str "ui " size " buttons three-state-icon")
+        class (str "ui " size " fluid buttons three-state-icon")
         bclass (fn [secondary? selected?]
                  (str "ui " size " "
                       (cond (not selected?) ""
