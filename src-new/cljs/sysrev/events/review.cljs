@@ -46,7 +46,10 @@
  :review/disable-change-labels
  [trim-v]
  (fn [_ [article-id panel]]
-   {:dispatch [:set-panel-field [:transient :change-labels? article-id] false panel]}))
+   {:dispatch-n
+    (list [:set-panel-field [:transient :change-labels? article-id] false panel]
+          [:review/reset-ui-labels]
+          [:review/reset-ui-notes])}))
 
 ;; Runs the :review/send-labels POST action using label values
 ;; taken from active review interface.

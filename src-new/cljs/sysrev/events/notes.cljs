@@ -4,6 +4,12 @@
     [subscribe dispatch reg-event-db reg-event-fx trim-v]]))
 
 (reg-event-db
+ :review/reset-ui-notes
+ [trim-v]
+ (fn [db []]
+   (assoc-in db [:state :review :notes] {})))
+
+(reg-event-db
  :review/set-note-content
  [trim-v]
  (fn [db [article-id note-name content]]

@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.settings
   (:require
    [re-frame.core :refer
-    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+    [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip]]))
 
@@ -144,7 +144,7 @@
              :value (render-setting skey)
              :on-change
              #(let [input (-> % .-target .-value)]
-                (dispatch [::edit-setting skey input]))
+                (dispatch-sync [::edit-setting skey input]))
              :readOnly (if admin? false true)
              :autoComplete "off"}]
            [:div.ui.basic.label "%"]]]])]

@@ -5,7 +5,7 @@
     [do-query do-execute with-project-cache]]
    [sysrev.db.queries :as q]
    [sysrev.db.users :as users]
-   [sysrev.db.project :refer
+   [sysrev.db.project :as project :refer
     [project-labels project-member project-article-count project-keywords
      project-notes project-settings]]
    [sysrev.db.export :refer [export-project]]
@@ -19,13 +19,13 @@
    [sysrev.shared.transit :as sr-transit]
    [sysrev.util :refer
     [should-never-happen-exception integerify-map-keys uuidify-map-keys]]
+   [sysrev.config.core :refer [env]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [compojure.core :refer :all]
    [ring.util.response :as response]
-   [sysrev.db.project :as project]
    [clojure.data.json :as json])
   (:import [java.util UUID]
            [java.io InputStream]
@@ -214,10 +214,12 @@
   (GET "/api/public-labels" request
        (wrap-permissions
         request [] ["member"]
-        (let [project-id (active-project request)]
+        (let [project-id (active-project request)
+              exclude-hours (if (= :dev (:profile env))
+                              nil 4)]
           {:result (sr-transit/encode-public-labels
                     (labels/query-public-article-labels
-                     project-id :exclude-hours 12))}))))
+                     project-id :exclude-hours exclude-hours))}))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

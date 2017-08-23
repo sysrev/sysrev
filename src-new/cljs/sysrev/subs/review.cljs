@@ -32,9 +32,9 @@
  :<- [:public-labels/article-id]
  :<- [:user-labels/editing?]
  :<- [:user-labels/article-id]
- (fn [[on-review-task? task-aid list-editing? list-aid user-editing? user-aid]]
+ (fn [[on-review-task? task-aid public-editing? public-aid user-editing? user-aid]]
    (cond on-review-task? task-aid
-         list-editing? list-aid
+         public-editing? public-aid
          user-editing? user-aid)))
 
 (reg-sub
@@ -43,14 +43,13 @@
  (fn [editing-id]
    (if editing-id true false)))
 
-(reg-sub-raw
+(reg-sub
  :review/resolving?
- (fn []
-   (reaction
-    (when-let [article-id @(subscribe [:review/editing-id])]
-      (let [status @(subscribe [:article/review-status article-id])
-            resolver? @(subscribe [:member/resolver?])]
-        (and resolver? (in? [:conflict :resolved] status)))))))
+ :<- [:public-labels/article-id]
+ :<- [:public-labels/resolving?]
+ (fn [[public-aid public-resolving?]]
+   (boolean
+    (and public-aid public-resolving?))))
 
 (reg-sub
  ::labels

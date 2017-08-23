@@ -229,8 +229,8 @@
                    :on-change
                    (fn [ev]
                      (let [s (-> ev .-target .-value)]
-                       (dispatch [::set-string-value
-                                  article-id label-id i s])))}]
+                       (dispatch-sync [::set-string-value
+                                       article-id label-id i s])))}]
                  (when right-action?
                    [:div.ui.icon.button.input-row
                     {:class (if (empty? val) "disabled" "")
@@ -344,8 +344,8 @@
            :value (or note-content "")
            :on-change
            #(let [content (-> % .-target .-value)]
-              (dispatch [:review/set-note-content
-                         article-id note-name content]))}]]]])))
+              (dispatch-sync [:review/set-note-content
+                              article-id note-name content]))}]]]])))
 
 (defn- activity-report []
   (when-let [today-count @(subscribe [:review/today-count])]
@@ -358,7 +358,7 @@
        [:span nbsp "today"]])))
 
 ;; Component for row of action buttons below label inputs grid
-(defn- label-editor-buttons-view [article-id resolving?]
+(defn- label-editor-buttons-view [article-id]
   (let [active-labels @(subscribe [:review/active-labels article-id])
         resolving? @(subscribe [:review/resolving?])
         missing @(subscribe [:review/missing-labels article-id])
@@ -387,7 +387,12 @@
                         (when (not on-review-task?)
                           [:review/disable-change-labels article-id])
                         (when @(subscribe [:user-labels/article-id])
-                          #(nav-scroll-top "/project/user")))
+                          ;; Use setTimeout here to avoid immediately triggering
+                          ;; the :review/send-labels logic in sr-defroute before
+                          ;; state has been fully updated
+                          #(js/setTimeout
+                            (fn [] (nav-scroll-top "/project/user"))
+                            50)))
                   (remove nil?))}]))
         save-class (str (if disabled? "disabled" "")
                         " "
@@ -458,7 +463,8 @@
              (= article-id @(subscribe [:review/editing-id])))
     (with-loader [[:article article-id]] {}
       (when-not (review-article-loading?)
-        (let [label-ids @(subscribe [:project/label-ids])
+        (let [change-set? @(subscribe [:review/change-labels? article-id])
+              label-ids @(subscribe [:project/label-ids])
               resolving? @(subscribe [:review/resolving?])
               n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
               n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
@@ -477,18 +483,24 @@
           [:div
            [:div.ui.segments.label-editor-view
             [:div.ui.top.attached.header
-             [:h3
-              (if resolving? "Resolve labels " "Edit labels ")
-              [with-tooltip
-               [:a {:on-click #(dispatch [:navigate [:project :project :labels]])}
-                [:i.medium.grey.help.circle.icon]]]
-              [:div.ui.inverted.popup.top.left.transition.hidden
-               "View label definitions"]]]
+             [:div.ui.two.column.middle.aligned.grid
+              [:div.ui.left.aligned.column
+               [:h3
+                (if resolving? "Resolve Labels " "Edit Labels ")
+                [with-tooltip
+                 [:a {:on-click #(dispatch [:navigate [:project :project :labels]])}
+                  [:i.medium.grey.help.circle.icon]]]
+                [:div.ui.inverted.popup.top.left.transition.hidden
+                 "View label definitions"]]]
+              [:div.ui.right.aligned.column
+               (when change-set?
+                 [:div.ui.tiny.button
+                  {:on-click #(dispatch [:review/disable-change-labels article-id])}
+                  "Cancel"])]]]
             [:div.ui.label-section
              {:class (str "attached "
                           n-cols-str " column "
                           "celled grid segment")}
              (make-label-columns label-ids n-cols)]
-            #_ [inconsistent-answers-notice label-values]
             [note-input-element "default"]]
            [label-editor-buttons-view article-id]])))))

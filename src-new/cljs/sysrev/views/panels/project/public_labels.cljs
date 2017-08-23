@@ -8,7 +8,6 @@
    [sysrev.views.components :refer
     [selection-dropdown with-ui-help-tooltip ui-help-icon updated-time-label]]
    [sysrev.views.article :refer [article-info-view]]
-   [sysrev.views.review :refer [label-editor-view]]
    [sysrev.views.article-list :as al]
    [sysrev.subs.ui :refer [get-panel-field]]
    [sysrev.routes :refer [nav nav-scroll-top]]
@@ -41,7 +40,10 @@
 (defmethod al/list-header-tooltip panel []
   ["Public listing of articles reviewed by multiple users"
    [:div.ui.divider]
-   "Articles are hidden for 12 hours after any edit to labels"])
+   "Articles are hidden for 4 hours after any edit to labels"])
+
+(defmethod al/private-article-view? panel []
+  false)
 
 (defmulti answer-cell-icon identity)
 (defmethod answer-cell-icon true [] [:i.ui.green.circle.plus.icon])
@@ -113,6 +115,14 @@
  (fn [[active-panel editing?]]
    (when (= active-panel panel)
      editing?)))
+
+(reg-sub
+ :public-labels/resolving?
+ :<- [:active-panel]
+ :<- [:article-list/resolving? panel]
+ (fn [[active-panel resolving?]]
+   (when (= active-panel panel)
+     resolving?)))
 
 (reg-event-fx
  :public-labels/show-article

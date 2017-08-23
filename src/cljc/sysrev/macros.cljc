@@ -55,7 +55,11 @@
                user-status# @(subscribe [:article/user-status article-id# user-id#])
                unconfirmed?# (or (= user-status# :unconfirmed)
                                  (= user-status# :none))
+               resolving?# @(subscribe [:review/resolving?])
+               article-loading?# @(subscribe [:loading? [:article article-id#]])
                send-labels?# (and unconfirmed?#
+                                  (not resolving?#)
+                                  (not article-loading?#)
                                   (not= active-values# article-values#))
                sent-notes# (sysrev.events.notes/sync-article-notes article-id#)]
            (do (when send-labels?#

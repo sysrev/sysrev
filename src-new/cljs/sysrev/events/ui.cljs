@@ -26,6 +26,7 @@
       :dispatch-n
       (concat
        [[:review/reset-ui-labels]
+        [:review/reset-ui-notes]
         [:reset-transient-fields panel]]
        (->> (panel-prefixes panel)
             (map (fn [prefix]
@@ -34,11 +35,12 @@
 (reg-event-fx
  :navigate
  [trim-v]
- (fn [{:keys [db]} [path]]
+ (fn [{:keys [db]} [path & {:keys [scroll-top?]}]]
    (let [active (active-panel db)]
-     (if (= path (take (count path) active))
-       {:nav (default-subpanel-uri db path)}
-       {:nav (active-subpanel-uri db path)}))))
+     {(if scroll-top? :nav-scroll-top :nav)
+      (if (= path (take (count path) active))
+        (default-subpanel-uri db path)
+        (active-subpanel-uri db path))})))
 
 (reg-event-db
  :set-panel-field

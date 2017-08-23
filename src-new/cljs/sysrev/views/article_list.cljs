@@ -23,6 +23,7 @@
 (defmulti allow-null-label? (fn [panel] panel))
 (defmulti list-header-tooltip (fn [panel] panel))
 (defmulti render-article-entry (fn [panel article full-size?] panel))
+(defmulti private-article-view? (fn [panel] panel))
 
 (defmethod list-header-tooltip :default [] nil)
 
@@ -231,34 +232,43 @@
    {:dispatch [:set-panel-field [:display-offset] new-offset panel]}))
 
 (reg-sub-raw
+ ::resolving-allowed?
+ (fn [_ [_ panel]]
+   (reaction
+    (boolean
+     (when-let [article-id @(subscribe [:article-list/article-id panel])]
+       (and (not (private-article-view? panel))
+            (= :conflict @(subscribe [:article/review-status article-id]))
+            @(subscribe [:member/resolver?])))))))
+
+(reg-sub-raw
+ ::editing-allowed?
+ (fn [_ [_ panel]]
+   (reaction
+    (boolean
+     (when-let [article-id @(subscribe [:article-list/article-id panel])]
+       (or @(subscribe [::resolving-allowed? panel])
+           (in? [:confirmed :unconfirmed]
+                @(subscribe [:article/user-status article-id]))))))))
+
+(reg-sub-raw
  :article-list/editing?
  (fn [_ [_ panel]]
    (reaction
     (boolean
-     (let [article-id @(subscribe [:article-list/article-id panel])
-           user-id @(subscribe [:self/user-id])
-           change-labels? @(subscribe [:review/change-labels? article-id panel])]
-       (when (and article-id user-id)
-         (let [user-status @(subscribe [:article/user-status article-id user-id])
-               review-status @(subscribe [:article/review-status article-id])
-               resolving? (and (= review-status :conflict)
-                               @(subscribe [:member/resolver? user-id]))]
-           (or (= user-status :unconfirmed)
-               change-labels?
-               resolving?))))))))
+     (when-let [article-id @(subscribe [:article-list/article-id panel])]
+       (and @(subscribe [::editing-allowed? panel])
+            (or (and (private-article-view? panel)
+                     (= :unconfirmed @(subscribe [:article/user-status article-id])))
+                @(subscribe [:review/change-labels? article-id panel]))))))))
 
-(reg-sub-raw
+(reg-sub
  :article-list/resolving?
- (fn [_ [_ panel]]
-   (reaction
-    (boolean
-     (when @(subscribe [:article-list/editing? panel])
-       (let [article-id @(subscribe [:article-list/article-id panel])
-             user-id @(subscribe [:self/user-id])]
-         (when (and article-id user-id)
-           (let [review-status @(subscribe [:article/review-status article-id])]
-             (and (= review-status :conflict)
-                  @(subscribe [:member/resolver? user-id]))))))))))
+ (fn [[_ panel]]
+   [(subscribe [:article-list/editing? panel])
+    (subscribe [::resolving-allowed? panel])])
+ (fn [[editing? resolving-allowed?]]
+   (boolean (and editing? resolving-allowed?))))
 
 ;;;
 ;;; Input components for controlling article list filters
@@ -530,6 +540,8 @@
         overall-label-id @(subscribe [:project/overall-label-id])
         user-id @(subscribe [:self/user-id])
         user-status @(subscribe [:article/user-status article-id user-id])
+        editing-allowed? @(subscribe [::editing-allowed? panel])
+        resolving-allowed? @(subscribe [::resolving-allowed? panel])
         editing? @(subscribe [:article-list/editing? panel])
         resolving? @(subscribe [:article-list/resolving? panel])
         close-article #(nav (panel-base-uri panel))
@@ -559,19 +571,17 @@
           "Next" [:i.chevron.right.icon]]]]]]
      [:div.ui.bottom.attached.middle.aligned.segment
       [:div
-       (let [show-labels?
-             (case panel
-               [:project :user :labels] false
-               :all)]
-         [article-info-view article-id :show-labels? show-labels?])
+       [article-info-view article-id
+        :show-labels? true
+        :private-view? (private-article-view? panel)]
        (cond editing?
              [label-editor-view article-id]
 
-             (= user-status :confirmed)
+             editing-allowed?
              [:div.ui.segment
               [:div.ui.fluid.button
                {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
-               "Change Answers"]])]]]))
+               (if resolving-allowed? "Resolve Labels" "Change Labels")]])]]]))
 
 ;; Top-level component for article list interface
 (defn article-list-view [panel & [loader-items]]

@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.login
   (:require
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+    [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.util :refer
     [full-size? mobile? validate wrap-prevent-default]]
@@ -173,13 +173,13 @@
         [:input {:type "email" :name "email"
                  :id "login-email-input"
                  :on-change
-                 #(dispatch [::set-email (-> % .-target .-value)])}]]
+                 #(dispatch-sync [::set-email (-> % .-target .-value)])}]]
        [:div.field {:class (field-class :password)}
         [:label "Password"]
         [:input {:type "password" :name "password"
                  :id "login-password-input"
                  :on-change
-                 #(dispatch [::set-password (-> % .-target .-value)])}]]
+                 #(dispatch-sync [::set-password (-> % .-target .-value)])}]]
        [field-error :email]
        [field-error :password]
        [:div.ui.divider]

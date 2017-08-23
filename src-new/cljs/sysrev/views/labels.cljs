@@ -64,8 +64,10 @@
   (let [labels @(subscribe [:article/labels article-id user-id])]
     [label-values-component labels]))
 
-(defn article-labels-view [article-id]
-  (let [user-labels @(subscribe [:article/labels article-id])
+(defn article-labels-view [article-id &
+                           {:keys [self-only?] :or {self-only? false}}]
+  (let [self-id @(subscribe [:self/user-id])
+        user-labels @(subscribe [:article/labels article-id])
         user-ids (sort (keys user-labels))
         label-ids
         (->> (vals user-labels)
@@ -75,22 +77,31 @@
                                    (get-in ulmap [% :answer]))))))
              (apply concat)
              distinct)
-        some-real-answer? (fn [user-id]
-                            (let [ulmap (get user-labels user-id)]
-                              (some #(real-answer?
-                                      (get-in ulmap [% :answer]))
-                                    (keys ulmap))))
-        resolved? (fn [user-id]
-                    @(subscribe [:article/user-resolved? article-id user-id]))
+        user-confirmed?
+        (fn [user-id]
+          (let [ulmap (get user-labels user-id)]
+            (every? #(true? (get-in ulmap [% :confirmed]))
+                    (keys ulmap))))
+        some-real-answer?
+        (fn [user-id]
+          (let [ulmap (get user-labels user-id)]
+            (some #(real-answer? (get-in ulmap [% :answer]))
+                  (keys ulmap))))
+        resolved?
+        (fn [user-id] @(subscribe [:article/user-resolved? article-id user-id]))
         user-ids-resolved
         (->> user-ids
              (filter resolved?)
-             (filter some-real-answer?))
+             (filter some-real-answer?)
+             (filter user-confirmed?))
         user-ids-other
         (->> user-ids
              (remove resolved?)
-             (filter some-real-answer?))
-        user-ids-ordered (concat user-ids-resolved user-ids-other)]
+             (filter some-real-answer?)
+             (filter user-confirmed?))
+        user-ids-ordered
+        (cond->> (concat user-ids-resolved user-ids-other)
+          self-only? (filter (partial = self-id)))]
     (when (seq user-ids-ordered)
       [:div.ui.segments.article-labels-view
        (doall
@@ -108,7 +119,7 @@
               [:div.ui.two.column.middle.aligned.grid
                [:div.row
                 [:div.column
-                 user-name
+                 (if self-only? "Your Labels" user-name)
                  (when (resolved? user-id)
                    [:div.ui.tiny.basic.purple.label "Resolved"])]
                 [:div.right.aligned.column

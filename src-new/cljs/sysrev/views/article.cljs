@@ -18,7 +18,8 @@
 (defn- review-status-label [status]
   (let [resolving? @(subscribe [:review/resolving?])
         sstr
-        (cond (= status :resolved)     "Resolved"
+        (cond (= status :user)         "User view"
+              (= status :resolved)     "Resolved"
               resolving?               "Resolving conflict"
               (= status :conflict)     "Conflicting labels"
               (= status :single)       "Reviewed by one user"
@@ -68,20 +69,19 @@
                         urls))])])))
 
 (defn article-info-view
-  [article-id & {:keys [show-labels?]
-                 :or {show-labels? false}}]
+  [article-id & {:keys [show-labels? private-view?]}]
   (let [status @(subscribe [:article/review-status article-id])]
     (with-loader [[:article article-id]] {:dimmer true :min-height "500px"}
       [:div
        [:div.ui.segments
         [:div.ui.top.attached.middle.aligned.header
          [:div {:style {:float "left"}}
-          [:h4 "Article info"]]
-         (when status
+          [:h4 "Article Info"]]
+         (when (or status private-view?)
            [:div {:style {:float "right"}}
-            [review-status-label status]])
+            [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         [:div.ui.attached.segment
          [article-info-main-content article-id]]]
-       (when (= show-labels? :all)
-         [article-labels-view article-id])])))
+       (when show-labels?
+         [article-labels-view article-id :self-only? private-view?])])))
