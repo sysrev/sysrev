@@ -79,6 +79,15 @@
  (fn [db]
    (get-in db [:state :navigation :subpanels])))
 
-(defn active-subpanel [db path]
+(reg-sub
+ ::navigate-defaults
+ (fn [db]
+   (get-in db [:state :navigation :defaults])))
+
+(defn active-subpanel-uri [db path]
   (or (get-in db [:state :navigation :subpanels path])
+      (get-in db [:state :navigation :defaults path])
       path))
+
+(defn default-subpanel-uri [db path]
+  (get-in db [:state :navigation :defaults path]))

@@ -3,8 +3,13 @@
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx dispatch trim-v]]
    [sysrev.subs.ui :refer
-    [active-panel active-subpanel panel-prefixes]]
-   [sysrev.routes :refer [set-active-subpanel]]))
+    [active-panel active-subpanel-uri default-subpanel-uri panel-prefixes]]))
+
+(defn set-active-subpanel [db prefix uri]
+  (assoc-in db [:state :navigation :subpanels (vec prefix)] uri))
+
+(defn set-subpanel-default-uri [db prefix uri]
+  (assoc-in db [:state :navigation :defaults (vec prefix)] uri))
 
 (reg-event-db
  :set-active-subpanel
@@ -28,7 +33,10 @@
  :navigate
  [trim-v]
  (fn [{:keys [db]} [path]]
-   {:nav (active-subpanel db path)}))
+   (let [active (active-panel db)]
+     (if (= path (take (count path) active))
+       {:nav (default-subpanel-uri db path)}
+       {:nav (active-subpanel-uri db path)}))))
 
 (reg-event-db
  :set-panel-field

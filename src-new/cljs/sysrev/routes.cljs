@@ -7,6 +7,7 @@
    [sysrev.util :refer [scroll-top]]
    [sysrev.base :refer [history]]
    [sysrev.events.notes :refer [sync-article-notes]]
+   [sysrev.events.ui :refer [set-subpanel-default-uri]]
    [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
                    [sysrev.macros :refer [sr-defroute]]))
@@ -103,9 +104,6 @@
  (dispatch [:set-active-panel [:user-settings]
             "/user/settings"]))
 
-(defn set-active-subpanel [db prefix uri]
-  (assoc-in db [:state :navigation :subpanels (vec prefix)] uri))
-
 (defn- load-default-panels [db]
   (->> [[[]
          "/"]
@@ -152,7 +150,7 @@
         [[:user-settings]
          "/user/settings"]]
        (reduce (fn [db [prefix uri]]
-                 (set-active-subpanel db prefix uri))
+                 (set-subpanel-default-uri db prefix uri))
                db)))
 
 (reg-event-db :ui/load-default-panels load-default-panels)
