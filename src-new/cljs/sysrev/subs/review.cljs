@@ -66,7 +66,7 @@
 (reg-sub
  :review/change-labels?
  (fn [[_ article-id panel]]
-   [(subscribe [:panel-field [:change-labels? article-id] panel])])
+   [(subscribe [:panel-field [:transient :change-labels? article-id] panel])])
  (fn [[change-labels?]] change-labels?))
 
 (defn review-ui-labels [db article-id]

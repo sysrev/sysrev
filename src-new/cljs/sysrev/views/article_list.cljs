@@ -141,7 +141,8 @@
  (fn [{:keys [db]} [keep panel]]
    (let [filter-keys (keys (get-panel-field db [:filters] panel))]
      {:dispatch-n
-      (doall
+      (concat
+       [[::set-display-offset 0]]
        (->> filter-keys
             (remove #(in? keep %))
             (map (fn [key]

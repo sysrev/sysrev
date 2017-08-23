@@ -39,14 +39,14 @@
  :review/enable-change-labels
  [trim-v]
  (fn [_ [article-id panel]]
-   {:dispatch [:set-panel-field [:change-labels? article-id] true panel]}))
+   {:dispatch [:set-panel-field [:transient :change-labels? article-id] true panel]}))
 
 ;; Hide label editor for article where user has confirmed answers
 (reg-event-fx
  :review/disable-change-labels
  [trim-v]
  (fn [_ [article-id panel]]
-   {:dispatch [:set-panel-field [:change-labels? article-id] false panel]}))
+   {:dispatch [:set-panel-field [:transient :change-labels? article-id] false panel]}))
 
 ;; Runs the :review/send-labels POST action using label values
 ;; taken from active review interface.
