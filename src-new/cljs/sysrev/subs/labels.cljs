@@ -81,6 +81,19 @@
                     (= name "overall include"))))
         first)))
 
+(defn from-label-local-id [db & [project-id]]
+  (let [labels (project-labels db project-id)]
+    (->> (vals labels)
+         (map (fn [{:keys [label-id label-id-local]}]
+                [label-id-local label-id]))
+         (apply concat)
+         (apply hash-map))))
+
+(reg-sub
+ :label/from-local-id
+ (fn [db [_ project-id]]
+   (from-label-local-id db project-id)))
+
 (reg-sub
  :label/required?
  (fn [[_ label-id project-id]]

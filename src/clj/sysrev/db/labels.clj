@@ -681,11 +681,11 @@
              (->> do-query
                   (group-by :article-id)
                   (map-values first)))
-         (-> (select :a.article-id :al.label-id :al.answer :al.inclusion
-                     :al.resolve :al.confirm-time :wu.user-id)
+         (-> (select :a.article-id [:l.label-id-local :label-id] :al.answer :al.inclusion
+                     :al.resolve :al.confirm-time :al.user-id)
              (from [:article :a])
              (join [:article-label :al] [:= :a.article_id :al.article_id]
-                   [:web-user :wu] [:= :al.user-id :wu.user-id])
+                   [:label :l] [:= :al.label-id :l.label-id])
              (where [:and
                      [:= :a.project-id project-id]
                      [:= :a.enabled true]
@@ -737,8 +737,8 @@
 (defn query-member-articles [project-id user-id]
   (let [articles
         (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
-                    :al.resolve :al.confirm-time :al.updated-time :al.label-id
-                    :wu.user-id)
+                    :al.resolve :al.confirm-time :al.updated-time
+                    [:l.label-id-local :label-id] :wu.user-id)
             (from [:article :a])
             (join [:project :p] [:= :p.project-id :a.project-id]
                   [:article-label :al] [:= :al.article-id :a.article-id]

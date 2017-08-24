@@ -9,6 +9,7 @@
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
+   [sysrev.subs.labels :refer [from-label-local-id]]
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.shared.transit :as sr-transit]
    [sysrev.shared.util :refer [in?]]))
@@ -52,8 +53,9 @@
   :uri (fn [] "/api/public-labels")
   :prereqs (fn [] [[:identity] [:project]])
   :process
-  (fn [_ _ result]
-    (let [result-decoded (sr-transit/decode-public-labels result)]
+  (fn [{:keys [db]} _ result]
+    (let [from-local-id (from-label-local-id db)
+          result-decoded (sr-transit/decode-public-labels result from-local-id)]
       {:dispatch [:project/load-public-labels result-decoded]})))
 
 (def-data :member/articles
@@ -61,8 +63,9 @@
   :uri (fn [user-id] (str "/api/member-articles/" user-id))
   :prereqs (fn [user-id] [[:identity] [:project]])
   :process
-  (fn [_ [user-id] result]
-    (let [result-decoded (sr-transit/decode-member-articles result)]
+  (fn [{:keys [db]} [user-id] result]
+    (let [from-local-id (from-label-local-id db)
+          result-decoded (sr-transit/decode-member-articles result from-local-id)]
       {:dispatch [:member/load-articles user-id result-decoded]})))
 
 (def-data :review/task

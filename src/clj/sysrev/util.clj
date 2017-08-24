@@ -1,9 +1,12 @@
 (ns sysrev.util
   (:require [clojure.xml]
             [crypto.random]
-            [clojure.math.numeric-tower :as math])
+            [clojure.math.numeric-tower :as math]
+            [cognitect.transit :as transit]
+            [clojure.java.io :as io])
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
-           java.util.UUID))
+           java.util.UUID
+           (java.io ByteArrayOutputStream)))
 
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
@@ -141,3 +144,9 @@
 
 (defn crypto-rand-nth [coll]
   (nth coll (crypto-rand-int (count coll))))
+
+(defn write-transit-str [x]
+  (with-open [os (ByteArrayOutputStream.)]
+    (let [w (transit/writer os :json)]
+      (transit/write w x)
+      (.toString os))))
