@@ -20,7 +20,7 @@
   "Builds CLJS project for integration testing."
   []
   (cljs/build
-   (cljs/inputs "src-new/cljs" "src/cljc")
+   (cljs/inputs "src/cljs" "src/cljc")
    {:main "sysrev.core"
     :output-to "resources/public/integration/sysrev.js"
     :output-dir "resources/public/integration"

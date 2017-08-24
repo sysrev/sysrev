@@ -108,7 +108,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src-new/cljs" "src/cljc"]
+     :source-paths ["src/cljs" "src/cljc"]
      :figwheel {:on-jsload "sysrev.core/mount-root"}
      :compiler {:main "sysrev.user"
                 :output-to "resources/public/out-dev/sysrev.js"
@@ -121,7 +121,7 @@
                 :preloads [devtools.preload]
                 :external-config {:devtools/config {:features-to-install :all}}}}
     {:id "production"
-     :source-paths ["src-new/cljs" "src/cljc"]
+     :source-paths ["src/cljs" "src/cljc"]
      :compiler {:main "sysrev.core"
                 :output-to "resources/public/out-production/sysrev.js"
                 :output-dir "resources/public/out-production"
