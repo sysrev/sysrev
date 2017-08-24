@@ -6,6 +6,7 @@
    [sysrev.views.base :refer
     [panel-content logged-out-content render-panel-tree]]
    [sysrev.views.panels.login :refer [login-register-panel]]
+   [sysrev.views.panels.password-reset]
    [sysrev.views.panels.select-project]
    [sysrev.views.panels.user-settings]
    [sysrev.views.panels.project.main]

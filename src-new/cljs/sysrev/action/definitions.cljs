@@ -21,7 +21,7 @@
              [:do-login-redirect]
              #_ [:fetch [:identity]])
        ;; :reset-data true
-       :reload-page [true 25]}
+       :reload-page [true 50]}
       {:dispatch-n
        (list [:ga-event "auth" "login_failure"]
              [:set-login-error-msg message])})))
@@ -43,7 +43,7 @@
   :content (fn [email password & [project-id]]
              {:email email :password password :project-id project-id})
   :process
-  (fn [_ [email password] [{:keys [success message] :as result}]]
+  (fn [_ [email password] {:keys [success message] :as result}]
     (if success
       {:dispatch-n
        (list [:ga-event "auth" "register_success"]
@@ -58,12 +58,22 @@
   (fn [_ _ result]
     {:reset-data true}))
 
-(def-action :project/select
+(def-action :select-project
   :uri (fn [_] "/api/select-project")
   :content (fn [id] {:project-id id})
   :process
   (fn [_ [id] result]
     {:dispatch [:self/set-active-project id]
+     :nav-scroll-top "/"}))
+
+(def-action :join-project
+  :uri (fn [_] "/api/join-project")
+  :content (fn [id] {:project-id id})
+  :process
+  (fn [_ [id] result]
+    {:dispatch-n
+     (list [:fetch [:identity]]
+           [:self/set-active-project id])
      :nav-scroll-top "/"}))
 
 (def-action :review/send-labels
@@ -115,3 +125,17 @@
   :process
   (fn [_ _ result]
     {:reset-data true}))
+
+(def-action :user/delete-account
+  :uri (fn [_] "/api/delete-user")
+  :content (fn [verify-user-id]
+             {:verify-user-id verify-user-id})
+  :process
+  (fn [{:keys [db]} _ result]
+    {:db (-> db
+             (assoc-in [:state :identity] nil)
+             (assoc-in [:state :active-project-id] nil)
+             (dissoc-in [:state :self]))
+     :reset-data true
+     :nav-scroll-top "/"
+     :dispatch [:fetch [:identity]]}))

@@ -38,9 +38,9 @@
                             :action #(dispatch [:action [:dev/clear-query-cache]])}]
             :dropdown-class "dropdown item"
             :label [:i.fitted.code.icon]])
-         [:a.item {:id "user-settings-link"
+         [:a.item {:id "user-name-link"
                    :on-click #(dispatch [:navigate [:user-settings]])}
-          "Settings"]
+          [:span.blue-text [:i.user.icon] user-display]]
          [:a.item {:id "log-out-link"
                    :on-click #(dispatch [:action [:auth/log-out]])}
           "Log Out"]

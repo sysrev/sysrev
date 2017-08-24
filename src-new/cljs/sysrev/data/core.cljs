@@ -17,7 +17,7 @@
 
 (defn def-data
   "Create definition for a data item to fetch from server."
-  [name & {:keys [prereqs loaded-p uri process] :as fields}]
+  [name & {:keys [prereqs loaded-p uri content process] :as fields}]
   (swap! data-defs assoc name fields))
 
 ;; Gets raw list of data requirements

@@ -81,9 +81,6 @@
     (dissoc m (last ks))
     (update-in m (butlast ks) #(dissoc % (last ks)))))
 
-(defn short-uuid [uuid-str]
-  (last (str/split uuid-str #"\-")))
-
 (def date-from-string tformat/parse)
 
 (defn today-string []

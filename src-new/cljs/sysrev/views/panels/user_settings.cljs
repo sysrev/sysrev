@@ -153,11 +153,15 @@
       [:div.ui.grey.segment
        [:h4.ui.dividing.header "Dev Tools"]
        [:div
-        [:buttun.ui.primary.button
+        [:button.ui.yellow.button
          {:on-click
           #(do (dispatch [:action [:user/delete-member-labels user-id]])
                (nav-scroll-top "/"))}
-         "Delete Member Labels"]]])))
+         "Delete Member Labels"]
+        [:button.ui.orange.button
+         {:on-click
+          #(dispatch [:action [:user/delete-account user-id]])}
+         "Delete Account"]]])))
 
 (defmethod panel-content [:user-settings] []
   (fn [child]

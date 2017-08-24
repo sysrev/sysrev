@@ -12,7 +12,8 @@
    [sysrev.subs.labels :refer [from-label-local-id]]
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.shared.transit :as sr-transit]
-   [sysrev.shared.util :refer [in?]]))
+   [sysrev.shared.util :refer [in?]]
+   [sysrev.views.panels.login :refer [have-register-project?]]))
 
 ;;
 ;; Definitions for all data items fetched from server
@@ -89,3 +90,14 @@
   :process
   (fn [_ [article-id] {:keys [article labels notes]}]
     {:dispatch [:article/load (merge article {:labels labels :notes notes})]}))
+
+(def-data :register-project
+  :loaded-p have-register-project?
+  :uri (fn [_] "/api/query-register-project")
+  :prereqs (fn [_] nil)
+  :content (fn [register-hash] {:register-hash register-hash})
+  :process
+  (fn [_ [register-hash] {:keys [project]}]
+    {:dispatch-n
+     (list [:register/project-id register-hash (:project-id project)]
+           [:register/project-name register-hash (:name project)])}))

@@ -219,7 +219,15 @@
                               nil 4)]
           {:result (sr-transit/encode-public-labels
                     (labels/query-public-article-labels
-                     project-id :exclude-hours exclude-hours))}))))
+                     project-id :exclude-hours exclude-hours))})))
+
+  (GET "/api/query-register-project" request
+       (let [register-hash (-> request :params :register-hash)
+             project-id (project/project-id-from-register-hash register-hash)]
+         (if (nil? project-id)
+           {:result {:project nil}}
+           (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+             {:result {:project {:project-id project-id :name name}}})))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

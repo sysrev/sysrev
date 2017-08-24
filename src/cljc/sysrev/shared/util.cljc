@@ -1,5 +1,6 @@
 (ns sysrev.shared.util
-  (:require [clojure.spec.alpha :as s])
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str])
   #?(:clj (:import java.util.UUID)))
 
 #?(:clj
@@ -67,3 +68,6 @@
         "nine" "ten" "eleven" "twelve" "thirteen" "fourteen" "fifteen"
         "sixteen"]
        n))
+
+(defn short-uuid [uuid]
+  (last (str/split (str uuid) #"\-")))

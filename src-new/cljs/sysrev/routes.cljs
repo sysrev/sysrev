@@ -95,6 +95,31 @@
             "/login"]))
 
 (sr-defroute
+ register-project "/register/:register-hash" [register-hash]
+ (dispatch [:set-active-panel [:register]
+            (str "/register/" register-hash)])
+ (dispatch [:register/register-hash register-hash]))
+
+(sr-defroute
+ register-project-login "/register/:register-hash/login" [register-hash]
+ (dispatch [:set-active-panel [:register]
+            (str "/register/" register-hash "/login")])
+ (dispatch [:register/register-hash register-hash])
+ (dispatch [:register/login? true])
+ (dispatch [:set-login-redirect-url (str "/register/" register-hash)]))
+
+(sr-defroute
+ request-password-reset "/request-password-reset" []
+ (dispatch [:set-active-panel [:request-password-reset]
+            "/request-password-reset"]))
+
+(sr-defroute
+ reset-password "/reset-password/:reset-code" [reset-code]
+ (dispatch [:set-active-panel [:reset-password]
+            (str "/reset-password/" reset-code)])
+ (dispatch [:reset-password/reset-code reset-code]))
+
+(sr-defroute
  select-project "/select-project" []
  (dispatch [:set-active-panel [:select-project]
             "/select-project"]))

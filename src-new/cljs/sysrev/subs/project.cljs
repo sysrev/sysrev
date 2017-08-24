@@ -1,7 +1,7 @@
 (ns sysrev.subs.project
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
-            [sysrev.util :refer [short-uuid]]))
+            [sysrev.shared.util :refer [short-uuid]]))
 
 (defn active-project-id [db]
   (get-in db [:state :active-project-id]))

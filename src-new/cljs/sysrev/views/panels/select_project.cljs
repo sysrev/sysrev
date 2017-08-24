@@ -29,5 +29,5 @@
                   {:style {:text-align "justify"}}
                   [:div.ui.fluid.basic.label (str name)]
                   [:a.ui.button {:style {:padding "1.5em"}
-                                 :on-click #(dispatch [:action [:project/select project-id]])}
+                                 :on-click #(dispatch [:action [:select-project project-id]])}
                    "Go"]]])))))]]])))

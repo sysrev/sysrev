@@ -19,7 +19,7 @@
      do-transaction]]
    [sysrev.db.articles :refer [set-article-flag remove-article-flag]]
    [sysrev.db.queries :as q]
-   [sysrev.shared.util :refer [map-values in?]]
+   [sysrev.shared.util :refer [map-values in? short-uuid]]
    [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
@@ -524,3 +524,11 @@
         :args (s/cat :project-id ::sc/project-id
                      :admin? (s/? (s/nilable boolean?)))
         :ret (s/coll-of map?))
+
+(defn project-id-from-register-hash [register-hash]
+  (-> (q/select-project-where true [:project-id :project-uuid])
+      (->> do-query
+           (filter (fn [{:keys [project-id project-uuid]}]
+                     (= register-hash (short-uuid project-uuid))))
+           first
+           :project-id)))
