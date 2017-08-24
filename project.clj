@@ -4,9 +4,14 @@
                  [org.clojure/clojure "1.9.0-alpha17"]
                  [org.clojure/clojurescript "1.9.671"]
                  [org.clojure/math.numeric-tower "0.0.4"]
+                 ;; enforce jackson version to easier catch dependency conflicts
+                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
+                 ;; Logging
+                 [org.clojure/tools.logging "0.3.1"]
+                 [org.slf4j/slf4j-log4j12 "1.7.25"]
+                 [log4j/log4j "1.2.17"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
-                 ;; [cheshire "5.6.3"]
                  [me.raynes/fs "1.4.6"]
                  [org.clojure/data.xml "0.0.8"]
                  [org.clojure/data.zip "0.1.2"]
@@ -14,26 +19,17 @@
                  [clojure-csv/clojure-csv "2.0.1"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.239"]
-                 [ring-transit "0.1.6"]
                  ;; Database
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.postgresql/postgresql "42.1.1"]
-                 [postgre-types "0.0.4"]
-                 [hikari-cp "1.7.6"]
-                 [clj-postgresql "0.4.0"
-                  :exclusions
-                  [postgres
-                   org.clojure/java.jdbc
-                   clj-time
-                   joda-time
-                   com.fasterxml.jackson.databind
-                   com.fasterxml.jackson.dataformat/jackson-dataformat-smile
-                   com.fasterxml.jackson.core/jackson-core
-                   commons-codec
-                   cheshire]]
                  [joda-time "2.9.9"]
                  [clj-time "0.13.0"
                   :exclusions [joda-time]]
+                 [postgre-types "0.0.4"]
+                 [hikari-cp "1.7.6"]
+                 [clj-postgresql "0.7.0"
+                  :exclusions [org.clojure/java.jdbc
+                               cheshire]]
                  [honeysql "0.9.0"]
                  [nilenso/honeysql-postgres "0.2.2"]
                  ;; Web server
@@ -41,6 +37,7 @@
                  [javax.servlet/servlet-api "2.5"]
                  [ring "1.6.1"]
                  [ring/ring-defaults "0.3.0"]
+                 [ring-transit "0.1.6"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
@@ -50,21 +47,14 @@
                  [crypto-random "1.2.0"]
                  ;; Email
                  [com.draines/postal "2.0.2"]
-                 ;; Logging
-                 [org.clojure/tools.logging "0.3.1"]
-                 [org.slf4j/slf4j-log4j12 "1.7.25"]
-                 [log4j/log4j "1.2.17"]
-                 ;; enforce jackson version to easier catch dependency conflicts.
-                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
+                 ;; Amazon
                  [amazonica "0.3.93"
                   :exclusions [com.taoensso/encore
-                               com.fasterxml.jackson.dataformat/jackson-dataformat-smile
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
-                 ;; [reagent "0.6.2"]
                  [re-frame "0.10.1"]
                  [day8.re-frame/http-fx "0.1.4"]
                  [secretary "1.2.3"]

@@ -1,8 +1,6 @@
 #!/bin/bash
 set -eux
 
-
-
 profiles=(prod 'test-aws-dev' 'test-aws-prod')
 for profile in ${profiles[@]}; do
   cp /data/deployment/sysrev/config/$profile/config.local.edn ./config/$profile/
@@ -10,4 +8,3 @@ done
 cp /data/deployment/sysrev/resources/* ./resources/ && true
 
 ./setup.sh > /dev/null
-lein clean

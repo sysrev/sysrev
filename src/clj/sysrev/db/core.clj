@@ -7,7 +7,7 @@
             [sysrev.shared.spec.article :as sa]
             [clojure.java.jdbc :as j]
             [clojure.data.json :as json]
-            [clj-postgresql.core :as pg]
+            [clj-postgresql.core]
             [hikari-cp.core :refer [make-datasource close-datasource]]
             [postgre-types.json :refer [add-jsonb-type]]
             [honeysql.core :as sql]

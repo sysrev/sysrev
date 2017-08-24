@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux
 
+lein clean
+
 rm -f target/junit-all.xml
 testcmd1='lein test-aws-dev-all'
 $testcmd1 || $testcmd1

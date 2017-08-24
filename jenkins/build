@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux
 
+lein clean
+
 rm -f ./resources/git-commit
 git rev-parse HEAD > ./resources/git-commit
 rm -f ./resources/build-time
