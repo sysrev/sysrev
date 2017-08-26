@@ -13,7 +13,7 @@
    [sysrev.subs.labels :as labels]
    [sysrev.subs.articles :as articles]
    [sysrev.routes :refer [nav nav-scroll-top]]
-   [sysrev.util :refer [full-size? mobile? nbsp]]
+   [sysrev.util :refer [full-size? mobile? desktop-size? nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -150,9 +150,12 @@
                                         (str/lower-case %2)))))
                   vs))
               current-values @(subscribe [:review/active-labels article-id label-id])
-              dom-id (str "label-edit-" article-id "-" label-id)]
-          [:div.ui.fluid.multiple.selection.search.dropdown
+              dom-id (str "label-edit-" article-id "-" label-id)
+              dropdown-class (if (or (desktop-size?) (>= (count all-values) 25))
+                               "search dropdown" "dropdown")]
+          [:div.ui.fluid.multiple.selection
            {:id dom-id
+            :class dropdown-class
             ;; hide dropdown on click anywhere in main dropdown box
             :on-click #(when (or (= dom-id (-> % .-target .-id))
                                  (-> (js/$ (-> % .-target))
@@ -295,11 +298,10 @@
          :else           "")))
 
 ;; Component for label column in inputs grid
-(defn- label-column [label-id]
-  (let [article-id @(subscribe [:review/editing-id])
-        value-type @(subscribe [:label/value-type label-id])
+(defn- label-column [article-id label-id]
+  (let [value-type @(subscribe [:label/value-type label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])]
-    ^{:key {:article-label label-id}}
+    ^{:key {:article-label [article-id label-id]}}
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
@@ -465,10 +467,10 @@
 
 ;; Top-level component for label editor
 (defn label-editor-view [article-id]
-  (when (and article-id
-             (= article-id @(subscribe [:review/editing-id])))
+  (when article-id
     (with-loader [[:article article-id]] {}
-      (when-not (review-article-loading?)
+      (if (not= article-id @(subscribe [:review/editing-id]))
+        [:div]
         (let [change-set? @(subscribe [:review/change-labels? article-id])
               label-ids @(subscribe [:project/label-ids])
               resolving? @(subscribe [:review/resolving?])
@@ -482,7 +484,7 @@
                    [:div.row
                     (doall
                      (concat
-                      (map label-column row)
+                      (map #(label-column article-id %) row)
                       (when (< (count row) n-cols)
                         [^{:key {:label-row-end (last row)}}
                          [:div.column]])))])))]

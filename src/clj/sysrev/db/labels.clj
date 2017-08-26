@@ -681,7 +681,7 @@
              (->> do-query
                   (group-by :article-id)
                   (map-values first)))
-         (-> (select :a.article-id [:l.label-id-local :label-id] :al.answer :al.inclusion
+         (-> (select :a.article-id [:l.label-id :label-id] :al.answer :al.inclusion
                      :al.resolve :al.confirm-time :al.user-id)
              (from [:article :a])
              (join [:article-label :al] [:= :a.article_id :al.article_id]
@@ -738,7 +738,7 @@
   (let [articles
         (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
                     :al.resolve :al.confirm-time :al.updated-time
-                    [:l.label-id-local :label-id] :wu.user-id)
+                    [:l.label-id :label-id] :wu.user-id)
             (from [:article :a])
             (join [:project :p] [:= :p.project-id :a.project-id]
                   [:article-label :al] [:= :al.article-id :a.article-id]

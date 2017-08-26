@@ -45,6 +45,15 @@
 (defmethod al/private-article-view? panel []
   false)
 
+(defmethod al/loading-articles? panel []
+  @(subscribe [:loading? [:project/public-labels]]))
+
+(defmethod al/reload-articles panel []
+  (dispatch [:reload [:project/public-labels]]))
+
+(defmethod al/auto-refresh? panel []
+  false)
+
 (defmulti answer-cell-icon identity)
 (defmethod answer-cell-icon true [] [:i.ui.green.circle.plus.icon])
 (defmethod answer-cell-icon false [] [:i.ui.orange.circle.minus.icon])

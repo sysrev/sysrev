@@ -5,7 +5,7 @@
 
 (require '[cljsjs.boot-cljsjs.packaging :refer :all])
 
-(def +lib-version+ "2.2.11")
+(def +lib-version+ "2.2.13")
 (def +version+ (str +lib-version+ "-0"))
 
 (task-options!
@@ -16,13 +16,15 @@
        :scm         {:url "https://github.com/cljsjs/packages"}
        :license     {"MIT" "http://opensource.org/licenses/MIT"}})
 
-(task-options! push {:repo "clojars"})
+(task-options! push {:repo-map {:url "https://clojars.org/repo/"
+                                :username (System/getenv "CLOJARS_USER")
+                                :password (System/getenv "CLOJARS_PASS")}})
 
 (deftask package []
   (comp
    (download
     :url (format "https://github.com/Semantic-Org/Semantic-UI/archive/%s.zip" +lib-version+)
-    :checksum "5B60D37F15986659E541F9ABE0FDA316"
+    :checksum "00B07F03AFAD84E119C6B7679D7008D6"
     :unzip true)
    (sift :move {#"^Semantic-UI-.*/dist/semantic.js$"     "cljsjs/semantic-ui/development/semantic.inc.js"
                 #"^Semantic-UI-.*/dist/semantic.min.js$" "cljsjs/semantic-ui/production/semantic.min.inc.js"

@@ -1,0 +1,98 @@
+.noselect {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.select-auto {
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+    -webkit-touch-callout: auto;
+}
+
+div.article-nav {
+    .noselect;
+}
+
+div.field label {
+    .noselect;
+}
+
+div.ui.dropdown {
+    .noselect;
+}
+
+table thead tr th {
+    .noselect;
+}
+
+div.article-list-segments {
+    .noselect;
+}
+
+div.article-info div.ui.top.attached.header {
+    .noselect;
+}
+
+div.article-labels-view .ui.attached.segment .ui.dividing.header {
+    .noselect;
+}
+
+div.ui.grid.invite-link .column .ui.segment .header {
+    .noselect;
+}
+
+div.ui.secondary.pointing.menu,
+div.ui.secondary.pointing.menu > a.item,
+div.ui.secondary.pointing.menu > a.item.active {
+    .noselect;
+}
+
+div.project-header .ui.grid .row .right.aligned.column {
+    .noselect;
+}
+
+div.label-edit-name {
+    .noselect;
+}
+
+div.label-editor-view .ui.top.attached.header {
+    .noselect;
+}
+
+div.ui.label.activity-report {
+    .noselect;
+}
+
+div#select-project .project-header {
+    .noselect;
+}
+
+div#project .project-header {
+    .noselect;
+}
+
+div#project .project-header div.project-title > span.project-title {
+    .select-auto;
+}
+
+.main-content.loading,
+.main-content.loading div.article-info {
+    .noselect;
+}
+
+@media only screen and (max-width: 767px) {
+    div#project .project-header,
+    div#project .project-header div.project-title,
+    div#project .project-header div.project-title > span.project-title {
+        .noselect;
+    }
+
+    .article-filters .form .field .ui.input input {
+        .noselect;
+    }
+}

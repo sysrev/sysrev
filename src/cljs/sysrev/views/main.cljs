@@ -45,6 +45,9 @@
 (defn main-content []
   (if @(subscribe [:initialized?])
     [:div.main-content
+     {:class (if (or (not @(subscribe [:data/ready?]))
+                     @(subscribe [:any-loading?]))
+               "loading" "")}
      [header-menu]
      [:div.ui.container [active-panel-content]]
      [notifier @(subscribe [:active-notification])]]

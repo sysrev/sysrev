@@ -1,15 +1,15 @@
-upstream sysrev-clj-rf {
+upstream sysrev-clj {
     server 127.0.0.1:4061;
 }
 
 server {
     listen 80;
-    server_name sysrev-rf;
+    server_name localhost;
 
     access_log /var/log/nginx/sysrev.access_log;
     error_log /var/log/nginx/sysrev.error_log info;
 
-    root /var/www/sysrev-rf;
+    root /var/www/sysrev;
 
     sendfile off;
 
@@ -17,7 +17,7 @@ server {
         proxy_next_upstream error;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header Host $host;
-        proxy_pass http://sysrev-clj-rf;
+        proxy_pass http://sysrev-clj;
     }
 
     location /files {
@@ -30,5 +30,38 @@ server {
     location / {
         expires -1;
         try_files $uri @clj-site;
+    }
+}
+
+server {
+    listen 9010;
+    server_name localhost;
+
+    access_log /var/log/nginx/sysrev.prod.access_log;
+    error_log /var/log/nginx/sysrev.prod.error_log info;
+
+    root /var/www/sysrev;
+
+    sendfile off;
+
+    rewrite ^/out/(.*)$ /out-production/$1 last;
+
+    location @clj-site-prod {
+        proxy_next_upstream error;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_pass http://sysrev-clj;
+    }
+
+    location /files {
+    }
+
+    location ~ /(out|css|semantic)/.* {
+        add_header Cache-Control "no-cache, must-revalidate";
+    }
+
+    location / {
+        expires -1;
+        try_files $uri @clj-site-prod;
     }
 }

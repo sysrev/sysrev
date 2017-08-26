@@ -3,7 +3,7 @@
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-sub reg-sub-raw
+    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
      reg-event-db reg-event-fx reg-fx trim-v]]
    [reagent.ratom :refer [reaction]]
    [sysrev.views.article :refer [article-info-view]]
@@ -12,7 +12,8 @@
     [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
    [sysrev.subs.ui :refer [get-panel-field]]
    [sysrev.routes :refer [nav]]
-   [sysrev.util :refer [full-size? number-to-word nbsp]]
+   [sysrev.shared.keywords :refer [canonical-keyword]]
+   [sysrev.util :refer [full-size? mobile? nbsp]]
    [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -24,6 +25,9 @@
 (defmulti list-header-tooltip (fn [panel] panel))
 (defmulti render-article-entry (fn [panel article full-size?] panel))
 (defmulti private-article-view? (fn [panel] panel))
+(defmulti loading-articles? (fn [panel user-id] panel))
+(defmulti reload-articles (fn [panel user-id] panel))
+(defmulti auto-refresh? (fn [panel] panel))
 
 (defmethod list-header-tooltip :default [] nil)
 
@@ -42,9 +46,19 @@
 (defn is-single? [labels]
   (= 1 (count labels)))
 (defn is-consistent? [labels]
-  (and (not (is-resolved? labels))
-       (not (is-conflict? labels))
-       (not (is-single? labels))))
+  (and (not (is-single? labels))
+       (not (is-resolved? labels))
+       (not (is-conflict? labels))))
+
+(defn- search-text-filter [input]
+  (if (empty? input)
+    (constantly true)
+    (let [input-toks (->> (str/split input #" ")
+                          (map canonical-keyword))]
+      (fn [{:keys [title]}]
+        (let [canon-title (canonical-keyword title)]
+          (every? #(str/includes? canon-title %)
+                  input-toks))))))
 
 (defn- confirm-status-filter [status]
   (if (nil? status)
@@ -93,30 +107,61 @@
 (reg-sub
  :article-list/filtered
  (fn [[_ panel]]
-   [(subscribe [::articles panel])
+   [(subscribe [:project/overall-label-id])
+    (subscribe [::articles panel])
+    (subscribe [:article-list/filter-value :search-text panel])
     (subscribe [:article-list/filter-value :confirm-status panel])
     (subscribe [:article-list/filter-value :label-id panel])
     (subscribe [:article-list/filter-value :group-status panel])
     (subscribe [:article-list/filter-value :answer-value panel])
     (subscribe [:article-list/filter-value :inclusion-status panel])])
- (fn [[articles confirm-status label-id group-status answer-value inclusion-status]]
-   (let [get-labels #(get-in % [:labels label-id])
-         filter-labels
-         (fn [articles]
-           (if (nil? label-id)
-             articles
-             (->> articles
-                  (filter (comp not-empty get-labels))
-                  (filter (comp (group-status-filter group-status) get-labels))
-                  (filter (comp (answer-value-filter
-                                 answer-value group-status) get-labels))
-                  (filter (comp (inclusion-status-filter
-                                 inclusion-status group-status) get-labels)))))]
-     (->> articles
-          (filter (confirm-status-filter confirm-status))
-          (filter-labels)
-          ;; Would be sorted here, but sorted by :updated-time on server
-          ))))
+ (fn [[overall-id articles search-text confirm-status
+       label-id group-status answer-value inclusion-status]]
+   (let [not-nil? (complement nil?)
+
+         get-labels #(get-in % [:labels label-id])
+         get-overall #(get-in % [:labels overall-id])
+
+         search-text-test
+         (when (not-empty search-text)
+           (search-text-filter search-text))
+
+         confirm-status-test
+         (when (not-nil? confirm-status)
+           (confirm-status-filter confirm-status))
+
+         inclusion-status-test
+         (when (and overall-id (not-nil? inclusion-status))
+           (comp (inclusion-status-filter inclusion-status group-status)
+                 get-overall))
+
+         group-status-test
+         (when (and overall-id (not-nil? group-status))
+           (comp (group-status-filter group-status)
+                 get-overall))
+
+         answer-value-test
+         (when (and label-id (not-nil? answer-value))
+           (comp (answer-value-filter answer-value group-status)
+                 get-labels))]
+     (cond->> articles
+       label-id
+       (filterv (comp not-empty get-labels))
+
+       (not-nil? search-text-test)
+       (filterv search-text-test)
+
+       (not-nil? inclusion-status-test)
+       (filterv inclusion-status-test)
+
+       (not-nil? confirm-status-test)
+       (filterv confirm-status-test)
+
+       (not-nil? group-status-test)
+       (filterv group-status-test)
+
+       (not-nil? answer-value-test)
+       (filterv answer-value-test)))))
 
 ;; Gets active value of a filter option from user selection or defaults
 (reg-sub
@@ -273,6 +318,30 @@
 ;;;
 ;;; Input components for controlling article list filters
 ;;;
+
+(defn- search-text-synced? [panel]
+  (= @(subscribe [:article-list/filter-value :search-text panel])
+     @(subscribe [:article-list/filter-value :search-text-input panel])))
+
+(defn- search-text-selector [panel]
+  (let [input-sub (subscribe [:article-list/filter-value :search-text-input panel])]
+    [:div.ui.fluid.icon.input
+     {:class (when-not (search-text-synced? panel) "loading")}
+     [:input {:type "text" :id "article-search" :name "article-search"
+              :value @input-sub
+              :on-change
+              (fn [event]
+                (let [cur-value (-> event .-target .-value)]
+                  (dispatch-sync [:article-list/set-filter-value
+                                  :search-text-input cur-value panel])
+                  (js/setTimeout
+                   #(let [later-value @input-sub]
+                      (when (= cur-value later-value)
+                        (dispatch [:article-list/set-filter-value
+                                   :search-text cur-value panel])))
+                   500)))}]
+     [:i.search.icon]]))
+
 (defn- confirm-status-selector [panel]
   (let [active-status @(subscribe [:article-list/filter-value :confirm-status panel])
         status-name #(cond (nil? %)   "<Any>"
@@ -302,7 +371,9 @@
                         "active selected")
                :on-click #(do (dispatch [:article-list/set-filter-value
                                          :label-id label-id panel])
-                              (dispatch [::reset-filters [:label-id :confirm-status] panel]))}
+                              (dispatch [::reset-filters
+                                         [:label-id :confirm-status :inclusion-status :group-status]
+                                         panel]))}
               (label-name label-id)])))]))
 ;;;
 (defn- group-status-selector [panel]
@@ -357,6 +428,7 @@
 
 (defn- article-list-filter-form [panel]
   (let [label-id @(subscribe [:article-list/filter-value :label-id panel])
+        overall-id @(subscribe [:project/overall-label-id])
         [overall? boolean? all-values criteria?]
         (when label-id
           [@(subscribe [:label/overall-include? label-id])
@@ -364,78 +436,105 @@
            @(subscribe [:label/all-values label-id])
            @(subscribe [:label/inclusion-criteria? label-id])])
         group-status @(subscribe [:article-list/filter-value :group-status panel])
+        user-id @(subscribe [:self/user-id])
         user-labels-page? (= panel [:project :user :labels])
-        select-group-status? (and label-id criteria? (not user-labels-page?))
-        select-inclusion? (and label-id criteria?
-                               (not= group-status :conflict))
-        select-answer? (and label-id
-                            (not (and boolean? criteria?))
-                            (not-empty all-values))
+        select-inclusion? (boolean overall-id)
+        select-group-status? (and overall-id (not user-labels-page?))
+        select-answer? (and label-id (not-empty all-values))
         select-confirmed? user-labels-page?
-        n-columns (+ 3
-                     (if select-group-status? 3 0)
-                     (if select-answer? 3 0)
-                     (if select-inclusion? 2 0)
-                     (if select-confirmed? 2 0)
-                     2)
-        whitespace-columns (- 16 n-columns)
-        full-size? (full-size?)]
+
+        render-field
+        (fn [width input-view label-text help-content disable?]
+          [:div {:class (if (nil? width)
+                          (str (if disable? "disabled" "") " field")
+                          (str width " wide "
+                               (if disable? "disabled" "") " field"))}
+           (doall
+            (with-ui-help-tooltip
+              [:label label-text " " [ui-help-icon :size ""]]
+              :help-content help-content))
+           [input-view panel]])
+
+        inclusion-status-field
+        (fn [width]
+          [render-field width inclusion-status-selector "Inclusion"
+           ["Filter by inclusion status for article"]])
+
+        label-field
+        (fn [width]
+          [render-field width label-selector "Label"
+           ["Filter articles by answers for this label"]])
+
+        group-status-field
+        (fn [width]
+          [render-field width group-status-selector "Group Status"
+           ["Filter by group agreement on article inclusion status"]])
+
+        answer-value-field
+        (fn [width disable?]
+          [render-field width answer-value-selector "Answer Value"
+           ["Filter by presence of answer value for selected label"]
+           disable?])
+
+        confirmed-field
+        (fn [width]
+          [render-field width confirm-status-selector "Confirmed"
+           ["Filter by whether your answers are confirmed or in-progress"]])
+
+        search-field
+        (fn [width]
+          [render-field width search-text-selector
+           "Text Search"
+           ["Filter by matching keywords in article title"]])
+
+        refresh-button
+        [:div.ui.right.labeled.icon.button.refresh-button
+         {:class (if (loading-articles? panel user-id) "loading" "")
+          :style {:width "100%"}
+          :on-click #(reload-articles panel user-id)}
+         [:i.repeat.icon]
+         (if (full-size?) "Refresh Articles" "Refresh")]
+
+        reset-button
+        [:div.ui.right.labeled.icon.button.reset-button
+         {:style {:width "100%"}
+          :on-click
+          (if (allow-null-label? panel)
+            #(dispatch [::reset-filters [] panel])
+            #(dispatch [::reset-filters [] panel]))}
+         [:i.remove.icon]
+         "Reset Filters"]]
     [:div.ui.secondary.segment.article-filters
      {:style {:padding "10px"}}
-     [:form.ui.form
-      [:div.field
-       [:div.fields
-        [:div.ui.small.three.wide.field
-         (doall
-          (with-ui-help-tooltip
-            [:label "Label " [ui-help-icon :size ""]]
-            :help-content
-            ["Filter articles by answers for this label"]))
-         [label-selector panel]]
-        (when select-group-status?
-          [:div.ui.small.three.wide.field
-           (doall
-            (with-ui-help-tooltip
-              [:label "Group Status " [ui-help-icon :size ""]]
-              :help-content
-              ["Filter by group agreement on inclusion status for selected label"]))
-           [group-status-selector panel]])
-        (when select-answer?
-          [:div.ui.small.three.wide.field
-           (doall
-            (with-ui-help-tooltip
-              [:label "Answer Value " [ui-help-icon :size ""]]
-              :help-content
-              ["Filter by presence of answer value for selected label"]))
-           [answer-value-selector panel]])
-        (when select-inclusion?
-          [:div.ui.small.two.wide.field
-           (doall
-            (with-ui-help-tooltip
-              [:label "Inclusion Status " [ui-help-icon :size ""]]
-              :help-content
-              ["Filter by answer inclusion status for selected label"]))
-           [inclusion-status-selector panel]])
-        (when select-confirmed?
-          [:div.ui.small.two.wide.field
-           (doall
-            (with-ui-help-tooltip
-              [:label "Confirmed " [ui-help-icon :size ""]]
-              :help-content
-              ["Filter by whether your answers are confirmed or in-progress"]))
-           [confirm-status-selector panel]])
-        (when full-size?
-          [:div {:class (str (number-to-word whitespace-columns)
-                             " wide field")}])
-        [:div.ui.small.two.wide.field
-         (when full-size?
-           [:label nbsp])
-         [:div.ui.small.fluid.button
-          {:on-click
-           (if (allow-null-label? panel)
-             #(dispatch [::reset-filters [] panel])
-             #(dispatch [::reset-filters [] panel]))}
-          "Reset filters"]]]]]]))
+     (if (not (mobile?))
+       ;; non-mobile view
+       [:div.ui.small.form
+        [:div.field
+         [:div.fields
+          (when select-inclusion?    [inclusion-status-field "three"])
+          (when select-group-status? [group-status-field "three"])
+          (when select-confirmed?    [confirmed-field "three"])
+          [search-field "six"]
+          [:div.four.wide.field [:label nbsp] reset-button]]]
+        [:div.field
+         [:div.fields
+          [label-field "three"]
+          [answer-value-field "three" (not select-answer?)]
+          [:div.six.wide.field]
+          [:div.four.wide.field [:label nbsp] refresh-button]]]]
+       ;; mobile view
+       [:div.ui.small.form
+        [:div.two.fields.mobile-group
+         (when select-inclusion?    [inclusion-status-field nil])
+         (when select-group-status? [group-status-field nil])
+         (when select-confirmed?    [confirmed-field nil])]
+        [:div.two.fields.mobile-group
+         [label-field nil]
+         [answer-value-field nil (not select-answer?)]]
+        [search-field nil]
+        [:div.two.fields.mobile-group
+         [:div.field refresh-button]
+         [:div.field reset-button]]])]))
 
 (reg-sub
  ::article-list-header-text
@@ -475,9 +574,8 @@
         on-previous
         #(when (>= display-offset display-count)
            (dispatch [::set-display-offset
-                      (max 0 (- display-offset display-count)) panel]))
-        full-size? (full-size?)]
-    (if full-size?
+                      (max 0 (- display-offset display-count)) panel]))]
+    (if (full-size?)
       ;; non-mobile view
       [:div.ui.right.aligned.column
        [:div.ui.tiny.icon.button
@@ -546,32 +644,39 @@
        (map
         (fn [{:keys [article-id] :as article}]
           (let [active? (= article-id active-aid)
-                classes (if active? "active" "")]
+                classes (if active? "active" "")
+                loading? @(subscribe [:loading? [:article article-id]])]
             [:div.article-list-segments
              {:key article-id}
              [:div.ui.middle.aligned.grid.segment.article-list-article
-              {:class (if active? "active" "")
+              {:class (str (if active? "active" "")
+                           " "
+                           (if loading? "article-loading" ""))
                :on-click #(show-article article-id)}
+              (when loading?
+                [:div.ui.active.inverted.dimmer
+                 [:div.ui.loader]])
               [render-article-entry panel article full-size?]]])))))]))
 
 (defn- article-list-list-view [panel]
-  (if (full-size?)
-    [:div.article-list-view
-     [:div.ui.top.attached.segment.article-nav
-      [:div.ui.two.column.middle.aligned.grid
-       [:div.ui.left.aligned.column
-        [article-list-header-message panel]]
-       [article-list-header-buttons panel]]]
-     [:div.ui.bottom.attached.segment.article-list-segment
-      [article-list-view-articles panel]]]
-    [:div.article-list-view
-     [:div.ui.segment.article-nav
-      [:div.ui.middle.aligned.grid
-       [:div.ui.left.aligned.seven.wide.column
-        [article-list-header-message panel]]
-       [article-list-header-buttons panel]]]
-     [:div.article-list-segment
-      [article-list-view-articles panel]]]))
+  (let [user-id @(subscribe [:self/user-id])]
+    (if (full-size?)
+      [:div.article-list-view
+       [:div.ui.top.attached.segment.article-nav
+        [:div.ui.two.column.middle.aligned.grid
+         [:div.ui.left.aligned.column
+          [article-list-header-message panel]]
+         [article-list-header-buttons panel]]]
+       [:div.ui.bottom.attached.segment.article-list-segment
+        [article-list-view-articles panel]]]
+      [:div.article-list-view
+       [:div.ui.segment.article-nav
+        [:div.ui.middle.aligned.grid
+         [:div.ui.left.aligned.seven.wide.column
+          [article-list-header-message panel]]
+         [article-list-header-buttons panel]]]
+       [:div.article-list-segment
+        [article-list-view-articles panel]]])))
 
 (defn- article-list-article-view [article-id panel]
   (let [label-values @(subscribe [:review/active-labels article-id])
@@ -585,6 +690,14 @@
         close-article #(nav (panel-base-uri panel))
         next-id @(subscribe [::next-article-id panel])
         prev-id @(subscribe [::prev-article-id panel])
+        next-loading? (when next-id @(subscribe [:loading? [:article next-id]]))
+        prev-loading? (when prev-id @(subscribe [:loading? [:article prev-id]]))
+        back-loading? (loading-articles? panel user-id)
+        prev-class (str (if (nil? prev-id) "disabled" "")
+                        " " (if prev-loading? "loading" ""))
+        next-class (str (if (nil? next-id) "disabled" "")
+                        " " (if next-loading? "loading" ""))
+        back-class (str (if back-loading? "loading" ""))
         on-next #(when next-id (nav (article-uri panel next-id)))
         on-prev #(when prev-id (nav (article-uri panel prev-id)))]
     [:div.article-view
@@ -594,38 +707,30 @@
         {:style {:padding "10px"}}
         [:div.ui.three.column.middle.aligned.grid
          [:div.ui.left.aligned.column
-          [:div.ui.tiny.fluid.button {:on-click close-article}
+          [:div.ui.tiny.fluid.button {:class back-class :on-click close-article}
            [:span {:style {:float "left"}}
             [:i.list.icon]]
            "Back to list"]]
          [:div.ui.center.aligned.column]
          [:div.ui.right.aligned.column
           [:div.ui.tiny.buttons
-           [:div.ui.tiny.button
-            {:class (if (nil? prev-id) "disabled" "")
-             :on-click on-prev}
+           [:div.ui.tiny.button {:class prev-class :on-click on-prev}
             [:i.chevron.left.icon] "Previous"]
-           [:div.ui.tiny.button
-            {:class (if (nil? next-id) "disabled" "")
-             :on-click on-next}
+           [:div.ui.tiny.button {:class next-class :on-click on-next}
             "Next" [:i.chevron.right.icon]]]]]]
        ;; mobile view
        [:div.ui.segment.article-nav
         [:div.ui.middle.aligned.grid
          [:div.ui.six.wide.left.aligned.column
-          [:div.ui.tiny.fluid.button {:on-click close-article}
+          [:div.ui.tiny.fluid.button {:class back-class :on-click close-article}
            [:span {:style {:float "left"}}
             [:i.list.icon]]
            "Back to list"]]
          [:div.ui.ten.wide.right.aligned.column
           [:div.ui.tiny.buttons
-           [:div.ui.tiny.button
-            {:class (if (nil? prev-id) "disabled" "")
-             :on-click on-prev}
+           [:div.ui.tiny.button {:class prev-class :on-click on-prev}
             [:i.chevron.left.icon] "Previous"]
-           [:div.ui.tiny.button
-            {:class (if (nil? next-id) "disabled" "")
-             :on-click on-next}
+           [:div.ui.tiny.button {:class next-class :on-click on-next}
             "Next" [:i.chevron.right.icon]]]]]])
      [:div
       {:class (if (full-size?)

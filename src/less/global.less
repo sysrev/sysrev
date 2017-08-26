@@ -76,7 +76,8 @@ span.attention {
 .ui.basic.green.label,
 .ui.basic.blue.label,
 .ui.basic.purple.label,
-.ui.basic.red.label {
+.ui.basic.red.label,
+.ui.basic.yellow.label {
     background: 0 0 !important;
 }
 
@@ -89,6 +90,18 @@ span.attention {
 
 .ui.selection.dropdown {
     min-width: 0;
+}
+
+@media only screen and (max-width: 767px) {
+    .ui.form .fields.mobile-group {
+        flex-wrap: nowrap;
+        -ms-flex-wrap: nowrap;
+    }
+
+    .ui.form .fields .field,
+    .ui.form .field {
+        margin-bottom: 7px !important;
+    }
 }
 
 @media only screen and (min-width: 1160px) {

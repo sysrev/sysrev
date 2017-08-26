@@ -45,14 +45,17 @@
                              label-class " button")
                         :else "")
             span-content
-            (dangerous
-             :span
-             {:class class
-              :on-click
-              (when (and enabled? has-value? editing?)
-                #(dispatch [:review/trigger-enable-label-value
-                            article-id label-id label-value]))}
-             text)]
+            [:span
+             " "
+             (dangerous
+              :span
+              {:class class
+               :on-click
+               (when (and enabled? has-value? editing?)
+                 #(dispatch [:review/trigger-enable-label-value
+                             article-id label-id label-value]))}
+              text)
+             " "]]
         (if (and show-tooltip? enabled? editing? full-size?)
           (with-keyword-tooltip
             span-content label-name label-value)

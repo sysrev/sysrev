@@ -8,13 +8,12 @@
   (fn [child]
     [:div.project-content
      (when-let [invite-url @(subscribe [:project/invite-url])]
-       [:div.ui.two.column.stackable.grid
-        [:div.row
-         [:div.column
-          [:div.ui.grey.segment
-           [:h5 "Send this link to invite another person to join the project:"]
-           [:div.ui.fluid.action.input
-            [:input#invite-url.ui.input {:readOnly true
-                                         :value invite-url}]
-            [clipboard-button "#invite-url" "Copy URL"]]]]]])
+       [:div.ui.two.column.stackable.grid.invite-link
+        [:div.column
+         [:div.ui.grey.segment
+          [:h5.header "Send this link to invite another person to join the project:"]
+          [:div.ui.fluid.action.input
+           [:input#invite-url.ui.input {:readOnly true
+                                        :value invite-url}]
+           [clipboard-button "#invite-url" "Copy URL"]]]]])
      child]))

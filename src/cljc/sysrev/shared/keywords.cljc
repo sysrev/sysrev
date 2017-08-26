@@ -73,7 +73,7 @@
   (reduce (fn [result sym]
             (str/replace result sym ""))
           s
-          ["(" ")" "[" "]" "." "," "!"]))
+          ["(" ")" "[" "]" "." "," "!" ";" ":" "*"]))
 
 (defn canonical-keyword
   "Convert a token to standard format for comparison with keywords."

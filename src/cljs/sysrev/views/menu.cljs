@@ -19,28 +19,34 @@
         user-display @(subscribe [:user/display])
         admin? @(subscribe [:user/admin?])
         project-ids @(subscribe [:user/project-ids])
-        full? (full-size?)]
+        full? (full-size?)
+        dev-menu (when admin?
+                   [dropdown-menu [{:content "Clear query cache"
+                                    :action #(dispatch [:action [:dev/clear-query-cache]])}]
+                    :dropdown-class "dropdown item"
+                    :label [:i.fitted.code.icon]])]
     [:div.ui.top.menu.site-menu
      [:div.ui.container
       [:a.header.item
        {:on-click #(dispatch [:navigate []])}
        [:h3.ui.blue.header
         "sysrev.us"]]
-      [:a.item
-       {:on-click #(dispatch [:navigate [:project]])}
-       "Projects"]
+      (when full?
+        [:a.item
+         {:on-click #(dispatch [:navigate [:project]])}
+         "Projects"])
+      (when-not full? dev-menu)
       [:div.item.loading-indicator
        [loading-indicator]]
       (if logged-in?
         [:div.right.menu
-         (when admin?
-           [dropdown-menu [{:content "Clear query cache"
-                            :action #(dispatch [:action [:dev/clear-query-cache]])}]
-            :dropdown-class "dropdown item"
-            :label [:i.fitted.code.icon]])
+         (when full? dev-menu)
          [:a.item {:id "user-name-link"
                    :on-click #(dispatch [:navigate [:user-settings]])}
           [:span.blue-text [:i.user.icon] user-display]]
+         [:a.item {:id "user-settings-link"
+                   :on-click #(dispatch [:navigate [:user-settings]])}
+          "Settings"]
          [:a.item {:id "log-out-link"
                    :on-click #(dispatch [:action [:auth/log-out]])}
           "Log Out"]

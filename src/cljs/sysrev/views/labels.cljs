@@ -104,9 +104,7 @@
           self-only? (filter (partial = self-id)))]
     (when (seq user-ids-ordered)
       (with-loader [[:article article-id]]
-        {:dimmer true
-         :min-height "50px"
-         :class "ui segments article-labels-view"}
+        {:class "ui segments article-labels-view"}
         (doall
          (for [user-id user-ids-ordered]
            (let [user-name @(subscribe [:user/display user-id])

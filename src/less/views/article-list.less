@@ -6,6 +6,10 @@ div.article-list-article {
     cursor: pointer;
 }
 
+div.article-list-article.article-loading .ui.row {
+    visibility: hidden;
+}
+
 div.article-list-article.active {
     background-color: mix(@background, @text, 92);
 }
@@ -82,7 +86,7 @@ div.article-answers.resolved {
     padding-right: 0;
 }
 
-div.article-filters>form.ui.form {
+div.article-filters > .ui.form {
     margin-bottom: -1em;
 }
 
@@ -113,6 +117,14 @@ div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
 
 .article-view > .ui.segment.article-nav {
     padding: 10px;
+}
+
+@media only screen and (max-width: 767px) {
+    .article-filters .ui.form .field .refresh-button,
+    .article-filters .ui.form .field .reset-button {
+        margin-top: 4px;
+        margin-bottom: 6px;
+    }
 }
 
 @media only screen and (max-width: 900px) {

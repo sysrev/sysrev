@@ -68,6 +68,9 @@
 (defn full-size? []
   (>= (viewport-width) 900))
 
+(defn desktop-size? []
+  (>= (viewport-width) 1100))
+
 (def nbsp (unescapeEntities "&nbsp;"))
 
 (defn number-to-word [n]
@@ -169,3 +172,35 @@
 
 (defn go-back []
   (-> js/window .-history (.back)))
+
+(defn get-dom-elt [selector]
+  (-> (js/$ selector) (.get 0)))
+
+(defn dom-elt-visible? [selector]
+  (when-let [el (get-dom-elt selector)]
+    (let [width  (or (-> js/window .-innerWidth)
+                     (-> js/document .-documentElement .-clientWidth))
+          height (or (-> js/window .-innerHeight)
+                     (-> js/document .-documentElement .-clientHeight))
+          rect (-> el (.getBoundingClientRect))]
+      (and (>= (.-top rect) 0)
+           (>= (.-left rect) 0)
+           (<= (.-bottom rect) height)
+           (<= (.-right rect) width)))))
+
+(defn scroll-to-dom-elt [selector]
+  (when-let [el (get-dom-elt selector)]
+    (-> el (.scrollIntoView true))))
+
+(defn ensure-dom-elt-visible
+  "Scrolls to the position of DOM element if it is not currently visible."
+  [selector]
+  (when (false? (dom-elt-visible? selector))
+    (scroll-to-dom-elt selector)
+    (-> js/window (.scrollBy 0 -10))))
+
+(defn ensure-dom-elt-visible-soon
+  "Runs `ensure-dom-elt-visible` using js/setTimeout at multiple delay times."
+  [selector]
+  (doseq [ms [10 25 50 100]]
+    (js/setTimeout #(ensure-dom-elt-visible selector) ms)))

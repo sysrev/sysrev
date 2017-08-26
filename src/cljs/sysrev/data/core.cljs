@@ -9,6 +9,7 @@
    [sysrev.subs.core :refer [not-found-value try-get]]
    [sysrev.events.ajax :refer
     [reg-event-ajax reg-event-ajax-fx run-ajax]]
+   [sysrev.util :refer [dissoc-in]]
    [sysrev.shared.util :refer [in?]]))
 
 (defonce
@@ -40,8 +41,47 @@
          prereqs (some-> (:prereqs entry) (apply args))
          new-db (require-item db prereqs item)
          changed? (not= (:needed new-db) (:needed db))]
-     (cond-> {:db new-db}
+     (cond-> {:db new-db
+              :dispatch-n (->> prereqs (map (fn [x] [:require x])))}
        changed? (merge {::fetch-if-missing item})))))
+
+(defn- add-load-trigger [db item trigger-id action]
+  (assoc-in db [:on-load item trigger-id] action))
+
+(defn- remove-load-triggers [db item]
+  (dissoc-in db [:on-load item]))
+
+(defn- lookup-load-triggers [db item]
+  (get-in db [:on-load item]))
+
+(reg-event-db
+ :data/after-load
+ [trim-v]
+ (fn [db [item trigger-id action]]
+   (add-load-trigger db item trigger-id action)))
+
+(reg-event-fx
+ ::process-load-triggers
+ [trim-v]
+ (fn [{:keys [db]} [item]]
+   (let [actions (vals (lookup-load-triggers db item))]
+     (doseq [action actions]
+       (cond (vector? action)  nil
+             (fn? action)      (action)
+             (seq? action)     (doseq [subaction action]
+                                 (when (fn? subaction)
+                                   (subaction)))))
+     {:db (remove-load-triggers db item)
+      :dispatch-n (->> actions
+                       (map #(cond (vector? %)  (list %)
+                                   (seq? %)     (filter vector? %)
+                                   (fn? %)      nil))
+                       (apply concat))})))
+
+(reg-fx
+ ::process-load-triggers
+ (fn [item]
+   (dispatch [::process-load-triggers item])))
 
 (reg-event-db
  :data/reset-required
@@ -168,7 +208,7 @@
 
 (reg-event-ajax-fx
  ::on-success
- (fn [cofx [[name args] result]]
+ (fn [{:keys [db] :as cofx} [[name args] result]]
    (let [item (vec (concat [name] args))]
      (merge
       {::returned item}
@@ -177,7 +217,9 @@
           (merge (apply process [cofx args result])
                  ;; Run :fetch-missing in case this request provided any
                  ;; missing data prerequisites.
-                 {:fetch-missing true})))))))
+                 {:fetch-missing true}
+                 (when (not-empty (lookup-load-triggers db item))
+                   {::process-load-triggers item}))))))))
 
 (reg-event-ajax-fx
  ::on-failure

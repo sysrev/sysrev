@@ -4,7 +4,7 @@
    [secretary.core :as secretary]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
-   [sysrev.util :refer [scroll-top]]
+   [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
    [sysrev.base :refer [history]]
    [sysrev.events.notes :refer [sync-article-notes]]
    [sysrev.events.ui :refer [set-subpanel-default-uri]]
@@ -29,36 +29,71 @@
 
 (sr-defroute
  articles "/project/articles" []
- (dispatch [:set-active-panel [:project :project :articles]
-            "/project/articles"])
- (dispatch [:public-labels/hide-article])
- (dispatch [:reload [:project/public-labels]]))
+ (let [panel [:project :project :articles]
+       item [:project/public-labels]
+       set-panel [:set-active-panel [:project :project :articles]
+                  "/project/articles"]
+       ensure-visible #(ensure-dom-elt-visible-soon
+                        ".article-list-view div.ui.segment.article-nav")
+       on-article? (and (= @(subscribe [:active-panel]) panel)
+                        @(subscribe [:public-labels/article-id]))
+       data-loaded? @(subscribe [:have? item])]
+   (if (and on-article? data-loaded?)
+     (do (dispatch set-panel)
+         (dispatch [:public-labels/hide-article])
+         (ensure-visible))
+     (do (dispatch
+          [:data/after-load item :project-articles-route
+           (list set-panel
+                 [:public-labels/hide-article]
+                 ensure-visible)])
+         (dispatch [:require item])
+         (dispatch [:reload item])))))
 
 (sr-defroute
  articles-id "/project/articles/:article-id" [article-id]
- (let [article-id (js/parseInt article-id)]
-   (dispatch [:require [:article article-id]])
-   (dispatch [:reload [:article article-id]])
-   (dispatch [:set-active-panel [:project :project :articles]
-              (str "/project/articles/" article-id)])
-   (dispatch [:public-labels/show-article article-id])))
+ (let [article-id (js/parseInt article-id)
+       item [:article article-id]]
+   (dispatch
+    [:data/after-load item :project-articles-route
+     (list [:set-active-panel [:project :project :articles]
+            (str "/project/articles/" article-id)]
+           [:public-labels/show-article article-id]
+           #(ensure-dom-elt-visible-soon
+             ".article-view div.ui.segment.article-nav"))])
+   (dispatch [:require item])
+   (dispatch [:reload item])))
 
 (sr-defroute
  project-user "/project/user" []
- (dispatch [:set-active-panel [:project :user :labels]
-            "/project/user"])
- (dispatch [:user-labels/hide-article])
- (when-let [user-id @(subscribe [:self/user-id])]
-   (dispatch [:reload [:member/articles user-id]])))
+ (let [user-id @(subscribe [:self/user-id])
+       item [:member/articles user-id]
+       set-panel [:set-active-panel [:project :user :labels]
+                  "/project/user"]]
+   (if user-id
+     (do (dispatch
+          [:data/after-load item :user-articles-route
+           (list set-panel
+                 [:user-labels/hide-article]
+                 #(ensure-dom-elt-visible-soon
+                   ".article-list-view div.ui.segment.article-nav"))])
+         (dispatch [:require item])
+         (dispatch [:reload item]))
+     (dispatch set-panel))))
 
 (sr-defroute
  project-user-article "/project/user/article/:article-id" [article-id]
- (let [article-id (js/parseInt article-id)]
-   (dispatch [:require [:article article-id]])
-   (dispatch [:reload [:article article-id]])
-   (dispatch [:set-active-panel [:project :user :labels]
-              (str "/project/user/article/" article-id)])
-   (dispatch [:user-labels/show-article article-id])))
+ (let [article-id (js/parseInt article-id)
+       item [:article article-id]]
+   (dispatch
+    [:data/after-load item :user-articles-route
+     (list [:set-active-panel [:project :user :labels]
+            (str "/project/user/article/" article-id)]
+           [:user-labels/show-article article-id]
+           #(ensure-dom-elt-visible-soon
+             ".article-view div.ui.segment.article-nav"))])
+   (dispatch [:require item])
+   (dispatch [:reload item])))
 
 (sr-defroute
  project-labels "/project/labels" []
@@ -67,11 +102,15 @@
 
 (sr-defroute
  review "/project/review" []
- (dispatch [:require [:review/task]])
- (dispatch [:set-active-panel [:project :review]
-            "/project/review"])
- (when-let [task-id @(subscribe [:review/task-id])]
-   (dispatch [:reload [:article task-id]])))
+ (let [set-panel-after #(dispatch
+                         [:data/after-load % :review-route
+                          [:set-active-panel [:project :review]
+                           "/project/review"]])]
+   (if-let [task-id @(subscribe [:review/task-id])]
+     (do (set-panel-after [:article task-id])
+         (dispatch [:reload [:article task-id]]))
+     (do (set-panel-after [:review/task])))
+   (dispatch [:require [:review/task]])))
 
 (sr-defroute
  project-settings "/project/settings" []

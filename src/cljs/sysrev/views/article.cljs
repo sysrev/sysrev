@@ -71,9 +71,7 @@
   (let [status @(subscribe [:article/review-status article-id])]
     [:div
      (with-loader [[:article article-id]]
-       {:dimmer true
-        :min-height "500px"
-        :class "ui segments"}
+       {:class "ui segments article-info"}
        (list
         [:div.ui.top.attached.middle.aligned.header
          {:key [:article-header]}

@@ -40,6 +40,15 @@
 (defmethod al/private-article-view? panel []
   true)
 
+(defmethod al/loading-articles? panel [_ user-id]
+  @(subscribe [:loading? [:member/articles user-id]]))
+
+(defmethod al/reload-articles panel [_ user-id]
+  (dispatch [:reload [:member/articles user-id]]))
+
+(defmethod al/auto-refresh? panel []
+  true)
+
 (defmethod al/render-article-entry panel
   [_ article full-size?]
   (let [{:keys [article-id title labels notes updated-time confirmed]} article
@@ -60,7 +69,7 @@
           [:div.twelve.wide.column>span.article-title title]
           [:div.four.wide.right.aligned.column
            (when (false? confirmed)
-             [:div.ui.tiny.label "Unconfirmed"])
+             [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
            (when-let [updated-time (some-> updated-time (time-from-epoch))]
              [updated-time-label updated-time])]]]
         [:div.ui.fitted.divider]
@@ -90,7 +99,7 @@
           [:div.twelve.wide.column>span.article-title title]
           [:div.four.wide.right.aligned.column
            (when (false? confirmed)
-             [:div.ui.tiny.label "Unconfirmed"])
+             [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
            (when-let [updated-time (some-> updated-time (time-from-epoch))]
              [updated-time-label updated-time])]]]
         [:div.ui.fitted.divider]

@@ -55,6 +55,7 @@
                                org.slf4j/slf4j-api]]
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
+                 [reagent "0.7.0"]
                  [re-frame "0.10.1"]
                  [day8.re-frame/http-fx "0.1.4"]
                  [secretary "1.2.3"]
@@ -64,7 +65,7 @@
                  ;; [cljsjs/jquery "2.2.4-0"]
                  [cljsjs/jquery "3.2.1-0"]
                  ;; [cljsjs/semantic-ui "2.2.4-0"]
-                 [org.clojars.jeffwk/semantic-ui "2.2.11-0"]
+                 [org.clojars.jeffwk/semantic-ui "2.2.13-0"]
                  [camel-snake-kebab "0.4.0"]
                  [cljsjs/chartjs "2.5.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
@@ -178,12 +179,12 @@
                                org.seleniumhq.selenium/selenium-support]]
                              [com.codeborne/phantomjsdriver "1.4.3"]]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.11"]
+             {:dependencies [[figwheel-sidecar "0.5.13"]
                              [org.clojure/tools.nrepl "0.2.13"]
                              [com.cemerick/piggieback "0.2.2"]
                              [acyclic/squiggly-clojure "0.1.8"
                               :exclusions [org.clojure/tools.reader]]]
-              :plugins [[lein-figwheel "0.5.11"]
+              :plugins [[lein-figwheel "0.5.13"]
                         [cider/cider-nrepl "0.14.0"]
                         [refactor-nrepl "2.3.1"]
                         [lein-environ "1.1.0"]]
