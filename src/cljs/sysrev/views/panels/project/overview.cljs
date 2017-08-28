@@ -2,7 +2,7 @@
   (:require
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch]]
+    [subscribe dispatch reg-event-fx reg-sub trim-v]]
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.charts :refer [chart-container pie-chart]]
@@ -11,7 +11,7 @@
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]
    [cljs-time.core :as t]
-   [cljs-time.format :as tf]
+   [cljs-time.coerce :refer [from-date]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -81,10 +81,6 @@
 
 
 
-(defonce editing-files (r/atom false))
-(defn toggle-editing [] (swap! editing-files not))
-
-
 (def file-types {"doc" "word"
                  "docx" "word"
                  "pdf" "pdf"
@@ -102,37 +98,60 @@
 (defn get-file-url [key name]
   (str "/api/files/" key "/" name))
 
+
+(reg-sub
+  ::editing-files
+  (fn [[_ panel]]
+    [(subscribe [:panel-field [:editing] panel])])
+  (fn [[article-id]] article-id))
+
+(reg-event-fx
+  ::editing-files
+  [trim-v]
+  (fn [_ [value]]
+    {:dispatch [:set-panel-field [:editing] value]}))
+
+(defn updater [panel-key f]
+  (let [v (subscribe [panel-key])]
+    [v #(dispatch [panel-key (f @v)])]))
+
+(defn toggler [panel-key] (updater panel-key not))
+
 (defn project-files-box []
-  (letfn [(show-date [file]
-            (let [date (tf/parse (:upload-time file))
-                  parts (mapv #(% date) [t/month t/day t/year])]
-              (apply goog.string/format "%d/%d/%d" parts)))
-          (delete-file [file-id] (dispatch [:files/delete-file file-id]))
-          (pull-files [] (dispatch [:files/pull-files]))]
-    [:div.ui.grey.segment
-     [:h4.ui.dividing.header "Project documents"]
-     (let [files @(subscribe [:project/files])]
-       [:div.ui.celled.list
-        (doall
-          (->>
-            files
-            (map
-              (fn [file]
-                [:div.icon.item {:key (:file-id file)}
-                 (if @editing-files
-                   [:i.ui.small.middle.aligned.red.delete.icon {:on-click #(delete-file (:file-id file))}]
-                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
-                 [:div.content
-                  [:a.header {:href (get-file-url (:file-id file) (:name file))
-                              :target "_blank"
-                              :download (:name file)}
-                   (:name file)
-;                  [:div.description (show-date file)]]]))))
-                   [:div.description (str (:upload-time file))]]]]))))
-        [:div.ui.container
-         [upload-container basic-text-button send-file-url pull-files "Upload document"]
-         [:div.ui.right.floated.basic.icon.button {:on-click toggle-editing :class (when @editing-files "red")}
-          [:i.ui.small.small.blue.pencil.icon]]]])]))
+  (let [[editing-files toggle-editing] (toggler ::editing-files)
+        files (subscribe [:project/files])]
+    (letfn [(show-date [file]
+              (let [date (from-date (:upload-time file))
+                    parts (mapv #(% date) [t/month t/day t/year])]
+                (apply goog.string/format "%d/%d/%d" parts)))
+            (delete-file [file-id] (dispatch [:files/delete-file file-id]))
+            (pull-files [] (dispatch [:files/pull-files]))]
+      (fn []
+        [:div.ui.grey.segment
+         [:h4.ui.dividing.header "Project documents"
+          [:div.ui.celled.list
+           (doall
+             (->>
+               @files
+               (map
+                 (fn [file]
+                   [:div.icon.item {:key (:file-id file)}
+                    (if @editing-files
+                      [:i.ui.small.middle.aligned.red.delete.icon
+                       {:on-click #(delete-file (:file-id file))}]
+                      [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
+                    [:div.content
+                     [:a.header {:href (get-file-url (:file-id file) (:name file))
+                                 :target "_blank"
+                                 :download (:name file)}
+                      (:name file)
+                      [:div.description (show-date file)]]]]))))
+           [:div.ui.container
+            [upload-container basic-text-button send-file-url pull-files "Upload document"]
+            [:div.ui.right.floated.basic.icon.button
+             {:on-click toggle-editing
+              :class (when @editing-files "red")}
+             [:i.ui.small.small.blue.pencil.icon]]]]]]))))
 
 
 ;(defn project-files-box []

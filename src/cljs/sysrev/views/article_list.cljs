@@ -1,21 +1,21 @@
-(ns sysrev.views.article-list
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-     reg-event-db reg-event-fx reg-fx trim-v]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.views.article :refer [article-info-view]]
-   [sysrev.views.review :refer [label-editor-view]]
-   [sysrev.views.components :refer
-    [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
-   [sysrev.subs.ui :refer [get-panel-field]]
-   [sysrev.routes :refer [nav]]
-   [sysrev.shared.keywords :refer [canonical-keyword]]
-   [sysrev.util :refer [full-size? mobile? nbsp]]
-   [sysrev.shared.util :refer [in? map-values]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+  (ns sysrev.views.article-list
+   (:require
+    [clojure.spec.alpha :as s]
+    [clojure.string :as str]
+    [re-frame.core :as re-frame :refer
+     [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+      reg-event-db reg-event-fx reg-fx trim-v]]
+    [reagent.ratom :refer [reaction]]
+    [sysrev.views.article :refer [article-info-view]]
+    [sysrev.views.review :refer [label-editor-view]]
+    [sysrev.views.components :refer
+     [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
+    [sysrev.subs.ui :refer [get-panel-field]]
+    [sysrev.routes :refer [nav]]
+    [sysrev.shared.keywords :refer [canonical-keyword]]
+    [sysrev.util :refer [full-size? mobile? nbsp]]
+    [sysrev.shared.util :refer [in? map-values]])
+   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
 (defmulti panel-base-uri (fn [panel] panel))

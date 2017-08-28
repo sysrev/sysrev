@@ -18,13 +18,11 @@
         opts {:url upload-url
               :headers (when-let [token @csrf-token]
                          {"x-csrf-token" token})
-;;               :addedfile #(dispatch [:notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"]])
+              :addedfile #(dispatch [:notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"]])
               :success on-success}]
     (letfn [(make-uploader [url]
               (js/Dropzone. (str "div#" id) (clj->js opts)))]
       (r/create-class {:reagent-render (fn [childer upload-url _ & args]
                                          (apply childer id args))
-                       :component-did-update (fn [this [_ upload-url]]
-                                               (make-uploader upload-url))
                        :component-did-mount #(make-uploader upload-url)
                        :display-name "upload-container"}))))
