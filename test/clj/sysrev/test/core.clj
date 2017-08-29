@@ -34,8 +34,8 @@
             dbname :dbname} :postgres} env
           validators [#_ ["Cannot run tests with pg on port 5432"
                           #(not (= postgres-port 5432))]
-                      #_ ["Db name must include _test in configuration"
-                          #(clojure.string/includes? dbname "_test")]]
+                      ["Db name must include _test in configuration"
+                       #(clojure.string/includes? dbname "_test")]]
           validates #(-> % second (apply []))
           error (->> validators (remove validates) first first)]
       (assert (not error) error)

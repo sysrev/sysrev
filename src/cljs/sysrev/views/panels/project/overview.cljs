@@ -153,13 +153,6 @@
               :class (when @editing-files "red")}
              [:i.ui.small.small.blue.pencil.icon]]]]]]))))
 
-
-;(defn project-files-box []
-;  (let [files (subscribe [:project/files])]
-;    [:div.ui.grey.segment
-;     [:h4.ui.dividing.header "Project documents"
-;      (print @files)]]))
-
 #_
 (defn user-summary-chart []
   (let [user-ids @(subscribe [:project/member-user-ids])
