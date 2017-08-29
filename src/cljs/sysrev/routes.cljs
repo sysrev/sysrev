@@ -4,8 +4,10 @@
    [secretary.core :as secretary]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
+   [re-frame.db :refer [app-db]]
    [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
    [sysrev.base :refer [history]]
+   [sysrev.subs.project :refer [project-loaded?]]
    [sysrev.events.notes :refer [sync-article-notes]]
    [sysrev.events.ui :refer [set-subpanel-default-uri]]
    [sysrev.macros])
@@ -13,19 +15,12 @@
                    [sysrev.macros :refer [sr-defroute]]))
 
 (defn- go-project-panel [uri]
-  (let [panel [:project :project :overview]]
-    (cond (nil? @(subscribe [:self/user-id]))
-          (dispatch [:set-active-panel panel uri])
-
-          (= @(subscribe [:active-panel]) panel)
-          (dispatch [:set-active-panel panel uri])
-
-          :else
-          (do (dispatch
-               [:data/after-load [:project] :project-route
-                [:set-active-panel panel uri]])
-              (dispatch [:reload [:project]])
-              (dispatch [:require [:project]])))))
+  (let [panel [:project :project :overview]
+        item [:project]
+        diff-panel (not= panel @(subscribe [:active-panel]))]
+    (when diff-panel
+      (dispatch [:reload [:project]]))
+    (dispatch [:set-active-panel panel uri])))
 
 (sr-defroute
  home "/" []
