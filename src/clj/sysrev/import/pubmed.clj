@@ -118,7 +118,7 @@
           (doseq [[k v] article]
             (when (or (nil? v)
                       (and (coll? v) (empty? v)))
-              (log/info (format "* field `%s` is empty" (pr-str k)))))
+              (log/debug (format "* field `%s` is empty" (pr-str k)))))
           (when-let [article-id (articles/add-article
                                  (dissoc article :locations)
                                  project-id)]

@@ -124,34 +124,39 @@
               (let [date (from-date (:upload-time file))
                     parts (mapv #(% date) [t/month t/day t/year])]
                 (apply goog.string/format "%d/%d/%d" parts)))
-            (delete-file [file-id] (dispatch [:files/delete-file file-id]))
+            (delete-file [file-id] (dispatch [:action [:files/delete-file file-id]]))
             (pull-files [] (dispatch [:fetch [:project/files]]))]
       (fn []
-        [:div.ui.grey.segment
-         [:h4.ui.dividing.header "Project documents"
-          [:div.ui.celled.list
-           (doall
+        [:div.ui.grey.segment.project-files
+         [:h4.header "Project documents"]
+         [:div.ui.middle.aligned.celled.list
+          (doall
+           (concat
             (->>
              @files
              (map
               (fn [file]
                 [:div.icon.item {:key (:file-id file)}
+                 [:div.right.floated.content
+                  [:div.ui.small.label (show-date file)]]
                  (if @editing-files
-                   [:i.ui.small.middle.aligned.red.delete.icon
-                    {:on-click #(delete-file (:file-id file))}]
-                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
-                 [:div.content
-                  [:a.header {:href (get-file-url (:file-id file) (:name file))
-                              :target "_blank"
-                              :download (:name file)}
-                   (:name file)
-                   [:div.description (show-date file)]]]]))))
-           [:div.ui.container
-            [upload-container basic-text-button send-file-url pull-files "Upload document"]
-            [:div.ui.right.floated.basic.icon.button
-             {:on-click toggle-editing
-              :class (when @editing-files "red")}
-             [:i.ui.small.small.blue.pencil.icon]]]]]]))))
+                   [:i.ui.middle.aligned.large.red.circle.remove.icon
+                    {:on-click #(delete-file (:file-id file))
+                     :style {:cursor "pointer"}}]
+                   [:i.ui.middle.aligned.outline.blue.file.icon
+                    {:class (get-file-class (:name file))}])
+                 [:div.content.file-link
+                  [:a {:href (get-file-url (:file-id file) (:name file))
+                       :target "_blank"
+                       :download (:name file)}
+                   (:name file)]]])))
+            (list [:div.item {:key "celled list filler"}])))
+          [:div.upload-container
+           [upload-container basic-text-button send-file-url pull-files "Upload document"]
+           [:div.ui.right.floated.small.basic.icon.button
+            {:on-click toggle-editing
+             :class (when @editing-files "red")}
+            [:i.ui.blue.pencil.icon]]]]]))))
 
 #_
 (defn user-summary-chart []

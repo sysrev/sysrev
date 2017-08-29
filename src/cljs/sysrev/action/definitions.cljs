@@ -139,3 +139,9 @@
      :reset-data true
      :nav-scroll-top "/"
      :dispatch [:fetch [:identity]]}))
+
+(def-action :files/delete-file
+  :uri (fn [file-id] (str "/api/files/delete/" file-id))
+  :process
+  (fn [_ _ result]
+    {:dispatch [:reload [:project/files]]}))

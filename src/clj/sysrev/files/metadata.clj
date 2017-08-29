@@ -16,8 +16,7 @@
                   :name name
                   :file-id uuid
                   :user-id user-id}]
-      (-> save-req
-          (merge detail)
+      (-> detail
           (files/map->Filerec)
           (insert-file-rec))))
 
