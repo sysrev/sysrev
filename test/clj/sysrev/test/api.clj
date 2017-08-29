@@ -51,6 +51,38 @@
         (when user-id (users/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
+(deftest test-copy-articles
+  (let [url (:url (get-selenium-config))
+        email "test+apitest@insilica.co"
+        password "1234567890"
+        {:keys [user-id api-token]}
+        (users/create-user email password)
+        {:keys [project-id] :as project}
+        (project/create-project "test-copy-articles")
+        dest-project
+        (project/create-project "test-copy-articles-dest")]
+    (try
+      (let [response (webapi-post "import-pmids"
+                                  {:api-token api-token
+                                   :project-id project-id
+                                   :pmids [12345]}
+                                  :url url)]
+        (is (true? (-> response :result :success)))
+        (is (= 1 (-> response :result :project-articles)))
+        (let [article-id (-> (q/select-project-articles project-id [:article-id])
+                             (do-query) first :article-id)]
+          (is (not (nil? article-id)))
+          (let [response (webapi-post "copy-articles"
+                                      {:api-token api-token
+                                       :project-id (:project-id dest-project)
+                                       :src-project-id project-id
+                                       :article-ids [article-id]})]
+            (is (= 1 (-> response :result :success))))))
+      (finally
+        (when user-id (users/delete-user user-id))
+        (when project-id (project/delete-project project-id))
+        (when dest-project (project/delete-project (:project-id dest-project)))))))
+
 (deftest test-import-pmid-nct-arms
   (let [url (:url (get-selenium-config))
         email "test+apitest@insilica.co"

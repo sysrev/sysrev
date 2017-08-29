@@ -190,3 +190,32 @@
 (s/fdef to-article
         :args (s/cat :article-or-id ::sa/article-or-id)
         :ret (s/nilable ::sa/article))
+
+(defn copy-project-article [src-project-id dest-project-id article-id]
+  (try
+    (if-let [article (query-article-by-id-full article-id)]
+      (if (= (:project-id article) src-project-id)
+        (if-let [new-article-id
+                 (add-article (-> article (dissoc :article-id :project-id :duplicate-of :locations
+                                                  :review-status :score))
+                              dest-project-id)]
+          (let [locations
+                (-> (q/select-project-articles
+                     src-project-id [:aloc.article-id :aloc.source :aloc.external-id])
+                    (q/join-article-locations)
+                    (merge-where [:= :aloc.article-id article-id])
+                    (->> do-query
+                         (mapv #(assoc % :article-id new-article-id))))]
+            (when-not (empty? locations)
+              (-> (sqlh/insert-into :article-location)
+                  (values (vec locations))
+                  do-execute))
+            :success)
+          :add-article-failed)
+        :wrong-article-project)
+      :not-found)
+    (catch Throwable e
+      :error)
+    (finally
+      (when dest-project-id
+        (clear-project-cache dest-project-id)))))
