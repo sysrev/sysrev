@@ -26,6 +26,10 @@
      (let [response (-> context :coeffects :event last)
            success? (and (map? response)
                          (contains? response :result))
+           build-id (and (map? response)
+                         (:build-id response))
+           build-time (and (map? response)
+                           (:build-time response))
            result (when-let [result (and (map? response)
                                          (:result response))]
                     result)
@@ -36,16 +40,21 @@
                       #(vec (concat (butlast %) [result])))
            (assoc-in [:coeffects :success?] success?)
            (assoc-in [:coeffects :response] response)
-           (assoc-in [:coeffects :csrf-token] csrf-token))))
+           (assoc-in [:coeffects :csrf-token] csrf-token)
+           (assoc-in [:coeffects :build-id] build-id)
+           (assoc-in [:coeffects :build-time] build-time))))
    :after
    (fn [context]
-     (let [{:keys [csrf-token success? response]}
+     (let [{:keys [csrf-token success? response build-id build-time]}
            (:coeffects context)]
        (cond-> context
          csrf-token
          (assoc-in [:effects :set-csrf-token] csrf-token)
          (not success?)
-         (assoc-in [:effects :ajax-failure] response))))))
+         (assoc-in [:effects :ajax-failure] response)
+         (or build-id build-time)
+         (assoc-in [:effects :reload-on-new-build]
+                   [build-id build-time]))))))
 
 (defn reg-event-ajax
   "Wrapper for standard event-db handler for ajax response"

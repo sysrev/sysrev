@@ -33,3 +33,8 @@
  :<- [:active-panel]
  (fn [[have-identity? active-panel]]
    (boolean (and have-identity? active-panel))))
+
+(defn get-build-id [db] (:build-id db))
+(reg-sub :build-id get-build-id)
+(defn get-build-time [db] (:build-time db))
+(reg-sub :build-time get-build-time)

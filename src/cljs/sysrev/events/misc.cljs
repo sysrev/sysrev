@@ -18,6 +18,18 @@
    (assoc db :csrf-token csrf-token)))
 
 (reg-event-db
+ :set-build-id
+ [trim-v]
+ (fn [db [build-id]]
+   (assoc db :build-id build-id)))
+
+(reg-event-db
+ :set-build-time
+ [trim-v]
+ (fn [db [build-time]]
+   (assoc db :build-time build-time)))
+
+(reg-event-db
  :schedule-scroll-top
  (fn [db]
    (assoc db :scroll-top true)))
