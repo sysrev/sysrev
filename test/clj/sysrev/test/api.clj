@@ -76,8 +76,10 @@
                                       {:api-token api-token
                                        :project-id (:project-id dest-project)
                                        :src-project-id project-id
-                                       :article-ids [article-id]})]
-            (is (= 1 (-> response :result :success))))))
+                                       :article-ids [article-id]}
+                                      :url url)]
+            (is (= 1 (-> response :result :success))
+                (str "response = " (pr-str response))))))
       (finally
         (when user-id (users/delete-user user-id))
         (when project-id (project/delete-project project-id))
