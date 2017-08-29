@@ -125,27 +125,27 @@
                     parts (mapv #(% date) [t/month t/day t/year])]
                 (apply goog.string/format "%d/%d/%d" parts)))
             (delete-file [file-id] (dispatch [:files/delete-file file-id]))
-            (pull-files [] (dispatch [:files/pull-files]))]
+            (pull-files [] (dispatch [:fetch [:project/files]]))]
       (fn []
         [:div.ui.grey.segment
          [:h4.ui.dividing.header "Project documents"
           [:div.ui.celled.list
            (doall
-             (->>
-               @files
-               (map
-                 (fn [file]
-                   [:div.icon.item {:key (:file-id file)}
-                    (if @editing-files
-                      [:i.ui.small.middle.aligned.red.delete.icon
-                       {:on-click #(delete-file (:file-id file))}]
-                      [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
-                    [:div.content
-                     [:a.header {:href (get-file-url (:file-id file) (:name file))
-                                 :target "_blank"
-                                 :download (:name file)}
-                      (:name file)
-                      [:div.description (show-date file)]]]]))))
+            (->>
+             @files
+             (map
+              (fn [file]
+                [:div.icon.item {:key (:file-id file)}
+                 (if @editing-files
+                   [:i.ui.small.middle.aligned.red.delete.icon
+                    {:on-click #(delete-file (:file-id file))}]
+                   [:i.ui.outline.blue.file.icon {:class (get-file-class (:name file))}])
+                 [:div.content
+                  [:a.header {:href (get-file-url (:file-id file) (:name file))
+                              :target "_blank"
+                              :download (:name file)}
+                   (:name file)
+                   [:div.description (show-date file)]]]]))))
            [:div.ui.container
             [upload-container basic-text-button send-file-url pull-files "Upload document"]
             [:div.ui.right.floated.basic.icon.button

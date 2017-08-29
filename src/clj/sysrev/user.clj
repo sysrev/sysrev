@@ -10,6 +10,8 @@
         sysrev.db.migration
         sysrev.db.transfer
         sysrev.db.export
+        sysrev.db.files
+        sysrev.files.stores
         ;; sysrev.spark.core
         ;; sysrev.spark.similarity
         sysrev.import.pubmed

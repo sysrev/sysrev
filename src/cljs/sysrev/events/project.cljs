@@ -19,6 +19,12 @@
    (assoc-in db [:data :project project-id :settings] settings)))
 
 (reg-event-db
+ :project/load-files
+ [trim-v]
+ (fn [db [project-id files]]
+   (assoc-in db [:data :project project-id :files] files)))
+
+(reg-event-db
  :project/clear-data
  [trim-v]
  (fn [db]

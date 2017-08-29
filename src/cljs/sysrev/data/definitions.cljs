@@ -48,6 +48,16 @@
     (let [project-id (active-project-id db)]
       {:dispatch [:project/load-settings project-id settings]})))
 
+(def-data :project/files
+  :loaded-p project-loaded?
+  :uri (fn [] "/api/files")
+  :prereqs (fn [] [[:identity]])
+  :process
+  (fn [{:keys [db]} _ result]
+    (let [project-id (active-project-id db)]
+      (when (vector? result)
+        {:dispatch [:project/load-files project-id result]}))))
+
 (def-data :project/public-labels
   :loaded-p have-public-labels?
   :uri (fn [] "/api/public-labels")

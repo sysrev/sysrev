@@ -14,7 +14,6 @@
   [childer upload-url on-success & args]
   (let [id (random-id)
         csrf-token (subscribe [:csrf-token])
-        _ (println @csrf-token)
         opts {:url upload-url
               :headers (when-let [token @csrf-token]
                          {"x-csrf-token" token})

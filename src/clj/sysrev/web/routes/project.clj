@@ -182,7 +182,7 @@
         request [] ["member"]
         (let [project-id (active-project request)
               files (project-files project-id)]
-          {:result files})))
+          {:result (vec files)})))
 
   (GET "/api/files/:key/:name" request
        (wrap-permissions
