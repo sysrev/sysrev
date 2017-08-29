@@ -11,9 +11,13 @@
 (defmethod panel-content [:project :review] []
   (fn [child]
     (let [article-id @(subscribe [:review/task-id])]
-      [:div.project-content
-       (with-loader [[:review/task]] {}
-         [article-info-view article-id :show-labels? false])
-       (when article-id
-         [label-editor-view article-id])
-       child])))
+      (if (= article-id :none)
+        [:div.project-content
+         [:div.ui.segment
+          [:h4.header "No articles found needing review"]]]
+        [:div.project-content
+         (with-loader [[:review/task]] {}
+           [article-info-view article-id :show-labels? false])
+         (when article-id
+           [label-editor-view article-id])
+         child]))))

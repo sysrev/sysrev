@@ -109,11 +109,14 @@
                          [:data/after-load % :review-route
                           [:set-active-panel [:project :review]
                            "/project/review"]])]
-   (if-let [task-id @(subscribe [:review/task-id])]
-     (do (set-panel-after [:article task-id])
-         (dispatch [:reload [:article task-id]]))
-     (do (set-panel-after [:review/task])))
-   (dispatch [:require [:review/task]])))
+   (let [task-id @(subscribe [:review/task-id])]
+     (if (integer? task-id)
+       (do (set-panel-after [:article task-id])
+           (dispatch [:reload [:article task-id]]))
+       (do (set-panel-after [:review/task])))
+     (when (= task-id :none)
+       (dispatch [:reload [:review/task]]))
+     (dispatch [:require [:review/task]]))))
 
 (sr-defroute
  project-settings "/project/settings" []

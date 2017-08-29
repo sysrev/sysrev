@@ -77,9 +77,9 @@
   (GET "/api/label-task" request
        (wrap-permissions
         request [] ["member"]
-        (when-let [{:keys [article-id today-count] :as task}
-                   (labels/get-user-label-task (active-project request)
-                                               (current-user-id request))]
+        (if-let [{:keys [article-id today-count] :as task}
+                 (labels/get-user-label-task (active-project request)
+                                             (current-user-id request))]
           {:result
            (let [project-id (active-project request)
                  [article user-labels user-notes]
@@ -90,7 +90,8 @@
              {:article (prepare-article-response article)
               :labels user-labels
               :notes user-notes
-              :today-count today-count})})))
+              :today-count today-count})}
+          {:result :none})))
 
   ;; Sets and optionally confirms label values for an article
   (POST "/api/set-labels" request

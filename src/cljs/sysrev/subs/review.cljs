@@ -33,9 +33,10 @@
  :<- [:user-labels/editing?]
  :<- [:user-labels/article-id]
  (fn [[on-review-task? task-aid public-editing? public-aid user-editing? user-aid]]
-   (cond on-review-task? task-aid
-         public-editing? public-aid
-         user-editing? user-aid)))
+   (cond (and on-review-task?
+              (integer? task-aid))  task-aid
+         public-editing?            public-aid
+         user-editing?              user-aid)))
 
 (reg-sub
  :review/editing?

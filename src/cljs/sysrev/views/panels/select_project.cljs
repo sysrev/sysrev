@@ -21,13 +21,17 @@
           (->>
            @(subscribe [:self/projects])
            (map
-            (fn [{:keys [project-id name]}]
+            (fn [{:keys [project-id name member?]}]
               (let [active? (= project-id active-id)]
                 ^{:key project-id}
                 [:div.column
                  [:div.ui.fluid.left.labeled.button
                   {:style {:text-align "justify"}}
                   [:div.ui.fluid.basic.label (str name)]
-                  [:a.ui.button {:style {:padding "1.5em"}
-                                 :on-click #(dispatch [:action [:select-project project-id]])}
-                   "Go"]]])))))]]])))
+                  (if member?
+                    [:a.ui.button {:style {:padding "1.5em"}
+                                   :on-click #(dispatch [:action [:select-project project-id]])}
+                     "Go"]
+                    [:a.ui.blue.button {:style {:padding "1.5em"}
+                                        :on-click #(dispatch [:action [:join-project project-id]])}
+                     "Join"])]])))))]]])))

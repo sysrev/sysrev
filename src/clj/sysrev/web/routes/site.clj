@@ -119,14 +119,33 @@
   "Returns a map of values with various user account information.
   This result is sent to client for the user's own account upon login."
   [user-id]
-  (let [projects
+  (let [uperms (:permissions (users/get-user-by-id user-id))
+        admin? (in? uperms "admin")
+        projects
         (-> (select :p.project-id :p.name :p.date-created :m.join-date
                     [:p.enabled :project-enabled]
                     [:m.enabled :member-enabled])
             (from [:project-member :m])
             (join [:project :p]
                   [:= :p.project-id :m.project-id])
-            (where [:= :m.user-id user-id])
+            (where [:and
+                    [:= :m.user-id user-id]
+                    [:= :p.enabled true]
+                    [:= :m.enabled true]])
             (order-by :p.date-created)
-            do-query)]
-    {:projects projects}))
+            (->> do-query
+                 (mapv #(assoc % :member? true))))
+        self-project-ids (->> projects (map :project-id))
+        all-projects
+        (when admin?
+          (-> (select :p.project-id :p.name :p.date-created
+                      [:p.enabled :project-enabled])
+              (from [:project :p])
+              (where [:and [:= :p.enabled true]])
+              (order-by :p.date-created)
+              (->> do-query
+                   (filterv #(not (in? self-project-ids (:project-id %))))
+                   (mapv #(assoc % :member? false)))))]
+    {:projects (->> [projects all-projects]
+                    (apply concat)
+                    vec)}))

@@ -317,7 +317,6 @@
         user-id (q/to-user-id user-id)]
     (assert (integer? project-id))
     (assert (integer? user-id))
-    (clear-project-cache project-id)
     (do-transaction
      nil
      (-> (delete-from [:article-label :al])
@@ -348,8 +347,9 @@
                 (where [:and
                         [:= :pn.project-note-id :an.project-note-id]
                         [:= :pn.project-id project-id]]))]])
-         do-execute)
-     true)))
+         do-execute))
+    (clear-project-cache project-id)
+    true))
 ;;
 (s/fdef delete-member-labels-notes
         :args (s/cat :project-id ::sc/project-id

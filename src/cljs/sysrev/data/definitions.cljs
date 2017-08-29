@@ -81,14 +81,16 @@
   :uri (fn [] "/api/label-task")
   :prereqs (fn [] [[:identity] [:project]])
   :process
-  (fn [{:keys [db]} _ {:keys [article labels notes today-count]}]
-    (cond->
-        {:dispatch-n
-         (list [:article/load (merge article {:labels labels :notes notes})]
-               [:review/load-task (:article-id article) today-count])}
+  (fn [{:keys [db]} _ {:keys [article labels notes today-count] :as result}]
+    (if (= result :none)
+      {:dispatch [:review/load-task :none nil]}
+      (cond->
+          {:dispatch-n
+           (list [:article/load (merge article {:labels labels :notes notes})]
+                 [:review/load-task (:article-id article) today-count])}
 
-      (= (active-panel db) [:project :review])
-      (merge {:scroll-top true}))))
+        (= (active-panel db) [:project :review])
+        (merge {:scroll-top true})))))
 
 (def-data :article
   :loaded-p have-article?
