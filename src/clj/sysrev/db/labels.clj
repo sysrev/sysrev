@@ -581,6 +581,8 @@
      (db/clear-project-label-values-cache project-id confirm? user-id)
      (db/clear-project-member-cache project-id user-id)
      (db/clear-project-article-cache project-id article-id)
+     (when confirm?
+       (db/clear-project-public-labels-cache project-id))
      true)))
 
 (defn delete-project-user-labels [project-id]
@@ -648,97 +650,89 @@
         :args (s/cat :label-id ::sc/label-id
                      :enabled? boolean?))
 
-(defn query-public-article-labels
-  [project-id & {:keys [exclude-hours]}]
-  (let [cutoff-epoch
-        (when exclude-hours
+(defn query-public-article-labels [project-id]
+  (with-project-cache
+    project-id [:public-labels :values]
+    (let [[all-articles all-labels]
+          (pvalues
+           (-> (select :a.article-id :a.primary-title)
+               (from [:article :a])
+               (where [:and
+                       [:= :a.project-id project-id]
+                       [:= :a.enabled true]
+                       [:exists
+                        (-> (select :*)
+                            (from [:article-label :al])
+                            (where [:and
+                                    [:= :al.article-id :a.article-id]
+                                    [:!= :al.confirm-time nil]
+                                    [:!= :al.answer nil]]))]])
+               (->> do-query
+                    (group-by :article-id)
+                    (map-values first)))
+           (-> (select :a.article-id :l.label-id :al.answer :al.inclusion
+                       :al.resolve :al.confirm-time :al.user-id)
+               (from [:article :a])
+               (join [:article-label :al] [:= :a.article_id :al.article_id]
+                     [:label :l] [:= :al.label-id :l.label-id])
+               (where [:and
+                       [:= :a.project-id project-id]
+                       [:= :a.enabled true]
+                       [:!= :al.confirm-time nil]
+                       [:!= :al.answer nil]])
+               (->> (do-query)
+                    (remove #(or (nil? (:answer %))
+                                 (and (coll? (:answer %))
+                                      (empty? (:answer %)))))
+                    (map #(-> (assoc % :confirm-epoch
+                                     (tc/to-epoch (:confirm-time %)))
+                              (dissoc :confirm-time)))
+                    (group-by :article-id)
+                    (filter (fn [[article-id entries]]
+                              (not-empty entries)))
+                    (apply concat)
+                    (apply hash-map)
+                    (map-values (fn [entries]
+                                  (map #(dissoc % :article-id) entries)))
+                    (map-values (fn [entries]
+                                  {:labels entries
+                                   :updated-time (->> entries (map :confirm-epoch)
+                                                      (apply max 0))})))))]
+      (->> (keys all-labels)
+           (filter #(contains? all-articles %))
+           (map
+            (fn [article-id]
+              (let [article (get all-articles article-id)
+                    updated-time (get-in all-labels [article-id :updated-time])
+                    labels
+                    (->> (get-in all-labels [article-id :labels])
+                         (group-by :label-id)
+                         (map-values
+                          (fn [entries]
+                            (map #(dissoc % :label-id :confirm-epoch) entries))))]
+                [article-id {:title (:primary-title article)
+                             :updated-time updated-time
+                             :labels labels}])))
+           (apply concat)
+           (apply hash-map)))))
+
+(defn filter-recent-public-articles [articles exclude-hours]
+  (if (nil? exclude-hours)
+    articles
+    (let [cutoff-epoch
           (tc/to-epoch (t/minus (tc/from-sql-date (sql-now))
-                                (t/hours exclude-hours))))
-
-        include-article?
-        (fn [entries]
-          (cond (nil? cutoff-epoch) true
-                (empty? entries)    false
-                :else
-                (let [edit-epoch
-                      (->> entries (map :confirm-epoch) (apply max))]
-                  (< edit-epoch cutoff-epoch))))
-
-        [all-articles all-labels]
-        (pvalues
-         (-> (select :a.article-id :a.primary-title)
-             (from [:article :a])
-             (where [:and
-                     [:= :a.project-id project-id]
-                     [:= :a.enabled true]
-                     [:exists
-                      (-> (select :*)
-                          (from [:article-label :al])
-                          (where [:and
-                                  [:= :al.article-id :a.article-id]
-                                  [:!= :al.confirm-time nil]
-                                  [:!= :al.answer nil]]))]])
-             (->> do-query
-                  (group-by :article-id)
-                  (map-values first)))
-         (-> (select :a.article-id [:l.label-id :label-id] :al.answer :al.inclusion
-                     :al.resolve :al.confirm-time :al.user-id)
-             (from [:article :a])
-             (join [:article-label :al] [:= :a.article_id :al.article_id]
-                   [:label :l] [:= :al.label-id :l.label-id])
-             (where [:and
-                     [:= :a.project-id project-id]
-                     [:= :a.enabled true]
-                     [:!= :al.confirm-time nil]
-                     [:!= :al.answer nil]])
-             (->> (do-query)
-                  (remove #(or (nil? (:answer %))
-                               (and (coll? (:answer %))
-                                    (empty? (:answer %)))))
-                  (map #(-> (assoc % :confirm-epoch
-                                   (tc/to-epoch (:confirm-time %)))
-                            (dissoc :confirm-time)))
-                  (group-by :article-id)
-                  (map-values (fn [entries]
-                                (let [user-ids (->> entries (map :user-id) distinct)]
-                                  (if (> (count user-ids) 1)
-                                    entries []))))
-                  (map-values (fn [entries]
-                                (if (include-article? entries)
-                                  entries [])))
-                  (filter (fn [[article-id entries]]
-                            (not-empty entries)))
-                  (apply concat)
-                  (apply hash-map)
-                  (map-values (fn [entries]
-                                (map #(dissoc % :article-id) entries)))
-                  (map-values (fn [entries]
-                                {:labels entries
-                                 :updated-time (->> entries (map :confirm-epoch)
-                                                    (apply max))})))))]
-    (->> (keys all-labels)
-         (filter #(contains? all-articles %))
-         (map
-          (fn [article-id]
-            (let [article (get all-articles article-id)
-                  updated-time (get-in all-labels [article-id :updated-time])
-                  labels
-                  (->> (get-in all-labels [article-id :labels])
-                       (group-by :label-id)
-                       (map-values
-                        (fn [entries]
-                          (map #(dissoc % :label-id :confirm-epoch) entries))))]
-              [article-id {:title (:primary-title article)
-                           :updated-time updated-time
-                           :labels labels}])))
-         (apply concat)
-         (apply hash-map))))
+                                (t/hours exclude-hours)))]
+      (->> (vec articles)
+           (filter (fn [[article-id article]]
+                     (< (:updated-time article) cutoff-epoch)))
+           (apply concat)
+           (apply hash-map)))))
 
 (defn query-member-articles [project-id user-id]
   (let [articles
         (-> (select :a.article-id :a.primary-title :al.answer :al.inclusion
                     :al.resolve :al.confirm-time :al.updated-time
-                    [:l.label-id :label-id] :wu.user-id)
+                    :l.label-id :wu.user-id)
             (from [:article :a])
             (join [:project :p] [:= :p.project-id :a.project-id]
                   [:article-label :al] [:= :al.article-id :a.article-id]

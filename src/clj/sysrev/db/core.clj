@@ -252,6 +252,9 @@
     :else
     (swap! query-cache assoc :project {})))
 
+(defn clear-project-public-labels-cache [project-id]
+  (clear-project-cache project-id [:public-labels]))
+
 (defn clear-project-label-values-cache [project-id clear-confirmed? & [user-id]]
   (when user-id
     (clear-project-cache project-id [:users user-id :labels]))

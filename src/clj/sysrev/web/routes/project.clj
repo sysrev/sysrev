@@ -14,6 +14,8 @@
    [sysrev.db.labels :as labels]
    [sysrev.files.stores :refer [store-file project-files delete-file get-file]]
    [sysrev.predict.report :refer [predict-summary]]
+   [sysrev.shared.article-list :refer
+    [is-resolved? is-conflict? is-single? is-consistent?]]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.shared.transit :as sr-transit]
@@ -217,9 +219,10 @@
         (let [project-id (active-project request)
               exclude-hours (if (= :dev (:profile env))
                               nil 4)]
-          {:result (sr-transit/encode-public-labels
-                    (labels/query-public-article-labels
-                     project-id :exclude-hours exclude-hours))})))
+          {:result
+           (-> (labels/query-public-article-labels project-id)
+               (labels/filter-recent-public-articles exclude-hours)
+               (sr-transit/encode-public-labels))})))
 
   (GET "/api/query-register-project" request
        (let [register-hash (-> request :params :register-hash)
@@ -336,155 +339,43 @@
          (map-values
           #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
-(defn project-conflict-counts [project-id]
+(defn project-article-status-counts [project-id]
   (with-project-cache
-    project-id [:label-values :confirmed :conflict-counts]
-    (let [n-pending (count (project-include-label-conflicts project-id))
-          n-resolved (count (project-include-label-resolved project-id))
-          n-total (+ n-pending n-resolved)]
-      {:total n-total
-       :pending n-pending
-       :resolved n-resolved})))
-
-(defn project-label-counts [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-label-counts]
-    (let [labels (project-include-labels project-id)
-          pending (project-include-label-conflicts project-id)
-          resolved (project-include-label-resolved project-id)
-          status (->> labels
-                      (map (fn [[aid labels]]
-                             (let [n-users (count labels)]
-                               (cond (or (contains? pending aid)
-                                         (contains? resolved aid)) nil
-                                     (= n-users 1) :single
-                                     (= n-users 2) :double
-                                     (> n-users 2) :multi)))))]
-      {:any (count labels)
-       :single (->> status (filter #(= % :single)) count)
-       :double (->> status (filter #(= % :double)) count)
-       :multi (->> status (filter #(= % :multi)) count)})))
-
-(defn project-label-value-counts
-  "Returns counts of all possible values for each label. `nil` values are
-  counted when the user has set a value for at least one label on the article."
-  [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :label-value-counts]
-    (let [entries
-          (->>
-           (-> (q/select-project-articles
-                project-id [:al.article-id :l.label-id :al.user-id :al.answer])
-               (q/join-article-labels)
-               (q/join-article-label-defs)
-               (q/filter-valid-article-label true)
-               do-query)
-           (group-by :user-id)
-           (map-values
-            (fn [uentries]
-              (->> (group-by :article-id uentries)
-                   (map-values
-                    #(map-values (comp first (partial map :answer))
-                                 (group-by :label-id %)))))))
-          user-articles (->> (keys entries)
-                             (map
-                              (fn [user-id]
-                                (map (fn [article-id]
-                                       [user-id article-id])
-                                     (keys (get entries user-id)))))
-                             (apply concat))
-          label-ids (keys (project-labels project-id))
-          ual-answer
-          (fn [user-id article-id label-id]
-            (get-in entries [user-id article-id label-id]))
-          value-count
-          (fn [label-id value]
-            (->> user-articles
-                 (filter
-                  (fn [[user-id article-id]]
-                    (let [answer (ual-answer
-                                  user-id article-id label-id)]
-                      (if (sequential? answer)
-                        (in? answer value)
-                        (= answer value)))))
-                 count))]
-      (->> label-ids
-           (map
-            (fn [label-id]
-              (let [lvalues
-                    (conj (labels/label-possible-values label-id) nil)]
-                {label-id
-                 (->>
-                  lvalues
-                  (map
-                   (fn [value]
-                     {(pr-str value)
-                      (value-count label-id value)}))
-                  (apply merge))})))
-           (apply merge)))))
-
-(defn project-inclusion-value-counts
-  "Returns counts of [true, false, unknown] inclusion values for each label.
-  true/false can be counted by the labels saved by all users.
-  'unknown' values are counted when the user has set a value for at least one
-  label on the article."
-  [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :inclusion-value-counts]
-    (let [entries
-          (->>
-           (-> (q/select-project-articles
-                project-id [:al.article-id :l.label-id :al.user-id :al.inclusion])
-               (q/join-article-labels)
-               (q/join-article-label-defs)
-               (q/filter-valid-article-label true)
-               do-query)
-           (group-by :user-id)
-           (map-values
-            (fn [uentries]
-              (->> (group-by :article-id uentries)
-                   (map-values
-                    #(map-values (comp first (partial map :inclusion))
-                                 (group-by :label-id %)))))))
-          user-articles (->> (keys entries)
-                             (map
-                              (fn [user-id]
-                                (map (fn [article-id]
-                                       [user-id article-id])
-                                     (keys (get entries user-id)))))
-                             (apply concat))
-          label-ids (keys (project-labels project-id))
-          ual-inclusion
-          (fn [user-id article-id label-id]
-            (get-in entries [user-id article-id label-id]))
-          inclusion-count
-          (fn [label-id inclusion]
-            (->> user-articles
-                 (filter
-                  (fn [[user-id article-id]]
-                    (= inclusion (ual-inclusion
-                                  user-id article-id label-id))))
-                 count))]
-      (->> label-ids
-           (map
-            (fn [label-id]
-              [label-id
-               {"true" (inclusion-count label-id true)
-                "false" (inclusion-count label-id false)
-                "nil" (inclusion-count label-id nil)}]))
-           (apply concat)
-           (apply hash-map)))))
+    project-id [:public-labels :status-counts]
+    (let [articles (labels/query-public-article-labels project-id)
+          overall-id (project/project-overall-label-id project-id)]
+      (when overall-id
+        (let [status-vals
+              (->> (vals articles)
+                   (map
+                    (fn [article]
+                      (let [labels (get-in article [:labels overall-id])
+                            group-status
+                            (cond (is-single? labels)     :single
+                                  (is-resolved? labels)   :resolved
+                                  (is-conflict? labels)   :conflict
+                                  :else                   :consistent)
+                            inclusion-status
+                            (case group-status
+                              :conflict nil,
+                              :resolved (->> labels (filter :resolve) (map :inclusion) first),
+                              (->> labels (map :inclusion) first))]
+                        [group-status inclusion-status]))))]
+          (merge
+           {:reviewed (count articles)}
+           (->> (distinct status-vals)
+                (map (fn [status]
+                       [status (->> status-vals (filter (partial = status)) count)]))
+                (apply concat)
+                (apply hash-map))))))))
 
 (defn project-info [project-id]
-  (let [[fields predict articles labels inclusion-values label-values
-         conflicts members users keywords notes settings files]
+  (let [[fields predict articles status-counts members
+         users keywords notes settings files]
         (pvalues (q/query-project-by-id project-id [:*])
                  (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
-                 (project-label-counts project-id)
-                 (project-inclusion-value-counts project-id)
-                 (project-label-value-counts project-id)
-                 (project-conflict-counts project-id)
+                 (project-article-status-counts project-id)
                  (project-members-info project-id)
                  (project-users-info project-id)
                  (project-keywords project-id)
@@ -496,10 +387,7 @@
                :project-uuid (:project-uuid fields)
                :members members
                :stats {:articles articles
-                       :labels labels
-                       :inclusion-values inclusion-values
-                       :label-values label-values
-                       :conflicts conflicts
+                       :status-counts status-counts
                        :predict predict}
                :labels (project-labels project-id)
                :keywords keywords

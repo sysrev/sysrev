@@ -9,6 +9,8 @@
     [selection-dropdown with-ui-help-tooltip ui-help-icon updated-time-label]]
    [sysrev.views.article :refer [article-info-view]]
    [sysrev.views.article-list :as al]
+   [sysrev.shared.article-list :refer
+    [is-resolved? is-consistent? is-single? is-conflict?]]
    [sysrev.subs.ui :refer [get-panel-field]]
    [sysrev.routes :refer [nav nav-scroll-top]]
    [sysrev.util :refer [nbsp full-size? number-to-word time-from-epoch]]
@@ -38,7 +40,7 @@
   false)
 
 (defmethod al/list-header-tooltip panel []
-  ["Public listing of articles reviewed by multiple users"
+  ["Public listing of labeled articles"
    [:div.ui.divider]
    "Articles are hidden for 4 hours after any edit to labels"])
 
@@ -75,14 +77,16 @@
 
 (defmethod al/render-article-entry panel
   [_ article full-size?]
-  (let [label-id @(subscribe [:article-list/filter-value :label-id panel])
+  (let [;; label-id @(subscribe [:article-list/filter-value :label-id panel])
+        overall-id @(subscribe [:project/overall-label-id])
         {:keys [article-id title labels updated-time]} article
-        labels (get labels label-id)
+        ;; active-labels (get labels label-id)
+        overall-labels (get labels overall-id)
         answer-class
         (cond
-          (al/is-resolved? labels) "resolved"
-          (al/is-consistent? labels) "consistent"
-          (al/is-single? labels) "single"
+          (is-resolved? overall-labels) "resolved"
+          (is-consistent? overall-labels) "consistent"
+          (is-single? overall-labels) "single"
           :else "conflict")]
     (if full-size?
       ;; non-mobile view
@@ -101,7 +105,7 @@
        [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
         {:class answer-class}
         [:div.ui.middle.aligned.grid>div.row>div.column
-         [answer-cell article-id labels answer-class]]]]
+         [answer-cell article-id overall-labels answer-class]]]]
       ;; mobile view
       [:div.ui.row
        [:div.ui.ten.wide.column.article-title
@@ -111,7 +115,7 @@
        [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
         {:class answer-class}
         [:div.ui.middle.aligned.grid>div.row>div.column
-         [answer-cell article-id labels answer-class]]]])))
+         [answer-cell article-id overall-labels answer-class]]]])))
 
 (reg-sub
  :public-labels/article-id
@@ -160,6 +164,12 @@
  [trim-v]
  (fn [_ [status]]
    {:dispatch [:article-list/set-filter-value :group-status status panel]}))
+
+(reg-event-fx
+ :public-labels/set-inclusion-status
+ [trim-v]
+ (fn [_ [status]]
+   {:dispatch [:article-list/set-filter-value :inclusion-status status panel]}))
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]

@@ -1,21 +1,23 @@
-  (ns sysrev.views.article-list
-   (:require
-    [clojure.spec.alpha :as s]
-    [clojure.string :as str]
-    [re-frame.core :as re-frame :refer
-     [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-      reg-event-db reg-event-fx reg-fx trim-v]]
-    [reagent.ratom :refer [reaction]]
-    [sysrev.views.article :refer [article-info-view]]
-    [sysrev.views.review :refer [label-editor-view]]
-    [sysrev.views.components :refer
-     [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
-    [sysrev.subs.ui :refer [get-panel-field]]
-    [sysrev.routes :refer [nav]]
-    [sysrev.shared.keywords :refer [canonical-keyword]]
-    [sysrev.util :refer [full-size? mobile? nbsp]]
-    [sysrev.shared.util :refer [in? map-values]])
-   (:require-macros [sysrev.macros :refer [with-loader]]))
+(ns sysrev.views.article-list
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [re-frame.core :as re-frame :refer
+    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+     reg-event-db reg-event-fx reg-fx trim-v]]
+   [reagent.ratom :refer [reaction]]
+   [sysrev.views.article :refer [article-info-view]]
+   [sysrev.views.review :refer [label-editor-view]]
+   [sysrev.views.components :refer
+    [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
+   [sysrev.subs.ui :refer [get-panel-field]]
+   [sysrev.routes :refer [nav]]
+   [sysrev.shared.keywords :refer [canonical-keyword]]
+   [sysrev.shared.article-list :refer
+    [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
+   [sysrev.util :refer [full-size? mobile? nbsp]]
+   [sysrev.shared.util :refer [in? map-values]])
+  (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
 (defmulti panel-base-uri (fn [panel] panel))
@@ -34,21 +36,7 @@
 (def ^:private display-count 10)
 
 (def group-statuses
-  [#_ :single :consistent :conflict :resolved])
-
-(defn is-resolved? [labels]
-  (boolean (some :resolve labels)))
-(defn resolved-answer [labels]
-  (->> labels (filter :resolve) first))
-(defn is-conflict? [labels]
-  (and (not (is-resolved? labels))
-       (< 1 (count (->> labels (map :inclusion) distinct)))))
-(defn is-single? [labels]
-  (= 1 (count labels)))
-(defn is-consistent? [labels]
-  (and (not (is-single? labels))
-       (not (is-resolved? labels))
-       (not (is-conflict? labels))))
+  [:single :determined :conflict :consistent :resolved])
 
 (defn- search-text-filter [input]
   (if (empty? input)
@@ -71,13 +59,16 @@
     :resolved is-resolved?
     :consistent is-consistent?
     :single is-single?
+    :determined (some-fn is-consistent? is-resolved?)
     (constantly true)))
 
 (defn- inclusion-status-filter [status group-status]
   (if (nil? status)
     (constantly true)
     (fn [entries]
-      (let [entries (if (= group-status :resolved)
+      (let [entries (if (or (= group-status :resolved)
+                            (and (= group-status :determined)
+                                 (is-resolved? entries)))
                       (filter :resolve entries)
                       entries)
             inclusion (->> entries (map :inclusion) distinct)]
@@ -87,7 +78,9 @@
   (if (nil? value)
     (constantly true)
     (fn [entries]
-      (let [entries (if (= group-status :resolved)
+      (let [entries (if (or (= group-status :resolved)
+                            (and (= group-status :determined)
+                                 (is-resolved? entries)))
                       (filter :resolve entries)
                       entries)
             answers (->> entries
@@ -468,7 +461,9 @@
         group-status-field
         (fn [width]
           [render-field width group-status-selector "Group Status"
-           ["Filter by group agreement on article inclusion status"]])
+           ["Filter by group agreement on article inclusion status"
+            [:div.ui.divider]
+            "'Determined' matches both 'Consistent' and 'Resolved'"]])
 
         answer-value-field
         (fn [width disable?]

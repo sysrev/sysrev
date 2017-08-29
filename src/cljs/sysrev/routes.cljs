@@ -13,11 +13,19 @@
                    [sysrev.macros :refer [sr-defroute]]))
 
 (defn- go-project-panel [uri]
-  (when (not= @(subscribe [:active-panel])
-              [:project :project :overview])
-    (dispatch [:reload [:project]]))
-  (dispatch [:set-active-panel [:project :project :overview]
-             uri]))
+  (let [panel [:project :project :overview]]
+    (cond (nil? @(subscribe [:self/user-id]))
+          (dispatch [:set-active-panel panel uri])
+
+          (= @(subscribe [:active-panel]) panel)
+          (dispatch [:set-active-panel panel uri])
+
+          :else
+          (do (dispatch
+               [:data/after-load [:project] :project-route
+                [:set-active-panel panel uri]])
+              (dispatch [:reload [:project]])
+              (dispatch [:require [:project]])))))
 
 (sr-defroute
  home "/" []

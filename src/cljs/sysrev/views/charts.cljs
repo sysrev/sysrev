@@ -104,6 +104,8 @@
                 :datasets [dataset]}
          :options
          {:legend
+          {:display false}
+          #_
           {:labels {:boxWidth 30
                     :fontSize 13
                     :padding 8
