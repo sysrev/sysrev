@@ -41,9 +41,9 @@
 
                          (and (not have-data#) dimmer#)
                          "ui segment dimmer-segment")}
-      (when dimmer-active#
+      (when (or dimmer-active# (= dimmer# :fixed))
         [:div.ui.inverted.dimmer
-         {:class "active"}
+         {:class (when dimmer-active# "active")}
          [:div.ui.loader]])
       (cond (and dimmer-active# have-data#)
             [:div {:style {:visibility "hidden"}}

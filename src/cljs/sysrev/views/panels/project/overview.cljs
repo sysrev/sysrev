@@ -77,35 +77,36 @@
      [:div.ui.grey.segment
       [:h4.ui.center.aligned.dividing.header
        (str reviewed " articles reviewed of " total " total")]
-      [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
-       [:div.row
-        [:div.column
-         [chart-container pie-chart
-          [["Include (Full)"
-            (+ (scount [:consistent true])
-               (scount [:resolved true]))
-            (:green colors)]
-           ["Include (Partial)"
-            (scount [:single true])
-            (:dim-green colors)]
-           ["Exclude (Full)"
-            (+ (scount [:consistent false])
-               (scount [:resolved false]))
-            (:orange colors)]
-           ["Exclude (Partial)"
-            (scount [:single false])
-            (:dim-orange colors)]
-           ["Conflicting"
-            (scount [:conflict nil])
-            (:red colors)]]
-          #(nav-article-status
-            (nth [[true :determined]
-                  [true :single]
-                  [false :determined]
-                  [false :single]
-                  [nil :conflict]] %))]]
-        [:div.column.pie-chart
-         [label-status-help-column colors]]]]]]))
+      (with-loader [[:project]] {:dimmer :fixed}
+        [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
+         [:div.row
+          [:div.column.pie-chart
+           [chart-container pie-chart
+            [["Include (Full)"
+              (+ (scount [:consistent true])
+                 (scount [:resolved true]))
+              (:green colors)]
+             ["Include (Partial)"
+              (scount [:single true])
+              (:dim-green colors)]
+             ["Exclude (Full)"
+              (+ (scount [:consistent false])
+                 (scount [:resolved false]))
+              (:orange colors)]
+             ["Exclude (Partial)"
+              (scount [:single false])
+              (:dim-orange colors)]
+             ["Conflicting"
+              (scount [:conflict nil])
+              (:red colors)]]
+            #(nav-article-status
+              (nth [[true :determined]
+                    [true :single]
+                    [false :determined]
+                    [false :single]
+                    [nil :conflict]] %))]]
+          [:div.column.pie-chart-help
+           [label-status-help-column colors]]]])]]))
 
 (def file-types {"doc" "word"
                  "docx" "word"
