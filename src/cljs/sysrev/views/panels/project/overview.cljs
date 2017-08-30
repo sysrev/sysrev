@@ -155,7 +155,7 @@
             (pull-files [] (dispatch [:fetch [:project/files]]))]
       (fn []
         [:div.ui.grey.segment.project-files
-         [:h4.header "Project documents"]
+         [:h4.header "Project Documents"]
          [:div.ui.middle.aligned.celled.list
           (doall
            (concat
@@ -204,9 +204,9 @@
   [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
     [:div.ui.column
-     [project-summary-box]
-     [project-files-box]]
+     [project-summary-box]]
     [:div.ui.column
+     [project-files-box]
      #_ [user-summary-chart]]]])
 
 (defmethod panel-content [:project :project :overview] []
