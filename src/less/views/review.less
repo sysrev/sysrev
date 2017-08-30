@@ -20,14 +20,30 @@ div.ui.grid.label-editor-buttons-view .column > .ui.grid > .row {
     width: 25px;
 }
 
+.row.label-edit-name div.clear {
+    clear: both;
+    width: 100%;
+}
+
 .row.label-edit-name span.name {
     margin-left: auto;
     margin-right: auto;
+    font-size: 13px;
 }
 
+.row.label-edit-name span.name.small-text {
+    font-size: 11px;
+}
+
+.row.label-edit-name i.grey.circle.question.mark.icon {
+    font-size: 13px;
+}
+
+/*
 .row.label-edit-name span.name span.inner {
     margin-left: -25px;
 }
+*/
 
 .ui.buttons.three-state .ui.button {
     padding-top: 0.6em;
@@ -95,8 +111,8 @@ div.ui.grid.label-editor-buttons-view .column > .ui.grid > .row {
 .ui.column.label-edit .ui.label.input-remove .ui.button {
     padding-left: 0.5em;
     padding-right: 0.5em;
-    padding-top: 0.5em;
-    padding-bottom: 0.5em;
+    padding-top: 0.75em;
+    padding-bottom: 0.75em;
     margin: 0;
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
@@ -126,8 +142,8 @@ div.ui.segment.labels-warning .ui.message {
 .ui.column.label-edit input {
     padding-left: 0.6em;
     padding-right: 0.6em;
-    padding-top: 0.4em;
-    padding-bottom: 0.4em;
+    padding-top: 0.6em;
+    padding-bottom: 0.6em;
 }
 
 .ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category div.inner {
@@ -153,5 +169,18 @@ div.ui.segment.labels-warning .ui.message {
     .ui.grid.label-editor-buttons-view > .row > .four.wide.column {
         padding-left: 0.5em;
         padding-right: 0.5em;
+    }
+
+    .row.label-edit-name span.name {
+        font-size: 11px;
+    }
+
+    .row.label-edit-name span.name.small-text {
+        font-size: 10px;
+    }
+
+    .row.label-edit-name i {
+        font-size: 15px;
+        width: 22px;
     }
 }

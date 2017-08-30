@@ -151,7 +151,9 @@
                   vs))
               current-values @(subscribe [:review/active-labels article-id label-id])
               dom-id (str "label-edit-" article-id "-" label-id)
-              dropdown-class (if (or (desktop-size?) (>= (count all-values) 25))
+              dropdown-class (if (or (and (>= (count all-values) 25)
+                                          (desktop-size?))
+                                     (>= (count all-values) 40))
                                "search dropdown" "dropdown")]
           [:div.ui.fluid.multiple.selection
            {:id dom-id
@@ -216,7 +218,7 @@
                    " ")}
                  (when left-action?
                    [:div.ui.label.input-remove
-                    [:div.ui.button
+                    [:div.ui.icon.button
                      {:class (if (and (= i 0)
                                       (= nvals 1)
                                       (empty? val)) "disabled" "")
@@ -244,22 +246,26 @@
                     [:i.fitted.plus.icon]])]]])))))])))
 
 (defn- inclusion-tag [article-id label-id]
-  (if @(subscribe [:label/inclusion-criteria? label-id])
-    (let [answer @(subscribe [:review/active-labels article-id label-id])
-          inclusion @(subscribe [:label/answer-inclusion label-id answer])
-          color (case inclusion
-                  true   "green"
-                  false  "orange"
-                  nil    "grey")
-          iclass (case inclusion
-                   true   "circle plus icon"
-                   false  "circle minus icon"
-                   nil    "circle outline icon")]
-      [:i.left.floated.fitted {:class (str color " " iclass)}])
-    [:i.left.floated.fitted {:class "grey content icon"}]))
+  (let [criteria? @(subscribe [:label/inclusion-criteria? label-id])
+        answer @(subscribe [:review/active-labels article-id label-id])
+        inclusion @(subscribe [:label/answer-inclusion label-id answer])
+        boolean-label? @(subscribe [:label/boolean? label-id])
+        color (case inclusion
+                true   "green"
+                false  "orange"
+                nil    "grey")
+        iclass (case inclusion
+                 true   "circle plus icon"
+                 false  "circle minus icon"
+                 nil    "circle outline icon")]
+    (if criteria?
+      [:i.left.floated.fitted {:class (str color " " iclass)}]
+      [:i.left.floated.fitted {:class "grey content icon"
+                               :style {} #_ (when-not boolean-label?
+                                              {:visibility "hidden"})}])))
 
 (defn- label-help-popup [label-id]
-  (when (full-size?)
+  (when (or true (full-size?))
     (let [criteria? @(subscribe [:label/inclusion-criteria? label-id])
           required? @(subscribe [:label/required? label-id])
           question @(subscribe [:label/question label-id])
@@ -300,16 +306,30 @@
 ;; Component for label column in inputs grid
 (defn- label-column [article-id label-id]
   (let [value-type @(subscribe [:label/value-type label-id])
-        label-css-class @(subscribe [::label-css-class article-id label-id])]
+        label-css-class @(subscribe [::label-css-class article-id label-id])
+        label-string @(subscribe [:label/display label-id])
+        question @(subscribe [:label/question label-id])]
     ^{:key {:article-label [article-id label-id]}}
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
       [with-tooltip
-       [:div.ui.row.label-edit-name
-        [inclusion-tag article-id label-id]
-        [:span.name
-         [:span.inner
-          (str @(subscribe [:label/display label-id]) "?")]]]
+       (let [name-content
+             [:span.name
+              {:class (when (>= (count label-string) 30)
+                        "small-text")}
+              [:span.inner label-string]]]
+         (if (and (mobile?) (>= (count label-string) 30))
+           [:div.ui.row.label-edit-name
+            [inclusion-tag article-id label-id]
+            [:span.name " "]
+            (when (not-empty question)
+              [:i.right.floated.fitted.grey.circle.question.mark.icon])
+            [:div.clear name-content]]
+           [:div.ui.row.label-edit-name
+            [inclusion-tag article-id label-id]
+            name-content
+            (when (not-empty question)
+              [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
        {:delay {:show 400, :hide 0}
         :hoverable false
         :transition "fade up"

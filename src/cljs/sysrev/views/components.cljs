@@ -241,8 +241,9 @@
             :style {:margin-left "0.25em"
                     :margin-right "0"}}])]))
 
-(defn ui-help-icon [& {:keys [size] :or {size "large"}}]
-  [:i.ui.grey.circle.question.mark.icon {:class size}])
+(defn ui-help-icon [& {:keys [size class style] :or {size "large"}}]
+  [:i.ui.grey.circle.question.mark.icon {:class (str size " " (or class ""))
+                                         :style style}])
 
 (defn with-ui-help-tooltip [element & {:keys [help-content help-element]}]
   (list

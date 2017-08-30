@@ -50,6 +50,19 @@
        :else 6)
      project-ordering]))
 
+(defn- alpha-label-ordering-key
+  "Sort key function for project label entries. Prioritize alphabetical
+   sorting for large numbers of labels."
+  [{:keys [required short-label value-type]}]
+  (let [required (if required 0 1)
+        value-type (case value-type
+                     "boolean" 0
+                     "categorical" 1
+                     "string" 2
+                     3)
+        string (str/lower-case short-label)]
+    [required string value-type]))
+
 ;; Use this to get a sequence of label-id in project, in a consistent
 ;; sorted order.
 (reg-sub
@@ -60,7 +73,9 @@
    ;; TODO: sort by display order
    (->> (vals labels)
         (filter #(or include-disabled? (:enabled %)))
-        (sort-by label-ordering-key <)
+        (#(if (>= (count %) 15)
+            (sort-by alpha-label-ordering-key < %)
+            (sort-by label-ordering-key < %)))
         (mapv :label-id))))
 
 (reg-sub
