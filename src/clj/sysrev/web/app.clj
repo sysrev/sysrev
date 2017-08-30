@@ -148,7 +148,8 @@
                 :type :member
                 :message "Not authorized (project)"}}
        
-       (not (every? (in? mperms#) ~mperms-required))
+       (and (not (every? (in? mperms#) ~mperms-required))
+            (not (in? uperms# "admin")))
        {:error {:status 403
                 :type :project
                 :message "Not authorized"}}
