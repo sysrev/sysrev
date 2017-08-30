@@ -98,14 +98,14 @@
     (with-loader [[:project]] {}
       (let [project-name @(subscribe [:project/name])
             admin? @(subscribe [:user/admin?])
-            project-ids @(subscribe [:user/project-ids])]
+            projects @(subscribe [:self/projects])]
         [:div
          [project-header
           project-name
           [:div
            [:a.ui.tiny.button
             {:on-click #(dispatch [:navigate [:select-project]])
-             :class (if (or admin? (< 1 (count project-ids)))
+             :class (if (or admin? (< 1 (count projects)))
                       "" "disabled")}
             "Change"]]]
          [:div.ui.bottom.attached.segment.project-segment
