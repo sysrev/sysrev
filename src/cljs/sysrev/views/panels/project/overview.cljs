@@ -5,7 +5,8 @@
     [subscribe dispatch reg-event-fx reg-sub trim-v]]
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
-   [sysrev.views.charts :refer [chart-container pie-chart]]
+   [sysrev.views.charts :refer [chart-container pie-chart bar-chart
+                                get-canvas-context]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.views.components :refer [with-ui-help-tooltip]]
@@ -13,7 +14,8 @@
    [sysrev.util :refer [full-size?]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
-   [sysrev.shared.util :refer [in?]])
+   [sysrev.shared.util :refer [in?]]
+   [clojure.string :as str])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn nav-article-status [[inclusion group-status]]
@@ -81,7 +83,7 @@
         [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
          [:div.row
           [:div.column.pie-chart
-           [chart-container pie-chart
+           [chart-container pie-chart nil
             [["Include (Full)"
               (+ (scount [:consistent true])
                  (scount [:resolved true]))
@@ -117,32 +119,29 @@
                  "tgz" "archive"
                  "zip" "archive"})
 
-(defn get-file-class [fname]
-  (get file-types (-> fname (.split ".") last) "text"))
+(defn- get-file-class [fname]
+  (get file-types (-> fname (str/split #"\.") last) "text"))
 
-(def send-file-url "/api/files/upload")
-
-(defn get-file-url [key name]
+(defn- get-file-url [key name]
   (str "/api/files/" key "/" name))
 
-
 (reg-sub
-  ::editing-files
-  (fn [[_ panel]]
-    [(subscribe [:panel-field [:editing] panel])])
-  (fn [[article-id]] article-id))
+ ::editing-files
+ (fn [[_ panel]]
+   [(subscribe [:panel-field [:editing] panel])])
+ (fn [[article-id]] article-id))
 
 (reg-event-fx
-  ::editing-files
-  [trim-v]
-  (fn [_ [value]]
-    {:dispatch [:set-panel-field [:editing] value]}))
+ ::editing-files
+ [trim-v]
+ (fn [_ [value]]
+   {:dispatch [:set-panel-field [:editing] value]}))
 
-(defn updater [panel-key f]
+(defn- updater [panel-key f]
   (let [v (subscribe [panel-key])]
     [v #(dispatch [panel-key (f @v)])]))
 
-(defn toggler [panel-key] (updater panel-key not))
+(defn- toggler [panel-key] (updater panel-key not))
 
 (defn project-files-box []
   (let [[editing-files toggle-editing] (toggler ::editing-files)
@@ -179,35 +178,100 @@
                    (:name file)]]])))
             (list [:div.item {:key "celled list filler"}])))
           [:div.upload-container
-           [upload-container basic-text-button send-file-url pull-files "Upload document"]
+           [upload-container
+            basic-text-button "/api/files/upload" pull-files "Upload document"]
            [:div.ui.right.floated.small.basic.icon.button
             {:on-click toggle-editing
              :class (when @editing-files "red")}
             [:i.ui.blue.pencil.icon]]]]]))))
 
-#_
 (defn user-summary-chart []
-  (let [user-ids @(subscribe [:project/member-user-ids])
-        users (mapv #(data [:users %]) user-ids)
-        user-articles (->> user-ids (mapv #(->> % (project :members) :articles)))
-        xs (mapv (fn [{:keys [email name]}] (or name (show-email email))) users)
-        includes (mapv #(-> % :includes count) user-articles)
-        excludes (mapv #(-> % :excludes count) user-articles)
+  (let [visible-user-ids (->> @(subscribe [:project/member-user-ids])
+                              (sort-by #(deref (subscribe [:member/article-count %])) >))
+        user-names (->> visible-user-ids
+                        (mapv #(deref (subscribe [:user/display %]))))
+        includes   (->> visible-user-ids
+                        (mapv #(deref (subscribe [:member/include-count %]))))
+        excludes   (->> visible-user-ids
+                        (mapv #(deref (subscribe [:member/exclude-count %]))))
         yss [includes excludes]
-        ynames ["include" "exclude"]]
+        ynames ["Include" "Exclude"]]
     [:div.ui.grey.segment
      [:h4.ui.dividing.header
-      "Member activity"]
-     [chart-container bar-chart xs ynames yss]]))
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column
+        "Member Activity"]]]
+     (with-loader [[:project]] {:dimmer :fixed}
+       [chart-container
+        bar-chart (str (+ 35 (* 15 (count visible-user-ids))) "px")
+        user-names ynames yss
+        ["rgba(33,186,69,0.55)"
+         "rgba(242,113,28,0.55)"]])]))
+
+(defn recent-progress-chart []
+  (let [font-color (if (= (:ui-theme @(subscribe [:self/settings]))
+                          "Dark")
+                     "#dddddd" "#222222")
+        progress (reverse @(subscribe [:project/progress-counts]))
+        n-total (-> @(subscribe [:project/article-counts]) :total)
+        make-chart
+        (fn [id xvals xlabels]
+          (let [context (get-canvas-context id)
+                xdiff (js/Math.abs (- (last xvals) (first xvals)))
+                chart-data
+                {:type "line"
+                 :data {:labels xlabels
+                        :datasets [{:fill "origin"
+                                    :backgroundColor "rgba(30,100,250,0.2)"
+                                    :lineTension 0
+                                    :data (vec xvals)}]}
+                 :options
+                 {:legend {:display false}
+                  :scales
+                  {:xAxes [{:ticks
+                            {:fontColor font-color
+                             :autoSkip true
+                             :callback
+                             (fn [value idx values]
+                               (if (or (= 0 (mod idx 5))
+                                       (= idx (dec (count values))))
+                                 value ""))}
+                            :scaleLabel {:fontColor font-color}}]
+                   :yAxes [{:scaleLabel {:display true
+                                         :labelString "Articles Completed"
+                                         :fontColor font-color}
+                            :ticks
+                            {:fontColor font-color
+                             :suggestedMin (max 0
+                                                (int (- (first xvals)
+                                                        (* xdiff 0.15))))
+                             :suggestedMax (min n-total
+                                                (int (+ (last xvals)
+                                                        (* xdiff 0.15))))}}]}
+                  :responsive true}}]
+            (js/Chart. context (clj->js chart-data))))]
+    [:div.ui.grey.segment
+     [:h4.ui.dividing.header
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column
+        "Recent Progress"]]]
+     (with-loader [[:project]] {:dimmer :fixed}
+       [chart-container
+        make-chart nil
+        (->> progress (mapv :completed)
+             #_ (mapv #(* 100.0 (/ % n-total))))
+        (->> progress (mapv :day)
+             (mapv #(->> (str/split % #"\-") (drop 1) (str/join "-"))))])]))
 
 (defn project-overview-panel []
   [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
     [:div.ui.column
-     [project-summary-box]]
+     [project-summary-box]
+     [recent-progress-chart]]
     [:div.ui.column
-     [project-files-box]
-     #_ [user-summary-chart]]]])
+     [user-summary-chart]
+     [project-files-box]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

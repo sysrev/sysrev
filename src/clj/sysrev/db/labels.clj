@@ -12,6 +12,7 @@
             [sysrev.db.articles :refer [query-article-by-id-full]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
+            [sysrev.shared.article-list :refer [is-consistent? is-resolved?]]
             [sysrev.util :refer [crypto-rand crypto-rand-nth]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -21,6 +22,7 @@
             [clojure.tools.logging :as log]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
+            [clj-time.format :as tf]
             [clojure.string :as str])
   (:import java.util.UUID))
 
@@ -715,6 +717,28 @@
                              :labels labels}])))
            (apply concat)
            (apply hash-map)))))
+
+(defn query-progress-over-time [project-id n-days]
+  (with-project-cache
+    project-id [:public-labels :progress n-days]
+    (let [overall-id (project-overall-label-id project-id)
+          articles (->> (vals (query-public-article-labels project-id))
+                        (filter
+                         (fn [article]
+                           (let [labels (get-in article [:labels overall-id])]
+                             (or (is-consistent? labels)
+                                 (is-resolved? labels))))))
+          now (tc/to-epoch (t/now))
+          day-seconds (* 60 60 24)
+          tformat (tf/formatters :year-month-day)]
+      (->> (range 0 n-days)
+           (mapv
+            (fn [day-idx]
+              (let [day-epoch (- now (* day-idx day-seconds))]
+                {:day (tf/unparse tformat (tc/from-long (* 1000 day-epoch)))
+                 :completed (->> articles
+                                 (filter #(< (:updated-time %) day-epoch))
+                                 count)})))))))
 
 (defn filter-recent-public-articles [articles exclude-hours]
   (if (nil? exclude-hours)

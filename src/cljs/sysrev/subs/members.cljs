@@ -72,3 +72,25 @@
  (fn [[project self-id] [_ user-id _]]
    (let [user-id (or user-id self-id)]
      (get-in project [:member-articles user-id]))))
+
+(reg-sub
+ :member/include-count
+ (fn [[_ user-id project-id]]
+   [(subscribe [::member user-id project-id])])
+ (fn [[member]]
+   (-> member :articles :includes count)))
+
+(reg-sub
+ :member/exclude-count
+ (fn [[_ user-id project-id]]
+   [(subscribe [::member user-id project-id])])
+ (fn [[member]]
+   (-> member :articles :excludes count)))
+
+(reg-sub
+ :member/article-count
+ (fn [[_ user-id project-id]]
+   [(subscribe [::member user-id project-id])])
+ (fn [[member]]
+   (+ (-> member :articles :includes count)
+      (-> member :articles :excludes count))))

@@ -103,7 +103,7 @@ node {
             withEnv(["SYSREV_HOST=isysrev-dev.ddns.net"]) {
               sh './jenkins/deploy'
             }
-            // sh './jenkins/clone-db-to-dev'
+            sh './jenkins/clone-db-to-dev'
             try {
               sh './jenkins/test-aws-dev-all'
               currentBuild.result = 'SUCCESS'

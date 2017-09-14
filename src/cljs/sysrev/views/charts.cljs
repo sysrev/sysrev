@@ -1,6 +1,7 @@
 (ns sysrev.views.charts
   (:require [cljsjs.chartjs]
             [reagent.core :as r]
+            [re-frame.core :refer [subscribe]]
             [sysrev.util :refer [random-id]]))
 
 (defn get-canvas-context
@@ -13,12 +14,16 @@
 
 (defn chart-container
   "Create reagent container to hold a chart. make-chart should be a function taking container-id and args."
-  [make-chart & args]
+  [make-chart height & args]
   (let [id (random-id)]
     (r/create-class
      {:reagent-render (fn [make-chart & args]
                         [:div
-                         [:canvas {:id id}]])
+                         [:canvas (merge
+                                   {:id id}
+                                   (when height
+                                     {:height height
+                                      :style {:height height}}))]])
       :component-will-update (fn [this [_ make-chart & args]]
                                (apply make-chart id args))
       :component-did-mount #(apply make-chart id args)
@@ -41,11 +46,11 @@
 
 (defn get-datasets
   ([ynames yss colors]
-   (->> (mapv vector series-colors ynames yss)
+   (->> (mapv vector colors ynames yss)
         (mapv (partial zipmap [:backgroundColor :label :data]))))
   ([ynames yss] (get-datasets ynames yss series-colors)))
 
-
+#_
 (defn line-chart
   "Creates a line chart function expecting an id to render into.
   Accepts any number of dataseries, should have equal numbers of labels and y values
@@ -75,15 +80,25 @@
                 :datasets (get-datasets ynames yss)}}]
     (js/Chart. context (clj->js chart-data))))
 
-
 (defn bar-chart
-  [id xs ynames yss]
+  [id xlabels ynames yss & [colors]]
   (let [context (get-canvas-context id)
-        datasets (->> (mapv vector series-colors ynames yss)
-                      (mapv (partial zipmap [:backgroundColor :label :data])))
-        chart-data {:type "bar"
-                    :data {:labels xs
-                           :datasets (get-datasets ynames yss)}}]
+        font-color (if (= (:ui-theme @(subscribe [:self/settings]))
+                          "Dark")
+                     "#dddddd" "#222222")
+        chart-data
+        {:type "horizontalBar"
+         :data {:labels xlabels
+                :datasets (->> (get-datasets ynames yss colors)
+                               (map #(merge % {:borderWidth 1})))}
+         :options {:scales
+                   {:xAxes [{:stacked true
+                             :ticks {:fontColor font-color}
+                             :scaleLabel {:fontColor font-color}}]
+                    :yAxes [{:stacked true
+                             :ticks {:fontColor font-color}
+                             :scaleLabel {:fontColor font-color}}]}
+                   :legend {:labels {:fontColor font-color}}}}]
     (js/Chart. context (clj->js chart-data))))
 
 (defn pie-chart

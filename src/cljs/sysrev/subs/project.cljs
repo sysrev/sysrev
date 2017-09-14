@@ -115,6 +115,13 @@
       :resolved resolved
       :conflict conflict})))
 
+(reg-sub
+ :project/progress-counts
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]]
+   (-> project :stats :progress)))
+
 (defn have-public-labels? [db]
   (let [project-id (active-project-id db)
         project (get-project-raw db project-id)]
