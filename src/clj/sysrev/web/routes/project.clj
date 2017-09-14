@@ -221,9 +221,9 @@
               exclude-hours (if (= :dev (:profile env))
                               nil 4)]
           {:result
-           (-> (labels/query-public-article-labels project-id)
-               (labels/filter-recent-public-articles exclude-hours)
-               (sr-transit/encode-public-labels))})))
+           (->> (labels/query-public-article-labels project-id)
+                (labels/filter-recent-public-articles project-id exclude-hours)
+                (sr-transit/encode-public-labels))})))
 
   (GET "/api/query-register-project" request
        (let [register-hash (-> request :params :register-hash)

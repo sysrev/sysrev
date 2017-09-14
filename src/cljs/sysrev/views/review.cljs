@@ -513,13 +513,7 @@
             [:div.ui.top.attached.header
              [:div.ui.two.column.middle.aligned.grid
               [:div.ui.left.aligned.column
-               [:h3
-                (if resolving? "Resolve Labels " "Edit Labels ")
-                [with-tooltip
-                 [:a {:on-click #(dispatch [:navigate [:project :project :labels]])}
-                  [:i.medium.grey.help.circle.icon]]]
-                [:div.ui.inverted.popup.top.left.transition.hidden
-                 "View label definitions"]]]
+               [:h3 (if resolving? "Resolve Labels" "Edit Labels")]]
               [:div.ui.right.aligned.column
                (when change-set?
                  [:div.ui.tiny.button

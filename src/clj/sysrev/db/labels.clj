@@ -726,8 +726,9 @@
                         (filter
                          (fn [article]
                            (let [labels (get-in article [:labels overall-id])]
-                             (or (is-consistent? labels)
-                                 (is-resolved? labels))))))
+                             (and labels
+                                  (or (is-consistent? labels)
+                                      (is-resolved? labels)))))))
           now (tc/to-epoch (t/now))
           day-seconds (* 60 60 24)
           tformat (tf/formatters :year-month-day)]
@@ -740,15 +741,18 @@
                                  (filter #(< (:updated-time %) day-epoch))
                                  count)})))))))
 
-(defn filter-recent-public-articles [articles exclude-hours]
+(defn filter-recent-public-articles [project-id exclude-hours articles]
   (if (nil? exclude-hours)
     articles
     (let [cutoff-epoch
           (tc/to-epoch (t/minus (tc/from-sql-date (sql-now))
-                                (t/hours exclude-hours)))]
+                                (t/hours exclude-hours)))
+          overall-id (project-overall-label-id project-id)]
       (->> (vec articles)
            (filter (fn [[article-id article]]
-                     (< (:updated-time article) cutoff-epoch)))
+                     (let [labels (get-in article [:labels overall-id])]
+                       (or (< (:updated-time article) cutoff-epoch)
+                           (and labels (is-resolved? labels))))))
            (apply concat)
            (apply hash-map)))))
 
