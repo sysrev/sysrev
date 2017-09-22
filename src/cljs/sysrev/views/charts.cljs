@@ -2,7 +2,17 @@
   (:require [cljsjs.chartjs]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
-            [sysrev.util :refer [random-id]]))
+            [sysrev.util :refer [random-id mobile?]]))
+
+(defn animate-duration []
+  (if (mobile?) 0 1000))
+
+(defn wrap-animate-options [options]
+  (let [duration (animate-duration)]
+    (merge-with merge options
+                {:animation {:duration duration}
+                 :hover {:animationDuration duration}
+                 :responsiveAnimationDuration duration})))
 
 (defn get-canvas-context
   "Lookup canvas context, expecting that canvas is the first child of the element with supplied id"
@@ -61,21 +71,22 @@
         chart-data
         {:type "line"
          :options
-         {:unitStepSize 10
-          :scales
-          {:yAxes [{:scaleLabel {:display true
-                                 :labelString "Value"}}]
-           :xAxes [{:display true
-                    :scaleLabel {:display true
-                                 :labelString "Confidence"}
-                    :ticks {:maxTicksLimit 20
-                            :autoSkip true
-                            ;; Don't show last, usually looks funky with distribution limit
-                            :callback (fn [value idx values]
-                                        (if (= idx (dec (count values)))
-                                          ""
-                                          value))}}]}
-          :responsive true}
+         (wrap-animate-options
+          {:unitStepSize 10
+           :scales
+           {:yAxes [{:scaleLabel {:display true
+                                  :labelString "Value"}}]
+            :xAxes [{:display true
+                     :scaleLabel {:display true
+                                  :labelString "Confidence"}
+                     :ticks {:maxTicksLimit 20
+                             :autoSkip true
+                             ;; Don't show last, usually looks funky with distribution limit
+                             :callback (fn [value idx values]
+                                         (if (= idx (dec (count values)))
+                                           ""
+                                           value))}}]}
+           :responsive true})
          :data {:labels xs
                 :datasets (get-datasets ynames yss)}}]
     (js/Chart. context (clj->js chart-data))))
@@ -91,14 +102,15 @@
          :data {:labels xlabels
                 :datasets (->> (get-datasets ynames yss colors)
                                (map #(merge % {:borderWidth 1})))}
-         :options {:scales
-                   {:xAxes [{:stacked true
-                             :ticks {:fontColor font-color}
-                             :scaleLabel {:fontColor font-color}}]
-                    :yAxes [{:stacked true
-                             :ticks {:fontColor font-color}
-                             :scaleLabel {:fontColor font-color}}]}
-                   :legend {:labels {:fontColor font-color}}}}]
+         :options (wrap-animate-options
+                   {:scales
+                    {:xAxes [{:stacked true
+                              :ticks {:fontColor font-color}
+                              :scaleLabel {:fontColor font-color}}]
+                     :yAxes [{:stacked true
+                              :ticks {:fontColor font-color}
+                              :scaleLabel {:fontColor font-color}}]}
+                    :legend {:labels {:fontColor font-color}}})}]
     (js/Chart. context (clj->js chart-data))))
 
 (defn pie-chart
@@ -118,27 +130,23 @@
          :data {:labels labels
                 :datasets [dataset]}
          :options
-         {:legend
-          {:display false}
-          #_
-          {:labels {:boxWidth 30
-                    :fontSize 13
-                    :padding 8
-                    :fontStyle (when on-click "bold")
-                    :fontFamily "Arial"
-                    :fontColor
-                    (when on-click
-                      "rgba(70, 140, 230, 0.8)")}
+         (wrap-animate-options
+          {:legend
+           {:display false}
+           #_
+           {:labels {:boxWidth 30
+                     :fontSize 13
+                     :padding 8
+                     :fontStyle (when on-click "bold")
+                     :fontFamily "Arial"
+                     :fontColor
+                     (when on-click
+                       "rgba(70, 140, 230, 0.8)")}}
            :onClick
            (when on-click
-             (fn [event item]
-               (when-let [idx (.-index item)]
-                 (on-click idx))))}
-          :onClick
-          (when on-click
-            (fn [event elts]
-              (let [elts (-> elts js->clj)]
-                (when (and (coll? elts) (not-empty elts))
-                  (when-let [idx (-> elts first (aget "_index"))]
-                    (on-click idx))))))}}]
+             (fn [event elts]
+               (let [elts (-> elts js->clj)]
+                 (when (and (coll? elts) (not-empty elts))
+                   (when-let [idx (-> elts first (aget "_index"))]
+                     (on-click idx))))))})}]
     (js/Chart. context (clj->js chart-data))))

@@ -6,7 +6,7 @@
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.charts :refer [chart-container pie-chart bar-chart
-                                get-canvas-context]]
+                                get-canvas-context wrap-animate-options]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.views.components :refer [with-ui-help-tooltip]]
@@ -226,29 +226,30 @@
                                     :lineTension 0
                                     :data (vec xvals)}]}
                  :options
-                 {:legend {:display false}
-                  :scales
-                  {:xAxes [{:ticks
-                            {:fontColor font-color
-                             :autoSkip true
-                             :callback
-                             (fn [value idx values]
-                               (if (or (= 0 (mod idx 5))
-                                       (= idx (dec (count values))))
-                                 value ""))}
-                            :scaleLabel {:fontColor font-color}}]
-                   :yAxes [{:scaleLabel {:display true
-                                         :labelString "Articles Completed"
-                                         :fontColor font-color}
-                            :ticks
-                            {:fontColor font-color
-                             :suggestedMin (max 0
-                                                (int (- (first xvals)
-                                                        (* xdiff 0.15))))
-                             :suggestedMax (min n-total
-                                                (int (+ (last xvals)
-                                                        (* xdiff 0.15))))}}]}
-                  :responsive true}}]
+                 (wrap-animate-options
+                  {:legend {:display false}
+                   :scales
+                   {:xAxes [{:ticks
+                             {:fontColor font-color
+                              :autoSkip true
+                              :callback
+                              (fn [value idx values]
+                                (if (or (= 0 (mod idx 5))
+                                        (= idx (dec (count values))))
+                                  value ""))}
+                             :scaleLabel {:fontColor font-color}}]
+                    :yAxes [{:scaleLabel {:display true
+                                          :labelString "Articles Completed"
+                                          :fontColor font-color}
+                             :ticks
+                             {:fontColor font-color
+                              :suggestedMin (max 0
+                                                 (int (- (first xvals)
+                                                         (* xdiff 0.15))))
+                              :suggestedMax (min n-total
+                                                 (int (+ (last xvals)
+                                                         (* xdiff 0.15))))}}]}
+                   :responsive true})}]
             (js/Chart. context (clj->js chart-data))))]
     [:div.ui.grey.segment
      [:h4.ui.dividing.header
