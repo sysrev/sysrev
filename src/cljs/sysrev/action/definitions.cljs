@@ -52,6 +52,35 @@
        (list [:ga-event "auth" "register_failure"]
              [:set-login-error-msg message])})))
 
+(def-action :auth/request-password-reset
+  :uri (fn [_] "/api/auth/request-password-reset")
+  :content (fn [email] {:email email})
+  :process
+  (fn [_ [email] {:keys [success] :as result}]
+    (if success
+      {:dispatch [:request-password-reset/sent? true]}
+      {:dispatch-n
+       (list [:request-password-reset/sent? false]
+             [:request-password-reset/error
+              "No account found for this email address."])})))
+
+(def-action :auth/reset-password
+  :uri (fn [_] "/api/auth/reset-password")
+  :content (fn [{:keys [reset-code password] :as args}]
+             args)
+  :process
+  (fn [_ _ {:keys [success message] :as result}]
+    (if success
+      {:dispatch-n
+       (list [:ga-event "auth" "password_reset_success"]
+             [:reset-password/success? true])
+       :dispatch-later
+       [{:ms 2000 :dispatch [:navigate [:login]]}]}
+      {:dispatch-n
+       (list [:ga-event "error" "password_reset_failure"]
+             [:reset-password/error
+              (or message "Request failed")])})))
+
 (def-action :dev/clear-query-cache
   :uri (fn [] "/api/clear-query-cache")
   :process

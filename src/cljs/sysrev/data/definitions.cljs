@@ -12,7 +12,8 @@
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.shared.transit :as sr-transit]
    [sysrev.shared.util :refer [in?]]
-   [sysrev.views.panels.login :refer [have-register-project?]]))
+   [sysrev.views.panels.login :refer [have-register-project?]]
+   [sysrev.views.panels.password-reset :refer [have-reset-code?]]))
 
 ;;
 ;; Definitions for all data items fetched from server
@@ -110,3 +111,15 @@
     {:dispatch-n
      (list [:register/project-id register-hash (:project-id project)]
            [:register/project-name register-hash (:name project)])}))
+
+(def-data :password-reset
+  :loaded-p have-reset-code?
+  :uri (fn [_] "/api/auth/lookup-reset-code")
+  :prereqs (fn [_] nil)
+  :content (fn [reset-code] {:reset-code reset-code})
+  :process
+  (fn [_ [reset-code] {:keys [email]}]
+    (when email
+      {:dispatch-n
+       (list [:reset-password/reset-code reset-code]
+             [:reset-password/email email])})))

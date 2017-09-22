@@ -162,7 +162,8 @@
  reset-password "/reset-password/:reset-code" [reset-code]
  (dispatch [:set-active-panel [:reset-password]
             (str "/reset-password/" reset-code)])
- (dispatch [:reset-password/reset-code reset-code]))
+ (dispatch [:reset-password/reset-code reset-code])
+ (dispatch [:fetch [:password-reset reset-code]]))
 
 (sr-defroute
  select-project "/select-project" []
@@ -213,6 +214,9 @@
 
         [[:login]
          "/login"]
+
+        [[:request-password-reset]
+         "/request-password-reset"]
 
         [[:select-project]
          "/select-project"]

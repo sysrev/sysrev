@@ -37,7 +37,7 @@
   (if @(subscribe [:self/logged-in?])
     [render-panel-tree @(subscribe [:active-panel])]
     [:div {:id "logged-out"}
-     [logged-out-content]]))
+     [logged-out-content @(subscribe [:active-panel])]]))
 
 (defn notifier [entry]
   [:div])
