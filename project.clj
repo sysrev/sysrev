@@ -74,8 +74,8 @@
                  ;; [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]
                  [com.andrewmcveigh/cljs-time "0.5.0"]]
   :min-lein-version "2.6.1"
-  :jvm-opts ["-Xms800m"
-             "-Xmx1500m"
+  :jvm-opts ["-Xms200m"
+             "-Xmx400m"
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
@@ -137,7 +137,12 @@
   :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]
              :config-files ["eastwood.clj"]}
   :profiles {:prod
-             {:resource-paths ["config/prod"]
+             {:jvm-opts ["-Xms800m"
+                         "-Xmx1500m"
+                         "-server"
+                         "-XX:+TieredCompilation"
+                         "-XX:+AggressiveOpts"]
+              :resource-paths ["config/prod"]
               :main sysrev.web-main
               :aot [sysrev.web-main]}
              :test-browser
@@ -155,7 +160,12 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
+             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
+                         "-Xms250m"
+                         "-Xmx500m"
+                         "-server"
+                         "-XX:+TieredCompilation"
+                         "-XX:+AggressiveOpts"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
@@ -193,6 +203,13 @@
                      :eastwood-exclude-linters
                      [:unlimited-use :unused-ret-vals :constant-test]
                      :eastwood-options {:config-files ["eastwood.clj"]}}}}
+             :figwheel
+             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
+                         "-Xms150m"
+                         "-Xmx300m"
+                         "-server"
+                         "-XX:+TieredCompilation"
+                         "-XX:+AggressiveOpts"]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
