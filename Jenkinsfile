@@ -18,30 +18,57 @@ node {
   
   def sendFlowdockMsgFull = {
     msg,status,color ->
-      cmd = "./scripts/flowdock-msg pipeline"
-      cmd += " -j sysrev"
-      cmd += " -b ${branch}"
-      cmd += " -n ${env.BUILD_NUMBER}"
-      cmd += " -m '${msg}'"
-      if (currentBuild.result != null) {
-        cmd += " -r ${currentBuild.result}"
+    cmd = "./scripts/flowdock-msg pipeline"
+    cmd += " -j sysrev"
+    cmd += " -b ${branch}"
+    cmd += " -n ${env.BUILD_NUMBER}"
+    cmd += " -m '${msg}'"
+    if (currentBuild.result != null) {
+      cmd += " -r ${currentBuild.result}"
+    }
+    if (status != null) {
+      cmd += " -s ${status}"
+    }
+    if (color != null) {
+      cmd += " -c ${color}"
+    }
+    try {
+      sh (cmd)
+    } catch (exc) {
+      echo "sendFlowdockMsgFull failed"
+    }
+  }
+
+  def sendSlackMsgFull = {
+    msg,color ->
+    if (color == 'blue') {
+      colorVal = '#4071bf'
+    } else if (color != null) {
+      colorVal = color
+    } else {
+      if (currentBuild.result == 'FAILURE') {
+        colorVal = 'danger'
+      } else if (currentBuild.result == 'UNSTABLE') {
+        colorVal = 'warning'
+      } else if (currentBuild.result == 'SUCCESS') {
+        colorVal = 'good'
       }
-      if (status != null) {
-        cmd += " -s ${status}"
-      }
-      if (color != null) {
-        cmd += " -c ${color}"
-      }
-      try {
-        sh (cmd)
-      } catch (exc) {
-        echo "sendFlowdockMsgFull failed"
-      }
+    }
+    if (colorVal != null) {
+      slackSend channel: 'sysrev', color: colorVal, message: msg
+    } else {
+      slackSend channel: 'sysrev', message: msg
+    }
   }
 
   def sendFlowdockMsg = {
     msg ->
-      sendFlowdockMsgFull (msg, null, null)
+    sendFlowdockMsgFull (msg, null, null)
+  }
+
+  def sendSlackMsg = {
+    msg ->
+    sendSlackMsgFull (msg, null)
   }
   
   stage('Init') {
@@ -49,12 +76,14 @@ node {
     echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
     echo "BRANCH_NAME = ${env.BRANCH_NAME}"
     sendFlowdockMsg ('Build started')
+    sendSlackMsgFull ('Build started','blue')
     echo 'Setting up workspace...'
     try {
       sh './jenkins/init'
     } catch (exc) {
       currentBuild.result = 'FAILURE'
       sendFlowdockMsg ('Init stage failed')
+      sendSlackMsg ('Init stage failed')
       throw exc
     }
   }
@@ -69,10 +98,12 @@ node {
           sendFlowdockMsgFull ('Tests passed','running','blue')
         } else {
           sendFlowdockMsg ('Tests passed')
+          sendSlackMsg ('Tests passed')
         }
       } catch (exc) {
         currentBuild.result = 'UNSTABLE'
         sendFlowdockMsg ('Tests failed')
+        sendSlackMsg ('Tests failed')
         sh 'cat target/junit-all.xml'
       } finally {
         junit 'target/junit-all.xml'
@@ -89,6 +120,7 @@ node {
         } catch (exc) {
           currentBuild.result = 'FAILURE'
           sendFlowdockMsg ('Build stage failed')
+          sendSlackMsg ('Build stage failed')
           throw exc
         }
       }
@@ -122,6 +154,7 @@ node {
           }
           if (currentBuild.result == 'UNSTABLE') {
             sendFlowdockMsg ('PreDeployTest failed')
+            sendSlackMsg ('PreDeployTest failed')
           }
         }
       }
@@ -155,8 +188,10 @@ node {
         } finally {
           if (currentBuild.result == 'SUCCESS') {
             sendFlowdockMsg ('Deployed to AWS')
+            sendSlackMsg ('Deployed to AWS')
           } else {
             sendFlowdockMsg ('Deploy failed')
+            sendSlackMsg ('Deploy failed')
           }
         }
       }
@@ -172,6 +207,7 @@ node {
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
           sendFlowdockMsg ('GitPublish failed')
+          sendSlackMsg ('GitPublish failed')
         }
       }
     }
@@ -192,6 +228,7 @@ node {
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
           sendFlowdockMsg ('PostDeployTest failed')
+          sendSlackMsg ('PostDeployTest failed')
           sh 'cat target/junit-browser.xml'
         } finally {
           junit 'target/junit-browser.xml'
