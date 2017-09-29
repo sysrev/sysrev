@@ -103,31 +103,46 @@
     (-> pmid fetch-pmid-xml parse-pmid-xml)
     (catch Throwable e
       (println (format "exception in (fetch-pmid-entry %s)" pmid))
-      (println (.getMessage e)))))
+      (println (.getMessage e))
+      nil)))
+
+(defn add-article [article project-id]
+  (try
+    (articles/add-article article project-id)
+    (catch Throwable e
+      (println "exception in add-format")
+      (println "article:")
+      (println (pr-str article))
+      (println "error:")
+      (println (.getMessage e))
+      nil)))
 
 (defn import-pmids-to-project
   "Imports into project all articles referenced in list of PubMed IDs."
   [pmids project-id]
   (try
     (doseq [pmid pmids]
-      ;; skip article if already loaded in project
-      (when-not (project/project-contains-public-id (str pmid) project-id)
-        (log/info "importing project article #"
-                  (project/project-article-count project-id))
-        (when-let [article (fetch-pmid-entry pmid)]
-          (doseq [[k v] article]
-            (when (or (nil? v)
-                      (and (coll? v) (empty? v)))
-              (log/debug (format "* field `%s` is empty" (pr-str k)))))
-          (when-let [article-id (articles/add-article
-                                 (dissoc article :locations)
-                                 project-id)]
-            (when (not-empty (:locations article))
-              (-> (sqlh/insert-into :article-location)
-                  (values
-                   (->> (:locations article)
-                        (mapv #(assoc % :article-id article-id))))
-                  do-execute))))))
+      (try
+        ;; skip article if already loaded in project
+        (when-not (project/project-contains-public-id (str pmid) project-id)
+          (log/info "importing project article #"
+                    (project/project-article-count project-id))
+          (when-let [article (fetch-pmid-entry pmid)]
+            (doseq [[k v] article]
+              (when (or (nil? v)
+                        (and (coll? v) (empty? v)))
+                (log/debug (format "* field `%s` is empty" (pr-str k)))))
+            (when-let [article-id (add-article
+                                   (dissoc article :locations)
+                                   project-id)]
+              (when (not-empty (:locations article))
+                (-> (sqlh/insert-into :article-location)
+                    (values
+                     (->> (:locations article)
+                          (mapv #(assoc % :article-id article-id))))
+                    do-execute)))))
+        (catch Throwable e
+          (println (format "error importing pmid #%s" pmid)))))
     (finally
       (clear-project-cache project-id))))
 

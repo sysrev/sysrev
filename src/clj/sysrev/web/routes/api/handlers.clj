@@ -107,6 +107,7 @@
         (do (pubmed/import-pmids-to-project pmids project-id)
             {:result
              {:success true
+              :attempted (count pmids)
               :project-articles
               (project/project-article-count project-id)}})))))
 
