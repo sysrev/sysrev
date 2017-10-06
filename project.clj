@@ -132,8 +132,7 @@
                         "resources/public/semantic/default/semantic.min.css"
                         "resources/public/semantic/dark/semantic.min.css"]}
   :repl-options {:timeout 120000
-                 :init-ns sysrev.user
-                 :port 45021}
+                 :init-ns sysrev.user}
   :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]
              :config-files ["eastwood.clj"]}
   :profiles {:prod

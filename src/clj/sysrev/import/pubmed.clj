@@ -106,7 +106,7 @@
       (println (.getMessage e))
       nil)))
 
-(defn add-article [article project-id]
+(defn- add-article [article project-id]
   (try
     (articles/add-article article project-id)
     (catch Throwable e
