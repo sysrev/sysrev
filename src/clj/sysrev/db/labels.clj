@@ -257,7 +257,8 @@
                       (let [score (or (-> x first :score) 0.0)]
                         {:score score})))))
           labels
-          (-> (q/select-project-articles project-id [:a.article-id :al.user-id])
+          (-> (q/select-project-articles
+               project-id [:a.article-id :al.user-id :al.confirm-time])
               (q/join-article-labels)
               (q/join-article-label-defs)
               (q/filter-valid-article-label nil)
@@ -265,8 +266,12 @@
                    (group-by :article-id)
                    (map-values
                     (fn [x]
-                      (let [user-ids (->> x (map :user-id) distinct vec)]
-                        {:users user-ids})))))]
+                      (let [user-ids (->> x (map :user-id) distinct vec)
+                            users-confirmed
+                            (->> x (remove #(nil? (:confirm-time %)))
+                                 (map :user-id) distinct vec)]
+                        {:users user-ids
+                         :users-confirmed users-confirmed})))))]
       (merge-with merge articles scores labels))))
 
 (defn unlabeled-articles [project-id & [predict-run-id articles]]
@@ -283,6 +288,15 @@
     (->> (or articles (get-articles-with-label-users project-id predict-run-id))
          vals
          (filter #(and (= 1 (count (:users %)))
+                       (not (in? (:users %) self-id))))
+         (map #(dissoc % :users)))))
+
+(defn fallback-articles [project-id self-id & [predict-run-id articles]]
+  (with-project-cache
+    project-id [:label-values :saved :fallback-articles self-id predict-run-id]
+    (->> (or articles (get-articles-with-label-users project-id predict-run-id))
+         vals
+         (filter #(and (< (count (:users-confirmed %)) 2)
                        (not (in? (:users %) self-id))))
          (map #(dissoc % :users)))))
 
@@ -327,6 +341,16 @@
      #(math/abs (- (:score %) 0.5))
      predict-run-id)))
 
+(defn ideal-fallback-article
+  "Selects a fallback (with unconfirmed labels) article to assign to a user."
+  [project-id self-id & [predict-run-id articles]]
+  (let [predict-run-id
+        (or predict-run-id (q/project-latest-predict-run-id project-id))]
+    (pick-ideal-article
+     (fallback-articles project-id self-id predict-run-id articles)
+     #(math/abs (- (:score %) 0.5))
+     predict-run-id)))
+
 (defn user-confirmed-today-count [project-id user-id]
   (-> (q/select-project-article-labels project-id true [:al.article-id])
       (q/filter-label-user user-id)
@@ -351,7 +375,9 @@
             [pending :single] [unlabeled :unreviewed])
           pending [pending :single]
           unlabeled [unlabeled :unreviewed]
-          :else nil)]
+          :else
+          (when-let [fallback (ideal-fallback-article project-id user-id nil articles)]
+            [fallback :single]))]
     (when (and article status)
       {:article-id (:article-id article)
        :today-count today-count})))

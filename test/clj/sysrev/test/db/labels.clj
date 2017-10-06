@@ -25,14 +25,17 @@
                               (q/filter-label-user user-id)
                               (->> do-query first :count (= 0)))
                         1 4)]
-          (let [single-labeled (l/single-labeled-articles project-id user-id)]
+          (let [single-labeled (l/single-labeled-articles project-id user-id)
+                fallback (l/fallback-articles project-id user-id)]
             (dotimes [i n-tests]
               (let [{:keys [article-id today-count] :as result}
                     (l/get-user-label-task project-id user-id)
                     {:keys [review-status] :as article}
                     (when article-id
                       (a/query-article-by-id-full article-id))]
-                (if (and (empty? unlabeled) (empty? single-labeled))
+                (if (and (empty? unlabeled)
+                         (empty? single-labeled)
+                         (empty? fallback))
                   (is (nil? result)
                       (format "project=%s,user=%s : %s"
                               project-id user-id
