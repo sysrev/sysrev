@@ -1,20 +1,21 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [;; Clojure (JVM) libraries
                  ;;
-                 [org.clojure/clojure "1.9.0-alpha17"]
+                 [org.clojure/clojure "1.9.0-beta2"]
                  [org.clojure/clojurescript "1.9.671"]
                  [org.clojure/math.numeric-tower "0.0.4"]
+                 ;; Data formats
+                 [org.clojure/data.json "0.2.6"]
+                 [me.raynes/fs "1.4.6"]
+                 #_ [org.clojure/data.codec "0.1.0"]
+                 [org.clojure/data.xml "0.2.0-alpha3"]
+                 [org.clojure/data.zip "0.1.2"]
                  ;; enforce jackson version to easier catch dependency conflicts
                  [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
                  ;; Logging
                  [org.clojure/tools.logging "0.3.1"]
                  [org.slf4j/slf4j-log4j12 "1.7.25"]
                  [log4j/log4j "1.2.17"]
-                 ;; Data formats
-                 [org.clojure/data.json "0.2.6"]
-                 [me.raynes/fs "1.4.6"]
-                 [org.clojure/data.xml "0.0.8"]
-                 [org.clojure/data.zip "0.1.2"]
                  ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
                  [clojure-csv/clojure-csv "2.0.1"]
                  [com.cognitect/transit-clj "0.8.300"]
@@ -71,14 +72,16 @@
                  [cljsjs/dropzone "4.3.0-0"]
                  [org.clojure/test.check "0.9.0"]
                  [cljsjs/clipboard "1.6.1-1"]
-                 ;; [org.clojars.jeffwk/cljs-time "0.5.0-SNAPSHOT"]
-                 [com.andrewmcveigh/cljs-time "0.5.0"]]
+                 [com.andrewmcveigh/cljs-time "0.5.1"]]
   :min-lein-version "2.6.1"
-  :jvm-opts ["-Xms200m"
-             "-Xmx400m"
+  :jvm-opts ["-Xms500m"
+             "-Xmx1000m"
              "-server"
              "-XX:+TieredCompilation"
-             "-XX:+AggressiveOpts"]
+             "-XX:+AggressiveOpts"
+             "-XX:+UseParNewGC"
+             "-XX:+UseConcMarkSweepGC"
+             "-XX:+CMSConcurrentMTEnabled"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
@@ -136,11 +139,7 @@
   :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]
              :config-files ["eastwood.clj"]}
   :profiles {:prod
-             {:jvm-opts ["-Xms800m"
-                         "-Xmx1500m"
-                         "-server"
-                         "-XX:+TieredCompilation"
-                         "-XX:+AggressiveOpts"]
+             {:jvm-opts ["-Xms800m" "-Xmx1500m"]
               :resource-paths ["config/prod"]
               :main sysrev.web-main
               :aot [sysrev.web-main]}
@@ -160,11 +159,7 @@
              {:resource-paths ["config/test-s3-dev"]}
              :dev
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
-                         "-Xms250m"
-                         "-Xmx500m"
-                         "-server"
-                         "-XX:+TieredCompilation"
-                         "-XX:+AggressiveOpts"]
+                         "-Xms3000m" "-Xmx3000m"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
@@ -204,11 +199,7 @@
                      :eastwood-options {:config-files ["eastwood.clj"]}}}}
              :figwheel
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
-                         "-Xms150m"
-                         "-Xmx300m"
-                         "-server"
-                         "-XX:+TieredCompilation"
-                         "-XX:+AggressiveOpts"]}
+                         "-Xms250m" "-Xmx500m"]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]

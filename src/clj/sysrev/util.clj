@@ -76,11 +76,11 @@
         roots
         (xml-find
          (flatten
-          (mapv (fn [root]
-                  (filterv (fn [child]
-                             (= (:tag child) (first path)))
-                           (:content root)))
-                roots))
+          (map (fn [root]
+                 (filter (fn [child]
+                           (= (:tag child) (first path)))
+                         (:content root)))
+               roots))
          (rest path))))
     (catch Throwable e
       nil)))

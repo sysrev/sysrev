@@ -16,6 +16,7 @@
         ;; sysrev.spark.similarity
         sysrev.import.pubmed
         sysrev.import.endnote
+        sysrev.export.endnote
         sysrev.predict.core
         sysrev.predict.report
         sysrev.predict.validate

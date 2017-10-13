@@ -12,7 +12,8 @@
             [sysrev.db.articles :refer [query-article-by-id-full]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
-            [sysrev.shared.article-list :refer [is-consistent? is-resolved?]]
+            [sysrev.shared.article-list :refer
+             [is-resolved? is-conflict? is-single? is-consistent?]]
             [sysrev.util :refer [crypto-rand crypto-rand-nth]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -902,3 +903,26 @@
                             (println (str "deleted " deleted " from article-id=" article-id)))))))))))))
       (println (str "fixed duplicate answers for " (count article-ids) " articles")))
     true))
+
+(defn project-included-articles [project-id]
+  (let [articles (query-public-article-labels project-id)
+        overall-id (project-overall-label-id project-id)]
+    (when overall-id
+      (->> (vec articles)
+           (filter
+            (fn [[article-id article]]
+              (let [labels (get-in article [:labels overall-id])
+                    group-status
+                    (cond (is-single? labels)     :single
+                          (is-resolved? labels)   :resolved
+                          (is-conflict? labels)   :conflict
+                          :else                   :consistent)
+                    inclusion-status
+                    (case group-status
+                      :conflict nil,
+                      :resolved (->> labels (filter :resolve) (map :inclusion) first),
+                      (->> labels (map :inclusion) first))]
+                (and (in? [:consistent :resolved] group-status)
+                     (true? inclusion-status)))))
+           (apply concat)
+           (apply hash-map)))))
