@@ -1,0 +1,39 @@
+#!/bin/bash
+set -e
+
+if [[ -z $SSH_PORT ]]; then
+    ssh_port=22
+else
+    ssh_port=$SSH_PORT
+fi
+
+if [[ $3 -eq '' ]]; then
+    echo "usage: $0 [user] [host] [port] [[remote-port]] [[remote?]]"
+    exit 1
+else
+    user=$1
+    host=$2
+    local_port=$3
+    remote_port=$3
+    if [[ $4 != '' ]]; then
+        remote_port=$4
+    fi
+    if [[ $5 == 'true' ]]; then
+        direction="-R"
+    else
+        direction="-L"
+    fi
+fi
+
+have_autossh=0
+if `command -v autossh >/dev/null 2>&1 && true`; then
+    have_autossh=1
+    # monitor_port=`expr 65536 - $local_port`
+fi
+
+if [[ $have_autossh -eq 1 ]]; then
+    autossh -p $ssh_port -M 0 -f -N -l $user $host $direction $local_port:localhost:$remote_port
+else
+    echo "autossh not found; fallback to ssh without auto-reconnect"
+    ssh -p $ssh_port -f -N -T -l $user $host $direction $local_port:localhost:$remote_port
+fi
