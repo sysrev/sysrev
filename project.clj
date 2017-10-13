@@ -1,7 +1,7 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [;; Clojure (JVM) libraries
                  ;;
-                 [org.clojure/clojure "1.9.0-beta2"]
+                 [org.clojure/clojure "1.9.0-alpha17"]
                  [org.clojure/clojurescript "1.9.671"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;; Data formats

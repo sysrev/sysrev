@@ -55,9 +55,9 @@ node {
       }
     }
     if (colorVal != null) {
-      slackSend channel: 'sysrev', color: colorVal, message: msg
+      slackSend color: colorVal, message: msg
     } else {
-      slackSend channel: 'sysrev', message: msg
+      slackSend message: msg
     }
   }
 
@@ -96,6 +96,7 @@ node {
         if (branch == 'staging' ||
             branch == 'production') {
           sendFlowdockMsgFull ('Tests passed','running','blue')
+          sendSlackMsgFull ('Tests passed','blue')
         } else {
           sendFlowdockMsg ('Tests passed')
           sendSlackMsg ('Tests passed')
@@ -151,6 +152,7 @@ node {
         } finally {
           if (currentBuild.result == 'SUCCESS') {
             sendFlowdockMsgFull ('PreDeployTest passed','running','blue')
+            sendSlackMsgFull ('PreDeployTest passed','blue')
           }
           if (currentBuild.result == 'UNSTABLE') {
             sendFlowdockMsg ('PreDeployTest failed')
