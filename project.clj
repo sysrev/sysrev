@@ -1,8 +1,8 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [;; Clojure (JVM) libraries
                  ;;
-                 [org.clojure/clojure "1.9.0-alpha17"]
-                 [org.clojure/clojurescript "1.9.671"]
+                 [org.clojure/clojure "1.9.0-beta2"]
+                 [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
@@ -13,7 +13,7 @@
                  ;; enforce jackson version to easier catch dependency conflicts
                  [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
                  ;; Logging
-                 [org.clojure/tools.logging "0.3.1"]
+                 [org.clojure/tools.logging "0.4.0"]
                  [org.slf4j/slf4j-log4j12 "1.7.25"]
                  [log4j/log4j "1.2.17"]
                  ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
@@ -21,30 +21,30 @@
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.239"]
                  ;; Database
-                 [org.clojure/java.jdbc "0.6.1"]
-                 [org.postgresql/postgresql "42.1.1"]
+                 [org.clojure/java.jdbc "0.7.3"]
+                 [org.postgresql/postgresql "42.1.4"]
                  [joda-time "2.9.9"]
-                 [clj-time "0.13.0"
+                 [clj-time "0.14.0"
                   :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "1.7.6"]
+                 [hikari-cp "1.8.1"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
-                 [honeysql "0.9.0"]
-                 [nilenso/honeysql-postgres "0.2.2"]
+                 [honeysql "0.9.1"]
+                 [nilenso/honeysql-postgres "0.2.3"]
                  ;; Web server
                  [compojure "1.6.0"]
                  [javax.servlet/servlet-api "2.5"]
-                 [ring "1.6.1"]
-                 [ring/ring-defaults "0.3.0"]
+                 [ring "1.6.2"]
+                 [ring/ring-defaults "0.3.1"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [http-kit "2.2.0"]
                  ;; Encryption / Authentication
                  [buddy "1.3.0"]
                  ;; Web client
-                 [clj-http "3.6.1"]
+                 [clj-http "3.7.0"]
                  [crypto-random "1.2.0"]
                  ;; Email
                  [com.draines/postal "2.0.2"]
@@ -57,7 +57,7 @@
                  [commons-io/commons-io "2.5"]
                  ;; ClojureScript libraries
                  [reagent "0.7.0"]
-                 [re-frame "0.10.1"]
+                 [re-frame "0.10.2"]
                  [day8.re-frame/http-fx "0.1.4"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.7"]
@@ -68,7 +68,7 @@
                  ;; [cljsjs/semantic-ui "2.2.4-0"]
                  [org.clojars.jeffwk/semantic-ui "2.2.13-0"]
                  [camel-snake-kebab "0.4.0"]
-                 [cljsjs/chartjs "2.5.0-0"]
+                 [cljsjs/chartjs "2.6.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [org.clojure/test.check "0.9.0"]
                  [cljsjs/clipboard "1.6.1-1"]
@@ -91,9 +91,7 @@
             ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
             "test-aws-dev-all"
             ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
-  :plugins [[lein-cljsbuild "1.1.6"]
-            [lein-bower "0.5.2"]
-            [lein-ring "0.12.0"]]
+  :plugins [[lein-cljsbuild "1.1.7"]]
   :clean-targets ^{:protect false}
   ["target"
    "resources/public/out-dev"
@@ -164,7 +162,7 @@
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
-                             [binaryage/devtools "0.9.4"]
+                             [binaryage/devtools "0.9.7"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.4.0"]
                              [org.seleniumhq.selenium/selenium-support "3.4.0"]
@@ -183,13 +181,13 @@
                                org.seleniumhq.selenium/selenium-support]]
                              [com.codeborne/phantomjsdriver "1.4.3"]]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.13"]
+             {:dependencies [[figwheel-sidecar "0.5.14"]
                              [org.clojure/tools.nrepl "0.2.13"]
                              [com.cemerick/piggieback "0.2.2"]
                              [acyclic/squiggly-clojure "0.1.8"
                               :exclusions [org.clojure/tools.reader]]]
-              :plugins [[lein-figwheel "0.5.13"]
-                        [cider/cider-nrepl "0.14.0"]
+              :plugins [[lein-figwheel "0.5.14"]
+                        [cider/cider-nrepl "0.15.1"]
                         [refactor-nrepl "2.3.1"]
                         [lein-environ "1.1.0"]]
               :env {:squiggly
@@ -205,15 +203,15 @@
               :test-paths ["test/clj"]
               :resource-paths ["config/dev"]
               :dependencies
-              [[yieldbot/flambo "0.8.1"
+              [[yieldbot/flambo "0.8.2"
                 :exclusions
                 [com.google.guava/guava]]
-               [org.apache.spark/spark-core_2.11 "2.1.1"]
-               [org.apache.spark/spark-mllib_2.11 "2.1.1"]
-               [org.apache.spark/spark-streaming_2.11 "2.1.1"]
-               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.1.1"]
-               [org.apache.spark/spark-sql_2.11 "2.1.1"]
-               [org.apache.spark/spark-hive_2.11 "2.1.1"]]
+               [org.apache.spark/spark-core_2.11 "2.2.0"]
+               [org.apache.spark/spark-mllib_2.11 "2.2.0"]
+               [org.apache.spark/spark-streaming_2.11 "2.2.0"]
+               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.0"]
+               [org.apache.spark/spark-sql_2.11 "2.2.0"]
+               [org.apache.spark/spark-hive_2.11 "2.2.0"]]
               :aot :all}
              :test
              {:jvm-opts ["-Dlog4j.configuration=log4j.properties.test"
