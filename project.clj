@@ -4,22 +4,21 @@
                  [org.clojure/clojure "1.9.0-beta2"]
                  [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/math.numeric-tower "0.0.4"]
+                 ;; enforce jackson version to easier catch dependency conflicts
+                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
                  [me.raynes/fs "1.4.6"]
-                 #_ [org.clojure/data.codec "0.1.0"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.2"]
-                 ;; enforce jackson version to easier catch dependency conflicts
-                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
-                 ;; Logging
-                 [org.clojure/tools.logging "0.4.0"]
-                 [org.slf4j/slf4j-log4j12 "1.7.25"]
-                 [log4j/log4j "1.2.17"]
                  ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
                  [clojure-csv/clojure-csv "2.0.1"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.cognitect/transit-cljs "0.8.239"]
+                 ;; Logging
+                 [org.clojure/tools.logging "0.4.0"]
+                 [org.slf4j/slf4j-log4j12 "1.7.25"]
+                 [log4j/log4j "1.2.17"]
                  ;; Database
                  [org.clojure/java.jdbc "0.7.3"]
                  [org.postgresql/postgresql "42.1.4"]
@@ -157,7 +156,7 @@
              {:resource-paths ["config/test-s3-dev"]}
              :dev
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
-                         "-Xms3000m" "-Xmx3000m"]
+                         "-Xms1000m" "-Xmx2000m"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
