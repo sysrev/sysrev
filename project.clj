@@ -155,8 +155,7 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
-                         "-Xms1000m" "-Xmx2000m"]
+             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
@@ -179,6 +178,8 @@
                                org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]
                              [com.codeborne/phantomjsdriver "1.4.3"]]}
+             :dev-jvm
+             {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
              {:dependencies [[figwheel-sidecar "0.5.14"]
                              [org.clojure/tools.nrepl "0.2.13"]
@@ -196,7 +197,7 @@
                      :eastwood-options {:config-files ["eastwood.clj"]}}}}
              :figwheel
              {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
-                         "-Xms250m" "-Xmx500m"]}
+                         "-Xms300m" "-Xmx600m"]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
