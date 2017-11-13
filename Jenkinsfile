@@ -54,10 +54,11 @@ node {
         colorVal = 'good'
       }
     }
+    msgContent = "[${env.JOB_NAME}] ${msg}"
     if (colorVal != null) {
-      slackSend color: colorVal, message: msg
+      slackSend color: colorVal, message: msgContent
     } else {
-      slackSend message: msg
+      slackSend message: msgContent
     }
   }
 
