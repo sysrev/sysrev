@@ -383,6 +383,32 @@
       {:article-id (:article-id article)
        :today-count today-count})))
 
+(defn user-all-labels-map [project-id user-id]
+  (-> (q/select-project-articles project-id [:al.*])
+      (q/join-article-labels)
+      (q/filter-label-user user-id)
+      (->> do-query
+           (group-by :article-id))))
+
+(defn copy-project-user-labels [project-id src-user-id dest-user-id]
+  (let [articles (user-all-labels-map project-id src-user-id)]
+    (do-transaction
+     nil
+     (doseq [[article-id article-entries] articles]
+       (-> (delete-from [:article-label :al])
+           (merge-where [:and
+                         [:= :al.article-id article-id]
+                         [:= :al.user-id dest-user-id]])
+           do-execute)
+       (doseq [entry article-entries]
+         (let [new-entry (-> entry
+                             (assoc :user-id dest-user-id)
+                             (dissoc :article-label-local-id :article-label-id)
+                             (update :answer to-jsonb))]
+           (-> (insert-into :article-label)
+               (values [new-entry])
+               do-execute)))))))
+
 (defn article-user-labels-map [project-id article-id]
   (->>
    (-> (q/select-article-by-id article-id [:al.*])
