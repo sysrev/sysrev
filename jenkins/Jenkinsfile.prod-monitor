@@ -28,6 +28,34 @@ node {
       sendFlowdockMsgFull (msg, null, null)
   }
 
+  def sendSlackMsgFull = {
+    msg,color ->
+    if (color == 'blue') {
+      colorVal = '#4071bf'
+    } else if (color != null) {
+      colorVal = color
+    } else {
+      if (currentBuild.result == 'FAILURE') {
+        colorVal = 'danger'
+      } else if (currentBuild.result == 'UNSTABLE') {
+        colorVal = 'warning'
+      } else if (currentBuild.result == 'SUCCESS') {
+        colorVal = 'good'
+      }
+    }
+    msgContent = "[${env.JOB_NAME}] ${msg}"
+    if (colorVal != null) {
+      slackSend color: colorVal, message: msgContent
+    } else {
+      slackSend message: msgContent
+    }
+  }
+
+  def sendSlackMsg = {
+    msg ->
+    sendSlackMsgFull (msg, null)
+  }
+
   stage('Init') {
     echo 'Setting up workspace...'
     try {
@@ -35,6 +63,7 @@ node {
     } catch (exc) {
       currentBuild.result = 'FAILURE'
       sendFlowdockMsg ('Init stage failed')
+      sendSlackMsg ('Init stage failed')
       throw exc
     }
   }
@@ -45,9 +74,11 @@ node {
       try {
         sh './jenkins/test-aws-prod-browser'
         currentBuild.result = 'SUCCESS'
+        sendSlackMsg ('Browser tests passed')
       } catch (exc) {
         currentBuild.result = 'FAILURE'
         sendFlowdockMsg('Browser tests failed')
+        sendSlackMsg ('Browser tests failed')
       } finally {
         junit 'target/junit-browser.xml'
       }
