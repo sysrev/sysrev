@@ -33,10 +33,12 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
 
 1. Set up Nginx
 
+	On Linux
+
     * Install Nginx via system package manager
 
     * Edit `nginx.conf` (`/etc/nginx/nginx.conf`) to include the following line:
-    
+
             http {
               ...
               include /etc/nginx/sites-enabled/*;
@@ -46,7 +48,7 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
         And create the directory if needed:
     
             sudo mkdir -p /etc/nginx/sites-enabled
-    
+
     * Link `sysrev.dev.nginx-site` into `sites-enabled`:
 
             sudo ln -s `pwd`/sysrev.dev.nginx-site /etc/nginx/sites-enabled/
@@ -60,6 +62,24 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
             # and enable to start on boot
             
             sudo systemctl enable nginx
+
+	On macOS
+
+	* Install Nginx via homebrew
+
+			brew install nginx
+
+	* Link `sysrev.dev.nginx-site` into 'servers'
+
+			cp sysrev.dev.nginx-site /usr/local/etc/nginx/servers/
+
+	* Start Nginx service and restart at login
+
+			brew services start nginx
+
+			# if you would like to restart service
+
+			brew services restart nginx
 
 ## Database Connection
 

@@ -15,9 +15,9 @@ cd semantic/src
 rm -f site
 ln -s "site.$theme" site
 cd ..
-gulp clean > /dev/null
-gulp build-css > /dev/null
-gulp build-assets > /dev/null
+gulp clean
+gulp build-css
+gulp build-assets
 cd ..
 out_dir="resources/public/semantic/$theme"
 mkdir -p "$out_dir"
