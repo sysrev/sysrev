@@ -177,7 +177,9 @@
                                org.bouncycastle/bcprov-jdk15on
                                org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]
-                             [com.codeborne/phantomjsdriver "1.4.3"]]}
+                             [com.codeborne/phantomjsdriver "1.4.3"]
+                             [org.seleniumhq.selenium/selenium-chrome-driver "3.4.0"]
+                             ]}
              :dev-jvm
              {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
