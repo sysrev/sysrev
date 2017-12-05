@@ -31,7 +31,7 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
 
     Follow instructions to install any missing dependencies on error, then run `setup.sh` again.
 
-1. Set up Nginx
+1. Set up Nginx (Nginx may not be necessary in development)
 
 	On Linux
 
@@ -93,16 +93,54 @@ To use a different port number, edit these files to change the value from 5432: 
 
 ## Dev Environment
 
-* `./repl`
-* `./figwheel`
-* `lein cljsbuild once production`
-* `http://localhost:80`
-* `http://localhost:9010`
+* Create local database
 
+	1. Install wget
+
+			`brew install wget`
+
+	1. Install flyway
+
+			`./scripts/install-flyway`
+
+	1. Create a postgresql super user account
+
+	   psql> CREATE USER postgres;
+	   psql> ALTER USER postgres WITH SUPERUSER;
+
+	1. Make sure that you have a SSH tunnel setup
+
+	1. edit scripts/clone-latest-db to make sure PROD_TUNNEL_PORT=<local SSH tunnel port>
+       if you changed the tunnel
+
+	1. `$ bash -c 'SR_DEST_PORT=5432 SR_DEST_DB=sysrev ./scripts/clone-latest-db'`
+
+	1. `$ createdb -O postgres -T sysrev sysrev_test`
+
+* `./repl` or `cider-jack-in` in emacs
+  After repl starts and PosgreSQL tunnel is established, run
+
+* `./figwheel`
+
+* create user in the REPL
+
+  sysrev.user> (create-user "james@insilica.co" "test1234" :project-id 100)
+
+* User settings
+
+  http://localhost:4061/user/settings
 ## IDE Setup
 
 * Cursive (IntelliJ)
 * Cider (Emacs)
+
+	`cider-jack-in` with CIDER
+
+	if you are using creating a REPL in the command line with the `./repl` script
+	use
+
+	`cider-connect` in emacs.
+
 * Other
 
 ## Config Files
