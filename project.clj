@@ -4,21 +4,22 @@
                  [org.clojure/clojure "1.9.0-beta2"]
                  [org.clojure/clojurescript "1.9.946"]
                  [org.clojure/math.numeric-tower "0.0.4"]
-                 ;; enforce jackson version to easier catch dependency conflicts
-                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
                  ;; Data formats
                  [org.clojure/data.json "0.2.6"]
                  [me.raynes/fs "1.4.6"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.2"]
-                 ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
-                 [clojure-csv/clojure-csv "2.0.1"]
-                 [com.cognitect/transit-clj "0.8.300"]
-                 [com.cognitect/transit-cljs "0.8.239"]
+                 ;; enforce jackson version to easier catch dependency conflicts
+                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
                  ;; Logging
                  [org.clojure/tools.logging "0.4.0"]
                  [org.slf4j/slf4j-log4j12 "1.7.25"]
                  [log4j/log4j "1.2.17"]
+                 ;;
+                 ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
+                 [clojure-csv/clojure-csv "2.0.1"]
+                 [com.cognitect/transit-clj "0.8.300"]
+                 [com.cognitect/transit-cljs "0.8.239"]
                  ;; Database
                  [org.clojure/java.jdbc "0.7.3"]
                  [org.postgresql/postgresql "42.1.4"]
@@ -73,14 +74,15 @@
                  [cljsjs/clipboard "1.6.1-1"]
                  [com.andrewmcveigh/cljs-time "0.5.1"]]
   :min-lein-version "2.6.1"
-  :jvm-opts ["-Xms500m"
-             "-Xmx1000m"
+  :jvm-opts ["-Xms800m"
+             "-Xmx1500m"
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"
-             "-XX:+UseParNewGC"
-             "-XX:+UseConcMarkSweepGC"
-             "-XX:+CMSConcurrentMTEnabled"]
+             ;; "-XX:+UseParNewGC"
+             ;; "-XX:+UseConcMarkSweepGC"
+             ;; "-XX:+CMSConcurrentMTEnabled"
+             ]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
@@ -160,18 +162,18 @@
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
-                             [binaryage/devtools "0.9.7"]
+                             [binaryage/devtools "0.9.8"]
                              [clj-webdriver "0.7.2"]
-                             [org.seleniumhq.selenium/selenium-api "3.4.0"]
-                             [org.seleniumhq.selenium/selenium-support "3.4.0"]
-                             [org.seleniumhq.selenium/selenium-java "3.4.0"
+                             [org.seleniumhq.selenium/selenium-api "3.8.1"]
+                             [org.seleniumhq.selenium/selenium-support "3.8.1"]
+                             [org.seleniumhq.selenium/selenium-java "3.8.1"
                               :exclusions
                               [org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]
-                             [org.seleniumhq.selenium/selenium-remote-driver "3.4.0"
+                             [org.seleniumhq.selenium/selenium-remote-driver "3.8.1"
                               :exclusions
                               [com.google.guava/guava]]
-                             [org.seleniumhq.selenium/selenium-server "3.4.0"
+                             [org.seleniumhq.selenium/selenium-server "3.8.1"
                               :exclusions
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
@@ -221,16 +223,16 @@
               :test-paths ["test/clj"]
               :dependencies [[org.clojure/test.check "0.9.0"]
                              [clj-webdriver "0.7.2"]
-                             [org.seleniumhq.selenium/selenium-api "3.4.0"]
-                             [org.seleniumhq.selenium/selenium-support "3.4.0"]
-                             [org.seleniumhq.selenium/selenium-java "3.4.0"
+                             [org.seleniumhq.selenium/selenium-api "3.8.1"]
+                             [org.seleniumhq.selenium/selenium-support "3.8.1"]
+                             [org.seleniumhq.selenium/selenium-java "3.8.1"
                               :exclusions
                               [org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]
-                             [org.seleniumhq.selenium/selenium-remote-driver "3.4.0"
+                             [org.seleniumhq.selenium/selenium-remote-driver "3.8.1"
                               :exclusions
                               [com.google.guava/guava]]
-                             [org.seleniumhq.selenium/selenium-server "3.4.0"
+                             [org.seleniumhq.selenium/selenium-server "3.8.1"
                               :exclusions
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
