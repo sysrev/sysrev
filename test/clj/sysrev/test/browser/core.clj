@@ -74,7 +74,7 @@
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
-                  (taxi/implicit-wait driver 3000)
+                  (taxi/implicit-wait driver 30000)
                   (taxi/set-driver! driver))))))
 
 (defn stop-webdriver []
