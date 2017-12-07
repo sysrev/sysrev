@@ -16,35 +16,60 @@
 (use-fixtures :once default-fixture webdriver-fixture-once)
 (use-fixtures :each webdriver-fixture-each)
 
-(deftest home-page-loads
+#_ (deftest home-page-loads
   (go-route "/")
   (is (login-form-shown?)))
 
+(defn panel-name
+  [panel-keys]
+  (str/join "_" (map name panel-keys)))
+
+(defn wait-until-panel-exists
+  [panel-keys]
+  (taxi/wait-until
+   #(taxi/exists?
+     {:css (str "div[id='" (panel-name panel-keys) "']")})))
+
 (deftest project-routes
   (log-in)
+  (wait-until-panel-exists [:project])
   (is (panel-rendered? [:project]))
+  (wait-until-panel-exists [:project :project :overview])
   (is (panel-rendered? [:project :project :overview]))
   (is (not (panel-rendered? [:project :project :fake-panel])))
   (go-route "/project/labels")
+  (wait-until-panel-exists [:project :project :labels])
   (is (panel-rendered? [:project :project :labels]))
   (is (not (panel-rendered? [:project :project :overview])))
   (go-route "/project/settings")
+  (wait-until-panel-exists [:project :project :settings])
   (is (panel-rendered? [:project :project :settings]))
   (go-route "/project/invite-link")
+  (wait-until-panel-exists [:project :project :invite-link])
   (is (panel-rendered? [:project :project :invite-link]))
   (go-route "/project/export")
+  (wait-until-panel-exists [:project :project :export-data])
   (is (panel-rendered? [:project :project :export-data]))
   (go-route "/project/user")
+  (wait-until-panel-exists [:project :user :labels])
   (is (panel-rendered? [:project :user :labels]))
   (go-route "/project/review")
+  (wait-until-panel-exists [:project :review])
   (is (panel-rendered? [:project :review]))
   (go-route "/project/articles")
+  (wait-until-panel-exists [:project :project :articles])
   (is (panel-rendered? [:project :project :articles]))
   (go-route "/")
+  (wait-until-panel-exists [:project :project :overview])
   (is (panel-rendered? [:project :project :overview]))
   (go-route "/user/settings")
+  (wait-until-panel-exists [:user-settings])
   (is (panel-rendered? [:user-settings]))
+  (taxi/wait-until #(taxi/exists? (taxi/find-element {:css "a[id='log-out-link']"})))
   (log-out)
+  (taxi/wait-until
+   #(taxi/exists?
+     {:css "div[id='login-register-panel']"}))
   (is (login-form-shown?)))
 
 #_
