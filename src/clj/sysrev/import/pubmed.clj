@@ -12,8 +12,9 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clj-http.client :as http]
             [clojure-csv.core :as csv]
+            [clojure.data.json :as json]
             [clojure.java.io :as io]
-            [clojure.string :as str]
+            [clojure.string :as string]
             [clojure.tools.logging :as log]))
 
 (defn fetch-pmid-xml [pmid]
@@ -22,6 +23,33 @@
            (format "?db=pubmed&id=%d&retmode=xml" pmid))
       http/get
       :body))
+
+(defn string-query->pubmed-term-query
+  "Convert a string query to a pubmed term query string"
+  [query]
+  (-> query
+      (string/replace #"\s" "+")))
+
+(defn get-query
+  "Given a query, fetch the json associated with that query. Return a EDN map of that data"
+  [query]
+  (-> (str "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+           "esearch.fcgi?"
+           "db=pubmed&term="
+           (string-query->pubmed-term-query query)
+           "&retmode=json")
+      http/get
+      :body
+      (json/read-str :key-fn keyword)))
+
+(defn get-query-pmids
+  "Given a query, return a vector of the associated pmid integers"
+  [query]
+  (mapv #(Integer/parseInt %)
+        (-> query
+            get-query
+            :esearchresult
+            :idlist)))
 
 (defn parse-pubmed-author-names [authors]
   (when-not (empty? authors)
@@ -32,9 +60,9 @@
                   initials (xml-find-value entry [:Initials])]
               (if (string? initials)
                 (str last-name ", " (->> initials
-                                         (#(str/split % #" "))
+                                         (#(string/split % #" "))
                                          (map #(str % "."))
-                                         (str/join " ")))
+                                         (string/join " ")))
                 last-name))))
          (filterv string?))))
 
@@ -73,7 +101,7 @@
                               (str header ": " content)
                               content)))
           paragraphs (map parse-section sections)]
-      (str/join "\n\n" paragraphs))))
+      (string/join "\n\n" paragraphs))))
 
 (defn parse-pmid-xml [xml-str]
   (let [pxml (-> xml-str parse-xml-str :content first)
