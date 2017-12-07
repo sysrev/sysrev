@@ -24,21 +24,13 @@
       http/get
       :body))
 
-(defn string-query->pubmed-term-query
-  "Convert a string query to a pubmed term query string"
-  [query]
-  (-> query
-      (string/replace #"\s" "+")))
-
 (defn get-query
   "Given a query, fetch the json associated with that query. Return a EDN map of that data"
   [query]
-  (-> (str "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-           "esearch.fcgi?"
-           "db=pubmed&term="
-           (string-query->pubmed-term-query query)
-           "&retmode=json")
-      http/get
+  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+                {:query-params {"db" "pubmed"
+                                "retmode" "json"
+                                "term" query}})
       :body
       (json/read-str :key-fn keyword)))
 
