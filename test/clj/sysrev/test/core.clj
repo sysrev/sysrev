@@ -44,7 +44,7 @@
       (set-web-asset-path "/integration")
       (start-app nil nil true)
       (f)
-      (stop-web-server)
+      #_ (stop-web-server)
       (close-active-db))
     :remote-test
     (let [{{postgres-port :port
