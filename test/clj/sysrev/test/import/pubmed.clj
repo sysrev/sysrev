@@ -1,9 +1,39 @@
 (ns sysrev.test.import.pubmed
   (:require
    [clojure.test :refer :all]
-   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml]]
+   [clojure.java.jdbc :as jdbc]
+   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-query-pmids]]
    [sysrev.util :refer [parse-xml-str xml-find]]
+   [sysrev.db.core :refer [*conn*]]
+   [sysrev.db.project :as project]
    [clojure.string :as str]))
+
+(def db-spec  {:classname "org.postgresql.Driver"
+               :subprotocol "postgresql"
+               :subname "//localhost:5432/sysrev_test"
+               :user "postgres"
+               :password ""})
+
+(defn clear [test]
+  (jdbc/with-db-transaction [db db-spec]
+    (jdbc/db-set-rollback-only! db)
+    (binding [*conn* db] ;; rebind dynamic var db, used in tests
+      (test))))
+
+(use-fixtures :each clear)
+
+(deftest retrieve-article
+  (let [result-count (fn [result] (-> result first :count))
+        current-count (result-count (jdbc/query *conn* "SELECT count(*) FROM article"))
+        pmids (get-query-pmids "foo bar")
+        first-pmid (first pmids)
+        new-project (project/create-project "test project")
+        new-project-id (:project-id new-project)]
+    ;;(println (type new-project-id))
+    (import-pmids-to-project (get-query-pmids "foo bar") new-project-id)
+    (is (= (count pmids)
+           (project/project-article-count new-project-id)))))
+
 
 (def ss (partial clojure.string/join "\n"))
 

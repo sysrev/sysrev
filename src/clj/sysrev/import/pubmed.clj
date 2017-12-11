@@ -1,6 +1,6 @@
 (ns sysrev.import.pubmed
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction clear-project-cache]]
+             [do-query do-execute do-transaction clear-project-cache *conn*]]
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.util :refer
@@ -128,11 +128,11 @@
 
 (defn- add-article [article project-id]
   (try
-    (articles/add-article article project-id)
+    (articles/add-article article project-id *conn*)
     (catch Throwable e
       (println "exception in add-format")
       (println "article:")
-      (println (pr-str article))
+;;      (println (pr-str article))
       (println "error:")
       (println (.getMessage e))
       nil)))

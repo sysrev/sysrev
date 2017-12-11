@@ -28,17 +28,18 @@
                      :conn (s/? any?))
         :ret map?)
 
-(defn add-article [article project-id]
+(defn add-article [article project-id & [conn]]
   (let [project-id (q/to-project-id project-id)]
     (-> (insert-into :article)
-        (values [(merge (article-to-sql article)
+        (values [(merge (article-to-sql article conn)
                         {:project-id project-id})])
         (returning :article-id)
         do-query first :article-id)))
 ;;
 (s/fdef add-article
         :args (s/cat :article ::sa/article-partial
-                     :project-id ::sc/project-id)
+                     :project-id ::sc/project-id
+                     :conn (s/? any?))
         :ret (s/nilable ::sc/article-id))
 
 (defn set-user-article-note [article-id user-id note-name content]
