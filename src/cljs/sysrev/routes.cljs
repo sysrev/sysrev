@@ -175,6 +175,11 @@
  (dispatch [:set-active-panel [:user-settings]
             "/user/settings"]))
 
+(sr-defroute
+ create-project "/create-project" []
+ (dispatch [:set-active-panel [:create-project]]
+           "/create-project"))
+
 (defn- load-default-panels [db]
   (->> [[[]
          "/"]
