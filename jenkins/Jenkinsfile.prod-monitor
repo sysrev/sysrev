@@ -74,7 +74,6 @@ node {
       try {
         sh './jenkins/test-aws-prod-browser'
         currentBuild.result = 'SUCCESS'
-        sendSlackMsg ('Browser tests passed')
       } catch (exc) {
         currentBuild.result = 'FAILURE'
         sendFlowdockMsg('Browser tests failed')

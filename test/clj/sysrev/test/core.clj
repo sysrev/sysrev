@@ -5,6 +5,7 @@
             [clojure.tools.logging :as log]
             [sysrev.config.core :refer [env]]
             [sysrev.init :refer [start-app]]
+            [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :refer [set-active-db! make-db-config close-active-db
                                     clear-query-cache]]))
@@ -43,6 +44,7 @@
       (set-web-asset-path "/integration")
       (start-app nil nil true)
       (f)
+      #_ (stop-web-server)
       (close-active-db))
     :remote-test
     (let [{{postgres-port :port

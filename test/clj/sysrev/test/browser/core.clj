@@ -12,6 +12,7 @@
              [delete-user create-user get-user-by-email]]
             [clojure.string :as str])
   (:import [org.openqa.selenium.phantomjs PhantomJSDriver]
+           [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
            [java.util.logging Level]))
@@ -38,30 +39,43 @@
     @active-webdriver
     (do (when @active-webdriver
           (try (taxi/quit) (catch Throwable e nil)))
-        (reset!
-         active-webdriver
-         (let [^LoggingPreferences logs (LoggingPreferences.)
-               _ (.enable logs LogType/DRIVER Level/WARNING)
-               _ (.enable logs LogType/SERVER Level/WARNING)
-               _ (.enable logs LogType/BROWSER Level/WARNING)
-               _ (.enable logs LogType/CLIENT Level/WARNING)
-               pjs (PhantomJSDriver.
-                    (doto (DesiredCapabilities.)
-                      (.setCapability
-                       "phantomjs.cli.args"
-                       (into-array String ["--ignore-ssl-errors=true"
-                                           "--webdriver-loglevel=warn"]))
-                      (.setCapability
-                       "phantomjs.ghostdriver.cli.args"
-                       (into-array String ["--logLevel=WARN"]))
-                      (.setCapability
-                       CapabilityType/LOGGING_PREFS
-                       logs)))
-               driver (driver/init-driver {:webdriver pjs})]
-           (taxi/implicit-wait driver 3000)
-           (taxi/set-driver! driver)
-           (log/info "started phantomjs webdriver")
-           driver)))))
+        #_  (reset!
+             active-webdriver
+             (let [^LoggingPreferences logs (LoggingPreferences.)
+                   _ (.enable logs LogType/DRIVER Level/WARNING)
+                   _ (.enable logs LogType/SERVER Level/WARNING)
+                   _ (.enable logs LogType/BROWSER Level/WARNING)
+                   _ (.enable logs LogType/CLIENT Level/WARNING)
+                   pjs (PhantomJSDriver.
+                        (doto (DesiredCapabilities.)
+                          (.setCapability
+                           "phantomjs.cli.args"
+                           (into-array String ["--ignore-ssl-errors=true"
+                                               "--webdriver-loglevel=warn"]))
+                          (.setCapability
+                           "phantomjs.ghostdriver.cli.args"
+                           (into-array String ["--logLevel=WARN"]))
+                          (.setCapability
+                           CapabilityType/LOGGING_PREFS
+                           logs)))
+                   driver (driver/init-driver {:webdriver pjs})
+                   #_ (taxi/window-resize {:width 1920 :height 1080} )
+                   ]
+               (taxi/implicit-wait driver 3000)
+               (taxi/set-driver! driver)
+               (log/info "started phantomjs webdriver")
+               driver))
+        (reset! active-webdriver
+                (let [opts (doto (ChromeOptions.)
+                             (.addArguments
+                              ["window-size=1200,800"
+                               "headless"]))
+                      chromedriver (ChromeDriver.
+                                    (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
+                                      (.setCapability ChromeOptions/CAPABILITY opts)))
+                      driver (driver/init-driver {:webdriver chromedriver})]
+                  #_ (taxi/implicit-wait driver 30000)
+                  (taxi/set-driver! driver))))))
 
 (defn stop-webdriver []
   (when @active-webdriver
@@ -95,7 +109,8 @@
         (create-test-user))
       (start-webdriver)
       (f)
-      (stop-webdriver)))
+      (stop-webdriver)
+      (Thread/sleep 500)))
 
 (defn go-route [path & [wait-ms]]
   (let [local? (boolean

@@ -160,7 +160,7 @@
 (defn sql-now
   "Query current time from database."
   [& [conn]]
-  (-> (j/query (or conn *conn* @active-db) "SELECT LOCALTIMESTAMP")
+  (-> (j/query (or conn *conn* @active-db) "SELECT LOCALTIMESTAMP AS TIMESTAMP")
       first :timestamp))
 
 (defn time-to-string

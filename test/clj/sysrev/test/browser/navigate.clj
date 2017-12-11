@@ -22,8 +22,7 @@
     (Thread/sleep 1000)))
 
 (defn log-out []
-  (taxi/click "a[id='log-out-link']")
-  (Thread/sleep 500))
+  (taxi/select "a[id='log-out-link']"))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))
