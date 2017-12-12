@@ -24,6 +24,7 @@
       http/get
       :body))
 
+;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-query
   "Given a query, fetch the json associated with that query. Return a EDN map of that data"
   [query]

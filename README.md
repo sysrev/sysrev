@@ -130,6 +130,9 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
   `sysrev.user> (create-user "james@insilica.co" "test1234" :project-id 100)`
 
+* When a route is changed, you must restart the web server
+
+    `repl> (sysrev.init/start-app)`
 ## IDE Setup
 
 * Cursive (IntelliJ)

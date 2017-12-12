@@ -19,6 +19,7 @@
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.shared.transit :as sr-transit]
+   [sysrev.import.pubmed :as pubmed]
    [sysrev.util :refer
     [should-never-happen-exception integerify-map-keys uuidify-map-keys]]
    [sysrev.config.core :refer [env]]
@@ -140,6 +141,13 @@
             {:article (prepare-article-response article)
              :labels user-labels
              :notes user-notes}))))
+
+  ;; Return a vector of PMIDs associated with the given search term
+  (GET "/api/pubmed/search" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [{:keys [term]} (-> :params request)]
+          {:pmids (pubmed/get-query term)})))
 
   (POST "/api/delete-member-labels" request
         (wrap-permissions
