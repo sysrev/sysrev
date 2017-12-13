@@ -6,7 +6,8 @@
             [clojure.java.io :as io])
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
            java.util.UUID
-           (java.io ByteArrayOutputStream)))
+           (java.io ByteArrayOutputStream)
+           (java.io ByteArrayInputStream)))
 
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
@@ -150,3 +151,8 @@
     (let [w (transit/writer os :json)]
       (transit/write w x)
       (.toString os))))
+
+(defn read-transit-str [s]
+ (-> (ByteArrayInputStream. (.getBytes s "UTF-8"))
+     (transit/reader :json)
+     (transit/read)))
