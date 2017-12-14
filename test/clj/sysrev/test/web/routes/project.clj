@@ -3,7 +3,7 @@
             [sysrev.db.users :refer [create-user]]
             [sysrev.web.core :refer [wrap-sysrev-app
                                      load-app-routes]]
-            [sysrev.test.import.pubmed :refer [database-rollback-fixture]]
+            [sysrev.test.core :refer [database-rollback-fixture]]
             [sysrev.import.pubmed :as pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
