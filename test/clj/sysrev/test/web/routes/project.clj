@@ -1,5 +1,6 @@
 (ns sysrev.test.web.routes.project
   (:require [clojure.test :refer :all]
+            [sysrev.db.users :refer [create-user]]
             [sysrev.web.core :refer [wrap-sysrev-app
                                      load-app-routes]]
             [sysrev.test.import.pubmed :refer [database-rollback-fixture]]
@@ -34,6 +35,8 @@
         ;; get the ring-session and csrf-token information
         identity (handler
                   (mock/request :get "/api/auth/identity"))
+        email "foo@bar.com"
+        password "foobar"
         ring-session (-> identity
                          :headers
                          (get "Set-Cookie")
@@ -44,11 +47,13 @@
                        :body
                        (util/read-transit-str)
                        :csrf-token)]
+    ;; create user
+    (create-user email password :project-id 100)
     ;; login this user
     (is (-> (handler
              (->  (mock/request :post "/api/auth/login")
                   (mock/body (sysrev.util/write-transit-str
-                              {:email "james@insilica.co" :password "test1234"}))
+                              {:email email :password password}))
                   ((required-headers ring-session csrf-token))))
             :body util/read-transit-str :result :valid))
     ;; the user can search pubmed from sysrev
