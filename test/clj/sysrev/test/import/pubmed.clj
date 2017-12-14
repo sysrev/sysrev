@@ -14,13 +14,13 @@
                :user "postgres"
                :password ""})
 
-(defn clear [test]
+(defn database-rollback-fixture [test]
   (jdbc/with-db-transaction [db db-spec]
     (jdbc/db-set-rollback-only! db)
     (binding [*conn* db] ;; rebind dynamic var db, used in tests
       (test))))
 
-(use-fixtures :each clear)
+(use-fixtures :each database-rollback-fixture)
 
 (deftest retrieve-article
   (let [result-count (fn [result] (-> result first :count))

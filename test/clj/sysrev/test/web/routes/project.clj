@@ -2,11 +2,12 @@
   (:require [clojure.test :refer :all]
             [sysrev.web.core :refer [wrap-sysrev-app
                                      load-app-routes]]
-            [sysrev.test.import.pubmed :as pubmed]
+            [sysrev.test.import.pubmed :refer [database-rollback-fixture]]
+            [sysrev.import.pubmed :as pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
 
-(use-fixtures :each pubmed/clear)
+(use-fixtures :each database-rollback-fixture)
 
 ;; from https://gist.github.com/cyppan/864c09c479d1f0902da5
 (defn parse-cookies
@@ -56,4 +57,4 @@
                      (mock/query-string {:term "foo bar"})
                      ((required-headers ring-session csrf-token))))
                :body util/read-transit-str :result :pmids :esearchresult :idlist count)
-           6))))
+           (count (pubmed/get-query-pmids "foo bar"))))))
