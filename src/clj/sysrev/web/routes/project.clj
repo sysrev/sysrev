@@ -145,7 +145,7 @@
   ;; Return a vector of PMIDs associated with the given search term
   (GET "/api/pubmed/search" request
        (wrap-permissions
-        request [] ["member"]
+        request ["user"] []
         (let [{:keys [term]} (-> :params request)]
           {:pmids (pubmed/get-query term)})))
 
