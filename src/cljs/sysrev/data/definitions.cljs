@@ -20,7 +20,7 @@
 ;;
 
 (def-data :identity
-  :loaded-p have-identity?
+  :loaded? have-identity?
   :uri (fn [] "/api/auth/identity")
   :process
   (fn [_ _ {:keys [identity active-project projects]}]
@@ -31,7 +31,7 @@
            [:user/store identity])}))
 
 (def-data :project
-  :loaded-p project-loaded?
+  :loaded? project-loaded?
   :uri (fn [] "/api/project-info")
   :prereqs (fn [] [[:identity]])
   :process
@@ -41,7 +41,7 @@
            [:user/store-multi (vals users)])}))
 
 (def-data :project/settings
-  :loaded-p project-loaded?
+  :loaded? project-loaded?
   :uri (fn [] "/api/project-settings")
   :prereqs (fn [] [[:identity]])
   :process
@@ -50,7 +50,7 @@
       {:dispatch [:project/load-settings project-id settings]})))
 
 (def-data :project/files
-  :loaded-p project-loaded?
+  :loaded? project-loaded?
   :uri (fn [] "/api/files")
   :prereqs (fn [] [[:identity]])
   :process
@@ -60,7 +60,7 @@
         {:dispatch [:project/load-files project-id result]}))))
 
 (def-data :project/public-labels
-  :loaded-p have-public-labels?
+  :loaded? have-public-labels?
   :uri (fn [] "/api/public-labels")
   :prereqs (fn [] [[:identity] [:project]])
   :process
@@ -69,7 +69,7 @@
       {:dispatch [:project/load-public-labels result-decoded]})))
 
 (def-data :member/articles
-  :loaded-p have-member-articles?
+  :loaded? have-member-articles?
   :uri (fn [user-id] (str "/api/member-articles/" user-id))
   :prereqs (fn [user-id] [[:identity] [:project]])
   :process
@@ -78,7 +78,7 @@
       {:dispatch [:member/load-articles user-id result-decoded]})))
 
 (def-data :review/task
-  :loaded-p task-id
+  :loaded? task-id
   :uri (fn [] "/api/label-task")
   :prereqs (fn [] [[:identity] [:project]])
   :process
@@ -94,7 +94,7 @@
         (merge {:scroll-top true})))))
 
 (def-data :article
-  :loaded-p have-article?
+  :loaded? have-article?
   :uri (fn [article-id] (str "/api/article-info/" article-id))
   :prereqs (fn [_] [[:identity] [:project]])
   :process
@@ -102,7 +102,7 @@
     {:dispatch [:article/load (merge article {:labels labels :notes notes})]}))
 
 (def-data :register-project
-  :loaded-p have-register-project?
+  :loaded? have-register-project?
   :uri (fn [_] "/api/query-register-project")
   :prereqs (fn [_] nil)
   :content (fn [register-hash] {:register-hash register-hash})
@@ -113,7 +113,7 @@
            [:register/project-name register-hash (:name project)])}))
 
 (def-data :password-reset
-  :loaded-p have-reset-code?
+  :loaded? have-reset-code?
   :uri (fn [_] "/api/auth/lookup-reset-code")
   :prereqs (fn [_] nil)
   :content (fn [reset-code] {:reset-code reset-code})
@@ -124,4 +124,18 @@
        (list [:reset-password/reset-code reset-code]
              [:reset-password/email email])})))
 
-#_ (def-data :pubmed-query .....)
+(def-data :pubmed-query
+  :loaded? (fn [db search-term]
+             (get-in db [:data :search-term search-term])) ;; if loaded? is false, then data will be fetched from server, otherwise, no data is fetched. It is a fn of the dereferenced re-frame.db/app-db.
+
+  :uri (fn [] "/api/pubmed/search") ;; uri is a function that returns a uri string
+
+  :prereqs (fn [] [[:identity]]) ;; a fn that returns a vector of def-data entries
+
+  :content (fn [search-term] {:term search-term}) ;; a fn that returns a map of http parameters (in a GET context)
+
+  :process
+  (fn [_ [search-term] {:keys [pmids]}] ;;  fn of the form: [re-frame-db query-parameters (:result response)]
+    (let [search-term-result pmids]
+      {:dispatch-n
+       (list [:pubmed/save-search-term-results search-term search-term-result])})))

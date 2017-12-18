@@ -61,5 +61,5 @@
                 (->  (mock/request :get "/api/pubmed/search")
                      (mock/query-string {:term "foo bar"})
                      ((required-headers ring-session csrf-token))))
-               :body util/read-transit-str :result :pmids :esearchresult :idlist count)
+               :body util/read-transit-str :result :pmids count)
            (count (pubmed/get-query-pmids "foo bar"))))))

@@ -145,9 +145,9 @@
   ;; Return a vector of PMIDs associated with the given search term
   (GET "/api/pubmed/search" request
        (wrap-permissions
-        request ["user"] []
+        request [] []
         (let [{:keys [term]} (-> :params request)]
-          {:pmids (pubmed/get-query term)})))
+          {:pmids (pubmed/get-query-pmids term)})))
 
   (POST "/api/delete-member-labels" request
         (wrap-permissions

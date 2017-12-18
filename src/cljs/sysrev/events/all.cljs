@@ -9,4 +9,5 @@
             sysrev.events.ui
             sysrev.events.articles
             sysrev.events.review
-            sysrev.events.notes))
+            sysrev.events.notes
+            sysrev.events.search))

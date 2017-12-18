@@ -143,6 +143,144 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
         * `M-x cider-connect` (connect to an external process started with `./repl` script)
         * `M-x cider-jack-in` (spawn `lein repl` process from Emacs)
 
+### ClojureScript client setup
+
+1. Start figwheel using the script in the command line
+
+	`$ ./figwheel`
+
+1. Open a web browser
+
+1. Note the port with the line 'Figwheel: Starting nREPL server on port: 7888'
+   (project.clj sets this to port 7888 by default)
+
+1. M-x cider-connect (use localhost and port 7888)
+
+1. In the repl, run
+
+```clojure
+user> (use 'figwheel-sidecar.repl-api)
+user> (cljs-repl)
+```
+
+1. Verify that you are communicating with the browser by running
+
+```clojure
+cljs.user> (.log js/console "hi")
+```
+
+	You should see "hi" in the console
+
+1. Switch to sysrev.user namespace
+
+```clojure
+cljs.user> (in-ns 'sysrev.user)
+```
+
+   This is a namespace which pulls in all other namespaces as a workshop ns
+
+1. You can use the figwheel REPL to navigate to views with the nav fn
+
+```clojure
+sysrev.user> (nav "/create-project")
+```
+
+### Development
+
+1. To update reframe data, that is defined by def-data in sysrev.data.definitions,
+
+```clojure
+(dispatch [:fetch [:identity]])
+```
+
+2. sysrev.action.definitions for post calls
+
+3. Re-frame keeps all data in a  reframe.db/app-db reagent atom
+
+   Explore it with
+
+```clojure
+(-> @re-frame.db/app-db keys)
+```
+
+   View data with a cursor
+
+```clojure
+(first @(reagent.core/cursor re-frame.db/app-db [:state :self :projects]))
+```
+
+#### Development Cycle
+
+1. To pull data from the server, add an entry into 'data/definitions.cljs'
+
+	ex: To make a GET request on the server, using term as a URL parameter, you would use:
+
+	bug: If you are viewing a bar chart, reloading 'data/definitions.cljs' will result in
+	a browser error
+
+```clojure
+(def-data :pubmed-query
+  :loaded? (fn [db search-term]
+             (get-in db [:data :search-term search-term])
+             ) ;; if loaded? is false, then data will be fetched from server, otherwise, no data is fetched. It is a fn of the dereferenced re-frame.db/app-db.
+  :uri (fn [] "/api/pubmed/search") ;; uri is a function that returns a uri string
+  :prereqs (fn [] [[:identity]]) ;; a fn that returns a vector of def-data entries
+  :content (fn [search-term] {:term search-term}) ;; a fn that returns a map of http parameters (in a GET context)
+  :process
+  (fn [_ [search-term] {:keys [pmids]}]
+    ;; [re-frame-db query-parameters (:result response)]
+    (let [search-term-result (-> pmids :esearchresult :idlist)]
+      {:dispatch-n
+       (list [:pubmed/save-search-term-results search-term search-term-result])})))
+```
+
+1. Create a new event in events/<filename>.cljs for retrieving the data
+
+```clojure
+(reg-event-db
+ :pubmed/save-search-term-results
+ [trim-v]
+ (fn [db [search-term search-term-response]]
+   (assoc-in db [:data :search-term search-term]
+             search-term-response)))
+```
+
+1. Read the data from the server in the REPL
+
+	`sysrev.user> (dispatch [:fetch [:pubmed-query "foo bar"]])`
+
+1. In subs/ dir, find a relevant namespace or create a new one.
+
+	If you create a new namespace, add it to sysrev.subs.all
+
+```clojure
+(reg-sub
+ :pubmed/search-term-result
+ (fn [db [_ search-term]] ;; first term in the destructed term is the subscription name itself,
+	 e.g. [_ search-term] _ is :pubmed/search-term-result
+   (-> db :data :search-term (get-in [search-term]))))
+```
+
+1. The subscription makes the db atom available like this:
+   sysrev.user> @(subscribe [:pubmed/search-term-result "foo bar"])
+
+1. Create a new view in cljs/sysrev/views for the data
+
+1. To check to see if the ajax request is ongoing,
+
+```clojure
+sysrev.user> @(subscribe [:loading? [:pubmed-query "foo bar"]])
+false
+```
+
+1. From the repl
+---
+<!-- 1. Define data in 'subs/' -->
+
+<!-- 1. Define data retrieval and handling in 'data/definitions.cljs' -->
+
+<!-- 1. Create or modify a reagent component in 'views/' -->
+
 ## Config Files
 
 The Clojure project uses https://github.com/yogthos/config for loading config profiles.
@@ -180,7 +318,7 @@ General-use functionality for data access and event handling is kept under `subs
 * `user.cljs`
     * Namespace for use in REPL. Imports symbols from all other namespaces for convenience.
 * `subs/`
-    * re-frame data subscriptions intended for general use.
+	* re-frame data subscriptions intended for general use.
 * `events/`
     * re-frame events intended for general use.
 * `data/`

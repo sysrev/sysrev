@@ -18,7 +18,7 @@
 
 (defn def-data
   "Create definition for a data item to fetch from server."
-  [name & {:keys [prereqs loaded-p uri content process] :as fields}]
+  [name & {:keys [prereqs loaded? uri content process] :as fields}]
   (swap! data-defs assoc name fields))
 
 ;; Gets raw list of data requirements
@@ -91,8 +91,8 @@
 ;; Tests if `item` is loaded
 (defn- have-item? [db item]
   (let [[name & args] item
-        {:keys [loaded-p] :as entry} (get @data-defs name)]
-    (apply loaded-p db args)))
+        {:keys [loaded?] :as entry} (get @data-defs name)]
+    (apply loaded? db args)))
 (reg-sub :have? (fn [db [_ item]] (have-item? db item)))
 
 ;; Returns list of required items with no missing prerequisites
