@@ -10,49 +10,50 @@
 
 (defn search-panel []
   "A panel for search pubmed"
-  (let [current-search-term (r/atom nil)]
+  (let [current-search-term (r/atom nil)
+        on-change-search-term (r/atom nil)]
     (fn [props]
-      (let [search-results (subscribe [:pubmed/search-term-result @current-search-term])]
+      (let [search-results (subscribe [:pubmed/search-term-result @current-search-term])
+            fetch-results (fn [event]
+                            (.preventDefault event)
+                            (reset! current-search-term @on-change-search-term)
+                            ;; fetch only if results for the search term don't already exist
+                            (when (nil? @(subscribe [:pubmed/search-term-result @current-search-term]))
+                              (dispatch [:fetch [:pubmed-query @current-search-term]])))]
         [:div.create-project
          [:div.ui.segment
           [:h3.ui.dividing.header
            "Create a New Project"]
-          [:form {:on-submit (fn [event]
-                               (.preventDefault event)
-                               (dispatch [:fetch [:pubmed-query @current-search-term]]))}
+          [:form {:on-submit fetch-results}
            [:div.ui.fluid.icon.input
             [:input {:type "text"
                      :placeholder "Search..."
                      :on-change (fn [event]
-                                  (reset! current-search-term (-> event
-                                                                  (aget "target")
-                                                                  (aget "value")))
-                                  )}]
+                                  (reset! on-change-search-term (-> event
+                                                                    (aget "target")
+                                                                    (aget "value"))))}]
             [:i.inverted.circular.search.link.icon
-             {:on-click (fn [event]
-                          (.preventDefault event)
-                          (dispatch [:fetch [:pubmed-query @current-search-term]]))}]]]
+             {:on-click fetch-results}]]]
           [:h3
-           ;; we are currently missing the concept of
-           ;; 'the search has been done, but the results have
-           ;;  not been fetched yet'
            (cond
              ;; the search term hasn't been populated
              (nil? @current-search-term)
              nil
+             ;; the user has cleared the search term
+             (empty? @current-search-term)
+             nil
+             ;; the search term is not nil
+             ;; and the search-results are empty
+             ;; and the term is not being loaded
+             (and (not (nil? @current-search-term))
+                  (empty? @search-results)
+                  (not @(subscribe [:loading? [:pubmed-query @current-search-term]])))
+             "No documents match your search terms"
              ;; the search term is populated and there
              ;; are results to be displayed
              (and (not (nil? @current-search-term))
                   (not (empty? @search-results)))
-             (str @search-results)
-             ;; the search term is populated but there
-             ;; isn't anything to display
-             ;; WARNING: This could also occur while results are being
-             ;; fetched!
-             (and (not (nil? @current-search-term))
-                  (empty? @search-results))
-             "No documents match your search terms"
-             )]]]))))
+             (str @search-results))]]]))))
 
 (defmethod panel-content [:create-project] []
   (fn [child]
