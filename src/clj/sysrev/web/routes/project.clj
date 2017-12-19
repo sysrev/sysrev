@@ -142,12 +142,21 @@
              :labels user-labels
              :notes user-notes}))))
 
+  ;; Note that transit-clj is not used with query params.
+  ;; Therefore, the string request parameter 'page' is converted to an integer
+  ;; before being passed to get-query-pmids
+  ;;
+  ;; Why not just pass the parameters in the body of the request?
+  ;; In REST, a GET request should not return a response based on
+  ;; the content of request body.
+  ;; see: https://stackoverflow.com/questions/978061/http-get-with-request-body
+
   ;; Return a vector of PMIDs associated with the given search term
   (GET "/api/pubmed/search" request
        (wrap-permissions
         request [] []
-        (let [{:keys [term]} (-> :params request)]
-          {:pmids (pubmed/get-query-pmids term)})))
+        (let [{:keys [term page]} (-> :params request)]
+          {:pmids (pubmed/get-query-pmids term (Integer/parseInt page))})))
 
   ;; Return article summaries for a list of PMIDs
   (GET "/api/pubmed/summaries" request

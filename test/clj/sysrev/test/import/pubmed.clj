@@ -11,11 +11,11 @@
 
 (deftest retrieve-articles
   (let [result-count (fn [result] (-> result first :count))
-        pmids (get-query-pmids "foo bar")
+        pmids (get-query-pmids "foo bar" 1)
         new-project (project/create-project "test project")
         new-project-id (:project-id new-project)
         article-summaries (get-pmids-summary pmids)]
-    (import-pmids-to-project (get-query-pmids "foo bar") new-project-id)
+    (import-pmids-to-project (get-query-pmids "foo bar" 1) new-project-id)
     ;; Do we have the correct amount of PMIDS?
     (is (= (count pmids)
            (project/project-article-count new-project-id)))

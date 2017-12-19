@@ -132,7 +132,8 @@
 
   :prereqs (fn [] [[:identity]]) ;; a fn that returns a vector of def-data entries
 
-  :content (fn [search-term] {:term search-term}) ;; a fn that returns a map of http parameters (in a GET context)
+  :content (fn [search-term] {:term search-term
+                              :page 1}) ;; a fn that returns a map of http parameters (in a GET context)
 
   :process
   (fn [_ [search-term] {:keys [pmids]}] ;;  fn of the form: [re-frame-db query-parameters (:result response)]
