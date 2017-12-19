@@ -1,7 +1,7 @@
 (ns sysrev.test.import.pubmed
   (:require
    [clojure.test :refer :all]
-   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-query-pmids]]
+   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-query-pmids get-pmids-summary]]
    [sysrev.util :refer [parse-xml-str xml-find]]
    [sysrev.test.core :refer [database-rollback-fixture]]
    [sysrev.db.project :as project]
@@ -13,10 +13,17 @@
   (let [result-count (fn [result] (-> result first :count))
         pmids (get-query-pmids "foo bar")
         new-project (project/create-project "test project")
-        new-project-id (:project-id new-project)]
+        new-project-id (:project-id new-project)
+        article-summaries (get-pmids-summary pmids)]
     (import-pmids-to-project (get-query-pmids "foo bar") new-project-id)
+    ;; Do we have the correct amount of PMIDS?
     (is (= (count pmids)
-           (project/project-article-count new-project-id)))))
+           (project/project-article-count new-project-id)))
+    ;; is the author of a known article included in the results from get-pmids-summary?
+    (is (= (-> (get-in (get-pmids-summary pmids) [25706626])
+               :authors
+               first)
+           {:name "Aung T", :authtype "Author", :clusterid ""}))))
 
 
 (def ss (partial clojure.string/join "\n"))

@@ -62,4 +62,14 @@
                      (mock/query-string {:term "foo bar"})
                      ((required-headers ring-session csrf-token))))
                :body util/read-transit-str :result :pmids count)
-           (count (pubmed/get-query-pmids "foo bar"))))))
+           (count (pubmed/get-query-pmids "foo bar"))))
+    ;; the user can get article summaries from pubmed
+    (is (= (-> (-> (handler
+                    (-> (mock/request :get "/api/pubmed/summaries")
+                        (mock/query-string {:pmids (pubmed/get-query-pmids "foo bar")})
+                        ((required-headers ring-session csrf-token))))
+                   :body util/read-transit-str :result)
+               (get 25706626)
+               :authors
+               first))
+        {:name "Aung T", :authtype "Author", :clusterid ""})))

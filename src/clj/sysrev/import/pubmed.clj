@@ -44,6 +44,19 @@
             :esearchresult
             :idlist)))
 
+(defn get-pmids-summary
+  "Given a vector of PMIDs, return the summaries as a map"
+  [pmids]
+  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                {:query-params {"db" "pubmed"
+                                "retmode" "json"
+                                "id" (clojure.string/join "," pmids)}})
+      :body
+      (json/read-str :key-fn (fn [item] (if (int? (read-string item))
+                                          (read-string item)
+                                          (keyword item))))
+      :result))
+
 (defn parse-pubmed-author-names [authors]
   (when-not (empty? authors)
     (->> authors

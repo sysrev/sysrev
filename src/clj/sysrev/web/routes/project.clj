@@ -149,6 +149,13 @@
         (let [{:keys [term]} (-> :params request)]
           {:pmids (pubmed/get-query-pmids term)})))
 
+  ;; Return article summaries for a list of PMIDs
+  (GET "/api/pubmed/summaries" request
+       (wrap-permissions
+        request [] []
+        (let [{:keys [pmids]} (-> :params request)]
+          (pubmed/get-pmids-summary pmids))))
+
   (POST "/api/delete-member-labels" request
         (wrap-permissions
          request ["admin"] ["member"]

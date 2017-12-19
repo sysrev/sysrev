@@ -27,7 +27,7 @@
           [:form {:on-submit fetch-results}
            [:div.ui.fluid.icon.input
             [:input {:type "text"
-                     :placeholder "Search..."
+                     :placeholder "PubMed Search..."
                      :on-change (fn [event]
                                   (reset! on-change-search-term (-> event
                                                                     (aget "target")
