@@ -63,11 +63,11 @@
                                          :page 1})
                      ((required-headers ring-session csrf-token))))
                :body util/read-transit-str :result :pmids count)
-           (count (pubmed/get-query-pmids "foo bar" 1))))
+           (count (:pmids (pubmed/get-search-query-response "foo bar" 1)))))
     ;; the user can get article summaries from pubmed
     (is (= (-> (-> (handler
                     (-> (mock/request :get "/api/pubmed/summaries")
-                        (mock/query-string {:pmids (pubmed/get-query-pmids "foo bar" 1)})
+                        (mock/query-string {:pmids (pubmed/get-search-query-response "foo bar" 1)})
                         ((required-headers ring-session csrf-token))))
                    :body util/read-transit-str :result)
                (get 25706626)

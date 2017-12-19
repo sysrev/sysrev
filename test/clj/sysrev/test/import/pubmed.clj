@@ -1,7 +1,7 @@
 (ns sysrev.test.import.pubmed
   (:require
    [clojure.test :refer :all]
-   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-query-pmids get-pmids-summary]]
+   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-search-query-response get-pmids-summary]]
    [sysrev.util :refer [parse-xml-str xml-find]]
    [sysrev.test.core :refer [database-rollback-fixture]]
    [sysrev.db.project :as project]
@@ -11,11 +11,11 @@
 
 (deftest retrieve-articles
   (let [result-count (fn [result] (-> result first :count))
-        pmids (get-query-pmids "foo bar" 1)
+        pmids (:pmids (get-search-query-response "foo bar" 1))
         new-project (project/create-project "test project")
         new-project-id (:project-id new-project)
         article-summaries (get-pmids-summary pmids)]
-    (import-pmids-to-project (get-query-pmids "foo bar" 1) new-project-id)
+    (import-pmids-to-project (:pmids (get-search-query-response "foo bar" 1)) new-project-id)
     ;; Do we have the correct amount of PMIDS?
     (is (= (count pmids)
            (project/project-article-count new-project-id)))

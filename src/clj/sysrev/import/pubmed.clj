@@ -25,7 +25,7 @@
       :body))
 
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
-(defn get-query
+(defn get-search-query
   "Given a query and page number, fetch the json associated with that query. Return a EDN map of that data. A page size is 20 PMIDs and starts on page 1"
   [query page]
   (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
@@ -38,14 +38,15 @@
       :body
       (json/read-str :key-fn keyword)))
 
-(defn get-query-pmids
-  "Given a query and page number, return a vector of the associated pmid integers. A page size is 20 PMIDs and starts on page 1"
+(defn get-search-query-response
+  "Given a query and page number, return a EDN map corresponding to a JSON response. A page size is 20 PMIDs and starts on page 1"
   [query page]
-  (mapv #(Integer/parseInt %)
-        (-> query
-            (get-query page)
-            :esearchresult
-            :idlist)))
+  (let [esearch-result (:esearchresult (get-search-query query page))]
+    {:pmids (mapv #(Integer/parseInt %)
+                  (-> esearch-result
+                      :idlist))
+     :count (Integer/parseInt (-> esearch-result
+                                  :count))}))
 
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"

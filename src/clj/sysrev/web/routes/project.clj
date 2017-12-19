@@ -156,7 +156,7 @@
        (wrap-permissions
         request [] []
         (let [{:keys [term page]} (-> :params request)]
-          {:pmids (pubmed/get-query-pmids term (Integer/parseInt page))})))
+          (pubmed/get-search-query-response term (Integer/parseInt page)))))
 
   ;; Return article summaries for a list of PMIDs
   (GET "/api/pubmed/summaries" request
