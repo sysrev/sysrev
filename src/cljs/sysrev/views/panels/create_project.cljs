@@ -11,15 +11,20 @@
 (defn search-panel []
   "A panel for search pubmed"
   (let [current-search-term (r/atom nil)
-        on-change-search-term (r/atom nil)]
+        on-change-search-term (r/atom nil)
+        page-number (r/atom 1)]
     (fn [props]
       (let [search-results (subscribe [:pubmed/search-term-result @current-search-term])
             fetch-results (fn [event]
                             (.preventDefault event)
                             (reset! current-search-term @on-change-search-term)
                             ;; fetch only if results for the search term don't already exist
-                            (when (nil? @(subscribe [:pubmed/search-term-result @current-search-term]))
-                              (dispatch [:fetch [:pubmed-query @current-search-term]])))]
+                            (when (nil? (get-in
+                                         ;; remember: current-search-term has changed, you can not
+                                         ;; use @search-results here!
+                                         @(subscribe [:pubmed/search-term-result @current-search-term])
+                                         [:count]))
+                              (dispatch [:fetch [:pubmed-search @current-search-term @page-number]])))]
         [:div.create-project
          [:div.ui.segment
           [:h3.ui.dividing.header
@@ -46,14 +51,14 @@
              ;; and the search-results are empty
              ;; and the term is not being loaded
              (and (not (nil? @current-search-term))
-                  (empty? @search-results)
-                  (not @(subscribe [:loading? [:pubmed-query @current-search-term]])))
+                  (empty? (get-in @search-results [:pages 1 :pmids]))
+                  (not @(subscribe [:loading? [:pubmed-search @current-search-term @page-number]])))
              "No documents match your search terms"
              ;; the search term is populated and there
              ;; are results to be displayed
              (and (not (nil? @current-search-term))
-                  (not (empty? @search-results)))
-             (str @search-results))]]]))))
+                  (not (empty? (get-in @search-results [:pages 1 :pmids]))))
+             (str (get-in @search-results [:pages 1 :pmids])))]]]))))
 
 (defmethod panel-content [:create-project] []
   (fn [child]
