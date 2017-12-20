@@ -67,7 +67,11 @@
     ;; the user can get article summaries from pubmed
     (is (= (-> (-> (handler
                     (-> (mock/request :get "/api/pubmed/summaries")
-                        (mock/query-string {:pmids (pubmed/get-search-query-response "foo bar" 1)})
+                        (mock/query-string
+                         {:pmids
+                          (clojure.string/join
+                           ","
+                           (:pmids (pubmed/get-search-query-response "foo bar" 1)))})
                         ((required-headers ring-session csrf-token))))
                    :body util/read-transit-str :result)
                (get 25706626)

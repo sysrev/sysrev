@@ -163,7 +163,8 @@
        (wrap-permissions
         request [] []
         (let [{:keys [pmids]} (-> :params request)]
-          (pubmed/get-pmids-summary pmids))))
+          (pubmed/get-pmids-summary (mapv #(Integer/parseInt %)
+                                          (clojure.string/split pmids #","))))))
 
   (POST "/api/delete-member-labels" request
         (wrap-permissions

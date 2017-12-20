@@ -124,19 +124,60 @@
        (list [:reset-password/reset-code reset-code]
              [:reset-password/email email])})))
 
-(def-data :pubmed-query
-  :loaded? (fn [db search-term]
-             (get-in db [:data :search-term search-term])) ;; if loaded? is false, then data will be fetched from server, otherwise, no data is fetched. It is a fn of the dereferenced re-frame.db/app-db.
+(def-data :pubmed-search
+  :loaded?
+  ;; if loaded? is false, then data will be fetched from server,
+  ;; otherwise, no data is fetched. It is a fn of the dereferenced
+  ;; re-frame.db/app-db.
+  (fn [db search-term]
+    #_     (.log js/console "hi")
+    (get-in db [:data :search-term search-term]))
 
-  :uri (fn [] "/api/pubmed/search") ;; uri is a function that returns a uri string
+  :uri
+  ;; uri is a function that returns a uri string
+  (fn [] "/api/pubmed/search")
 
-  :prereqs (fn [] [[:identity]]) ;; a fn that returns a vector of def-data entries
+  :prereqs
+  ;; a fn that returns a vector of def-data entries
+  (fn [] [[:identity]])
 
-  :content (fn [search-term] {:term search-term
-                              :page 1}) ;; a fn that returns a map of http parameters (in a GET context)
+  :content
+  ;; a fn that returns a map of http parameters (in a GET context)
+  ;; the parameters passed to this function are the same like in
+  ;; the dispatch statement which executes the query
+  ;; e.g. (dispatch [:fetch [:pubmed-query "animals" 1]])
+  ;;
+  ;; The data can later be retrieved using a re-frame.core/subscribe call
+  ;; that is defined in in the subs/ dir in the sysrev.subs.search namespace
+  ;; e.g. @(subscribe [:pubmed/search-term-result "animals"])
+  (fn [search-term page] {:term search-term
+                          :page page})
 
   :process
-  (fn [_ [search-term] {:keys [pmids]}] ;;  fn of the form: [re-frame-db query-parameters (:result response)]
-    (let [search-term-result pmids]
+  ;;  fn of the form: [re-frame-db query-parameters (:result response)]
+  (fn [_ [search-term page] response]
+    (let [;;search-term-result response
+          ]
       {:dispatch-n
-       (list [:pubmed/save-search-term-results search-term search-term-result])})))
+       ;; this defined in events/search.cljs dir in the
+       ;; sysrev.events.search namespace
+       (list [:pubmed/save-search-term-results search-term page response])})))
+
+(def-data :pubmed-summaries
+  :loaded?
+  (fn [db pmids]
+    (constantly true))
+
+  :uri
+  (fn [] "/api/pubmed/summaries")
+
+  :prereqs
+  (fn [] [[:identity]])
+
+  :content
+  (fn [pmids page] {:pmids (clojure.string/join "," pmids)})
+
+  :process
+  (fn [_ [pmids page] response]
+    {:dispatch-n
+     (list [:pubmed/save-search-term-summaries])}))
