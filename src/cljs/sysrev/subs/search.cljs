@@ -5,4 +5,4 @@
 (reg-sub
  :pubmed/search-term-result
  (fn [db [_ search-term]]
-   (-> db :data :search-term (get-in [search-term]))))
+   (-> db :data :pubmed-search (get-in [search-term]))))

@@ -8,6 +8,8 @@
 (reg-event-db
  :pubmed/save-search-term-results
  [trim-v]
+ ;; WARNING: This fn must return something (preferable a db map),
+ ;;          otherwise the system will hang!!!
  (fn [db [search-term page search-term-response]]
    (let [page-inserter
          ;; We only want to insert a {page [pmids]} map
@@ -16,7 +18,7 @@
          ;; e.g. if you ask /api/pubmed/search for page 30 of the term "foo bar"
          ;; you will get back an empty vector. This fn discards that response
          (fn [db] (if (not (empty? (:pmids search-term-response)))
-                    (update-in db [:data :search-term search-term :pages]
+                    (update-in db [:data :pubmed-search search-term :pages]
                                #(let [data {page {:pmids (:pmids search-term-response)}}]
                                   ;; on the first request, the :pages keyword
                                   ;; doesn't yet exist so conj will return a list
@@ -28,12 +30,15 @@
                     db))]
      (-> db
          ;; include the count
-         (assoc-in [:data :search-term search-term :count]
+         (assoc-in [:data :pubmed-search search-term :count]
                    (:count search-term-response))
          ;; include the page and associated pmids
          page-inserter))))
 
+
 (reg-event-db
  :pubmed/save-search-term-summaries
  [trim-v]
- (fn [db []]))
+ (fn [db [search-term pmids page response]]
+   (assoc-in db [:data :pubmed-search search-term :pages page :summaries]
+             response)))

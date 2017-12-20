@@ -131,7 +131,7 @@
   ;; re-frame.db/app-db.
   (fn [db search-term]
     #_     (.log js/console "hi")
-    (get-in db [:data :search-term search-term]))
+    (get-in db [:data :pubmed-search search-term]))
 
   :uri
   ;; uri is a function that returns a uri string
@@ -166,7 +166,8 @@
 (def-data :pubmed-summaries
   :loaded?
   (fn [db pmids]
-    (constantly true))
+    (.log js/console "I loaded!")
+    false)
 
   :uri
   (fn [] "/api/pubmed/summaries")
@@ -175,9 +176,9 @@
   (fn [] [[:identity]])
 
   :content
-  (fn [pmids page] {:pmids (clojure.string/join "," pmids)})
+  (fn [search-term pmids page] {:pmids (clojure.string/join "," pmids)})
 
   :process
-  (fn [_ [pmids page] response]
+  (fn [_ [search-term pmids page] response]
     {:dispatch-n
-     (list [:pubmed/save-search-term-summaries])}))
+     (list [:pubmed/save-search-term-summaries search-term pmids page response])}))
