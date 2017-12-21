@@ -129,9 +129,13 @@
   ;; if loaded? is false, then data will be fetched from server,
   ;; otherwise, no data is fetched. It is a fn of the dereferenced
   ;; re-frame.db/app-db.
-  (fn [db search-term]
-    #_     (.log js/console "hi")
-    (get-in db [:data :pubmed-search search-term]))
+  (fn [db & [args]]
+    (.log js/console "hi")
+    (.log js/console (clj->js db))
+    (.log js/console (clj->js args))
+    ;;    (get-in db [:data :pubmed-search search-term])
+    true
+    )
 
   :uri
   ;; uri is a function that returns a uri string
@@ -150,18 +154,18 @@
   ;; The data can later be retrieved using a re-frame.core/subscribe call
   ;; that is defined in in the subs/ dir in the sysrev.subs.search namespace
   ;; e.g. @(subscribe [:pubmed/search-term-result "animals"])
-  (fn [search-term page] {:term search-term
-                          :page page})
+  (fn [search-term page-number] {:term search-term
+                                 :page-number page-number})
 
   :process
   ;;  fn of the form: [re-frame-db query-parameters (:result response)]
-  (fn [_ [search-term page] response]
-    (let [;;search-term-result response
+  (fn [_ [search-term page-number] response]
+    (let [ ;;search-term-result response
           ]
       {:dispatch-n
        ;; this defined in events/search.cljs dir in the
        ;; sysrev.events.search namespace
-       (list [:pubmed/save-search-term-results search-term page response])})))
+       (list [:pubmed/save-search-term-results search-term page-number response])})))
 
 (def-data :pubmed-summaries
   :loaded?
@@ -176,9 +180,9 @@
   (fn [] [[:identity]])
 
   :content
-  (fn [search-term pmids page] {:pmids (clojure.string/join "," pmids)})
+  (fn [search-term pmids page-number] {:pmids (clojure.string/join "," pmids)})
 
   :process
-  (fn [_ [search-term pmids page] response]
+  (fn [_ [search-term pmids page-number] response]
     {:dispatch-n
-     (list [:pubmed/save-search-term-summaries search-term pmids page response])}))
+     (list [:pubmed/save-search-term-summaries search-term pmids page-number response])}))

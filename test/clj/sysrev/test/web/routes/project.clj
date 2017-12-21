@@ -60,7 +60,7 @@
     (is (= (-> (handler
                 (->  (mock/request :get "/api/pubmed/search")
                      (mock/query-string {:term "foo bar"
-                                         :page 1})
+                                         :page-number 1})
                      ((required-headers ring-session csrf-token))))
                :body util/read-transit-str :result :pmids count)
            (count (:pmids (pubmed/get-search-query-response "foo bar" 1)))))
