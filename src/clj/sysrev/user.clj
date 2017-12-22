@@ -32,6 +32,7 @@
         sysrev.mail.core
         sysrev.custom.immuno
         sysrev.custom.facts
+        sysrev.custom.ebtc
         sysrev.misc
         sysrev.init
         sysrev.resources
