@@ -31,6 +31,10 @@ server {
         proxy_pass http://sysrev-clj;
     }
 
+    location /documents {
+        alias /var/www/sysrev-docs;
+    }
+
     location /files {
     }
     
