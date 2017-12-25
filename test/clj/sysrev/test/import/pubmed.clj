@@ -2,24 +2,20 @@
   (:require
    [clojure.test :refer :all]
    [clojure.java.jdbc :as jdbc]
+   [clojure.string :as str]
+   [sysrev.test.core :refer [default-fixture]]
    [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-query-pmids]]
    [sysrev.util :refer [parse-xml-str xml-find]]
-   [sysrev.db.core :refer [*conn*]]
-   [sysrev.db.project :as project]
-   [clojure.string :as str]))
-
-(def db-spec  {:classname "org.postgresql.Driver"
-               :subprotocol "postgresql"
-               :subname "//localhost:5432/sysrev_test"
-               :user "postgres"
-               :password ""})
+   [sysrev.db.core :refer [*conn* active-db]]
+   [sysrev.db.project :as project]))
 
 (defn clear [test]
-  (jdbc/with-db-transaction [db db-spec]
-    (jdbc/db-set-rollback-only! db)
-    (binding [*conn* db] ;; rebind dynamic var db, used in tests
+  (jdbc/with-db-transaction [conn @active-db]
+    (jdbc/db-set-rollback-only! conn)
+    (binding [*conn* conn] ;; rebind dynamic var db, used in tests
       (test))))
 
+(use-fixtures :once default-fixture)
 (use-fixtures :each clear)
 
 (deftest retrieve-article
