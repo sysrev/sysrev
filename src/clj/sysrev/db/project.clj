@@ -17,9 +17,10 @@
     [do-query do-execute to-sql-array sql-cast with-project-cache
      clear-project-cache clear-query-cache cached-project-ids to-jsonb
      do-transaction]]
-   [sysrev.db.articles :refer [set-article-flag remove-article-flag]]
+   [sysrev.db.articles :refer
+    [set-article-flag remove-article-flag article-to-sql]]
    [sysrev.db.queries :as q]
-   [sysrev.shared.util :refer [map-values in? short-uuid]]
+   [sysrev.shared.util :refer [map-values in? short-uuid to-uuid]]
    [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
@@ -105,13 +106,14 @@
 
 (defn create-project
   "Create a new project entry."
-  [project-name]
+  [project-name & {:keys [parent-project-id]}]
   (clear-query-cache)
   (-> (insert-into :project)
       (values [{:name project-name
                 :enabled true
                 :project-uuid (UUID/randomUUID)
-                :settings (to-jsonb default-project-settings)}])
+                :settings (to-jsonb default-project-settings)
+                :parent-project-id parent-project-id}])
       (returning :*)
       do-query
       first))
@@ -532,3 +534,19 @@
                      (= register-hash (short-uuid project-uuid))))
            first
            :project-id)))
+
+(defn populate-child-project-articles [parent-id child-id article-uuids]
+  (doseq [article-uuid article-uuids]
+    (when-let [article (-> (q/select-article-where
+                            parent-id [:= :article-uuid article-uuid] [:*]
+                            {:include-disabled? true})
+                           do-query first)]
+      (-> (insert-into :article)
+          (values [(-> article
+                       (assoc :project-id child-id
+                              :parent-article-uuid article-uuid)
+                       (dissoc :article-id
+                               :article-uuid
+                               :duplicate-of)
+                       (article-to-sql))])
+          do-execute))))
