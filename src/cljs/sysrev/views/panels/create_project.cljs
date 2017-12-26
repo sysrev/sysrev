@@ -24,7 +24,6 @@
   [props]
   (fn [{:keys [value default-value placeholder on-change]
         :or {default-value ""}} props]
-    (.log js/console "TextInput rendered")
     [:input {:type "text"
              :value @value
              :defaultValue default-value
@@ -48,7 +47,6 @@
           input-value (r/atom (str @current-page))]
       ;; prevent overshooting of current-page for tables
       ;; of different sizes
-      (.log js/console "Table Pager rendered")
       (when (> @current-page displayed-pages)
         (reset! current-page 1))
       (when (> total-pages 1)
@@ -80,7 +78,6 @@
           [:li
            [:form {:on-submit (fn [e]
                                 (.preventDefault e)
-                                (.log js/console "I submitted")
                                 (let [value (cljs.reader/read-string @input-value)]
                                   (cond (= value
                                            @current-page)
@@ -99,7 +96,6 @@
                                             )
                                         (<= 1 value total-pages)
                                         (do (reset! current-page value)
-                                            (.log js/console "I reset the current-page")
                                             (when on-click (on-click))))))}
             [:p "Page "
              [TextInput {:value input-value
@@ -133,7 +129,6 @@
   "Display an article summary item"
   [article item-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    (.log js/console "ArticleSummary rendered")
     [:div
      item-idx [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/"  uid)}
                title]
@@ -157,12 +152,15 @@
       [:span count])
     ;; show item numbers and total count when
     (when (>= count pmids-per-page)
-      [:span (str (+ 1 (* (- page-number 1) pmids-per-page)) " to " (let [max-page (* page-number pmids-per-page)]
-                                                          (if (> max-page count)
-                                                            count
-                                                            max-page)) " of " count)])]])
+      [:span (str (+ 1 (* (- page-number 1) pmids-per-page)) " to "
+                  (let [max-page (* page-number pmids-per-page)]
+                    (if (> max-page count)
+                      count
+                      max-page)) " of " count)])]])
 
-(defn SearchBar [state]
+(defn SearchBar
+  "The search input for a pubmed query"
+  [state]
   (let [current-search-term (r/cursor state [:current-search-term])
         on-change-search-term (r/cursor state [:on-change-search-term])
         page-number (r/cursor state [:page-number])
@@ -184,32 +182,39 @@
          {:on-click fetch-results}]]])))
 
 (defn SearchResultArticles
+  "Display articles of a search result"
   [state]
   (let [current-search-term (r/cursor state [:current-search-term])
         page-number (r/cursor state [:page-number])
         pmids-per-page (r/cursor state [:pmids-per-page])]
     (fn [props]
       (let [search-results (subscribe [:pubmed/search-term-result @current-search-term])]
-        [:div
-         [SearchItemsCount (:count @search-results) @page-number @pmids-per-page]
-         [SearchResultArticlesPager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) @pmids-per-page))
-                                     :current-page page-number
-                                     :on-click (fn []
-                                                 (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]
-         [:br]
-         (doall (map-indexed (fn [idx pmid]
-                               ^{:key pmid}
-                               [:div
-                                [ArticleSummary (get-in @search-results [:pages @page-number :summaries pmid])
-                                 (str (+ (+ idx 1) (* (- @page-number 1) @pmids-per-page)) ". ")]
-                                [:br]])
-                             (get-in @search-results [:pages @page-number :pmids])))
-         [SearchResultArticlesPager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) @pmids-per-page))
-                                     :current-page page-number
-                                     :on-click (fn []
-                                                 (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]]))))
+        (when-not (nil? (:count @search-results))
+          [:div
+           [SearchItemsCount (:count @search-results) @page-number @pmids-per-page]
+           [SearchResultArticlesPager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) @pmids-per-page))
+                                       :current-page page-number
+                                       :on-click (fn []
+                                                   (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]
+           [:br]
+           (if-not (empty? (get-in @search-results [:pages @page-number :summaries]))
+             [:div
+              (doall (map-indexed (fn [idx pmid]
+                                    ^{:key pmid}
+                                    [:div
+                                     [ArticleSummary (get-in @search-results [:pages @page-number :summaries pmid])
+                                      (str (+ (+ idx 1) (* (- @page-number 1) @pmids-per-page)) ". ")]
+                                     [:br]])
+                                  (get-in @search-results [:pages @page-number :pmids])))
+              [SearchResultArticlesPager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) @pmids-per-page))
+                                          :current-page page-number
+                                          :on-click (fn []
+                                                      (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]]
+             [:div.ui.active.centered.loader.inline
+              [:div.ui.loader]])])))))
 
 (defn SearchResult [state]
+  "Display pubmed search results, if any"
   (let [current-search-term (r/cursor state [:current-search-term])
         page-number (r/cursor state [:page-number])
         pmids-per-page (r/cursor state [:pmids-per-page])]
@@ -235,18 +240,18 @@
             [:h3 "No documents match your search terms"]]
            ;; the search term is not nil
            ;; and there are results to be displayed
-           (and (not (nil? @current-search-term))
-                (not (empty? (get-in @search-results [:pages @page-number :summaries]))))
+           #_           (and (not (nil? @current-search-term))
+                             (not (empty? (get-in @search-results [:pages @page-number :summaries]))))
+           :default
            [SearchResultArticles state])]))))
 
 (defn SearchPanel [state]
-  "A panel for search pubmed"
+  "A panel for searching pubmed"
   (let [current-search-term (r/cursor state [:current-search-term])
         on-change-search-term (r/cursor state [:on-change-search-term])
         page-number (r/cursor state [:page-number])]
     (fn [props]
       (let []
-        (.log js/console "search panel rendered")
         [:div.create-project
          [:div.ui.segment
           [:h3.ui.dividing.header
