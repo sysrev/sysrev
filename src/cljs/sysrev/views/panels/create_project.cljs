@@ -8,6 +8,10 @@
    [sysrev.util :refer [full-size? mobile?]]
    [sysrev.shared.util :refer [in?]]))
 
+(def state (r/atom {:current-search-term nil
+                    :on-change-search-term nil
+                    :page-number 1
+                    :pmids-per-page 20}))
 (defn TextInput
   "props is:
   {
@@ -27,7 +31,7 @@
              :placeholder placeholder
              :on-change on-change}]))
 
-(defn TablePager
+(defn SearchResultArticlesPager
   "props is:
   {:total-pages  integer ; the amount of pages
    :current-page integer ; r/atom, the current page number we are on
@@ -125,15 +129,15 @@
             ;; html character entity reference &raquo;
             "Last »"]]]]))))
 
-(defn article-summary-item
+(defn ArticleSummary
   "Display an article summary item"
   [article item-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    (.log js/console "article-summary-item rendered")
+    (.log js/console "ArticleSummary rendered")
     [:div
      item-idx [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/"  uid)}
                title]
-     [:p (clojure.string/join ", " (mapv :name authors))]
+     [:p {:style {:font-weight "bold"}} (clojure.string/join ", " (mapv :name authors))]
      [:p (str source ". " pubdate
               (when-not (empty? volume)
                 (str "; " volume ":" pages))
@@ -141,100 +145,115 @@
      [:p (str "PMID: " uid)]
      [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed&from_uid=" uid) } "Similar articles"]]))
 
-(defn search-items-count
+(defn SearchItemsCount
   "Display the total amount of items for a search term as well as the current range being viewed"
-  [count page-number]
+  [count page-number pmids-per-page]
   [:div
+   [:br]
    [:h3 "Search Results"]
    [:h4 "Items: "
     ;; only display total items when there is just a page's
-    (when (< count 20)
+    (when (< count pmids-per-page)
       [:span count])
     ;; show item numbers and total count when
-    (when (>= count 20)
-      [:span (str (+ 1 (* (- page-number 1) 20)) " to " (let [max-page (* page-number 20)]
+    (when (>= count pmids-per-page)
+      [:span (str (+ 1 (* (- page-number 1) pmids-per-page)) " to " (let [max-page (* page-number pmids-per-page)]
                                                           (if (> max-page count)
                                                             count
                                                             max-page)) " of " count)])]])
 
-(defn search-panel []
-  "A panel for search pubmed"
-  (let [current-search-term (r/atom nil)
-        on-change-search-term (r/atom nil)
-        page-number (r/atom 1)]
+(defn SearchBar [state]
+  (let [current-search-term (r/cursor state [:current-search-term])
+        on-change-search-term (r/cursor state [:on-change-search-term])
+        page-number (r/cursor state [:page-number])
+        fetch-results (fn [event]
+                        (.preventDefault event)
+                        (reset! current-search-term @on-change-search-term)
+                        (reset! page-number 1)
+                        (dispatch [:require [:pubmed-search @current-search-term 1]]))]
+    (fn [props]
+      [:form {:on-submit fetch-results}
+       [:div.ui.fluid.icon.input
+        [:input {:type "text"
+                 :placeholder "PubMed Search..."
+                 :on-change (fn [event]
+                              (reset! on-change-search-term (-> event
+                                                                (aget "target")
+                                                                (aget "value"))))}]
+        [:i.inverted.circular.search.link.icon
+         {:on-click fetch-results}]]])))
+
+(defn SearchResultArticles
+  [state]
+  (let [current-search-term (r/cursor state [:current-search-term])
+        page-number (r/cursor state [:page-number])
+        pmids-per-page (r/cursor state [:pmids-per-page])]
+    (fn [props]
+      (let [search-results (subscribe [:pubmed/search-term-result @current-search-term])]
+        [:div
+         [SearchItemsCount (:count @search-results) @page-number @pmids-per-page]
+         [SearchResultArticlesPager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) @pmids-per-page))
+                                     :current-page page-number
+                                     :on-click (fn []
+                                                 (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]
+         [:br]
+         (doall (map-indexed (fn [idx pmid]
+                               ^{:key pmid}
+                               [:div
+                                [ArticleSummary (get-in @search-results [:pages @page-number :summaries pmid])
+                                 (str (+ (+ idx 1) (* (- @page-number 1) @pmids-per-page)) ". ")]
+                                [:br]])
+                             (get-in @search-results [:pages @page-number :pmids])))
+         [SearchResultArticlesPager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) @pmids-per-page))
+                                     :current-page page-number
+                                     :on-click (fn []
+                                                 (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]]))))
+
+(defn SearchResult [state]
+  (let [current-search-term (r/cursor state [:current-search-term])
+        page-number (r/cursor state [:page-number])
+        pmids-per-page (r/cursor state [:pmids-per-page])]
     (fn [props]
       (let [search-results (subscribe [:pubmed/search-term-result @current-search-term])
-            fetch-results (fn [event]
-                            (.preventDefault event)
-                            (reset! current-search-term @on-change-search-term)
-                            ;; !! The need for this check should be eliminated if we can get !!
-                            ;; !! sysrev.data.definitions :loaded? keyword to work properly  !!
-                            ;; fetch only if results for the search term don't already exist
-                            (when (nil? (get-in
-                                         ;; remember: current-search-term has changed, you can not
-                                         ;; use @search-results here!
-                                         @(subscribe [:pubmed/search-term-result @current-search-term])
-                                         [:count]))
-                              (reset! page-number 1)
-                              (dispatch [:require [:pubmed-search @current-search-term 1]])))]
+            result-count (get-in @search-results [:count])]
+        [:div
+         (cond
+           ;; the search term hasn't been populated
+           (nil? @current-search-term)
+           nil
+           ;; the user has cleared the search term
+           (empty? @current-search-term)
+           nil
+           ;; the search term is not nil
+           ;; and the search-results are empty
+           ;; and the term is not being loaded
+           (and (not (nil? @current-search-term))
+                (= (get-in @search-results [:count]) 0)
+                (not @(subscribe [:loading? [:pubmed-search @current-search-term @page-number]])))
+           [:div
+            [:br]
+            [:h3 "No documents match your search terms"]]
+           ;; the search term is not nil
+           ;; and there are results to be displayed
+           (and (not (nil? @current-search-term))
+                (not (empty? (get-in @search-results [:pages @page-number :summaries]))))
+           [SearchResultArticles state])]))))
+
+(defn SearchPanel [state]
+  "A panel for search pubmed"
+  (let [current-search-term (r/cursor state [:current-search-term])
+        on-change-search-term (r/cursor state [:on-change-search-term])
+        page-number (r/cursor state [:page-number])]
+    (fn [props]
+      (let []
         (.log js/console "search panel rendered")
         [:div.create-project
          [:div.ui.segment
           [:h3.ui.dividing.header
            "Create a New Project"]
-          [:form {:on-submit fetch-results}
-           [:div.ui.fluid.icon.input
-            [:input {:type "text"
-                     :placeholder "PubMed Search..."
-                     :on-change (fn [event]
-                                  (reset! on-change-search-term (-> event
-                                                                    (aget "target")
-                                                                    (aget "value"))))}]
-            [:i.inverted.circular.search.link.icon
-             {:on-click fetch-results}]]]
-          [:h3
-           (cond
-             ;; the search term hasn't been populated
-             (nil? @current-search-term)
-             nil
-             ;; the user has cleared the search term
-             (empty? @current-search-term)
-             nil
-             ;; the search term is not nil
-             ;; and the search-results are empty
-             ;; and the term is not being loaded
-             (and (not (nil? @current-search-term))
-                  (= (get-in @search-results [:count]) 0)
-                  (not @(subscribe [:loading? [:pubmed-search @current-search-term @page-number]])))
-             "No documents match your search terms"
-             ;; the search term is populated and there
-             ;; are results to be displayed
-             (and (not (nil? @current-search-term))
-                  (not (empty? (get-in @search-results [:pages @page-number :summaries]))))
-             [:div
-              (.log js/console "results are being displayed")
-              [search-items-count (:count @search-results) @page-number]
-              [TablePager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) 20))
-                           :current-page page-number
-                           :on-click (fn []
-                                       (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]
-              [:br]
-              (doall (map-indexed (fn [idx pmid]
-                                    ^{:key pmid}
-                                    [:div
-                                     [article-summary-item (get-in @search-results [:pages @page-number :summaries pmid])
-                                      (str (+ (+ idx 1) (* (- @page-number 1) 20)) ". ")]
-                                     [:br]
-                                     [:br]
-                                     [:br]
-                                     ])
-                                  (get-in @search-results [:pages @page-number :pmids])))
-              [TablePager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) 20))
-                           :current-page page-number
-                           :on-click (fn []
-                                       (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]]
-             )]]]))))
+          [SearchBar state]
+          [SearchResult state]]]))))
 
 (defmethod panel-content [:create-project] []
   (fn [child]
-    [search-panel]))
+    [SearchPanel state]))
