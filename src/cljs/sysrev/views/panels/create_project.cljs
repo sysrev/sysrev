@@ -24,7 +24,8 @@
   [props]
   (fn [{:keys [value default-value placeholder on-change]
         :or {default-value ""}} props]
-    [:input {:type "text"
+    [:input {:style {:width "3em"}
+             :type "text"
              :value @value
              :defaultValue default-value
              :placeholder placeholder
@@ -51,8 +52,8 @@
         (reset! current-page 1))
       (when (> total-pages 1)
         [:nav
-         [:ul {:class "pagination"}
-          [:li {:class "page-item"}
+         [:div {:class "ui horizontal list"}
+          [:div {:class "item"}
            [:a {:href "#"
                 :class "page-link"
                 :on-click (fn [e]
@@ -62,7 +63,7 @@
             ;; the symbol here is called a Guillemet
             ;; html character entity reference &laquo;
             "« First"]]
-          [:li {:class "page-item"}
+          [:div {:class "item"}
            [:a {:href "#"
                 :class "page-link"
                 :on-click
@@ -75,7 +76,7 @@
                   (when on-click (on-click)))}
             ;; html character entity reference &lsaquo;
             "‹ Prev"]]
-          [:li
+          [:div {:class "item"}
            [:form {:on-submit (fn [e]
                                 (.preventDefault e)
                                 (let [value (cljs.reader/read-string @input-value)]
@@ -97,13 +98,13 @@
                                         (<= 1 value total-pages)
                                         (do (reset! current-page value)
                                             (when on-click (on-click))))))}
-            [:p "Page "
+            [:div "Page "
              [TextInput {:value input-value
                          :on-change #(reset! input-value (-> %
                                                              (aget "target")
-                                                             (aget "value")))}]]
-            (str " of " total-pages)]]
-          [:li {:class "page-item"}
+                                                             (aget "value")))}]
+             (str " of " total-pages)]]]
+          [:div {:class "item"}
            [:a {:href "#"
                 :class "page-link"
                 :on-click (fn [e]
@@ -115,7 +116,7 @@
                             (when on-click (on-click)))}
             ;; html character entity reference &rsaquo;
             "Next ›"]]
-          [:li {:class "page-item"}
+          [:div {:class "item"}
            [:a {:href "#"
                 :class "page-link"
                 :on-click (fn [e]
@@ -238,10 +239,6 @@
            [:div
             [:br]
             [:h3 "No documents match your search terms"]]
-           ;; the search term is not nil
-           ;; and there are results to be displayed
-           #_           (and (not (nil? @current-search-term))
-                             (not (empty? (get-in @search-results [:pages @page-number :summaries]))))
            :default
            [SearchResultArticles state])]))))
 
