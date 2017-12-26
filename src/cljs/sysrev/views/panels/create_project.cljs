@@ -44,7 +44,7 @@
           input-value (r/atom (str @current-page))]
       ;; prevent overshooting of current-page for tables
       ;; of different sizes
-      (.log js/console "I rendered")
+      (.log js/console "Table Pager rendered")
       (when (> @current-page displayed-pages)
         (reset! current-page 1))
       (when (> total-pages 1)
@@ -98,14 +98,6 @@
                                             (.log js/console "I reset the current-page")
                                             (when on-click (on-click))))))}
             [:p "Page "
-             #_              [:input {:on-change (fn [e]
-                                                   (.preventDefault e)
-                                                   (reset! input-value (-> e
-                                                                           (aget "target")
-                                                                           (aget "value"))))
-
-                                      :type "text"
-                                      :value @input-value}]
              [TextInput {:value input-value
                          :on-change #(reset! input-value (-> %
                                                              (aget "target")
@@ -137,6 +129,7 @@
   "Display an article summary item"
   [article item-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
+    (.log js/console "article-summary-item rendered")
     [:div
      item-idx [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/"  uid)}
                title]
@@ -182,7 +175,9 @@
                                          ;; use @search-results here!
                                          @(subscribe [:pubmed/search-term-result @current-search-term])
                                          [:count]))
-                              (dispatch [:fetch [:pubmed-search @current-search-term @page-number]])))]
+                              (reset! page-number 1)
+                              (dispatch [:require [:pubmed-search @current-search-term 1]])))]
+        (.log js/console "search panel rendered")
         [:div.create-project
          [:div.ui.segment
           [:h3.ui.dividing.header
@@ -209,19 +204,20 @@
              ;; and the search-results are empty
              ;; and the term is not being loaded
              (and (not (nil? @current-search-term))
-                  (empty? (get-in @search-results [:pages 1 :pmids]))
+                  (= (get-in @search-results [:count]) 0)
                   (not @(subscribe [:loading? [:pubmed-search @current-search-term @page-number]])))
              "No documents match your search terms"
              ;; the search term is populated and there
              ;; are results to be displayed
              (and (not (nil? @current-search-term))
-                  (not (empty? (get-in @search-results [:pages 1 :pmids]))))
+                  (not (empty? (get-in @search-results [:pages @page-number :summaries]))))
              [:div
+              (.log js/console "results are being displayed")
               [search-items-count (:count @search-results) @page-number]
               [TablePager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) 20))
                            :current-page page-number
                            :on-click (fn []
-                                       (dispatch [:fetch [:pubmed-search @current-search-term @page-number]]))}]
+                                       (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]
               [:br]
               (doall (map-indexed (fn [idx pmid]
                                     ^{:key pmid}
@@ -236,7 +232,7 @@
               [TablePager {:total-pages (Math/ceil (/ (get-in @search-results [:count]) 20))
                            :current-page page-number
                            :on-click (fn []
-                                       (dispatch [:fetch [:pubmed-search @current-search-term @page-number]]))}]]
+                                       (dispatch [:require [:pubmed-search @current-search-term @page-number]]))}]]
              )]]]))))
 
 (defmethod panel-content [:create-project] []

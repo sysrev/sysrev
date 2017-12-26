@@ -129,13 +129,19 @@
   ;; if loaded? is false, then data will be fetched from server,
   ;; otherwise, no data is fetched. It is a fn of the dereferenced
   ;; re-frame.db/app-db.
-  (fn [db & [args]]
-    (.log js/console "hi")
-    (.log js/console (clj->js db))
-    (.log js/console (clj->js args))
-    ;;    (get-in db [:data :pubmed-search search-term])
-    true
-    )
+  (fn [db search-term page-number]
+    (let [pmids-per-page 20
+          result-count (get-in db [:data :pubmed-search search-term :count])]
+      ;; the result-count hasn't been updated, so the search term results still need to
+      ;; be populated
+      (if (nil? result-count)
+        false
+        ;; the page number exists
+        (if (<= page-number
+                (Math/ceil (/ result-count pmids-per-page)))
+          (not (empty? (get-in db [:data :pubmed-search search-term :pages page-number :pmids])))
+          ;; the page number doesn't exist, retrieve nothing
+          true))))
 
   :uri
   ;; uri is a function that returns a uri string
@@ -169,9 +175,15 @@
 
 (def-data :pubmed-summaries
   :loaded?
-  (fn [db pmids]
-    (.log js/console "I loaded!")
-    false)
+  (fn [db search-term page-number pmids]
+    (let [pmids-per-page 20
+          result-count (get-in db [:data :pubmed-search search-term :count])]
+      (if (<= page-number
+              (Math/ceil (/ result-count pmids-per-page)))
+        ;; the page number exists, the results should too
+        (not (empty? (get-in db [:data :pubmed-search search-term :pages page-number :summaries])))
+        ;; the page number isn't in the result, retrieve nothing
+        true)))
 
   :uri
   (fn [] "/api/pubmed/summaries")
@@ -180,9 +192,9 @@
   (fn [] [[:identity]])
 
   :content
-  (fn [search-term pmids page-number] {:pmids (clojure.string/join "," pmids)})
+  (fn [search-term page-number pmids] {:pmids (clojure.string/join "," pmids)})
 
   :process
-  (fn [_ [search-term pmids page-number] response]
+  (fn [_ [search-term page-number pmids] response]
     {:dispatch-n
-     (list [:pubmed/save-search-term-summaries search-term pmids page-number response])}))
+     (list [:pubmed/save-search-term-summaries search-term page-number response])}))
