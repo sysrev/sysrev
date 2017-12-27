@@ -147,7 +147,8 @@
   [:div
    [:br]
    [:h3 "Search Results"]
-   [:h4 "Items: "
+   [:h4 {:id "items-count"}
+    "Items: "
     ;; only display total items when there is just a page's
     (when (< count pmids-per-page)
       [:span count])

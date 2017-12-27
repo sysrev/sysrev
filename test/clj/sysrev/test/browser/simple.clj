@@ -7,7 +7,7 @@
             [sysrev.test.core :refer [default-fixture completes?]]
             [sysrev.test.browser.core :refer
              [webdriver-fixture-once webdriver-fixture-each go-route
-              login-form-shown? panel-rendered? element-rendered?]]
+              login-form-shown? panel-rendered? element-rendered? wait-until-panel-exists]]
             [sysrev.test.browser.navigate :refer
              [log-in log-out register-user]]
             [clojure.string :as str]
@@ -19,16 +19,6 @@
 #_ (deftest home-page-loads
   (go-route "/")
   (is (login-form-shown?)))
-
-(defn panel-name
-  [panel-keys]
-  (str/join "_" (map name panel-keys)))
-
-(defn wait-until-panel-exists
-  [panel-keys]
-  (taxi/wait-until
-   #(taxi/exists?
-     {:css (str "div[id='" (panel-name panel-keys) "']")})))
 
 (deftest project-routes
   (log-in)
