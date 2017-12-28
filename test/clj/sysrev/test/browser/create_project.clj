@@ -59,11 +59,18 @@
          (search-count))))
 
 (defn click-pager
-  "Given a string, click the link in the pager corresponding to that position"
+  "Given a nav string, click the link in the pager corresponding to that position"
   [nav]
   (let [query {:xpath (str "//a[contains(@class,'page-link') and contains(text(),'" nav "')]")}]
     (browser/wait-until-exists query)
-    (taxi/click (taxi/find-element query ))))
+    (taxi/click (taxi/find-element query))))
+
+(defn disabled-pager-link?
+  "Given a nav string, check to see if that pager link is disabled"
+  [nav]
+  (let [query {:xpath (str "//a[contains(@class,'page-link') and contains(text(),'" nav "')]")}]
+    (browser/wait-until-exists query)
+    (boolean (re-matches #".*disabled" (taxi/attribute query :class)))))
 
 (deftest pubmed-search
   (log-in)
@@ -78,12 +85,16 @@
     (is (taxi/exists? {:xpath "//h3[contains(text(),'No documents match your search terms')]"})))
   (testing "Pager works properly"
     (search-for "foo")
+    (is (disabled-pager-link? "First"))
+    (is (disabled-pager-link? "Prev"))
     ;; Go to next page
     (click-pager "Next")
     (is (= 2
            (get-current-page-number)))
     ;; Go to last page
     (click-pager "Last")
+    (is (disabled-pager-link? "Next"))
+    (is (disabled-pager-link? "Last"))
     (is (= (max-pages)
            (get-current-page-number)))
     ;; Go back one page
