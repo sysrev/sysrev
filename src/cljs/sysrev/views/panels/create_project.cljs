@@ -55,7 +55,9 @@
          [:div {:class "ui horizontal list"}
           [:div {:class "item"}
            [:a {:href "#"
-                :class "page-link"
+                :class (if (= @current-page 1)
+                         "page-link disabled"
+                         "page-link")
                 :on-click (fn [e]
                             (.preventDefault e)
                             (reset! current-page 1)
@@ -65,7 +67,9 @@
             "« First"]]
           [:div {:class "item"}
            [:a {:href "#"
-                :class "page-link"
+                :class (if (= @current-page 1)
+                         "page-link disabled"
+                         "page-link")
                 :on-click
                 (fn [e]
                   (.preventDefault e)
@@ -106,7 +110,9 @@
              (str " of " total-pages)]]]
           [:div {:class "item"}
            [:a {:href "#"
-                :class "page-link"
+                :class (if (= @current-page total-pages)
+                         "page-link disabled"
+                         "page-link")
                 :on-click (fn [e]
                             (.preventDefault e)
                             (let [new-current-page (+ (last displayed-pages) 1)]
@@ -118,7 +124,9 @@
             "Next ›"]]
           [:div {:class "item"}
            [:a {:href "#"
-                :class "page-link"
+                :class (if (= @current-page total-pages)
+                         "page-link disabled"
+                         "page-link")
                 :on-click (fn [e]
                             (.preventDefault e)
                             (reset! current-page total-pages)
