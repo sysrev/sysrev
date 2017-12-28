@@ -66,7 +66,7 @@
   [query]
   (let [total-pmids (:count (get-search-query-response query 1))
         retmax 100000
-        max-pages (int (Math/ceil (/ total-pmids 100000)))]
+        max-pages (int (Math/ceil (/ total-pmids retmax)))]
     (vec (apply concat
                 (mapv
                  (fn [page]
