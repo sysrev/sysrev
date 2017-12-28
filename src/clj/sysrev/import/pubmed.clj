@@ -26,22 +26,22 @@
 
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-search-query
-  "Given a query and page number, fetch the json associated with that query. Return a EDN map of that data. A page size is 20 PMIDs and starts on page 1"
-  [query page-number]
+  "Given a query and retstart value, fetch the json associated with that query. Return a EDN map of that data. A page size is 20 PMIDs and starts on page 1"
+  [query retmax retstart]
   (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
                 {:query-params {"db" "pubmed"
                                 "term" query
                                 "retmode" "json"
-                                "retmax" "20"
-                                "retstart" (* (- page-number 1) 20)
-                                }})
+                                "retmax" retmax
+                                "retstart" retstart}})
       :body
       (json/read-str :key-fn keyword)))
 
 (defn get-search-query-response
   "Given a query and page number, return a EDN map corresponding to a JSON response. A page size is 20 PMIDs and starts on page 1"
   [query page-number]
-  (let [esearch-result (:esearchresult (get-search-query query page-number))]
+  (let [retmax 20
+        esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
     {:pmids (mapv #(Integer/parseInt %)
                   (-> esearch-result
                       :idlist))
@@ -60,6 +60,21 @@
                                           (read-string item)
                                           (keyword item))))
       :result))
+
+(defn get-all-pmids-for-query
+  "Given a search query, return all PMIDs as a vector of integers"
+  [query]
+  (let [total-pmids (:count (get-search-query-response query 1))
+        retmax 100000
+        max-pages (int (Math/ceil (/ total-pmids 100000)))]
+    (vec (apply concat
+                (mapv
+                 (fn [page]
+                   (mapv (fn [string]
+                           (Integer/parseInt string))
+                         (get-in (get-search-query query retmax (* page retmax))
+                                 [:esearchresult :idlist])))
+                 (vec (range 0 max-pages)))))))
 
 (defn parse-pubmed-author-names [authors]
   (when-not (empty? authors)
