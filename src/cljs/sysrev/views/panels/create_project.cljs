@@ -172,7 +172,8 @@
                         (reset! page-number 1)
                         (dispatch [:require [:pubmed-search @current-search-term 1]]))]
     (fn [props]
-      [:form {:on-submit fetch-results}
+      [:form {:on-submit fetch-results
+              :id "search-bar"}
        [:div.ui.fluid.icon.input
         [:input {:type "text"
                  :placeholder "PubMed Search..."
