@@ -3,11 +3,12 @@
             [sysrev.db.users :refer [create-user]]
             [sysrev.web.core :refer [wrap-sysrev-app
                                      load-app-routes]]
-            [sysrev.test.core :refer [database-rollback-fixture]]
+            [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.import.pubmed :as pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
 
+(use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 ;; from https://gist.github.com/cyppan/864c09c479d1f0902da5

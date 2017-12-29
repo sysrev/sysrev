@@ -9,16 +9,9 @@
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :refer [set-active-db! make-db-config close-active-db
-                                    clear-query-cache *conn*]]))
+                                    clear-query-cache *conn* active-db]]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
-
-;; used for testing
-(def db-spec  {:classname "org.postgresql.Driver"
-               :subprotocol "postgresql"
-               :subname "//localhost:5432/sysrev_test"
-               :user "postgres"
-               :password ""})
 
 (defn set-selenium-config [raw-config]
   (reset! raw-selenium-config raw-config))
@@ -79,7 +72,7 @@
   `(do ~form true))
 
 (defn database-rollback-fixture [test]
-  (jdbc/with-db-transaction [db db-spec]
+  (jdbc/with-db-transaction [db @active-db]
     (jdbc/db-set-rollback-only! db)
     (binding [*conn* db] ;; rebind dynamic var db, used in tests
       (test))))
