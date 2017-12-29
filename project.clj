@@ -72,7 +72,9 @@
                  [cljsjs/dropzone "4.3.0-0"]
                  [org.clojure/test.check "0.9.0"]
                  [cljsjs/clipboard "1.6.1-1"]
-                 [com.andrewmcveigh/cljs-time "0.5.1"]]
+                 [com.andrewmcveigh/cljs-time "0.5.1"]
+                 ;; for testing purposes
+                 [ring/ring-mock "0.3.2" :exclusions [cheshire]]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Xms800m"
              "-Xmx1500m"

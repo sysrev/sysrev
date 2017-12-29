@@ -9,4 +9,5 @@
             sysrev.subs.review
             sysrev.subs.labels
             sysrev.subs.notes
-            sysrev.subs.ui))
+            sysrev.subs.ui
+            sysrev.subs.search))

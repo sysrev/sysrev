@@ -1,5 +1,6 @@
 (ns sysrev.test.core
-  (:require [clojure.test :refer :all]
+  (:require [clojure.java.jdbc :as jdbc]
+            [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as t]
             [clojure.tools.logging :as log]
@@ -8,9 +9,16 @@
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :refer [set-active-db! make-db-config close-active-db
-                                    clear-query-cache]]))
+                                    clear-query-cache *conn*]]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
+
+;; used for testing
+(def db-spec  {:classname "org.postgresql.Driver"
+               :subprotocol "postgresql"
+               :subname "//localhost:5432/sysrev_test"
+               :user "postgres"
+               :password ""})
 
 (defn set-selenium-config [raw-config]
   (reset! raw-selenium-config raw-config))
@@ -69,3 +77,9 @@
 
 (defmacro completes? [form]
   `(do ~form true))
+
+(defn database-rollback-fixture [test]
+  (jdbc/with-db-transaction [db db-spec]
+    (jdbc/db-set-rollback-only! db)
+    (binding [*conn* db] ;; rebind dynamic var db, used in tests
+      (test))))

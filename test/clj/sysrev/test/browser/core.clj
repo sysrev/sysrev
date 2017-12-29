@@ -39,32 +39,6 @@
     @active-webdriver
     (do (when @active-webdriver
           (try (taxi/quit) (catch Throwable e nil)))
-        #_  (reset!
-             active-webdriver
-             (let [^LoggingPreferences logs (LoggingPreferences.)
-                   _ (.enable logs LogType/DRIVER Level/WARNING)
-                   _ (.enable logs LogType/SERVER Level/WARNING)
-                   _ (.enable logs LogType/BROWSER Level/WARNING)
-                   _ (.enable logs LogType/CLIENT Level/WARNING)
-                   pjs (PhantomJSDriver.
-                        (doto (DesiredCapabilities.)
-                          (.setCapability
-                           "phantomjs.cli.args"
-                           (into-array String ["--ignore-ssl-errors=true"
-                                               "--webdriver-loglevel=warn"]))
-                          (.setCapability
-                           "phantomjs.ghostdriver.cli.args"
-                           (into-array String ["--logLevel=WARN"]))
-                          (.setCapability
-                           CapabilityType/LOGGING_PREFS
-                           logs)))
-                   driver (driver/init-driver {:webdriver pjs})
-                   #_ (taxi/window-resize {:width 1920 :height 1080} )
-                   ]
-               (taxi/implicit-wait driver 3000)
-               (taxi/set-driver! driver)
-               (log/info "started phantomjs webdriver")
-               driver))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments
@@ -74,7 +48,21 @@
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
                       driver (driver/init-driver {:webdriver chromedriver})]
-                  #_ (taxi/implicit-wait driver 30000)
+                  (taxi/set-driver! driver))))))
+
+(defn start-visual-webdriver [& [restart?]]
+  (if (and @active-webdriver (not restart?))
+    @active-webdriver
+    (do (when @active-webdriver
+          (try (taxi/quit) (catch Throwable e nil)))
+        (reset! active-webdriver
+                (let [opts (doto (ChromeOptions.)
+                             (.addArguments
+                              ["window-size=1200,800"]))
+                      chromedriver (ChromeDriver.
+                                    (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
+                                      (.setCapability ChromeOptions/CAPABILITY opts)))
+                      driver (driver/init-driver {:webdriver chromedriver})]
                   (taxi/set-driver! driver))))))
 
 (defn stop-webdriver []
@@ -136,3 +124,18 @@
 
 (defn login-form-shown? []
   (element-rendered? "div" "login-register-panel"))
+
+(defn wait-until-exists
+  "Given a query q, wait until the element it represents exists"
+  [q]
+  (taxi/wait-until
+   #(taxi/exists?
+     q)))
+
+(defn panel-name
+  [panel-keys]
+  (str/join "_" (map name panel-keys)))
+
+(defn wait-until-panel-exists
+  [panel-keys]
+  (wait-until-exists {:css (str "div[id='" (panel-name panel-keys) "']")}))

@@ -91,12 +91,12 @@
     elts
     (if conn
       (.createArrayOf (:connection conn) sql-type (into-array elts))
-      (j/with-db-connection [conn (or *conn* @active-db)]
+      (j/with-db-transaction [conn (or *conn* @active-db)]
         (try
           (.createArrayOf (:connection conn) sql-type (into-array elts))
-          (finally
-            (when (nil? *conn*)
-              (.close (:connection conn)))))))))
+          #_ (finally
+               (when (nil? *conn*)
+                 (.close (:connection conn)))))))))
 
 (defn sql-array-contains [field val]
   [:= val (sql/call :any field)])

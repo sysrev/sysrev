@@ -19,6 +19,7 @@
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.shared.keywords :refer [process-keywords format-abstract]]
    [sysrev.shared.transit :as sr-transit]
+   [sysrev.import.pubmed :as pubmed]
    [sysrev.util :refer
     [should-never-happen-exception integerify-map-keys uuidify-map-keys]]
    [sysrev.config.core :refer [env]]
@@ -140,6 +141,30 @@
             {:article (prepare-article-response article)
              :labels user-labels
              :notes user-notes}))))
+
+  ;; Note that transit-clj is not used with query params.
+  ;; Therefore, the string request parameter 'page-number' is converted to an integer
+  ;; before being passed to get-query-pmids
+  ;;
+  ;; Why not just pass the parameters in the body of the request?
+  ;; In REST, a GET request should not return a response based on
+  ;; the content of request body.
+  ;; see: https://stackoverflow.com/questions/978061/http-get-with-request-body
+
+  ;; Return a vector of PMIDs associated with the given search term
+  (GET "/api/pubmed/search" request
+       (wrap-permissions
+        request [] []
+        (let [{:keys [term page-number]} (-> :params request)]
+          (pubmed/get-search-query-response term (Integer/parseInt page-number)))))
+
+  ;; Return article summaries for a list of PMIDs
+  (GET "/api/pubmed/summaries" request
+       (wrap-permissions
+        request [] []
+        (let [{:keys [pmids]} (-> :params request)]
+          (pubmed/get-pmids-summary (mapv #(Integer/parseInt %)
+                                          (clojure.string/split pmids #","))))))
 
   (POST "/api/delete-member-labels" request
         (wrap-permissions
