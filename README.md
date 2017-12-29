@@ -7,7 +7,6 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
 * [Dev Environment](#markdown-header-dev-environment)
 * [IDE Setup](#markdown-header-ide-setup)
 * [Config Files](#markdown-header-config-files)
-* [Managing Database](#markdown-header-managing-database)
 * [Project Structure](#markdown-header-project-structure)
 * [Server Project](#markdown-header-server-project)
 * [Client Project](#markdown-header-client-project)
@@ -133,6 +132,18 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 * When a route is changed, you must restart the web server
 
     `repl> (sysrev.init/start-app)`
+
+* To manage database with Flyway:
+
+    Edit `flyway.conf` to match database connection settings.
+
+    Database name `sysrev` is used in production and REPL; `sysrev_test` is used by `lein test` and Jenkins build tests.
+
+    Run `./flyway info` to check status of database relative to files in `./resources/sql/*.sql`.
+
+    Run `./flyway migrate` to apply changes to database; you will want to apply changes to both `sysrev`
+    and `sysrev_test` (edit `flyway.conf` to connect to each).
+
 ## IDE Setup
 
 * Cursive (IntelliJ)
@@ -147,7 +158,7 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
 1. Start figwheel using the script in the command line
 
-	`$ ./figwheel`
+    `$ ./figwheel`
 
 1. Open a web browser
 
@@ -169,7 +180,7 @@ user> (cljs-repl)
 cljs.user> (.log js/console "hi")
 ```
 
-	You should see "hi" in the console
+    You should see "hi" in the console
 
 1. Switch to sysrev.user namespace
 
@@ -213,10 +224,10 @@ sysrev.user> (nav "/create-project")
 
 1. To pull data from the server, add an entry into 'data/definitions.cljs'
 
-	ex: To make a GET request on the server, using term as a URL parameter, you would use:
+    ex: To make a GET request on the server, using term as a URL parameter, you would use:
 
-	bug: If you are viewing a bar chart, reloading 'data/definitions.cljs' will result in
-	a browser error
+    bug: If you are viewing a bar chart, reloading 'data/definitions.cljs' will result in
+    a browser error
 
 ```clojure
 (def-data :pubmed-query
@@ -247,17 +258,17 @@ sysrev.user> (nav "/create-project")
 
 1. Read the data from the server in the REPL
 
-	`sysrev.user> (dispatch [:fetch [:pubmed-query "foo bar"]])`
+    `sysrev.user> (dispatch [:fetch [:pubmed-query "foo bar"]])`
 
 1. In subs/ dir, find a relevant namespace or create a new one.
 
-	If you create a new namespace, add it to sysrev.subs.all
+    If you create a new namespace, add it to sysrev.subs.all
 
 ```clojure
 (reg-sub
  :pubmed/search-term-result
  (fn [db [_ search-term]] ;; first term in the destructed term is the subscription name itself,
-	 e.g. [_ search-term] _ is :pubmed/search-term-result
+     e.g. [_ search-term] _ is :pubmed/search-term-result
    (-> db :data :search-term (get-in [search-term]))))
 ```
 
@@ -318,7 +329,7 @@ General-use functionality for data access and event handling is kept under `subs
 * `user.cljs`
     * Namespace for use in REPL. Imports symbols from all other namespaces for convenience.
 * `subs/`
-	* re-frame data subscriptions intended for general use.
+    * re-frame data subscriptions intended for general use.
 * `events/`
     * re-frame events intended for general use.
 * `data/`
