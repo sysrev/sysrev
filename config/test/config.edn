@@ -1,5 +1,5 @@
 {:postgres
- {:dbname "sysrev_test"
+ {:dbname "sysrev_test_child_project"
   :user "postgres"
   :password ""
   :host "localhost"

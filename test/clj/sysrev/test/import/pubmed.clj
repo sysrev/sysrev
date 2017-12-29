@@ -1,12 +1,15 @@
 (ns sysrev.test.import.pubmed
   (:require
    [clojure.test :refer :all]
+   [clojure.java.jdbc :as jdbc]
+   [clojure.string :as str]
+   [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
    [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-search-query-response get-pmids-summary get-all-pmids-for-query]]
    [sysrev.util :refer [parse-xml-str xml-find]]
-   [sysrev.test.core :refer [database-rollback-fixture]]
-   [sysrev.db.project :as project]
-   [clojure.string :as str]))
+   [sysrev.db.core :refer [*conn* active-db]]
+   [sysrev.db.project :as project]))
 
+(use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 (def ss (partial clojure.string/join "\n"))

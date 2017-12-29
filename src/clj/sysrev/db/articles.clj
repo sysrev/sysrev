@@ -197,8 +197,13 @@
     (if-let [article (query-article-by-id-full article-id)]
       (if (= (:project-id article) src-project-id)
         (if-let [new-article-id
-                 (add-article (-> article (dissoc :article-id :project-id :duplicate-of :locations
-                                                  :review-status :score))
+                 (add-article (-> article (dissoc :article-id
+                                                  :article-uuid
+                                                  :project-id
+                                                  :duplicate-of
+                                                  :locations
+                                                  :review-status
+                                                  :score))
                               dest-project-id)]
           (let [locations
                 (-> (q/select-project-articles
