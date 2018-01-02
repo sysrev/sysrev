@@ -24,12 +24,13 @@
   [props]
   (fn [{:keys [value default-value placeholder on-change]
         :or {default-value ""}} props]
-    [:input {:style {:width "3em"}
-             :type "text"
-             :value @value
-             :defaultValue default-value
-             :placeholder placeholder
-             :on-change on-change}]))
+    [:div {:class "ui mini input"}
+     [:input {:style {:width "5em"}
+              :type "text"
+              :value @value
+              :defaultValue default-value
+              :placeholder placeholder
+              :on-change on-change}]]))
 
 (defn SearchResultArticlesPager
   "props is:
@@ -52,93 +53,88 @@
         (reset! current-page 1))
       (when (> total-pages 1)
         [:nav
-         [:div {:class "ui horizontal list"}
-          [:div {:class "item"}
-           [:a {:href "#"
-                :class (if (= @current-page 1)
-                         "page-link disabled"
-                         "page-link")
-                :on-click (fn [e]
-                            (.preventDefault e)
-                            (reset! current-page 1)
-                            (when on-click (on-click)))}
-            ;; the symbol here is called a Guillemet
-            ;; html character entity reference &laquo;
-            "« First"]]
-          [:div {:class "item"}
-           [:a {:href "#"
-                :class (if (= @current-page 1)
-                         "page-link disabled"
-                         "page-link")
-                :on-click
-                (fn [e]
-                  (.preventDefault e)
-                  (let [new-current-page (- (first displayed-pages) 1)]
-                    (if (< new-current-page 1)
-                      (reset! current-page 1)
-                      (reset! current-page new-current-page)))
-                  (when on-click (on-click)))}
-            ;; html character entity reference &lsaquo;
-            "‹ Prev"]]
-          [:div {:class "item"}
-           [:form {:on-submit (fn [e]
-                                (.preventDefault e)
-                                (let [value (cljs.reader/read-string @input-value)]
-                                  (cond (= value
-                                           @current-page)
-                                        true
-                                        (not= (type value)
-                                              (type 1))
-                                        (do (js/alert (str "This is not a valid page number:" value))
-                                            ;; reset the value back to what it was
-                                            ;; ?
-                                            (reset! input-value @current-page)
-                                            )
-                                        (not (<= 1 value total-pages))
-                                        (do (js/alert (str "This number is outside the page range: " value))
-                                            ;; reset the value back to what it was
-                                            (reset! input-value @current-page)
-                                            )
-                                        (<= 1 value total-pages)
-                                        (do (reset! current-page value)
-                                            (when on-click (on-click))))))}
-            [:div "Page "
-             [TextInput {:value input-value
-                         :on-change #(reset! input-value (-> %
-                                                             (aget "target")
-                                                             (aget "value")))}]
-             (str " of " total-pages)]]]
-          [:div {:class "item"}
-           [:a {:href "#"
-                :class (if (= @current-page total-pages)
-                         "page-link disabled"
-                         "page-link")
-                :on-click (fn [e]
-                            (.preventDefault e)
-                            (let [new-current-page (+ (last displayed-pages) 1)]
-                              (if (> new-current-page total-pages)
-                                (reset! current-page total-pages)
-                                (reset! current-page new-current-page)))
-                            (when on-click (on-click)))}
-            ;; html character entity reference &rsaquo;
-            "Next ›"]]
-          [:div {:class "item"}
-           [:a {:href "#"
-                :class (if (= @current-page total-pages)
-                         "page-link disabled"
-                         "page-link")
-                :on-click (fn [e]
-                            (.preventDefault e)
-                            (reset! current-page total-pages)
-                            (when on-click (on-click)))}
-            ;; html character entity reference &raquo;
-            "Last »"]]]]))))
+         [:div
+          [:div {:class "ui buttons"}
+           [:div {:class (if (= @current-page 1)
+                           "ui tiny icon button disabled"
+                           "ui tiny icon button")
+                  :on-click (fn [e]
+                              (.preventDefault e)
+                              (reset! current-page 1)
+                              (when on-click (on-click)))}
+            [:i {:class "angle double left icon"}]
+            "First"]
+           [:div {:class (if (= @current-page 1)
+                           "ui tiny icon button disabled"
+                           "ui tiny icon button")
+                  :on-click
+                  (fn [e]
+                    (.preventDefault e)
+                    (let [new-current-page (- (first displayed-pages) 1)]
+                      (if (< new-current-page 1)
+                        (reset! current-page 1)
+                        (reset! current-page new-current-page)))
+                    (when on-click (on-click)))}
+            [:i {:class "angle left icon"}]
+            "Previous"]]
+          [:form {:class "ui action input"
+                  :style {:padding-left "1em"
+                          :padding-right "1em"}
+                  :on-submit (fn [e]
+                               (.preventDefault e)
+                               (let [value (cljs.reader/read-string @input-value)]
+                                 (cond (= value
+                                          @current-page)
+                                       true
+                                       (not= (type value)
+                                             (type 1))
+                                       (do (js/alert (str "This is not a valid page number:" value))
+                                           ;; reset the value back to what it was
+                                           ;; ?
+                                           (reset! input-value @current-page)
+                                           )
+                                       (not (<= 1 value total-pages))
+                                       (do (js/alert (str "This number is outside the page range: " value))
+                                           ;; reset the value back to what it was
+                                           (reset! input-value @current-page)
+                                           )
+                                       (<= 1 value total-pages)
+                                       (do (reset! current-page value)
+                                           (when on-click (on-click))))))}
+           [:div "Page "
+            [TextInput {:value input-value
+                        :on-change #(reset! input-value (-> %
+                                                            (aget "target")
+                                                            (aget "value")))}]
+            (str " of " total-pages)]]
+          [:div {:class "ui buttons"}
+           [:div {:class (if (= @current-page total-pages)
+                           "ui tiny icon button disabled"
+                           "ui tiny icon button")
+                  :on-click (fn [e]
+                              (.preventDefault e)
+                              (let [new-current-page (+ (last displayed-pages) 1)]
+                                (if (> new-current-page total-pages)
+                                  (reset! current-page total-pages)
+                                  (reset! current-page new-current-page)))
+                              (when on-click (on-click)))}
+            [:i {:class "angle right icon"}]
+            "Next"]
+           [:div {:class (if (= @current-page total-pages)
+                           "ui tiny icon button disabled"
+                           "ui tiny icon button")
+                  :on-click (fn [e]
+                              (.preventDefault e)
+                              (reset! current-page total-pages)
+                              (when on-click (on-click)))}
+            [:i {:class "angle double right icon"}]
+            "Last"]]]]))))
 
 (defn ArticleSummary
   "Display an article summary item"
   [article item-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    [:div
+    [:div.ui.segment
      item-idx [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/"  uid)}
                title]
      [:p {:style {:font-weight "bold"}} (clojure.string/join ", " (mapv :name authors))]
