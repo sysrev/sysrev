@@ -42,11 +42,14 @@
   [query page-number]
   (let [retmax 20
         esearch-result (:esearchresult (get-search-query query retmax (* (- page-number 1) retmax)))]
-    {:pmids (mapv #(Integer/parseInt %)
-                  (-> esearch-result
-                      :idlist))
-     :count (Integer/parseInt (-> esearch-result
-                                  :count))}))
+    (if (:ERROR esearch-result)
+      {:pmids []
+       :count 0}
+      {:pmids (mapv #(Integer/parseInt %)
+                    (-> esearch-result
+                        :idlist))
+       :count (Integer/parseInt (-> esearch-result
+                                    :count))})))
 
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"
