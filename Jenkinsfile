@@ -39,6 +39,12 @@ node {
     }
   }
 
+  jenkinsHost = "builds.insilica.co"
+  jenkinsJob = "sysrev"
+  jenkinsBuildUrl = "https://${jenkinsHost}/blue/organizations/jenkins/${jenkinsJob}/detail/${branch}/${env.BUILD_NUMBER}/pipeline"
+  jenkinsConsoleUrl = "https://${jenkinsHost}/job/${jenkinsJob}/job/${branch}/${env.BUILD_NUMBER}/console"
+  jenkinsSlackLinks = "(<${jenkinsBuildUrl}|Open>) (<${jenkinsConsoleUrl}|Console>)"
+
   def sendSlackMsgFull = {
     msg,color ->
     if (color == 'blue') {
@@ -54,7 +60,7 @@ node {
         colorVal = 'good'
       }
     }
-    msgContent = "[${env.JOB_NAME}] ${msg}"
+    msgContent = "[${env.JOB_NAME} #${env.BUILD_NUMBER}] ${msg} | ${jenkinsSlackLinks}"
     if (colorVal != null) {
       slackSend color: colorVal, message: msgContent
     } else {
