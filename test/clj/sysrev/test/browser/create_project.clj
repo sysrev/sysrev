@@ -20,10 +20,12 @@
 (defn search-for
   "Given a string query, enter the search term in the search bar"
   [query]
-  (let [search-input (taxi/find-element
-                      {:xpath "//input[contains(@placeholder,'PubMed Search...')]"})]
+  (let [search-input {:xpath "//input[contains(@placeholder,'PubMed Search...')]"}
+        search-icon {:xpath "//i[contains(@class,'search')]"}]
+    (browser/wait-until-exists search-input)
     (taxi/clear search-input)
     (taxi/input-text search-input query)
+    (browser/wait-until-exists search-icon)
     (taxi/click (taxi/find-element {:xpath "//i[contains(@class,'search')]"}))))
 
 (defn search-count
