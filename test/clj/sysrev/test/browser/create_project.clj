@@ -20,11 +20,13 @@
 (defn search-for
   "Given a string query, enter the search term in the search bar"
   [query]
-  (let [search-input (taxi/find-element
-                      {:xpath "//input[contains(@placeholder,'PubMed Search...')]"})]
+  (let [search-input {:xpath "//input[contains(@placeholder,'PubMed Search...')]"}
+        search-form {:xpath "//form[@id='search-bar']"}]
+    (browser/wait-until-exists search-form)
+    (browser/wait-until-exists search-input)
     (taxi/clear search-input)
     (taxi/input-text search-input query)
-    (taxi/click (taxi/find-element {:xpath "//i[contains(@class,'search')]"}))))
+    (taxi/submit search-form)))
 
 (defn search-count
   "Return an integer item count of search results"
@@ -43,13 +45,13 @@
   (let [pages-query {:xpath "//form/div[contains(text(),'Page')]"}]
     (browser/wait-until-exists pages-query)
     (->> (taxi/text (taxi/find-element pages-query))
-         (re-matches #"Page of (\d*)")
-         second
+         (re-matches #"(.|\s)*of (\d*)")
+         last
          clojure.core/read-string)))
 
 (defn get-current-page-number
   []
-  (clojure.core/read-string (taxi/value (taxi/find-element {:xpath "//div[@class='item']/form/div/input[@type='text']"}))))
+  (clojure.core/read-string (taxi/value (taxi/find-element {:xpath "//form/div/div[contains(@class,'input')]/input[@type='text']"}))))
 
 (defn search-term-count-matches?
   "Does the search-term result in the browser match the remote call?"
@@ -61,14 +63,14 @@
 (defn click-pager
   "Given a nav string, click the link in the pager corresponding to that position"
   [nav]
-  (let [query {:xpath (str "//a[contains(@class,'page-link') and contains(text(),'" nav "')]")}]
+  (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
     (browser/wait-until-exists query)
     (taxi/click (taxi/find-element query))))
 
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
-  (let [query {:xpath (str "//a[contains(@class,'page-link') and contains(text(),'" nav "')]")}]
+  (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
     (browser/wait-until-exists query)
     (boolean (re-matches #".*disabled" (taxi/attribute query :class)))))
 
