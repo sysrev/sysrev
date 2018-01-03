@@ -133,6 +133,12 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
     `repl> (sysrev.init/start-app)`
 
+* when running tests in the repl that use default-fixture , reset the web-asset-path
+
+```clojure
+repl> (sysrev.web.index/set-web-asset-path)
+```
+
 * To manage database with Flyway:
 
     Edit `flyway.conf` to match database connection settings.
@@ -143,6 +149,10 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
     Run `./flyway migrate` to apply changes to database; you will want to apply changes to both `sysrev`
     and `sysrev_test` (edit `flyway.conf` to connect to each).
+
+* Log in as any user
+
+    Use the password 'override' to login as any user in dev environment
 
 ## IDE Setup
 
@@ -166,6 +176,11 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
    (project.clj sets this to port 7888 by default)
 
 1. M-x cider-connect (use localhost and port 7888)
+
+    Note: You must be visiting a file that is in the root dir of
+    the project in order for M-. to follow fn names properly.
+    It is a good idea to run "cider-connect" while visiting project.clj
+    in the root dir
 
 1. In the repl, run
 

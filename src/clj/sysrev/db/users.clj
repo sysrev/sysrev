@@ -96,9 +96,8 @@
              :verified true
              :date-created (sql-now)
              :user-uuid (UUID/randomUUID)
-             :api-token (if (in? permissions "admin")
-                          (generate-api-token) nil)}
-          user-id (assoc :user-id user-id))]
+             :api-token (generate-api-token)}
+            user-id (assoc :user-id user-id))]
     (when project-id
       (assert (-> (q/query-project-by-id project-id [:project-id])
                   :project-id)))

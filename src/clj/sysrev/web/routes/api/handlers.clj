@@ -263,7 +263,7 @@
   :create-project :post
   {:required [:project-name]
    :optional [:add-self?]
-   :require-admin? true}
+   :require-admin? false}
   (fn [request]
     (let [{:keys [api-token project-name add-self?] :as body}
           (-> request :body)

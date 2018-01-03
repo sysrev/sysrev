@@ -76,7 +76,7 @@
                       :category category
                       :definition (to-jsonb definition)
                       :enabled true}]))]
-    (do-transaction nil (do-execute query))
+    (do-execute query)
     (db/clear-labels-cache project-id)
     (db/clear-project-cache project-id))
   true)

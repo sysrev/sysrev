@@ -71,6 +71,14 @@
 (defmacro completes? [form]
   `(do ~form true))
 
+;; note: If there is a field (e.g. id) that is auto-incremented
+;; when new entries are made, even wrapping the call in a
+;; rollback will result in the number increasing.
+;; e.g. project-id will be 615, next time 616. For a discussion
+;; for why this is, see
+;; https://stackoverflow.com/questions/449346/mysql-auto-increment-does-not-rollback
+;; https://www.postgresql.org/message-id/501B1494.9040502@ringerc.id.au
+
 (defn database-rollback-fixture [test]
   (jdbc/with-db-transaction [db @active-db]
     (jdbc/db-set-rollback-only! db)

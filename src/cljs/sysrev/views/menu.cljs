@@ -33,7 +33,7 @@
         "sysrev.us"]]
       (when full?
         [:a.item
-         {:on-click #(dispatch [:navigate [:project]])}
+         {:on-click #(dispatch [:navigate [:select-project]])}
          "Projects"])
       (when-not full? dev-menu)
       [:div.item.loading-indicator

@@ -1,8 +1,8 @@
 (ns sysrev.test.web.routes.project
-  (:require [clojure.test :refer :all]
-            [sysrev.db.users :refer [create-user]]
-            [sysrev.web.core :refer [wrap-sysrev-app
-                                     load-app-routes]]
+  (:require [clojure.data.json :as json]
+            [clojure.test :refer :all]
+            [sysrev.db.users :as users]
+            [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.import.pubmed :as pubmed]
             [ring.mock.request :as mock]
@@ -23,7 +23,7 @@
 
 (defn required-headers
   "Given a ring-session and csrf-token str, return a fn that acts on a
-  request to add the headers required by the wrap-sysrev-app handler"
+  request to add the headers required by the handler"
   [ring-session csrf-token]
   (fn [request]
     (-> request
@@ -32,7 +32,7 @@
         (mock/header "Content-Type" "application/transit+json"))))
 
 (deftest pubmed-search-test
-  (let [handler (wrap-sysrev-app (load-app-routes) false)
+  (let [handler (sysrev-handler)
         ;; get the ring-session and csrf-token information
         identity (handler
                   (mock/request :get "/api/auth/identity"))
@@ -49,7 +49,7 @@
                        (util/read-transit-str)
                        :csrf-token)]
     ;; create user
-    (create-user email password :project-id 100)
+    (users/create-user email password :project-id 100)
     ;; login this user
     (is (-> (handler
              (->  (mock/request :post "/api/auth/login")
