@@ -952,3 +952,16 @@
                      (true? inclusion-status)))))
            (apply concat)
            (apply hash-map)))))
+
+(defn copy-project-label-defs [src-project-id dest-project-id]
+  (let [entries
+        (-> (select :*)
+            (from [:label :l])
+            (where [:= :project-id src-project-id])
+            (->> do-query
+                 (mapv #(-> %
+                            (dissoc :label-id :label-id-local :project-id)
+                            (assoc :project-id dest-project-id)))))]
+    (-> (insert-into :label)
+        (values entries)
+        do-execute)))

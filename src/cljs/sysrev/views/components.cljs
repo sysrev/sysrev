@@ -166,6 +166,10 @@
   [:div.item>a {:target "_blank" :href url}
    (url-domain url) nbsp [:i.external.icon]])
 
+(defn document-link [url name]
+  [:div.item>a.ui.large.label {:target "_blank" :href url}
+   [:i.large.file.pdf.outline.icon] name])
+
 (defn updated-time-label [dt]
   [:div.ui.tiny.label (time-elapsed-string dt)])
 

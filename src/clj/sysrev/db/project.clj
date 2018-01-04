@@ -550,3 +550,46 @@
                                :duplicate-of)
                        (article-to-sql))])
           do-execute))))
+
+(defn copy-project-keywords [src-project-id dest-project-id]
+  (let [src-id-to-name
+        (-> (q/select-label-where
+             src-project-id true
+             [:label-id :name]
+             {:include-disabled? true})
+            (->> do-query
+                 (map (fn [{:keys [label-id name]}]
+                        [label-id name]))
+                 (apply concat)
+                 (apply hash-map)))
+        name-to-dest-id
+        (-> (-> (q/select-label-where
+                 dest-project-id true
+                 [:label-id :name]
+                 {:include-disabled? true})
+                (->> do-query
+                     (map (fn [{:keys [label-id name]}]
+                            [name label-id]))
+                     (apply concat)
+                     (apply hash-map))))
+        convert-label-id
+        #(-> % src-id-to-name name-to-dest-id)
+        entries
+        (-> (q/select-project-keywords src-project-id [:*])
+            (->> do-query
+                 (map #(when-let [label-id (convert-label-id (:label-id %))]
+                         (-> %
+                             (dissoc :keyword-id :label-id :project-id)
+                             (assoc :label-id label-id
+                                    :project-id dest-project-id)
+                             (update :label-value to-jsonb))))
+                 (remove nil?)
+                 vec))]
+    (-> (insert-into :project-keyword)
+        (values entries)
+        do-execute)))
+
+(defn copy-project-members [src-project-id dest-project-id]
+  (doseq [user-id (project-user-ids src-project-id false)]
+    (let [{:keys [permissions]} (project-member src-project-id user-id)]
+      (add-project-member dest-project-id user-id :permissions permissions))))

@@ -132,3 +132,12 @@
  (fn [[_ project-id]]
    [(subscribe [:project/raw project-id])])
  (fn [[project]] (:public-labels project)))
+
+(reg-sub
+ :project/document-paths
+ (fn [[_ _ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ document-id _]]
+   (if (nil? document-id)
+     (get-in project [:documents])
+     (get-in project [:documents document-id]))))
