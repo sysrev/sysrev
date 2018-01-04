@@ -28,6 +28,13 @@
             [sysrev.db.labels :as labels]
             [sysrev.db.articles :as articles]))
 
+;; weird bug in cider:
+;; If you (run-tests) in sysrev.test.web.routes.api.handlers
+;; then this file will no longer load with the message
+;; "Unable to resolve spec: :sysrev.shared.spec.web-api/web"
+;; you will need to load the namespace 'sysrev.web.routes.api.core'
+;; to allow for this namespace to load
+
 (def-webapi
   :doc :get
   {:require-token? false
@@ -262,7 +269,6 @@
 (def-webapi
   :create-project :post
   {:required [:project-name]
-   :optional [:add-self?]
    :require-admin? false}
   (fn [request]
     (let [{:keys [api-token project-name add-self?] :as body}
@@ -277,10 +283,9 @@
                    :inclusion-value true
                    :required true})
       (project/add-project-note project-id {})
-      (when add-self?
-        (let [{:keys [user-id]} (users/get-user-by-api-token api-token)]
-          (project/add-project-member project-id user-id
-                                      :permissions ["member" "admin"])))
+      (let [{:keys [user-id]} (users/get-user-by-api-token api-token)]
+        (project/add-project-member project-id user-id
+                                    :permissions ["member" "admin"]))
       {:result
        {:success true
         :project (select-keys project [:project-id :name])}})))

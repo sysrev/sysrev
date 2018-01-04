@@ -1,7 +1,9 @@
 (ns sysrev.test.web.routes.api.handlers
   (:require [clojure.data.json :as json]
             [clojure.test :refer :all]
+            [sysrev.db.project :as project]
             [sysrev.db.users :as users]
+            [sysrev.import.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [ring.mock.request :as mock]))
@@ -32,8 +34,26 @@
                                  :api-token web-api-token}))
                     (mock/header "Content-Type" "application/json")))
               :body
-              (json/read-str :key-fn keyword))]
+              (json/read-str :key-fn keyword))
+          new-project-id (get-in create-project-response [:result :project :project-id])
+          search-query-result (pubmed/get-search-query-response "foo bar" 1)]
       ;; create a project for this user
-      (is (-> create-project-response
+      (is (get-in create-project-response [:result :success]))
+      ;; get the article count, should be 0
+      (is (= 0
+             (project/project-article-count new-project-id)))
+      ;; add articles to this project
+      (pubmed/import-pmids-to-project (:pmids search-query-result) new-project-id)
+      ;; Does the new project have the correct amount of articles?
+      ;; I would like a 'get-project' route
+      ;; delete this project
+      (is (-> (handler
+               (-> (mock/request :post "/web-api/delete-project")
+                   (mock/body (json/write-str
+                               {:project-id new-project-id
+                                :api-token web-api-token}))
+                   (mock/header "Content-Type" "application/json")))
+              :body
+              (json/read-str :key-fn keyword)
               :result
               :success)))))
