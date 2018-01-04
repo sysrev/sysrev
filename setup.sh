@@ -7,12 +7,12 @@ lessc -v > /dev/null || (echo && echo "Error: lessc not found ('sudo npm install
 gulp -v > /dev/null || (echo && echo "Error: gulp not found ('sudo npm install -g gulp')" && false)
 
 echo "Installing semantic through NPM"
-npm install > /dev/null
+npm install
 echo
 
 echo "Building semantic CSS"
-./scripts/build-semantic default > /dev/null
-./scripts/build-semantic dark > /dev/null
+./scripts/build-semantic default
+./scripts/build-semantic dark
 echo
 
 echo "Building site CSS"

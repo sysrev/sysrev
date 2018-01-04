@@ -7,7 +7,7 @@ else
     theme="$1"
 fi
 
-set -u
+set -eux
 
 echo "building semantic (\"$theme\")"
 
