@@ -231,6 +231,18 @@
         :args (s/cat :project-id ::sc/project-id
                      :user-id ::sc/user-id)
         :ret (s/nilable ::sp/project-member))
+;;
+
+(defn member-has-permission?
+  "Does the user-id have the permission for project-id?"
+  [project-id user-id permission]
+  (boolean (in? (:permissions (project-member project-id user-id)) permission)))
+
+(s/fdef member-has-permission?
+        :args (s/cat :project-id ::sc/project-id
+                     :user-id ::sc/user-id
+                     :permission string?)
+        :ret boolean?)
 
 ;; TODO: change result map to use spec-able keywords
 (defn project-member-article-labels

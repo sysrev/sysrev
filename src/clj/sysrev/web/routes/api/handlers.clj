@@ -206,20 +206,6 @@
             {:result {:success true}})))))
 
 (def-webapi
-  :delete-project :post
-  {:required [:project-id]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Deletes project and all database entries belonging to it."}
-  (fn [request]
-    (let [{:keys [project-id] :as body}
-          (-> request :body)]
-      (assert project-id)
-      (assert (q/query-project-by-id project-id [:project-id]))
-      (project/delete-project project-id)
-      {:result {:success true}})))
-
-(def-webapi
   :delete-project-articles :post
   {:required [:project-id]
    :project-role "admin"
@@ -278,12 +264,21 @@
     (let [{:keys [api-token project-name add-self?]}
           (-> request :body)
           {:keys [user-id]}
-          (users/get-user-by-api-token api-token)
-          project (api/create-project-for-user! project-name user-id)]
-      (assert (string? project-name))
-      {:result
-       {:success true
-        :project (select-keys project [:project-id :name])}})))
+          (users/get-user-by-api-token api-token)]
+      (api/create-project-for-user! project-name user-id))))
+
+(def-webapi
+  :delete-project :post
+  {:required [:project-id]
+   :project-role "admin"
+   :check-answers? true
+   :doc "Deletes project and all database entries belonging to it."}
+  (fn [request]
+    (let [{:keys [project-id api-token] :as body}
+          (-> request :body)
+          {:keys [user-id]}
+          (users/get-user-by-api-token api-token)]
+      (api/delete-project! project-id user-id))))
 
 (def-webapi
   :project-labels :get

@@ -1,5 +1,6 @@
 (ns sysrev.web.routes.project
   (:require
+   [sysrev.api :as api]
    [sysrev.web.app :refer [wrap-permissions current-user-id active-project]]
    [sysrev.db.core :refer
     [do-query do-execute with-project-cache]]
@@ -67,6 +68,18 @@
            (with-meta
              {:result {:project-id project-id}}
              {:session session}))))
+
+  (POST "/api/create-project" request
+        (wrap-permissions
+         request [] []
+         (let [project-name (-> request :body :project-name)
+               user-id (current-user-id request)]
+           (api/create-project-for-user! project-name user-id))))
+
+  (POST "/api/delete-project" request
+        (let [project-id (-> request :body :project-id)
+              user-id (current-user-id request)]
+          (api/delete-project! project-id user-id)))
 
   ;; Returns web file paths for all local article PDF documents
   (GET "/api/article-documents" request
