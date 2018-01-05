@@ -1,6 +1,7 @@
 (ns sysrev.web.routes.api.handlers
   (:require [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
+            [sysrev.api :as api]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.web-api :as swa]
             [compojure.core :refer :all]
@@ -274,21 +275,12 @@
   {:required [:project-name]
    :require-admin? false}
   (fn [request]
-    (let [{:keys [api-token project-name add-self?] :as body}
+    (let [{:keys [api-token project-name add-self?]}
           (-> request :body)
-          _ (assert (string? project-name))
-          {:keys [project-id] :as project}
-          (project/create-project project-name)]
-      (labels/add-label-entry-boolean
-       project-id {:name "overall include"
-                   :question "Include this article?"
-                   :short-label "Include"
-                   :inclusion-value true
-                   :required true})
-      (project/add-project-note project-id {})
-      (let [{:keys [user-id]} (users/get-user-by-api-token api-token)]
-        (project/add-project-member project-id user-id
-                                    :permissions ["member" "admin"]))
+          {:keys [user-id]}
+          (users/get-user-by-api-token api-token)
+          project (api/create-project-for-user! project-name user-id)]
+      (assert (string? project-name))
       {:result
        {:success true
         :project (select-keys project [:project-id :name])}})))
