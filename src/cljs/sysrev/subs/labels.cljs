@@ -31,12 +31,13 @@
   "Sort key function for project label entries. Used to order labels for
   display in label editor, and for all other purposes where labels are
   displayed sequentially."
-  [{:keys [required category value-type project-ordering]}]
+  [{:keys [required category value-type project-ordering name]}]
   (let [inclusion? (= category "inclusion criteria")
         extra? (= category "extra")
         boolean? (= value-type "boolean")
         categorical? (= value-type "categorical")]
     [(cond
+       (= name "overall include") -20
        (and required inclusion? boolean?) -10
        (and required inclusion?) -9
        (and required boolean?) -8
@@ -75,7 +76,7 @@
         (filter #(or include-disabled? (:enabled %)))
         (#(if (>= (count %) 15)
             (sort-by alpha-label-ordering-key < %)
-            (sort-by label-ordering-key < %)))
+            (sort-by label-ordering-key %)))
         (mapv :label-id))))
 
 (reg-sub
