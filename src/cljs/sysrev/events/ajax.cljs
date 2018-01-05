@@ -76,7 +76,7 @@
     (fn [db event]
       (fx-handler db event)))))
 
-(defn run-ajax [{:keys [db method uri content on-success on-failure action-params]}]
+(defn run-ajax [{:keys [db method uri content on-success on-failure action-params content-type]}]
   (let [csrf-token (get-csrf-token db)
         on-failure (or on-failure [:ajax/default-failure])]
     {:http-xhrio
@@ -84,13 +84,18 @@
       :uri uri
       :params content
       :timeout 5000
-      :format (ajax/transit-request-format)
-      :response-format (ajax/transit-response-format)
+      :format (condp = content-type
+                "application/transit+json" (ajax/transit-request-format)
+                "application/json" (ajax/json-request-format))
+      :response-format (condp = content-type
+                         "application/transit+json" (ajax/transit-response-format)
+                         "application/json" (ajax/json-response-format {:keywords? true}))
       :headers (when csrf-token {"x-csrf-token" csrf-token})
       :on-success (cond-> on-success
                     action-params (conj action-params))
       :on-failure (cond-> on-failure
                     action-params (conj action-params))}}))
+
 (s/fdef run-ajax
         :args (s/cat
                :keys (s/keys

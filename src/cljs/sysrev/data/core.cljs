@@ -18,7 +18,8 @@
 
 (defn def-data
   "Create definition for a data item to fetch from server."
-  [name & {:keys [prereqs loaded? uri content process] :as fields}]
+  [name & {:keys [prereqs loaded? uri content process content-type]
+           :as fields}]
   (swap! data-defs assoc name fields))
 
 ;; Gets raw list of data requirements
@@ -194,7 +195,9 @@
              (when-not (item-loading? db item)
                (reset! last-fetch-millis (js/Date.now))
                (let [uri (apply (:uri entry) args)
-                     content (some-> (:content entry) (apply args))]
+                     content (some-> (:content entry) (apply args))
+                     content-type (or (:content-type entry)
+                                      "application/transit+json")]
                  (merge
                   {::sent item}
                   (run-ajax
@@ -203,7 +206,8 @@
                         :method :get
                         :uri uri
                         :on-success [::on-success [name args]]
-                        :on-failure [::on-failure [name args]]}
+                        :on-failure [::on-failure [name args]]
+                        :content-type content-type}
                      content (assoc :content content)))))))))))
 
 (reg-event-ajax-fx

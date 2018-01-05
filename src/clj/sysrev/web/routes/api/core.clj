@@ -1,5 +1,6 @@
 (ns sysrev.web.routes.api.core
   (:require [clojure.spec.alpha :as s]
+            [clojure.walk :as walk]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.web-api :as swa]
             [compojure.core :refer :all]
@@ -38,6 +39,7 @@
       (swap! web-api-routes-order #(vec (conj % name))))
     (swap! web-api-routes assoc name
            (merge {:name name :method method :handler handler} opts))))
+
 (s/fdef def-webapi
         :args (s/cat :name ::swa/web
                      :method ::swa/method
@@ -69,7 +71,13 @@
   (fn [request]
     (if-let [route (web-api-route request)]
       (let [required (:required route)
-            args (-> request :body keys)
+            args (cond (= (:request-method request)
+                          :post)
+                       (-> request :body keys)
+                       (= (:request-method request)
+                          :get)
+                       (-> request :query-params walk/keywordize-keys keys))
+            request-method (:request-method request)
             missing (->> required (remove (in? args)))]
         (if-not (empty? missing)
           (make-error-response
@@ -162,15 +170,24 @@
 (defn webapi-request [method route body & {:keys [host port url]}]
   (let [port (or port (-> env :server :port))
         host (or host "localhost")
+        request-map (condp = method
+                      :get {:url (if url
+                                   (format "%sweb-api/%s" url route)
+                                   (format "http://%s:%d/web-api/%s"
+                                           host port route))
+                            :method method
+                            :query-params body
+                            :headers {"Content-Type" "application/json"}}
+                      :post {:url (if url
+                                    (format "%sweb-api/%s" url route)
+                                    (format "http://%s:%d/web-api/%s"
+                                            host port route))
+                             :method method
+                             :body (json/write-str body)
+                             :headers {"Content-Type" "application/json"}})
         result
         (-> @(client/request
-              {:url (if url
-                      (format "%sweb-api/%s" url route)
-                      (format "http://%s:%d/web-api/%s"
-                              host port route))
-               :method method
-               :body (json/write-str body)
-               :headers {"Content-Type" "application/json"}})
+              request-map)
             :body)]
     (try (json/read-str result :key-fn keyword)
          (catch Throwable e

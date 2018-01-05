@@ -1,5 +1,6 @@
 (ns sysrev.web.routes.api.handlers
   (:require [clojure.spec.alpha :as s]
+            [clojure.walk :as walk]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.web-api :as swa]
             [compojure.core :refer :all]
@@ -62,7 +63,9 @@
    :require-token? false
    :doc "Returns an API token for authentication in other API calls."}
   (fn [request]
-    (let [{:keys [email password] :as body} (:body request)
+    (let [{:keys [email password]} (-> request
+                                       :query-params
+                                       walk/keywordize-keys)
           valid (users/valid-password? email password)
           user (when valid (users/get-user-by-email email))
           {verified :verified :or {verified false}} user

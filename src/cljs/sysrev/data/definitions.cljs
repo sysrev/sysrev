@@ -198,3 +198,36 @@
   (fn [_ [search-term page-number pmids] response]
     {:dispatch-n
      (list [:pubmed/save-search-term-summaries search-term page-number response])}))
+
+(def-data :auth/get-api-token
+  :loaded?
+  (constantly false)
+  #_   (fn [email password]
+         (let [pmids-per-page 20
+               result-count (get-in db [:data :pubmed-search search-term :count])]
+           (if (<= page-number
+                   (Math/ceil (/ result-count pmids-per-page)))
+             ;; the page number exists, the results should too
+             (not (empty? (get-in db [:data :pubmed-search search-term :pages page-number :summaries])))
+             ;; the page number isn't in the result, retrieve nothing
+             true)))
+
+  :uri
+  (fn [] "/web-api/get-api-token")
+
+  :prereqs
+  (fn [] [[:identity]])
+
+  :content
+  (fn [email password] {:email email
+                        :password password})
+
+  :content-type "application/json"
+
+  :process
+  #_  (fn [_ [email password] response]
+        #_    {:dispatch-n
+               (list [:pubmed/save-search-term-summaries search-term page-number response])}
+        (.log js/console (clj->js response)))
+  (fn [_ [email password] response]
+    (.log js/console (clj->js response))))

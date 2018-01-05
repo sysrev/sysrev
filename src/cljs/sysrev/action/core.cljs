@@ -12,7 +12,7 @@
 
 (defn def-action
   "Creates definition for a server request action."
-  [name & {:keys [uri method content process] :as fields}]
+  [name & {:keys [uri method content process content-type] :as fields}]
   (swap! action-defs assoc name fields))
 
 ;;
@@ -87,15 +87,18 @@
          entry (get @action-defs name)]
      (when entry
        (let [uri (apply (:uri entry) args)
-             content (some-> (:content entry) (apply args))]
+             content (some-> (:content entry) (apply args))
+             content-type (or (:content-type entry)
+                              "application/transit+json")]
          (run-ajax
           (cond->
               {:db db
                :method (or (:method entry) :post)
                :uri uri
                :on-success [::on-success [name args]]
-               :on-failure [::on-failure [name args]]}
-            content (assoc :content content))))))))
+               :on-failure [::on-failure [name args]]
+               :content-type content-type}
+              content (assoc :content content))))))))
 
 (reg-event-ajax-fx
  ::on-success

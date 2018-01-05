@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :refer [default-fixture completes?]]
-            [sysrev.test.browser.core :refer
+            [sysrev.test.browser.core :as browser :refer
              [webdriver-fixture-once webdriver-fixture-each go-route
               login-form-shown? panel-rendered? element-rendered? wait-until-panel-exists]]
             [sysrev.test.browser.navigate :refer

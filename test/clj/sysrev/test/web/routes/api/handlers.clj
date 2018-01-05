@@ -20,8 +20,8 @@
     ;; login this user
     (let [web-api-token (-> (handler
                              (-> (mock/request :get "/web-api/get-api-token")
-                                 (mock/json-body {:email email
-                                                  :password password})))
+                                 (mock/query-string {:email email
+                                                     :password password})))
                             :body
                             (json/read-str :key-fn keyword)
                             :result
