@@ -170,21 +170,15 @@
 (defn webapi-request [method route body & {:keys [host port url]}]
   (let [port (or port (-> env :server :port))
         host (or host "localhost")
+        base-request {:url (if url
+                             (format "%sweb-api/%s" url route)
+                             (format "http://%s:%d/web-api/%s"
+                                     host port route))
+                      :method method
+                      :headers {"Content-Type" "application/json"}}
         request-map (condp = method
-                      :get {:url (if url
-                                   (format "%sweb-api/%s" url route)
-                                   (format "http://%s:%d/web-api/%s"
-                                           host port route))
-                            :method method
-                            :query-params body
-                            :headers {"Content-Type" "application/json"}}
-                      :post {:url (if url
-                                    (format "%sweb-api/%s" url route)
-                                    (format "http://%s:%d/web-api/%s"
-                                            host port route))
-                             :method method
-                             :body (json/write-str body)
-                             :headers {"Content-Type" "application/json"}})
+                      :get (conj base-request {:query-params body})
+                      :post (conj base-request {:body (json/write-str body)}))
         result
         (-> @(client/request
               request-map)
