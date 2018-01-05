@@ -238,7 +238,7 @@
         request [] ["member"]
         (let [project-id (active-project request)
               exclude-hours (if (= :dev (:profile env))
-                              nil 4)]
+                              nil nil #_ 4)]
           {:result
            (->> (labels/query-public-article-labels project-id)
                 (labels/filter-recent-public-articles project-id exclude-hours)
