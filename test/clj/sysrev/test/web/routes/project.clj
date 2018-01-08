@@ -1,10 +1,10 @@
 (ns sysrev.test.web.routes.project
-  (:require [clojure.data.json :as json]
-            [clojure.test :refer :all]
+  (:require [clojure.test :refer :all]
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
+            [sysrev.test.web.routes.utils :refer [required-headers-params required-headers login-user]]
             [sysrev.import.pubmed :as pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
@@ -12,54 +12,12 @@
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
-;; from https://gist.github.com/cyppan/864c09c479d1f0902da5
-(defn parse-cookies
-  "Given a Cookie header string, parse it into a map"
-  [cookie-string]
-  (when cookie-string
-    (into {}
-          (for [cookie (.split cookie-string ";")]
-            (let [keyval (map #(.trim %) (.split cookie "=" 2))]
-              [(keyword (first keyval)) (second keyval)])))))
-
-(defn required-headers
-  "Given a ring-session and csrf-token str, return a fn that acts on a
-  request to add the headers required by the handler"
-  [ring-session csrf-token]
-  (fn [request]
-    (-> request
-        (mock/header "x-csrf-token" csrf-token)
-        (mock/header "Cookie" (str "ring-session=" ring-session))
-        (mock/header "Content-Type" "application/transit+json"))))
-
-(defn login-user
-  "Given a ring-session, csrf-token, email and password, login user"
-  [handler email password ring-session csrf-token]
-  ;; login this user
-  (is (-> (handler
-           (->  (mock/request :post "/api/auth/login")
-                (mock/body (sysrev.util/write-transit-str
-                            {:email email :password password}))
-                ((required-headers ring-session csrf-token))))
-          :body util/read-transit-str :result :valid)))
-
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)
-        ;; get the ring-session and csrf-token information
-        identity (handler
-                  (mock/request :get "/api/auth/identity"))
         email "foo@bar.com"
         password "foobar"
-        ring-session (-> identity
-                         :headers
-                         (get "Set-Cookie")
-                         first
-                         parse-cookies
-                         :ring-session)
-        csrf-token (-> identity
-                       :body
-                       (util/read-transit-str)
-                       :csrf-token)]
+        ;; get the ring-session and csrf-token information
+        {:keys [ring-session csrf-token]} (required-headers-params handler)]
     ;; create user
     (users/create-user email password :project-id 100)
     ;; login this user
@@ -97,18 +55,7 @@
         email "foo@bar.com"
         password "foobar"
         ;; get the ring-session and csrf-token information
-        identity (handler
-                  (mock/request :get "/api/auth/identity"))
-        ring-session (-> identity
-                         :headers
-                         (get "Set-Cookie")
-                         first
-                         parse-cookies
-                         :ring-session)
-        csrf-token (-> identity
-                       :body
-                       (util/read-transit-str)
-                       :csrf-token)]
+        {:keys [ring-session csrf-token]} (required-headers-params handler)]
     ;; create user
     (users/create-user email password :project-id 100)
     ;; login this user
@@ -173,3 +120,34 @@
                 :body
                 util/read-transit-str
                 (get-in [:result :success])))))))
+
+(deftest identity-project-respone-test
+  (let [handler (sysrev-handler)
+        email "foo@bar.com"
+        password "foobar"
+        ;; get the ring-session and csrf-token information
+        {:keys [ring-session csrf-token]} (required-headers-params handler)]
+    ;; create user
+    (users/create-user email password)
+    ;; the projects array in identity is empty
+    (-> (handler
+         (mock/request :get "/api/auth/identity"))
+        :body
+        (util/read-transit-str)
+        :result
+        :project
+        empty?)
+    ;; create a new project
+    (handler
+     (->  (mock/request :post "/api/create-project")
+          (mock/body (sysrev.util/write-transit-str
+                      {:project-name "The taming of the foo"}))
+          ((required-headers ring-session csrf-token))))
+    ;; the project array in identity contains one entry
+    (= 1 (-> (handler
+              (mock/request :get "/api/auth/identity"))
+             :body
+             (util/read-transit-str)
+             :result
+             :project
+             count))))

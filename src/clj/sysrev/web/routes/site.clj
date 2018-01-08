@@ -14,8 +14,6 @@
 
 ;; Functions defined after defroutes form
 (declare public-project-summaries)
-(declare user-identity-info)
-(declare user-self-info)
 
 (defroutes site-routes
   ;; Returns short public information on all projects
@@ -46,7 +44,7 @@
          (let [{{:keys [verify-user-id]
                  :as body} :body} request
                user-id (current-user-id request)
-               {:keys [permissions]} (user-identity-info user-id)]
+               {:keys [permissions]} (users/user-identity-info user-id)]
            (assert (= user-id verify-user-id) "verify-user-id mismatch")
            (when-not (in? permissions "admin")
              (throw (should-never-happen-exception)))
@@ -100,52 +98,3 @@
            (map-values
             #(assoc % :admins
                     (get admins (:project-id %) [])))))))
-
-(defn user-identity-info
-  "Returns basic identity info for user."
-  [user-id & [self?]]
-  (-> (select :user-id
-              :user-uuid
-              :email
-              :verified
-              :permissions
-              :settings)
-      (from :web-user)
-      (where [:= :user-id user-id])
-      do-query
-      first))
-
-(defn user-self-info
-  "Returns a map of values with various user account information.
-  This result is sent to client for the user's own account upon login."
-  [user-id]
-  (let [uperms (:permissions (users/get-user-by-id user-id))
-        admin? (in? uperms "admin")
-        projects
-        (-> (select :p.project-id :p.name :p.date-created :m.join-date
-                    [:p.enabled :project-enabled]
-                    [:m.enabled :member-enabled])
-            (from [:project-member :m])
-            (join [:project :p]
-                  [:= :p.project-id :m.project-id])
-            (where [:and
-                    [:= :m.user-id user-id]
-                    [:= :p.enabled true]
-                    [:= :m.enabled true]])
-            (order-by :p.date-created)
-            (->> do-query
-                 (mapv #(assoc % :member? true))))
-        self-project-ids (->> projects (map :project-id))
-        all-projects
-        (when admin?
-          (-> (select :p.project-id :p.name :p.date-created
-                      [:p.enabled :project-enabled])
-              (from [:project :p])
-              (where [:and [:= :p.enabled true]])
-              (order-by :p.date-created)
-              (->> do-query
-                   (filterv #(not (in? self-project-ids (:project-id %))))
-                   (mapv #(assoc % :member? false)))))]
-    {:projects (->> [projects all-projects]
-                    (apply concat)
-                    vec)}))
