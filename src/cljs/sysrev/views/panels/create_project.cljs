@@ -3,11 +3,8 @@
    [cljs-http.client :as http-client]
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.panels.project.main :refer [project-header]]
-   [sysrev.util :refer [full-size? mobile?]]
-   [sysrev.shared.util :refer [in?]]))
+    [subscribe dispatch]]
+   [sysrev.views.base :refer [panel-content]]))
 
 (def state (r/atom {:current-search-term nil
                     :on-change-search-term nil
@@ -279,3 +276,30 @@
 (defmethod panel-content [:create-project] []
   (fn [child]
     [SearchPanel state]))
+
+(defn CreateProjectForm
+  "Form for creating a project"
+  [state]
+  (let [project-name (r/cursor state [:project-name])
+        create-project (fn [event]
+                         (.preventDefault event)
+                         (dispatch [:action [:create-project @project-name]]))]
+    [:form {:on-submit create-project}
+     [:div.ui.action.input.fluid
+      [:input {:type "text"
+               :placeholder "Project Name"
+               :on-change (fn [event]
+                            (reset! project-name
+                                    (-> event
+                                        (aget "target")
+                                        (aget "value")))
+                            (.preventDefault event))}]
+      [:button.ui.button.primary "Create"]]]))
+
+(defn CreateProject [state]
+  [:div.ui.container
+   [:div.panel
+    [:div.ui.segment.top
+     [:h3.ui.dividing.header
+      "Create a New Project"]
+     [CreateProjectForm state]]]])

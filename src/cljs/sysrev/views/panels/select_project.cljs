@@ -2,15 +2,20 @@
   (:require
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+   [reagent.core :as r]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components]
+   [sysrev.views.panels.create-project :refer [CreateProject]]
    [sysrev.views.panels.project.main :refer [project-header]]
    [sysrev.util :refer [go-back]]))
+
+(def state (r/atom {:create-project nil}))
 
 (defmethod panel-content [:select-project] []
   (fn [child]
     (let [active-id @(subscribe [:active-project-id])]
       [:div
+       [CreateProject state]
        [project-header
         "Select project"
         [:a.ui.button {:on-click go-back}

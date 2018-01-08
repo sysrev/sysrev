@@ -174,3 +174,19 @@
   :process
   (fn [_ _ result]
     {:dispatch [:reload [:project/files]]}))
+
+(def-action :create-project
+  :uri (fn [_] "/api/create-project")
+  :content (fn [project-name]
+             {:project-name project-name})
+  :process
+  (fn [_ _ {:keys [success message project] :as result}]
+    ;; send out for the new project to update
+    ;; identity
+    (if success
+      {:dispatch-n
+       (list [:fetch [:identity]]
+             [:action [:select-project (:project-id project)]])}
+      ;; does nothing, code needs to be written
+      {:dispatch-n
+       (list [:set-create-project-error-msg message])})))
