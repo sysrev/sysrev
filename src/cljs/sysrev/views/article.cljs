@@ -75,9 +75,20 @@
                            ^{:key [idx]} [out-link url])
                          urls))]])])))
 
+(defn- article-flag-label [description]
+  [:div.ui.left.labeled.button.article-flag
+   [:div.ui.basic.label "Flag"]
+   [:div.ui.small.orange.basic.button description]])
+
 (defn article-info-view
   [article-id & {:keys [show-labels? private-view?]}]
-  (let [status @(subscribe [:article/review-status article-id])]
+  (let [status @(subscribe [:article/review-status article-id])
+        flag-labels {"user-duplicate" "Duplicate article (exclude)"
+                     "user-conference" "Conference abstract (exclude)"}
+        flags @(subscribe [:article/flags article-id])
+        flag-names (->> (keys flags)
+                        (filter #(get flag-labels %))
+                        sort)]
     [:div
      (with-loader [[:article article-id]]
        {:class "ui segments article-info"}
@@ -85,7 +96,12 @@
         [:div.ui.top.attached.middle.aligned.header
          {:key [:article-header]}
          [:div {:style {:float "left"}}
-          [:h4 "Article Info"]]
+          [:h4 "Article Info "
+           (when (not-empty flag-names)
+             (doall
+              (for [flag-name flag-names]
+                ^{:key flag-name}
+                [article-flag-label (get flag-labels flag-name)])))]]
          (when (or status private-view?)
            [:div {:style {:float "right"}}
             [review-status-label (if private-view? :user status)]])

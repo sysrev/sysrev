@@ -86,6 +86,13 @@
  (fn [[article]]
    (:locations article)))
 
+(reg-sub
+ :article/flags
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article]]
+   (:flags article)))
+
 (defn- article-location-urls [locations]
   (let [sources [:pubmed :doi :pii :nct]]
     (->>

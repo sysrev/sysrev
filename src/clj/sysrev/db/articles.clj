@@ -1,6 +1,7 @@
 (ns sysrev.db.articles
   (:require [clojure.spec.alpha :as s]
             [clojure.java.jdbc :as j]
+            [clojure.tools.logging :as log]
             [sysrev.shared.util :as u]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
@@ -149,11 +150,20 @@
       (= 1 (->> entries (map :answer) distinct count)) :consistent
       :else :conflict)))
 
+(defn find-article-flags-by-id [article-id]
+  (->> (-> (select :flag-name :disable :date-created :meta)
+           (from [:article-flag :aflag])
+           (where [:= :article-id article-id])
+           do-query)
+       (group-by :flag-name)
+       (u/map-values first)
+       (u/map-values #(dissoc % :flag-name))))
+
 (defn query-article-by-id-full
   "Queries for an article ID with data from other tables included."
   [article-id & [{:keys [predict-run-id include-disabled?]
                   :or {include-disabled? false}}]]
-  (let [[article score locations review-status]
+  (let [[article score locations review-status flags]
         (pvalues
          (-> (q/select-article-by-id
               article-id [:a.*] {:include-disabled? include-disabled?})
@@ -167,12 +177,42 @@
          (->> (q/query-article-locations-by-id
                article-id [:al.source :al.external-id])
               (group-by :source))
-         (article-review-status article-id))]
+         (article-review-status article-id)
+         (find-article-flags-by-id article-id))]
     (when (not-empty article)
       (-> article
           (assoc :locations locations)
           (assoc :score (or score 0.0))
-          (assoc :review-status review-status)))))
+          (assoc :review-status review-status)
+          (assoc :flags flags)))))
+
+(defn find-project-article-by-uuid
+  "Query for an article entry in a project by matching on either
+  `article-uuid` or `parent-article-uuid`."
+  [project-id article-uuid &
+   {:keys [fields include-disabled?]
+    :or {fields [:*]
+         include-disabled? true}}]
+  (-> (q/select-article-where
+       project-id
+       [:or
+        [:= :a.article-uuid article-uuid]
+        [:= :a.parent-article-uuid article-uuid]]
+       fields
+       {:include-disabled? include-disabled?})
+      do-query
+      first))
+
+(defn flag-project-articles-by-uuid
+  [project-id article-uuids flag-name disable? & [meta]]
+  (doseq [article-uuid article-uuids]
+    (let [{:keys [article-id]}
+          (find-project-article-by-uuid
+           project-id article-uuid :fields [:a.article-id])]
+      (if (nil? article-id)
+        (log/warn (format "article not found: %s" article-uuid))
+        (set-article-flag
+         article-id flag-name disable? meta)))))
 
 (defn to-article
   "Queries by id argument or returns article map argument unmodified."
