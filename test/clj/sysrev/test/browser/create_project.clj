@@ -74,7 +74,6 @@
     (browser/wait-until-exists query)
     (boolean (re-matches #".*disabled" (taxi/attribute query :class)))))
 
-#_
 (deftest pubmed-search
   (log-in)
   (browser/go-route "/pubmed-search")
