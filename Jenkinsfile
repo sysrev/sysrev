@@ -113,6 +113,10 @@ node {
         sendFlowdockMsg ('Tests failed')
         sendSlackMsg ('Tests failed')
         sh 'cat target/junit-all.xml'
+        try {
+          sh 'lein test'
+        } catch (leinTestExc) {
+        }
       } finally {
         junit 'target/junit-all.xml'
       }
