@@ -12,7 +12,7 @@
   (let [pubmed-visible? (r/cursor state [:pubmed-visible?])
         current-search-term (r/cursor pubmed/state [:current-search-term])]
     (fn [props]
-      [:div.project-content
+      [:div
        (when-not @pubmed-visible?
          [:a {:href "#"
               :on-click (fn [event]
@@ -35,9 +35,10 @@
 (defn AddArticles
   []
   (fn [props]
-    [:div.project-content
+    [:div
      [AddPubMedArticles state]]))
 
 (defmethod panel-content [:project :project :add-articles] []
   (fn [child]
-    [AddArticles]))
+    [:div.project-content
+     [AddArticles]]))
