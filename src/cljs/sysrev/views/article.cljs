@@ -4,7 +4,7 @@
    [clojure.string :as str]
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [sysrev.views.keywords :refer [render-keywords render-abstract]]
-   [sysrev.views.components :refer [out-link]]
+   [sysrev.views.components :refer [out-link document-link]]
    [sysrev.views.labels :refer
     [label-values-component article-labels-view]]
    [sysrev.util :refer [full-size?]])
@@ -44,7 +44,8 @@
           abstract @(subscribe [:article/abstract article-id])
           title-render @(subscribe [:article/title-render article-id])
           journal-render @(subscribe [:article/journal-render article-id])
-          urls @(subscribe [:article/urls article-id])]
+          urls @(subscribe [:article/urls article-id])
+          documents @(subscribe [:article/documents article-id])]
       [:div
        [:h3.header
         [render-keywords article-id title-render
@@ -59,12 +60,20 @@
        (when-not (empty? abstract)
          [render-abstract article-id])
        ;; article file links went here (article-docs-component)
+       (when-not (empty? documents)
+         [:div {:style {:padding-top "0.75em"}}
+          [:div.content.ui.horizontal.list
+           (doall
+            (map-indexed (fn [idx {:keys [fs-path url]}]
+                           ^{:key [idx]} [document-link url fs-path])
+                         documents))]])
        (when-not (empty? urls)
-         [:div.content.ui.list
-          (doall
-           (map-indexed (fn [idx url]
-                          ^{:key [idx]} [out-link url])
-                        urls))])])))
+         [:div {:style {:padding-top "0.75em"}}
+          [:div.content.ui.horizontal.list
+           (doall
+            (map-indexed (fn [idx url]
+                           ^{:key [idx]} [out-link url])
+                         urls))]])])))
 
 (defn article-info-view
   [article-id & {:keys [show-labels? private-view?]}]

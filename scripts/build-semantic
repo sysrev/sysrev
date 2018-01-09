@@ -7,7 +7,7 @@ else
     theme="$1"
 fi
 
-set -u
+set -eu
 
 echo "building semantic (\"$theme\")"
 
@@ -22,6 +22,11 @@ cd ..
 out_dir="resources/public/semantic/$theme"
 mkdir -p "$out_dir"
 rm -rf "$out_dir"
+
+# test that the final output files were created
+ls semantic/target/semantic.css > /dev/null
+ls semantic/target/semantic.min.css > /dev/null
+
 cp -r semantic/target "$out_dir"
 
 echo "wrote $out_dir"

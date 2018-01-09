@@ -12,8 +12,6 @@
         sysrev.db.export
         sysrev.db.files
         sysrev.files.stores
-        ;; sysrev.spark.core
-        ;; sysrev.spark.similarity
         sysrev.import.pubmed
         sysrev.import.endnote
         sysrev.export.endnote
@@ -62,10 +60,6 @@
             [clojure.data.xml :as dxml]
             [clojure.string :as str]
             [cognitect.transit :as transit]
-            ;; [flambo.api :as f]
-            ;; [flambo.conf :as fc]
-            ;; [flambo.tuple :as ft]
-            ;; [flambo.sql :as fsql]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
@@ -73,8 +67,20 @@
             [sysrev.shared.spec.users :as su]
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
-            sysrev.test.all)
+            sysrev.test.all
+            [cljs.env :as env])
   (:import java.util.UUID))
+
+(try
+  (require '[flambo.api :as f])
+  (require '[flambo.conf :as fc])
+  (require '[flambo.tuple :as ft])
+  (require '[flambo.sql :as fsql])
+  (use 'sysrev.spark.core)
+  (use 'sysrev.spark.similarity)
+  (catch Throwable e
+    ;; Continue silently if Flambo dependencies are not loaded
+    nil))
 
 (defonce started
   (sysrev.init/start-app))

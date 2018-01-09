@@ -705,6 +705,16 @@
         :args (s/cat :label-id ::sc/label-id
                      :enabled? boolean?))
 
+(defn set-label-required [label-id required?]
+  (let [label-id (q/to-label-id label-id)]
+    (-> (sqlh/update :label)
+        (sset {:required required?})
+        (where [:= :label-id label-id])
+        do-execute)))
+(s/fdef set-label-required
+        :args (s/cat :label-id ::sc/label-id
+                     :required? boolean?))
+
 (defn query-public-article-labels [project-id]
   (with-project-cache
     project-id [:public-labels :values]
@@ -952,3 +962,16 @@
                      (true? inclusion-status)))))
            (apply concat)
            (apply hash-map)))))
+
+(defn copy-project-label-defs [src-project-id dest-project-id]
+  (let [entries
+        (-> (select :*)
+            (from [:label :l])
+            (where [:= :project-id src-project-id])
+            (->> do-query
+                 (mapv #(-> %
+                            (dissoc :label-id :label-id-local :project-id)
+                            (assoc :project-id dest-project-id)))))]
+    (-> (insert-into :label)
+        (values entries)
+        do-execute)))

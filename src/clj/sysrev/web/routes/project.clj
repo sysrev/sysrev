@@ -81,12 +81,6 @@
               user-id (current-user-id request)]
           (api/delete-project! project-id user-id)))
 
-  ;; Returns web file paths for all local article PDF documents
-  (GET "/api/article-documents" request
-       (wrap-permissions
-        request [] ["member"]
-        (docs/all-article-document-paths)))
-
   ;; Returns an article for user to label
   (GET "/api/label-task" request
        (wrap-permissions
@@ -257,7 +251,7 @@
         request [] ["member"]
         (let [project-id (active-project request)
               exclude-hours (if (= :dev (:profile env))
-                              nil 4)]
+                              nil nil #_ 4)]
           {:result
            (->> (labels/query-public-article-labels project-id)
                 (labels/filter-recent-public-articles project-id exclude-hours)
@@ -410,7 +404,7 @@
 
 (defn project-info [project-id]
   (let [[fields predict articles status-counts members
-         users keywords notes settings files progress]
+         users keywords notes settings files documents progress]
         (pvalues (q/query-project-by-id project-id [:*])
                  (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
@@ -421,6 +415,7 @@
                  (project-notes project-id)
                  (project-settings project-id)
                  (project-files project-id)
+                 (docs/all-article-document-paths project-id)
                  (labels/query-progress-over-time project-id 30))]
     {:project {:project-id project-id
                :name (:name fields)
@@ -434,5 +429,6 @@
                :keywords keywords
                :notes notes
                :settings settings
-               :files files}
+               :files files
+               :documents documents}
      :users users}))

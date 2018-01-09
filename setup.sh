@@ -12,7 +12,9 @@ echo
 
 echo "Building semantic CSS"
 ./scripts/build-semantic default > /dev/null
+echo " * built default theme"
 ./scripts/build-semantic dark > /dev/null
+echo " * built dark theme"
 echo
 
 echo "Building site CSS"
