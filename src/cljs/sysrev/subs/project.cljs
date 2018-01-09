@@ -16,6 +16,7 @@
   (contains? (get-in db [:data :project]) (active-project-id db)))
 (defn get-project-raw [db project-id]
   (get-in db [:data :project project-id]))
+
 (reg-sub
  :project/raw
  :<- [:projects]

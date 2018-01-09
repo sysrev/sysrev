@@ -11,7 +11,9 @@
 (def state (r/atom {:create-project nil}))
 
 (defn project-page-menu []
-  (let [active-tab (->> @(subscribe [:active-panel]) (drop 1) first)]
+  (let [active-tab (->> @(subscribe [:active-panel]) (drop 1) first)
+        {:keys [total]}
+        @(subscribe [:project/article-counts])]
     [primary-tabbed-menu
      [{:tab-id :project
        :content "Project"
@@ -19,24 +21,33 @@
       {:tab-id :user
        :content "My Labels"
        :action [:project :user]}
-      {:tab-id :review
-       :content "Review Articles"
-       :action [:project :review]}]
+      (when (> total 0)
+        {:tab-id :review
+         :content "Review Articles"
+         :action [:project :review]})]
      active-tab
      "project-menu"]))
 
 (defn project-submenu-full []
-  (let [active-tab (->> @(subscribe [:active-panel]) (drop 2) first)]
+  (let [active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
+        {:keys [total]}
+        @(subscribe [:project/article-counts])]
     [secondary-tabbed-menu
-     [{:tab-id :overview
-       :content "Overview"
-       :action [:project :project :overview]}
-      {:tab-id :articles
-       :content "Article Activity"
-       :action [:project :project :articles]}
+     [(when (> count 0)
+        {:tab-id :overview
+         :content "Overview"
+         :action [:project :project :overview]}
+        {:tab-id :articles
+         :content "Article Activity"
+         :action [:project :project :articles]})
+
+      {:tab-id :add-articles
+       :content "Add Articles"
+       :action [:project :project :add-articles]}
       {:tab-id :labels
        :content "Label Definitions"
        :action [:project :project :labels]}
+
       (when false
         {:tab-id :predict
          :content "Prediction"
@@ -44,9 +55,12 @@
      [{:tab-id :invite-link
        :content [:span "Invite Link " [:i.ui.mail.outline.icon]]
        :action [:project :project :invite-link]}
-      {:tab-id :export-data
-       :content [:span "Export " [:i.ui.download.icon]]
-       :action [:project :project :export-data]}
+
+      (when (> count 0)
+        {:tab-id :export-data
+         :content [:span "Export " [:i.ui.download.icon]]
+         :action [:project :project :export-data]})
+
       {:tab-id :settings
        :content [:span "Settings " [:i.ui.settings.icon]]
        :action [:project :project :settings]}]

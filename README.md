@@ -191,7 +191,7 @@ user> (cljs-repl)
 
 1. Verify that you are communicating with the browser by running
 
-```clojure
+```clojurescript
 cljs.user> (.log js/console "hi")
 ```
 
@@ -199,7 +199,7 @@ cljs.user> (.log js/console "hi")
 
 1. Switch to sysrev.user namespace
 
-```clojure
+```clojurescript
 cljs.user> (in-ns 'sysrev.user)
 ```
 
@@ -207,7 +207,7 @@ cljs.user> (in-ns 'sysrev.user)
 
 1. You can use the figwheel REPL to navigate to views with the nav fn
 
-```clojure
+```clojurescript
 sysrev.user> (nav "/create-project")
 ```
 
@@ -215,7 +215,7 @@ sysrev.user> (nav "/create-project")
 
 1. To update reframe data, that is defined by def-data in sysrev.data.definitions,
 
-```clojure
+```clojurescript
 (dispatch [:fetch [:identity]])
 ```
 
@@ -225,13 +225,13 @@ sysrev.user> (nav "/create-project")
 
    Explore it with
 
-```clojure
+```clojurescript
 (-> @re-frame.db/app-db keys)
 ```
 
    View data with a cursor
 
-```clojure
+```clojurescript
 (first @(reagent.core/cursor re-frame.db/app-db [:state :self :projects]))
 ```
 
@@ -244,7 +244,7 @@ sysrev.user> (nav "/create-project")
     bug: If you are viewing a bar chart, reloading 'data/definitions.cljs' will result in
     a browser error
 
-```clojure
+```clojurescript
 (def-data :pubmed-query
   :loaded? (fn [db search-term]
              (get-in db [:data :search-term search-term])
@@ -262,7 +262,7 @@ sysrev.user> (nav "/create-project")
 
 1. Create a new event in events/<filename>.cljs for retrieving the data
 
-```clojure
+```clojurescript
 (reg-event-db
  :pubmed/save-search-term-results
  [trim-v]
@@ -273,13 +273,22 @@ sysrev.user> (nav "/create-project")
 
 1. Read the data from the server in the REPL
 
-    `sysrev.user> (dispatch [:fetch [:pubmed-query "foo bar"]])`
+```clojurescript
+`sysrev.user> (dispatch [:fetch [:pubmed-query "foo bar"]])`
+```
+
+1. Check to see if the ajax request is ongoing,
+
+```clojurescript
+sysrev.user> @(subscribe [:loading? [:pubmed-query "foo bar"]])
+false
+```
 
 1. In subs/ dir, find a relevant namespace or create a new one.
 
     If you create a new namespace, add it to sysrev.subs.all
 
-```clojure
+```clojurescript
 (reg-sub
  :pubmed/search-term-result
  (fn [db [_ search-term]] ;; first term in the destructed term is the subscription name itself,
@@ -288,17 +297,65 @@ sysrev.user> (nav "/create-project")
 ```
 
 1. The subscription makes the db atom available like this:
+```clojurescript
    sysrev.user> @(subscribe [:pubmed/search-term-result "foo bar"])
-
-1. Create a new view in cljs/sysrev/views for the data
-
-1. To check to see if the ajax request is ongoing,
-
-```clojure
-sysrev.user> @(subscribe [:loading? [:pubmed-query "foo bar"]])
-false
 ```
 
+1. Create a new view in cljs/sysrev/views{/panels}
+```clojurescript
+(defn SearchPanel [state]
+  "A panel for searching pubmed"
+  (let [current-search-term (r/cursor state [:current-search-term])
+        on-change-search-term (r/cursor state [:on-change-search-term])
+        page-number (r/cursor state [:page-number])]
+    (fn [props]
+      (let []
+        [:div.create-project
+         [:div.ui.segment
+          [:h3.ui.dividing.header
+           "Create a New Project"]
+          [SearchBar state]
+          [PubmedSearchLink state]
+          [SearchResult state]]]))))
+```
+
+1. If a new namespace was created, add it to sysrev.views.main
+
+1. Add a method to panel-content so that the :set-active-panel event
+   can be dispatched in routes.cljs (below)
+```clojurescript
+(defmethod panel-content [:create-project] []
+  (fn [child]
+    [SearchPanel state]))
+```
+
+1. Add a route for the view (if needed) to cljs/sysrev/routes.cljs
+```clojurescript
+(sr-defroute
+ create-project "/create-project" []
+ (dispatch [:set-active-panel [:create-project]]
+           "/create-project"))
+```
+
+1. If an event should change the route, add it to load-default-panels
+```clojurescript
+(defn- load-default-panels [db]
+  (->> [[[]
+         "/"]
+
+		...
+
+        [[:project :project :add-articles]
+         "/project/add-articles"]
+
+		...
+
+		[[:user-settings]
+         "/user/settings"]]
+       (reduce (fn [db [prefix uri]]
+                 (set-subpanel-default-uri db prefix uri))
+               db)))
+```
 1. From the repl
 ---
 <!-- 1. Define data in 'subs/' -->

@@ -276,6 +276,9 @@
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
-    [:div.project-content
-     [project-overview-panel]
-     child]))
+    (let [{:keys [total]}
+          @(subscribe [:project/article-counts])]
+      [:div.project-content
+       (when (> total 0)
+         [project-overview-panel])
+       child])))

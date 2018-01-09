@@ -119,6 +119,11 @@
      (dispatch [:require [:review/task]]))))
 
 (sr-defroute
+ add-articles "/project/add-articles" []
+ (dispatch [:set-active-panel [:project :project :add-articles]]
+           "/project/add-articles"))
+
+(sr-defroute
  project-settings "/project/settings" []
  (dispatch [:reload [:project/settings]])
  (dispatch [:set-active-panel [:project :project :settings]
@@ -133,6 +138,11 @@
  project-export "/project/export" []
  (dispatch [:set-active-panel [:project :project :export-data]
             "/project/export"]))
+
+(sr-defroute
+ create-project "/project/create-project" []
+ (dispatch [:set-active-panel [:create-project]]
+           "/create-project"))
 
 (sr-defroute
  login "/login" []
@@ -171,14 +181,14 @@
             "/select-project"]))
 
 (sr-defroute
+ pubmed-search "/pubmed-search" []
+ (dispatch [:set-active-panel [:pubmed-search]
+            "/pubmed-search"]))
+
+(sr-defroute
  user-settings "/user/settings" []
  (dispatch [:set-active-panel [:user-settings]
             "/user/settings"]))
-
-(sr-defroute
- create-project "/create-project" []
- (dispatch [:set-active-panel [:create-project]]
-           "/create-project"))
 
 (defn- load-default-panels [db]
   (->> [[[]
@@ -195,6 +205,9 @@
 
         [[:project :project :articles]
          "/project/articles"]
+
+        [[:project :project :add-articles]
+         "/project/add-articles"]
 
         [[:project :user]
          "/project/user"]

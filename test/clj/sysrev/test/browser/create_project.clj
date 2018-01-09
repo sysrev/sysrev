@@ -76,8 +76,8 @@
 
 (deftest pubmed-search
   (log-in)
-  (browser/go-route "/create-project")
-  (browser/wait-until-panel-exists [:create-project])
+  (browser/go-route "/pubmed-search")
+  (browser/wait-until-panel-exists [:pubmed-search])
   (testing "Various search terms will yield the correct pmid count"
     (search-term-count-matches? "foo")
     (search-term-count-matches? "foo bar"))
