@@ -41,8 +41,8 @@
 
 (defmethod al/list-header-tooltip panel []
   ["Public listing of labeled articles"
-   [:div.ui.divider]
-   "Articles are hidden for 4 hours after any edit to labels"])
+   #_ [:div.ui.divider]
+   #_ "Articles are hidden for 4 hours after any edit to labels"])
 
 (defmethod al/private-article-view? panel []
   false)

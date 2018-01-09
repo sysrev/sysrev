@@ -61,8 +61,8 @@
     (do (close-active-db)
         (reset! active-db db)
         (let [{:keys [host port dbname]} (:config db)]
-          (println (format "connected to postgres (%s:%d/%s)"
-                           host port dbname)))
+          (log/info (format "connected to postgres (%s:%d/%s)"
+                            host port dbname)))
         db)))
 
 ;; Add JDBC conversion methods for Postgres jsonb type

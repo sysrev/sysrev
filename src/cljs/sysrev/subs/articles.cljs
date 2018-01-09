@@ -164,3 +164,25 @@
    [(subscribe [:article/labels article-id user-id])])
  (fn [[ulmap]]
    (->> (vals ulmap) (map :resolve) first)))
+
+(defn- article-document-url [project-id doc-id fs-path]
+  (str "/documents/PDF/" project-id "/" doc-id "/" fs-path))
+
+(reg-sub
+ :article/documents
+ (fn [[_ article-id]]
+   [(subscribe [:active-project-id])
+    (subscribe [:article/raw article-id])
+    (subscribe [:project/document-paths])])
+ (fn [[project-id {:keys [document-ids]} doc-paths]]
+   (->> document-ids
+        (mapv
+         (fn [doc-id]
+           (->> (get doc-paths doc-id)
+                (mapv
+                 (fn [fs-path]
+                   {:document-id doc-id
+                    :fs-path fs-path
+                    :url (article-document-url project-id doc-id fs-path)})))))
+        (apply concat)
+        vec)))

@@ -11,8 +11,7 @@
             [sysrev.db.users :refer
              [delete-user create-user get-user-by-email]]
             [clojure.string :as str])
-  (:import [org.openqa.selenium.phantomjs PhantomJSDriver]
-           [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
+  (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
            [java.util.logging Level]))

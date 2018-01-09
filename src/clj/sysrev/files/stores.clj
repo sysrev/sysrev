@@ -3,7 +3,8 @@
             [sysrev.config.core :refer [env]]
             [sysrev.files.store :as store]
             [sysrev.files.metadata :as metadata]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [sysrev.config.core :refer [env]]))
 
 (defmulti get-store
   "Based on the settings available in env, get a FileStore"
@@ -16,7 +17,8 @@
       aws/->S3Store
       aws/connect))
 
-(defonce log-stub-calls (atom true))
+(defonce log-stub-calls
+  (atom (= (:profile env) :prod)))
 (defmacro ^:private log-stub [& args]
   `(when @log-stub-calls
      (log/warn ~@args)))

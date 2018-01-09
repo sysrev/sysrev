@@ -1,90 +1,102 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [;; Clojure (JVM) libraries
-                 ;;
-                 [org.clojure/clojure "1.9.0-beta2"]
+  :dependencies [;;;
+                 ;;; Clojure
+                 ;;;
+                 [org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
+
+                 ;;;
+                 ;;; Force versions of indirect dependencies
+                 ;;;
+                 [com.fasterxml.jackson.core/jackson-databind "2.9.3"]
+                 [cheshire "5.5.0"]
+                 [commons-io/commons-io "2.6"]
+                 [commons-codec "1.10"]
+
+                 ;;;
+                 ;;; Logging
+                 ;;;
+                 [org.clojure/tools.logging "0.4.0"]
+                 [ch.qos.logback/logback-classic "1.2.3"]
+                 [org.slf4j/jul-to-slf4j "1.7.25"]
+
+                 ;;;
+                 ;;; Clojure (JVM) libraries
+                 ;;;
+                 [org.clojure/test.check "0.9.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
-                 ;; Data formats
-                 [org.clojure/data.json "0.2.6"]
+                 [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
+                 ;;; Data formats
+                 [org.clojure/data.json "0.2.6"]
+                 [com.cognitect/transit-clj "0.8.300"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.2"]
-                 ;; enforce jackson version to easier catch dependency conflicts
-                 [com.fasterxml.jackson.core/jackson-databind "2.8.7"]
-                 ;; Logging
-                 [org.clojure/tools.logging "0.4.0"]
-                 [org.slf4j/slf4j-log4j12 "1.7.25"]
-                 [log4j/log4j "1.2.17"]
-                 ;;
-                 ;; clojure-csv/2.0.1 because 2.0.2 changes parsing behavior
+                 ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
-                 [com.cognitect/transit-clj "0.8.300"]
-                 [com.cognitect/transit-cljs "0.8.239"]
-                 ;; Database
-                 [org.clojure/java.jdbc "0.7.3"]
+                 ;;; Database
+                 [org.clojure/java.jdbc "0.7.5"]
                  [org.postgresql/postgresql "42.1.4"]
                  [joda-time "2.9.9"]
-                 [clj-time "0.14.0"
-                  :exclusions [joda-time]]
+                 [clj-time "0.14.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "1.8.1"]
+                 [hikari-cp "2.0.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
                  [honeysql "0.9.1"]
                  [nilenso/honeysql-postgres "0.2.3"]
-                 ;; Web server
-                 [compojure "1.6.0"]
+                 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
-                 [ring "1.6.2"]
+                 [http-kit "2.2.0"]
+                 [ring "1.6.3"]
                  [ring/ring-defaults "0.3.1"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
-                 [http-kit "2.2.0"]
-                 ;; Encryption / Authentication
-                 [buddy "1.3.0"]
-                 ;; Web client
+                 [ring/ring-mock "0.3.2" :exclusions [cheshire]]
+                 [compojure "1.6.0"]
+                 ;;; Encryption / Authentication
+                 [buddy "2.0.0"]
+                 ;;; Web client
                  [clj-http "3.7.0"]
-                 [crypto-random "1.2.0"]
-                 ;; Email
+                 ;;; Email
                  [com.draines/postal "2.0.2"]
-                 ;; Amazon
-                 [amazonica "0.3.93"
+                 ;;; Amazon
+                 [amazonica "0.3.117"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
-                 [commons-io/commons-io "2.5"]
-                 ;; ClojureScript libraries
+
+                 ;;;
+                 ;;; ClojureScript libraries
+                 ;;;
+                 [com.cognitect/transit-cljs "0.8.243"]
                  [reagent "0.7.0"]
                  [re-frame "0.10.2"]
                  [day8.re-frame/http-fx "0.1.4"]
                  [secretary "1.2.3"]
-                 [kibu/pushy "0.3.7"]
-                 ;; [cljs-ajax "0.6.0"]
-                 [cljs-http "0.1.43"]
-                 ;; [cljsjs/jquery "2.2.4-0"]
+                 [kibu/pushy "0.3.8"]
+                 [cljs-http "0.1.44"]
                  [cljsjs/jquery "3.2.1-0"]
-                 ;; [cljsjs/semantic-ui "2.2.4-0"]
+                 #_ [cljsjs/semantic-ui "2.2.4-0"]
+                 ;; custom build of cljsjs/semantic-ui to use latest version
+                 ;; built from ./cljsjs/semantic-ui
                  [org.clojars.jeffwk/semantic-ui "2.2.13-0"]
-                 [camel-snake-kebab "0.4.0"]
                  [cljsjs/chartjs "2.6.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
-                 [org.clojure/test.check "0.9.0"]
                  [cljsjs/clipboard "1.6.1-1"]
-                 [com.andrewmcveigh/cljs-time "0.5.1"]
-                 ;; for testing purposes
-                 [ring/ring-mock "0.3.2" :exclusions [cheshire]]]
+                 [com.andrewmcveigh/cljs-time "0.5.2"]]
   :min-lein-version "2.6.1"
-  :jvm-opts ["-Xms800m"
+  :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
+             "-Xms800m"
              "-Xmx1500m"
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"
-             ;; "-XX:+UseParNewGC"
-             ;; "-XX:+UseConcMarkSweepGC"
-             ;; "-XX:+CMSConcurrentMTEnabled"
-             ]
+             #_ "-XX:+UseParNewGC"
+             #_ "-XX:+UseConcMarkSweepGC"
+             #_ "-XX:+CMSConcurrentMTEnabled"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
@@ -159,12 +171,11 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"]
+             {:jvm-opts ["-Xms800m" "-Xmx1500m"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[org.clojure/test.check "0.9.0"]
-                             [binaryage/devtools "0.9.8"]
+              :dependencies [[binaryage/devtools "0.9.8"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.8.1"]
                              [org.seleniumhq.selenium/selenium-support "3.8.1"]
@@ -180,10 +191,7 @@
                               [org.bouncycastle/bcpkix-jdk15on
                                org.bouncycastle/bcprov-jdk15on
                                org.seleniumhq.selenium/selenium-api
-                               org.seleniumhq.selenium/selenium-support]]
-                             [com.codeborne/phantomjsdriver "1.4.3"]
-                             [org.seleniumhq.selenium/selenium-chrome-driver "3.4.0"]
-                             ]}
+                               org.seleniumhq.selenium/selenium-support]]]}
              :dev-jvm
              {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
@@ -193,7 +201,7 @@
                              [acyclic/squiggly-clojure "0.1.8"
                               :exclusions [org.clojure/tools.reader]]]
               :plugins [[lein-figwheel "0.5.14"]
-                        [cider/cider-nrepl "0.15.1"]
+                        [cider/cider-nrepl "0.16.0"]
                         [refactor-nrepl "2.3.1"]
                         [lein-environ "1.1.0"]]
               :env {:squiggly
@@ -202,8 +210,7 @@
                      [:unlimited-use :unused-ret-vals :constant-test]
                      :eastwood-options {:config-files ["eastwood.clj"]}}}}
              :figwheel
-             {:jvm-opts ["-Djava.util.logging.config.file=logging.properties"
-                         "-Xms300m" "-Xmx600m"]}
+             {:jvm-opts ["-Xms300m" "-Xmx600m"]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
@@ -212,36 +219,15 @@
               [[yieldbot/flambo "0.8.2"
                 :exclusions
                 [com.google.guava/guava]]
-               [org.apache.spark/spark-core_2.11 "2.2.0"]
-               [org.apache.spark/spark-mllib_2.11 "2.2.0"]
-               [org.apache.spark/spark-streaming_2.11 "2.2.0"]
-               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.0"]
-               [org.apache.spark/spark-sql_2.11 "2.2.0"]
-               [org.apache.spark/spark-hive_2.11 "2.2.0"]]
+               [org.apache.spark/spark-core_2.11 "2.2.1"]
+               [org.apache.spark/spark-mllib_2.11 "2.2.1"]
+               [org.apache.spark/spark-streaming_2.11 "2.2.1"]
+               [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.1"]
+               [org.apache.spark/spark-sql_2.11 "2.2.1"]
+               [org.apache.spark/spark-hive_2.11 "2.2.1"]]
               :aot :all}
              :test
-             {:jvm-opts ["-Dlog4j.configuration=log4j.properties.test"
-                         "-Djava.util.logging.config.file=logging.properties"]
-              :resource-paths ["config/test"]
+             {:resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[org.clojure/test.check "0.9.0"]
-                             [clj-webdriver "0.7.2"]
-                             [org.seleniumhq.selenium/selenium-api "3.8.1"]
-                             [org.seleniumhq.selenium/selenium-support "3.8.1"]
-                             [org.seleniumhq.selenium/selenium-java "3.8.1"
-                              :exclusions
-                              [org.seleniumhq.selenium/selenium-api
-                               org.seleniumhq.selenium/selenium-support]]
-                             [org.seleniumhq.selenium/selenium-remote-driver "3.8.1"
-                              :exclusions
-                              [com.google.guava/guava]]
-                             [org.seleniumhq.selenium/selenium-server "3.8.1"
-                              :exclusions
-                              [org.bouncycastle/bcpkix-jdk15on
-                               org.bouncycastle/bcprov-jdk15on
-                               org.seleniumhq.selenium/selenium-api
-                               org.seleniumhq.selenium/selenium-support]]
-                             [com.codeborne/phantomjsdriver "1.4.3"]]}
-             :autotest
-             {:dependencies {}}})
+              :dependencies []}})

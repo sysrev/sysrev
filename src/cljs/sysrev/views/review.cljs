@@ -451,7 +451,7 @@
             [:div.ui.right.labeled.icon.button
              {:class (if loading-task? "loading" "")
               :on-click on-next}
-             "Next Article"
+             "Skip Article"
              [:i.right.circle.arrow.icon]])]]]
        [:div.ui.right.aligned.four.wide.column
         #_ (when @(subscribe [:review/on-review-task?])
