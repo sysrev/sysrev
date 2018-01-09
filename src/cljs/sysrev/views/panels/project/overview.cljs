@@ -5,11 +5,12 @@
     [subscribe dispatch reg-event-fx reg-sub trim-v]]
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
+   [sysrev.views.components :refer [with-ui-help-tooltip]]
    [sysrev.views.charts :refer [chart-container pie-chart bar-chart
                                 get-canvas-context wrap-animate-options]]
+   [sysrev.views.panels.project.add-articles :refer [AddArticles]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
-   [sysrev.views.components :refer [with-ui-help-tooltip]]
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]
    [cljs-time.core :as t]
@@ -281,4 +282,6 @@
       [:div.project-content
        (when (> total 0)
          [project-overview-panel])
+       (when (<= total 0)
+         [AddArticles])
        child])))

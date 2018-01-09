@@ -239,6 +239,9 @@
         [[:select-project]
          "/select-project"]
 
+        [[:pubmed-search]
+         "/pubmed-search"]
+
         [[:user-settings]
          "/user/settings"]]
        (reduce (fn [db [prefix uri]]

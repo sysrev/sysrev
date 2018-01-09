@@ -228,6 +228,7 @@
                       (http-client/generate-query-string
                        {:term @on-change-search-term}))
            :target "_blank"}
+       [:br]
        "Search on PubMed.gov"])))
 
 (defn SearchResult [state]
@@ -268,7 +269,7 @@
         [:div.create-project
          [:div.ui.segment
           [:h3.ui.dividing.header
-           "Add Articles from PubMed"]
+           "Add Articles from PubMed Search"]
           [SearchBar state]
           [PubmedSearchLink state]
           [SearchResult state]]]))))
