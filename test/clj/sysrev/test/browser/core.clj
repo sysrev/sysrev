@@ -138,3 +138,10 @@
 (defn wait-until-panel-exists
   [panel-keys]
   (wait-until-exists {:css (str "div[id='" (panel-name panel-keys) "']")}))
+
+(defn wait-until-loading-completes
+  []
+  (taxi/wait-until
+   #(not (taxi/exists?
+          {:xpath "//div[contains(@class,'loader')]/div[contains(@class,'loader')]"}))
+   10000))

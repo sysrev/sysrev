@@ -57,6 +57,7 @@
   "Does the search-term result in the browser match the remote call?"
   [search-term]
   (search-for search-term)
+  (browser/wait-until-loading-completes)
   (is (= (:count (pubmed/get-search-query-response search-term 1))
          (search-count))))
 
