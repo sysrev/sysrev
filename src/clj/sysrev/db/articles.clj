@@ -243,7 +243,8 @@
                                                   :duplicate-of
                                                   :locations
                                                   :review-status
-                                                  :score))
+                                                  :score
+                                                  :flags))
                               dest-project-id)]
           (let [locations
                 (-> (q/select-project-articles
