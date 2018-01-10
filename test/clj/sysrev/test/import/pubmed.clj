@@ -3,10 +3,11 @@
    [clojure.test :refer :all]
    [clojure.java.jdbc :as jdbc]
    [clojure.string :as str]
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
-   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-search-query-response get-pmids-summary get-all-pmids-for-query]]
+   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project get-search-query-response get-pmids-summary get-all-pmids-for-query importing-articles?]]
    [sysrev.util :refer [parse-xml-str xml-find]]
-   [sysrev.db.core :refer [*conn* active-db]]
+   [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
    [sysrev.db.project :as project]))
 
 (use-fixtures :once default-fixture)
@@ -41,7 +42,23 @@
   (let [xml (fetch-pmid-xml 28280522)
         parsed (parse-pmid-xml xml)]
     (is (= (:public-id parsed) "28280522"))))
-  
+
+(deftest test-importing-articles?
+  (let [new-project (project/create-project "test project")
+        new-project-id (:project-id new-project)
+        non-existent-project-id 0000]
+    (is (not (importing-articles? new-project-id)))
+    ;; catch exception
+    (is (= (str "No project with project-id: " non-existent-project-id))
+        (try (importing-articles? non-existent-project-id)
+             (catch Throwable e (.getMessage e))))
+    ;; manually set the meta data 'importing-articles?' to true
+    (-> (sqlh/update :project)
+        (sset {:meta (to-jsonb (assoc-in {} [:importing-articles?] true))})
+        (where [:= :project_id new-project-id])
+        do-execute)
+    (is (importing-articles? new-project-id))))
+
 (deftest retrieve-articles
   (let [result-count (fn [result] (-> result first :count))
         pmids (:pmids (get-search-query-response "foo bar" 1))
