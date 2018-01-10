@@ -173,6 +173,39 @@
       (println (.getMessage e))
       nil)))
 
+(defn set-importing-articles-status!
+  "Set importing-articles? to a boolean status for project-id"
+  [project-id status]
+  (let [query-result (-> (select :*)
+                         (from [:project :p])
+                         (where [:= :p.project_id project-id])
+                         do-query)
+        project-metadata (-> query-result first :meta)]
+    (when (empty? query-result)
+      (throw (Exception. (str "No project with project-id: " project-id))))
+    ;; update the meta field
+    (-> (sqlh/update :project)
+        (sset {:meta (to-jsonb (assoc-in project-metadata [:importing-articles?] status))})
+        (where [:= :project_id project-id])
+        do-execute)))
+
+(defn importing-articles?
+  "Is the project-id currently importing articles?"
+  [project-id]
+  (let [query-result (-> (select :*)
+                         (from [:project :p])
+                         (where [:= :p.project_id project-id])
+                         do-query)
+        project-metadata (-> query-result first :meta)
+        importing? (:importing-articles? project-metadata)]
+    ;; if there is no :importing-articles? meta data, create it
+    (if (or (nil? project-metadata)
+            (nil? importing?))
+      (do (set-importing-articles-status! project-id false)
+          ;; run this fn again
+          (importing-articles? project-id))
+      importing?)))
+
 (defn import-pmids-to-project
   "Imports into project all articles referenced in list of PubMed IDs."
   [pmids project-id]
@@ -201,28 +234,6 @@
           (println (format "error importing pmid #%s" pmid)))))
     (finally
       (clear-project-cache project-id))))
-
-(defn importing-articles?
-  "Is the project-id currently importing articles?"
-  [project-id]
-  (let [query-result (-> (select :*)
-                         (from [:project :p])
-                         (where [:= :p.project_id project-id])
-                         do-query)
-        project-metadata (-> query-result first :meta)
-        importing? (:importing-articles? project-metadata)]
-    (when (empty? query-result)
-      (throw (Exception. (str "No project with project-id: " project-id))))
-    ;; if there is no :importing-articles? meta data, create it
-    (if (or (nil? project-metadata)
-            (nil? importing?))
-      (do (-> (sqlh/update :project)
-              (sset {:meta (to-jsonb (assoc-in project-metadata [:importing-articles?] false))})
-              (where [:= :project_id project-id])
-              do-execute)
-          ;; run this fn again
-          (importing-articles? project-id))
-      importing?)))
 
 (defn reload-project-abstracts [project-id]
   (let [articles
