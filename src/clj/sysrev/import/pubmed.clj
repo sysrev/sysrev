@@ -204,12 +204,13 @@
       (do (set-importing-articles-status! project-id false)
           ;; run this fn again
           (importing-articles? project-id))
-      importing?)))
+      (boolean importing?))))
 
 (defn import-pmids-to-project
   "Imports into project all articles referenced in list of PubMed IDs."
   [pmids project-id]
   (try
+    (set-importing-articles-status! project-id true)
     (doseq [pmid pmids]
       (try
         ;; skip article if already loaded in project
@@ -231,8 +232,11 @@
                           (mapv #(assoc % :article-id article-id))))
                     do-execute)))))
         (catch Throwable e
-          (println (format "error importing pmid #%s" pmid)))))
+          (do
+            (set-importing-articles-status! project-id false)
+            (println (format "error importing pmid #%s" pmid))))))
     (finally
+      (set-importing-articles-status! project-id false)
       (clear-project-cache project-id))))
 
 (defn reload-project-abstracts [project-id]

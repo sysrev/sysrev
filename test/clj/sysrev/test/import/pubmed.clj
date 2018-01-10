@@ -65,7 +65,9 @@
         new-project (project/create-project "test project")
         new-project-id (:project-id new-project)
         article-summaries (get-pmids-summary pmids)]
+    (is (not (importing-articles? new-project-id)))
     (import-pmids-to-project (:pmids (get-search-query-response "foo bar" 1)) new-project-id)
+    (is (not (importing-articles? new-project-id)))
     ;; Do we have the correct amount of PMIDS?
     (is (= (count pmids)
            (project/project-article-count new-project-id)))
