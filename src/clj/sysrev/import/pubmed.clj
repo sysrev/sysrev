@@ -173,44 +173,10 @@
       (println (.getMessage e))
       nil)))
 
-(defn set-importing-articles-status!
-  "Set importing-articles? to a boolean status for project-id"
-  [project-id status]
-  (let [query-result (-> (select :*)
-                         (from [:project :p])
-                         (where [:= :p.project_id project-id])
-                         do-query)
-        project-metadata (-> query-result first :meta)]
-    (when (empty? query-result)
-      (throw (Exception. (str "No project with project-id: " project-id))))
-    ;; update the meta field
-    (-> (sqlh/update :project)
-        (sset {:meta (to-jsonb (assoc-in project-metadata [:importing-articles?] status))})
-        (where [:= :project_id project-id])
-        do-execute)))
-
-(defn importing-articles?
-  "Is the project-id currently importing articles?"
-  [project-id]
-  (let [query-result (-> (select :*)
-                         (from [:project :p])
-                         (where [:= :p.project_id project-id])
-                         do-query)
-        project-metadata (-> query-result first :meta)
-        importing? (:importing-articles? project-metadata)]
-    ;; if there is no :importing-articles? meta data, create it
-    (if (or (nil? project-metadata)
-            (nil? importing?))
-      (do (set-importing-articles-status! project-id false)
-          ;; run this fn again
-          (importing-articles? project-id))
-      (boolean importing?))))
-
-(defn import-pmids-to-project
+(defn- import-pmids-to-project
   "Imports into project all articles referenced in list of PubMed IDs."
-  [pmids project-id]
+  [pmids project-id project-source-id]
   (try
-    (set-importing-articles-status! project-id true)
     (doseq [pmid pmids]
       (try
         ;; skip article if already loaded in project
@@ -225,6 +191,8 @@
             (when-let [article-id (add-article
                                    (dissoc article :locations)
                                    project-id)]
+              ;; associate this article with a project-source-id
+              (articles/add-article-to-source! article-id project-source-id)
               (when (not-empty (:locations article))
                 (-> (sqlh/insert-into :article-location)
                     (values
@@ -232,12 +200,24 @@
                           (mapv #(assoc % :article-id article-id))))
                     do-execute)))))
         (catch Throwable e
-          (do
-            (set-importing-articles-status! project-id false)
-            (println (format "error importing pmid #%s" pmid))))))
+          (println (format "error importing pmid #%s" pmid) ":" (.getMessage e)))))
     (finally
-      (set-importing-articles-status! project-id false)
       (clear-project-cache project-id))))
+
+(defn import-pmids-to-project-with-meta!
+  "Import articles into project-id using the meta map as a source description "
+  [pmids project-id meta]
+  (let [project-source-id (project/create-project-source-metadata! project-id (assoc meta
+                                                                                     :importing-articles? true))]
+    (try
+      ;; import the data
+      (import-pmids-to-project pmids project-id project-source-id)
+      (catch Throwable e
+        (println "Error in import-pmids-to-project-with-meta!" (.getMessage e)))
+      (finally
+        ;; set meta data importing status to false
+        (project/update-project-source-metadata! project-source-id (assoc meta
+                                                                          :importing-articles? false))))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

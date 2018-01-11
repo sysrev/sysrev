@@ -225,3 +225,11 @@
     (finally
       (when dest-project-id
         (clear-project-cache dest-project-id)))))
+
+(defn add-article-to-source!
+  "Add article-id to source-id"
+  [article-id source-id]
+  (-> (sqlh/insert-into :article_source)
+      (values [{:article_id article-id
+                :source_id source-id}])
+      do-execute))

@@ -605,3 +605,72 @@
   (doseq [user-id (project-user-ids src-project-id false)]
     (let [{:keys [permissions]} (project-member src-project-id user-id)]
       (add-project-member dest-project-id user-id :permissions permissions))))
+
+(defn project-exists?
+  "Does a project with project-id exist?"
+  [project-id]
+  (empty? (-> (select :project_id)
+              (from [:project :p])
+              (where [:= :p.project_id project-id])
+              do-query)))
+
+(s/fdef project-exists?
+        :args (s/cat :project-id int?)
+        :ret boolean?)
+
+(defn create-project-source-metadata!
+  "Create a project_source table entry with a metadata map for project-id"
+  [project-id metadata]
+  (-> (insert-into :project_source)
+      (values [{:meta metadata
+                :project-id project-id}])
+      (returning :source_id)
+      do-query first :source-id))
+
+(s/fdef create-project-source-metadata!
+        :args (s/cat :project-id int?
+                     :meta map?)
+        :ret int?)
+
+(def import-pmids-meta
+  {:source "PMID vector"})
+
+(defn import-pmids-search-term-meta
+  [search-term]
+  {:source "PubMed search"
+   :search-term search-term})
+
+(def import-facts-meta
+  {:source "facts"})
+
+(s/fdef import-pmids-search-term-meta
+        :args (s/cat :search-term string?)
+        :ret map?)
+
+(defn project-source-metadata!
+  "Given a project-id, return the corresponding vectors of project-source data or nil if
+  it does not exist"
+  [project-id]
+  (when (not (project-exists? project-id))
+    (throw (Exception. (str "No project with project-id: " project-id))))
+  (-> (select :*)
+      (from [:project_source :ps])
+      (where [:= :ps.project_id project-id])
+      do-query))
+
+(s/fdef project-source-metadata
+        :args (s/cat :project-id int?)
+        :ret (s/nilable vector?))
+
+(defn update-project-source-metadata!
+  "Replace the metadata project-source for project-id"
+  [project-id metadata]
+  (-> (sqlh/update :project_source)
+      (sset {:meta metadata})
+      (where [:= :project_id project-id])
+      do-execute))
+
+(s/fdef update-project-source-metadata!
+        :args (s/cat :project-id int?
+                     :meta map?))
+

@@ -28,7 +28,7 @@
 
 (defn import-facts-pmids [path project-id]
   (let [pmid-ncts (parse-pmid-nct-csv path)]
-    (pm/import-pmids-to-project (keys pmid-ncts) project-id)))
+    (pm/import-pmids-to-project-with-meta! (keys pmid-ncts) project-id project/import-facts-meta)))
 
 (defn import-facts-nct-links [path project-id]
   (let [pmid-ncts (parse-pmid-nct-csv path)]

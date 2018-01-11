@@ -54,6 +54,8 @@
   (let [handler (sysrev-handler)
         email "foo@bar.com"
         password "foobar"
+        search-term "foo bar"
+        meta (project/import-pmids-search-term-meta search-term)
         ;; get the ring-session and csrf-token information
         {:keys [ring-session csrf-token]} (required-headers-params handler)]
     ;; create user
@@ -74,14 +76,14 @@
                     ((required-headers ring-session csrf-token))))
               :body util/read-transit-str)
           new-project-id (get-in create-project-response [:result :project :project-id])
-          search-query-result (pubmed/get-search-query-response "foo bar" 1)]
+          search-query-result (pubmed/get-search-query-response search-term 1)]
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
       (is (= 0
              (project/project-article-count new-project-id)))
       ;; add articles to this project
-      (pubmed/import-pmids-to-project (:pmids search-query-result) new-project-id)
+      (pubmed/import-pmids-to-project-with-meta! (:pmids search-query-result) new-project-id meta)
       ;; Does the new project have the correct amount of articles?
       ;; I would like a 'get-project' route
       ;;

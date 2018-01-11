@@ -96,6 +96,7 @@
           :articles (project/project-article-count project-id)
           :labels labels})))))
 
+;; note: there is no idempotency!
 (def-webapi
   :import-pmids :post
   {:required [:project-id :pmids]
@@ -115,7 +116,7 @@
         (make-error-response
          500 :api "pmids must be an array of integers")
         :else
-        (do (pubmed/import-pmids-to-project pmids project-id)
+        (do (pubmed/import-pmids-to-project-with-meta! pmids project-id project/import-pmids-meta)
             {:result
              {:success true
               :attempted (count pmids)
