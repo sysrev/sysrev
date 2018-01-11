@@ -3,6 +3,7 @@
   (:require [clojure.spec.alpha :as s]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
+            [sysrev.import.pubmed :as pubmed]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]))
 
@@ -29,7 +30,8 @@
                      :user-id ::sc/user-id)
         :ret ::sp/project)
 
-(defn delete-project!
+;; private fn for now, just because we don't want to actually delete a project, just mark it as inactive
+(defn- delete-project!
   "Delete a project with project-id by user-id, returning ???. Checks to ensure the user is an admin of that account"
   [project-id user-id]
   (cond (not (project/member-has-permission? project-id user-id "admin"))
@@ -39,6 +41,53 @@
         (project/member-has-permission? project-id user-id "admin")
         (do (project/delete-project project-id)
             {:result {:success true}})))
+
+(defn import-articles-from-search
+  "Import PMIDS resulting from using search-term as a query at source.
+  Currently only support PubMed as a source for search queries. Will
+  only allow a search-term to be used once for a project. i.e. You
+  cannot have multiple 'foo bar' searches for one project over
+  multiple dates, but you are allowed multiple search terms for a
+  project e.g. 'foo bar' and 'baz qux'"
+  [project-id user-id search-term source]
+  (let [project-metadata (project/project-source-metadata project-id)
+        search-term-metadata (filter #(= (:search-term %) search-term) project-metadata)]
+    (cond (not (project/project-exists? project-id))
+          {:error {:status 403
+                   :message "Project does not exist"}}
+          (not (project/member-has-permission? project-id user-id "admin"))
+          {:error {:status 403
+                   :type :member
+                   :message "Not authorized (project)"}}
+          ;; there is no import going on for this search-term
+          ;; execute it
+          (empty? search-term-metadata)
+          (do (future (pubmed/import-pmids-to-project-with-meta!
+                       (pubmed/get-all-pmids-for-query search-term)
+                       project-id
+                       (project/import-pmids-search-term-meta search-term)))
+              {:result {:success true}})
+          (not (empty? search-term-metadata))
+          {:result {:success true}}
+          :else
+          {:error {:status 403
+                   :message "An uncaught error occurred"}})))
+
+(s/fdef import-articles-from-search
+        :args (s/cat :project-id int?
+                     :search-term string?
+                     :source string?)
+        :ret map?)
+
+(defn project-source-metadata
+  "Return metadata for project-id "
+  [project-id]
+  {:result {:success true
+            :metadata (project/project-source-metadata project-id)}})
+
+(s/fdef project-source-metadata
+        :args (s/cat :project-id int?)
+        :ret map?)
 
 ;; (defn filtered-project-source-metadata
 ;;   "Given a project-id, return the vector of metadata with the map corresponding to search-term

@@ -76,10 +76,27 @@
                user-id (current-user-id request)]
            (api/create-project-for-user! project-name user-id))))
 
-  (POST "/api/delete-project" request
-        (let [project-id (-> request :body :project-id)
-              user-id (current-user-id request)]
-          (api/delete-project! project-id user-id)))
+  ;; disabled for now, should eventually just set the project
+  ;; to inactive, not actually delete it
+  #_   (POST "/api/delete-project" request
+             (let [project-id (-> request :body :project-id)
+                   user-id (current-user-id request)]
+               (api/delete-project! project-id user-id)))
+
+  (POST "/api/import-articles-from-search" request
+        (wrap-permissions
+         request [] ["admin"]
+         (let [{:keys [project-id search-term source]} request]
+           (api/import-articles-from-search
+            project-id
+            (current-user-id request) search-term source))))
+
+  (GET "/api/current-project-source-metadata" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [project-id (active-project request)]
+          (println "project-id: " project-id)
+          (api/project-source-metadata project-id))))
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request

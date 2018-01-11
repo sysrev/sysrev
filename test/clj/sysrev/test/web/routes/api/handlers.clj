@@ -49,13 +49,13 @@
       ;; Does the new project have the correct amount of articles?
       ;; I would like a 'get-project' route
       ;; delete this project
-      (is (-> (handler
-               (-> (mock/request :post "/web-api/delete-project")
-                   (mock/body (json/write-str
-                               {:project-id new-project-id
-                                :api-token web-api-token}))
-                   (mock/header "Content-Type" "application/json")))
-              :body
-              (json/read-str :key-fn keyword)
-              :result
-              :success)))))
+      #_ (is (-> (handler
+                  (-> (mock/request :post "/web-api/delete-project")
+                      (mock/body (json/write-str
+                                  {:project-id new-project-id
+                                   :api-token web-api-token}))
+                      (mock/header "Content-Type" "application/json")))
+                 :body
+                 (json/read-str :key-fn keyword)
+                 :result
+                 :success)))))

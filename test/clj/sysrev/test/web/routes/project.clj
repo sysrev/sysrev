@@ -88,40 +88,40 @@
       ;; I would like a 'get-project' route
       ;;
       ;; deletion can't happen for a user who isn't part of the project
-      (let [non-member-email "non@member.com"
-            non-member-password "nonmember"
-            {:keys [user-id]} (users/create-user non-member-email non-member-password)]
-        (login-user handler non-member-email non-member-password ring-session csrf-token)
-        (is (= "Not authorized (project)"
-               (-> (handler
+      #_ (let [non-member-email "non@member.com"
+               non-member-password "nonmember"
+               {:keys [user-id]} (users/create-user non-member-email non-member-password)]
+           (login-user handler non-member-email non-member-password ring-session csrf-token)
+           (is (= "Not authorized (project)"
+                  (-> (handler
+                       (-> (mock/request :post "/api/delete-project")
+                           (mock/body (sysrev.util/write-transit-str
+                                       {:project-id new-project-id}))
+                           ((required-headers ring-session csrf-token))))
+                      :body
+                      util/read-transit-str
+                      (get-in [:error :message]))))
+           ;; deletion can't happen for a user who isn't an admin of the project
+           (project/add-project-member new-project-id user-id)
+           (is (= "Not authorized (project)"
+                  (-> (handler
+                       (-> (mock/request :post "/api/delete-project")
+                           (mock/body (sysrev.util/write-transit-str
+                                       {:project-id new-project-id}))
+                           ((required-headers ring-session csrf-token))))
+                      :body
+                      util/read-transit-str
+                      (get-in [:error :message]))))
+           ;; add the user as an admin, they can now delete the project
+           (project/set-member-permissions new-project-id user-id ["member" "admin"])
+           (is (-> (handler
                     (-> (mock/request :post "/api/delete-project")
                         (mock/body (sysrev.util/write-transit-str
                                     {:project-id new-project-id}))
                         ((required-headers ring-session csrf-token))))
                    :body
                    util/read-transit-str
-                   (get-in [:error :message]))))
-        ;; deletion can't happen for a user who isn't an admin of the project
-        (project/add-project-member new-project-id user-id)
-        (is (= "Not authorized (project)"
-               (-> (handler
-                    (-> (mock/request :post "/api/delete-project")
-                        (mock/body (sysrev.util/write-transit-str
-                                    {:project-id new-project-id}))
-                        ((required-headers ring-session csrf-token))))
-                   :body
-                   util/read-transit-str
-                   (get-in [:error :message]))))
-        ;; add the user as an admin, they can now delete the project
-        (project/set-member-permissions new-project-id user-id ["member" "admin"])
-        (is (-> (handler
-                 (-> (mock/request :post "/api/delete-project")
-                     (mock/body (sysrev.util/write-transit-str
-                                 {:project-id new-project-id}))
-                     ((required-headers ring-session csrf-token))))
-                :body
-                util/read-transit-str
-                (get-in [:result :success])))))))
+                   (get-in [:result :success])))))))
 
 (deftest identity-project-respone-test
   (let [handler (sysrev-handler)
@@ -153,3 +153,58 @@
              :result
              :project
              count))))
+
+(deftest add-articles-from-pubmed-search-test
+  (let [handler (sysrev-handler)
+        email "foo@bar.com"
+        password "foobar"
+        search-term "foo bar"
+        ;; get the ring-session and csrf-token information
+        {:keys [ring-session csrf-token]} (required-headers-params handler)]
+    ;; create user
+    (users/create-user email password :project-id 100)
+    ;; login this user
+    (is (-> (handler
+             (->  (mock/request :post "/api/auth/login")
+                  (mock/body (sysrev.util/write-transit-str
+                              {:email email :password password}))
+                  ((required-headers ring-session csrf-token))))
+            :body util/read-transit-str :result :valid))
+    ;; Create a project
+    (let [create-project-response
+          (-> (handler
+               (->  (mock/request :post "/api/create-project")
+                    (mock/body (sysrev.util/write-transit-str
+                                {:project-name "The taming of the foo"}))
+                    ((required-headers ring-session csrf-token))))
+              :body util/read-transit-str)
+          new-project-id (get-in create-project-response [:result :project :project-id])]
+      ;; select this project as the current project
+      (is (= new-project-id
+             (-> (handler
+                  (-> (mock/request :post "/api/select-project")
+                      (mock/body (sysrev.util/write-transit-str
+                                  {:project-id new-project-id}))
+                      ((required-headers ring-session csrf-token))))
+                 :body util/read-transit-str :result :project-id)))
+      ;; confirm project is created for this user
+      (is (get-in create-project-response [:result :success]))
+      ;; get the article count, should be 0
+      (is (= 0
+             (project/project-article-count new-project-id)))
+      ;; these should be no metadata for this project yet
+      (let [response (handler
+                      (-> (mock/request :get "/api/current-project-source-metadata")
+                          ((required-headers ring-session csrf-token))))]
+        (is (empty? (-> response
+                        :body util/read-transit-str :result :metadata))))
+      ;; import articles from a search
+
+      ;; (this will need to have a good amount of articles to take time)
+
+      ;; repeat this, check to see that the import is not happening over and over
+
+      ;; (not for sure how to do this.. make sure there aren't multiple source-ids with the same search term?)
+
+      ;; check that multiple imports can happen at one time
+      )))

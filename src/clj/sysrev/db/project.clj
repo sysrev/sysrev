@@ -609,10 +609,13 @@
 (defn project-exists?
   "Does a project with project-id exist?"
   [project-id]
-  (empty? (-> (select :project_id)
-              (from [:project :p])
-              (where [:= :p.project_id project-id])
-              do-query)))
+  (= project-id
+   (-> (select :project_id)
+          (from [:project :p])
+          (where [:= :p.project_id project-id])
+          do-query
+          first
+          :project-id)))
 
 (s/fdef project-exists?
         :args (s/cat :project-id int?)
@@ -647,9 +650,9 @@
         :args (s/cat :search-term string?)
         :ret map?)
 
-(defn project-source-metadata!
-  "Given a project-id, return the corresponding vectors of project-source data or nil if
-  it does not exist"
+(defn project-source-metadata
+  "Given a project-id, return the corresponding vectors of
+  project-source data or nil if it does not exist"
   [project-id]
   (when (not (project-exists? project-id))
     (throw (Exception. (str "No project with project-id: " project-id))))

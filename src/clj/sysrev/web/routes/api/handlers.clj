@@ -268,18 +268,20 @@
           (users/get-user-by-api-token api-token)]
       (api/create-project-for-user! project-name user-id))))
 
-(def-webapi
-  :delete-project :post
-  {:required [:project-id]
-   :project-role "admin"
-   :check-answers? true
-   :doc "Deletes project and all database entries belonging to it."}
-  (fn [request]
-    (let [{:keys [project-id api-token] :as body}
-          (-> request :body)
-          {:keys [user-id]}
-          (users/get-user-by-api-token api-token)]
-      (api/delete-project! project-id user-id))))
+;; disabled for now because we don't to actually delete a project,
+;; just mark it as inactive
+#_ (def-webapi
+     :delete-project :post
+     {:required [:project-id]
+      :project-role "admin"
+      :check-answers? true
+      :doc "Deletes project and all database entries belonging to it."}
+     (fn [request]
+       (let [{:keys [project-id api-token] :as body}
+             (-> request :body)
+             {:keys [user-id]}
+             (users/get-user-by-api-token api-token)]
+         (api/delete-project! project-id user-id))))
 
 (def-webapi
   :project-labels :get
