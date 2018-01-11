@@ -40,7 +40,10 @@
                         ".article-list-view div.ui.segment.article-nav")
        on-article? (and (= @(subscribe [:active-panel]) panel)
                         @(subscribe [:public-labels/article-id]))
-       data-loaded? @(subscribe [:have? item])]
+       data-loaded? @(subscribe [:have? item])
+       have-project? @(subscribe [:have? [:project]])]
+   (when (not have-project?)
+     (dispatch set-panel))
    (if (and on-article? data-loaded?)
      (do (dispatch set-panel)
          (dispatch [:public-labels/hide-article])
@@ -56,11 +59,15 @@
 (sr-defroute
  articles-id "/project/articles/:article-id" [article-id]
  (let [article-id (js/parseInt article-id)
-       item [:article article-id]]
+       item [:article article-id]
+       set-panel [:set-active-panel [:project :project :articles]
+                  (str "/project/articles/" article-id)]
+       have-project? @(subscribe [:have? [:project]])]
+   (when (not have-project?)
+     (dispatch set-panel))
    (dispatch
     [:data/after-load item :project-articles-route
-     (list [:set-active-panel [:project :project :articles]
-            (str "/project/articles/" article-id)]
+     (list set-panel
            [:public-labels/show-article article-id]
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
@@ -87,11 +94,15 @@
 (sr-defroute
  project-user-article "/project/user/article/:article-id" [article-id]
  (let [article-id (js/parseInt article-id)
-       item [:article article-id]]
+       item [:article article-id]
+       set-panel [:set-active-panel [:project :user :labels]
+                  (str "/project/user/article/" article-id)]
+       have-project? @(subscribe [:have? [:project]])]
+   (when (not have-project?)
+     (dispatch set-panel))
    (dispatch
     [:data/after-load item :user-articles-route
-     (list [:set-active-panel [:project :user :labels]
-            (str "/project/user/article/" article-id)]
+     (list set-panel
            [:user-labels/show-article article-id]
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
@@ -105,10 +116,13 @@
 
 (sr-defroute
  review "/project/review" []
- (let [set-panel-after #(dispatch
-                         [:data/after-load % :review-route
-                          [:set-active-panel [:project :review]
-                           "/project/review"]])]
+ (let [have-project? @(subscribe [:have? [:project]])
+       set-panel [:set-active-panel [:project :review]
+                  "/project/review"]
+       set-panel-after #(dispatch
+                         [:data/after-load % :review-route set-panel])]
+   (when (not have-project?)
+     (dispatch set-panel))
    (let [task-id @(subscribe [:review/task-id])]
      (if (integer? task-id)
        (do (set-panel-after [:article task-id])
