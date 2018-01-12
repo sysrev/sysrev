@@ -92,12 +92,6 @@
             project-id
             search-term source))))
 
-  (GET "/api/current-project-source-metadata" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [project-id (active-project request)]
-          (api/project-source-metadata project-id))))
-
   ;; Returns an article for user to label
   (GET "/api/label-task" request
        (wrap-permissions
@@ -217,6 +211,12 @@
            {:result
             {:success true
              :settings (project-settings project-id)}})))
+
+  (GET "/api/project-sources" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [project-id (active-project request)]
+          (api/project-sources project-id))))
 
   (POST "/api/files/upload" request
         (wrap-permissions

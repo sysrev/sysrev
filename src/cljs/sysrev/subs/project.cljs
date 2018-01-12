@@ -142,3 +142,8 @@
    (if (nil? document-id)
      (get-in project [:documents])
      (get-in project [:documents document-id]))))
+
+(reg-sub
+ :project/sources
+ (fn [db]
+   (get-in db [:data :project (active-project-id db) :sources])))

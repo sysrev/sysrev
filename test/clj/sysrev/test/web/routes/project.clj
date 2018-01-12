@@ -194,7 +194,7 @@
              (project/project-article-count new-project-id)))
       ;; these should be no metadata for this project yet
       (let [response (handler
-                      (-> (mock/request :get "/api/current-project-source-metadata")
+                      (-> (mock/request :get "/api/project-sources")
                           ((required-headers ring-session csrf-token))))]
         (is (empty? (-> response
                         :body util/read-transit-str :result :metadata))))
@@ -245,7 +245,7 @@
              (count
               (filter #(= (:project-id %) new-project-id)
                       (-> (handler
-                           (->  (mock/request :get "/api/current-project-source-metadata")
+                           (->  (mock/request :get "/api/project-sources")
                                 ((required-headers ring-session csrf-token))))
                           :body util/read-transit-str :result :metadata)))))
       ;; repeat search, check to see that the import is not happening over and over
@@ -262,7 +262,7 @@
              (count
               (filter #(= (:project-id %) new-project-id)
                       (-> (handler
-                           (->  (mock/request :get "/api/current-project-source-metadata")
+                           (->  (mock/request :get "/api/project-sources")
                                 ((required-headers ring-session csrf-token))))
                           :body util/read-transit-str :result :metadata)))))
       ;; let's do another search, multiple times and see that only one import occurred
@@ -277,6 +277,6 @@
              (count
               (filter #(= (:project-id %) new-project-id)
                       (-> (handler
-                           (->  (mock/request :get "/api/current-project-source-metadata")
+                           (->  (mock/request :get "/api/project-sources")
                                 ((required-headers ring-session csrf-token))))
                           :body util/read-transit-str :result :metadata))))))))

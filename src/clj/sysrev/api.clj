@@ -78,7 +78,7 @@
                      :source string?)
         :ret map?)
 
-(defn project-source-metadata
+(defn project-sources
   "Return metadata for project-id "
   [project-id]
   (if (project/project-exists? project-id)

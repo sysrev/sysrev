@@ -68,6 +68,15 @@
     (let [result-decoded (sr-transit/decode-public-labels result)]
       {:dispatch [:project/load-public-labels result-decoded]})))
 
+(def-data :project/project-sources
+  :loaded? (constantly false)
+  :uri (fn [] "/api/project-sources")
+  :prereqs (fn [[:identity]])
+  :process
+  (fn [{:keys [db]} _ result]
+    (let [project-id (active-project-id db)]
+      {:dispatch [:project/load-sources project-id (:metadata result)]})))
+
 (def-data :member/articles
   :loaded? have-member-articles?
   :uri (fn [user-id] (str "/api/member-articles/" user-id))

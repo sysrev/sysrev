@@ -150,6 +150,11 @@
   [:div
    [:br]
    [:h3 "Search Results"]
+   [:div [:a {:href "#"
+              :on-click (fn [event]
+                          (.preventDefault event)
+                          (.log js/console "I would add articles"))}
+          "Add Articles from Search Results to Project"]]
    [:h4 {:id "items-count"}
     "Items: "
     ;; only display total items when there is just a page's

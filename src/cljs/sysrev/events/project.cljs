@@ -19,6 +19,12 @@
    (assoc-in db [:data :project project-id :settings] settings)))
 
 (reg-event-db
+ :project/load-sources
+ [trim-v]
+ (fn [db [project-id metadata]]
+   (assoc-in db [:data :project project-id :sources] metadata)))
+
+(reg-event-db
  :project/load-files
  [trim-v]
  (fn [db [project-id files]]
