@@ -50,14 +50,14 @@
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
   [project-id search-term source]
-  (let [project-metadata (project/project-source-metadata project-id)
-        search-term-metadata (filter #(= (get-in % [:meta :search-term]) search-term) project-metadata)]
+  (let [project-sources (project/project-sources project-id)
+        search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)]
     (cond (not (project/project-exists? project-id))
           {:error {:status 403
                    :message "Project does not exist"}}
           ;; there is no import going on for this search-term
           ;; execute it
-          (and (empty? search-term-metadata)
+          (and (empty? search-term-sources)
                (= source "PubMed"))
           (do
             (pubmed/import-pmids-to-project-with-meta!
@@ -66,7 +66,7 @@
              (project/import-pmids-search-term-meta search-term)
              :use-future? true)
             {:result {:success true}})
-          (not (empty? search-term-metadata))
+          (not (empty? search-term-sources))
           {:result {:success true}}
           :else
           {:error {:status 403
@@ -79,62 +79,14 @@
         :ret map?)
 
 (defn project-sources
-  "Return metadata for project-id "
+  "Return sources for project-id "
   [project-id]
   (if (project/project-exists? project-id)
     {:result {:success true
-              :metadata (project/project-source-metadata project-id)}}
+              :sources (project/project-sources project-id)}}
     {:error {:status 403
              :mesaage "Project does not exist"}}))
 
-(s/fdef project-source-metadata
+(s/fdef project-sources
         :args (s/cat :project-id int?)
         :ret map?)
-
-;; (defn filtered-project-source-metadata
-;;   "Given a project-id, return the vector of metadata with the map corresponding to search-term
-;;   removed"
-;;   [project-id search-term]
-;;   (let []
-;;     (->> (project/project-source-metadata project-id)
-;;          (filter #(not= (:search-term %) search-term))
-;;          (into []))))
-
-;; (s/fdef filtered-project-source-metadata
-;;         :args (s/cat :project-id int?
-;;                      :search-term string?)
-;;         :ret vector?)
-
-;; ;; note: meta data fn's should be move to project eventually
-;; (defn set-importing-articles-status!
-;;   "Set importing-articles? to a boolean status for a project-id using search-id "
-;;   [project-id search-term importing-articles?]
-;;   (-> (sqlh/update :project_source)
-;;       (sset {:meta (conj (filtered-project-source-metadata project-id search-term)
-;;                          {:search-term search-term
-;;                           :importing-articles? importing-articles?
-;;                           :source "PubMed"})})
-;;       (where [:= :project_id project-id])
-;;       do-execute))
-
-;; (s/fdef set-importing-articles-status!
-;;         :args (s/cat :project-id int?
-;;                      :search-term string?
-;;                      :importing-articles? boolean?))
-
-;; (defn importing-articles?
-;;   "Is the project-id currently importing articles for search-term?"
-;;   [project-id search-term]
-;;   (let [project-metadata (project/project-source-metadata project-id)
-;;         project-source-metadata (filter #(= (:search-term %)) search-term)
-;;         importing? (:importing-articles? project-metadata)]
-;;     ;; if there is no :importing-articles? meta data, create it
-;;     (if (nil? importing?)
-;;       (do (set-importing-articles-status! project-id search-term false)
-;;           ;; run this fn again
-;;           (importing-articles? project-id search-term))
-;;       (boolean importing?))))
-
-;; (s/fdef importing-articles?
-;;         :args (s/cat :project-id int?
-;;                      :search-term string?))

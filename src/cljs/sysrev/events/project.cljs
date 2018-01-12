@@ -21,8 +21,8 @@
 (reg-event-db
  :project/load-sources
  [trim-v]
- (fn [db [project-id metadata]]
-   (assoc-in db [:data :project project-id :sources] metadata)))
+ (fn [db [project-id sources]]
+   (assoc-in db [:data :project project-id :sources] sources)))
 
 (reg-event-db
  :project/load-files

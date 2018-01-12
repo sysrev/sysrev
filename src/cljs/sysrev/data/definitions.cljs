@@ -75,7 +75,7 @@
   :process
   (fn [{:keys [db]} _ result]
     (let [project-id (active-project-id db)]
-      {:dispatch [:project/load-sources project-id (:metadata result)]})))
+      {:dispatch [:project/load-sources project-id (:sources result)]})))
 
 (def-data :member/articles
   :loaded? have-member-articles?

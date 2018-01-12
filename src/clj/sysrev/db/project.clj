@@ -650,7 +650,7 @@
         :args (s/cat :search-term string?)
         :ret map?)
 
-(defn project-source-metadata
+(defn project-sources
   "Given a project-id, return the corresponding vectors of
   project-source data or nil if it does not exist"
   [project-id]
@@ -661,7 +661,7 @@
       (where [:= :ps.project_id project-id])
       do-query))
 
-(s/fdef project-source-metadata
+(s/fdef project-sources
         :args (s/cat :project-id int?)
         :ret (s/nilable vector?))
 

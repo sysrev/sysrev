@@ -192,12 +192,12 @@
       ;; get the article count, should be 0
       (is (= 0
              (project/project-article-count new-project-id)))
-      ;; these should be no metadata for this project yet
+      ;; these should be no sources for this project yet
       (let [response (handler
                       (-> (mock/request :get "/api/project-sources")
                           ((required-headers ring-session csrf-token))))]
         (is (empty? (-> response
-                        :body util/read-transit-str :result :metadata))))
+                        :body util/read-transit-str :result :sources))))
       ;; add a member to a project
       (let [new-user-email "baz@qux.com"
             new-user-password "bazqux"]
@@ -247,7 +247,7 @@
                       (-> (handler
                            (->  (mock/request :get "/api/project-sources")
                                 ((required-headers ring-session csrf-token))))
-                          :body util/read-transit-str :result :metadata)))))
+                          :body util/read-transit-str :result :sources)))))
       ;; repeat search, check to see that the import is not happening over and over
       (dotimes [n 10]
         (-> (handler
@@ -256,7 +256,7 @@
                               {:search-term search-term :source "PubMed"}))
                   ((required-headers ring-session csrf-token))))
             :body util/read-transit-str :result :success))
-      ;; metadata would be added multiple times if the same import was being run
+      ;; sources would be added multiple times if the same import was being run
       ;; if only one occurs, the count should be 1
       (is (= 1
              (count
@@ -264,7 +264,7 @@
                       (-> (handler
                            (->  (mock/request :get "/api/project-sources")
                                 ((required-headers ring-session csrf-token))))
-                          :body util/read-transit-str :result :metadata)))))
+                          :body util/read-transit-str :result :sources)))))
       ;; let's do another search, multiple times and see that only one import occurred
       (dotimes [n 10]
         (-> (handler
@@ -279,4 +279,4 @@
                       (-> (handler
                            (->  (mock/request :get "/api/project-sources")
                                 ((required-headers ring-session csrf-token))))
-                          :body util/read-transit-str :result :metadata))))))))
+                          :body util/read-transit-str :result :sources))))))))
