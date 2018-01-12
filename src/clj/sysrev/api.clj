@@ -49,29 +49,28 @@
   cannot have multiple 'foo bar' searches for one project over
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
-  [project-id user-id search-term source]
+  [project-id search-term source]
   (let [project-metadata (project/project-source-metadata project-id)
-        search-term-metadata (filter #(= (:search-term %) search-term) project-metadata)]
+        search-term-metadata (filter #(= (get-in % [:meta :search-term]) search-term) project-metadata)]
     (cond (not (project/project-exists? project-id))
           {:error {:status 403
                    :message "Project does not exist"}}
-          (not (project/member-has-permission? project-id user-id "admin"))
-          {:error {:status 403
-                   :type :member
-                   :message "Not authorized (project)"}}
           ;; there is no import going on for this search-term
           ;; execute it
-          (empty? search-term-metadata)
-          (do (future (pubmed/import-pmids-to-project-with-meta!
-                       (pubmed/get-all-pmids-for-query search-term)
-                       project-id
-                       (project/import-pmids-search-term-meta search-term)))
-              {:result {:success true}})
+          (and (empty? search-term-metadata)
+               (= source "PubMed"))
+          (do
+            (pubmed/import-pmids-to-project-with-meta!
+             (pubmed/get-all-pmids-for-query search-term)
+             project-id
+             (project/import-pmids-search-term-meta search-term)
+             :use-future? true)
+            {:result {:success true}})
           (not (empty? search-term-metadata))
           {:result {:success true}}
           :else
           {:error {:status 403
-                   :message "An uncaught error occurred"}})))
+                   :message "Unknown event occured"}})))
 
 (s/fdef import-articles-from-search
         :args (s/cat :project-id int?
@@ -82,8 +81,11 @@
 (defn project-source-metadata
   "Return metadata for project-id "
   [project-id]
-  {:result {:success true
-            :metadata (project/project-source-metadata project-id)}})
+  (if (project/project-exists? project-id)
+    {:result {:success true
+              :metadata (project/project-source-metadata project-id)}}
+    {:error {:status 403
+             :mesaage "Project does not exist"}}))
 
 (s/fdef project-source-metadata
         :args (s/cat :project-id int?)

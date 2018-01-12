@@ -198,13 +198,77 @@
                           ((required-headers ring-session csrf-token))))]
         (is (empty? (-> response
                         :body util/read-transit-str :result :metadata))))
-      ;; import articles from a search
+      ;; add a member to a project
+      (let [new-user-email "baz@qux.com"
+            new-user-password "bazqux"]
+        ;; create and log the new member in
+        (users/create-user new-user-email new-user-password)
+        ;; login this user
+        (is (-> (handler
+                 (->  (mock/request :post "/api/auth/login")
+                      (mock/body (sysrev.util/write-transit-str
+                                  {:email new-user-email :password new-user-password}))
+                      ((required-headers ring-session csrf-token))))
+                :body util/read-transit-str :result :valid))
+        ;; add member to project
+        (is (= new-project-id
+               (-> (handler
+                    (->  (mock/request :post "/api/join-project")
+                         (mock/body (sysrev.util/write-transit-str
+                                     {:project-id new-project-id}))
+                         ((required-headers ring-session csrf-token))))
+                   :body util/read-transit-str :result :project-id)))
+        ;; that member can't add articles to a project
+        (is (= "Not authorized"
+               (-> (handler
+                    (->  (mock/request :post "/api/import-articles-from-search")
+                         (mock/body (sysrev.util/write-transit-str
+                                     {:search-term search-term :source "PubMed"}))
+                         ((required-headers ring-session csrf-token))))
+                   :body util/read-transit-str :error :message))))
+      ;; log back in as admin
+      (is (-> (handler
+               (->  (mock/request :post "/api/auth/login")
+                    (mock/body (sysrev.util/write-transit-str
+                                {:email email :password password}))
+                    ((required-headers ring-session csrf-token))))
+              :body util/read-transit-str :result :valid))
+      ;; user can add articles from a short search
+      (is (-> (handler
+               (->  (mock/request :post "/api/import-articles-from-search")
+                    (mock/body (sysrev.util/write-transit-str
+                                {:search-term search-term :source "PubMed"}))
+                    ((required-headers ring-session csrf-token))))
+              :body util/read-transit-str :result :success))
+      ;; meta data looks right
+      (is (= 1
+             (count
+              (filter #(= (:project-id %) new-project-id)
+                      (-> (handler
+                           (->  (mock/request :get "/api/current-project-source-metadata")
+                                ((required-headers ring-session csrf-token))))
+                          :body util/read-transit-str :result :metadata)))))
+      ;; repeat search, check to see that the import is not happening over and over
+      (is (-> (handler
+               (->  (mock/request :post "/api/import-articles-from-search")
+                    (mock/body (sysrev.util/write-transit-str
+                                {:search-term search-term :source "PubMed"}))
+                    ((required-headers ring-session csrf-token))))
+              :body util/read-transit-str :result :success))
+      ;; meta data still looks right
+      (is (= 1
+             (count
+              (filter #(= (:project-id %) new-project-id)
+                      (-> (handler
+                           (->  (mock/request :get "/api/current-project-source-metadata")
+                                ((required-headers ring-session csrf-token))))
+                          :body util/read-transit-str :result :metadata)))))
+      ;; add articles from a ~100 article search
+      (is (= "bots and brains"
+             "bots and brains"))
+      ;; by checking that there is only one entry for search term in the project metadata
 
-      ;; (this will need to have a good amount of articles to take time)
+      ;; check that multiple imports can happen at one time (find search terms with 10-20 results)
 
-      ;; repeat this, check to see that the import is not happening over and over
-
-      ;; (not for sure how to do this.. make sure there aren't multiple source-ids with the same search term?)
-
-      ;; check that multiple imports can happen at one time
+      
       )))

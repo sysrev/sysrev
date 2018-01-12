@@ -205,19 +205,31 @@
       (clear-project-cache project-id))))
 
 (defn import-pmids-to-project-with-meta!
-  "Import articles into project-id using the meta map as a source description "
-  [pmids project-id meta]
-  (let [project-source-id (project/create-project-source-metadata! project-id (assoc meta
-                                                                                     :importing-articles? true))]
-    (try
-      ;; import the data
-      (import-pmids-to-project pmids project-id project-source-id)
-      (catch Throwable e
-        (println "Error in import-pmids-to-project-with-meta!" (.getMessage e)))
-      (finally
-        ;; set meta data importing status to false
-        (project/update-project-source-metadata! project-source-id (assoc meta
-                                                                          :importing-articles? false))))))
+  "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
+  [pmids project-id meta & {:keys [use-future?] :or {use-future? false}}]
+  (let [project-source-id (project/create-project-source-metadata!
+                           project-id
+                           (assoc meta :importing-articles? true))]
+    (if use-future?
+      (future
+        (try
+          ;; import the data
+          (import-pmids-to-project pmids project-id project-source-id)
+          (catch Throwable e
+            (println "Error in import-pmids-to-project-with-meta!" (.getMessage e)))
+          (finally
+            ;; set meta data importing status to false
+            (project/update-project-source-metadata! project-source-id (assoc meta
+                                                                              :importing-articles? false)))))
+      (try
+        ;; import the data
+        (import-pmids-to-project pmids project-id project-source-id)
+        (catch Throwable e
+          (println "Error in import-pmids-to-project-with-meta!" (.getMessage e)))
+        (finally
+          ;; set meta data importing status to false
+          (project/update-project-source-metadata! project-source-id (assoc meta
+                                                                            :importing-articles? false)))))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

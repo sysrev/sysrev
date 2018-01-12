@@ -86,16 +86,16 @@
   (POST "/api/import-articles-from-search" request
         (wrap-permissions
          request [] ["admin"]
-         (let [{:keys [project-id search-term source]} request]
+         (let [{:keys [search-term source]} (:body request)
+               project-id (active-project request)]
            (api/import-articles-from-search
             project-id
-            (current-user-id request) search-term source))))
+            search-term source))))
 
   (GET "/api/current-project-source-metadata" request
        (wrap-permissions
         request [] ["member"]
         (let [project-id (active-project request)]
-          (println "project-id: " project-id)
           (api/project-source-metadata project-id))))
 
   ;; Returns an article for user to label
