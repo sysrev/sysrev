@@ -249,13 +249,15 @@
                                 ((required-headers ring-session csrf-token))))
                           :body util/read-transit-str :result :metadata)))))
       ;; repeat search, check to see that the import is not happening over and over
-      (is (-> (handler
-               (->  (mock/request :post "/api/import-articles-from-search")
-                    (mock/body (sysrev.util/write-transit-str
-                                {:search-term search-term :source "PubMed"}))
-                    ((required-headers ring-session csrf-token))))
-              :body util/read-transit-str :result :success))
-      ;; meta data still looks right
+      (dotimes [n 10]
+        (-> (handler
+             (->  (mock/request :post "/api/import-articles-from-search")
+                  (mock/body (sysrev.util/write-transit-str
+                              {:search-term search-term :source "PubMed"}))
+                  ((required-headers ring-session csrf-token))))
+            :body util/read-transit-str :result :success))
+      ;; metadata would be added multiple times if the same import was being run
+      ;; if only one occurs, the count should be 1
       (is (= 1
              (count
               (filter #(= (:project-id %) new-project-id)
@@ -263,12 +265,18 @@
                            (->  (mock/request :get "/api/current-project-source-metadata")
                                 ((required-headers ring-session csrf-token))))
                           :body util/read-transit-str :result :metadata)))))
-      ;; add articles from a ~100 article search
-      (is (= "bots and brains"
-             "bots and brains"))
-      ;; by checking that there is only one entry for search term in the project metadata
-
-      ;; check that multiple imports can happen at one time (find search terms with 10-20 results)
-
-      
-      )))
+      ;; let's do another search, multiple times and see that only one import occurred
+      (dotimes [n 10]
+        (-> (handler
+             (->  (mock/request :post "/api/import-articles-from-search")
+                  (mock/body (sysrev.util/write-transit-str
+                              {:search-term "grault" :source "PubMed"}))
+                  ((required-headers ring-session csrf-token))))
+            :body util/read-transit-str :result :success))
+      (is (= 2
+             (count
+              (filter #(= (:project-id %) new-project-id)
+                      (-> (handler
+                           (->  (mock/request :get "/api/current-project-source-metadata")
+                                ((required-headers ring-session csrf-token))))
+                          :body util/read-transit-str :result :metadata))))))))

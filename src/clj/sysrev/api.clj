@@ -70,7 +70,7 @@
           {:result {:success true}}
           :else
           {:error {:status 403
-                   :message "Unknown event occured"}})))
+                   :message "Unknown event occurred"}})))
 
 (s/fdef import-articles-from-search
         :args (s/cat :project-id int?
