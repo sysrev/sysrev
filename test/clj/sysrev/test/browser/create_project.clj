@@ -26,7 +26,8 @@
     (browser/wait-until-exists search-input)
     (taxi/clear search-input)
     (taxi/input-text search-input query)
-    (taxi/submit search-form)))
+    (taxi/submit search-form)
+    (Thread/sleep 250)))
 
 (defn search-count
   "Return an integer item count of search results"
@@ -66,7 +67,8 @@
   [nav]
   (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
     (browser/wait-until-exists query)
-    (taxi/click (taxi/find-element query))))
+    (taxi/click (taxi/find-element query))
+    (Thread/sleep 250)))
 
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
