@@ -204,3 +204,12 @@
   [selector]
   (doseq [ms [10 25 50 100]]
     (js/setTimeout #(ensure-dom-elt-visible selector) ms)))
+
+(defn continuous-update-until
+  "Call f continuously every n seconds until pred is satisified. pred
+  must be a fn."
+  [f pred n]
+  (js/setTimeout #(when (not (pred))
+                    (f)
+                    (continuous-update-until f pred n))
+                 n))

@@ -666,14 +666,14 @@
         :ret (s/nilable vector?))
 
 (defn update-project-source-metadata!
-  "Replace the metadata project-source for project-id"
-  [project-id metadata]
+  "Replace the metadata for project-source-id"
+  [project-source-id metadata]
   (-> (sqlh/update :project_source)
       (sset {:meta metadata})
-      (where [:= :project_id project-id])
+      (where [:= :source_id project-source-id])
       do-execute))
 
 (s/fdef update-project-source-metadata!
-        :args (s/cat :project-id int?
+        :args (s/cat :project-source-id int?
                      :meta map?))
 
