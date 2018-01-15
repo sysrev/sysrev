@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+sleep 3d
+sudo ./renew
+sudo systemctl restart nginx

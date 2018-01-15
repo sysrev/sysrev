@@ -1,0 +1,13 @@
+[Unit]
+Description=Run letsencrypt certificate renewal script periodically
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/data/scripts/letsencrypt
+ExecStart=/data/scripts/letsencrypt/renew-loop
+Restart=always
+
+[Install]
+WantedBy=default.target
