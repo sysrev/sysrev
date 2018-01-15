@@ -88,71 +88,96 @@
       ;; I would like a 'get-project' route
       ;;
       ;; deletion can't happen for a user who isn't part of the project
-      #_ (let [non-member-email "non@member.com"
-               non-member-password "nonmember"
-               {:keys [user-id]} (users/create-user non-member-email non-member-password)]
-           (login-user handler non-member-email non-member-password ring-session csrf-token)
-           (is (= "Not authorized (project)"
-                  (-> (handler
-                       (-> (mock/request :post "/api/delete-project")
-                           (mock/body (sysrev.util/write-transit-str
-                                       {:project-id new-project-id}))
-                           ((required-headers ring-session csrf-token))))
-                      :body
-                      util/read-transit-str
-                      (get-in [:error :message]))))
-           ;; deletion can't happen for a user who isn't an admin of the project
-           (project/add-project-member new-project-id user-id)
-           (is (= "Not authorized (project)"
-                  (-> (handler
-                       (-> (mock/request :post "/api/delete-project")
-                           (mock/body (sysrev.util/write-transit-str
-                                       {:project-id new-project-id}))
-                           ((required-headers ring-session csrf-token))))
-                      :body
-                      util/read-transit-str
-                      (get-in [:error :message]))))
-           ;; add the user as an admin, they can now delete the project
-           (project/set-member-permissions new-project-id user-id ["member" "admin"])
-           (is (-> (handler
+      #_
+      (let [non-member-email "non@member.com"
+            non-member-password "nonmember"
+            {:keys [user-id]} (users/create-user non-member-email non-member-password)]
+        (login-user handler non-member-email non-member-password ring-session csrf-token)
+        (is (= "Not authorized (project)"
+               (-> (handler
                     (-> (mock/request :post "/api/delete-project")
                         (mock/body (sysrev.util/write-transit-str
                                     {:project-id new-project-id}))
                         ((required-headers ring-session csrf-token))))
                    :body
                    util/read-transit-str
-                   (get-in [:result :success])))))))
+                   (get-in [:error :message]))))
+        ;; deletion can't happen for a user who isn't an admin of the project
+        (project/add-project-member new-project-id user-id)
+        (is (= "Not authorized (project)"
+               (-> (handler
+                    (-> (mock/request :post "/api/delete-project")
+                        (mock/body (sysrev.util/write-transit-str
+                                    {:project-id new-project-id}))
+                        ((required-headers ring-session csrf-token))))
+                   :body
+                   util/read-transit-str
+                   (get-in [:error :message]))))
+        ;; add the user as an admin, they can now delete the project
+        (project/set-member-permissions new-project-id user-id ["member" "admin"])
+        (is (-> (handler
+                 (-> (mock/request :post "/api/delete-project")
+                     (mock/body (sysrev.util/write-transit-str
+                                 {:project-id new-project-id}))
+                     ((required-headers ring-session csrf-token))))
+                :body
+                util/read-transit-str
+                (get-in [:result :success])))))))
 
-(deftest identity-project-respone-test
+(deftest identity-project-response-test
   (let [handler (sysrev-handler)
         email "foo@bar.com"
         password "foobar"
         ;; get the ring-session and csrf-token information
-        {:keys [ring-session csrf-token]} (required-headers-params handler)]
-    ;; create user
-    (users/create-user email password)
+        {:keys [ring-session csrf-token]} (required-headers-params handler)
+        ;; create user
+        {:keys [user-id]} (users/create-user email password)]
+    (is (integer? user-id))
     ;; the projects array in identity is empty
-    (-> (handler
-         (mock/request :get "/api/auth/identity"))
-        :body
-        (util/read-transit-str)
-        :result
-        :project
-        empty?)
+    (login-user handler email password ring-session csrf-token)
+    (let [ident-response (-> (handler
+                              (-> (mock/request :get "/api/auth/identity")
+                                  ((required-headers ring-session csrf-token))))
+                             :body
+                             (util/read-transit-str))]
+      (is (-> ident-response :result :projects empty?)
+          (format "response = %s" (pr-str ident-response)))
+      (is (= (-> ident-response :result :identity :user-id) user-id)
+          (format "response = %s" (pr-str ident-response))))
     ;; create a new project
-    (handler
-     (->  (mock/request :post "/api/create-project")
-          (mock/body (sysrev.util/write-transit-str
-                      {:project-name "The taming of the foo"}))
-          ((required-headers ring-session csrf-token))))
-    ;; the project array in identity contains one entry
-    (= 1 (-> (handler
-              (mock/request :get "/api/auth/identity"))
-             :body
-             (util/read-transit-str)
-             :result
-             :project
-             count))))
+    (let [create-response
+          (-> (handler
+               (-> (mock/request :post "/api/create-project")
+                   (mock/body (sysrev.util/write-transit-str
+                               {:project-name "The taming of the foo"}))
+                   ((required-headers ring-session csrf-token))))
+              :body
+              (util/read-transit-str))]
+      (is (true? (-> create-response :result :success))))
+
+    (let [projects (:projects (users/user-self-info user-id))]
+      (is (= 1 (count projects)))
+      (let [project-id (-> projects first :project-id)]
+        (is (integer? project-id))
+        (let [select-response
+              (-> (handler
+                   (-> (mock/request :post "/api/select-project")
+                       (mock/body (sysrev.util/write-transit-str
+                                   {:project-id project-id}))
+                       ((required-headers ring-session csrf-token))))
+                  :body
+                  (util/read-transit-str))]
+          (is (= (-> select-response :result :project-id) project-id)
+              (format "response = %s" (pr-str select-response))))))
+
+    ;; the projects array in identity contains one entry
+    (let [response (-> (handler
+                        (-> (mock/request :get "/api/auth/identity")
+                            ((required-headers ring-session csrf-token))))
+                       :body
+                       (util/read-transit-str))]
+      (is (= 1 (-> response :result :projects count))
+          (format "response = %s" (pr-str response))))))
 
 (deftest add-articles-from-pubmed-search-test
   (let [handler (sysrev-handler)

@@ -74,6 +74,7 @@
          request [] []
          (let [project-name (-> request :body :project-name)
                user-id (current-user-id request)]
+           (assert (integer? user-id))
            (api/create-project-for-user! project-name user-id))))
 
   ;; disabled for now, should eventually just set the project
