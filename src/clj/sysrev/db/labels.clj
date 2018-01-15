@@ -289,6 +289,7 @@
     (->> (or articles (get-articles-with-label-users project-id predict-run-id))
          vals
          (filter #(and (= 1 (count (:users %)))
+                       (= 1 (count (:users-confirmed %)))
                        (not (in? (:users %) self-id))))
          (map #(dissoc % :users)))))
 

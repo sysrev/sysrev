@@ -5,7 +5,7 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query do-execute]]
-            [sysrev.db.articles :refer [add-article]]
+            [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
@@ -90,7 +90,7 @@
     (doseq [a articles]
       (println (pr-str (:primary-title a)))
       (let [a (-> a (dissoc :custom4 :custom5 :rec-number))]
-        (add-article a project-id)))))
+        (articles/add-article a project-id)))))
 
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
@@ -100,7 +100,7 @@
 
   The `endnote-path` file must be in the format created by
   `filter-endnote-xml-includes` (has the original `article-uuid` values
-  attached to each Endnote article entry under field `:custom5`.
+  attached to each Endnote article entry under field `:custom5`).
 
   Copies most project definition entries over from the parent project
   (eg. project members, label definitions, keywords).
@@ -126,9 +126,3 @@
     (project/copy-project-keywords parent-id child-id)
     (project/copy-project-members parent-id child-id)
     (println "clone-subproject-endnote done")))
-
-#_ (clone-subproject-endnote
-    "EBTC Tox21 - Full Text Screening"
-    100
-    "/home/jeff/EBTC_Tox21_included_615_ids_ft_sysrev.xml"
-    "/var/www/sysrev-docs/PDF/118/")

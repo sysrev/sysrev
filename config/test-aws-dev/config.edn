@@ -7,7 +7,7 @@
  :server
  {:port 4132}
  :selenium
- {:protocol "http"
-  :host "isysrev-dev.ddns.net"}
+ {:protocol "https"
+  :host "staging.sysrev.us"}
  :profile :remote-test
  :private-config "config.local.edn"}

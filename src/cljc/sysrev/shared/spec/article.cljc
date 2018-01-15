@@ -41,6 +41,8 @@
   (s/keys :req-un [::source ::external-id]))
 (s/def ::locations
   (s/map-of ::source (s/coll-of ::location)))
+(s/def ::flags
+  (s/map-of string? map?))
 
 ;; article map with fields optional
 (s/def ::article-partial
@@ -49,7 +51,7 @@
            ::abstract ::public-id ::work-type ::notes ::remote-database-name
            ::year ::authors ::urls ::document-ids ::project-id ::raw
            ::keywords ::article-uuid ::enabled ::duplicate-of
-           ::score ::locations]))
+           ::score ::locations ::flags]))
 
 ;; article map with all columns of `article` table required
 (s/def ::article
@@ -59,7 +61,7 @@
            ::year ::authors ::urls ::document-ids ::project-id ::raw
            ::keywords ::article-uuid ::enabled ::duplicate-of]
           :opt-un
-          [::score ::locations]))
+          [::score ::locations ::flags]))
 
 ;; article map with all columns and extra fields required
 (s/def ::article-full
@@ -68,7 +70,7 @@
            ::abstract ::public-id ::work-type ::notes ::remote-database-name
            ::year ::authors ::urls ::document-ids ::project-id ::raw
            ::keywords ::article-uuid ::enabled ::duplicate-of
-           ::score ::locations]))
+           ::score ::locations ::flags]))
 
 (s/def ::article-or-id (s/or :id ::sc/article-id
                              :map ::article))
