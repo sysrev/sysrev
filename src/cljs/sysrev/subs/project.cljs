@@ -14,6 +14,10 @@
 
 (defn project-loaded? [db]
   (contains? (get-in db [:data :project]) (active-project-id db)))
+
+(defn project-sources-loaded? [db]
+  (nil? (get-in db [:data :project (active-project-id db) :sources])))
+
 (defn get-project-raw [db project-id]
   (get-in db [:data :project project-id]))
 

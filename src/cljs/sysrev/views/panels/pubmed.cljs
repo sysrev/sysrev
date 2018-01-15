@@ -144,6 +144,19 @@
      [:p (str "PMID: " uid)]
      [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?linkname=pubmed_pubmed&from_uid=" uid) } "Similar articles"]]))
 
+(defn AddArticles
+  "Add articles to a project from a PubMed search"
+  [state]
+  (fn [props]
+    (let [current-search-term (r/cursor state [:current-search-term])])
+    [:div [:a {:href "#"
+               :on-click (fn [event]
+                           (.preventDefault event)
+;;                           (dispatch [:require [:project/import-articles-from-search @current-search-term "PubMed"]])
+                           (.log js/console "I added articles"))}
+           "Add Articles from Search Results to Project"]]
+    )
+  )
 (defn SearchItemsCount
   "Display the total amount of items for a search term as well as the current range being viewed"
   [count page-number pmids-per-page]
@@ -271,7 +284,7 @@
         page-number (r/cursor state [:page-number])]
     (fn [props]
       (let []
-        [:div.create-project
+        [:div.search-panel
          [:div.ui.segment
           [:h3.ui.dividing.header
            "Add Articles from PubMed Search"]

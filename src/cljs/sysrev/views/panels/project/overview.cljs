@@ -282,6 +282,4 @@
       [:div.project-content
        (when (> total 0)
          [project-overview-panel])
-       (when (<= total 0)
-         [AddArticles])
        child])))

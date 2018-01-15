@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.project.main
   (:require [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [reagent.core :as r]
+            [sysrev.routes :as routes]
             [sysrev.util :refer [full-size? mobile?]]
             [sysrev.views.components :refer
              [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]
@@ -118,7 +119,12 @@
       (with-loader [[:project]] {}
         (let [project-name @(subscribe [:project/name])
               admin? @(subscribe [:user/admin?])
-              projects @(subscribe [:self/projects])]
+              projects @(subscribe [:self/projects])
+              {:keys [total]}
+              @(subscribe [:project/article-counts])]
+          (when (and (not (nil? total))
+                     (<= total 0))
+            (routes/nav-scroll-top "/project/add-articles"))
           [:div
            [project-header
             project-name
