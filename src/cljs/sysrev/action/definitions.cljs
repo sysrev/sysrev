@@ -190,3 +190,26 @@
       ;; does nothing, code needs to be written
       {:dispatch-n
        (list [:set-create-project-error-msg message])})))
+
+;; stub out
+#_(def-action :project/import-articles-from-search
+  :uri (fn [] "/api/import-articles-from-search")
+  :content (fn [search-term source]
+             {:search-term search-term
+              :source source})
+  :process
+  (fn [_ _ {:keys [success] :as result}]
+    (if success
+      ;;
+      {:dispatch-n
+       (list
+        ;; send out event to check for article sources
+        ;; status
+        [:fetch [:project/project-sources]]
+        ;; clear state of pubmed.cljs
+        )}
+      ;; does nothing, code should be created
+      {:dispatch-n
+       ;;       (list [:set-import-articles-error-msg message])
+       (list)
+       })))
