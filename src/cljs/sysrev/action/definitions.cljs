@@ -205,7 +205,7 @@
        (list
         ;; send out event to check for article sources
         ;; status
-        [:fetch [:project/project-sources]]
+        [:fetch [:project/sources]]
         ;; clear state of pubmed.cljs
         )}
       ;; does nothing, code should be created

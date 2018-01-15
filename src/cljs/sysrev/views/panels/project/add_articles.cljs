@@ -32,14 +32,26 @@
           [:br]
           [SearchPanel pubmed/state]])])))
 
-(defn ProjectSource
+(defn PubMedSearchSource
   [state]
   (fn [source]
     (let [metadata (:meta source)]
       [:div.project-source.ui.segment
-       [:h3 "Source " (:source metadata) " "
-        (when (:importing-articles? metadata)
-          [:div.ui.active.loader.inline [:div.ui.loader]])]])))
+       [:div.ui.grid
+        [:div.fourteen.wide.column
+         [:h3 "PubMed Search Term: "
+          (:search-term metadata)]]
+        [:div.two.wide.column
+         (when (:importing-articles? metadata)
+           [:div.ui.active.loader [:div.ui.loader]])
+         #_         (when-not (:import-articles? metadata)
+                      ;; we will write the code on the server
+                      ;; to return the article-count col
+                      ;; in sysrev.db.project/project-sources
+                      ;; that will include joins
+                      ;; https://stackoverflow.com/questions/4535782/select-count-of-rows-in-another-table-in-a-postgres-select-statement
+                      (str (.toLocaleString (:article-count metadata)) " articles"))
+         ]]])))
 
 (defn ProjectSources
   [state]
@@ -47,8 +59,10 @@
     (let [sources (subscribe [:project/sources])]
       [:div#project-sources
        (doall (map (fn [source]
-                     ^{:key (:source-id source)}
-                     [ProjectSource source])
+                     (condp = (get-in source [:meta :source])
+                       "PubMed search"
+                       ^{:key (:source-id source)}
+                       [PubMedSearchSource source]))
                    @sources))])))
 
 (defn AddArticles
@@ -56,6 +70,7 @@
   (fn [props]
     [:div
      [ProjectSources state]
+     [:br]
      [AddPubMedArticles state]]))
 
 (defmethod panel-content [:project :project :add-articles] []

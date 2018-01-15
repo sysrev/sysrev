@@ -5,7 +5,7 @@
    [sysrev.data.core :refer [def-data]]
    [sysrev.subs.auth :refer [have-identity?]]
    [sysrev.subs.project :refer
-    [project-loaded? active-project-id have-public-labels?]]
+    [project-loaded? active-project-id have-public-labels? project-sources-loaded?]]
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
@@ -69,9 +69,9 @@
       {:dispatch [:project/load-public-labels result-decoded]})))
 
 (def-data :project/project-sources
-  :loaded? (constantly false)
+  :loaded? project-sources-loaded?
   :uri (fn [] "/api/project-sources")
-  :prereqs (fn [[:identity]])
+  :prereqs (fn [] [[:identity] [:project]])
   :process
   (fn [{:keys [db]} _ result]
     (let [project-id (active-project-id db)]

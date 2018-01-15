@@ -121,8 +121,7 @@
               admin? @(subscribe [:user/admin?])
               projects @(subscribe [:self/projects])
               {:keys [total]}
-              @(subscribe [:project/article-counts])
-              article-counts-loading? @(subscribe [:loading? [[:project/article-counts]]])]
+              @(subscribe [:project/article-counts])]
           (when (and (not (nil? total))
                      (<= total 0))
             (routes/nav-scroll-top "/project/add-articles"))

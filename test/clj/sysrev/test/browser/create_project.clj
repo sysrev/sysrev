@@ -72,6 +72,7 @@
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
   (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
+    (browser/wait-until-loading-completes)
     (browser/wait-until-exists query)
     (boolean (re-matches #".*disabled" (taxi/attribute query :class)))))
 
