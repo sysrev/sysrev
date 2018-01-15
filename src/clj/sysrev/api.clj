@@ -3,6 +3,7 @@
   (:require [clojure.spec.alpha :as s]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
+            [sysrev.db.core :as db]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]))
@@ -64,7 +65,7 @@
              (pubmed/get-all-pmids-for-query search-term)
              project-id
              (project/import-pmids-search-term-meta search-term)
-             :use-future? true)
+             :use-future? (nil? db/*conn*))
             {:result {:success true}})
           (not (empty? search-term-sources))
           {:result {:success true}}

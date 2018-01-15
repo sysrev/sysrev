@@ -166,9 +166,9 @@
   (try
     (articles/add-article article project-id *conn*)
     (catch Throwable e
-      (println "exception in add-format")
+      (println "exception in sysrev.import.pubmed/add-article")
       (println "article:")
-;;      (println (pr-str article))
+      ;; (println (pr-str article))
       (println "error:")
       (println (.getMessage e))
       nil)))

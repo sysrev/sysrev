@@ -9,7 +9,6 @@
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
 
-(use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 (deftest pubmed-search-test

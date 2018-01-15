@@ -8,7 +8,6 @@
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [ring.mock.request :as mock]))
 
-(use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 (deftest create-project-test
