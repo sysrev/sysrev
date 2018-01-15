@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux
 
-export SYSREV_HOST=isysrev-dev.ddns.net
+export SYSREV_HOST=staging.sysrev.us
 ssh ubuntu@$SYSREV_HOST 'sudo systemctl stop sysrev-web' || true
 ssh ubuntu@$SYSREV_HOST 'sudo systemctl restart postgresql'
 

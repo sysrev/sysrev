@@ -144,7 +144,7 @@ node {
         echo 'Running full tests against dev instance...'
         try {
           sshagent(['sysrev-admin']) {
-            withEnv(["SYSREV_HOST=isysrev-dev.ddns.net"]) {
+            withEnv(["SYSREV_HOST=staging.sysrev.us"]) {
               sh './jenkins/deploy'
             }
             // sh './jenkins/clone-db-to-dev'
@@ -181,7 +181,7 @@ node {
         try {
           if (branch == 'staging') {
             sshagent(['sysrev-admin']) {
-              withEnv(["SYSREV_HOST=isysrev-dev.ddns.net"]) {
+              withEnv(["SYSREV_HOST=staging.sysrev.us"]) {
                 sh './jenkins/deploy'
               }
             }
