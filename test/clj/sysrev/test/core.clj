@@ -1,5 +1,7 @@
 (ns sysrev.test.core
-  (:require [clojure.java.jdbc :as jdbc]
+  (:import [java.util UUID])
+  (:require [amazonica.aws.s3 :as s3]
+            [clojure.java.jdbc :as jdbc]
             [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as t]
@@ -85,3 +87,10 @@
 
 (defmacro completes? [form]
   `(do ~form true))
+
+(defn filestore-fixture [test]
+  (let [bucket-name (str (UUID/randomUUID))]
+    (binding [env (assoc-in env [:filestore :bucket-name] bucket-name)]
+      (s3/create-bucket bucket-name)
+      (test)
+      (s3/delete-bucket bucket-name))))

@@ -43,15 +43,17 @@
     (catch Exception e
       (log/warn (str "WARNING: failed to parse " f " " (.getLocalizedMessage e))))))
 
-(defonce ^{:doc "A map of environment variables."}
-         env
-         (let [env-props (merge (read-system-env) (read-system-props))
-               primary-config (read-config-file "config.edn")
-               private-config (:private-config primary-config)]
-           (merge
-             primary-config
-             (when private-config (read-config-file private-config))
-             (read-env-file (:config env-props))
-             (read-env-file ".lein-env")
-             (read-env-file (io/resource ".boot-env"))
-             env-props)))
+(defonce ^{:doc "A map of environment variables."
+           :dynamic true}
+  env
+  (let [env-props (merge (read-system-env) (read-system-props))
+        primary-config (read-config-file "config.edn")
+        private-config (:private-config primary-config)]
+    (merge
+     primary-config
+     (when private-config (read-config-file private-config))
+     (read-env-file (:config env-props))
+     (read-env-file ".lein-env")
+     (read-env-file (io/resource ".boot-env"))
+     env-props)))
+
