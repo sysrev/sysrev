@@ -154,6 +154,11 @@ repl> (sysrev.web.index/set-web-asset-path)
 
     Use the password 'override' to login as any user in dev environment
 
+* AWS Credentials for dev environment
+
+	Request the config.local.edn from a developer. Copy this file into config/dev/ and config/test/
+
+
 ## IDE Setup
 
 * Cursive (IntelliJ)
