@@ -34,10 +34,11 @@
         {:keys [total]}
         @(subscribe [:project/article-counts])]
     [secondary-tabbed-menu
-     [(when (> count 0)
+     [(when (> total 0)
         {:tab-id :overview
          :content "Overview"
-         :action [:project :project :overview]}
+         :action [:project :project :overview]})
+      (when (> total 0)
         {:tab-id :articles
          :content "Article Activity"
          :action [:project :project :articles]})
@@ -57,7 +58,7 @@
        :content [:span "Invite Link " [:i.ui.mail.outline.icon]]
        :action [:project :project :invite-link]}
 
-      (when (> count 0)
+      (when (> total 0)
         {:tab-id :export-data
          :content [:span "Export " [:i.ui.download.icon]]
          :action [:project :project :export-data]})
