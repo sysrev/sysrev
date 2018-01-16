@@ -1,13 +1,28 @@
-(ns sysrev.views.panels.project.labels
+(ns sysrev.views.panels.project.view-labels
   (:require
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer [true-false-nil-tag]]))
+   [sysrev.views.base :refer [panel-content]]
+   [sysrev.views.components :refer [true-false-nil-tag tabbed-panel-menu]]))
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
     [:div.project-content
+     (let [active-tab (->> @(subscribe [:active-panel]) (drop 3) first)]
+       [tabbed-panel-menu
+        [{:tab-id :view
+          :content "View"
+          :action [:project :project :labels :view]}
+         {:tab-id :edit
+          :content "Edit"
+          :action [:project :project :labels :edit]}]
+        active-tab
+        "project-labels-menu"])
+     child]))
+
+(defmethod panel-content [:project :project :labels :view] []
+  (fn [child]
+    [:div
      [:table.ui.celled.unstackable.table.project-labels
       [:thead
        [:tr

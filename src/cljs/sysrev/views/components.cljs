@@ -146,6 +146,35 @@
               :menu-class (s/? string?)
               :mobile? (s/? boolean?)))
 
+(defn tabbed-panel-menu [entries active-tab-id & [menu-class mobile?]]
+  (let [menu-class (or menu-class "")
+        render-entry (fn [{:keys [tab-id action content] :as entry}]
+                       (when entry
+                         [:a {:key tab-id
+                              :class (if (= tab-id active-tab-id)
+                                       "active item" "item")
+                              :href (when (string? action) action)
+                              :on-click (cond (vector? action)
+                                              #(dispatch [:navigate action])
+
+                                              (string? action) nil
+
+                                              :else action)}
+                          content]))]
+    [:div.tabbed-panel
+     [:div.ui
+      {:class
+       (str (num-to-english (count entries)) " item" " tabbed menu tabbed-panel " menu-class)}
+      (doall
+       (for [entry entries]
+         (render-entry entry)))]]))
+(s/fdef
+ tabbed-panel-menu
+ :args (s/cat :entries (s/coll-of ::menu-tab)
+              :active-tab-id ::tab-id
+              :menu-class (s/? string?)
+              :mobile? (s/? boolean?)))
+
 (defn with-tooltip [content & [popup-options]]
   (r/create-class
    {:component-did-mount

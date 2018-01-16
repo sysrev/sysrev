@@ -110,9 +110,14 @@
    (dispatch [:reload item])))
 
 (sr-defroute
- project-labels "/project/labels" []
- (dispatch [:set-active-panel [:project :project :labels]
+ project-labels-view "/project/labels" []
+ (dispatch [:set-active-panel [:project :project :labels :view]
             "/project/labels"]))
+
+(sr-defroute
+ project-labels-edit "/project/labels/edit" []
+ (dispatch [:set-active-panel [:project :project :labels :edit]
+            "/project/labels/edit"]))
 
 (sr-defroute
  review "/project/review" []
@@ -232,6 +237,12 @@
 
         [[:project :project :labels]
          "/project/labels"]
+
+        [[:project :project :labels :view]
+         "/project/labels"]
+
+        [[:project :project :labels :edit]
+         "/project/labels/edit"]
 
         [[:project :review]
          "/project/review"]
