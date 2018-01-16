@@ -1,12 +1,20 @@
 (ns sysrev.views.panels.project.add-articles
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
-             [dispatch subscribe]]
+             [dispatch subscribe reg-fx reg-event-fx trim-v]]
             [sysrev.util :refer [continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]))
 
-(def state (r/atom {:pubmed-visible? false}))
+(def initial-state {:pubmed-visible? false})
+(def state (r/atom initial-state))
+
+(reg-event-fx
+ :add-articles/reset-state!
+ [trim-v]
+ (fn [_]
+   (reset! state initial-state)
+   {}))
 
 (defn AddPubMedArticles
   [state]
@@ -26,7 +34,6 @@
           [:a {:href "#"
                :on-click (fn [event]
                            (.preventDefault event)
-                           (.log js/console "I changed the status")
                            (reset! pubmed-visible? false))}
            "Quit Searching"]
           [:br]

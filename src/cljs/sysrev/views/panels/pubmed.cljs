@@ -148,26 +148,20 @@
   "Add articles to a project from a PubMed search"
   [state]
   (fn [props]
-    (let [current-search-term (r/cursor state [:current-search-term])])
-    [:div [:a {:href "#"
-               :on-click (fn [event]
-                           (.preventDefault event)
-;;                           (dispatch [:require [:project/import-articles-from-search @current-search-term "PubMed"]])
-                           (.log js/console "I added articles"))}
-           "Add Articles from Search Results to Project"]]
-    )
-  )
+    (let [current-search-term (r/cursor state [:current-search-term])]
+      [:div [:a {:href "#"
+                 :on-click (fn [event]
+                             (.preventDefault event)
+                             (dispatch [:action [:project/import-articles-from-search @current-search-term "PubMed"]]))}
+             "Add Articles from Search Results to Project"]])))
+
 (defn SearchItemsCount
   "Display the total amount of items for a search term as well as the current range being viewed"
   [count page-number pmids-per-page]
   [:div
    [:br]
    [:h3 "Search Results"]
-   [:div [:a {:href "#"
-              :on-click (fn [event]
-                          (.preventDefault event)
-                          (.log js/console "I would add articles"))}
-          "Add Articles from Search Results to Project"]]
+   [AddArticles state]
    [:h4 {:id "items-count"}
     "Items: "
     ;; only display total items when there is just a page's
