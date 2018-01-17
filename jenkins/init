@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux
 
-profiles=(prod 'test-aws-dev' 'test-aws-prod')
+profiles=('prod' 'test' 'test-aws-dev' 'test-aws-prod')
 for profile in ${profiles[@]}; do
   cp /data/deployment/sysrev/config/$profile/config.local.edn ./config/$profile/
 done
