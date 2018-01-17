@@ -79,10 +79,10 @@
 
   ;; disabled for now, should eventually just set the project
   ;; to inactive, not actually delete it
-  #_   (POST "/api/delete-project" request
-             (let [project-id (-> request :body :project-id)
-                   user-id (current-user-id request)]
-               (api/delete-project! project-id user-id)))
+  (POST "/api/delete-project" request
+        (let [project-id (-> request :body :project-id)
+              user-id (current-user-id request)]
+          (api/delete-project! project-id user-id)))
 
   (POST "/api/import-articles-from-search" request
         (wrap-permissions

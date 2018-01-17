@@ -705,10 +705,29 @@
   [project-id]
   (boolean (> (-> (select :%count.*)
                   (from :article-label)
-                  (where [:in :article_id (-> (select :article_id)
-                                              (from :article)
-                                              (where [:= :project_id project-id]))])
-                  do-query
-                  first
-                  :count)
+                  (where [:in :article_id
+                          (-> (select :article_id)
+                              (from :article)
+                              (where [:= :project_id project-id]))])
+                  do-query first :count)
               0)))
+
+(s/fdef project-has-labeled-articles?
+        :args (s/cat :project-id int?)
+        :ret boolean?)
+
+;; cargo culting this for now,
+(defn source-has-labeled-articles?
+  [source-id]
+  (boolean (> (-> (select :%count.*)
+                  (from :article-label)
+                  (where [:in :article_id
+                          (-> (select :article_id)
+                              (from :source_id)
+                              (where [:= :source_id source-id]))])
+                  do-query first :count)
+              0)))
+
+(s/fdef source-has-labeled-articles?
+        :args (s/cat :source-id int?)
+        :ret boolean?)

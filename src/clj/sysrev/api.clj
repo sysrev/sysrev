@@ -32,16 +32,20 @@
         :ret ::sp/project)
 
 ;; private fn for now, just because we don't want to actually delete a project, just mark it as inactive
-#_ (defn delete-project!
-     "Delete a project with project-id by user-id, returning ???. Checks to ensure the user is an admin of that account"
-     [project-id user-id]
-     (cond (not (project/member-has-permission? project-id user-id "admin"))
-           {:error {:status 403
-                    :type :member
-                    :message "Not authorized (project)"}}
-           (project/member-has-permission? project-id user-id "admin")
-           (do (project/delete-project project-id)
-               {:result {:success true}})))
+ (defn delete-project!
+   "Delete a project with project-id by user-id, returning ???. Checks to ensure the user is an admin of that account"
+   [project-id user-id]
+   (cond (not (project/member-has-permission? project-id user-id "admin"))
+         {:error {:status 403
+                  :type :member
+                  :message "Not authorized (project)"}}
+         (project/project-has-labeled-articles? project-id)
+         ;; eventually, we will disable the project in this case
+         {:error {:status 403
+                  :message "Project contains reviewed articles"}}
+         (project/member-has-permission? project-id user-id "admin")
+         (do (project/delete-project project-id)
+             {:result {:success true}})))
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term as a query at source.
