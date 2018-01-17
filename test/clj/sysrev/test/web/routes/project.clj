@@ -121,7 +121,14 @@
                      ((required-headers ring-session csrf-token))))
                 :body
                 util/read-transit-str
-                (get-in [:result :success])))))))
+                (get-in [:result :success]))))
+      ;; A project with articles that have labels can not be deleted
+
+      ;; A project source can be deleted
+
+      ;; ... but not one with labels
+
+      )))
 
 (deftest identity-project-response-test
   (let [handler (sysrev-handler)

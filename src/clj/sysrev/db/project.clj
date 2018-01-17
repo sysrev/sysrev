@@ -650,6 +650,30 @@
         :args (s/cat :search-term string?)
         :ret map?)
 
+(defn delete-project-source!
+  "Given a source-id, delete it and remove the articles associated with
+  it from the database.  Warning: This fn doesn't care if there are
+  labels associated with an article"
+  [source-id]
+  (try (let [source-article-ids (map :article-id (-> (select :article_id)
+                                                     (from :article_source)
+                                                     (where [:= :source_id source-id])
+                                                     do-query))]
+         ;; delete the project_source
+         (-> (delete-from :project_source)
+             (where [:= :source_id source-id])
+             do-execute)
+         ;; delete the articles
+         (-> (delete-from :article)
+             (where [:in :article_id source-article-ids])
+             do-execute))
+       (catch Throwable e
+         (str "Caught exception in sysrev.db.project/delete-project-source!: " (.getMessage e)))
+       (finally true)))
+
+(s/fdef delete-project-source!
+        :args (s/cat :source-id int?))
+
 (defn project-sources
   "Given a project-id, return the corresponding vectors of
   project-source data or nil if it does not exist"

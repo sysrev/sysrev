@@ -80,7 +80,7 @@
         :ret map?)
 
 (defn project-sources
-  "Return sources for project-id "
+  "Return sources for project-id"
   [project-id]
   (if (project/project-exists? project-id)
     {:result {:success true
