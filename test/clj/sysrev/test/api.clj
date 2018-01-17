@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [sysrev.shared.spec.core :as sc]
             [sysrev.test.core :refer
-             [default-fixture completes? get-selenium-config]]
+             [default-fixture completes? get-selenium-config database-rollback-fixture]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]

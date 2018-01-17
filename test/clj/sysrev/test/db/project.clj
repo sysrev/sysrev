@@ -10,10 +10,12 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.import.pubmed :as pubmed]
-            [sysrev.test.core :refer [default-fixture completes?]]
+            [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]
             [sysrev.test.db.core :refer [test-project-ids]]))
 
 (use-fixtures :once default-fixture)
+(use-fixtures :each database-rollback-fixture)
+
 
 (deftest article-flag-counts
   (doseq [project-id (test-project-ids)]

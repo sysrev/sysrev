@@ -701,3 +701,14 @@
         :args (s/cat :project-source-id int?
                      :meta map?))
 
+(defn project-has-labeled-articles?
+  [project-id]
+  (boolean (> (-> (select :%count.*)
+                  (from :article-label)
+                  (where [:in :article_id (-> (select :article_id)
+                                              (from :article)
+                                              (where [:= :project_id project-id]))])
+                  do-query
+                  first
+                  :count)
+              0)))
