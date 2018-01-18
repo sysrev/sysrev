@@ -73,23 +73,26 @@
             {:keys [importing-articles? search-term]} meta]
         [:div.project-source.ui.segment
          [:div.ui.grid
-          [:div.eleven.wide.column
+          [:div {:class (str (if-not importing-articles?
+                               "eleven"
+                               "fifteen") " wide column")}
            [:h3 "PubMed Search Term: "
             search-term]]
-          [:div.five.wide.column.right.aligned
-           ;; when articles are still loading
-           (when importing-articles?
-             (continuous-update-until #(dispatch [:fetch [:project/project-sources]])
-                                      #(not (source-updating? source-id))
-                                      1000)
-             [:div.ui.active.loader [:div.ui.loader]])
-           ;; when articles have been imported
-           (when-not importing-articles?
+          ;; when articles are still loading
+          (when importing-articles?
+            (continuous-update-until #(dispatch [:fetch [:project/project-sources]])
+                                     #(not (source-updating? source-id))
+                                     1000)
+            [:div.one.wide.column.right.aligned
+             [:div.ui.active.loader [:div.ui.loader]]])
+          ;; when articles have been imported
+          (when-not importing-articles?
+            [:div.five.wide.column.right.aligned
              [:div [:div (str (.toLocaleString labeled-article-count)
                               " of "
                               (.toLocaleString article-count) " articles reviewed")]
               (when (<= labeled-article-count 0)
-                [DeleteArticleSource source-id])])]]]))))
+                [DeleteArticleSource source-id])]])]]))))
 
 (defn ProjectSources
   [state]
