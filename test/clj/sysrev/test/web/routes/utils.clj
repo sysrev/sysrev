@@ -32,24 +32,38 @@
      :csrf-token csrf-token}))
 
 (defn required-headers
-  "Given a ring-session and csrf-token str, return a fn that acts on a
+  "Given a handler, return a fn that acts on a
   request to add the headers required by the handler"
-  [ring-session csrf-token]
-  (fn [request]
-    (-> request
-        (mock/header "x-csrf-token" csrf-token)
-        (mock/header "Cookie" (str "ring-session=" ring-session))
-        (mock/header "Content-Type" "application/transit+json"))))
+  [handler]
+  (let [{:keys [ring-session csrf-token]}
+        (required-headers-params handler)]
+    (fn [request]
+      (-> request
+          (mock/header "x-csrf-token" csrf-token)
+          (mock/header "Cookie" (str "ring-session=" ring-session))
+          (mock/header "Content-Type" "application/transit+json")))))
 
-(defn login-user
-  "Given a ring-session, csrf-token, email and password, login user"
-  [handler email password ring-session csrf-token]
-  ;; login this user
-  (is (-> (handler
-           (->  (mock/request :post "/api/auth/login")
-                (mock/body (sysrev.util/write-transit-str
-                            {:email email :password password}))
-                ((required-headers ring-session csrf-token))))
-          :body util/read-transit-str :result :valid)))
+(defn route-response-builder
+  "Get the response from handler using request method at uri with optional
+  map parameters. When method is :get, parameters are passing in query-string, when method is :post, parameters are passed in body as transit+json. Returns the body as a map"
+  [handler required-headers-fn method uri & [parameters]]
+  (let [request-params-fn (if (= :get method)
+                            (fn [request]
+                              (mock/query-string request parameters))
+                            (fn [request]
+                              (mock/body request (sysrev.util/write-transit-str
+                                                  parameters))))]
+    (-> (handler
+         (->  (mock/request method uri)
+              request-params-fn
+              required-headers-fn))
+        :body util/read-transit-str)))
+
+(defn route-response-fn
+  "Return a fn of method, uri and options parameters for handling a mock request given a handler and required-headers-fn"
+  [handler]
+  (let [required-headers-fn (required-headers handler)]
+    (fn [method uri & [parameters]]
+      (route-response-builder handler required-headers-fn method uri parameters))))
 
 

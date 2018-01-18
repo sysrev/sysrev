@@ -44,7 +44,7 @@
          :action [:project :project :articles]})
 
       {:tab-id :add-articles
-       :content "Add Articles"
+       :content "Sources"
        :action [:project :project :add-articles]}
       {:tab-id :labels
        :content "Label Definitions"

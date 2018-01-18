@@ -10,6 +10,7 @@
    [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
    [sysrev.db.project :as project]))
 
+(use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
 (def ss (partial clojure.string/join "\n"))

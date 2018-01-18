@@ -78,12 +78,10 @@
 ;; https://stackoverflow.com/questions/449346/mysql-auto-increment-does-not-rollback
 ;; https://www.postgresql.org/message-id/501B1494.9040502@ringerc.id.au
 (defn database-rollback-fixture [test]
-  (default-fixture
-   (fn []
-     (jdbc/with-db-transaction [db @active-db]
-       (jdbc/db-set-rollback-only! db)
-       (binding [*conn* db] ;; rebind dynamic var db, used in tests
-         (test))))))
+  (jdbc/with-db-transaction [db @active-db]
+    (jdbc/db-set-rollback-only! db)
+    (binding [*conn* db] ;; rebind dynamic var db, used in tests
+      (test))))
 
 (defmacro completes? [form]
   `(do ~form true))

@@ -274,3 +274,18 @@
       (values [{:article_id article-id
                 :source_id source-id}])
       do-execute))
+
+(defn articles-have-labels?
+  "Does the coll of article ids have labels associated with them?"
+  [coll]
+  (boolean (> (-> (select :%count.*)
+                  (from :article-label)
+                  (where [:in :article_id coll])
+                  do-query
+                  first
+                  :count)
+              0)))
+
+(s/fdef articles-have-labels?
+        :args (s/cat :coll coll?)
+        :ret boolean?)
