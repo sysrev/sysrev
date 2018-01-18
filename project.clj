@@ -142,7 +142,6 @@
              :server-port 3449
              ;; these should work with both Cider and Cursive
              :nrepl-middleware ["cider.nrepl/cider-middleware"
-                                "refactor-nrepl.middleware/wrap-refactor"
                                 "cemerick.piggieback/wrap-cljs-repl"]
              :css-dirs ["resources/public/css"
                         "resources/public/semantic/default/semantic.min.css"
@@ -202,7 +201,6 @@
                               :exclusions [org.clojure/tools.reader]]]
               :plugins [[lein-figwheel "0.5.14"]
                         [cider/cider-nrepl "0.16.0"]
-                        [refactor-nrepl "2.3.1"]
                         [lein-environ "1.1.0"]]
               :env {:squiggly
                     {:checkers [:eastwood #_ :kibit]

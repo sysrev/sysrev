@@ -31,21 +31,25 @@
                      :user-id ::sc/user-id)
         :ret ::sp/project)
 
-;; private fn for now, just because we don't want to actually delete a project, just mark it as inactive
- (defn delete-project!
-   "Delete a project with project-id by user-id, returning ???. Checks to ensure the user is an admin of that account"
-   [project-id user-id]
-   (cond (not (project/member-has-permission? project-id user-id "admin"))
-         {:error {:status 403
-                  :type :member
-                  :message "Not authorized (project)"}}
-         (project/project-has-labeled-articles? project-id)
-         ;; eventually, we will disable the project in this case
-         {:error {:status 403
-                  :message "Project contains reviewed articles"}}
-         (project/member-has-permission? project-id user-id "admin")
-         (do (project/delete-project project-id)
-             {:result {:success true}})))
+(defn delete-project!
+  "Delete a project with project-id by user-id. Checks to ensure the user is an admin of that project"
+  [project-id user-id]
+  (cond (not (project/member-has-permission? project-id user-id "admin"))
+        {:error {:status 403
+                 :type :member
+                 :message "Not authorized (project)"}}
+        (project/project-has-labeled-articles? project-id)
+        ;; eventually, we will disable the project in this case
+        {:error {:status 403
+                 :message "Project contains reviewed articles"}}
+        (project/member-has-permission? project-id user-id "admin")
+        (do (project/delete-project project-id)
+            {:result {:success true}})))
+
+(s/fdef delete-project!
+        :args (s/cat :project-id int?
+                     :user-id int?)
+        :ret map?)
 
 (defn import-articles-from-search
   "Import PMIDS resulting from using search-term as a query at source.
@@ -94,4 +98,17 @@
 
 (s/fdef project-sources
         :args (s/cat :project-id int?)
+        :ret map?)
+
+(defn delete-source!
+  "Delete a source with source-id by user-id."
+  [source-id]
+  (cond (project/source-has-labeled-articles? source-id)
+        {:error {:status 403
+                 :message "Source contains reviewed articles"}}
+        :else (do (project/delete-project source-id)
+                  {:result {:success true}})))
+
+(s/fdef delete-source!
+        :args (s/cat :source-id int?)
         :ret map?)

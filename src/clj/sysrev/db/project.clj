@@ -680,8 +680,13 @@
   [project-id]
   (when (not (project-exists? project-id))
     (throw (Exception. (str "No project with project-id: " project-id))))
-  (-> (select :*)
+  (-> (select :ps.source-id
+              :ps.project-id
+              :ps.meta
+              :%count.ars.source_id)
       (from [:project_source :ps])
+      (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])
+      (group :ps.source_id)
       (where [:= :ps.project_id project-id])
       do-query))
 
@@ -723,7 +728,7 @@
                   (from :article-label)
                   (where [:in :article_id
                           (-> (select :article_id)
-                              (from :source_id)
+                              (from :article_source)
                               (where [:= :source_id source-id]))])
                   do-query first :count)
               0)))

@@ -560,86 +560,86 @@
   (assert (integer? user-id))
   (assert (integer? article-id))
   (assert (map? label-values))
-  (do-transaction
-   nil
-   (let [valid-values (->> label-values filter-valid-label-values)
-         now (sql-now)
-         project-id (:project-id (q/query-article-by-id article-id [:project-id]))
-         current-entries
-         (when change?
-           (-> (q/select-article-by-id article-id [:al.*])
-               (q/join-article-labels)
-               (q/filter-label-user user-id)
-               (->> (do-query)
-                    (map #(-> %
-                              (update :answer to-jsonb)
-                              (update :imported boolean)
-                              (dissoc :article-label-id :article-label-local-id))))))
-         overall-label-id (project-overall-label-id project-id)
-         confirm? (if imported?
-                    (boolean (get valid-values overall-label-id))
-                    confirm?)
-         existing-label-ids
-         (-> (q/select-article-by-id article-id [:al.label-id])
-             (q/join-article-labels)
-             (q/filter-label-user user-id)
-             (->> do-query (map :label-id)))
-         new-label-ids
-         (->> (keys valid-values)
-              (remove (in? existing-label-ids)))
-         new-entries
-         (->> new-label-ids
-              (map (fn [label-id]
-                     (let [label (get (all-labels-cached) label-id)
-                           answer (->> (get valid-values label-id)
-                                       (cleanup-label-answer label))
-                           _ (assert (label-answer-valid? label-id answer))
-                           inclusion (label-answer-inclusion label-id answer)]
-                       (cond->
-                           {:label-id label-id
-                            :article-id article-id
-                            :user-id user-id
-                            :answer (to-jsonb answer)
-                            :added-time now
-                            :updated-time now
-                            :imported (boolean imported?)
-                            :resolve (boolean resolve?)
-                            :inclusion inclusion}
-                         confirm? (merge {:confirm-time now}))))))]
-     (doseq [label-id existing-label-ids]
-       (when (contains? valid-values label-id)
-         (let [label (get (all-labels-cached) label-id)
-               answer (->> (get valid-values label-id)
-                           (cleanup-label-answer label))
-               _ (assert (label-answer-valid? label-id answer))
-               inclusion (label-answer-inclusion label-id answer)]
-           (-> (sqlh/update :article-label)
-               (sset (cond->
-                         {:answer (to-jsonb answer)
-                          :updated-time now
-                          :imported (boolean imported?)
-                          :resolve (boolean resolve?)
-                          :inclusion inclusion}
-                       confirm? (merge {:confirm-time now})))
-               (where [:and
-                       [:= :article-id article-id]
-                       [:= :user-id user-id]
-                       [:= :label-id label-id]])
-               do-execute))))
-     (when-not (empty? new-entries)
-       (-> (insert-into :article-label)
-           (values new-entries)
-           do-execute))
-     (when (and change? (not-empty current-entries))
-       (-> (insert-into :article-label-history)
-           (values current-entries)
-           do-execute))
-     (db/clear-project-label-values-cache project-id confirm? user-id)
-     (db/clear-project-member-cache project-id user-id)
-     (db/clear-project-article-cache project-id article-id)
-     (when confirm?
-       (db/clear-project-public-labels-cache project-id))
-     true)))
+  #_  (do-transaction
+       nil)
+  (let [valid-values (->> label-values filter-valid-label-values)
+        now (sql-now)
+        project-id (:project-id (q/query-article-by-id article-id [:project-id]))
+        current-entries
+        (when change?
+          (-> (q/select-article-by-id article-id [:al.*])
+              (q/join-article-labels)
+              (q/filter-label-user user-id)
+              (->> (do-query)
+                   (map #(-> %
+                             (update :answer to-jsonb)
+                             (update :imported boolean)
+                             (dissoc :article-label-id :article-label-local-id))))))
+        overall-label-id (project-overall-label-id project-id)
+        confirm? (if imported?
+                   (boolean (get valid-values overall-label-id))
+                   confirm?)
+        existing-label-ids
+        (-> (q/select-article-by-id article-id [:al.label-id])
+            (q/join-article-labels)
+            (q/filter-label-user user-id)
+            (->> do-query (map :label-id)))
+        new-label-ids
+        (->> (keys valid-values)
+             (remove (in? existing-label-ids)))
+        new-entries
+        (->> new-label-ids
+             (map (fn [label-id]
+                    (let [label (get (all-labels-cached) label-id)
+                          answer (->> (get valid-values label-id)
+                                      (cleanup-label-answer label))
+                          _ (assert (label-answer-valid? label-id answer))
+                          inclusion (label-answer-inclusion label-id answer)]
+                      (cond->
+                          {:label-id label-id
+                           :article-id article-id
+                           :user-id user-id
+                           :answer (to-jsonb answer)
+                           :added-time now
+                           :updated-time now
+                           :imported (boolean imported?)
+                           :resolve (boolean resolve?)
+                           :inclusion inclusion}
+                          confirm? (merge {:confirm-time now}))))))]
+    (doseq [label-id existing-label-ids]
+      (when (contains? valid-values label-id)
+        (let [label (get (all-labels-cached) label-id)
+              answer (->> (get valid-values label-id)
+                          (cleanup-label-answer label))
+              _ (assert (label-answer-valid? label-id answer))
+              inclusion (label-answer-inclusion label-id answer)]
+          (-> (sqlh/update :article-label)
+              (sset (cond->
+                        {:answer (to-jsonb answer)
+                         :updated-time now
+                         :imported (boolean imported?)
+                         :resolve (boolean resolve?)
+                         :inclusion inclusion}
+                        confirm? (merge {:confirm-time now})))
+              (where [:and
+                      [:= :article-id article-id]
+                      [:= :user-id user-id]
+                      [:= :label-id label-id]])
+              do-execute))))
+    (when-not (empty? new-entries)
+      (-> (insert-into :article-label)
+          (values new-entries)
+          do-execute))
+    (when (and change? (not-empty current-entries))
+      (-> (insert-into :article-label-history)
+          (values current-entries)
+          do-execute))
+    (db/clear-project-label-values-cache project-id confirm? user-id)
+    (db/clear-project-member-cache project-id user-id)
+    (db/clear-project-article-cache project-id article-id)
+    (when confirm?
+      (db/clear-project-public-labels-cache project-id))
+    true))
 
 (defn delete-project-user-labels [project-id]
   (-> (delete-from [:article-label :al])

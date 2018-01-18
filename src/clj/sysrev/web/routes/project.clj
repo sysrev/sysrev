@@ -77,8 +77,6 @@
            (assert (integer? user-id))
            (api/create-project-for-user! project-name user-id))))
 
-  ;; disabled for now, should eventually just set the project
-  ;; to inactive, not actually delete it
   (POST "/api/delete-project" request
         (let [project-id (-> request :body :project-id)
               user-id (current-user-id request)]
@@ -218,6 +216,13 @@
         request [] ["member"]
         (let [project-id (active-project request)]
           (api/project-sources project-id))))
+
+  (POST "/api/delete-source" request
+        (wrap-permissions
+         request [] ["admin"]
+         (let [source-id (-> request :body :source-id)
+               user-id (current-user-id request)]
+           (api/delete-source! source-id))))
 
   (POST "/api/files/upload" request
         (wrap-permissions
