@@ -106,7 +106,7 @@
   (cond (project/source-has-labeled-articles? source-id)
         {:error {:status 403
                  :message "Source contains reviewed articles"}}
-        :else (do (project/delete-project source-id)
+        :else (do (project/delete-project-source! source-id)
                   {:result {:success true}})))
 
 (s/fdef delete-source!

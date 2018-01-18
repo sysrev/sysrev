@@ -659,6 +659,7 @@
                                                      (from :article_source)
                                                      (where [:= :source_id source-id])
                                                      do-query))]
+         (clear-query-cache)
          ;; delete the project_source
          (-> (delete-from :project_source)
              (where [:= :source_id source-id])
@@ -674,21 +675,37 @@
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
 
+(defn source-articles-with-labels
+  "Given a source-id, return the amount of articles that have labels"
+  [source-id]
+  (-> (select :%count.*)
+      (from :article-label)
+      (where [:in :article_id
+              (-> (select :article_id)
+                  (from :article_source)
+                  (where [:= :source_id source-id]))])
+      do-query first :count))
+
+(s/fdef source-articles-with-labels
+        :args (s/cat :project-id int?)
+        :ret (s/nilable int?))
+
 (defn project-sources
   "Given a project-id, return the corresponding vectors of
   project-source data or nil if it does not exist"
   [project-id]
   (when (not (project-exists? project-id))
     (throw (Exception. (str "No project with project-id: " project-id))))
-  (-> (select :ps.source-id
-              :ps.project-id
-              :ps.meta
-              :%count.ars.source_id)
-      (from [:project_source :ps])
-      (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])
-      (group :ps.source_id)
-      (where [:= :ps.project_id project-id])
-      do-query))
+  (let [sources (-> (select :ps.source-id
+                            :ps.project-id
+                            :ps.meta
+                            [:%count.ars.source_id "article-count"])
+                    (from [:project_source :ps])
+                    (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])
+                    (group :ps.source_id)
+                    (where [:= :ps.project_id project-id])
+                    do-query)]
+    (mapv #(assoc % :labeled-article-count (source-articles-with-labels (:source-id %))) sources)))
 
 (s/fdef project-sources
         :args (s/cat :project-id int?)
@@ -721,16 +738,9 @@
         :args (s/cat :project-id int?)
         :ret boolean?)
 
-;; cargo culting this for now,
 (defn source-has-labeled-articles?
   [source-id]
-  (boolean (> (-> (select :%count.*)
-                  (from :article-label)
-                  (where [:in :article_id
-                          (-> (select :article_id)
-                              (from :article_source)
-                              (where [:= :source_id source-id]))])
-                  do-query first :count)
+  (boolean (> (source-articles-with-labels source-id)
               0)))
 
 (s/fdef source-has-labeled-articles?

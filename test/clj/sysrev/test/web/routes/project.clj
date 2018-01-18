@@ -258,7 +258,6 @@
            (get-in (route-response :post "/api/delete-source"
                                    {:source-id foo-bar-search-source-id})
                    [:error :message])))
-    ;; A project source can be deleted, if empty
     (let [import-articles-response (route-response :post "/api/import-articles-from-search"
                                                    {:search-term "grault" :source "PubMed"})
           project-sources-response (route-response :get "/api/project-sources")
@@ -266,10 +265,10 @@
                                               (get-in project-sources-response [:result :sources])))
           grault-search-source-id (:source-id grault-search-source)]
       ;; are the total project articles equivalent to the sum of its two sources?
-      (is (= (+ (:count grault-search-source) (:count foo-bar-search-source))
+      (is (= (+ (:article-count grault-search-source) (:article-count foo-bar-search-source))
              (project/project-article-count new-project-id)))
       ;; try it another way
-      (is (= (reduce + (map #(:count %)
+      (is (= (reduce + (map #(:article-count %)
                             (get-in (route-response :get "/api/project-sources")
                                     [:result :sources])))
              (project/project-article-count new-project-id)))
@@ -277,8 +276,8 @@
       (is (get-in (route-response :post "/api/delete-source"
                                   {:source-id grault-search-source-id})
                   [:result :success]))
-      ;; are the total articles equivalent to the sum of its two sources?
-      (is (= (reduce + (map #(:count %)
+      ;; are the total articles equivalent to sum of its single source?
+      (is (= (reduce + (map #(:article-count %)
                             (get-in (route-response :get "/api/project-sources")
                                     [:result :sources])))
              (project/project-article-count new-project-id))))))

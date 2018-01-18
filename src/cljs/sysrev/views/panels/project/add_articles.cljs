@@ -2,6 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [dispatch subscribe reg-fx reg-event-fx trim-v]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.util :refer [continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]))
@@ -40,6 +41,26 @@
           [:br]
           [SearchPanel pubmed/state]])])))
 
+(def-action :sources/delete-source
+  :uri (fn [] "/api/delete-source")
+  :content (fn [source-id]
+             {:source-id source-id})
+  :process
+  (fn [_ _ {:keys [success] :as result}]
+    (if success
+      {:dispatch-n
+       (list
+        [:fetch [:project/project-sources]])})))
+
+(defn DeleteArticleSource
+  [source-id]
+  [:a {:href "#"
+       :on-click (fn [event]
+                   (.preventDefault event)
+                   (dispatch
+                    [:action [:sources/delete-source source-id]]))}
+   "Delete Source"])
+
 (defn PubMedSearchSource
   [state]
   (let [source-updating? (fn [source-id]
@@ -48,20 +69,27 @@
                                             source-id))
                                 first :meta :importing-articles?))]
     (fn [source]
-      (let [metadata (:meta source)]
+      (let [{:keys [meta source-id article-count labeled-article-count]} source
+            {:keys [importing-articles? search-term]} meta]
         [:div.project-source.ui.segment
          [:div.ui.grid
-          [:div.fourteen.wide.column
+          [:div.eleven.wide.column
            [:h3 "PubMed Search Term: "
-            (:search-term metadata)]]
-          [:div.two.wide.column.right.aligned
-           (when (:importing-articles? metadata)
+            search-term]]
+          [:div.five.wide.column.right.aligned
+           ;; when articles are still loading
+           (when importing-articles?
              (continuous-update-until #(dispatch [:fetch [:project/project-sources]])
-                                      #(not (source-updating? (:source-id source)))
+                                      #(not (source-updating? source-id))
                                       1000)
              [:div.ui.active.loader [:div.ui.loader]])
-           (when-not (:import-articles? metadata)
-             (str (.toLocaleString (:count source)) " articles"))]]]))))
+           ;; when articles have been imported
+           (when-not importing-articles?
+             [:div [:div (str (.toLocaleString labeled-article-count)
+                              " of "
+                              (.toLocaleString article-count) " articles reviewed")]
+              (when (<= labeled-article-count 0)
+                [DeleteArticleSource source-id])])]]]))))
 
 (defn ProjectSources
   [state]

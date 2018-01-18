@@ -155,12 +155,26 @@
                              (dispatch [:action [:project/import-articles-from-search @current-search-term "PubMed"]]))}
              "Add Articles from Search Results to Project"]])))
 
+(defn PubMedSearchLink
+  "Return a link on PubMed for the current search term"
+  [state]
+  (let [on-change-search-term (r/cursor state [:on-change-search-term])]
+    (fn [props]
+      [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/?"
+                      (http-client/generate-query-string
+                       {:term @on-change-search-term}))
+           :target "_blank"}
+       "Search on PubMed.gov"])))
+
 (defn SearchItemsCount
   "Display the total amount of items for a search term as well as the current range being viewed"
   [count page-number pmids-per-page]
   [:div
    [:br]
    [:h3 "Search Results"]
+   [PubMedSearchLink state]
+   [:br]
+   [:br]
    [AddArticles state]
    [:h4 {:id "items-count"}
     "Items: "
@@ -231,18 +245,6 @@
              [:div.ui.active.centered.loader.inline
               [:div.ui.loader]])])))))
 
-(defn PubmedSearchLink
-  "Return a link on PubMed for the current search term"
-  [state]
-  (let [on-change-search-term (r/cursor state [:on-change-search-term])]
-    (fn [props]
-      [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/?"
-                      (http-client/generate-query-string
-                       {:term @on-change-search-term}))
-           :target "_blank"}
-       [:br]
-       "Search on PubMed.gov"])))
-
 (defn SearchResult [state]
   "Display pubmed search results, if any"
   (let [current-search-term (r/cursor state [:current-search-term])
@@ -283,7 +285,6 @@
           [:h3.ui.dividing.header
            "Add Articles from PubMed Search"]
           [SearchBar state]
-          [PubmedSearchLink state]
           [SearchResult state]]]))))
 
 (defmethod panel-content [:pubmed-search] []
