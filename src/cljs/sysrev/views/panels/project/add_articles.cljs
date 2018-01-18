@@ -54,20 +54,14 @@
           [:div.fourteen.wide.column
            [:h3 "PubMed Search Term: "
             (:search-term metadata)]]
-          [:div.two.wide.column
+          [:div.two.wide.column.right.aligned
            (when (:importing-articles? metadata)
              (continuous-update-until #(dispatch [:fetch [:project/project-sources]])
                                       #(not (source-updating? (:source-id source)))
                                       1000)
              [:div.ui.active.loader [:div.ui.loader]])
-           #_         (when-not (:import-articles? metadata)
-                        ;; we will write the code on the server
-                        ;; to return the article-count col
-                        ;; in sysrev.db.project/project-sources
-                        ;; that will include joins
-                        ;; https://stackoverflow.com/questions/4535782/select-count-of-rows-in-another-table-in-a-postgres-select-statement
-                        (str (.toLocaleString (:article-count metadata)) " articles"))
-           ]]]))))
+           (when-not (:import-articles? metadata)
+             (str (.toLocaleString (:count source)) " articles"))]]]))))
 
 (defn ProjectSources
   [state]

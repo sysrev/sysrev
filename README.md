@@ -137,6 +137,7 @@ You can also clone a local copy of the database using `./scripts/clone-latest-db
 
 ```clojure
 repl> (sysrev.web.index/set-web-asset-path)
+"/out"
 ```
 
 * To manage database with Flyway:
