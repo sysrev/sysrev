@@ -638,6 +638,11 @@
 (def import-pmids-meta
   {:source "PMID vector"})
 
+(defn import-pmids-from-filename-meta
+  [filename]
+  {:source "PMID file"
+   :filename filename})
+
 (defn import-pmids-search-term-meta
   [search-term]
   {:source "PubMed search"

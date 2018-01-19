@@ -5,7 +5,8 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :refer [continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]))
+            [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
+            [sysrev.views.upload :refer [upload-container basic-text-button]]))
 
 (def initial-state {:pubmed-visible? false})
 (def state (r/atom initial-state))
@@ -16,6 +17,23 @@
  (fn [_]
    (reset! state initial-state)
    {}))
+
+(defn AddFileUploadArticles
+  "A panel for uploading PMIDs via file"
+  [state]
+  (let []
+    (fn [props]
+      [:div#upload-file-panel
+       [:div.ui.segment
+        [:h3.ui.dividing.header
+         "Add Articles from File"]
+        [:div.upload-container
+         [upload-container
+          basic-text-button "/api/import-articles-from-file"
+          (fn []
+            (.log js/console "file uploaded")
+            (dispatch [:fetch [:project/project-sources]]))
+          "Upload File"]]]])))
 
 (defn AddPubMedArticles
   [state]
@@ -61,7 +79,23 @@
                     [:action [:sources/delete-source source-id]]))}
    "Delete Source"])
 
-(defn PubMedSearchSource
+
+(defn MetaDisplay
+  [meta]
+  (let [{:keys [source]} meta]
+    (condp = source
+      "PubMed search"
+      [:h3 "PubMed Search Term: "
+       (:search-term meta)]
+      "PMID file"
+      [:h3 "PMIDs from file: " (:filename meta)]
+      "PMID vector"
+      [:h3 "PMIDs uploaded via web-api"]
+      "fact"
+      [:h3 "PMIDs taken from facts"]
+      [:h3 "Unknown Source"])))
+
+(defn ArticleSource
   [state]
   (let [source-updating? (fn [source-id]
                            (->> @(subscribe [:project/sources])
@@ -70,14 +104,13 @@
                                 first :meta :importing-articles?))]
     (fn [source]
       (let [{:keys [meta source-id article-count labeled-article-count]} source
-            {:keys [importing-articles? search-term]} meta]
+            {:keys [importing-articles?]} meta]
         [:div.project-source.ui.segment
          [:div.ui.grid
           [:div {:class (str (if-not importing-articles?
                                "eleven"
                                "fifteen") " wide column")}
-           [:h3 "PubMed Search Term: "
-            search-term]]
+           [MetaDisplay meta]]
           ;; when articles are still loading
           (when importing-articles?
             (continuous-update-until #(dispatch [:fetch [:project/project-sources]])
@@ -100,10 +133,8 @@
     (let [sources (subscribe [:project/sources])]
       [:div#project-sources
        (doall (map (fn [source]
-                     (condp = (get-in source [:meta :source])
-                       "PubMed search"
-                       ^{:key (:source-id source)}
-                       [PubMedSearchSource source]))
+                     ^{:key (:source-id source)}
+                     [ArticleSource source])
                    (sort-by :source-id @sources)))])))
 
 (defn AddArticles
@@ -111,6 +142,8 @@
   (fn [props]
     [:div
      [ProjectSources state]
+     [:br]
+     [AddFileUploadArticles state]
      [:br]
      [AddPubMedArticles state]]))
 

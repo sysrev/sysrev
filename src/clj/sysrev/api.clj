@@ -87,6 +87,36 @@
                      :source string?)
         :ret map?)
 
+(defn import-articles-from-file
+  "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
+  [project-id file filename]
+  (let [project-sources (project/project-sources project-id)
+        filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
+    (try
+      (let [pmid-vector (pubmed/parse-pmid-file file)]
+        (cond (not (project/project-exists? project-id))
+              {:error {:status 403
+                       :message "Project does not exist"}}
+              ;; there is no import going on for this search-term
+              ;; execute it
+              (and (empty? filename-sources))
+              (do
+                (pubmed/import-pmids-to-project-with-meta!
+                 pmid-vector
+                 project-id
+                 (project/import-pmids-from-filename-meta filename)
+                 :use-future? (nil? db/*conn*))
+                {:result {:success true}})
+              (not (empty? filename-sources))
+              {:result {:success true}}
+              :else
+              {:error {:status 403
+                       :message "Unknown event occurred"}}))
+      (catch Throwable e
+        {:error {:status 403
+                 :message "Error parsing file"}}))))
+
+
 (defn project-sources
   "Return sources for project-id"
   [project-id]

@@ -91,6 +91,17 @@
             project-id
             search-term source))))
 
+  (POST "/api/import-articles-from-file" request
+        (wrap-permissions
+         request [] ["member"]
+         (let [project-id (active-project request)
+               file-data (get-in request [:params :file])
+               file (:tempfile file-data)
+               filename (:filename file-data)
+               user-id (current-user-id request)]
+           (api/import-articles-from-file
+            project-id file filename))))
+
   ;; Returns an article for user to label
   (GET "/api/label-task" request
        (wrap-permissions

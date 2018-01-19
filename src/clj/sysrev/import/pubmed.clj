@@ -174,7 +174,9 @@
       nil)))
 
 (defn- import-pmids-to-project
-  "Imports into project all articles referenced in list of PubMed IDs."
+  "Imports into project all articles referenced in list of PubMed IDs.
+  Note that this will not import an article if the PMID already exists
+  in the project."
   [pmids project-id project-source-id]
   (try
     (doseq [pmid pmids]
@@ -264,6 +266,17 @@
   (->> path io/file io/reader
        csv/parse-csv
        (mapv (comp #(Integer/parseInt %) first))))
+
+(defn parse-pmid-file
+  "Loads a list of integer PubMed IDs from a file. PMIDs can be separated by commas and white space. Removes duplicates"
+  [file]
+  (try (->> (-> (slurp file)
+                (string/split #"(\s+|,)"))
+            (filterv (comp not empty?))
+            (mapv (comp #(Integer/parseInt %)))
+            distinct
+            (apply vector))
+       (catch Throwable e (println "Bad Format " (.getMessage e)))))
 
 (defn import-from-pmids-file
   "Imports articles from PubMed API into project from linebreak-separated text
