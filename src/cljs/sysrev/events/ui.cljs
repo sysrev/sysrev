@@ -3,7 +3,8 @@
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx dispatch trim-v]]
    [sysrev.subs.ui :refer
-    [active-panel active-subpanel-uri default-subpanel-uri panel-prefixes]]))
+    [active-panel active-subpanel-uri default-subpanel-uri panel-prefixes]]
+   [sysrev.util :refer [dissoc-in]]))
 
 (defn set-active-subpanel [db prefix uri]
   (assoc-in db [:state :navigation :subpanels (vec prefix)] uri))
@@ -63,4 +64,4 @@
  :reset-transient-fields
  [trim-v]
  (fn [db [panel]]
-   (assoc-in db [:state :panels panel :transient] {})))
+   (dissoc-in db [:state :panels panel :transient])))

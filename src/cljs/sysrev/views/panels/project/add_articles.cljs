@@ -2,14 +2,20 @@
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [dispatch subscribe reg-fx reg-event-fx trim-v]]
+            [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :refer [continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
             [sysrev.views.upload :refer [upload-container basic-text-button]]))
 
+(def panel [:project :project :add-articles])
+
 (def initial-state {:pubmed-visible? false})
-(def state (r/atom initial-state))
+(defonce state (r/cursor app-db [:state :panels panel]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
 
 (reg-event-fx
  :add-articles/reset-state!
@@ -37,6 +43,7 @@
 
 (defn AddPubMedArticles
   [state]
+  (pubmed/ensure-state)
   (let [pubmed-visible? (r/cursor state [:pubmed-visible?])
         current-search-term (r/cursor pubmed/state [:current-search-term])]
     (fn [props]
@@ -129,6 +136,7 @@
 (defn AddArticles
   []
   (fn [props]
+    (ensure-state)
     [:div
      [ProjectSources state]
      [:br]
@@ -136,7 +144,7 @@
      [:br]
      [AddPubMedArticles state]]))
 
-(defmethod panel-content [:project :project :add-articles] []
+(defmethod panel-content panel []
   (fn [child]
     [:div.project-content
      [AddArticles]]))

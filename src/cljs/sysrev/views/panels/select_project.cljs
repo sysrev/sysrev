@@ -2,6 +2,7 @@
   (:require
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+   [re-frame.db :refer [app-db]]
    [reagent.core :as r]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components]
@@ -9,10 +10,17 @@
    [sysrev.views.panels.project.main :refer [project-header]]
    [sysrev.util :refer [go-back]]))
 
-(def state (r/atom {:create-project nil}))
+(def panel [:select-project])
 
-(defmethod panel-content [:select-project] []
+(def initial-state {:create-project nil})
+(def state (r/cursor app-db [:state :panels panel]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
+
+(defmethod panel-content panel []
   (fn [child]
+    (ensure-state)
     (let [active-id @(subscribe [:active-project-id])]
       [:div
        [CreateProject state]

@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.project.main
   (:require [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.routes :as routes]
             [sysrev.util :refer [full-size? mobile?]]
@@ -9,7 +10,11 @@
             [sysrev.views.panels.create-project :refer [CreateProject]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def state (r/atom {:create-project nil}))
+(def initial-state {:create-project nil})
+(defonce state (r/cursor app-db [:state :panels [:project]]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
 
 (defn project-page-menu []
   (let [active-tab (->> @(subscribe [:active-panel]) (drop 1) first)
@@ -113,9 +118,9 @@
      [:div.four.wide.right.aligned.column
       right-content]]]])
 
-
 (defmethod panel-content [:project] []
   (fn [child]
+    (ensure-state)
     (if-not (empty? @(subscribe [:self/projects]))
       (with-loader [[:project]] {}
         (let [project-name @(subscribe [:project/name])

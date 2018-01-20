@@ -4,12 +4,20 @@
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch]]
+   [re-frame.db :refer [app-db]]
    [sysrev.views.base :refer [panel-content]]))
 
-(def state (r/atom {:current-search-term nil
+(def panel [:pubmed-search])
+
+(def initial-state {:current-search-term nil
                     :on-change-search-term nil
                     :page-number 1
-                    :pmids-per-page 20}))
+                    :pmids-per-page 20})
+(defonce state (r/cursor app-db [:state :panels panel]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
+
 (defn TextInput
   "props is:
   {
@@ -245,8 +253,9 @@
              [:div.ui.active.centered.loader.inline
               [:div.ui.loader]])])))))
 
-(defn SearchResult [state]
+(defn SearchResult
   "Display pubmed search results, if any"
+  [state]
   (let [current-search-term (r/cursor state [:current-search-term])
         page-number (r/cursor state [:page-number])
         pmids-per-page (r/cursor state [:pmids-per-page])]
@@ -273,8 +282,9 @@
            :default
            [SearchResultArticles state])]))))
 
-(defn SearchPanel [state]
+(defn SearchPanel
   "A panel for searching pubmed"
+  [state]
   (let [current-search-term (r/cursor state [:current-search-term])
         on-change-search-term (r/cursor state [:on-change-search-term])
         page-number (r/cursor state [:page-number])]
@@ -287,6 +297,7 @@
           [SearchBar state]
           [SearchResult state]]]))))
 
-(defmethod panel-content [:pubmed-search] []
+(defmethod panel-content panel []
   (fn [child]
+    (ensure-state)
     [SearchPanel state]))
