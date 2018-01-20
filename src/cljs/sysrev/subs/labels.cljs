@@ -64,6 +64,18 @@
         string (str/lower-case short-label)]
     [required string value-type]))
 
+(defn- project-label-ids-impl [labels & [include-disabled?]]
+  (->> (vals labels)
+       (filter #(or include-disabled? (:enabled %)))
+       (#(if (>= (count %) 15)
+           (sort-by alpha-label-ordering-key < %)
+           (sort-by label-ordering-key %)))
+       (mapv :label-id)))
+
+(defn project-label-ids [db & [project-id include-disabled?]]
+  (project-label-ids-impl (project-labels db project-id)
+                          include-disabled?))
+
 ;; Use this to get a sequence of label-id in project, in a consistent
 ;; sorted order.
 (reg-sub
@@ -71,13 +83,7 @@
  (fn [[_ project-id include-disabled?]]
    [(subscribe [::labels project-id])])
  (fn [[labels] [_ _ include-disabled?]]
-   ;; TODO: sort by display order
-   (->> (vals labels)
-        (filter #(or include-disabled? (:enabled %)))
-        (#(if (>= (count %) 15)
-            (sort-by alpha-label-ordering-key < %)
-            (sort-by label-ordering-key %)))
-        (mapv :label-id))))
+   (project-label-ids-impl labels include-disabled?)))
 
 (reg-sub
  :project/have-label?

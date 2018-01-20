@@ -16,7 +16,7 @@
    [sysrev.views.panels.project.overview]
    [sysrev.views.panels.project.public-labels]
    [sysrev.views.panels.project.view-labels]
-   [sysrev.views.panels.project.edit-labels]
+   [sysrev.views.panels.project.define-labels]
    [sysrev.views.panels.project.settings]
    [sysrev.views.panels.project.invite-link]
    [sysrev.views.panels.project.export-data]

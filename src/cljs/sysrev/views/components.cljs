@@ -339,3 +339,14 @@
         :component-did-mount component-did-mount
         :component-will-unmount component-will-unmount
         :reagent-render render}))))
+
+(defn CenteredColumn
+  "Renders a grid column that will take up the full height of its row and
+  vertically center its content within the column and row.
+
+  This is done by wrapping the column content in a nested grid with CSS styles
+  applied to several components."
+  [content class]
+  [:div {:class (str class " vertical-column")}
+   [:div.ui.middle.aligned.grid>div.row>div.middle.aligned.column
+    [:div.vertical-column-content content]]])

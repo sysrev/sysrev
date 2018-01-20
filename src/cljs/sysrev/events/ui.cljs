@@ -42,12 +42,15 @@
         (default-subpanel-uri db path)
         (active-subpanel-uri db path))})))
 
+(defn set-panel-field [db path val & [panel]]
+  (let [panel (or panel (active-panel db))]
+    (assoc-in db (concat [:state :panels panel] path) val)))
+
 (reg-event-db
  :set-panel-field
  [trim-v]
  (fn [db [path val & [panel]]]
-   (let [panel (or panel (active-panel db))]
-     (assoc-in db (concat [:state :panels panel] path) val))))
+   (set-panel-field db path val panel)))
 
 (reg-event-db
  :set-view-field

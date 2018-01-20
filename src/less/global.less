@@ -167,3 +167,17 @@ span.attention {
         padding-bottom: 0.75em;
     }
 }
+
+.column.vertical-column {
+    height: 100%;
+}
+
+.column.vertical-column > div.ui.grid {
+    margin-top: 0;
+    margin-bottom: 0;
+    height: 100%;
+}
+
+.column.vertical-column > div.ui.grid > .row > .column > .vertical-column-content {
+    vertical-align: middle;
+}
