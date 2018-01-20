@@ -146,16 +146,17 @@
               {:transaction? (nil? (or conn *conn*))}))
 
 (defmacro do-transaction
-  "Run body wrapped in an SQL transaction.
+  "Run body wrapped in an SQL transaction. If *conn* is already bound to a
+  transaction, will run body unmodified to use the existing transaction.
 
-  Uses thread-local dynamic binding to hold transaction connection value, so
-  `body` must not make any SQL calls in spawned threads."
+  `body` should not spawn threads that make SQL calls."
   [db & body]
   (assert body "do-transaction: body must not be empty")
-  `(do (assert (nil? *conn*))
-       (j/with-db-transaction [conn# (or ~db @active-db)]
-         (binding [*conn* conn#]
-           (do ~@body)))))
+  `(do (if *conn*
+         (do ~@body)
+         (j/with-db-transaction [conn# (or ~db @active-db)]
+           (binding [*conn* conn#]
+             (do ~@body))))))
 
 (defn sql-now
   "Query current time from database."
