@@ -214,7 +214,7 @@
   (let [project-source-id (project/create-project-source-metadata!
                            project-id
                            (assoc meta :importing-articles? true))]
-    (if use-future?
+    (if (and use-future? (nil? *conn*))
       (future
         (try
           (let [thread-groups (partition-all (quot (count pmids) threads) pmids)

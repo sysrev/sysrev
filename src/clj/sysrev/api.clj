@@ -73,7 +73,7 @@
              (pubmed/get-all-pmids-for-query search-term)
              project-id
              (project/import-pmids-search-term-meta search-term)
-             :use-future? (nil? db/*conn*)
+             :use-future? true
              :threads threads)
             {:result {:success true}})
           (not (empty? search-term-sources))
@@ -109,7 +109,7 @@
                  pmid-vector
                  project-id
                  (project/import-pmids-from-filename-meta filename)
-                 :use-future? (nil? db/*conn*)
+                 :use-future? true
                  :threads threads)
                 {:result {:success true}})
               (not (empty? filename-sources))
