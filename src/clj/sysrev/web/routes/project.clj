@@ -88,8 +88,8 @@
          (let [{:keys [search-term source]} (:body request)
                project-id (active-project request)]
            (api/import-articles-from-search
-            project-id
-            search-term source))))
+            project-id search-term source
+            :threads 3))))
 
   (POST "/api/import-articles-from-file" request
         (wrap-permissions
@@ -100,7 +100,8 @@
                filename (:filename file-data)
                user-id (current-user-id request)]
            (api/import-articles-from-file
-            project-id file filename))))
+            project-id file filename
+            :threads 3))))
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request

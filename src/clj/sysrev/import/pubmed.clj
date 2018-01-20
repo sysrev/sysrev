@@ -15,7 +15,8 @@
             [clojure.data.json :as json]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [clojure.java.jdbc :as jdbc]))
 
 (defn fetch-pmid-xml [pmid]
   (-> (str "https://eutils.ncbi.nlm.nih.gov"
@@ -181,26 +182,27 @@
   (try
     (doseq [pmid pmids]
       (try
-        ;; skip article if already loaded in project
-        (when-not (project/project-contains-public-id (str pmid) project-id)
-          (log/info "importing project article #"
-                    (project/project-article-count project-id))
-          (when-let [article (fetch-pmid-entry pmid)]
-            (doseq [[k v] article]
-              (when (or (nil? v)
-                        (and (coll? v) (empty? v)))
-                (log/debug (format "* field `%s` is empty" (pr-str k)))))
-            (when-let [article-id (add-article
-                                   (dissoc article :locations)
-                                   project-id)]
-              ;; associate this article with a project-source-id
-              (articles/add-article-to-source! article-id project-source-id)
-              (when (not-empty (:locations article))
-                (-> (sqlh/insert-into :article-location)
-                    (values
-                     (->> (:locations article)
-                          (mapv #(assoc % :article-id article-id))))
-                    do-execute)))))
+        (jdbc/with-db-transaction [conn @sysrev.db.core/active-db]
+          ;; bind *conn* to make all do-query/do-execute calls run in this transaction
+          (binding [sysrev.db.core/*conn* conn]
+            ;; skip article if already loaded in project
+            (when-not (project/project-contains-public-id (str pmid) project-id)
+              (when-let [article (fetch-pmid-entry pmid)]
+                (doseq [[k v] article]
+                  (when (or (nil? v)
+                            (and (coll? v) (empty? v)))
+                    (log/debug (format "* field `%s` is empty" (pr-str k)))))
+                (when-let [article-id (add-article
+                                       (dissoc article :locations)
+                                       project-id)]
+                  ;; associate this article with a project-source-id
+                  (articles/add-article-to-source! article-id project-source-id)
+                  (when (not-empty (:locations article))
+                    (-> (sqlh/insert-into :article-location)
+                        (values
+                         (->> (:locations article)
+                              (mapv #(assoc % :article-id article-id))))
+                        do-execute)))))))
         (catch Throwable e
           (println (format "error importing pmid #%s" pmid) ":" (.getMessage e)))))
     (finally
@@ -208,17 +210,30 @@
 
 (defn import-pmids-to-project-with-meta!
   "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
-  [pmids project-id meta & {:keys [use-future?] :or {use-future? false}}]
+  [pmids project-id meta & {:keys [use-future? threads]
+                            :or {use-future? false threads 1}}]
   (let [project-source-id (project/create-project-source-metadata!
                            project-id
                            (assoc meta :importing-articles? true))]
     (if use-future?
       (future
         (try
-          ;; import the data
-          (import-pmids-to-project pmids project-id project-source-id)
+          (let [thread-groups (partition-all (quot (count pmids) threads) pmids)
+                thread-results
+                (->> thread-groups
+                     (mapv (fn [thread-pmids]
+                             (future
+                               (try
+                                 (import-pmids-to-project thread-pmids project-id project-source-id)
+                                 true
+                                 (catch Throwable e
+                                   (println "Error in import-pmids-to-project-with-meta! (inner future)" (.getMessage e))
+                                   false)))))
+                     (mapv deref))]
+            true)
           (catch Throwable e
-            (println "Error in import-pmids-to-project-with-meta!" (.getMessage e)))
+            (println "Error in import-pmids-to-project-with-meta! (outer future)" (.getMessage e))
+            false)
           (finally
             ;; set meta data importing status to false
             (project/update-project-source-metadata! project-source-id (assoc meta
@@ -283,10 +298,3 @@
   file of PMIDs."
   [project-id path]
   (import-pmids-to-project (load-pmids-file path) project-id))
-
-;; Used to import project from PMID list file
-#_
-(let [{:keys [project-id]} (create-project "Tox21")]
-  (-> "/insilica/tox21-pmids.txt"
-      load-pmids-file
-      (import-pmids-to-project 102)))

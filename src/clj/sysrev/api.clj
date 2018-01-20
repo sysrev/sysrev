@@ -58,7 +58,7 @@
   cannot have multiple 'foo bar' searches for one project over
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
-  [project-id search-term source]
+  [project-id search-term source & {:keys [threads] :or {threads 1}}]
   (let [project-sources (project/project-sources project-id)
         search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)]
     (cond (not (project/project-exists? project-id))
@@ -73,7 +73,8 @@
              (pubmed/get-all-pmids-for-query search-term)
              project-id
              (project/import-pmids-search-term-meta search-term)
-             :use-future? (nil? db/*conn*))
+             :use-future? (nil? db/*conn*)
+             :threads threads)
             {:result {:success true}})
           (not (empty? search-term-sources))
           {:result {:success true}}
@@ -81,15 +82,18 @@
           {:error {:status 403
                    :message "Unknown event occurred"}})))
 
+(s/def ::threads integer?)
+
 (s/fdef import-articles-from-search
         :args (s/cat :project-id int?
                      :search-term string?
-                     :source string?)
+                     :source string?
+                     :keys (s/keys :opt-un [::threads]))
         :ret map?)
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
-  [project-id file filename]
+  [project-id file filename & {:keys [threads] :or {threads 1}}]
   (let [project-sources (project/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
@@ -105,7 +109,8 @@
                  pmid-vector
                  project-id
                  (project/import-pmids-from-filename-meta filename)
-                 :use-future? (nil? db/*conn*))
+                 :use-future? (nil? db/*conn*)
+                 :threads threads)
                 {:result {:success true}})
               (not (empty? filename-sources))
               {:result {:success true}}
@@ -115,7 +120,6 @@
       (catch Throwable e
         {:error {:status 403
                  :message "Error parsing file"}}))))
-
 
 (defn project-sources
   "Return sources for project-id"
