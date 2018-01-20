@@ -88,7 +88,7 @@
         :args (s/cat :project-id int?
                      :search-term string?
                      :source string?
-                     :keys (s/keys :opt-un [::threads]))
+                     :keys (s/keys* :opt-un [::threads]))
         :ret map?)
 
 (defn import-articles-from-file
