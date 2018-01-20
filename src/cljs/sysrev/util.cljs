@@ -213,5 +213,5 @@
   (js/setTimeout #(if (pred)
                     (when on-success (on-success))
                     (do (f)
-                        (continuous-update-until f pred n)))
+                        (continuous-update-until f pred on-success n)))
                  n))
