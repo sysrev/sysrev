@@ -83,7 +83,7 @@
      {:method method
       :uri uri
       :params content
-      :timeout 5000
+      :timeout (* 2 60 1000)
       :format (condp = content-type
                 "application/transit+json" (ajax/transit-request-format)
                 "application/json" (ajax/json-request-format))

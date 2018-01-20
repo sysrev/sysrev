@@ -90,15 +90,17 @@
              content (some-> (:content entry) (apply args))
              content-type (or (:content-type entry)
                               "application/transit+json")]
-         (run-ajax
-          (cond->
-              {:db db
-               :method (or (:method entry) :post)
-               :uri uri
-               :on-success [::on-success [name args]]
-               :on-failure [::on-failure [name args]]
-               :content-type content-type}
-              content (assoc :content content))))))))
+         (merge
+          (run-ajax
+           (cond->
+               {:db db
+                :method (or (:method entry) :post)
+                :uri uri
+                :on-success [::on-success [name args]]
+                :on-failure [::on-failure [name args]]
+                :content-type content-type}
+             content (assoc :content content)))
+          {::sent item}) )))))
 
 (reg-event-ajax-fx
  ::on-success
