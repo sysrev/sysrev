@@ -90,38 +90,52 @@
       [:h3 "PMIDs taken from facts"]
       [:h3 "Unknown Source"])))
 
+(defonce polling-sources? (r/atom false))
+
+(defn poll-project-sources [source-id]
+  (when (not @polling-sources?)
+    (reset! polling-sources? true)
+    (dispatch [:fetch [:project/sources]])
+    (let [source-updating? (fn [source-id]
+                             (->> @(subscribe [:project/sources])
+                                  (filter #(= (:source-id %)
+                                              source-id))
+                                  first :meta :importing-articles?))]
+      (continuous-update-until #(dispatch [:fetch [:project/sources]])
+                               #(not (source-updating? source-id))
+                               #(do (reset! polling-sources? false)
+                                    (dispatch [:reload [:project]]))
+                               1500))))
+
 (defn ArticleSource
   [state]
-  (let [source-updating? (fn [source-id]
-                           (->> @(subscribe [:project/sources])
-                                (filter #(= (:source-id %)
-                                            source-id))
-                                first :meta :importing-articles?))]
-    (fn [source]
-      (let [{:keys [meta source-id article-count labeled-article-count]} source
-            {:keys [importing-articles?]} meta]
-        [:div.project-source.ui.segment
-         [:div.ui.grid
-          [:div {:class (str (if-not importing-articles?
-                               "eleven"
-                               "fifteen") " wide column")}
-           [MetaDisplay meta]]
-          ;; when articles are still loading
-          (when importing-articles?
-            (continuous-update-until #(dispatch [:fetch [:project/sources]])
-                                     #(not (source-updating? source-id))
-                                     #(dispatch [:reload [:project]])
-                                     1000)
-            [:div.one.wide.column.right.aligned
-             [:div.ui.active.loader [:div.ui.loader]]])
-          ;; when articles have been imported
-          (when-not importing-articles?
-            [:div.five.wide.column.right.aligned
-             [:div [:div (str (.toLocaleString labeled-article-count)
-                              " of "
-                              (.toLocaleString article-count) " articles reviewed")]
-              (when (<= labeled-article-count 0)
-                [DeleteArticleSource source-id])]])]]))))
+  (fn [source]
+    (let [{:keys [meta source-id article-count labeled-article-count]} source
+          {:keys [importing-articles?]} meta
+          polling? @polling-sources?]
+      [:div.project-source.ui.segment
+       [:div.ui.grid
+        [:div {:class (str (if-not importing-articles?
+                             "eleven"
+                             "eleven") " wide column")}
+         [MetaDisplay meta]]
+        ;; when articles are still loading
+        (when importing-articles?
+          (poll-project-sources source-id))
+        (when (and importing-articles? polling?)
+          [:div.four.wide.column.right.aligned
+           [:div (str (.toLocaleString article-count) " articles loaded")]])
+        (when (and importing-articles? polling?)
+          [:div.one.wide.column.right.aligned
+           [:div.ui.active.loader [:div.ui.loader]]])
+        ;; when articles have been imported
+        (when (not importing-articles?)
+          [:div.five.wide.column.right.aligned
+           [:div [:div (str (.toLocaleString labeled-article-count)
+                            " of "
+                            (.toLocaleString article-count) " articles reviewed")]
+            (when (<= labeled-article-count 0)
+              [DeleteArticleSource source-id])]])]])))
 
 (defn ProjectSources
   [state]

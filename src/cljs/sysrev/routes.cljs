@@ -170,6 +170,11 @@
             "/login"]))
 
 (sr-defroute
+ register-user "/register" []
+ (dispatch [:set-active-panel [:register]
+            "/register"]))
+
+(sr-defroute
  register-project "/register/:register-hash" [register-hash]
  (dispatch [:set-active-panel [:register]
             (str "/register/" register-hash)])

@@ -8,7 +8,8 @@
 
 (defn loading-indicator []
   (let [;; ready? @(subscribe [:data/ready?])
-        loading? @(subscribe [:any-loading?])
+        loading? (and @(subscribe [:any-loading?])
+                      (not @(subscribe [:loading? [:project/sources]])))
         action? @(subscribe [:action/any-running?])]
     (when (or loading? action? #_ (not ready?))
       [:div.ui.small.active.inline.loader])))

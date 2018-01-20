@@ -11,6 +11,7 @@
    [sysrev.views.panels.pubmed]
    [sysrev.views.panels.select-project]
    [sysrev.views.panels.user-settings]
+   [sysrev.views.panels.project.common]
    [sysrev.views.panels.project.add-articles]
    [sysrev.views.panels.project.main]
    [sysrev.views.panels.project.overview]
