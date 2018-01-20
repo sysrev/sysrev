@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute do-transaction]]
+            [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
             [sysrev.db.labels :as l]

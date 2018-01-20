@@ -6,12 +6,17 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [clojure.java.jdbc :as j]
    [sysrev.db.core :refer
-    [do-query do-execute do-transaction make-db-config]]
+    [do-query do-execute with-transaction with-transaction-on-db make-db-config]]
    [sysrev.db.queries :as q]
    [sysrev.db.articles :refer [article-to-sql]]
    [sysrev.shared.util :refer [map-values in?]]
    [clojure.pprint :as pprint]))
 
+;;;
+;;; NOTE: This code is extremely outdated
+;;;
+
+#_
 (defn transfer-project
   "Transfers all database entries for a project from a source Postgres server
   to a destination Postgres server."
@@ -45,87 +50,87 @@
                (do-query src-db))]]
       (assert ((comp not empty?) src-articles)
               "source project has no articles")
-      (do-transaction
-       dest-db
-       (let [dest-project-id
-             (-> (insert-into :project)
-                 (values
-                  [(-> src-project
-                       (dissoc :project-id))])
-                 (returning :project-id)
-                 do-query first :project-id)
-             _ (println "created project entry")
-             dest-labels
-             (-> (insert-into :label)
-                 (values
-                  (->>
-                   src-labels
-                   (mapv
-                    #(-> %
-                         (dissoc :label-id-local)
-                         (assoc :project-id dest-project-id)))))
-                 (returning :*)
-                 do-query)
-             _ (println "created label entries")
-             dest-article-ids
-             (zipmap
-              (mapv :article-id src-articles)
+      (with-transaction-on-db
+        dest-db
+        (let [dest-project-id
+              (-> (insert-into :project)
+                  (values
+                   [(-> src-project
+                        (dissoc :project-id))])
+                  (returning :project-id)
+                  do-query first :project-id)
+              _ (println "created project entry")
+              dest-labels
+              (-> (insert-into :label)
+                  (values
+                   (->>
+                    src-labels
+                    (mapv
+                     #(-> %
+                          (dissoc :label-id-local)
+                          (assoc :project-id dest-project-id)))))
+                  (returning :*)
+                  do-query)
+              _ (println "created label entries")
+              dest-article-ids
+              (zipmap
+               (mapv :article-id src-articles)
+               (->>
+                src-articles
+                (partition-all 25)
+                vec
+                (mapv
+                 (fn [agroup]
+                   (j/with-db-connection [db-conn dest-db]
+                     (->>
+                      (-> (insert-into :article)
+                          (values
+                           (->>
+                            agroup
+                            (mapv
+                             #(-> %
+                                  (article-to-sql db-conn)
+                                  (dissoc :article-id)
+                                  (assoc :project-id dest-project-id)))))
+                          (returning :article-id)
+                          do-query)
+                      (mapv :article-id)))))
+                (apply concat)))
+              _ (println "created article entries")
+              dest-locations
               (->>
-               src-articles
-               (partition-all 25)
+               src-locations
+               (partition-all 50)
                vec
                (mapv
-                (fn [agroup]
-                  (j/with-db-connection [db-conn dest-db]
-                    (->>
-                     (-> (insert-into :article)
-                         (values
-                          (->>
-                           agroup
-                           (mapv
-                            #(-> %
-                                 (article-to-sql db-conn)
-                                 (dissoc :article-id)
-                                 (assoc :project-id dest-project-id)))))
-                         (returning :article-id)
-                         do-query)
-                     (mapv :article-id)))))
-               (apply concat)))
-             _ (println "created article entries")
-             dest-locations
-             (->>
-              src-locations
-              (partition-all 50)
-              vec
-              (mapv
-               (fn [lgroup]
-                 (->>
-                  (-> (insert-into :article-location)
-                      (values
-                       (->>
-                        lgroup
-                        (mapv
-                         (fn [sl]
-                           (-> sl
-                               (dissoc :location-id)
-                               (update :article-id
-                                       #(get dest-article-ids %)))))))
-                      (returning :location-id)
-                      do-query)
-                  (mapv :location-id))))
-              (apply concat))
-             _ (println "created article-location entries")]
-         (println)
-         ;;(println (str "dest-article-ids = " (pr-str dest-article-ids)))
-         (println "----------------------------------")
-         (println
-          (format "labels : [%d, %d]"
-                  (count src-labels) (count dest-labels)))
-         (println
-          (format "articles : [%d, %d]"
-                  (count src-articles) (count dest-article-ids)))
-         (println
-          (format "locations : [%d, %d]"
-                  (count src-locations) (count dest-locations)))
-         (println "----------------------------------")
-         (println "done"))))))
+                (fn [lgroup]
+                  (->>
+                   (-> (insert-into :article-location)
+                       (values
+                        (->>
+                         lgroup
+                         (mapv
+                          (fn [sl]
+                            (-> sl
+                                (dissoc :location-id)
+                                (update :article-id
+                                        #(get dest-article-ids %)))))))
+                       (returning :location-id)
+                       do-query)
+                   (mapv :location-id))))
+               (apply concat))
+              _ (println "created article-location entries")]
+          (println)
+          ;;(println (str "dest-article-ids = " (pr-str dest-article-ids)))
+          (println "----------------------------------")
+          (println
+           (format "labels : [%d, %d]"
+                   (count src-labels) (count dest-labels)))
+          (println
+           (format "articles : [%d, %d]"
+                   (count src-articles) (count dest-article-ids)))
+          (println
+           (format "locations : [%d, %d]"
+                   (count src-locations) (count dest-locations)))
+          (println "----------------------------------")
+          (println "done"))))))

@@ -1,6 +1,6 @@
 (ns sysrev.db.files
   (:require [sysrev.db.core :as db :refer
-             [do-query do-query-map do-execute do-transaction
+             [do-query do-query-map do-execute
               sql-now to-sql-array to-jsonb sql-cast
               with-query-cache clear-query-cache
               with-project-cache clear-project-cache]]

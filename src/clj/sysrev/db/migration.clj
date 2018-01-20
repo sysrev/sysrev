@@ -8,7 +8,7 @@
              [add-project-member set-member-permissions
               default-project-settings]]
             [sysrev.db.core :refer
-             [do-query do-query-map do-execute do-transaction
+             [do-query do-query-map do-execute with-transaction
               to-sql-array with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions generate-api-token]]
@@ -255,39 +255,38 @@
             (print-cause-trace e)))))))
 
 (defn ensure-predict-label-ids []
-  (do-transaction
-   nil
-   (doseq [{:keys [criteria-id project-id name]}
-           (-> (select :criteria-id :project-id :name)
-               (from :criteria)
-               do-query)]
-     (let [{:keys [label-id]}
-           (q/query-label-by-name project-id name [:label-id])]
-       (assert label-id "label entry not found")
-       (let [result
-             (-> (sqlh/update :label-similarity)
-                 (where [:and
-                         [:= :criteria-id criteria-id]
-                         [:= :label-id nil]])
-                 (sset {:label-id label-id})
-                 do-execute)]
-         (when (not= result '(0))
-           (println
-            (format "updated label_similarity [%d, '%s'] : %s rows changed"
-                    project-id name
-                    (pr-str result)))))
-       (let [result
-             (-> (sqlh/update :label-predicts)
-                 (where [:and
-                         [:= :criteria-id criteria-id]
-                         [:= :label-id nil]])
-                 (sset {:label-id label-id})
-                 do-execute)]
-         (when (not= result '(0))
-           (println
-            (format "updated label_predicts [%d, '%s'] : %s rows changed"
-                    project-id name
-                    (pr-str result)))))))))
+  (with-transaction
+    (doseq [{:keys [criteria-id project-id name]}
+            (-> (select :criteria-id :project-id :name)
+                (from :criteria)
+                do-query)]
+      (let [{:keys [label-id]}
+            (q/query-label-by-name project-id name [:label-id])]
+        (assert label-id "label entry not found")
+        (let [result
+              (-> (sqlh/update :label-similarity)
+                  (where [:and
+                          [:= :criteria-id criteria-id]
+                          [:= :label-id nil]])
+                  (sset {:label-id label-id})
+                  do-execute)]
+          (when (not= result '(0))
+            (println
+             (format "updated label_similarity [%d, '%s'] : %s rows changed"
+                     project-id name
+                     (pr-str result)))))
+        (let [result
+              (-> (sqlh/update :label-predicts)
+                  (where [:and
+                          [:= :criteria-id criteria-id]
+                          [:= :label-id nil]])
+                  (sset {:label-id label-id})
+                  do-execute)]
+          (when (not= result '(0))
+            (println
+             (format "updated label_predicts [%d, '%s'] : %s rows changed"
+                     project-id name
+                     (pr-str result)))))))))
 
 (defn ensure-label-inclusion-values [& [force?]]
   (let [project-ids

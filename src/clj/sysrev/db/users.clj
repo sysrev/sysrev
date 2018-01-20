@@ -4,7 +4,7 @@
    [sysrev.shared.spec.core :as sc]
    [sysrev.shared.spec.users :as su]
    [sysrev.db.core :refer
-    [do-query do-execute sql-now to-sql-array do-transaction to-jsonb]]
+    [do-query do-execute sql-now to-sql-array with-transaction to-jsonb]]
    [sysrev.shared.util :refer [map-values in?]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]

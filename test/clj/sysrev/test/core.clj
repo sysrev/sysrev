@@ -11,7 +11,7 @@
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :refer [set-active-db! make-db-config close-active-db
-                                    clear-query-cache *conn* active-db]]))
+                                    clear-query-cache with-rollback-transaction]]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
@@ -78,10 +78,8 @@
 ;; https://stackoverflow.com/questions/449346/mysql-auto-increment-does-not-rollback
 ;; https://www.postgresql.org/message-id/501B1494.9040502@ringerc.id.au
 (defn database-rollback-fixture [test]
-  (jdbc/with-db-transaction [db @active-db]
-    (jdbc/db-set-rollback-only! db)
-    (binding [*conn* db] ;; rebind dynamic var db, used in tests
-      (test))))
+  (with-rollback-transaction
+    (test)))
 
 (defmacro completes? [form]
   `(do ~form true))

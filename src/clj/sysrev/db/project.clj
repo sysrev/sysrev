@@ -16,7 +16,7 @@
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache
      clear-project-cache clear-query-cache cached-project-ids to-jsonb
-     do-transaction]]
+     with-transaction]]
    [sysrev.db.articles :refer
     [set-article-flag remove-article-flag article-to-sql]]
    [sysrev.db.queries :as q]
@@ -331,37 +331,36 @@
         user-id (q/to-user-id user-id)]
     (assert (integer? project-id))
     (assert (integer? user-id))
-    (do-transaction
-     nil
-     (-> (delete-from [:article-label :al])
-         (q/filter-label-user user-id)
-         (merge-where
-          [:exists
-           (q/select-article-where
-            project-id [:= :a.article-id :al.article-id] [:*])])
-         do-execute)
-     (-> (delete-from [:article-label-history :alh])
-         (merge-where
-          [:and
-           [:= :alh.user-id user-id]
+    (with-transaction
+      (-> (delete-from [:article-label :al])
+          (q/filter-label-user user-id)
+          (merge-where
            [:exists
-            (-> (select :*)
-                (from [:article :a])
-                (where [:and
-                        [:= :a.project-id project-id]
-                        [:= :a.article-id :alh.article-id]]))]])
-         do-execute)
-     (-> (delete-from [:article-note :an])
-         (merge-where
-          [:and
-           [:= :an.user-id user-id]
-           [:exists
-            (-> (select :*)
-                (from [:project-note :pn])
-                (where [:and
-                        [:= :pn.project-note-id :an.project-note-id]
-                        [:= :pn.project-id project-id]]))]])
-         do-execute))
+            (q/select-article-where
+             project-id [:= :a.article-id :al.article-id] [:*])])
+          do-execute)
+      (-> (delete-from [:article-label-history :alh])
+          (merge-where
+           [:and
+            [:= :alh.user-id user-id]
+            [:exists
+             (-> (select :*)
+                 (from [:article :a])
+                 (where [:and
+                         [:= :a.project-id project-id]
+                         [:= :a.article-id :alh.article-id]]))]])
+          do-execute)
+      (-> (delete-from [:article-note :an])
+          (merge-where
+           [:and
+            [:= :an.user-id user-id]
+            [:exists
+             (-> (select :*)
+                 (from [:project-note :pn])
+                 (where [:and
+                         [:= :pn.project-note-id :an.project-note-id]
+                         [:= :pn.project-id project-id]]))]])
+          do-execute))
     (clear-project-cache project-id)
     true))
 ;;

@@ -2,7 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.db.core :as db :refer
-             [do-query do-query-map do-execute do-transaction
+             [do-query do-query-map do-execute with-transaction
               sql-now to-sql-array to-jsonb sql-cast
               with-query-cache clear-query-cache
               with-project-cache clear-project-cache]]
@@ -393,22 +393,21 @@
 
 (defn copy-project-user-labels [project-id src-user-id dest-user-id]
   (let [articles (user-all-labels-map project-id src-user-id)]
-    (do-transaction
-     nil
-     (doseq [[article-id article-entries] articles]
-       (-> (delete-from [:article-label :al])
-           (merge-where [:and
-                         [:= :al.article-id article-id]
-                         [:= :al.user-id dest-user-id]])
-           do-execute)
-       (doseq [entry article-entries]
-         (let [new-entry (-> entry
-                             (assoc :user-id dest-user-id)
-                             (dissoc :article-label-local-id :article-label-id)
-                             (update :answer to-jsonb))]
-           (-> (insert-into :article-label)
-               (values [new-entry])
-               do-execute)))))))
+    (with-transaction
+      (doseq [[article-id article-entries] articles]
+        (-> (delete-from [:article-label :al])
+            (merge-where [:and
+                          [:= :al.article-id article-id]
+                          [:= :al.user-id dest-user-id]])
+            do-execute)
+        (doseq [entry article-entries]
+          (let [new-entry (-> entry
+                              (assoc :user-id dest-user-id)
+                              (dissoc :article-label-local-id :article-label-id)
+                              (update :answer to-jsonb))]
+            (-> (insert-into :article-label)
+                (values [new-entry])
+                do-execute)))))))
 
 (defn article-user-labels-map [project-id article-id]
   (->>
@@ -459,24 +458,23 @@
           (println
            (format "keeping %d labels for user=%s"
                    (count keep-labels) user-id))
-          (do-transaction
-           nil
-           (doseq [article-id article-ids]
-             (-> (delete-from :article-label)
-                 (where [:and
-                         [:= :article-id article-id]
-                         [:= :user-id user-id]])
-                 do-execute)
-             (-> (insert-into :article-label)
-                 (values
-                  (->> keep-labels
-                       (map
-                        #(-> %
-                             (assoc :article-id article-id)
-                             (update :answer to-jsonb)
-                             (dissoc :article-label-id)
-                             (dissoc :article-label-local-id)))))
-                 do-execute))))))
+          (with-transaction
+            (doseq [article-id article-ids]
+              (-> (delete-from :article-label)
+                  (where [:and
+                          [:= :article-id article-id]
+                          [:= :user-id user-id]])
+                  do-execute)
+              (-> (insert-into :article-label)
+                  (values
+                   (->> keep-labels
+                        (map
+                         #(-> %
+                              (assoc :article-id article-id)
+                              (update :answer to-jsonb)
+                              (dissoc :article-label-id)
+                              (dissoc :article-label-local-id)))))
+                  do-execute))))))
     true))
 
 (defn get-user-article-labels [user-id article-id]
@@ -560,8 +558,6 @@
   (assert (integer? user-id))
   (assert (integer? article-id))
   (assert (map? label-values))
-  #_  (do-transaction
-       nil)
   (let [valid-values (->> label-values filter-valid-label-values)
         now (sql-now)
         project-id (:project-id (q/query-article-by-id article-id [:project-id]))
@@ -605,7 +601,7 @@
                            :imported (boolean imported?)
                            :resolve (boolean resolve?)
                            :inclusion inclusion}
-                          confirm? (merge {:confirm-time now}))))))]
+                        confirm? (merge {:confirm-time now}))))))]
     (doseq [label-id existing-label-ids]
       (when (contains? valid-values label-id)
         (let [label (get (all-labels-cached) label-id)
@@ -620,7 +616,7 @@
                          :imported (boolean imported?)
                          :resolve (boolean resolve?)
                          :inclusion inclusion}
-                        confirm? (merge {:confirm-time now})))
+                      confirm? (merge {:confirm-time now})))
               (where [:and
                       [:= :article-id article-id]
                       [:= :user-id user-id]

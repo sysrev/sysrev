@@ -7,7 +7,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
-             [do-query do-execute do-transaction sql-now to-sql-array to-jsonb
+             [do-query do-execute sql-now to-sql-array to-jsonb
               sql-field with-project-cache clear-project-cache with-query-cache
               clear-query-cache sql-array-contains]]
             [sysrev.shared.util :refer [in?]])

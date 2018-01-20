@@ -24,7 +24,7 @@
 ;; Active database connection pool object
 (defonce active-db (atom nil))
 
-;; This is used to bind a transaction connection in do-transaction.
+;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
 
 (defn make-db-config
@@ -145,16 +145,40 @@
               (-> sql-map prepare-honeysql-map sql/format)
               {:transaction? (nil? (or conn *conn*))}))
 
-(defmacro do-transaction
+(defmacro with-transaction
   "Run body wrapped in an SQL transaction. If *conn* is already bound to a
   transaction, will run body unmodified to use the existing transaction.
 
   `body` should not spawn threads that make SQL calls."
-  [db & body]
-  (assert body "do-transaction: body must not be empty")
+  [& body]
+  (assert body "with-transaction: body must not be empty")
   `(do (if *conn*
          (do ~@body)
-         (j/with-db-transaction [conn# (or ~db @active-db)]
+         (j/with-db-transaction [conn# @active-db]
+           (binding [*conn* conn#]
+             (do ~@body))))))
+
+(defmacro with-rollback-transaction
+  "Like with-transaction, but sets rollback-only option on the transaction,
+  and will throw an exception if used within an existing transaction."
+  [& body]
+  (assert body "with-rollback-transaction: body must not be empty")
+  `(do (assert (nil? *conn*)
+               "with-rollback-transaction: can't be used within existing transaction")
+       (j/with-db-transaction [conn# @active-db]
+         (j/db-set-rollback-only! conn#)
+         (binding [*conn* conn#]
+           (do ~@body)))))
+
+(defmacro with-transaction-on-db
+  "Like with-transaction, but takes a db value as an argument instead
+  of using the value from the active-db atom."
+  [db & body]
+  (assert db "with-transaction-on-db: db must not be nil")
+  (assert body "with-transaction-on-db: body must not be empty")
+  `(do (if *conn*
+         (do ~@body)
+         (j/with-db-transaction [conn# ~db]
            (binding [*conn* conn#]
              (do ~@body))))))
 

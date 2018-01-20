@@ -1,6 +1,6 @@
 (ns sysrev.import.pubmed
   (:require [sysrev.db.core :refer
-             [do-query do-execute do-transaction clear-project-cache to-jsonb *conn*]]
+             [do-query do-execute with-transaction clear-project-cache to-jsonb *conn*]]
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.util :refer
@@ -182,26 +182,25 @@
   (try
     (doseq [pmid pmids]
       (try
-        (do-transaction
-         nil
-         ;; skip article if already loaded in project
-         (when-not (project/project-contains-public-id (str pmid) project-id)
-           (when-let [article (fetch-pmid-entry pmid)]
-             (doseq [[k v] article]
-               (when (or (nil? v)
-                         (and (coll? v) (empty? v)))
-                 (log/debug (format "* field `%s` is empty" (pr-str k)))))
-             (when-let [article-id (add-article
-                                    (dissoc article :locations)
-                                    project-id)]
-               ;; associate this article with a project-source-id
-               (articles/add-article-to-source! article-id project-source-id)
-               (when (not-empty (:locations article))
-                 (-> (sqlh/insert-into :article-location)
-                     (values
-                      (->> (:locations article)
-                           (mapv #(assoc % :article-id article-id))))
-                     do-execute))))))
+        (with-transaction
+          ;; skip article if already loaded in project
+          (when-not (project/project-contains-public-id (str pmid) project-id)
+            (when-let [article (fetch-pmid-entry pmid)]
+              (doseq [[k v] article]
+                (when (or (nil? v)
+                          (and (coll? v) (empty? v)))
+                  (log/debug (format "* field `%s` is empty" (pr-str k)))))
+              (when-let [article-id (add-article
+                                     (dissoc article :locations)
+                                     project-id)]
+                ;; associate this article with a project-source-id
+                (articles/add-article-to-source! article-id project-source-id)
+                (when (not-empty (:locations article))
+                  (-> (sqlh/insert-into :article-location)
+                      (values
+                       (->> (:locations article)
+                            (mapv #(assoc % :article-id article-id))))
+                      do-execute))))))
         (catch Throwable e
           (println (format "error importing pmid #%s" pmid) ":" (.getMessage e)))))
     (finally

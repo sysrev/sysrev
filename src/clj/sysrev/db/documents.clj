@@ -1,8 +1,7 @@
 (ns sysrev.db.documents
   (:require
    [sysrev.shared.util :refer [map-values]]
-   [sysrev.db.core :refer
-    [do-query do-execute do-transaction to-sql-array]]
+   [sysrev.db.core :refer [do-query do-execute to-sql-array]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [me.raynes.fs :as fs]
