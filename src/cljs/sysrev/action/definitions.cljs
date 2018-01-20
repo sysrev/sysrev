@@ -203,10 +203,19 @@
       {:dispatch-n
        (list
         ;; send out event to check for article sources
-        [:fetch [:project/project-sources]]
+        [:reload [:project/sources]]
         ;; clear state of pubmed.cljs
         [:add-articles/reset-state!])}
       ;; does nothing, code should be created
       {:dispatch-n
        ;; (list [:set-import-articles-error-msg message])
        (list)})))
+
+(def-action :sources/delete
+  :uri (fn [] "/api/delete-source")
+  :content (fn [source-id]
+             {:source-id source-id})
+  :process
+  (fn [_ _ {:keys [success] :as result}]
+    (if success
+      {:dispatch [:reload [:project]]})))

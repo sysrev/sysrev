@@ -206,10 +206,12 @@
     (js/setTimeout #(ensure-dom-elt-visible selector) ms)))
 
 (defn continuous-update-until
-  "Call f continuously every n seconds until pred is satisified. pred
-  must be a fn."
-  [f pred n]
-  (js/setTimeout #(when (not (pred))
-                    (f)
-                    (continuous-update-until f pred n))
+  "Call f continuously every n milliseconds until pred is satisified. pred
+  must be a fn. on-success (unless nil) will be called one time after
+  pred is satisified."
+  [f pred on-success n]
+  (js/setTimeout #(if (pred)
+                    (when on-success (on-success))
+                    (do (f)
+                        (continuous-update-until f pred n)))
                  n))

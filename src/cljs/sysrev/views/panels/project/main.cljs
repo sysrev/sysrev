@@ -120,12 +120,7 @@
       (with-loader [[:project]] {}
         (let [project-name @(subscribe [:project/name])
               admin? @(subscribe [:user/admin?])
-              projects @(subscribe [:self/projects])
-              {:keys [total]}
-              @(subscribe [:project/article-counts])]
-          (when (and (not (nil? total))
-                     (<= total 0))
-            (routes/nav-scroll-top "/project/add-articles"))
+              projects @(subscribe [:self/projects])]
           [:div
            [project-header
             project-name

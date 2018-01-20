@@ -438,7 +438,7 @@
 
 (defn project-info [project-id]
   (let [[fields predict articles status-counts members
-         users keywords notes settings files documents progress]
+         users keywords notes settings files documents progress sources]
         (pvalues (q/query-project-by-id project-id [:*])
                  (predict-summary (q/project-latest-predict-run-id project-id))
                  (project-article-count project-id)
@@ -450,7 +450,8 @@
                  (project-settings project-id)
                  (project-files project-id)
                  (docs/all-article-document-paths project-id)
-                 (labels/query-progress-over-time project-id 30))]
+                 (labels/query-progress-over-time project-id 30)
+                 (project/project-sources project-id))]
     {:project {:project-id project-id
                :name (:name fields)
                :project-uuid (:project-uuid fields)
@@ -464,5 +465,6 @@
                :notes notes
                :settings settings
                :files files
-               :documents documents}
+               :documents documents
+               :sources sources}
      :users users}))

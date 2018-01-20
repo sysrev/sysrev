@@ -11,7 +11,7 @@
    [sysrev.views.panels.project.add-articles :refer [AddArticles]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
-   [sysrev.routes :refer [nav-scroll-top]]
+   [sysrev.routes :as routes]
    [sysrev.util :refer [full-size?]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
@@ -20,7 +20,7 @@
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn nav-article-status [[inclusion group-status]]
-  (nav-scroll-top "/project/articles")
+  (routes/nav-scroll-top "/project/articles")
   (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
   (dispatch [:public-labels/set-group-status group-status])
   (dispatch [:public-labels/set-inclusion-status inclusion]))
@@ -277,9 +277,10 @@
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
-    (let [{:keys [total]}
-          @(subscribe [:project/article-counts])]
+    (let [has-articles? @(subscribe [:project/has-articles?])]
       [:div.project-content
-       (when (> total 0)
+       (if (false? has-articles?)
+         (do (routes/nav-scroll-top "/project/add-articles")
+             [:div])
          [project-overview-panel])
        child])))

@@ -16,7 +16,9 @@
   (contains? (get-in db [:data :project]) (active-project-id db)))
 
 (defn project-sources-loaded? [db]
-  (nil? (get-in db [:data :project (active-project-id db) :sources])))
+  (contains?
+   (get-in db [:data :project (active-project-id db)])
+   :sources))
 
 (defn get-project-raw [db project-id]
   (get-in db [:data :project project-id]))
@@ -44,11 +46,11 @@
    (:name project)))
 
 (reg-sub
-  :project/files
-  (fn [[_ project-id]]
-    [(subscribe [:project/raw project-id])])
-  (fn [[project]]
-    (:files project)))
+ :project/files
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]]
+   (:files project)))
 
 (reg-sub
  :project/uuid
@@ -151,3 +153,10 @@
  :project/sources
  (fn [db]
    (get-in db [:data :project (active-project-id db) :sources])))
+
+(reg-sub
+ :project/has-articles?
+ (fn [[_ project-id]]
+   [(subscribe [:project/article-counts project-id])])
+ (fn [[{:keys [total]}]]
+   (when total (> total 0))))

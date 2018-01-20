@@ -32,7 +32,7 @@
           basic-text-button "/api/import-articles-from-file"
           (fn []
             (.log js/console "file uploaded")
-            (dispatch [:fetch [:project/project-sources]]))
+            (dispatch [:reload [:project/sources]]))
           "Upload File"]]]])))
 
 (defn AddPubMedArticles
@@ -59,26 +59,14 @@
           [:br]
           [SearchPanel pubmed/state]])])))
 
-(def-action :sources/delete-source
-  :uri (fn [] "/api/delete-source")
-  :content (fn [source-id]
-             {:source-id source-id})
-  :process
-  (fn [_ _ {:keys [success] :as result}]
-    (if success
-      {:dispatch-n
-       (list
-        [:fetch [:project/project-sources]])})))
-
 (defn DeleteArticleSource
   [source-id]
   [:a {:href "#"
        :on-click (fn [event]
                    (.preventDefault event)
                    (dispatch
-                    [:action [:sources/delete-source source-id]]))}
+                    [:action [:sources/delete source-id]]))}
    "Delete Source"])
-
 
 (defn MetaDisplay
   [meta]
@@ -113,8 +101,9 @@
            [MetaDisplay meta]]
           ;; when articles are still loading
           (when importing-articles?
-            (continuous-update-until #(dispatch [:fetch [:project/project-sources]])
+            (continuous-update-until #(dispatch [:fetch [:project/sources]])
                                      #(not (source-updating? source-id))
+                                     #(dispatch [:reload [:project]])
                                      1000)
             [:div.one.wide.column.right.aligned
              [:div.ui.active.loader [:div.ui.loader]]])
