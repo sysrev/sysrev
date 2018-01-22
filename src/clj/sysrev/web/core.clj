@@ -32,6 +32,8 @@
     site-routes
     project-routes))
 
+(load-app-routes)
+
 (defroutes html-routes
   (GET "*" {:keys [uri] :as request}
        (if (some-> uri (str/split #"/") last (str/index-of \.))
