@@ -4,6 +4,7 @@
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
             [sysrev.db.core :as db]
+            [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]))
@@ -119,6 +120,36 @@
                        :message "Unknown event occurred"}}))
       (catch Throwable e
         {:error {:status 403
+                 :message "Error parsing file"}}))))
+
+(defn import-articles-from-endnote-file
+  "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
+  [project-id file filename & {:keys [threads] :or {threads 1}}]
+  (let [project-sources (project/project-sources project-id)
+        filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
+    (try
+      (let [articles (endnote/endnote-file->articles file)]
+        (cond (not (project/project-exists? project-id))
+              {:error {:status 403
+                       :message "Project does not exist"}}
+              ;; there is no import going on for this search-term
+              ;; execute it
+              (and (empty? filename-sources))
+              (do
+                (endnote/add-articles-with-meta!
+                 articles
+                 project-id
+                 (project/import-articles-from-endnote-file-meta filename)
+                 :use-future? true
+                 :threads threads)
+                {:result {:success true}})
+              (not (empty? filename-sources))
+              {:result {:success true}}
+              :else
+              {:error {:status 403
+                       :message "Unknown event occurred"}}))
+      (catch Throwable e
+        {:error {:status 406
                  :message "Error parsing file"}}))))
 
 (defn project-sources

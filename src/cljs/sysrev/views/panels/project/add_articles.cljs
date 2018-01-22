@@ -24,22 +24,38 @@
    (reset! state initial-state)
    {}))
 
-(defn AddFileUploadArticles
+(defn AddArticlesFromPMIDFile
   "A panel for uploading PMIDs via file"
-  [state]
+  []
   (let []
-    (fn [props]
+    (fn []
       [:div#upload-file-panel
        [:div.ui.segment
         [:h3.ui.dividing.header
-         "Add Articles from File"]
+         "Import Articles from an EndNote File"]
+        [:div.upload-container
+         [upload-container
+          basic-text-button "/api/import-articles-from-endnote-file"
+          (fn []
+            (.log js/console "file uploaded")
+            (dispatch [:reload [:project/sources]]))
+          "Upload EndNote xml file"]]]])))
+
+(defn AddArticlesFromEndNoteFile
+  "A panel for uploading PMIDs via file"
+  []
+  (let []
+    (fn []
+      [:div#upload-file-panel
+       [:div.ui.segment
+        [:h3.ui.dividing.header
+         "Import Articles with PMIDs from File"]
         [:div.upload-container
          [upload-container
           basic-text-button "/api/import-articles-from-file"
           (fn []
-            (.log js/console "file uploaded")
             (dispatch [:reload [:project/sources]]))
-          "Upload File"]]]])))
+          "Upload PMIDs txt File"]]]])))
 
 (defn AddPubMedArticles
   [state]
@@ -92,6 +108,8 @@
       [:h3 "PMIDs uploaded via web-api"]
       "fact"
       [:h3 "PMIDs taken from facts"]
+      "EndNote file"
+      [:h3 "EndNote xml: " (:filename meta)]
       [:h3 "Unknown Source"])))
 
 (defonce polling-sources? (r/atom false))
@@ -186,7 +204,9 @@
     [:div
      [ProjectSources state]
      [:br]
-     [AddFileUploadArticles state]
+     [AddArticlesFromPMIDFile]
+     [:br]
+     [AddArticlesFromEndNoteFile]
      [:br]
      [AddPubMedArticles state]]))
 

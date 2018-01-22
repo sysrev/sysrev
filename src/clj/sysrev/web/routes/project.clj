@@ -93,7 +93,7 @@
 
   (POST "/api/import-articles-from-file" request
         (wrap-permissions
-         request [] ["member"]
+         request [] ["admin"]
          (let [project-id (active-project request)
                file-data (get-in request [:params :file])
                file (:tempfile file-data)
@@ -102,6 +102,17 @@
            (api/import-articles-from-file
             project-id file filename
             :threads 3))))
+
+  (POST "/api/import-articles-from-endnote-file" request
+        (wrap-permissions
+         request [] ["admin"]
+         (let [project-id (active-project request)
+               file-data (get-in request [:params :file])
+               file (:tempfile file-data)
+               filename (:filename file-data)
+               user-id (current-user-id request)]
+           (api/import-articles-from-endnote-file
+            project-id file filename))))
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request

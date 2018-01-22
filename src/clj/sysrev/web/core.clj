@@ -126,7 +126,8 @@
           (reset! web-server
                   (run-server (sysrev-handler (if prod? false true))
                               {:port port
-                               :join? (if prod? true false)}))
+                               :join? (if prod? true false)
+                               :max-body 209715200}))
           (log/info (format "web server started (port %s)" port))
           @web-server))))
 

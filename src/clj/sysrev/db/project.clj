@@ -643,6 +643,11 @@
   {:source "PMID file"
    :filename filename})
 
+(defn import-articles-from-endnote-file-meta
+  [filename]
+  {:source "EndNote file"
+   :filename filename})
+
 (defn import-pmids-search-term-meta
   [search-term]
   {:source "PubMed search"
