@@ -187,7 +187,7 @@
              (do (js/setTimeout #(dispatch [:fetch item])
                                 (- 30 elapsed-millis))
                  {})
-             (any-action-running? db)
+             (any-action-running? db nil [:sources/delete])
              (do (js/setTimeout #(dispatch [:fetch item])
                                 50)
                  {})

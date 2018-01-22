@@ -10,7 +10,8 @@
   (let [;; ready? @(subscribe [:data/ready?])
         loading? (and @(subscribe [:any-loading?])
                       (not @(subscribe [:loading? [:project/sources]])))
-        action? @(subscribe [:action/any-running?])]
+        action? @(subscribe [:action/any-running?
+                             nil [:sources/delete]])]
     (when (or loading? action? #_ (not ready?))
       [:div.ui.small.active.inline.loader])))
 

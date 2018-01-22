@@ -8,11 +8,6 @@
    [sysrev.shared.spec.users :as su]
    [sysrev.shared.spec.keywords :as skw]
    [sysrev.shared.spec.notes :as snt]
-   [clojure.string :as str]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [honeysql-postgres.format :refer :all]
-   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer
     [do-query do-execute to-sql-array sql-cast with-project-cache
      clear-project-cache clear-query-cache cached-project-ids to-jsonb
@@ -21,7 +16,13 @@
     [set-article-flag remove-article-flag article-to-sql]]
    [sysrev.db.queries :as q]
    [sysrev.shared.util :refer [map-values in? short-uuid to-uuid]]
-   [sysrev.shared.keywords :refer [canonical-keyword]])
+   [sysrev.shared.keywords :refer [canonical-keyword]]
+   [honeysql.core :as sql]
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+   [honeysql-postgres.format :refer :all]
+   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+   [clojure.string :as str]
+   [clojure.tools.logging :as log])
   (:import java.util.UUID))
 
 (def default-project-settings
@@ -609,13 +610,13 @@
   "Does a project with project-id exist?"
   [project-id]
   (= project-id
-   (-> (select :project_id)
-          (from [:project :p])
-          (where [:= :p.project_id project-id])
-          do-query
-          first
-          :project-id)))
-
+     (-> (select :project_id)
+         (from [:project :p])
+         (where [:= :p.project_id project-id])
+         do-query
+         first
+         :project-id)))
+;;
 (s/fdef project-exists?
         :args (s/cat :project-id int?)
         :ret boolean?)
@@ -628,10 +629,10 @@
                 :project-id project-id}])
       (returning :source_id)
       do-query first :source-id))
-
+;;
 (s/fdef create-project-source-metadata!
         :args (s/cat :project-id int?
-                     :meta map?)
+                     :metadata map?)
         :ret int?)
 
 (def import-pmids-meta
@@ -646,21 +647,49 @@
   [search-term]
   {:source "PubMed search"
    :search-term search-term})
+;;
+(s/fdef import-pmids-search-term-meta
+        :args (s/cat :search-term string?)
+        :ret map?)
 
 (def import-facts-meta
   {:source "facts"})
 
-(s/fdef import-pmids-search-term-meta
-        :args (s/cat :search-term string?)
-        :ret map?)
+(defn update-project-source-metadata!
+  "Replace the metadata for project-source-id"
+  [project-source-id metadata]
+  (-> (sqlh/update :project_source)
+      (sset {:meta metadata})
+      (where [:= :source_id project-source-id])
+      do-execute))
+;;
+(s/fdef update-project-source-metadata!
+        :args (s/cat :project-source-id int?
+                     :metadata map?))
+
+(defn alter-project-source-metadata!
+  "Replaces the meta field for project-source-id with the result of
+  applying function f to the existing value."
+  [project-source-id f]
+  (when-let [meta (-> (select :meta)
+                      (from :project-source)
+                      (where [:= :source-id project-source-id])
+                      do-query first :meta)]
+    (update-project-source-metadata! project-source-id (f meta))))
+;;
+(s/fdef alter-project-source-metadata!
+        :args (s/cat :project-source-id int?
+                     :f ifn?))
 
 (defn delete-project-source!
   "Given a source-id, delete it and remove the articles associated with
   it from the database.  Warning: This fn doesn't care if there are
   labels associated with an article"
   [source-id]
-  (try (clear-query-cache)
-       (with-transaction
+  (clear-query-cache)
+  (alter-project-source-metadata!
+   source-id #(assoc % :deleting? true))
+  (try (with-transaction
          ;; delete articles that aren't contained in another source
          (-> (delete-from [:article :a])
              (where (let [asources
@@ -684,10 +713,11 @@
              do-execute)
          true)
        (catch Throwable e
-         (str "Caught exception in sysrev.db.project/delete-project-source!: "
-              (.getMessage e)))
-       (finally false)))
-
+         (alter-project-source-metadata!
+          source-id #(assoc % :deleting? false))
+         (log/info "Caught exception in sysrev.db.project/delete-project-source!: "
+                   (.getMessage e)))))
+;;
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
 
@@ -701,7 +731,7 @@
                   (from :article_source)
                   (where [:= :source_id source-id]))])
       do-query first :count))
-
+;;
 (s/fdef source-articles-with-labels
         :args (s/cat :project-id int?)
         :ret (s/nilable int?))
@@ -724,22 +754,10 @@
        do-query
        (mapv #(assoc % :labeled-article-count
                      (source-articles-with-labels (:source-id %)))))))
-
+;;
 (s/fdef project-sources
         :args (s/cat :project-id int?)
         :ret (s/nilable vector?))
-
-(defn update-project-source-metadata!
-  "Replace the metadata for project-source-id"
-  [project-source-id metadata]
-  (-> (sqlh/update :project_source)
-      (sset {:meta metadata})
-      (where [:= :source_id project-source-id])
-      do-execute))
-
-(s/fdef update-project-source-metadata!
-        :args (s/cat :project-source-id int?
-                     :meta map?))
 
 (defn project-has-labeled-articles?
   [project-id]
@@ -751,7 +769,7 @@
                               (where [:= :project_id project-id]))])
                   do-query first :count)
               0)))
-
+;;
 (s/fdef project-has-labeled-articles?
         :args (s/cat :project-id int?)
         :ret boolean?)
@@ -760,7 +778,7 @@
   [source-id]
   (boolean (> (source-articles-with-labels source-id)
               0)))
-
+;;
 (s/fdef source-has-labeled-articles?
         :args (s/cat :source-id int?)
         :ret boolean?)

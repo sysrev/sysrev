@@ -4,7 +4,8 @@
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx
      trim-v reg-fx]]
    [sysrev.events.ajax :refer
-    [reg-event-ajax reg-event-ajax-fx run-ajax]]))
+    [reg-event-ajax reg-event-ajax-fx run-ajax]]
+   [sysrev.shared.util :refer [in?]]))
 
 (defonce
   ^{:doc "Holds static definitions for server request actions"}
@@ -58,25 +59,28 @@
  (fn [[sent-count returned-count]]
    (> sent-count returned-count)))
 
-(defn- any-running-impl [counts & [filter-item-name]]
+(defn- any-running-impl
+  [counts & [filter-item-name ignore-item-names]]
   (boolean
    (->> (keys (get-in counts [:sent]))
         (filter #(or (nil? filter-item-name)
                      (= (first %) filter-item-name)))
+        (filter #(not (in? ignore-item-names (first %))))
         (some #(> (get-in counts [:sent %] 0)
                   (get-in counts [:returned %] 0))))))
 
-(defn any-action-running? [db & [filter-item-name]]
+(defn any-action-running?
+  [db & [filter-item-name ignore-item-names]]
   (let [counts (get-in db [:ajax :action])]
-    (any-running-impl counts filter-item-name)))
+    (any-running-impl counts filter-item-name ignore-item-names)))
 
 ;; Tests if any AJAX action is currently pending
 ;; If filter-item-name is passed, only test for actions which have that name
 (reg-sub
  :action/any-running?
  :<- [::ajax-action-counts]
- (fn [counts [_ filter-item-name]]
-   (any-running-impl counts filter-item-name)))
+ (fn [counts [_ filter-item-name ignore-item-names]]
+   (any-running-impl counts filter-item-name ignore-item-names)))
 
 ;; Runs an AJAX action specified by `item`
 (reg-event-fx

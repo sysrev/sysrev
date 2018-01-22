@@ -72,7 +72,11 @@
        :on-click (fn [event]
                    (.preventDefault event)
                    (dispatch
-                    [:action [:sources/delete source-id]]))}
+                    [:action [:sources/delete source-id]])
+                   (js/setTimeout
+                    #(dispatch [:fetch [:project/sources]])
+                    100)
+                   false)}
    "Delete Source"])
 
 (defn MetaDisplay
@@ -96,11 +100,16 @@
   (when (not @polling-sources?)
     (reset! polling-sources? true)
     (dispatch [:fetch [:project/sources]])
-    (let [source-updating? (fn [source-id]
-                             (->> @(subscribe [:project/sources])
-                                  (filter #(= (:source-id %)
-                                              source-id))
-                                  first :meta :importing-articles?))]
+    (let [sources (subscribe [:project/sources])
+          delete-running? (subscribe
+                           [:action/running? [:sources/delete source-id]])
+          source-updating? (fn [source-id]
+                             (or @delete-running?
+                                 (->> @sources
+                                      (filter #(= (:source-id %) source-id))
+                                      first :meta
+                                      (#(or (:importing-articles? %)
+                                            (true? (:deleting? %)))))))]
       (continuous-update-until #(dispatch [:fetch [:project/sources]])
                                #(not (source-updating? source-id))
                                #(do (reset! polling-sources? false)
@@ -111,11 +120,11 @@
   [state]
   (fn [source]
     (let [{:keys [meta source-id article-count labeled-article-count]} source
-          {:keys [importing-articles?]} meta
+          {:keys [importing-articles? deleting?]} meta
           polling? @polling-sources?
-          deleting? @(subscribe
-                      [:action/running? [:sources/delete source-id]])]
-      (when importing-articles?
+          delete-running? @(subscribe
+                            [:action/running? [:sources/delete source-id]])]
+      (when (or importing-articles? deleting? delete-running?)
         (poll-project-sources source-id)
         nil)
       [:div.project-source.ui.segment
@@ -123,7 +132,7 @@
         [:div.eleven.wide.column
          [MetaDisplay meta]]
         (cond
-          deleting?
+          (or deleting? delete-running?)
           (list
            [:div.four.wide.column.right.aligned
             {:key :deleting}
