@@ -5,7 +5,7 @@
    [clojure.string :as str]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
-   [sysrev.import.pubmed :refer [fetch-pmid-xml parse-pmid-xml import-pmids-to-project-with-meta! get-search-query-response get-pmids-summary get-all-pmids-for-query]]
+   [sysrev.import.pubmed :refer [fetch-pmid-entry import-pmids-to-project-with-meta! get-search-query-response get-pmids-summary get-all-pmids-for-query]]
    [sysrev.util :refer [parse-xml-str xml-find]]
    [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
    [sysrev.db.project :as project]))
@@ -30,8 +30,7 @@
     (is (= (count els) 3))))
 
 (deftest parse-pmid-test
-  (let [xml (fetch-pmid-xml 11592337)
-        parsed (parse-pmid-xml xml)]
+  (let [parsed (fetch-pmid-entry 11592337)]
     (is (str/starts-with? (:abstract parsed) "OBJECTIVE: To determine"))
     (is (str/includes? (:abstract parsed) "\n\nSAMPLE POPULATION: Corneal"))
     (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))
@@ -39,8 +38,7 @@
 
 ; Fails to get public-id for this pubmed article
 (deftest parse-pmid-test-2
-  (let [xml (fetch-pmid-xml 28280522)
-        parsed (parse-pmid-xml xml)]
+  (let [parsed (fetch-pmid-entry 28280522)]
     (is (= (:public-id parsed) "28280522"))))
 
 #_ (deftest test-importing-articles?

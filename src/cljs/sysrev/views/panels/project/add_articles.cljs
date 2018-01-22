@@ -112,30 +112,53 @@
   (fn [source]
     (let [{:keys [meta source-id article-count labeled-article-count]} source
           {:keys [importing-articles?]} meta
-          polling? @polling-sources?]
+          polling? @polling-sources?
+          deleting? @(subscribe
+                      [:action/running? [:sources/delete source-id]])]
+      (when importing-articles?
+        (poll-project-sources source-id)
+        nil)
       [:div.project-source.ui.segment
        [:div.ui.grid
-        [:div {:class (str (if-not importing-articles?
-                             "eleven"
-                             "eleven") " wide column")}
+        [:div.eleven.wide.column
          [MetaDisplay meta]]
-        ;; when articles are still loading
-        (when importing-articles?
-          (poll-project-sources source-id))
-        (when (and importing-articles? polling?)
-          [:div.four.wide.column.right.aligned
-           [:div (str (.toLocaleString article-count) " articles loaded")]])
-        (when (and importing-articles? polling?)
-          [:div.one.wide.column.right.aligned
-           [:div.ui.active.loader [:div.ui.loader]]])
-        ;; when articles have been imported
-        (when (not importing-articles?)
+        (cond
+          deleting?
+          (list
+           [:div.four.wide.column.right.aligned
+            {:key :deleting}
+            [:div "Deleting source..."]]
+           [:div.one.wide.column.right.aligned
+            {:key :loader}
+            [:div.ui.active.loader [:div.ui.loader]]])
+
+          ;; when articles are still loading
+          (and importing-articles? polling? article-count)
+          (list
+           [:div.four.wide.column.right.aligned
+            {:key :loaded-count}
+            [:div (str (.toLocaleString article-count) " articles loaded")]]
+           [:div.one.wide.column.right.aligned
+            {:key :loader}
+            [:div.ui.active.loader [:div.ui.loader]]])
+
+          ;; when articles have been imported
+          (and (false? importing-articles?)
+               labeled-article-count article-count)
           [:div.five.wide.column.right.aligned
            [:div [:div (str (.toLocaleString labeled-article-count)
                             " of "
                             (.toLocaleString article-count) " articles reviewed")]
             (when (<= labeled-article-count 0)
-              [DeleteArticleSource source-id])]])]])))
+              [DeleteArticleSource source-id])]]
+
+          :else
+          (list
+           [:div.four.wide.column.right.aligned
+            {:key :placeholder}]
+           [:div.one.wide.column.right.aligned
+            {:key :loader}
+            [:div.ui.active.loader [:div.ui.loader]]]))]])))
 
 (defn ProjectSources
   [state]

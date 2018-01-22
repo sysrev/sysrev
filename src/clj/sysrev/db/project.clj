@@ -659,22 +659,34 @@
   it from the database.  Warning: This fn doesn't care if there are
   labels associated with an article"
   [source-id]
-  (try (let [source-article-ids (map :article-id (-> (select :article_id)
-                                                     (from :article_source)
-                                                     (where [:= :source_id source-id])
-                                                     do-query))]
-         (clear-query-cache)
-         ;; delete the project_source
-         (-> (delete-from :project_source)
-             (where [:= :source_id source-id])
+  (try (clear-query-cache)
+       (with-transaction
+         ;; delete articles that aren't contained in another source
+         (-> (delete-from [:article :a])
+             (where (let [asources
+                          (-> (select :*)
+                              (from [:article-source :asrc])
+                              (where [:= :asrc.article-id :a.article-id]))]
+                      [:and
+                       [:exists
+                        (-> asources
+                            (merge-where
+                             [:= :asrc.source-id source-id]))]
+                       [:not
+                        [:exists
+                         (-> asources
+                             (merge-where
+                              [:!= :asrc.source-id source-id]))]]]))
              do-execute)
-         ;; delete the articles
-         (-> (delete-from :article)
-             (where [:in :article_id source-article-ids])
-             do-execute))
+         ;; delete entries for project source
+         (-> (delete-from :project-source)
+             (where [:= :source-id source-id])
+             do-execute)
+         true)
        (catch Throwable e
-         (str "Caught exception in sysrev.db.project/delete-project-source!: " (.getMessage e)))
-       (finally true)))
+         (str "Caught exception in sysrev.db.project/delete-project-source!: "
+              (.getMessage e)))
+       (finally false)))
 
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
@@ -700,16 +712,18 @@
   [project-id]
   (when (not (project-exists? project-id))
     (throw (Exception. (str "No project with project-id: " project-id))))
-  (let [sources (-> (select :ps.source-id
-                            :ps.project-id
-                            :ps.meta
-                            [:%count.ars.source_id "article-count"])
-                    (from [:project_source :ps])
-                    (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])
-                    (group :ps.source_id)
-                    (where [:= :ps.project_id project-id])
-                    do-query)]
-    (mapv #(assoc % :labeled-article-count (source-articles-with-labels (:source-id %))) sources)))
+  (-> (select :ps.source-id
+              :ps.project-id
+              :ps.meta
+              [:%count.ars.source_id "article-count"])
+      (from [:project_source :ps])
+      (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])
+      (group :ps.source_id)
+      (where [:= :ps.project_id project-id])
+      (->>
+       do-query
+       (mapv #(assoc % :labeled-article-count
+                     (source-articles-with-labels (:source-id %)))))))
 
 (s/fdef project-sources
         :args (s/cat :project-id int?)

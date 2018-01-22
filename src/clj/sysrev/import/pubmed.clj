@@ -16,14 +16,103 @@
             [clojure.java.io :as io]
             [clojure.string :as string]
             [clojure.tools.logging :as log]
-            [clojure.java.jdbc :as jdbc]))
+            [clojure.string :as str]
+            [clojure.data.xml :as dxml]))
 
-(defn fetch-pmid-xml [pmid]
+(defn parse-pubmed-author-names [authors]
+  (when-not (empty? authors)
+    (->> authors
+         (mapv
+          (fn [entry]
+            (let [last-name (xml-find-value entry [:LastName])
+                  initials (xml-find-value entry [:Initials])]
+              (if (string? initials)
+                (str last-name ", " (->> initials
+                                         (#(string/split % #" "))
+                                         (map #(str % "."))
+                                         (string/join " ")))
+                last-name))))
+         (filterv string?))))
+
+(defn extract-article-location-entries
+  "Extracts entries for article_location from parsed PubMed API XML article."
+  [pxml]
+  (distinct
+   (concat
+    (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
+         (map (fn [{tag :tag
+                    {source :EIdType} :attrs
+                    content :content}]
+                (map #(do {:source source
+                           :external-id %})
+                     content)))
+         (apply concat))
+    (->> (xml-find pxml [:PubmedData :ArticleIdList :ArticleId])
+         (map (fn [{tag :tag
+                    {source :IdType} :attrs
+                    content :content}]
+                (map #(do {:source source
+                           :external-id %})
+                     content)))
+         (apply concat)))))
+
+(defn parse-abstract [abstract-texts]
+  (when-not (empty? abstract-texts)
+    (let [sections (map (fn [sec]
+                          {:header  (-> sec :attrs :Label)
+                           :content (:content sec)})
+                        abstract-texts)
+          parse-section (fn [section]
+                          (let [header (:header section)
+                                content (-> section :content first)]
+                            (if-not (empty? header)
+                              (str header ": " content)
+                              content)))
+          paragraphs (map parse-section sections)]
+      (string/join "\n\n" paragraphs))))
+
+(defn parse-pmid-xml [pxml]
+  (let [title (xml-find-value pxml [:MedlineCitation :Article :ArticleTitle])
+        journal (xml-find-value pxml [:MedlineCitation :Article :Journal :Title])
+        abstract (-> (xml-find pxml [:MedlineCitation :Article :Abstract :AbstractText]) parse-abstract)
+        authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
+                    parse-pubmed-author-names)
+        pmid (xml-find-value pxml [:MedlineCitation :PMID])
+        keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
+        locations (extract-article-location-entries pxml)
+        year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
+                 first :content first parse-integer)]
+    {:raw (dxml/emit-str pxml)
+     :remote-database-name "MEDLINE"
+     :primary-title title
+     :secondary-title journal
+     :abstract abstract
+     :authors authors
+     :year year
+     :keywords keywords
+     :public-id (str pmid)
+     :locations locations}))
+
+(defn fetch-pmids-xml [pmids]
   (-> (str "https://eutils.ncbi.nlm.nih.gov"
            "/entrez/eutils/efetch.fcgi"
-           (format "?db=pubmed&id=%d&retmode=xml" pmid))
+           (format "?db=pubmed&id=%s&retmode=xml"
+                   (str/join "," pmids)))
       http/get
       :body))
+
+(defn fetch-pmid-entries [pmids]
+  (try
+    (->> (fetch-pmids-xml pmids)
+         parse-xml-str :content
+         (mapv parse-pmid-xml))
+    (catch Throwable e
+      (println (format "exception in (fetch-pmid-entries %s)" pmids))
+      (println (.getMessage e))
+      nil)))
+
+(defn fetch-pmid-entry [pmid]
+  (first (fetch-pmid-entries [pmid])))
 
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-search-query
@@ -80,88 +169,7 @@
                                  [:esearchresult :idlist])))
                  (vec (range 0 max-pages)))))))
 
-(defn parse-pubmed-author-names [authors]
-  (when-not (empty? authors)
-    (->> authors
-         (mapv
-          (fn [entry]
-            (let [last-name (xml-find-value entry [:LastName])
-                  initials (xml-find-value entry [:Initials])]
-              (if (string? initials)
-                (str last-name ", " (->> initials
-                                         (#(string/split % #" "))
-                                         (map #(str % "."))
-                                         (string/join " ")))
-                last-name))))
-         (filterv string?))))
 
-(defn extract-article-location-entries
-  "Extracts entries for article_location from parsed PubMed API XML article."
-  [pxml]
-  (distinct
-   (concat
-    (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
-         (map (fn [{tag :tag
-                    {source :EIdType} :attrs
-                    content :content}]
-                (map #(do {:source source
-                           :external-id %})
-                     content)))
-         (apply concat))
-    (->> (xml-find pxml [:PubmedData :ArticleIdList :ArticleId])
-         (map (fn [{tag :tag
-                    {source :IdType} :attrs
-                    content :content}]
-                (map #(do {:source source
-                           :external-id %})
-                     content)))
-         (apply concat)))))
-
-(defn parse-abstract [abstract-texts]
-  (when-not (empty? abstract-texts)
-    (let [sections (map (fn [sec]
-                          {:header  (-> sec :attrs :Label)
-                           :content (:content sec)})
-                        abstract-texts)
-          parse-section (fn [section]
-                          (let [header (:header section)
-                                content (-> section :content first)]
-                            (if-not (empty? header)
-                              (str header ": " content)
-                              content)))
-          paragraphs (map parse-section sections)]
-      (string/join "\n\n" paragraphs))))
-
-(defn parse-pmid-xml [xml-str]
-  (let [pxml (-> xml-str parse-xml-str :content first)
-        title (xml-find-value pxml [:MedlineCitation :Article :ArticleTitle])
-        journal (xml-find-value pxml [:MedlineCitation :Article :Journal :Title])
-        abstract (-> (xml-find pxml [:MedlineCitation :Article :Abstract :AbstractText]) parse-abstract)
-        authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
-                    parse-pubmed-author-names)
-        pmid (xml-find-value pxml [:MedlineCitation :PMID])
-        keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
-        locations (extract-article-location-entries pxml)
-        year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
-                 first :content first parse-integer)]
-    {:raw xml-str
-     :remote-database-name "MEDLINE"
-     :primary-title title
-     :secondary-title journal
-     :abstract abstract
-     :authors authors
-     :year year
-     :keywords keywords
-     :public-id (str pmid)
-     :locations locations}))
-
-(defn fetch-pmid-entry [pmid]
-  (try
-    (-> pmid fetch-pmid-xml parse-pmid-xml)
-    (catch Throwable e
-      (println (format "exception in (fetch-pmid-entry %s)" pmid))
-      (println (.getMessage e))
-      nil)))
 
 (defn- add-article [article project-id]
   (try
@@ -180,12 +188,17 @@
   in the project."
   [pmids project-id project-source-id]
   (try
-    (doseq [pmid pmids]
-      (try
-        (with-transaction
-          ;; skip article if already loaded in project
-          (when-not (project/project-contains-public-id (str pmid) project-id)
-            (when-let [article (fetch-pmid-entry pmid)]
+    (let [articles (->> pmids
+                        (partition-all 20)
+                        (mapv #(fetch-pmid-entries %))
+                        (apply concat)
+                        (remove nil?))]
+      (doseq [article articles]
+        (try
+          (with-transaction
+            ;; skip article if already loaded in project
+            (when-not (project/project-contains-public-id
+                       (:public-id article) project-id)
               (doseq [[k v] article]
                 (when (or (nil? v)
                           (and (coll? v) (empty? v)))
@@ -200,9 +213,11 @@
                       (values
                        (->> (:locations article)
                             (mapv #(assoc % :article-id article-id))))
-                      do-execute))))))
-        (catch Throwable e
-          (println (format "error importing pmid #%s" pmid) ":" (.getMessage e)))))
+                      do-execute)))))
+          (catch Throwable e
+            (println (format "error importing pmid #%s"
+                             (:public-id article))
+                     ": " (.getMessage e))))))
     (finally
       (clear-project-cache project-id))))
 
@@ -216,35 +231,42 @@
     (if (and use-future? (nil? *conn*))
       (future
         (try
-          (let [thread-groups (partition-all (quot (count pmids) threads) pmids)
+          (let [thread-groups
+                (->> pmids
+                     (partition-all (max 1 (quot (count pmids) threads))))
                 thread-results
                 (->> thread-groups
-                     (mapv (fn [thread-pmids]
-                             (future
-                               (try
-                                 (import-pmids-to-project thread-pmids project-id project-source-id)
-                                 true
-                                 (catch Throwable e
-                                   (println "Error in import-pmids-to-project-with-meta! (inner future)" (.getMessage e))
-                                   false)))))
+                     (mapv
+                      (fn [thread-pmids]
+                        (future
+                          (try
+                            (import-pmids-to-project
+                             thread-pmids project-id project-source-id)
+                            true
+                            (catch Throwable e
+                              (println "Error in import-pmids-to-project-with-meta! (inner future)"
+                                       (.getMessage e))
+                              false)))))
                      (mapv deref))]
             true)
           (catch Throwable e
-            (println "Error in import-pmids-to-project-with-meta! (outer future)" (.getMessage e))
+            (println "Error in import-pmids-to-project-with-meta! (outer future)"
+                     (.getMessage e))
             false)
           (finally
             ;; set meta data importing status to false
-            (project/update-project-source-metadata! project-source-id (assoc meta
-                                                                              :importing-articles? false)))))
+            (project/update-project-source-metadata!
+             project-source-id (assoc meta :importing-articles? false)))))
       (try
         ;; import the data
         (import-pmids-to-project pmids project-id project-source-id)
         (catch Throwable e
-          (println "Error in import-pmids-to-project-with-meta!" (.getMessage e)))
+          (println "Error in import-pmids-to-project-with-meta!"
+                   (.getMessage e)))
         (finally
           ;; set meta data importing status to false
-          (project/update-project-source-metadata! project-source-id (assoc meta
-                                                                            :importing-articles? false)))))))
+          (project/update-project-source-metadata!
+           project-source-id (assoc meta :importing-articles? false)))))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles
