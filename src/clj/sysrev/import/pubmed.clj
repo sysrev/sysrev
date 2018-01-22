@@ -188,12 +188,8 @@
   in the project."
   [pmids project-id project-source-id]
   (try
-    (let [articles (->> pmids
-                        (partition-all 20)
-                        (mapv #(fetch-pmid-entries %))
-                        (apply concat)
-                        (remove nil?))]
-      (doseq [article articles]
+    (doseq [pmids-group (->> pmids (partition-all 20))]
+      (doseq [article (->> pmids-group fetch-pmid-entries (remove nil?))]
         (try
           (with-transaction
             ;; skip article if already loaded in project
@@ -215,9 +211,9 @@
                             (mapv #(assoc % :article-id article-id))))
                       do-execute)))))
           (catch Throwable e
-            (println (format "error importing pmid #%s"
-                             (:public-id article))
-                     ": " (.getMessage e))))))
+            (log/info (format "error importing pmid #%s"
+                              (:public-id article))
+                      ": " (.getMessage e))))))
     (finally
       (clear-project-cache project-id))))
 
