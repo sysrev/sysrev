@@ -72,19 +72,22 @@
 (s/def ::tab-id keyword?)
 (s/def ::content any?)
 (s/def ::action (or string? fn?))
+(s/def ::class string?)
 (s/def ::menu-tab
-  (s/keys :req-un [::tab-id ::content ::action]))
+  (s/keys :req-un [::tab-id ::content ::action]
+          :opt-un [::class]))
 
 (defn primary-tabbed-menu [entries active-tab-id & [menu-class]]
   (let [menu-class (or menu-class "")
         entries (remove nil? entries)
         n-tabs (count entries)
         n-tabs-word (num-to-english n-tabs)
-        render-entry (fn [{:keys [tab-id action content] :as entry}]
+        render-entry (fn [{:keys [tab-id action content class] :as entry}]
                        (when entry
                          [:a {:key tab-id
-                              :class (if (= tab-id active-tab-id)
-                                       "active item" "item")
+                              :class (str (if (= tab-id active-tab-id)
+                                            "active item" "item")
+                                          " " (if class class ""))
                               :href (when (string? action) action)
                               :on-click (cond (vector? action)
                                               #(dispatch [:navigate action])
@@ -108,11 +111,12 @@
 
 (defn secondary-tabbed-menu [left-entries right-entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
-        render-entry (fn [{:keys [tab-id action content] :as entry}]
+        render-entry (fn [{:keys [tab-id action content class] :as entry}]
                        (when entry
                          [:a {:key tab-id
-                              :class (if (= tab-id active-tab-id)
-                                       "active item" "item")
+                              :class (str (if (= tab-id active-tab-id)
+                                            "active item" "item")
+                                          " " (if class class ""))
                               :href (when (string? action) action)
                               :on-click (cond (vector? action)
                                               #(dispatch [:navigate action])
@@ -148,11 +152,12 @@
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
-        render-entry (fn [{:keys [tab-id action content] :as entry}]
+        render-entry (fn [{:keys [tab-id action content class] :as entry}]
                        (when entry
                          [:a {:key tab-id
-                              :class (if (= tab-id active-tab-id)
-                                       "active item" "item")
+                              :class (str (if (= tab-id active-tab-id)
+                                            "active item" "item")
+                                          " " (if class class ""))
                               :href (when (string? action) action)
                               :on-click (cond (vector? action)
                                               #(dispatch [:navigate action])
