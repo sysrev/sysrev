@@ -108,7 +108,7 @@
             (doseq [[k v] article]
               (when (or (nil? v)
                         (and (coll? v) (empty? v)))
-                (log/debug (format "sysrev.import.endnote/import-articles-to-project: * field `%s` is empty" (pr-str k)))))
+                (log/debug (format "sysrev.import.endnote/import-articles-to-project!: * field `%s` is empty" (pr-str k)))))
             (when-let [article-id (add-article
                                    (dissoc article :locations)
                                    project-id)]
@@ -121,7 +121,7 @@
                           (mapv #(assoc % :article-id article-id))))
                     do-execute))))
           (catch Throwable e
-            (log/info (format "sysrev.import.endnote/import-articles-to-project: error importing article #%s"
+            (log/info (format "sysrev.import.endnote/import-articles-to-project!: error importing article #%s"
                               (:public-id article))
                       ": " (.getMessage e))))))
     (finally
@@ -147,13 +147,13 @@
                            thread-articles project-id project-source-id)
                           true
                           (catch Throwable e
-                            (println "Error in sysrev.import.endnote/add-articles-with-meta! (inner future)"
+                            (println "Error in sysrev.import.endnote/add-articles! (inner future)"
                                      (.getMessage e))
                             false)))))
                    (mapv deref))]
           true)
         (catch Throwable e
-          (println "Error in sysrev.import.endnote/add-articles-with-meta! (outer future)"
+          (println "Error in sysrev.import.endnote/add-articles! (outer future)"
                    (.getMessage e))
           false)
         (finally
@@ -164,7 +164,7 @@
       ;; import the data
       (import-articles-to-project! articles project-id project-source-id)
       (catch Throwable e
-        (println "Error in sysrev.import.endnote/add-articles-to-project-with-meta!"
+        (println "Error in sysrev.import.endnote/add-articles!"
                  (.getMessage e)))
       (finally
         ;; set meta data importing status to false
@@ -186,13 +186,6 @@
       (add-articles! @articles project-id project-source-id metadata
                      :use-future? use-future?
                      :threads threads))))
-
-#_ (defn import-endnote-library [file project-id]
-     (let [articles (load-endnote-library-xml file)]
-       (doseq [a articles]
-         (println (pr-str (:primary-title a)))
-         (let [a (-> a (dissoc :custom4 :custom5 :rec-number))]
-           (add-article a project-id)))))
 
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
