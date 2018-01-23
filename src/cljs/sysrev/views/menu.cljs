@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch]]
-            [sysrev.util :refer [full-size?]]
+            [sysrev.util :refer [full-size? mobile?]]
             [sysrev.views.components :refer [dropdown-menu]])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
@@ -22,6 +22,7 @@
         admin? @(subscribe [:user/admin?])
         project-ids @(subscribe [:user/project-ids])
         full? (full-size?)
+        mobile? (mobile?)
         dev-menu (when admin?
                    [dropdown-menu [{:content "Clear query cache"
                                     :action #(dispatch [:action [:dev/clear-query-cache]])}]
@@ -33,10 +34,9 @@
        {:on-click #(dispatch [:navigate []])}
        [:h3.ui.blue.header
         "sysrev.us"]]
-      (when full?
-        [:a.item
-         {:on-click #(dispatch [:navigate [:select-project]])}
-         "Projects"])
+      [:a.item
+       {:on-click #(dispatch [:navigate [:select-project]])}
+       "Select Project"]
       (when-not full? dev-menu)
       [:div.item.loading-indicator
        [loading-indicator]]
@@ -46,9 +46,10 @@
          [:a.item {:id "user-name-link"
                    :on-click #(dispatch [:navigate [:user-settings]])}
           [:span.blue-text [:i.user.icon] user-display]]
-         [:a.item {:id "user-settings-link"
-                   :on-click #(dispatch [:navigate [:user-settings]])}
-          "Settings"]
+         (when-not mobile?
+           [:a.item {:id "user-settings-link"
+                     :on-click #(dispatch [:navigate [:user-settings]])}
+            "Settings"])
          [:a.item {:id "log-out-link"
                    :on-click #(dispatch [:action [:auth/log-out]])}
           "Log Out"]

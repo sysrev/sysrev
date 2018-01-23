@@ -96,12 +96,3 @@
   (if (mobile?)
     [project-submenu-mobile]
     [project-submenu-full]))
-
-(defn project-header [left-content right-content]
-  [:div.ui.top.attached.segment.project-header
-   [:div.ui.middle.aligned.grid
-    [:div.row
-     [:div.twelve.wide.column.project-title
-      [:span.project-title left-content]]
-     [:div.four.wide.right.aligned.column
-      right-content]]]])

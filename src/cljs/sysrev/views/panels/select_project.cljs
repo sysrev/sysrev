@@ -5,9 +5,7 @@
    [re-frame.db :refer [app-db]]
    [reagent.core :as r]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components]
    [sysrev.views.panels.create-project :refer [CreateProject]]
-   [sysrev.views.panels.project.common :refer [project-header]]
    [sysrev.util :refer [go-back]]))
 
 (def panel [:select-project])
@@ -18,35 +16,41 @@
   (when (nil? @state)
     (reset! state initial-state)))
 
+(defn ProjectListItem [{:keys [project-id name member?]}]
+  [:div.item
+   {:style {:width "100%"}}
+   [:div.ui.fluid.labeled.button
+    {:on-click (if member?
+                 #(dispatch [:action [:select-project project-id]])
+                 #(dispatch [:action [:join-project project-id]]))}
+    (if member?
+      [:div.ui.button "Open"]
+      [:div.ui.blue.button "Join"])
+    [:div.ui.fluid.basic.label
+     {:style {:text-align "left"}}
+     name]]])
+
+(defn ProjectsListSegment [title projects]
+  [:div.projects-list
+   [:div.ui.top.attached.header.segment
+    [:h4 title]]
+   [:div.ui.bottom.attached.segment
+    [:div.ui.middle.aligned.relaxed.list
+     (doall
+      (->> projects
+           (map (fn [{:keys [project-id] :as project}]
+                  ^{:key project-id}
+                  [ProjectListItem project]))))]]])
+
 (defn SelectProject []
   (ensure-state)
-  (let [active-id @(subscribe [:active-project-id])]
+  (let [all-projects @(subscribe [:self/projects true])
+        member-projects (->> all-projects (filter :member?))
+        available-projects (->> all-projects (remove :member?))]
     [:div
      [CreateProject state]
-     [project-header
-      "Select project"
-      [:a.ui.button {:on-click go-back}
-       "Back"]]
-     [:div.ui.bottom.attached.segment
-      [:div.ui.two.column.stackable.grid.projects
-       (doall
-        (->>
-         @(subscribe [:self/projects])
-         (map
-          (fn [{:keys [project-id name member?]}]
-            (let [active? (= project-id active-id)]
-              ^{:key project-id}
-              [:div.column
-               [:div.ui.fluid.left.labeled.button
-                {:style {:text-align "justify"}}
-                [:div.ui.fluid.basic.label (str name)]
-                (if member?
-                  [:a.ui.button {:style {:padding "1.5em"}
-                                 :on-click #(dispatch [:action [:select-project project-id]])}
-                   "Go"]
-                  [:a.ui.blue.button {:style {:padding "1.5em"}
-                                      :on-click #(dispatch [:action [:join-project project-id]])}
-                   "Join"])]])))))]]]))
+     [ProjectsListSegment "Your Projects" member-projects]
+     [ProjectsListSegment "Available Projects" available-projects]]))
 
 (defmethod panel-content panel []
   (fn [child]

@@ -5,8 +5,9 @@
             [sysrev.routes :as routes]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.project.common
-             :refer [project-header project-page-menu project-submenu]]
-            [sysrev.views.panels.select-project :refer [SelectProject]])
+             :refer [project-page-menu project-submenu]]
+            [sysrev.views.panels.select-project :refer [SelectProject]]
+            [sysrev.util :refer [nbsp]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def initial-state {:create-project nil})
@@ -18,22 +19,18 @@
 (defmethod panel-content [:project] []
   (fn [child]
     (ensure-state)
-    (if (empty? (->> @(subscribe [:self/projects])
-                     (filter :member?)))
+    (if (empty? @(subscribe [:self/projects]))
       [SelectProject]
       (with-loader [[:project]] {}
         (let [project-name @(subscribe [:project/name])
               admin? @(subscribe [:user/admin?])
-              projects @(subscribe [:self/projects])]
+              projects @(subscribe [:self/projects true])]
           [:div
-           [project-header
-            project-name
-            [:div
-             [:a.ui.tiny.button
-              {:on-click #(dispatch [:navigate [:select-project]])
-               :class (if (or admin? (< 1 (count projects)))
-                        "" "disabled")}
-              "Change"]]]
+           [:div.ui.top.attached.segment.project-header
+            [:div.ui.middle.aligned.grid
+             [:div.row
+              [:div.sixteen.wide.column.project-title
+               [:span.project-title [:i.book.icon] nbsp project-name]]]]]
            [:div.ui.bottom.attached.segment.project-segment
             [project-page-menu]
             [:div child]]])))))
