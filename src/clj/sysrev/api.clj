@@ -102,8 +102,7 @@
         (cond (not (project/project-exists? project-id))
               {:error {:status 403
                        :message "Project does not exist"}}
-              ;; there is no import going on for this search-term
-              ;; execute it
+              ;; there is no import going on for this filename
               (and (empty? filename-sources))
               (do
                 (pubmed/import-pmids-to-project-with-meta!
@@ -128,29 +127,27 @@
   (let [project-sources (project/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
-      (let [articles (endnote/endnote-file->articles file)]
-        (cond (not (project/project-exists? project-id))
-              {:error {:status 403
-                       :message "Project does not exist"}}
-              ;; there is no import going on for this search-term
-              ;; execute it
-              (and (empty? filename-sources))
-              (do
-                (endnote/add-articles-with-meta!
-                 articles
-                 project-id
-                 (project/import-articles-from-endnote-file-meta filename)
-                 :use-future? true
-                 :threads threads)
-                {:result {:success true}})
-              (not (empty? filename-sources))
-              {:result {:success true}}
-              :else
-              {:error {:status 403
-                       :message "Unknown event occurred"}}))
+      (cond (not (project/project-exists? project-id))
+            {:error {:status 403
+                     :message "Project does not exist"}}
+            ;; there is no import going on for this filename
+            (and (empty? filename-sources))
+            (do
+              (future (endnote/import-endnote-library!
+                       file
+                       filename
+                       project-id
+                       :use-future? true
+                       :threads 3))
+              {:result {:success true}})
+            (not (empty? filename-sources))
+            {:result {:success true}}
+            :else
+            {:error {:status 403
+                     :message "Unknown event occurred"}})
       (catch Throwable e
         {:error {:status 406
-                 :message "Error parsing file"}}))))
+                 :message (.getMessage e)}}))))
 
 (defn project-sources
   "Return sources for project-id"

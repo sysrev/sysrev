@@ -98,9 +98,7 @@
       nil)))
 
 (defn- import-articles-to-project!
-  "Imports into project all articles referenced in list of PubMed IDs.
-  Note that this will not import an article if the PMID already exists
-  in the project."
+  "Imports articles into project."
   [articles project-id project-source-id]
   (try
     (doseq [articles-group (->> articles (partition-all 20))]
@@ -129,63 +127,72 @@
     (finally
       (clear-project-cache project-id))))
 
-(defn add-articles-with-meta!
+(defn add-articles!
   "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
-  [articles project-id meta & {:keys [use-future? threads]
-                               :or {use-future? false threads 1}}]
-  (let [project-source-id (project/create-project-source-metadata!
-                           project-id
-                           (assoc meta :importing-articles? true))]
-    (if (and use-future? (nil? *conn*))
-      (future
-        (try
-          (let [thread-groups
-                (->> articles
-                     (partition-all (max 1 (quot (count articles) threads))))
-                thread-results
-                (->> thread-groups
-                     (mapv
-                      (fn [thread-articles]
-                        (future
-                          (try
-                            (import-articles-to-project!
-                             thread-articles project-id project-source-id)
-                            true
-                            (catch Throwable e
-                              (println "Error in sysrev.import.endnote/add-articles-with-meta! (inner future)"
-                                       (.getMessage e))
-                              false)))))
-                     (mapv deref))]
-            true)
-          (catch Throwable e
-            (println "Error in sysrev.import.endnote/add-articles-with-meta! (outer future)"
-                     (.getMessage e))
-            false)
-          (finally
-            ;; set meta data importing status to false
-            (project/update-project-source-metadata!
-             project-source-id (assoc meta :importing-articles? false)))))
+  [articles project-id project-source-id metadata & {:keys [use-future? threads]
+                                                     :or {use-future? false threads 1}}]
+  (if (and use-future? (nil? *conn*))
+    (future
       (try
-        ;; import the data
-        (import-articles-to-project! articles project-id project-source-id)
+        (let [thread-groups
+              (->> articles
+                   (partition-all (max 1 (quot (count articles) threads))))
+              thread-results
+              (->> thread-groups
+                   (mapv
+                    (fn [thread-articles]
+                      (future
+                        (try
+                          (import-articles-to-project!
+                           thread-articles project-id project-source-id)
+                          true
+                          (catch Throwable e
+                            (println "Error in sysrev.import.endnote/add-articles-with-meta! (inner future)"
+                                     (.getMessage e))
+                            false)))))
+                   (mapv deref))]
+          true)
         (catch Throwable e
-          (println "Error in sysrev.import.endnote/add-articles-to-project-with-meta!"
-                   (.getMessage e)))
+          (println "Error in sysrev.import.endnote/add-articles-with-meta! (outer future)"
+                   (.getMessage e))
+          false)
         (finally
           ;; set meta data importing status to false
           (project/update-project-source-metadata!
-           project-source-id (assoc meta :importing-articles? false)))))))
+           project-source-id (assoc metadata :importing-articles? false)))))
+    (try
+      ;; import the data
+      (import-articles-to-project! articles project-id project-source-id)
+      (catch Throwable e
+        (println "Error in sysrev.import.endnote/add-articles-to-project-with-meta!"
+                 (.getMessage e)))
+      (finally
+        ;; set meta data importing status to false
+        (project/update-project-source-metadata!
+         project-source-id (assoc metadata :importing-articles? false))))))
 
 (defn endnote-file->articles
   [file]
   (mapv #(dissoc % :custom4 :custom5 :rec-number) (load-endnote-library-xml file)))
 
-(defn import-endnote-library [file project-id]
-  (let [articles (load-endnote-library-xml file)]
-    (doseq [a articles]
-      (println (pr-str (:primary-title a)))
-      (let [a (-> a (dissoc :custom4 :custom5 :rec-number))]
-        (add-article a project-id)))))
+(defn import-endnote-library! [file filename project-id & {:keys [use-future? threads]
+                                                           :or {use-future? false threads 1}}]
+  (let [metadata (project/import-pmids-from-filename-meta filename)
+        project-source-id (project/create-project-source-metadata!
+                           project-id
+                           (assoc metadata
+                                  :importing-articles? true))]
+    (let [articles (future (endnote-file->articles file))]
+      (add-articles! @articles project-id project-source-id metadata
+                     :use-future? use-future?
+                     :threads threads))))
+
+#_ (defn import-endnote-library [file project-id]
+     (let [articles (load-endnote-library-xml file)]
+       (doseq [a articles]
+         (println (pr-str (:primary-title a)))
+         (let [a (-> a (dissoc :custom4 :custom5 :rec-number))]
+           (add-article a project-id)))))
 
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
