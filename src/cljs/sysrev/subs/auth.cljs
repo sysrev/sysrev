@@ -30,7 +30,18 @@
 (reg-sub
  :self/projects
  :<- [::self-state]
- (fn [self] (:projects self)))
+ (fn [{:keys [projects]} [_ include-available?]]
+   (if include-available?
+     projects
+     (->> projects (filterv :member?)))))
+
+(reg-sub
+ :self/member?
+ :<- [:self/projects false]
+ :<- [:active-project-id]
+ (fn [[projects active-id] [_ project-id]]
+   (let [project-id (or project-id active-id)]
+     (in? (map :project-id projects) project-id))))
 
 (reg-sub
  :self/settings

@@ -24,9 +24,8 @@
       [:button.ui.button.primary "Create"]]]))
 
 (defn CreateProject [state]
-  [:div.ui.container
-   [:div.panel
-    [:div.ui.segment.top
-     [:h3.ui.dividing.header
-      "Create a New Project"]
-     [CreateProjectForm state]]]])
+  [:div.panel
+   [:div.ui.segment.top
+    [:h3.ui.dividing.header
+     "Create a New Project"]
+    [CreateProjectForm state]]])

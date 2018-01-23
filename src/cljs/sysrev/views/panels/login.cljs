@@ -260,9 +260,7 @@
   (let [register-hash @(subscribe [:register/register-hash])
         project-id @(subscribe [:register/project-id])
         project-name @(subscribe [:register/project-name])
-        member? (in? (->> @(subscribe [:self/projects])
-                          (map :project-id))
-                     project-id)]
+        member? @(subscribe [:self/member? project-id])]
     (with-loader [[:register-project register-hash]] {}
       (cond
         (nil? project-id)

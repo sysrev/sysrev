@@ -80,15 +80,26 @@
    [:div.ui.basic.label "Flag"]
    [:div.ui.small.orange.basic.button description]])
 
-(defn article-info-view
-  [article-id & {:keys [show-labels? private-view?]}]
-  (let [status @(subscribe [:article/review-status article-id])
-        flag-labels {"user-duplicate" "Duplicate article (exclude)"
+(defn- article-flags-view [article-id & [wrapper-class]]
+  (let [flag-labels {"user-duplicate" "Duplicate article (exclude)"
                      "user-conference" "Conference abstract (exclude)"}
         flags @(subscribe [:article/flags article-id])
         flag-names (->> (keys flags)
                         (filter #(get flag-labels %))
-                        sort)]
+                        sort)
+        entries (for [flag-name flag-names]
+                  ^{:key flag-name}
+                  [article-flag-label (get flag-labels flag-name)])]
+    (when (not-empty flag-names)
+      (if wrapper-class
+        [:div {:class wrapper-class}
+         (doall entries)]
+        (doall entries)))))
+
+(defn article-info-view
+  [article-id & {:keys [show-labels? private-view?]}]
+  (let [status @(subscribe [:article/review-status article-id])
+        full-size? (full-size?)]
     [:div
      (with-loader [[:article article-id]]
        {:class "ui segments article-info"}
@@ -97,15 +108,12 @@
          {:key [:article-header]}
          [:div {:style {:float "left"}}
           [:h4 "Article Info "
-           (when (not-empty flag-names)
-             (doall
-              (for [flag-name flag-names]
-                ^{:key flag-name}
-                [article-flag-label (get flag-labels flag-name)])))]]
+           (when full-size? (article-flags-view article-id nil))]]
          (when (or status private-view?)
            [:div {:style {:float "right"}}
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
+        (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}
          [article-info-main-content article-id]]))
