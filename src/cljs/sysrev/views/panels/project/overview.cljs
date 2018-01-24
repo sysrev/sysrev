@@ -8,7 +8,6 @@
    [sysrev.views.components :refer [with-ui-help-tooltip]]
    [sysrev.views.charts :refer [chart-container pie-chart bar-chart
                                 get-canvas-context wrap-animate-options]]
-   [sysrev.views.panels.project.add-articles :refer [AddArticles]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]

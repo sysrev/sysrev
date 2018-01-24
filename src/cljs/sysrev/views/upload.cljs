@@ -6,7 +6,7 @@
 
 (defn basic-text-button [id & args]
   [:div.ui.basic.button {:id id :style {:cursor "pointer"}}
-   [:i.ui.green.add.circle.icon]
+   [:i.green.add.circle.icon]
    (first args)])
 
 (defn upload-container

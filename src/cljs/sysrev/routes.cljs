@@ -140,8 +140,8 @@
 (sr-defroute
  add-articles "/project/add-articles" []
  (dispatch [:reload [:project/sources]])
- (dispatch [:set-active-panel [:project :project :add-articles]]
-           "/project/add-articles"))
+ (dispatch [:set-active-panel [:project :project :add-articles]
+            "/project/add-articles"]))
 
 (sr-defroute
  project-settings "/project/settings" []

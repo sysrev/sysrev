@@ -34,9 +34,8 @@
   []
   (let [parse-count-string
         (fn [count-string]
-          (clojure.core/read-string (or (second (re-matches #".*of (\d*)" count-string))
-                                        (second (re-matches #"Items: (\d*)" count-string)))))
-        count-query {:xpath "//h4[@id='items-count']"}]
+          (clojure.core/read-string (second (re-matches #".*of (\d*)" count-string))))
+        count-query {:xpath "//h5[@id='items-count']"}]
     (browser/wait-until-exists count-query)
     (parse-count-string (taxi/text (taxi/find-element count-query)))))
 
@@ -52,7 +51,8 @@
 
 (defn get-current-page-number
   []
-  (clojure.core/read-string (taxi/value (taxi/find-element {:xpath "//form/div/div[contains(@class,'input')]/input[@type='text']"}))))
+  (->> {:xpath "//input[contains(@class,'search-page-number') and @type='text']"}
+       taxi/find-element taxi/value clojure.core/read-string))
 
 (defn search-term-count-matches?
   "Does the search-term result in the browser match the remote call?"
