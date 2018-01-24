@@ -60,9 +60,6 @@
   (is (panel-rendered? [:user-settings]))
   (taxi/wait-until #(taxi/exists? (taxi/find-element {:css "a[id='log-out-link']"})))
   (log-out)
-  (taxi/wait-until
-   #(taxi/exists?
-     {:css "div[id='login-register-panel']"}))
   (is (login-form-shown?)))
 
 #_

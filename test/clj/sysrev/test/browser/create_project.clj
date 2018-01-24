@@ -26,8 +26,7 @@
     (browser/wait-until-exists search-input)
     (taxi/clear search-input)
     (taxi/input-text search-input query)
-    (taxi/submit search-form)
-    (Thread/sleep 250)))
+    (taxi/submit search-form)))
 
 (defn search-count
   "Return an integer item count of search results"
@@ -110,4 +109,51 @@
     ;; Go to first page
     (click-pager "First")
     (is (= 1)
-        (get-current-page-number))))
+        (get-current-page-number))
+    (log-out)))
+
+(deftest create-project-and-import-sources
+  (let [project-name "Foo Bar"
+        search-term-first "foo bar"
+        search-term-second "grault"]
+    (log-in)
+    ;; create a project
+    (browser/go-route "/select-project")
+    (browser/wait-until-loading-completes)
+    (taxi/input-text {:xpath "//input[@placeholder='Project Name']"} project-name)
+    (taxi/click {:xpath "//button[text()='Create']"})
+    (browser/wait-until-displayed {:xpath "//span[contains(@class,'project-title')]"})
+    ;; was the project actually created?
+    (is (.contains (taxi/text {:xpath "//span[contains(@class,'project-title')]"}) project-name))
+    ;; add articles from first search term
+    (browser/go-route "/project/add-articles")
+    (search-for search-term-first)
+    (browser/wait-until-displayed {:xpath "//div[contains(text(),'Import')]"})
+    (taxi/click {:xpath "//div[contains(text(),'Import')]"})
+    ;; check that they've loaded
+    (browser/wait-until-displayed {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")})
+    (is (taxi/exists? {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")}))
+    ;; check that there is one article source listed
+    (taxi/wait-until #(= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"}))))
+    (is (= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"}))))
+    ;; add articles from second search term
+    (search-for search-term-second)
+    (browser/wait-until-displayed {:xpath "//div[contains(text(),'Import')]"})
+    (taxi/click {:xpath "//div[contains(text(),'Import')]"})
+    (browser/wait-until-displayed {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")})
+    ;; check that they've loaded
+    (is (taxi/exists? {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")}))
+    ;; check that there is one article source listed
+    (taxi/wait-until #(= 2 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    (is (= 2 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    ;; delete the first source
+    (taxi/click {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'Delete')]")})
+    ;; count is back down to one
+    (taxi/wait-until #(= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    (is (= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    ;; delete the second source
+    (taxi/click {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'Delete')]")})
+    ;; count is down to zero
+    (taxi/wait-until #(= 0 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    (is (= 0 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    (log-out)))

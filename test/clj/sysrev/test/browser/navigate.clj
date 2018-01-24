@@ -22,7 +22,10 @@
     (Thread/sleep 1000)))
 
 (defn log-out []
-  (taxi/select "a[id='log-out-link']"))
+  (taxi/select "a[id='log-out-link']")
+  (taxi/wait-until
+   #(taxi/exists?
+     {:css "div[id='login-register-panel']"})))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))

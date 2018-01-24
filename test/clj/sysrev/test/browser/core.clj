@@ -128,8 +128,17 @@
   "Given a query q, wait until the element it represents exists"
   [q]
   (taxi/wait-until
-   #(taxi/exists?
-     q)))
+   #(taxi/exists? q)
+   10000))
+
+(defn wait-until-displayed
+  "Given a query q, wait until the element it represents exists
+  and is displayed"
+  [q]
+  (taxi/wait-until
+   #(and (taxi/exists? q)
+         (taxi/displayed? q))
+   10000))
 
 (defn panel-name
   [panel-keys]
@@ -143,5 +152,7 @@
   []
   (taxi/wait-until
    #(not (taxi/exists?
-          {:xpath "//div[contains(@class,'loader')]/div[contains(@class,'loader')]"}))
-   10000))
+          {:xpath "//div[contains(@class,'loader')]"}))
+   10000)
+  (Thread/sleep 200))
+
