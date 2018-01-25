@@ -3,6 +3,7 @@
              [do-query do-execute with-transaction clear-project-cache to-jsonb *conn*]]
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
+            [sysrev.db.sources :as sources]
             [sysrev.util :refer
              [parse-xml-str parse-integer
               xml-find xml-find-value xml-find-vector]]
@@ -194,12 +195,12 @@
                 ;; if PMID is already present in project, just mark the
                 ;; existing article(s) as contained in this source
                 (doseq [{:keys [article-id]} existing-articles]
-                  (articles/add-article-to-source! article-id source-id))
+                  (sources/add-article-to-source! article-id source-id))
                 ;; otherwise add new article
                 (when-let [article-id (add-article
                                        (dissoc article :locations)
                                        project-id)]
-                  (articles/add-article-to-source! article-id source-id)
+                  (sources/add-article-to-source! article-id source-id)
                   (when (not-empty (:locations article))
                     (-> (sqlh/insert-into :article-location)
                         (values
@@ -222,7 +223,7 @@
   "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
   [pmids project-id meta & {:keys [use-future? threads]
                             :or {use-future? false threads 1}}]
-  (let [source-id (project/create-project-source-metadata!
+  (let [source-id (sources/create-project-source-metadata!
                    project-id (assoc meta :importing-articles? true))]
     (if (and use-future? (nil? *conn*))
       (future
@@ -245,28 +246,28 @@
                      (mapv deref))
                 success? (every? true? thread-results)]
             (if success?
-              (project/update-project-source-metadata!
+              (sources/update-project-source-metadata!
                source-id (assoc meta :importing-articles? false))
-              (project/fail-project-source-import! source-id))
+              (sources/fail-project-source-import! source-id))
             success?)
           (catch Throwable e
             (log/info "Error in import-pmids-to-project-with-meta! (outer future)"
                       (.getMessage e))
-            (project/fail-project-source-import! source-id)
+            (sources/fail-project-source-import! source-id)
             false)))
       (try
         ;; import the data
         (let [success?
               (import-pmids-to-project pmids project-id source-id)]
           (if success?
-            (project/update-project-source-metadata!
+            (sources/update-project-source-metadata!
              source-id (assoc meta :importing-articles? false))
-            (project/fail-project-source-import! source-id))
+            (sources/fail-project-source-import! source-id))
           success?)
         (catch Throwable e
           (log/info "Error in import-pmids-to-project-with-meta!"
                     (.getMessage e))
-          (project/fail-project-source-import! source-id)
+          (sources/fail-project-source-import! source-id)
           false)))))
 
 (defn reload-project-abstracts [project-id]

@@ -8,7 +8,8 @@
    [sysrev.import.pubmed :refer [fetch-pmid-entry import-pmids-to-project-with-meta! get-search-query-response get-pmids-summary get-all-pmids-for-query]]
    [sysrev.util :refer [parse-xml-str xml-find]]
    [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
-   [sysrev.db.project :as project]))
+   [sysrev.db.project :as project]
+   [sysrev.db.sources :as sources]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -60,7 +61,7 @@
 (deftest retrieve-articles
   (let [result-count (fn [result] (-> result first :count))
         search-term "foo bar"
-        meta (project/import-pmids-search-term-meta search-term)
+        meta (sources/import-pmids-search-term-meta search-term)
         pmids (:pmids (get-search-query-response search-term 1))
         new-project (project/create-project "test project")
         new-project-id (:project-id new-project)

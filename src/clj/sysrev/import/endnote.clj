@@ -9,6 +9,7 @@
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
+            [sysrev.db.sources :as sources]
             [clojure.tools.logging :as log]
             [sysrev.util :refer
              [xml-find xml-find-vector xml-find-vector
@@ -114,7 +115,7 @@
                                    (dissoc article :locations)
                                    project-id)]
               ;; associate this article with a project-source-id
-              (articles/add-article-to-source! article-id project-source-id)
+              (sources/add-article-to-source! article-id project-source-id)
               (when (not-empty (:locations article))
                 (-> (sqlh/insert-into :article-location)
                     (values
@@ -154,28 +155,28 @@
                    (mapv deref))
               success? (every? true? thread-results)]
           (if success?
-            (project/update-project-source-metadata!
+            (sources/update-project-source-metadata!
              source-id (assoc meta :importing-articles? false))
-            (project/fail-project-source-import! source-id))
+            (sources/fail-project-source-import! source-id))
           success?)
         (catch Throwable e
           (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
                     (.getMessage e))
-          (project/fail-project-source-import! source-id)
+          (sources/fail-project-source-import! source-id)
           false)))
     (try
       ;; import the data
       (let [success?
             (import-articles-to-project! articles project-id source-id)]
         (if success?
-          (project/update-project-source-metadata!
+          (sources/update-project-source-metadata!
            source-id (assoc meta :importing-articles? false))
-          (project/fail-project-source-import! source-id))
+          (sources/fail-project-source-import! source-id))
         success?)
       (catch Throwable e
         (println "Error in sysrev.import.endnote/add-articles!"
                  (.getMessage e))
-        (project/fail-project-source-import! source-id)))))
+        (sources/fail-project-source-import! source-id)))))
 
 (defn endnote-file->articles
   [file]
@@ -185,8 +186,8 @@
 
 (defn import-endnote-library! [file filename project-id & {:keys [use-future? threads]
                                                            :or {use-future? false threads 1}}]
-  (let [meta (project/import-articles-from-endnote-file-meta filename)
-        source-id (project/create-project-source-metadata!
+  (let [meta (sources/import-articles-from-endnote-file-meta filename)
+        source-id (sources/create-project-source-metadata!
                    project-id
                    (assoc meta
                           :importing-articles? true))]
@@ -195,7 +196,7 @@
                           :use-future? use-future?
                           :threads threads))
          (catch Throwable e
-           (project/fail-project-source-import! source-id)
+           (sources/fail-project-source-import! source-id)
            (throw (Exception. "Error in sysrev.import.endnote/import-endnote-library!: " (.getMessage e)))))))
 
 (defn clone-subproject-endnote

@@ -1,9 +1,10 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require [clojure.spec.alpha :as s]
+            [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
-            [sysrev.db.core :as db]
+            [sysrev.db.sources :as sources]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.shared.spec.project :as sp]
@@ -60,7 +61,7 @@
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
   [project-id search-term source & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (project/project-sources project-id)
+  (let [project-sources (sources/project-sources project-id)
         search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)]
     (cond (not (project/project-exists? project-id))
           {:error {:status 403
@@ -72,7 +73,7 @@
                (= source "PubMed"))
           (try
             (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (project/import-pmids-search-term-meta search-term)
+                  meta (sources/import-pmids-search-term-meta search-term)
                   success?
                   (pubmed/import-pmids-to-project-with-meta!
                    pmids project-id meta
@@ -105,7 +106,7 @@
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (project/project-sources project-id)
+  (let [project-sources (sources/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename)
                                  project-sources)]
     (try
@@ -121,7 +122,7 @@
               ;; there is no import going on for this filename
               (and (empty? filename-sources))
               (try
-                (let [meta (project/import-pmids-from-filename-meta filename)
+                (let [meta (sources/import-pmids-from-filename-meta filename)
                       success?
                       (pubmed/import-pmids-to-project-with-meta!
                        pmid-vector project-id meta
@@ -148,7 +149,7 @@
 (defn import-articles-from-endnote-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (project/project-sources project-id)
+  (let [project-sources (sources/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
       (cond (not (project/project-exists? project-id))
@@ -178,7 +179,7 @@
   [project-id]
   (if (project/project-exists? project-id)
     {:result {:success true
-              :sources (project/project-sources project-id)}}
+              :sources (sources/project-sources project-id)}}
     {:error {:status 403
              :mesaage "Project does not exist"}}))
 
@@ -189,10 +190,10 @@
 (defn delete-source!
   "Delete a source with source-id by user-id."
   [source-id]
-  (cond (project/source-has-labeled-articles? source-id)
+  (cond (sources/source-has-labeled-articles? source-id)
         {:error {:status 403
                  :message "Source contains reviewed articles"}}
-        :else (do (project/delete-project-source! source-id)
+        :else (do (sources/delete-project-source! source-id)
                   {:result {:success true}})))
 
 (s/fdef delete-source!

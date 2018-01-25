@@ -1,6 +1,7 @@
 (ns sysrev.test.web.routes.project
   (:require [clojure.test :refer :all]
             [sysrev.db.project :as project]
+            [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
@@ -44,7 +45,7 @@
         email "foo@bar.com"
         password "foobar"
         search-term "foo bar"
-        meta (project/import-pmids-search-term-meta search-term)
+        meta (sources/import-pmids-search-term-meta search-term)
         route-response (route-response-fn handler)]
     ;; create user
     (users/create-user email password :project-id 100)
@@ -252,7 +253,7 @@
                                    {:project-id new-project-id})
                    [:error :message])))
     ;; the project source has labeled articles as well
-    (is (project/source-has-labeled-articles? foo-bar-search-source-id))
+    (is (sources/source-has-labeled-articles? foo-bar-search-source-id))
     ;; the project source can not be deleted
     (is (= "Source contains reviewed articles"
            (get-in (route-response :post "/api/delete-source"
