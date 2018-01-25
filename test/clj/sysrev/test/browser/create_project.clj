@@ -128,18 +128,21 @@
     ;; add articles from first search term
     (browser/go-route "/project/add-articles")
     (search-for search-term-first)
-    (browser/wait-until-displayed {:xpath "//div[contains(text(),'Import')]"})
-    (taxi/click {:xpath "//div[contains(text(),'Import')]"})
+    (browser/wait-until-displayed {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
+    (taxi/click {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
     ;; check that they've loaded
     (browser/wait-until-displayed {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")})
     (is (taxi/exists? {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")}))
     ;; check that there is one article source listed
     (taxi/wait-until #(= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"}))))
     (is (= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"}))))
+    (let [close {:xpath "//div[contains(@class,'button') and contains(text(),'Close')]"}]
+      (when (taxi/exists? close)
+        (taxi/click close)))
     ;; add articles from second search term
     (search-for search-term-second)
-    (browser/wait-until-displayed {:xpath "//div[contains(text(),'Import')]"})
-    (taxi/click {:xpath "//div[contains(text(),'Import')]"})
+    (browser/wait-until-displayed {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
+    (taxi/click {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
     (browser/wait-until-displayed {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")})
     ;; check that they've loaded
     (is (taxi/exists? {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'articles reviewed')]")}))
@@ -147,12 +150,16 @@
     (taxi/wait-until #(= 2 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     (is (= 2 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     ;; delete the first source
-    (taxi/click {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'Delete')]")})
+    (let [delete {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(@class,'button') and contains(text(),'Delete')]")}]
+      (browser/wait-until-exists delete)
+      (taxi/click delete))
     ;; count is back down to one
     (taxi/wait-until #(= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     (is (= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     ;; delete the second source
-    (taxi/click {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(text(),'Delete')]")})
+    (let [delete {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(@class,'button') and contains(text(),'Delete')]")}]
+      (browser/wait-until-exists delete)
+      (taxi/click delete))
     ;; count is down to zero
     (taxi/wait-until #(= 0 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     (is (= 0 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
