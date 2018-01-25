@@ -92,9 +92,10 @@
   (try
     (articles/add-article article project-id *conn*)
     (catch Throwable e
-      (println "exception in sysrev.import.endnote/add-article")
-      (println "article:" (:primary-title article))
-      (println (.getMessage e))
+      (throw (Exception.
+              (str "exception in sysrev.import.endnote/add-article "
+                   "article:" (:primary-title article) " "
+                   "message: " (.getMessage e))))
       nil)))
 
 (defn- import-articles-to-project!
@@ -121,16 +122,16 @@
                           (mapv #(assoc % :article-id article-id))))
                     do-execute))))
           (catch Throwable e
-            (log/info (format "sysrev.import.endnote/import-articles-to-project!: error importing article #%s"
-                              (:public-id article))
-                      ": " (.getMessage e))))))
+            (throw (Exception. (str (format "sysrev.import.endnote/import-articles-to-project!: error importing article #%s"
+                                            (:public-id article))
+                                    ": " (.getMessage e))))))))
     (finally
       (clear-project-cache project-id))))
 
 (defn add-articles!
   "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
-  [articles project-id project-source-id metadata & {:keys [use-future? threads]
-                                                     :or {use-future? false threads 1}}]
+  [articles project-id source-id meta & {:keys [use-future? threads]
+                                         :or {use-future? false threads 1}}]
   (if (and use-future? (nil? *conn*))
     (future
       (try
@@ -144,48 +145,58 @@
                       (future
                         (try
                           (import-articles-to-project!
-                           thread-articles project-id project-source-id)
+                           thread-articles project-id source-id)
                           true
                           (catch Throwable e
                             (println "Error in sysrev.import.endnote/add-articles! (inner future)"
                                      (.getMessage e))
                             false)))))
-                   (mapv deref))]
-          true)
+                   (mapv deref))
+              success? (every? true? thread-results)]
+          (if success?
+            (project/update-project-source-metadata!
+             source-id (assoc meta :importing-articles? false))
+            (project/fail-project-source-import! source-id))
+          success?)
         (catch Throwable e
-          (println "Error in sysrev.import.endnote/add-articles! (outer future)"
-                   (.getMessage e))
-          false)
-        (finally
-          ;; set meta data importing status to false
-          (project/update-project-source-metadata!
-           project-source-id (assoc metadata :importing-articles? false)))))
+          (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
+                    (.getMessage e))
+          (project/fail-project-source-import! source-id)
+          false)))
     (try
       ;; import the data
-      (import-articles-to-project! articles project-id project-source-id)
+      (let [success?
+            (import-articles-to-project! articles project-id source-id)]
+        (if success?
+          (project/update-project-source-metadata!
+           source-id (assoc meta :importing-articles? false))
+          (project/fail-project-source-import! source-id))
+        success?)
       (catch Throwable e
         (println "Error in sysrev.import.endnote/add-articles!"
-                 (.getMessage e)))
-      (finally
-        ;; set meta data importing status to false
-        (project/update-project-source-metadata!
-         project-source-id (assoc metadata :importing-articles? false))))))
+                 (.getMessage e))
+        (project/fail-project-source-import! source-id)))))
 
 (defn endnote-file->articles
   [file]
-  (mapv #(dissoc % :custom4 :custom5 :rec-number) (load-endnote-library-xml file)))
+  (try (mapv #(dissoc % :custom4 :custom5 :rec-number) (load-endnote-library-xml file))
+       (catch Throwable e
+         (throw (Exception. "Error parsing file")))))
 
 (defn import-endnote-library! [file filename project-id & {:keys [use-future? threads]
                                                            :or {use-future? false threads 1}}]
-  (let [metadata (project/import-pmids-from-filename-meta filename)
-        project-source-id (project/create-project-source-metadata!
-                           project-id
-                           (assoc metadata
-                                  :importing-articles? true))]
-    (let [articles (future (endnote-file->articles file))]
-      (add-articles! @articles project-id project-source-id metadata
-                     :use-future? use-future?
-                     :threads threads))))
+  (let [meta (project/import-articles-from-endnote-file-meta filename)
+        source-id (project/create-project-source-metadata!
+                   project-id
+                   (assoc meta
+                          :importing-articles? true))]
+    (try (let [articles (endnote-file->articles file)]
+           (add-articles! articles project-id source-id meta
+                          :use-future? use-future?
+                          :threads threads))
+         (catch Throwable e
+           (project/fail-project-source-import! source-id)
+           (throw (Exception. "Error in sysrev.import.endnote/import-endnote-library!: " (.getMessage e)))))))
 
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
