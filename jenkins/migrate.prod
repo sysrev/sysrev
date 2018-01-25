@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+./scripts/install-flyway
+cp -f flyway.conf.aws-prod-main flyway.conf
+./flyway migrate

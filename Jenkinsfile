@@ -87,6 +87,14 @@ node {
     echo 'Setting up workspace...'
     try {
       sh './jenkins/init'
+      if (branch == 'dev') {
+        sh './jenkins/migrate.build';
+      } else if (branch == 'staging') {
+        sh './jenkins/migrate.dev';
+      } else if (branch == 'production') {
+        sh './jenkins/migrate.dev';
+        sh './jenkins/migrate.prod';
+      }
     } catch (exc) {
       currentBuild.result = 'FAILURE'
       sendFlowdockMsg ('Init stage failed')
