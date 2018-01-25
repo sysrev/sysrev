@@ -88,12 +88,7 @@ node {
     try {
       sh './jenkins/init'
       if (branch == 'dev') {
-        sh './jenkins/migrate.build';
-      } else if (branch == 'staging') {
-        sh './jenkins/migrate.dev';
-      } else if (branch == 'production') {
-        sh './jenkins/migrate.dev';
-        sh './jenkins/migrate.prod';
+        sh './jenkins/migrate.build'
       }
     } catch (exc) {
       currentBuild.result = 'FAILURE'
@@ -153,6 +148,7 @@ node {
         try {
           sshagent(['sysrev-admin']) {
             withEnv(["SYSREV_HOST=staging.sysrev.us"]) {
+              sh './jenkins/migrate.dev'
               sh './jenkins/deploy'
             }
             // sh './jenkins/clone-db-to-dev'
@@ -190,6 +186,7 @@ node {
           if (branch == 'staging') {
             sshagent(['sysrev-admin']) {
               withEnv(["SYSREV_HOST=staging.sysrev.us"]) {
+                sh './jenkins/migrate.dev'
                 sh './jenkins/deploy'
               }
             }
@@ -199,6 +196,7 @@ node {
             archiveArtifacts artifacts: 'target/*.jar,deploy/client.tgz', fingerprint: true
             sshagent(['sysrev-admin']) {
               withEnv(["SYSREV_HOST=sysrev.us"]) {
+                sh './jenkins/migrate.prod'
                 sh './jenkins/deploy'
               }
             }
