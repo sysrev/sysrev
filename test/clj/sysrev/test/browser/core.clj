@@ -148,6 +148,9 @@
   [panel-keys]
   (wait-until-exists {:css (str "div[id='" (panel-name panel-keys) "']")}))
 
+(defn panel-exists? [panel-keys]
+  (taxi/exists? {:css (str "div[id='" (panel-name panel-keys) "']")}))
+
 (defn wait-until-loading-completes
   []
   (taxi/wait-until

@@ -7,7 +7,8 @@
             [sysrev.test.core :refer [default-fixture completes?]]
             [sysrev.test.browser.core :as browser :refer
              [webdriver-fixture-once webdriver-fixture-each go-route
-              login-form-shown? panel-rendered? element-rendered? wait-until-panel-exists]]
+              login-form-shown? panel-rendered? element-rendered?
+              wait-until-panel-exists panel-exists?]]
             [sysrev.test.browser.navigate :refer
              [log-in log-out register-user]]
             [clojure.string :as str]
@@ -16,15 +17,14 @@
 (use-fixtures :once default-fixture webdriver-fixture-once)
 (use-fixtures :each webdriver-fixture-each)
 
-#_ (deftest home-page-loads
-  (go-route "/")
-  (is (login-form-shown?)))
-
 (deftest project-routes
   (log-in)
   (wait-until-panel-exists [:project])
   (is (panel-rendered? [:project]))
-  (Thread/sleep 500)
+  (taxi/wait-until
+   #(or (panel-exists? [:project :project :overview])
+        (panel-exists? [:project :project :add-articles]))
+   10000)
   (is (or (panel-rendered? [:project :project :overview])
           (panel-rendered? [:project :project :add-articles])))
   (is (not (panel-rendered? [:project :project :fake-panel])))
@@ -54,7 +54,10 @@
   (wait-until-panel-exists [:project :project :articles])
   (is (panel-rendered? [:project :project :articles]))
   (go-route "/")
-  (Thread/sleep 500)
+  (taxi/wait-until
+   #(or (panel-exists? [:project :project :overview])
+        (panel-exists? [:project :project :add-articles]))
+   10000)
   (is (or (panel-rendered? [:project :project :overview])
           (panel-rendered? [:project :project :add-articles])))
   (go-route "/user/settings")
