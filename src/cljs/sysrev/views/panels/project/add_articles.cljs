@@ -3,6 +3,7 @@
             [re-frame.core :as re-frame :refer
              [dispatch subscribe reg-fx reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
+            [cljs-time.core :as t]
             [sysrev.action.core :refer [def-action]]
             [sysrev.util :refer [continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
@@ -89,6 +90,15 @@
       (when import-label
         [:div.ui.large.basic.label (str import-label)])]]))
 
+(defn- source-import-timed-out? [source]
+  (let [{:keys [meta source-id date-created
+                article-count labeled-article-count]} source
+        {:keys [importing-articles? deleting?]} meta]
+    (and (true? importing-articles?)
+         (t/within? {:start (t/epoch)
+                     :end (t/minus (t/now) (t/minutes 10))}
+                    date-created))))
+
 (defonce polling-sources? (r/atom false))
 
 (defn poll-project-sources [source-id]
@@ -96,15 +106,23 @@
     (reset! polling-sources? true)
     (dispatch [:fetch [:project/sources]])
     (let [sources (subscribe [:project/sources])
-          delete-running? (subscribe
-                           [:action/running? [:sources/delete source-id]])
-          source-updating? (fn [source-id]
-                             (or @delete-running?
-                                 (->> @sources
-                                      (filter #(= (:source-id %) source-id))
-                                      first :meta
-                                      (#(or (:importing-articles? %)
-                                            (true? (:deleting? %)))))))]
+          delete-running?
+          (subscribe
+           [:action/running? [:sources/delete source-id]])
+          source-updating?
+          (fn [source-id]
+            (or @delete-running?
+                (->>
+                 @sources
+                 (filter #(= (:source-id %) source-id))
+                 first
+                 ((fn [source]
+                    (let [{:keys [importing-articles?
+                                  deleting?]}
+                          (:meta source)]
+                      (or (and (true? importing-articles?)
+                               (not (source-import-timed-out? source)))
+                          (true? deleting?))))))))]
       (continuous-update-until #(dispatch [:fetch [:project/sources]])
                                #(not (source-updating? source-id))
                                #(do (reset! polling-sources? false)
@@ -112,12 +130,15 @@
                                1500))))
 
 (defn ArticleSource [source]
-  (let [{:keys [meta source-id article-count labeled-article-count]} source
+  (let [{:keys [meta source-id date-created
+                article-count labeled-article-count]} source
         {:keys [importing-articles? deleting?]} meta
         polling? @polling-sources?
         delete-running? @(subscribe
-                          [:action/running? [:sources/delete source-id]])]
-    (when (or importing-articles? deleting? delete-running?)
+                          [:action/running? [:sources/delete source-id]])
+        timed-out? (source-import-timed-out? source)]
+    (when (or (and (true? importing-articles?) (not timed-out?))
+              deleting? delete-running?)
       (poll-project-sources source-id)
       nil)
     [:div.project-source
@@ -139,8 +160,20 @@
            {:key :loader}
            [:div.ui.small.active.loader]])
 
+         ;; when import has failed or timed out
+         (or (= importing-articles? "error") timed-out?)
+         (list
+          [:div.eight.wide.column.left.aligned
+           {:key :import-failed}
+           [CenteredColumn
+            "Import error"]]
+          [:div.eight.wide.column.right.aligned
+           {:key :buttons}
+           [DeleteArticleSource source-id]])
+
          ;; when articles are still loading
-         (and importing-articles? polling? article-count)
+         (and (true? importing-articles?) polling?
+              article-count (> article-count 0))
          (list
           [:div.eight.wide.column.left.aligned
            {:key :loaded-count}
@@ -170,9 +203,10 @@
          :else
          (list
           [:div.eight.wide.column.left.aligned
-           {:key :placeholder}]
+           {:key :import-status}
+           "Starting import..."]
           [:div.six.wide.column
-           {:key :placeholder2}]
+           {:key :placeholder}]
           [:div.two.wide.column.right.aligned
            {:key :loader}
            [:div.ui.small.active.loader]]))]]]))

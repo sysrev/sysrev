@@ -686,6 +686,40 @@
         :args (s/cat :project-source-id int?
                      :f ifn?))
 
+(defn delete-project-source-articles!
+  "Deletes all article-source entries for source-id, and their associated
+  article entries unless contained in another source."
+  [source-id]
+  (clear-query-cache)
+  (with-transaction
+    (-> (delete-from [:article :a])
+        (where (let [asources
+                     (-> (select :*)
+                         (from [:article-source :asrc])
+                         (where [:= :asrc.article-id :a.article-id]))]
+                 [:and
+                  [:exists
+                   (-> asources
+                       (merge-where
+                        [:= :asrc.source-id source-id]))]
+                  [:not
+                   [:exists
+                    (-> asources
+                        (merge-where
+                         [:!= :asrc.source-id source-id]))]]]))
+        do-execute)
+    (-> (delete-from :article-source)
+        (where [:= :source-id source-id])
+        do-execute)))
+
+(defn fail-project-source-import!
+  "Update database in response to an error during the import process
+  for a project-source."
+  [source-id]
+  (alter-project-source-metadata!
+   source-id #(assoc % :importing-articles? :error))
+  (delete-project-source-articles! source-id))
+
 (defn delete-project-source!
   "Given a source-id, delete it and remove the articles associated with
   it from the database.  Warning: This fn doesn't care if there are
@@ -696,32 +730,18 @@
    source-id #(assoc % :deleting? true))
   (try (with-transaction
          ;; delete articles that aren't contained in another source
-         (-> (delete-from [:article :a])
-             (where (let [asources
-                          (-> (select :*)
-                              (from [:article-source :asrc])
-                              (where [:= :asrc.article-id :a.article-id]))]
-                      [:and
-                       [:exists
-                        (-> asources
-                            (merge-where
-                             [:= :asrc.source-id source-id]))]
-                       [:not
-                        [:exists
-                         (-> asources
-                             (merge-where
-                              [:!= :asrc.source-id source-id]))]]]))
-             do-execute)
+         (delete-project-source-articles! source-id)
          ;; delete entries for project source
          (-> (delete-from :project-source)
              (where [:= :source-id source-id])
              do-execute)
          true)
        (catch Throwable e
+         (log/info "Caught exception in sysrev.db.project/delete-project-source!: "
+                   (.getMessage e))
          (alter-project-source-metadata!
           source-id #(assoc % :deleting? false))
-         (log/info "Caught exception in sysrev.db.project/delete-project-source!: "
-                   (.getMessage e)))))
+         false)))
 ;;
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
@@ -750,6 +770,7 @@
   (-> (select :ps.source-id
               :ps.project-id
               :ps.meta
+              :ps.date-created
               [:%count.ars.source_id "article-count"])
       (from [:project_source :ps])
       (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])

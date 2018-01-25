@@ -65,20 +65,30 @@
     (cond (not (project/project-exists? project-id))
           {:error {:status 403
                    :message "Project does not exist"}}
+
           ;; there is no import going on for this search-term
           ;; execute it
           (and (empty? search-term-sources)
                (= source "PubMed"))
-          (do
-            (pubmed/import-pmids-to-project-with-meta!
-             (pubmed/get-all-pmids-for-query search-term)
-             project-id
-             (project/import-pmids-search-term-meta search-term)
-             :use-future? true
-             :threads threads)
-            {:result {:success true}})
+          (try
+            (let [pmids (pubmed/get-all-pmids-for-query search-term)
+                  meta (project/import-pmids-search-term-meta search-term)
+                  success?
+                  (pubmed/import-pmids-to-project-with-meta!
+                   pmids project-id meta
+                   :use-future? true
+                   :threads threads)]
+              (if success?
+                {:result {:success true}}
+                {:error {:status 403
+                         :message "Error during import (1)"}}))
+            (catch Throwable e
+              {:error {:status 403
+                       :message "Error during import (2)"}}))
+
           (not (empty? search-term-sources))
           {:result {:success true}}
+
           :else
           {:error {:status 403
                    :message "Unknown event occurred"}})))
@@ -96,24 +106,38 @@
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
   (let [project-sources (project/project-sources project-id)
-        filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
+        filename-sources (filter #(= (get-in % [:meta :filename]) filename)
+                                 project-sources)]
     (try
       (let [pmid-vector (pubmed/parse-pmid-file file)]
-        (cond (not (project/project-exists? project-id))
+        (cond (empty? pmid-vector)
+              {:error {:status 403
+                       :message "Error parsing file"}}
+
+              (not (project/project-exists? project-id))
               {:error {:status 403
                        :message "Project does not exist"}}
+
               ;; there is no import going on for this filename
               (and (empty? filename-sources))
-              (do
-                (pubmed/import-pmids-to-project-with-meta!
-                 pmid-vector
-                 project-id
-                 (project/import-pmids-from-filename-meta filename)
-                 :use-future? true
-                 :threads threads)
-                {:result {:success true}})
+              (try
+                (let [meta (project/import-pmids-from-filename-meta filename)
+                      success?
+                      (pubmed/import-pmids-to-project-with-meta!
+                       pmid-vector project-id meta
+                       :use-future? true
+                       :threads threads)]
+                  (if success?
+                    {:result {:success true}}
+                    {:error {:status 403
+                             :message "Error during import (1)"}}))
+                (catch Throwable e
+                  {:error {:status 403
+                           :message "Error during import (2)"}}))
+
               (not (empty? filename-sources))
               {:result {:success true}}
+
               :else
               {:error {:status 403
                        :message "Unknown event occurred"}}))
