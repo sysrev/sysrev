@@ -154,6 +154,7 @@
               :ps.project-id
               :ps.meta
               :ps.date-created
+              :ps.enabled
               [:%count.ars.source_id "article-count"])
       (from [:project_source :ps])
       (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])

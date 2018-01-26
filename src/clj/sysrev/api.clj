@@ -212,10 +212,10 @@
   "Toggle a source as being enabled or disabled."
   [source-id enabled?]
   (if (sources/source-exists? source-id)
-    {:error {:status not-found
-             :message (str "source-id " source-id " does not exist")}}
     (do (sources/toggle-source! source-id enabled?)
-        {:result {:success true}})))
+        {:result {:success true}})
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}))
 
 (s/fdef toggle-source!
         :args (s/cat :source-id int?

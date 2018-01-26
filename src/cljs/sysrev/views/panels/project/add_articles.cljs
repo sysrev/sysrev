@@ -26,6 +26,16 @@
    (reset! state initial-state)
    {}))
 
+(def-action :sources/toggle-source
+  :uri (fn [] "/api/toggle-source")
+  :content (fn [source-id enabled?]
+             {:source-id source-id
+              :enabled? enabled?})
+  :process
+  (fn [_ _ {:keys [success] :as result}]
+    (if success
+      {:dispatch [:reload [:project]]})))
+
 (defn ImportEndNoteView []
   [:div
    [:h4.ui.dividing.header "Import from EndNote XML file"]
@@ -63,6 +73,20 @@
                 #(dispatch [:fetch [:project/sources]])
                 100)))}
    "Delete " [:i.circle.remove.icon]])
+
+(defn ToggleArticleSource
+  [source-id enabled?]
+  [:div.ui.tiny.button
+   {:on-click
+    (fn []
+      (do (dispatch [:action [:sources/toggle-source source-id (not enabled?)]])
+          (js/setTimeout
+           #(dispatch [:fetch [:project/sources]])
+           100)
+          (.log js/console "I clicked enabled button")))}
+   (if enabled?
+     "Enabled"
+     "Disabled")])
 
 (defn SourceInfoView [{:keys [source] :as meta}]
   (let [[source-type import-label]
@@ -131,7 +155,9 @@
 
 (defn ArticleSource [source]
   (let [{:keys [meta source-id date-created
-                article-count labeled-article-count]} source
+                article-count labeled-article-count
+                enabled]} source
+        enabled? enabled
         {:keys [importing-articles? deleting?]} meta
         polling? @polling-sources?
         delete-running? @(subscribe
@@ -167,6 +193,8 @@
            {:key :import-failed}
            [CenteredColumn
             "Import error"]]
+          ;; need to check if the user is an admin
+          ;; before displaying this option
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
            [DeleteArticleSource source-id]])
@@ -197,8 +225,12 @@
                  (.toLocaleString article-count) " articles reviewed")]]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
+           ;; need to check if user is an admin
+           ;; before displaying this
            (when (<= labeled-article-count 0)
-             [DeleteArticleSource source-id])])
+             [DeleteArticleSource source-id])
+           (when (> labeled-article-count 0)
+             [ToggleArticleSource source-id enabled?])])
 
          :else
          (list
