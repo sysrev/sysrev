@@ -14,15 +14,18 @@
 (defonce logging-initialized
   (init-logging))
 
+(defn start-db [& [postgres-overrides only-if-new]]
+  (let [db-config (make-db-config
+                   (merge (:postgres env) postgres-overrides))]
+    (set-active-db! db-config only-if-new)))
+
+(defn start-web [& [server-port-override only-if-new]]
+  (let [prod? (= (:profile env) :prod)
+        server-port (or server-port-override
+                        (-> env :server :port))]
+    (run-web server-port prod? only-if-new)))
+
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
-  (let [{profile :profile} env
-        prod? (= profile :prod)
-        {postgres-config :postgres} env
-        postgres-config (merge postgres-config postgres-overrides)
-        postgres-port (:port postgres-config)
-        {{server-port :port} :server} env
-        server-port (or server-port-override server-port)
-        db-config (make-db-config postgres-config)]
-    (set-active-db! db-config only-if-new)
-    (run-web server-port prod? only-if-new)
-    true))
+  (start-db postgres-overrides only-if-new)
+  (start-web server-port-override only-if-new)
+  true)
