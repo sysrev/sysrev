@@ -10,6 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
+            [sysrev.db.sources :as sources]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.custom.facts :as facts]
             [sysrev.web.app :refer
@@ -116,7 +117,7 @@
         (make-error-response
          500 :api "pmids must be an array of integers")
         :else
-        (do (pubmed/import-pmids-to-project-with-meta! pmids project-id project/import-pmids-meta)
+        (do (pubmed/import-pmids-to-project-with-meta! pmids project-id sources/import-pmids-meta)
             {:result
              {:success true
               :attempted (count pmids)

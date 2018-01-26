@@ -8,6 +8,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.db.articles :as articles]
+            [sysrev.db.sources :as sources]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
@@ -28,7 +29,7 @@
 
 (defn import-facts-pmids [path project-id]
   (let [pmid-ncts (parse-pmid-nct-csv path)]
-    (pm/import-pmids-to-project-with-meta! (keys pmid-ncts) project-id project/import-facts-meta)))
+    (pm/import-pmids-to-project-with-meta! (keys pmid-ncts) project-id sources/import-facts-meta)))
 
 (defn import-facts-nct-links [path project-id]
   (let [pmid-ncts (parse-pmid-nct-csv path)]

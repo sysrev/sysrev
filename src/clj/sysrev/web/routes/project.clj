@@ -13,6 +13,7 @@
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
+   [sysrev.db.sources :as sources]
    [sysrev.files.stores :refer [store-file project-files delete-file get-file]]
    [sysrev.predict.report :refer [predict-summary]]
    [sysrev.shared.article-list :refer
@@ -463,7 +464,7 @@
                  (project-files project-id)
                  (docs/all-article-document-paths project-id)
                  (labels/query-progress-over-time project-id 30)
-                 (project/project-sources project-id))]
+                 (sources/project-sources project-id))]
     {:project {:project-id project-id
                :name (:name fields)
                :project-uuid (:project-uuid fields)

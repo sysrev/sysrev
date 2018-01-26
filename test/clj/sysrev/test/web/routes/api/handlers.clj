@@ -2,6 +2,7 @@
   (:require [clojure.data.json :as json]
             [clojure.test :refer :all]
             [sysrev.db.project :as project]
+            [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
@@ -16,7 +17,7 @@
         email "foo@bar.com"
         password "foobar"
         search-term "foo bar"
-        meta (project/import-pmids-search-term-meta search-term)]
+        meta (sources/import-pmids-search-term-meta search-term)]
     ;; create user
     (users/create-user email password :project-id 100)
     ;; login this user
