@@ -248,6 +248,13 @@
                user-id (current-user-id request)]
            (api/delete-source! source-id))))
 
+  (POST "/api/toggle-source" request
+        (wrap-permissions
+         request [] ["admin"]
+         (let [{:keys [source-id enabled?]} (-> request :body)
+               user-id (current-user-id request)]
+           (api/toggle-source! source-id enabled?))))
+
   (POST "/api/files/upload" request
         (wrap-permissions
          request [] ["member"]

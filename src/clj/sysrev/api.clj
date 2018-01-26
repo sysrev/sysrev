@@ -10,6 +10,11 @@
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]))
 
+;; Error code used
+(def forbidden 403)
+(def not-found 404)
+(def internal-server-error 500)
+
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
   [project-name user-id]
@@ -37,12 +42,12 @@
   "Delete a project with project-id by user-id. Checks to ensure the user is an admin of that project"
   [project-id user-id]
   (cond (not (project/member-has-permission? project-id user-id "admin"))
-        {:error {:status 403
+        {:error {:status forbidden
                  :type :member
                  :message "Not authorized (project)"}}
         (project/project-has-labeled-articles? project-id)
         ;; eventually, we will disable the project in this case
-        {:error {:status 403
+        {:error {:status forbidden
                  :message "Project contains reviewed articles"}}
         (project/member-has-permission? project-id user-id "admin")
         (do (project/delete-project project-id)
@@ -64,7 +69,7 @@
   (let [project-sources (sources/project-sources project-id)
         search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)]
     (cond (not (project/project-exists? project-id))
-          {:error {:status 403
+          {:error {:status not-found
                    :message "Project does not exist"}}
 
           ;; there is no import going on for this search-term
@@ -81,17 +86,17 @@
                    :threads threads)]
               (if success?
                 {:result {:success true}}
-                {:error {:status 403
+                {:error {:status internal-server-error
                          :message "Error during import (1)"}}))
             (catch Throwable e
-              {:error {:status 403
+              {:error {:status internal-server-error
                        :message "Error during import (2)"}}))
 
           (not (empty? search-term-sources))
           {:result {:success true}}
 
           :else
-          {:error {:status 403
+          {:error {:status internal-server-error
                    :message "Unknown event occurred"}})))
 
 (s/def ::threads integer?)
@@ -112,11 +117,11 @@
     (try
       (let [pmid-vector (pubmed/parse-pmid-file file)]
         (cond (empty? pmid-vector)
-              {:error {:status 403
+              {:error {:status internal-server-error
                        :message "Error parsing file"}}
 
               (not (project/project-exists? project-id))
-              {:error {:status 403
+              {:error {:status not-found
                        :message "Project does not exist"}}
 
               ;; there is no import going on for this filename
@@ -130,20 +135,20 @@
                        :threads threads)]
                   (if success?
                     {:result {:success true}}
-                    {:error {:status 403
+                    {:error {:status internal-server-error
                              :message "Error during import (1)"}}))
                 (catch Throwable e
-                  {:error {:status 403
+                  {:error {:status internal-server-error
                            :message "Error during import (2)"}}))
 
               (not (empty? filename-sources))
               {:result {:success true}}
 
               :else
-              {:error {:status 403
+              {:error {:status forbidden
                        :message "Unknown event occurred"}}))
       (catch Throwable e
-        {:error {:status 403
+        {:error {:status internal-server-error
                  :message "Error parsing file"}}))))
 
 (defn import-articles-from-endnote-file
@@ -153,7 +158,7 @@
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
       (cond (not (project/project-exists? project-id))
-            {:error {:status 403
+            {:error {:status not-found
                      :message "Project does not exist"}}
             ;; there is no import going on for this filename
             (and (empty? filename-sources))
@@ -168,10 +173,10 @@
             (not (empty? filename-sources))
             {:result {:success true}}
             :else
-            {:error {:status 403
+            {:error {:status internal-server-error
                      :message "Unknown event occurred"}})
       (catch Throwable e
-        {:error {:status 406
+        {:error {:status internal-server-error
                  :message (.getMessage e)}}))))
 
 (defn project-sources
@@ -180,8 +185,8 @@
   (if (project/project-exists? project-id)
     {:result {:success true
               :sources (sources/project-sources project-id)}}
-    {:error {:status 403
-             :mesaage "Project does not exist"}}))
+    {:error {:status not-found
+             :mesaage (str "project-id " project-id  " does not exist")}}))
 
 (s/fdef project-sources
         :args (s/cat :project-id int?)
@@ -191,11 +196,28 @@
   "Delete a source with source-id by user-id."
   [source-id]
   (cond (sources/source-has-labeled-articles? source-id)
-        {:error {:status 403
+        {:error {:status forbidden
                  :message "Source contains reviewed articles"}}
+        (not (sources/source-exists? source-id))
+        {:error {:status not-found
+                 :message (str "source-id " source-id " does not exist")}}
         :else (do (sources/delete-project-source! source-id)
                   {:result {:success true}})))
 
 (s/fdef delete-source!
         :args (s/cat :source-id int?)
+        :ret map?)
+
+(defn toggle-source!
+  "Toggle a source as being enabled or disabled."
+  [source-id enabled?]
+  (if (sources/source-exists? source-id)
+    {:error {:status not-found
+             :message (str "source-id " source-id " does not exist")}}
+    (do (sources/toggle-source! source-id enabled?)
+        {:result {:success true}})))
+
+(s/fdef toggle-source!
+        :args (s/cat :source-id int?
+                     :enabled? boolean?)
         :ret map?)

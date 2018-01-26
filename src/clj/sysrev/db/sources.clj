@@ -4,8 +4,7 @@
             [honeysql.helpers :as sqlh :refer [values insert-into where sset from select
                                                delete-from merge-where group left-join]]
             [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.db.core :refer [do-query do-execute clear-query-cache with-transaction]]
-            [sysrev.db.project :as project]))
+            [sysrev.db.core :refer [do-query do-execute clear-query-cache with-transaction]]))
 
 (defn create-project-source-metadata!
   "Create a project_source table entry with a metadata map for project-id"
@@ -123,7 +122,7 @@
              do-execute)
          true)
        (catch Throwable e
-         (log/info "Caught exception in sysrev.db.project/delete-project-source!: "
+         (log/info "Caught exception in sysrev.db.sources/delete-project-source!: "
                    (.getMessage e))
          (alter-project-source-metadata!
           source-id #(assoc % :deleting? false))
@@ -151,8 +150,6 @@
   "Given a project-id, return the corresponding vectors of
   project-source data or nil if it does not exist"
   [project-id]
-  (when (not (project/project-exists? project-id))
-    (throw (Exception. (str "No project with project-id: " project-id))))
   (-> (select :ps.source-id
               :ps.project-id
               :ps.meta
@@ -188,3 +185,30 @@
                 :source_id source-id}])
       do-execute))
 
+(defn source-exists?
+  "Does a source with source-id exist?"
+  [source-id]
+  (= source-id
+     (-> (select :source-id)
+         (from [:project_source :ps])
+         (where [:= :ps.source_id source-id])
+         do-query
+         first
+         :source-id)))
+;;
+(s/fdef source-exists?
+        :args (s/cat :project-id int?)
+        :ret boolean?)
+
+(defn toggle-source!
+  "Toggle a source has enabled?"
+  [source-id enabled?]
+  (-> (sqlh/update :project_source)
+      (sset {:enabled enabled?})
+      (where [:= :source_id source-id])
+      do-execute))
+
+;;
+(s/fdef toggle-source!
+        :args (s/cat :source-id int?
+                     :enabled? boolean?))
