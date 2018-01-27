@@ -11,6 +11,7 @@
         sysrev.db.transfer
         sysrev.db.export
         sysrev.db.files
+        sysrev.db.sources
         sysrev.files.stores
         sysrev.import.pubmed
         sysrev.import.endnote

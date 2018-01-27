@@ -5,7 +5,8 @@
                                                delete-from merge-where group left-join]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute clear-query-cache with-transaction]]
-            [sysrev.db.project :as project]))
+            [sysrev.db.project :as project]
+            [sysrev.db.queries :as q]))
 
 (defn create-project-source-metadata!
   "Create a project_source table entry with a metadata map for project-id"
@@ -45,6 +46,9 @@
 
 (def import-facts-meta
   {:source "facts"})
+
+(def legacy-source-meta
+  {:source "legacy"})
 
 (defn update-project-source-metadata!
   "Replace the metadata for project-source-id"
@@ -132,16 +136,34 @@
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
 
+(defn project-id-from-source-id [source-id]
+  (-> (select :project-id)
+      (from :project-source)
+      (where [:= :source-id source-id])
+      do-query first :project-id))
+
 (defn source-articles-with-labels
   "Given a source-id, return the amount of articles that have labels"
   [source-id]
-  (-> (select :%count.*)
-      (from :article-label)
-      (where [:in :article_id
-              (-> (select :article_id)
-                  (from :article_source)
-                  (where [:= :source_id source-id]))])
-      do-query first :count))
+  (let [project-id (project-id-from-source-id source-id)]
+    ;; TODO: update select-project-articles call after changes to enabled logic
+    (-> (q/select-project-articles project-id [:%count.*])
+        (merge-where
+         [:exists
+          (-> (select :*)
+              (from [:article-source :asrc])
+              (where [:and
+                      [:= :asrc.article-id :a.article-id]
+                      [:= :asrc.source-id source-id]]))])
+        (merge-where
+         [:exists
+          (-> (select :*)
+              (from [:article-label :al])
+              (where [:and
+                      [:= :al.article-id :a.article-id]
+                      [:!= :al.answer nil]
+                      [:!= :al.confirm-time nil]]))])
+        do-query first :count)))
 ;;
 (s/fdef source-articles-with-labels
         :args (s/cat :project-id int?)
@@ -156,16 +178,27 @@
   (-> (select :ps.source-id
               :ps.project-id
               :ps.meta
-              :ps.date-created
-              [:%count.ars.source_id "article-count"])
+              :ps.date-created)
       (from [:project_source :ps])
-      (left-join [:article_source :ars] [:= :ars.source_id :ps.source_id])
-      (group :ps.source_id)
       (where [:= :ps.project_id project-id])
-      (->>
-       do-query
-       (mapv #(assoc % :labeled-article-count
-                     (source-articles-with-labels (:source-id %)))))))
+      (->> do-query
+           (mapv
+            (fn [{:keys [source-id] :as psource}]
+              (let [article-count
+                    ;; TODO: update select-project-articles call after changes to enabled logic
+                    (-> (q/select-project-articles project-id [:%count.*])
+                        (merge-where
+                         [:exists
+                          (-> (select :*)
+                              (from [:article-source :asrc])
+                              (where [:and
+                                      [:= :asrc.article-id :a.article-id]
+                                      [:= :asrc.source-id source-id]]))])
+                        do-query first :count)
+                    labeled-count (source-articles-with-labels source-id)]
+                (-> psource
+                    (assoc :article-count article-count
+                           :labeled-article-count labeled-count))))))))
 ;;
 (s/fdef project-sources
         :args (s/cat :project-id int?)
@@ -173,8 +206,7 @@
 
 (defn source-has-labeled-articles?
   [source-id]
-  (boolean (> (source-articles-with-labels source-id)
-              0)))
+  (not (zero? (source-articles-with-labels source-id))))
 ;;
 (s/fdef source-has-labeled-articles?
         :args (s/cat :source-id int?)

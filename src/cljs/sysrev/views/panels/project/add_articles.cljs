@@ -82,6 +82,9 @@
           "EndNote file"
           ["EndNote XML" (:filename meta)]
 
+          "legacy"
+          ["Legacy Import" nil]
+
           ["Unknown Source" nil])]
     [:div.ui.middle.aligned.grid.source-info>div.row
      [:div.eight.wide.column.left.aligned
@@ -147,6 +150,18 @@
      [:div.ui.bottom.attached.segment
       [:div.ui.middle.aligned.grid>div.row
        (cond
+         (= (:source meta) "legacy")
+         (list
+          [:div.eight.wide.column.left.aligned
+           {:key :reviewed-count}
+           [CenteredColumn
+            (str (.toLocaleString labeled-article-count)
+                 " of "
+                 (.toLocaleString article-count) " articles reviewed")]]
+          [:div.eight.wide.column.right.aligned
+           {:key :buttons}
+           nil])
+
          ;; when source is currently being deleted
          (or deleting? delete-running?)
          (list
