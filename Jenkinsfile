@@ -207,7 +207,7 @@ node {
         } finally {
           if (currentBuild.result == 'SUCCESS') {
             sendFlowdockMsg ('Deployed to AWS')
-            sendSlackMsg ('Deployed to AWS')
+            sendSlackMsgFull ('Deployed to AWS', 'blue')
           } else {
             sendFlowdockMsg ('Deploy failed')
             sendSlackMsg ('Deploy failed')
@@ -244,6 +244,7 @@ node {
             sh './jenkins/test-aws-prod-browser'
           }
           currentBuild.result = 'SUCCESS'
+          sendSlackMsg ('PostDeployTest passed')
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
           sendFlowdockMsg ('PostDeployTest failed')
