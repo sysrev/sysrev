@@ -1,4 +1,7 @@
 #!/bin/bash
-set -eu
 
-find src/less -name \*.less | entr ./scripts/build-css
+while true; do
+    find src/less -name \*.less | entr ./scripts/build-css
+    echo "Restarting CSS watcher..."
+    sleep 1
+done
