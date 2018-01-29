@@ -149,13 +149,13 @@
     ;; check the article_flags table as the ultimate truth
     ;; for the enabled setting
     (-> (sqlh/update :article)
-        (sset {:enabled true})
+        (sset {:enabled false})
         (where [:exists
                 (-> (select :*)
                     (from [:article_flag :af])
                     (where [:and
                             [:= :af.article_id :article.article_id]
-                            [:= :af.disable false]]))])
+                            [:= :af.disable true]]))])
         do-execute)))
 
 (s/fdef update-project-articles-enabled!
@@ -202,8 +202,7 @@
   "Given a source-id, return the amount of articles that have labels"
   [source-id]
   (let [project-id (project-id-from-source-id source-id)]
-    ;; TODO: update select-project-articles call after changes to enabled logic
-    (-> (q/select-project-articles project-id [:%count.*])
+    (-> (q/select-project-articles project-id [:%count.*] {:include-disabled-source? true})
         (merge-where
          [:exists
           (-> (select :*)
@@ -289,8 +288,7 @@
              (mapv
               (fn [{:keys [source-id] :as psource}]
                 (let [article-count
-                      ;; TODO: update select-project-articles call after changes to enabled logic
-                      (-> (q/select-project-articles project-id [:%count.*])
+                      (-> (q/select-project-articles project-id [:%count.*] {:include-disabled-source? true})
                           (merge-where
                            [:exists
                             (-> (select :*)

@@ -156,16 +156,17 @@
               success? (every? true? thread-results)]
           (if success?
             (do (sources/update-project-source-metadata!
-                 source-id (assoc meta :importing-articles? false))
-                ;; update the enabled flag for the articles
-                (sources/update-project-articles-enabled! project-id))
+                 source-id (assoc meta :importing-articles? false)))
             (sources/fail-project-source-import! source-id))
           success?)
         (catch Throwable e
           (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
                     (.getMessage e))
           (sources/fail-project-source-import! source-id)
-          false)))
+          false)
+        (finally
+          ;; update the enabled flag for the articles
+          (sources/update-project-articles-enabled! project-id))))
     (try
       ;; import the data
       (let [success?
@@ -178,7 +179,10 @@
       (catch Throwable e
         (println "Error in sysrev.import.endnote/add-articles!"
                  (.getMessage e))
-        (sources/fail-project-source-import! source-id)))))
+        (sources/fail-project-source-import! source-id))
+      (finally
+        ;; update the enabled flag for the articles
+        (sources/update-project-articles-enabled! project-id)))))
 
 (defn endnote-file->articles
   [file]

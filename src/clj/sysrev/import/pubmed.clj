@@ -248,16 +248,17 @@
             (if success?
               (do
                 (sources/update-project-source-metadata!
-                 source-id (assoc meta :importing-articles? false))
-                ;; update the enabled flag for the articles
-                (sources/update-project-articles-enabled! project-id))
+                 source-id (assoc meta :importing-articles? false)))
               (sources/fail-project-source-import! source-id))
             success?)
           (catch Throwable e
             (log/info "Error in import-pmids-to-project-with-meta! (outer future)"
                       (.getMessage e))
             (sources/fail-project-source-import! source-id)
-            false)))
+            false)
+          (finally
+            ;; update the enabled flag for the articles
+            (sources/update-project-articles-enabled! project-id))))
       (try
         ;; import the data
         (let [success?
@@ -271,7 +272,10 @@
           (log/info "Error in import-pmids-to-project-with-meta!"
                     (.getMessage e))
           (sources/fail-project-source-import! source-id)
-          false)))))
+          false)
+        (finally
+          ;; update the enabled flag for the articles
+          (sources/update-project-articles-enabled! project-id))))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

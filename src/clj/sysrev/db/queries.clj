@@ -102,27 +102,30 @@
 ;;;
 
 (defn select-project-articles
-  [project-id fields & [{:keys [include-disabled? tname]
+  "Return all fields from project-id. When include-disabled? is true, then return all articles. When false, return only the articles that are enabled. Default is false. When include-disabled-source? is true, then return all articles that are not disabled by a article-flag. When false, return all articles. Only one predicate (include-disabled? or include-disabled-source?) should be set to true at one time."
+  [project-id fields & [{:keys [include-disabled? tname include-disabled-source?]
                          :or {include-disabled? false
-                              tname :a}
+                              tname :a
+                              include-disabled-source? false}
                          :as opts}]]
   (cond->
       (-> (apply select fields)
           (from [:article tname]))
-    project-id (merge-where [:= (sql-field tname :project-id) project-id])
-    (not include-disabled?)
-    (merge-where [:= (sql-field tname :enabled) true])
-    (not include-disabled?)
-    (merge-where
-     [:not
-      [:exists
-       (-> (select :*)
-           (from [:article-flag :af-test])
-           (where [:and
-                   [:= :af-test.disable true]
-                   [:=
-                    :af-test.article-id
-                    (sql-field tname :article-id)]]))]])))
+      project-id (merge-where [:= (sql-field tname :project-id) project-id])
+      (and (not include-disabled?)
+           (not include-disabled-source?))
+      (merge-where [:= (sql-field tname :enabled) true])
+      include-disabled-source?
+      (merge-where
+       [:not
+        [:exists
+         (-> (select :*)
+             (from [:article-flag :af-test])
+             (where [:and
+                     [:= :af-test.disable true]
+                     [:=
+                      :af-test.article-id
+                      (sql-field tname :article-id)]]))]])))
 
 (defn select-article-where
   [project-id where-clause fields & [{:keys [include-disabled? tname]
