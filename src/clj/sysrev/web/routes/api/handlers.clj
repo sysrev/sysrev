@@ -5,12 +5,13 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.web-api :as swa]
             [compojure.core :refer :all]
-            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.shared.util :refer [map-values in? to-uuid]]
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
+            [sysrev.predict.core :as predict]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.custom.facts :as facts]
             [sysrev.web.app :refer
@@ -416,3 +417,53 @@
                    :max-length max-length :regex regex :examples examples
                    :entity entity :required required :multi? multi?})]
       {:result result})))
+
+(def-webapi
+  :create-predict-run :post
+  {:required [:project-id :predict-version-id]
+   :project-role "admin"
+   :doc
+   "Creates a predict-run entry for a project, and returns a predict-run-id
+  to use in later requests to reference the new entry.
+
+  `prediction-version-id` is a required integer ID referring to an entry in
+  `predict_version` table. This identifies the prediction algorithm used."}
+  (fn [request]
+    (let [{:keys [project-id predict-version-id] :as body}
+          (-> request :body)]
+      (assert (integer? project-id))
+      (assert (integer? predict-version-id))
+      (let [{:keys [predict-run-id]}
+            (predict/create-predict-run project-id predict-version-id)]
+        {:result {:predict-run-id predict-run-id}}))))
+
+(def-webapi
+  :store-article-predictions :post
+  {:required [:project-id :predict-run-id :label-id :article-values]
+   :project-role "admin"
+   :doc
+   "Creates label-predicts entries for `predict-run-id` in `project-id`,
+  using the values from `article-values`.
+
+  `predict-run-id` is an integer ID representing an individual run of a
+  prediction algorithm on a project. A value can be obtained from the return
+  value of the `create-predict-run` API call.
+
+  `label-id` is a UUID string referring to the project label for which
+  prediction values are being stored.
+
+  `article-values` is a vector of entries that each contain a prediction value
+  for a single article. Each entry should be a map containing two fields:
+  `article-id` (integer) and `value` (float)."}
+  (fn [request]
+    (let [{:keys [project-id predict-run-id label-id article-values] :as body}
+          (-> request :body)
+          label-id (to-uuid label-id)]
+      (assert (integer? project-id))
+      (assert (integer? predict-run-id))
+      (assert (uuid? label-id))
+      (assert (or (empty? article-values)
+                  (sequential? article-values)))
+      (assert (every? map? article-values))
+      (predict/store-article-predictions
+       predict-run-id label-id article-values))))
