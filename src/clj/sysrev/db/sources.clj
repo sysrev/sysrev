@@ -2,7 +2,8 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [honeysql.helpers :as sqlh :refer [values insert-into where sset from select
-                                               delete-from merge-where group left-join]]
+                                               delete-from merge-where group left-join
+                                               having]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute clear-query-cache with-transaction]]
             [sysrev.db.queries :as q]))
@@ -224,34 +225,90 @@
         :args (s/cat :project-id int?)
         :ret (s/nilable int?))
 
+(defn project-source-overlap
+  "Given a project-id and base-source-id, determine the amount of articles that overlap with source-id.
+  The source associated with source-id must be enabled, otherwise the overlap is ignored and this fn
+  will return 0"
+  [project-id base-source-id source-id]
+  (count (-> (select :%count.*)
+             (from [:article_source :ars])
+             (left-join [:project_source :ps]
+                        [:= :ars.source_id :ps.source_id])
+             (where [:and
+                     [:= :ps.project_id project-id]
+                     [:= :ps.enabled true]
+                     [:or
+                      [:= :ps.source_id base-source-id]
+                      [:= :ps.source_id source-id]]])
+             (group :ars.article_id)
+             (having [:> :%count.* 1])
+             do-query)))
+
+;;
+(s/fdef project-source-overlap
+        :args (s/cat :project-id int?
+                     :base-source-id int?
+                     :source-id int?)
+        :ret int?)
+
+(defn project-sources-overlap
+  "Given a project-id, determine the overlap of all enabled sources"
+  [project-id]
+  (filter #(not= (:source-id %) (:overlap-source-id %))
+          (for [base-sources (mapv :source-id (-> (select :ps.source-id)
+                                                  (from [:project_source :ps])
+                                                  (where [:= :ps.project_id project-id])
+                                                  do-query))
+                sources (mapv :source-id (-> (select :ps.source-id)
+                                             (from [:project_source :ps])
+                                             (where [:= :ps.project_id project-id])
+                                             do-query))]
+            {:source-id base-sources
+             :overlap-source-id sources
+             :count (project-source-overlap project-id base-sources sources)})))
+
+;;
+(s/fdef project-sources-overlap
+        :args (s/cat :project-id int?)
+        :ret coll?)
+
 (defn project-sources
   "Given a project-id, return the corresponding vectors of
   project-source data or nil if it does not exist"
   [project-id]
-  (-> (select :ps.source-id
-              :ps.project-id
-              :ps.meta
-              :ps.date-created)
-      (from [:project_source :ps])
-      (where [:= :ps.project_id project-id])
-      (->> do-query
-           (mapv
-            (fn [{:keys [source-id] :as psource}]
-              (let [article-count
-                    ;; TODO: update select-project-articles call after changes to enabled logic
-                    (-> (q/select-project-articles project-id [:%count.*])
-                        (merge-where
-                         [:exists
-                          (-> (select :*)
-                              (from [:article-source :asrc])
-                              (where [:and
-                                      [:= :asrc.article-id :a.article-id]
-                                      [:= :asrc.source-id source-id]]))])
-                        do-query first :count)
-                    labeled-count (source-articles-with-labels source-id)]
-                (-> psource
-                    (assoc :article-count article-count
-                           :labeled-article-count labeled-count))))))))
+  (let [overlap-coll (project-sources-overlap project-id)]
+    (-> (select :ps.source-id
+                :ps.project-id
+                :ps.meta
+                :ps.enabled
+                :ps.date-created)
+        (from [:project_source :ps])
+        (where [:= :ps.project_id project-id])
+        ;; associate article-count and labeled counts
+        (->> do-query
+             (mapv
+              (fn [{:keys [source-id] :as psource}]
+                (let [article-count
+                      ;; TODO: update select-project-articles call after changes to enabled logic
+                      (-> (q/select-project-articles project-id [:%count.*])
+                          (merge-where
+                           [:exists
+                            (-> (select :*)
+                                (from [:article-source :asrc])
+                                (where [:and
+                                        [:= :asrc.article-id :a.article-id]
+                                        [:= :asrc.source-id source-id]]))])
+                          do-query first :count)
+                      labeled-count (source-articles-with-labels source-id)]
+                  (-> psource
+                      (assoc :article-count article-count
+                             :labeled-article-count labeled-count)))))
+             ;; include the amount of overlap between sources
+             (mapv (fn [source]
+                     (assoc source :overlap (->> overlap-coll
+                                                 (filter #(= (:source-id %)
+                                                             (:source-id source)))
+                                                 (mapv #(select-keys % [:overlap-source-id :count]))))))))))
 ;;
 (s/fdef project-sources
         :args (s/cat :project-id int?)

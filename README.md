@@ -140,6 +140,12 @@ repl> (sysrev.web.index/set-web-asset-path)
 "/out"
 ```
 
+* You can switch databases for the app
+```clojure
+repl> (sysrev.init/start-app {:dbname "sysrev_test"})
+true
+```
+
 * To manage database with Flyway:
 
     Edit `flyway.conf` to match database connection settings.
