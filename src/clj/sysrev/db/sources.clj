@@ -6,6 +6,19 @@
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute clear-query-cache with-transaction]]))
 
+(defn source-id->project-id
+  [source-id]
+  (-> (select :project_id)
+      (from :project_source)
+      (where [:= :source_id source-id])
+      do-query
+      first
+      :project-id))
+
+(s/fdef source-id->project-id
+        :args (s/cat :source-id int?)
+        :ret int?)
+
 (defn create-project-source-metadata!
   "Create a project_source table entry with a metadata map for project-id"
   [project-id metadata]
@@ -105,6 +118,44 @@
    source-id #(assoc % :importing-articles? :error))
   (delete-project-source-articles! source-id))
 
+(defn update-project-articles-enabled!
+  "Update the enabled fields of articles associated with project-id."
+  [project-id]
+  (do
+    ;; set all articles enabled to false
+    (-> (sqlh/update :article)
+        (sset {:enabled false})
+        (where [:= :project-id project-id])
+        do-execute)
+    ;; set all articles enabled to true for which they have a source
+    ;; that is enabled
+    (-> (sqlh/update :article)
+        (sset {:enabled true})
+        (where [:exists
+                (-> (select :*)
+                    (from [:article_source :ars])
+                    (left-join [:project_source :ps]
+                               [:= :ars.source_id :ps.source_id])
+                    (where [:and
+                            [:= :ps.project_id project-id]
+                            [:= :article.article_id :ars.article_id]
+                            [:= :ps.enabled true]]))])
+        do-execute)
+    ;; check the article_flags table as the ultimate truth
+    ;; for the enabled setting
+    (-> (sqlh/update :article)
+        (sset {:enabled true})
+        (where [:exists
+                (-> (select :*)
+                    (from [:article_flag :af])
+                    (where [:and
+                            [:= :af.article_id :article.article_id]
+                            [:= :af.disable false]]))])
+        do-execute)))
+
+(s/fdef update-project-articles-enabled!
+        :args (s/cat :project-id int?))
+
 (defn delete-project-source!
   "Given a source-id, delete it and remove the articles associated with
   it from the database.  Warning: This fn doesn't care if there are
@@ -113,20 +164,25 @@
   (clear-query-cache)
   (alter-project-source-metadata!
    source-id #(assoc % :deleting? true))
-  (try (with-transaction
-         ;; delete articles that aren't contained in another source
-         (delete-project-source-articles! source-id)
-         ;; delete entries for project source
-         (-> (delete-from :project-source)
-             (where [:= :source-id source-id])
-             do-execute)
-         true)
-       (catch Throwable e
-         (log/info "Caught exception in sysrev.db.sources/delete-project-source!: "
-                   (.getMessage e))
-         (alter-project-source-metadata!
-          source-id #(assoc % :deleting? false))
-         false)))
+  (let [project-id (source-id->project-id source-id)]
+    (try (with-transaction
+           ;; delete articles that aren't contained in another source
+           (delete-project-source-articles! source-id)
+           ;; delete entries for project source
+           (-> (delete-from :project-source)
+               (where [:= :source-id source-id])
+               do-execute)
+           true)
+         (catch Throwable e
+           (log/info "Caught exception in sysrev.db.sources/delete-project-source!: "
+                     (.getMessage e))
+           (alter-project-source-metadata!
+            source-id #(assoc % :deleting? false))
+           false)
+         (finally
+           ;; update the article enabled flags
+           (update-project-articles-enabled! project-id)))))
+
 ;;
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
@@ -207,7 +263,9 @@
   (-> (sqlh/update :project_source)
       (sset {:enabled enabled?})
       (where [:= :source_id source-id])
-      do-execute))
+      do-execute)
+  ;; logic for updating enabled in article
+  (update-project-articles-enabled! (source-id->project-id source-id)))
 
 ;;
 (s/fdef toggle-source!

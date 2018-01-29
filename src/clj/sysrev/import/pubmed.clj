@@ -246,8 +246,11 @@
                      (mapv deref))
                 success? (every? true? thread-results)]
             (if success?
-              (sources/update-project-source-metadata!
-               source-id (assoc meta :importing-articles? false))
+              (do
+                (sources/update-project-source-metadata!
+                 source-id (assoc meta :importing-articles? false))
+                ;; update the enabled flag for the articles
+                (sources/update-project-articles-enabled! project-id))
               (sources/fail-project-source-import! source-id))
             success?)
           (catch Throwable e
