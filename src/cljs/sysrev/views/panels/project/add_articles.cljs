@@ -88,34 +88,49 @@
      "Enabled"
      "Disabled")])
 
+(defn meta->source-name-vector
+  [meta]
+  (let [source (:source meta)]
+    (condp = source
+      "PubMed search"
+      ["PubMed Search" (str "\"" (:search-term meta) "\"")]
+
+      "PMID file"
+      ["PMIDs from File" (:filename meta)]
+
+      "PMID vector"
+      ["PMIDs from API" nil]
+
+      "fact"
+      ["PMIDs from FACTS" nil]
+
+      "EndNote file"
+      ["EndNote XML" (:filename meta)]
+
+      "legacy"
+      ["Legacy Import" nil]
+
+      ["Unknown Source" nil])))
+
 (defn SourceInfoView [{:keys [source] :as meta}]
   (let [[source-type import-label]
-        (condp = source
-          "PubMed search"
-          ["PubMed Search" (str "\"" (:search-term meta) "\"")]
-
-          "PMID file"
-          ["PMIDs from File" (:filename meta)]
-
-          "PMID vector"
-          ["PMIDs from API" nil]
-
-          "fact"
-          ["PMIDs from FACTS" nil]
-
-          "EndNote file"
-          ["EndNote XML" (:filename meta)]
-
-          "legacy"
-          ["Legacy Import" nil]
-
-          ["Unknown Source" nil])]
+        (meta->source-name-vector meta)]
     [:div.ui.middle.aligned.grid.source-info>div.row
      [:div.eight.wide.column.left.aligned
       [:div.ui.large.label (str source-type)]]
      [:div.eight.wide.column.right.aligned
       (when import-label
         [:div.ui.large.basic.label (str import-label)])]]))
+
+(defn source-name
+  "Given a source-id, return the source name vector"
+  [source-id]
+  (let [sources (subscribe [:project/sources])]
+    (->> @sources
+         (filter #(= source-id (:source-id %)))
+         first
+         :meta
+         (meta->source-name-vector))))
 
 (defn- source-import-timed-out? [source]
   (let [{:keys [meta source-id date-created
@@ -237,15 +252,29 @@
            [CenteredColumn
             (str (.toLocaleString labeled-article-count)
                  " of "
-                 (.toLocaleString article-count) " articles reviewed")]]
+                 (.toLocaleString article-count) " articles reviewed")]
+           ;; put unique
+           (when-not (nil? (:unique-articles-count source))
+             [:span (:unique-articles-count source) " unique sources"])
+           ;; put overlap
+           (let [overlap (:overlap source)
+                 non-empty-overlap (filter #(> (:count %) 1) overlap)]
+             [:div
+              (when-not (empty? non-empty-overlap)
+                (doall (map (fn [overlap-map]
+                              ^{:key (gensym (:overlap-source-id overlap-map))}
+                              [:span (str (:count overlap-map) " articles shared with "
+                                          (let [name (source-name (:overlap-source-id overlap-map))]
+                                            (str (first name) " " (second name))))])
+                            non-empty-overlap)))])]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
+           [ToggleArticleSource source-id enabled?]
            ;; need to check if user is an admin
            ;; before displaying this
            (when (<= labeled-article-count 0)
              [DeleteArticleSource source-id])
-           (when (> labeled-article-count 0)
-             [ToggleArticleSource source-id enabled?])])
+           ])
 
          :else
          (list
