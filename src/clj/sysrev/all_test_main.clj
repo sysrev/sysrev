@@ -7,13 +7,17 @@
             sysrev.test.all
             [sysrev.test.core :refer [get-selenium-config]]
             [clojure.pprint :as pprint]
-            [sysrev.config.core :refer [env]]))
+            [sysrev.config.core :refer [env]]
+            [sysrev.db.migration :as migration]
+            [sysrev.init :as init]))
 
 (defn -main [& args]
   (log/info (str "running database tests with config:\n"
                  (pprint/write (-> env :postgres) :stream nil)))
   (log/info (str "running browser tests with config:\n"
                  (pprint/write (get-selenium-config) :stream nil)))
+  (init/start-db)
+  (migration/ensure-updated-db)
   (let [fname "target/junit-all.xml"
         {:keys [fail error] :as summary}
         (with-open [w (io/writer fname)]

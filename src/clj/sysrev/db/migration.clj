@@ -4,58 +4,29 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.stacktrace :refer [print-cause-trace]]
-            [sysrev.db.project :refer
-             [add-project-member set-member-permissions
-              default-project-settings]]
+            [clojure.data.json :as json]
+            [clojure.tools.logging :as log]
             [sysrev.db.core :refer
              [do-query do-query-map do-execute with-transaction
               to-sql-array with-debug-sql to-jsonb sql-cast]]
+            [sysrev.db.project :as project :refer
+             [add-project-member set-member-permissions
+              default-project-settings]]
+            [sysrev.db.articles :as articles]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions generate-api-token]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
             [sysrev.import.pubmed :refer [extract-article-location-entries]]
-            [clojure.data.json :as json]
             [sysrev.db.queries :as q]
-            [sysrev.db.labels :as labels])
+            [sysrev.db.labels :as labels]
+            [sysrev.db.sources :as sources])
   (:import java.util.UUID))
-
-(defn- get-default-project
-  "Selects a fallback project to use as a default. Intended only for dev use."
-  []
-  (-> (select :*)
-      (from :project)
-      (order-by [:project-id :asc])
-      (limit 1)
-      do-query
-      first))
-
-(defn ensure-user-member-entries
-  "Ensures that each user account is a member of at least one project, by
-  adding project-less users to `project-id` or default project."
-  [& [project-id]]
-  (let [project-id
-        (or project-id
-            (:project-id (get-default-project)))
-        user-ids
-        (->>
-         (-> (select :u.user-id)
-             (from [:web-user :u])
-             (where
-              [:not
-               [:exists
-                (-> (select :*)
-                    (from [:project-member :m])
-                    (where [:= :m.user-id :u.user-id]))]])
-             do-query)
-         (map :user-id))]
-    (->> user-ids
-         (mapv #(add-project-member project-id %)))))
 
 (defn ensure-user-default-project-ids
   "Ensures that a default-project-id value is set for all users which belong to
-  at least one project. ensure-user-member-entries should be run before this."
+  at least one project."
   []
   (let [user-ids
         (->>
@@ -124,24 +95,6 @@
         do-execute)
     nil))
 
-(defn ensure-test-user-perms []
-  (let [site-admins ["jeff.workman@gmail.com"
-                     "tomluec@gmail.com"
-                     "pattersonzak@gmail.com"]]
-    (doseq [email site-admins]
-      (when-let [user (get-user-by-email email)]
-        (set-user-permissions (:user-id user) ["admin"])
-        (set-member-permissions (:default-project-id user)
-                                (:user-id user)
-                                ["member"]))))
-  (let [project-admins ["wonghuili@gmail.com"]]
-    (doseq [email project-admins]
-      (when-let [user (get-user-by-email email)]
-        (set-user-permissions (:user-id user) ["user"])
-        (set-member-permissions (:default-project-id user)
-                                (:user-id user)
-                                ["member" "admin" "resolve"])))))
-
 (defn ensure-article-location-entries []
   (let [articles
         (-> (select :article-id :raw)
@@ -168,125 +121,8 @@
                     do-execute)))))
          doall)
     (when (not= 0 (count articles))
-      (println
+      (log/info
        (str "processed locations for " (count articles) " articles")))))
-
-(defn ensure-new-label-entries []
-  (let [project-ids (->> (-> (select :project-id)
-                             (from :project)
-                             (order-by [:date-created :asc])
-                             do-query)
-                         (map :project-id))]
-    (doseq [project-id project-ids]
-      (when (zero? (-> (select :%count.*)
-                       (from :label)
-                       (where [:= :project-id project-id])
-                       do-query first :count))
-        (try
-          (let [project-criteria
-                (-> (select :*)
-                    (from :criteria)
-                    (where [:= :project-id project-id])
-                    (order-by [:criteria-id :asc])
-                    do-query)]
-            (doseq [criteria project-criteria]
-              (add-label-entry-boolean
-               project-id (merge
-                           (->> [:name :question :short-label]
-                                (select-keys criteria))
-                           {:inclusion-value (:is-inclusion criteria)
-                            :required (:is-required criteria)}))))
-          (catch Throwable e
-            (println
-             (str "error creating `label` entries from `criteria`: " e))
-            (print-cause-trace e)))))))
-
-(defn ensure-new-label-value-entries []
-  (let [project-ids (->> (-> (select :project-id)
-                             (from :project)
-                             (order-by [:date-created :asc])
-                             do-query)
-                         (map :project-id))]
-    (doseq [project-id project-ids]
-      (when (zero? (-> (q/select-project-articles project-id [:%count.*])
-                       (q/join-article-labels)
-                       do-query first :count))
-        (try
-          (let [old-entries
-                (-> (select :ac.* :c.name)
-                    (from [:article-criteria :ac])
-                    (join [:article :a]
-                          [:= :a.article-id :ac.article-id])
-                    (merge-join [:criteria :c]
-                                [:= :c.criteria-id :ac.criteria-id])
-                    (where [:= :a.project-id project-id])
-                    (order-by [:ac.article-criteria-id :asc])
-                    do-query)
-                project-labels
-                (->> (-> (q/select-label-where project-id true [:*])
-                         do-query)
-                     (group-by :name)
-                     (map-values first))
-                new-entries
-                (->>
-                 old-entries
-                 (mapv
-                  (fn [entry]
-                    {:article-id (:article-id entry)
-                     :label-id (->> entry :name (get project-labels) :label-id)
-                     :user-id (:user-id entry)
-                     :answer (some-> (:answer entry) to-jsonb)
-                     :added-time (:added-time entry)
-                     :updated-time (:updated-time entry)
-                     :confirm-time (:confirm-time entry)
-                     :imported (:imported entry)})))]
-            (when (not= 0 (count new-entries))
-              (println (format "inserting %d label values" (count new-entries))))
-            (->>
-             new-entries
-             (partition-all 50)
-             (mapv
-              #(-> (insert-into :article-label)
-                   (values %)
-                   do-execute))))
-          (catch Throwable e
-            (println
-             (str "error creating new label value entries: " e))
-            (print-cause-trace e)))))))
-
-(defn ensure-predict-label-ids []
-  (with-transaction
-    (doseq [{:keys [criteria-id project-id name]}
-            (-> (select :criteria-id :project-id :name)
-                (from :criteria)
-                do-query)]
-      (let [{:keys [label-id]}
-            (q/query-label-by-name project-id name [:label-id])]
-        (assert label-id "label entry not found")
-        (let [result
-              (-> (sqlh/update :label-similarity)
-                  (where [:and
-                          [:= :criteria-id criteria-id]
-                          [:= :label-id nil]])
-                  (sset {:label-id label-id})
-                  do-execute)]
-          (when (not= result '(0))
-            (println
-             (format "updated label_similarity [%d, '%s'] : %s rows changed"
-                     project-id name
-                     (pr-str result)))))
-        (let [result
-              (-> (sqlh/update :label-predicts)
-                  (where [:and
-                          [:= :criteria-id criteria-id]
-                          [:= :label-id nil]])
-                  (sset {:label-id label-id})
-                  do-execute)]
-          (when (not= result '(0))
-            (println
-             (format "updated label_predicts [%d, '%s'] : %s rows changed"
-                     project-id name
-                     (pr-str result)))))))))
 
 (defn ensure-label-inclusion-values [& [force?]]
   (let [project-ids
@@ -310,8 +146,8 @@
                 (merge-where [:= :al.inclusion nil])
                 do-query)]
         (when (not= 0 (count alabels))
-          (println (format "updating inclusion fields for %d rows"
-                           (count alabels))))
+          (log/info (format "updating inclusion fields for %d rows"
+                            (count alabels))))
         (doall
          (->>
           alabels
@@ -337,47 +173,99 @@
             (sset {:authors (to-sql-array "text" authors)})
             do-execute)))
     (when-not (empty? invalid)
-      (println (format "fixed %d invalid authors entries" (count invalid))))))
+      (log/info (format "fixed %d invalid authors entries" (count invalid))))))
 
-(defn ensure-project-settings-entry []
-  (let [n (-> (sqlh/update :project)
-              (sset {:settings (to-jsonb default-project-settings)})
-              (where [:= :settings nil])
-              do-execute first)]
-    (when (not= n 0)
-      (println (format "initialized %d project settings fields" n)))))
+(defn ensure-project-sources-exist []
+  (with-transaction
+    (let [project-ids
+          (-> (select :project-id)
+              (from [:project :p])
+              (where
+               [:not
+                [:exists
+                 (-> (select :*)
+                     (from [:project-source :ps])
+                     (where [:= :ps.project-id :p.project-id]))]])
+              (->> do-query (mapv :project-id)))]
+      (when (not-empty project-ids)
+        (log/info (str "Creating legacy source entries for "
+                       (count project-ids) " projects")))
+      (doseq [project-id project-ids]
+        (let [article-ids (-> (q/select-project-articles
+                               project-id [:a.article-id]
+                               {:include-disabled? true})
+                              (->> do-query (mapv :article-id)))
+              source-id (sources/create-project-source-metadata!
+                         project-id sources/legacy-source-meta)]
+          (when (not-empty article-ids)
+            (log/info (str "Creating " (count article-ids)
+                           " article source entries for project #"
+                           project-id)))
+          (doseq [article-id article-ids]
+            (sources/add-article-to-source! article-id source-id)))))))
 
-(defn ensure-admin-user-api-tokens []
-  (let [user-ids
-        (-> (select :user-id :email :api-token)
-            (from :web-user)
-            (where [:and
-                    [:!= nil (sql/call "array_position"
-                                       :permissions (sql-cast "admin" :text))]
-                    [:= nil :api-token]])
-            (->> do-query (map :user-id)))]
-    (doseq [user-id user-ids]
-      (-> (sqlh/update :web-user)
-          (sset {:api-token (generate-api-token)})
-          (where [:= :user-id user-id])
-          do-execute))
-    (when (not= 0 (count user-ids))
-      (println (format "generated %d admin user api tokens" (count user-ids))))))
+(defn ensure-article-flag-disable-entries []
+  (with-transaction
+    (let [project-ids
+          ;; TODO: update after changes to enabled logic
+          (-> (select :project-id)
+              (from [:project :p])
+              (where
+               [:and
+                [:exists
+                 (-> (select :*)
+                     (from [:article :a])
+                     (where
+                      [:and
+                       [:= :a.project-id :p.project-id]
+                       [:= :a.enabled false]
+                       [:not
+                        [:exists
+                         (-> (select :*)
+                             (from [:article-flag :aflag])
+                             (where
+                              [:and
+                               [:= :aflag.article-id :a.article-id]
+                               [:= :aflag.disable true]]))]]
+                       #_
+                       [:not [:exists disabled article source entry]]]))]])
+              (->> do-query (mapv :project-id)))]
+      (when (not-empty project-ids)
+        (log/info (str "Creating article-flag entries for "
+                       (count project-ids) " legacy projects")))
+      (doseq [project-id project-ids]
+        (let [article-ids
+              (-> (select :article-id)
+                  (from [:article :a])
+                  (where
+                   [:and
+                    [:= :a.project-id project-id]
+                    [:= :a.enabled false]
+                    [:not
+                     [:exists
+                      (-> (select :*)
+                          (from [:article-flag :aflag])
+                          (where
+                           [:and
+                            [:= :aflag.article-id :a.article-id]
+                            [:= :aflag.disable true]]))]]])
+                  (->> do-query (mapv :article-id)))]
+          (log/info (str "Creating " (count article-ids)
+                         " article-flag disable entries for project #"
+                         project-id))
+          (doseq [article-id article-ids]
+            (articles/set-article-flag article-id "legacy-disable" true)))))))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
-  (assert (get-default-project))
-  (ensure-user-member-entries)
-  (ensure-user-default-project-ids)
-  (ensure-entry-uuids)
-  (ensure-permissions-set)
-  (ensure-test-user-perms)
-  (ensure-article-location-entries)
-  (ensure-new-label-entries)
-  (ensure-new-label-value-entries)
-  (ensure-predict-label-ids)
-  (ensure-label-inclusion-values)
-  (ensure-no-null-authors)
-  (ensure-project-settings-entry)
-  (ensure-admin-user-api-tokens))
+  (doseq [migrate-fn [#'ensure-user-default-project-ids
+                      #'ensure-entry-uuids
+                      #'ensure-permissions-set
+                      ;; #'ensure-article-location-entries
+                      ;; #'ensure-label-inclusion-values
+                      #'ensure-no-null-authors
+                      #'ensure-project-sources-exist
+                      #'ensure-article-flag-disable-entries]]
+    (log/info "Running " (str migrate-fn))
+    (time ((var-get migrate-fn)))))
