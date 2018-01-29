@@ -255,7 +255,7 @@
                  (.toLocaleString article-count) " articles reviewed")]
            ;; put unique
            (when-not (nil? (:unique-articles-count source))
-             [:span (:unique-articles-count source) " unique sources"])
+             [:span (:unique-articles-count source) " unique articles"])
            ;; put overlap
            (let [overlap (:overlap source)
                  non-empty-overlap (filter #(> (:count %) 1) overlap)]
