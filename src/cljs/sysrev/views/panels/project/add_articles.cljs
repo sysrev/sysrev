@@ -303,7 +303,7 @@
         (doall (map (fn [source]
                       ^{:key (:source-id source)}
                       [ArticleSource source])
-                    (sort-by :source-id @sources)))])]))
+                    (reverse (sort-by :source-id @sources))))])]))
 
 (defn ImportArticlesView []
   (ensure-state)
@@ -332,11 +332,8 @@
 (defn ProjectSourcesPanel []
   (ensure-state)
   [:div
-   [:div.ui.two.column.stackable.grid.project-sources
-    [:div.column
-     [ProjectSourcesList]]
-    [:div.column
-     [ImportArticlesView]]]])
+   [ImportArticlesView]
+   [ProjectSourcesList]])
 
 (defmethod panel-content panel []
   (fn [child]
