@@ -38,6 +38,18 @@
        (list [:fetch [:review/task]]
              [:reload [:project]])})))
 
+(defn plural-or-singular
+  "Return the singular form of string when item-count is one, return plural otherwise"
+  [item-count string]
+  (if (= item-count 1)
+    string
+    (str string "s")))
+
+(defn article-or-articles
+  "Return either the singular or plural form of article"
+  [item-count]
+  (plural-or-singular item-count "article"))
+
 (defn ImportEndNoteView []
   [:div
    [:h4.ui.dividing.header "Import from EndNote XML file"]
@@ -199,7 +211,7 @@
            [CenteredColumn
             (str (.toLocaleString labeled-article-count)
                  " of "
-                 (.toLocaleString article-count) " articles reviewed")]]
+                 (.toLocaleString article-count) " " (article-or-articles article-count) " reviewed")]]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
            nil])
@@ -237,7 +249,7 @@
           [:div.eight.wide.column.left.aligned
            {:key :loaded-count}
            [CenteredColumn
-            [:div (str (.toLocaleString article-count) " articles loaded")]]]
+            [:div (str (.toLocaleString article-count) " " (article-or-articles article-count) " loaded")]]]
           [:div.six.wide.column
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
@@ -253,18 +265,19 @@
            [CenteredColumn
             (str (.toLocaleString labeled-article-count)
                  " of "
-                 (.toLocaleString article-count) " articles reviewed")]
+                 (.toLocaleString article-count) " " (article-or-articles article-count) " reviewed")]
            ;; put unique
-           (when-not (nil? (:unique-articles-count source))
-             [:span (:unique-articles-count source) " unique sources"])
+           (let [unique-articles-count (:unique-articles-count source)]
+             (when-not (nil? unique-articles-count)
+               [:span unique-articles-count " unique " (article-or-articles unique-articles-count)]))
            ;; put overlap
            (let [overlap (:overlap source)
-                 non-empty-overlap (filter #(> (:count %) 1) overlap)]
+                 non-empty-overlap (filter #(> (:count %) 0) overlap)]
              [:div
               (when-not (empty? non-empty-overlap)
                 (doall (map (fn [overlap-map]
                               ^{:key (gensym (:overlap-source-id overlap-map))}
-                              [:span (str (:count overlap-map) " articles shared with "
+                              [:span (str (:count overlap-map) " " (article-or-articles (:count overlap-map)) " shared with "
                                           (let [name (source-name (:overlap-source-id overlap-map))]
                                             (str (first name) " " (second name))))])
                             non-empty-overlap)))])]
