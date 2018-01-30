@@ -136,6 +136,20 @@
         :args (s/cat :project-id ::sc/project-id)
         :ret integer?)
 
+(defn disable-project!
+  "Set the enabled flag for project-id to false"
+  [project-id]
+  (clear-query-cache)
+  (-> (sqlh/update :project)
+      (sset {:enabled false})
+      (where [:= :project-id project-id])
+      do-execute
+      first))
+
+(s/fdef disable-project!
+        :args (s/cat :project-id int?)
+        :ret int?)
+
 (defn change-project-setting [project-id setting new-value]
   (let [project-id (q/to-project-id project-id)
         cur-settings (-> (select :settings)
@@ -634,3 +648,4 @@
 (s/fdef project-has-labeled-articles?
         :args (s/cat :project-id int?)
         :ret boolean?)
+

@@ -248,10 +248,9 @@
                      :change? false})
     ;; now the project has labeled articles
     (is (project/project-has-labeled-articles? new-project-id))
-    (is (= "Project contains reviewed articles"
-           (get-in (route-response :post "/api/delete-project"
-                                   {:project-id new-project-id})
-                   [:error :message])))
+    (is (get-in (route-response :post "/api/delete-project"
+                                {:project-id new-project-id})
+                [:result :success]))
     ;; the project source has labeled articles as well
     (is (sources/source-has-labeled-articles? foo-bar-search-source-id))
     ;; the project source can not be deleted

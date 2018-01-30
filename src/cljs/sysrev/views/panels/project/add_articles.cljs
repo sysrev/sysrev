@@ -84,8 +84,7 @@
       (do (dispatch [:action [:sources/toggle-source source-id (not enabled?)]])
           (js/setTimeout
            #(dispatch [:fetch [:project/sources]])
-           100)
-          (.log js/console "I clicked enabled button")))}
+           100)))}
    (if enabled?
      "Enabled"
      "Disabled")])
