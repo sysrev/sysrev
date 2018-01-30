@@ -35,8 +35,10 @@
 Corge")
         search-term "foo bar"
         ;; import articles to this project
-        _ (pubmed/import-pmids-to-project-with-meta! (pubmed/get-all-pmids-for-query search-term) project-id
-                                                     (sources/import-pmids-search-term-meta search-term))
+        pmids (pubmed/get-all-pmids-for-query search-term)
+        _ (pubmed/import-pmids-to-project-with-meta! pmids project-id
+                                                     (sources/import-pmids-search-term-meta search-term
+                                                                                            (count pmids)))
         _ (api/import-articles-from-search (:project-id new-project)
                                            search-term
                                            "PubMed")

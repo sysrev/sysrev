@@ -81,7 +81,8 @@
                (= source "PubMed"))
           (try
             (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (sources/import-pmids-search-term-meta search-term)
+                  meta (sources/import-pmids-search-term-meta search-term
+                                                              (count pmids))
                   success?
                   (pubmed/import-pmids-to-project-with-meta!
                    pmids project-id meta

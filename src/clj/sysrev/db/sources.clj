@@ -49,12 +49,14 @@
    :filename filename})
 
 (defn import-pmids-search-term-meta
-  [search-term]
+  [search-term search-count]
   {:source "PubMed search"
-   :search-term search-term})
+   :search-term search-term
+   :search-count search-count})
 ;;
 (s/fdef import-pmids-search-term-meta
-        :args (s/cat :search-term string?)
+        :args (s/cat :search-term string?
+                     :search-count int?)
         :ret map?)
 
 (def import-facts-meta
