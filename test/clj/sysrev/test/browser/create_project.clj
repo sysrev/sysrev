@@ -112,6 +112,13 @@
         (get-current-page-number))
     (log-out)))
 
+(defn delete-current-project
+  []
+  (browser/go-route "/project/settings")
+  (browser/wait-until-exists {:xpath "//h4[contains(text(),'Delete Project')]"})
+  (taxi/click {:xpath "//button[contains(text(),'Delete this Project')]"})
+  (browser/wait-until-exists {:xpath "//h3[contains(text(),'Create a New Project')]"}))
+
 (deftest create-project-and-import-sources
   (let [project-name "Foo Bar"
         search-term-first "foo bar"
@@ -163,4 +170,5 @@
     ;; count is down to zero
     (taxi/wait-until #(= 0 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     (is (= 0 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
+    (delete-current-project)
     (log-out)))
