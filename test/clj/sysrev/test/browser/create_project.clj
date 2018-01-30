@@ -119,6 +119,11 @@
   (taxi/click {:xpath "//button[contains(text(),'Delete this Project')]"})
   (browser/wait-until-exists {:xpath "//h3[contains(text(),'Create a New Project')]"}))
 
+(defn search-term-delete-xpath
+  "Given a search term, return the xpath corresponding to its delete button"
+  [search-term]
+  (str "//div[contains(text(),'" search-term "')]/ancestor::div[@class='project-source']/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
+
 (deftest create-project-and-import-sources
   (let [project-name "Foo Bar"
         search-term-first "foo bar"
@@ -157,14 +162,14 @@
     (taxi/wait-until #(= 2 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     (is (= 2 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     ;; delete the first source
-    (let [delete {:xpath (str "//div[contains(text(),'" search-term-first "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(@class,'button') and contains(text(),'Delete')]")}]
+    (let [delete {:xpath (search-term-delete-xpath search-term-first)}]
       (browser/wait-until-exists delete)
       (taxi/click delete))
     ;; count is back down to one
     (taxi/wait-until #(= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     (is (= 1 (count (taxi/find-elements {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"}))))
     ;; delete the second source
-    (let [delete {:xpath (str "//div[contains(text(),'" search-term-second "')]/ancestor::div[contains(@class,'project-source')]/descendant::div[contains(@class,'button') and contains(text(),'Delete')]")}]
+    (let [delete {:xpath (search-term-delete-xpath search-term-second)}]
       (browser/wait-until-exists delete)
       (taxi/click delete))
     ;; count is down to zero
