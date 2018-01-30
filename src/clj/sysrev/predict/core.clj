@@ -2,9 +2,7 @@
   (:require
    [sysrev.shared.util :refer [map-values]]
    [sysrev.db.core :refer
-    [do-query do-query-map do-execute sql-now
-     with-query-cache clear-query-cache
-     with-project-cache clear-project-cache cached-project-ids]]
+    [do-query do-execute with-transaction sql-now clear-project-cache]]
    [sysrev.db.project :refer [project-overall-label-id]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -30,23 +28,31 @@
 (defn create-predict-run
   "Adds a new predict-run entry to the database, and returns the entry."
   [project-id predict-version-id]
-  (-> (insert-into :predict-run)
-      (values [{:project-id project-id
-                :predict-version-id predict-version-id}])
-      (returning :*)
-      do-query first))
+  (try
+    (with-transaction
+      (-> (insert-into :predict-run)
+          (values [{:project-id project-id
+                    :predict-version-id predict-version-id}])
+          (returning :predict-run-id)
+          do-query first :predict-run-id))
+    (finally
+      (clear-project-cache project-id))))
 
-(defn store-article-predictions [predict-run-id label-id article-values]
-  (let [sql-entries
-        (->> article-values
-             (mapv
-              (fn [{:keys [article-id value]} entry]
-                {:predict-run-id predict-run-id
-                 :article-id article-id
-                 :label-id label-id
-                 :stage 1
-                 :val value})))]
-    (doseq [sql-group (->> sql-entries (partition-all 500))]
-      (-> (insert-into :label-predicts)
-          (values (vec sql-group))
-          do-execute))))
+(defn store-article-predictions
+  [project-id predict-run-id label-id article-values]
+  (let [sql-entries (->> article-values
+                         (mapv
+                          (fn [{:keys [article-id value]}]
+                            {:predict-run-id predict-run-id
+                             :article-id article-id
+                             :label-id label-id
+                             :stage 1
+                             :val value})))]
+    (try
+      (with-transaction
+        (doseq [sql-group (->> sql-entries (partition-all 500))]
+          (-> (insert-into :label-predicts)
+              (values (vec sql-group))
+              do-execute)))
+      (finally
+        (clear-project-cache project-id)))))

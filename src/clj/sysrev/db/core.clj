@@ -264,7 +264,8 @@
                (dissoc cache-state (first field-path))
                (update-in cache-state
                           (butlast field-path)
-                          #(dissoc % (last field-path))))))))
+                          #(dissoc % (last field-path)))))))
+  nil)
 
 (defn clear-project-cache [& [project-id field-path]]
   (cond
@@ -275,7 +276,8 @@
     (swap! query-cache assoc-in [:project project-id] {})
 
     :else
-    (swap! query-cache assoc :project {})))
+    (swap! query-cache assoc :project {}))
+  nil)
 
 (defn clear-project-public-labels-cache [project-id]
   (clear-project-cache project-id [:public-labels]))

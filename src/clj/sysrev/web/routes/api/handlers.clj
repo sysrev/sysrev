@@ -433,7 +433,7 @@
           (-> request :body)]
       (assert (integer? project-id))
       (assert (integer? predict-version-id))
-      (let [{:keys [predict-run-id]}
+      (let [predict-run-id
             (predict/create-predict-run project-id predict-version-id)]
         {:result {:predict-run-id predict-run-id}}))))
 
