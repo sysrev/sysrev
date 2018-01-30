@@ -34,7 +34,9 @@
   :process
   (fn [_ _ {:keys [success] :as result}]
     (if success
-      {:dispatch [:reload [:project]]})))
+      {:dispatch-n
+       (list [:fetch [:review/task]]
+             [:reload [:project]])})))
 
 (defn ImportEndNoteView []
   [:div

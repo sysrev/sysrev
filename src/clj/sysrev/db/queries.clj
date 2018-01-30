@@ -102,7 +102,7 @@
 ;;;
 
 (defn select-project-articles
-  "Return all fields from project-id. When include-disabled? is true, then return all articles. When false, return only the articles that are enabled. Default is false. When include-disabled-source? is true, then return all articles that are not disabled by a article-flag. When false, return all articles. Only one predicate (include-disabled? or include-disabled-source?) should be set to true at one time."
+  "Return all fields from project-id. When include-disabled? is true, then return all articles. When false, return only the articles that are enabled. Default is false. When include-disabled-source? is true, then return all articles that are not disabled by an article-flag. When false, return all articles. Only one predicate (include-disabled? or include-disabled-source?) should be set to true at one time."
   [project-id fields & [{:keys [include-disabled? tname include-disabled-source?]
                          :or {include-disabled? false
                               tname :a
