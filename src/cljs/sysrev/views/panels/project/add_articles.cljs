@@ -133,7 +133,7 @@
       [:div.ui.large.label (str source-type)]]
      [:div.eight.wide.column.right.aligned
       (when import-label
-        [:div.ui.large.basic.label (str import-label)])]]))
+        [:div.import-label.ui.large.basic.label (str import-label)])]]))
 
 (defn source-name
   "Given a source-id, return the source name vector"
@@ -260,7 +260,7 @@
          (and (false? importing-articles?)
               labeled-article-count article-count)
          (list
-          [:div.eight.wide.column.left.aligned
+          [:div.source-description.eight.wide.column.left.aligned
            {:key :reviewed-count}
            [CenteredColumn
             (str (.toLocaleString labeled-article-count)
@@ -277,9 +277,11 @@
               (when-not (empty? non-empty-overlap)
                 (doall (map (fn [overlap-map]
                               ^{:key (gensym (:overlap-source-id overlap-map))}
-                              [:span (str (:count overlap-map) " " (article-or-articles (:count overlap-map)) " shared with "
-                                          (let [name (source-name (:overlap-source-id overlap-map))]
-                                            (str (first name) " " (second name))))])
+                              [:div
+                               [:span (str (:count overlap-map) " " (article-or-articles (:count overlap-map)) " shared with "
+                                           (let [name (source-name (:overlap-source-id overlap-map))]
+                                             (str (first name) " " (second name))))]
+                               [:br]])
                             non-empty-overlap)))])]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
