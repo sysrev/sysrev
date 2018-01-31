@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.project.settings
   (:require
+   [reagent.core :as r]
    [re-frame.core :refer
     [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.action.core :refer [def-action]]
@@ -7,6 +8,9 @@
    [sysrev.views.components :refer [with-tooltip]]))
 
 (def ^:private panel-name [:project :project :settings])
+
+(def initial-state {:confirming? false})
+(def state (r/atom initial-state))
 
 (defn- parse-input [skey input]
   (case skey
@@ -215,24 +219,64 @@
            [:label nbsp]
            [:div.ui.fluid.icon.button [:i.minus.icon]]]]]])]))
 
+(defn ConfirmationAlert
+  "An alert for confirming or cancelling an action.
+  props is
+  {
+  :cancel-on-click      fn  ; user clicks cancel, same fn used for dismissing
+                            ; alert
+  :confirm-on-click     fn  ; user clicks confirm
+  :confirmation-message fn  ; fn that returns a reagent component
+  }"
+  [props]
+  (fn [{:keys [cancel-on-click confirm-on-click
+               confirmation-message]} props]
+    [:div
+     [:div
+      [confirmation-message]]
+     [:br]
+     [:div
+      [:button {:type "button"
+                :class "ui button"
+                :on-click confirm-on-click}
+       "Yes"]
+      [:button {:type "button"
+                :class "ui button primary"
+                :on-click cancel-on-click}
+       "No"]]]))
+
 (defn DeleteProject
   "Delete a project"
   []
-  (let [active-project-id (subscribe [:active-project-id])]
+  (let [confirming? (r/cursor state [:confirming?])
+        active-project-id (subscribe [:active-project-id])]
     [:div.ui.grey.segment
      [:h4.ui.dividing.header "Delete Project"]
      [:div.ui.relaxed.divided.list
-      [:button.ui.button
-       {:on-click
-        (fn []
-          (dispatch [:action [:project/delete @active-project-id]]))}
-       "Delete this Project"]]]))
+      (when @confirming?
+        [ConfirmationAlert {:cancel-on-click #(reset! confirming? false)
+                            :confirm-on-click
+                            (fn []
+                              (reset! confirming? false)
+                              (dispatch [:action [:project/delete @active-project-id]]))
+                            :confirmation-message
+                            (fn []
+                              [:div.ui.red.header
+                               [:h3 "Warning: All sources and labeling will be lost!"
+                                [:br]
+                                " Are you sure you want to delete this project?"]])}])
+      (when-not @confirming?
+        [:button.ui.button
+         {:on-click
+          #(reset! confirming? true)}
+         "Delete this Project"])]]))
 
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
     (let [user-id @(subscribe [:self/user-id])
           admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))]
+      (reset! state initial-state)
       [:div.project-content
        (when (not admin?)
          [:h3.ui.dividing.header

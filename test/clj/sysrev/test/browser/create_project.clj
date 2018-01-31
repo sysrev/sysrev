@@ -119,6 +119,8 @@
   (browser/go-route "/project/settings")
   (browser/wait-until-exists {:xpath "//h4[contains(text(),'Delete Project')]"})
   (taxi/click {:xpath "//button[contains(text(),'Delete this Project')]"})
+  (browser/wait-until-exists {:xpath "//button[text()='Yes']"})
+  (taxi/click {:xpath "//button[text()='Yes']"})
   (browser/wait-until-exists {:xpath "//h3[contains(text(),'Create a New Project')]"}))
 
 (defn search-term-source-div-xpath
