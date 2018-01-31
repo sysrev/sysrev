@@ -8,7 +8,7 @@
                  ;;;
                  ;;; Force versions of indirect dependencies
                  ;;;
-                 [com.fasterxml.jackson.core/jackson-databind "2.9.3"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.6.5"]
                  [cheshire "5.5.0"]
                  [commons-io/commons-io "2.6"]
                  [commons-codec "1.10"]
@@ -223,7 +223,8 @@
                [org.apache.spark/spark-streaming-kafka-0-8_2.11 "2.2.1"]
                [org.apache.spark/spark-sql_2.11 "2.2.1"]
                [org.apache.spark/spark-hive_2.11 "2.2.1"]]
-              :aot :all}
+              :aot [sysrev.spark.core
+                    sysrev.spark.similarity]}
              :test
              {:resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]

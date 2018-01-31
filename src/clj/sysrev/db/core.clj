@@ -323,4 +323,12 @@
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))
 
-
+(defn to-sql-string [sql]
+  (let [[sql & params] (sql/format sql :parameterizer :postgresql)
+        n-params (count params)]
+    (reduce (fn [sql [i param]]
+              (str/replace sql (str "$" (inc i))
+                           (-> param sql/inline sql/format first (#(format "'%s'" %)))))
+            sql
+            (map-indexed (fn [i param] [i param])
+                         params))))

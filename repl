@@ -1,2 +1,2 @@
 #!/bin/bash
-lein with-profile +dev,+dev-jvm,+repl,+local-repl repl
+lein with-profile +dev,+dev-spark,+dev-jvm,+repl,+local-repl repl
