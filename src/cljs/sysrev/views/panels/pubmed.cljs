@@ -140,8 +140,9 @@
   []
   (let [current-search-term (r/cursor state [:current-search-term])]
     [:div.ui.tiny.icon.button.search-results
-     {:on-click #(dispatch [:action [:project/import-articles-from-search
-                                     @current-search-term "PubMed"]])}
+     {:on-click #(do (dispatch [:action [:project/import-articles-from-search
+                                         @current-search-term "PubMed"]])
+                     (reset! state initial-state))}
      "Import " [:i.download.icon]]))
 
 (defn PubMedSearchLink

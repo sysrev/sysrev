@@ -34,7 +34,21 @@
   :process
   (fn [_ _ {:keys [success] :as result}]
     (if success
-      {:dispatch [:reload [:project]]})))
+      {:dispatch-n
+       (list [:fetch [:review/task]]
+             [:reload [:project]])})))
+
+(defn plural-or-singular
+  "Return the singular form of string when item-count is one, return plural otherwise"
+  [item-count string]
+  (if (= item-count 1)
+    string
+    (str string "s")))
+
+(defn article-or-articles
+  "Return either the singular or plural form of article"
+  [item-count]
+  (plural-or-singular item-count "article"))
 
 (defn ImportEndNoteView []
   [:div
@@ -82,8 +96,7 @@
       (do (dispatch [:action [:sources/toggle-source source-id (not enabled?)]])
           (js/setTimeout
            #(dispatch [:fetch [:project/sources]])
-           100)
-          (.log js/console "I clicked enabled button")))}
+           100)))}
    (if enabled?
      "Enabled"
      "Disabled")])
@@ -120,7 +133,7 @@
       [:div.ui.large.label (str source-type)]]
      [:div.eight.wide.column.right.aligned
       (when import-label
-        [:div.ui.large.basic.label (str import-label)])]]))
+        [:div.import-label.ui.large.basic.label (str import-label)])]]))
 
 (defn source-name
   "Given a source-id, return the source name vector"
@@ -198,7 +211,7 @@
            [CenteredColumn
             (str (.toLocaleString labeled-article-count)
                  " of "
-                 (.toLocaleString article-count) " articles reviewed")]]
+                 (.toLocaleString article-count) " " (article-or-articles article-count) " reviewed")]]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
            nil])
@@ -236,7 +249,7 @@
           [:div.eight.wide.column.left.aligned
            {:key :loaded-count}
            [CenteredColumn
-            [:div (str (.toLocaleString article-count) " articles loaded")]]]
+            [:div (str (.toLocaleString article-count) " " (article-or-articles article-count) " loaded")]]]
           [:div.six.wide.column
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
@@ -247,25 +260,28 @@
          (and (false? importing-articles?)
               labeled-article-count article-count)
          (list
-          [:div.eight.wide.column.left.aligned
+          [:div.source-description.eight.wide.column.left.aligned
            {:key :reviewed-count}
            [CenteredColumn
             (str (.toLocaleString labeled-article-count)
                  " of "
-                 (.toLocaleString article-count) " articles reviewed")]
+                 (.toLocaleString article-count) " " (article-or-articles article-count) " reviewed")]
            ;; put unique
-           (when-not (nil? (:unique-articles-count source))
-             [:span (:unique-articles-count source) " unique articles"])
+           (let [unique-articles-count (:unique-articles-count source)]
+             (when-not (nil? unique-articles-count)
+               [:span unique-articles-count " unique " (article-or-articles unique-articles-count)]))
            ;; put overlap
            (let [overlap (:overlap source)
-                 non-empty-overlap (filter #(> (:count %) 1) overlap)]
+                 non-empty-overlap (filter #(> (:count %) 0) overlap)]
              [:div
               (when-not (empty? non-empty-overlap)
                 (doall (map (fn [overlap-map]
                               ^{:key (gensym (:overlap-source-id overlap-map))}
-                              [:span (str (:count overlap-map) " articles shared with "
-                                          (let [name (source-name (:overlap-source-id overlap-map))]
-                                            (str (first name) " " (second name))))])
+                              [:div
+                               [:span (str (:count overlap-map) " " (article-or-articles (:count overlap-map)) " shared with "
+                                           (let [name (source-name (:overlap-source-id overlap-map))]
+                                             (str (first name) " " (second name))))]
+                               [:br]])
                             non-empty-overlap)))])]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
@@ -302,7 +318,7 @@
         (doall (map (fn [source]
                       ^{:key (:source-id source)}
                       [ArticleSource source])
-                    (sort-by :source-id @sources)))])]))
+                    (reverse (sort-by :source-id @sources))))])]))
 
 (defn ImportArticlesView []
   (ensure-state)
@@ -331,11 +347,8 @@
 (defn ProjectSourcesPanel []
   (ensure-state)
   [:div
-   [:div.ui.two.column.stackable.grid.project-sources
-    [:div.column
-     [ProjectSourcesList]]
-    [:div.column
-     [ImportArticlesView]]]])
+   [ImportArticlesView]
+   [ProjectSourcesList]])
 
 (defmethod panel-content panel []
   (fn [child]

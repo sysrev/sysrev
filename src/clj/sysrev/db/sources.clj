@@ -49,12 +49,14 @@
    :filename filename})
 
 (defn import-pmids-search-term-meta
-  [search-term]
+  [search-term search-count]
   {:source "PubMed search"
-   :search-term search-term})
+   :search-term search-term
+   :search-count search-count})
 ;;
 (s/fdef import-pmids-search-term-meta
-        :args (s/cat :search-term string?)
+        :args (s/cat :search-term string?
+                     :search-count int?)
         :ret map?)
 
 (def import-facts-meta
@@ -126,37 +128,37 @@
 (defn update-project-articles-enabled!
   "Update the enabled fields of articles associated with project-id."
   [project-id]
-  (do
-    ;; set all articles enabled to false
-    (-> (sqlh/update :article)
-        (sset {:enabled false})
-        (where [:= :project-id project-id])
-        do-execute)
-    ;; set all articles enabled to true for which they have a source
-    ;; that is enabled
-    (-> (sqlh/update :article)
-        (sset {:enabled true})
-        (where [:exists
-                (-> (select :*)
-                    (from [:article_source :ars])
-                    (left-join [:project_source :ps]
-                               [:= :ars.source_id :ps.source_id])
-                    (where [:and
-                            [:= :ps.project_id project-id]
-                            [:= :article.article_id :ars.article_id]
-                            [:= :ps.enabled true]]))])
-        do-execute)
-    ;; check the article_flags table as the ultimate truth
-    ;; for the enabled setting
-    (-> (sqlh/update :article)
-        (sset {:enabled false})
-        (where [:exists
-                (-> (select :*)
-                    (from [:article_flag :af])
-                    (where [:and
-                            [:= :af.article_id :article.article_id]
-                            [:= :af.disable true]]))])
-        do-execute)))
+  (clear-query-cache)
+  ;; set all articles enabled to false
+  (-> (sqlh/update :article)
+      (sset {:enabled false})
+      (where [:= :project-id project-id])
+      do-execute)
+  ;; set all articles enabled to true for which they have a source
+  ;; that is enabled
+  (-> (sqlh/update :article)
+      (sset {:enabled true})
+      (where [:exists
+              (-> (select :*)
+                  (from [:article_source :ars])
+                  (left-join [:project_source :ps]
+                             [:= :ars.source_id :ps.source_id])
+                  (where [:and
+                          [:= :ps.project_id project-id]
+                          [:= :article.article_id :ars.article_id]
+                          [:= :ps.enabled true]]))])
+      do-execute)
+  ;; check the article_flags table as the ultimate truth
+  ;; for the enabled setting
+  (-> (sqlh/update :article)
+      (sset {:enabled false})
+      (where [:exists
+              (-> (select :*)
+                  (from [:article_flag :af])
+                  (where [:and
+                          [:= :af.article_id :article.article_id]
+                          [:= :af.disable true]]))])
+      do-execute))
 
 (s/fdef update-project-articles-enabled!
         :args (s/cat :project-id int?))

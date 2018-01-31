@@ -45,7 +45,6 @@
         email "foo@bar.com"
         password "foobar"
         search-term "foo bar"
-        meta (sources/import-pmids-search-term-meta search-term)
         route-response (route-response-fn handler)]
     ;; create user
     (users/create-user email password :project-id 100)
@@ -58,7 +57,8 @@
           (route-response :post "/api/create-project"
                           {:project-name "Foo's Bar"})
           new-project-id (get-in create-project-response [:result :project :project-id])
-          search-query-result (pubmed/get-search-query-response search-term 1)]
+          search-query-result (pubmed/get-search-query-response search-term 1)
+          meta (sources/import-pmids-search-term-meta search-term (count (:pmids search-query-result)))]
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
@@ -248,10 +248,9 @@
                      :change? false})
     ;; now the project has labeled articles
     (is (project/project-has-labeled-articles? new-project-id))
-    (is (= "Project contains reviewed articles"
-           (get-in (route-response :post "/api/delete-project"
-                                   {:project-id new-project-id})
-                   [:error :message])))
+    (is (get-in (route-response :post "/api/delete-project"
+                                {:project-id new-project-id})
+                [:result :success]))
     ;; the project source has labeled articles as well
     (is (sources/source-has-labeled-articles? foo-bar-search-source-id))
     ;; the project source can not be deleted

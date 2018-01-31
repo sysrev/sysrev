@@ -2,6 +2,7 @@
   (:require
    [re-frame.core :refer
     [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
+   [sysrev.action.core :refer [def-action]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip]]))
 
@@ -112,6 +113,16 @@
                         changed-keys)]
      (dispatch [:action [:project/change-settings changes]]))))
 
+(def-action :project/delete
+  :uri (fn [] "/api/delete-project")
+  :content (fn [project-id] {:project-id project-id})
+  :process
+  (fn [{:keys [db]} _ result]
+    {:db (-> db
+             (assoc-in [:state :active-project-id] nil))
+     :dispatch-n (list [:navigate [:select-project]]
+                       [:fetch [:identity]])}))
+
 (defn- project-options-box []
   (let [admin? (or @(subscribe [:member/admin?])
                    @(subscribe [:user/admin?]))
@@ -204,6 +215,19 @@
            [:label nbsp]
            [:div.ui.fluid.icon.button [:i.minus.icon]]]]]])]))
 
+(defn DeleteProject
+  "Delete a project"
+  []
+  (let [active-project-id (subscribe [:active-project-id])]
+    [:div.ui.grey.segment
+     [:h4.ui.dividing.header "Delete Project"]
+     [:div.ui.relaxed.divided.list
+      [:button.ui.button
+       {:on-click
+        (fn []
+          (dispatch [:action [:project/delete @active-project-id]]))}
+       "Delete this Project"]]]))
+
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
     (let [user-id @(subscribe [:self/user-id])
@@ -220,4 +244,6 @@
          [:div.ui.column
           [project-options-box]]
          [:div.ui.column
-          [project-permissions-box]]]]])))
+          [project-permissions-box]
+          (when @(subscribe [:member/admin?])
+            [DeleteProject])]]]])))

@@ -153,9 +153,9 @@
 
 (defn wait-until-loading-completes
   []
+  (Thread/sleep 200)
   (taxi/wait-until
    #(not (taxi/exists?
           {:xpath "//div[contains(@class,'loader')]"}))
-   10000)
-  (Thread/sleep 200))
+   10000))
 
