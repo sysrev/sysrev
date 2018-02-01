@@ -68,6 +68,9 @@
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
 
+                 ;;; Stripe
+                 [abengoa/clj-stripe "1.0.4"]
+
                  ;;;
                  ;;; ClojureScript libraries
                  ;;;
@@ -79,6 +82,10 @@
                  [kibu/pushy "0.3.8"]
                  [cljs-http "0.1.44"]
                  [cljsjs/jquery "3.2.1-0"]
+                 ;; only provides ext.js for stripe.js
+                 [cljsjs/stripe "2.0-0"]
+                 ;; stripe provided form components
+                 [cljsjs/react-stripe-elements "1.4.1-0"]
                  #_ [cljsjs/semantic-ui "2.2.4-0"]
                  ;; custom build of cljsjs/semantic-ui to use latest version
                  ;; built from ./cljsjs/semantic-ui

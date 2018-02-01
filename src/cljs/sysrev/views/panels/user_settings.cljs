@@ -4,6 +4,7 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip selection-dropdown]]
+   [sysrev.payments :refer [StripeCardInfo]]
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]))
 
@@ -172,4 +173,5 @@
        [:div.ui.column
         [user-options-box]]
        [:div.ui.column
-        [user-dev-tools-box]]]]]))
+        [user-dev-tools-box]]]]
+     [StripeCardInfo]]))
