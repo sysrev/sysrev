@@ -33,10 +33,10 @@
                [:span.project-title [:i.book.icon] nbsp project-name]]]]]
            [:div.ui.bottom.attached.segment.project-segment
             [project-page-menu]
-            [project-submenu]]
-           [:div child]])))))
+            [:div child]]])))))
 
 (defmethod panel-content [:project :project] []
   (fn [child]
     [:div
+     [project-submenu]
      child]))
