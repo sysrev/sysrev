@@ -120,21 +120,24 @@
   (cond->
       (-> (apply select fields)
           (from [:article tname]))
-      project-id (merge-where [:= (sql-field tname :project-id) project-id])
-      (and (not include-disabled?)
-           (not include-disabled-source?))
-      (merge-where [:= (sql-field tname :enabled) true])
-      include-disabled-source?
-      (merge-where
-       [:not
-        [:exists
-         (-> (select :*)
-             (from [:article-flag :af-test])
-             (where [:and
-                     [:= :af-test.disable true]
-                     [:=
-                      :af-test.article-id
-                      (sql-field tname :article-id)]]))]])))
+    project-id
+    (merge-where [:= (sql-field tname :project-id) project-id])
+
+    (and (not include-disabled?)
+         (not include-disabled-source?))
+    (merge-where [:= (sql-field tname :enabled) true])
+
+    include-disabled-source?
+    (merge-where
+     [:not
+      [:exists
+       (-> (select :*)
+           (from [:article-flag :af-test])
+           (where [:and
+                   [:= :af-test.disable true]
+                   [:=
+                    :af-test.article-id
+                    (sql-field tname :article-id)]]))]])))
 
 (defn select-article-where
   [project-id where-clause fields & [{:keys [include-disabled? tname]
@@ -446,7 +449,7 @@
 (defn select-latest-predict-run [fields]
   (-> (apply select fields)
       (from [:predict-run :pr])
-      (order-by [:pr.create-time :desc])
+      (order-by [:pr.create-time (sql/raw "DESC")])
       (limit 1)))
 
 (defn project-latest-predict-run-id

@@ -24,14 +24,14 @@
 
 (defn list-files-for-project [project-id]
   (->>
-    (-> (select :*)
-        (from :filestore)
-        (where [:and
-                [:= nil :delete-time]
-                [:= :project-id project-id]])
-        (order-by [[:ordering :asc :nulls-first] [:upload-time :asc]])
-        (do-query))
-    (mapv map->Filerec)))
+   (-> (select :*)
+       (from :filestore)
+       (where [:and
+               [:= nil :delete-time]
+               [:= :project-id project-id]])
+       (order-by [[:ordering (sql/raw "NULLS FIRST")] [:upload-time]])
+       do-query)
+   (mapv map->Filerec)))
 
 
 (defn file-by-id [id project-id]

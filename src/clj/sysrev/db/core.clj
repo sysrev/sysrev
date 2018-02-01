@@ -120,7 +120,7 @@
   "Run SQL query defined by honeysql SQL map."
   [sql-map & [conn]]
   (j/query (or conn *conn* @active-db)
-           (-> sql-map prepare-honeysql-map sql/format)
+           (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
            {:identifiers format-column-name
             :result-set-fn vec}))
 
@@ -142,7 +142,7 @@
   "Execute SQL command defined by honeysql SQL map."
   [sql-map & [conn]]
   (j/execute! (or conn *conn* @active-db)
-              (-> sql-map prepare-honeysql-map sql/format)
+              (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
               {:transaction? (nil? (or conn *conn*))}))
 
 (defmacro with-transaction
@@ -324,7 +324,7 @@
   (keyword (str (name table-name) "." (name field-name))))
 
 (defn to-sql-string [sql]
-  (let [[sql & params] (sql/format sql :parameterizer :postgresql)
+  (let [[sql & params] (sql/format sql :quoting :ansi :parameterizer :postgresql)
         n-params (count params)]
     (reduce (fn [sql [i param]]
               (str/replace sql (str "$" (inc i))

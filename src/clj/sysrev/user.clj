@@ -68,6 +68,7 @@
             [sysrev.shared.spec.keywords :as skw]
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
+            [sysrev.db.queries :as q]
             [cljs.env :as env])
   (:import java.util.UUID))
 
