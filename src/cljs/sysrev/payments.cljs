@@ -22,11 +22,12 @@
 
 (defn StripeCardInfo
   []
-  [:div.ui.segment
+  [:div.ui.secondary.segment
    [StripeProvider {:apiKey "***REMOVED***"}
     [Elements [:form {:on-submit (fn [e]
                                    (.preventDefault e)
-                                   (.log js/console "Form submitted"))}
+                                   (.log js/console "Form submitted"))
+                      :class "StripeForm"}
                [:label "Card Number"
                 [CardNumberElement {:onBlur #(.log js/console "I blurred")
                                     :onChange #(.log js/console "I changed")
