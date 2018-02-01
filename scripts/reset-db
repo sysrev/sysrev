@@ -11,7 +11,7 @@ function env_help {
 
 # Require these vars are set and not empty.
 if [ -z ${SYSREV_PORT+x} ] || [ -z ${SYSREV_DB+x} ]; then
-	env_help
+    env_help
 fi
 
 echo "checking that ./flyway exists..."
@@ -21,7 +21,7 @@ echo "checking that ./flyway.conf exists..."
 ls ./flyway.conf
 
 echo "checking that flyway.conf matches localhost:$SYSREV_PORT/$SYSREV_DB..."
-grep "localhost:$SYSREV_PORT/$SYSREV_DB" flyway.conf
+grep -E ".*localhost:$SYSREV_PORT/$SYSREV_DB\$" flyway.conf
 
 echo "dropping database (if exists)..."
 dropdb -h localhost -p $SYSREV_PORT -U postgres $SYSREV_DB || true
