@@ -26,6 +26,9 @@
         search-form {:xpath "//form[@id='search-bar']"}]
     (browser/wait-until-exists search-form)
     (browser/wait-until-exists search-input)
+    (let [close {:xpath "//div[contains(@class,'button') and contains(text(),'Close')]"}]
+      (when (taxi/exists? close)
+        (taxi/click close)))
     (taxi/clear search-input)
     (taxi/input-text search-input query)
     (taxi/submit search-form)))
