@@ -102,7 +102,16 @@
 ;;;
 
 (defn select-project-articles
-  "Return all fields from project-id. When include-disabled? is true, then return all articles. When false, return only the articles that are enabled. Default is false. When include-disabled-source? is true, then return all articles that are not disabled by an article-flag. When false, return all articles. Only one predicate (include-disabled? or include-disabled-source?) should be set to true at one time."
+  "Constructs a honeysql query to select the articles in project-id.
+
+   Defaults to excluding any disabled articles.
+
+   Set option include-disabled? as true to include all disabled articles.
+
+   Set option include-disabled-source? as true to exclude only articles
+   which are disabled by an article-flag entry.
+
+   Only one of [include-disabled? include-disabled-source?] should be set."
   [project-id fields & [{:keys [include-disabled? tname include-disabled-source?]
                          :or {include-disabled? false
                               tname :a
