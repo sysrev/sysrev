@@ -1,6 +1,8 @@
 (ns sysrev.payments
   (:require [cljsjs.react-stripe-elements]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [re-frame.core :refer [dispatch]]
+            [sysrev.action.core :refer [def-action]]))
 
 ;; Stripe elements
 (def Elements (r/adapt-react-class js/ReactStripeElements.Elements))
@@ -17,6 +19,14 @@
                            "::placeholder" {:color "#aab7c4"}}
                     :invalid {:color "#9e2146"}}) 
 
+(def-action :payments/stripe-token
+  :uri (fn [] "/api/stripe-token")
+  :content (fn [token]
+             {:token token})
+  :process (fn [_ _ {:keys [success] :as result}]
+             (if success
+               (.log js/console "token uplaoded"))))
+
 (def StripeForm
   (r/adapt-react-class
    (js/ReactStripeElements.injectStripe
@@ -28,7 +38,7 @@
                                              (.preventDefault e)
                                              (.then (this.props.stripe.createToken)
                                                     (fn [payload]
-                                                      (.log js/console payload))))
+                                                      (dispatch [:action [:payments/stripe-token payload]]))))
                                 :class "StripeForm"}
                          [:label "Card Number"
                           [CardNumberElement {:style element-style}]]

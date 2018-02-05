@@ -317,7 +317,11 @@
          (if (nil? project-id)
            {:result {:project nil}}
            (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-             {:result {:project {:project-id project-id :name name}}})))))
+             {:result {:project {:project-id project-id :name name}}}))))
+
+  (POST "/api/stripe-token" request
+        (let [{:keys [token]} (:body request)]
+          (api/stripe-token token))))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

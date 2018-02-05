@@ -71,6 +71,9 @@
                  ;;; Stripe
                  [abengoa/clj-stripe "1.0.4"]
 
+                 ;;; environ
+                 [environ "1.1.0"]
+
                  ;;;
                  ;;; ClojureScript libraries
                  ;;;

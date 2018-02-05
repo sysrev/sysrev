@@ -5,6 +5,7 @@
    [sysrev.shared.spec.users :as su]
    [sysrev.db.core :refer
     [do-query do-execute sql-now to-sql-array with-transaction to-jsonb]]
+   [sysrev.payments :as payments]
    [sysrev.shared.util :refer [map-values in?]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -258,3 +259,13 @@
     {:projects (->> [projects all-projects]
                     (apply concat)
                     vec)}))
+
+(defn create-stripe-customer!
+  "Create a stripe customer from user"
+  [user]
+  (let [{:keys [email user-uuid user-id]} user
+        {:keys [id]} (payments/create-customer! email (str user-uuid))]
+    (-> (sqlh/update :web-user)
+        (sset {:stripe-id id})
+        (where [:= :user-id user-id])
+        do-execute)))

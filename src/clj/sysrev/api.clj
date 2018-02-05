@@ -7,6 +7,7 @@
             [sysrev.db.sources :as sources]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
+            [sysrev.payments :as payments]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]))
 
@@ -225,3 +226,9 @@
         :args (s/cat :source-id int?
                      :enabled? boolean?)
         :ret map?)
+
+(defn stripe-token
+  "Pass a stripe token"
+  [token]
+  (reset! payments/token token)
+  {:success true})
