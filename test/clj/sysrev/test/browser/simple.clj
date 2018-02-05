@@ -9,8 +9,7 @@
              [webdriver-fixture-once webdriver-fixture-each go-route
               login-form-shown? panel-rendered? element-rendered?
               wait-until-panel-exists panel-exists?]]
-            [sysrev.test.browser.navigate :refer
-             [log-in log-out register-user]]
+            [sysrev.test.browser.navigate :as nav]
             [clojure.string :as str]
             [sysrev.db.users :refer [delete-user create-user]]))
 
@@ -18,7 +17,8 @@
 (use-fixtures :each webdriver-fixture-each)
 
 (deftest project-routes
-  (log-in)
+  (nav/log-in)
+  (nav/open-first-project)
   (wait-until-panel-exists [:project])
   (is (panel-rendered? [:project]))
   (taxi/wait-until
@@ -64,20 +64,5 @@
   (wait-until-panel-exists [:user-settings])
   (is (panel-rendered? [:user-settings]))
   (taxi/wait-until #(taxi/exists? (taxi/find-element {:css "a[id='log-out-link']"})))
-  (log-out)
+  (nav/log-out)
   (is (login-form-shown?)))
-
-#_
-(deftest invalid-route-redirect
-  (let [paths ["/x"]]
-    (doseq [path paths]
-      (go-route path)
-      (is (login-form-shown?)
-          (format "Invalid path should go to /" path)))))
-
-#_
-(deftest register-test-account
-  (go-route "/register")
-  (register-user)
-  (is (str/includes? (taxi/text "body")
-                     "Please select the project")))
