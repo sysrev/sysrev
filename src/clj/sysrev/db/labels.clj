@@ -4,8 +4,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-query-map do-execute with-transaction
               sql-now to-sql-array to-jsonb sql-cast
-              with-query-cache clear-query-cache
-              with-project-cache clear-project-cache]]
+              with-query-cache with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer
              [project-labels project-overall-label-id project-settings]]
@@ -64,21 +63,21 @@
                       category required value-type definition]}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
-  (let [query
-        (-> (insert-into :label)
-            (values [{:project-id project-id
-                      :project-ordering (q/next-label-project-ordering project-id)
-                      :value-type value-type
-                      :name name
-                      :question question
-                      :short-label short-label
-                      :required required
-                      :category category
-                      :definition (to-jsonb definition)
-                      :enabled true}]))]
-    (do-execute query)
-    (db/clear-labels-cache project-id)
-    (db/clear-project-cache project-id))
+  (try
+    (-> (insert-into :label)
+        (values [{:project-id project-id
+                  :project-ordering (q/next-label-project-ordering project-id)
+                  :value-type value-type
+                  :name name
+                  :question question
+                  :short-label short-label
+                  :required required
+                  :category category
+                  :definition (to-jsonb definition)
+                  :enabled true}])
+        do-execute)
+    (finally
+      (db/clear-project-cache project-id)))
   true)
 
 (defn add-label-entry-boolean
@@ -226,14 +225,13 @@
 (defn alter-label-entry [project-id label-id values-map]
   (let [project-id (q/to-project-id project-id)
         label-id (q/to-label-id label-id)]
-    (db/clear-labels-cache project-id)
-    (db/clear-project-cache project-id)
     (-> (sqlh/update :label)
         (sset values-map)
         (where [:and
                 [:= :label-id label-id]
                 [:= :project-id project-id]])
-        do-execute)))
+        do-execute)
+    (db/clear-project-cache project-id)))
 
 (defn get-articles-with-label-users [project-id & [predict-run-id]]
   (with-project-cache
@@ -384,14 +382,14 @@
       {:article-id (:article-id article)
        :today-count today-count})))
 
-(defn user-all-labels-map [project-id user-id]
+(defn- user-all-labels-map [project-id user-id]
   (-> (q/select-project-articles project-id [:al.*])
       (q/join-article-labels)
       (q/filter-label-user user-id)
       (->> do-query
            (group-by :article-id))))
 
-(defn copy-project-user-labels [project-id src-user-id dest-user-id]
+(defn- copy-project-user-labels [project-id src-user-id dest-user-id]
   (let [articles (user-all-labels-map project-id src-user-id)]
     (with-transaction
       (doseq [[article-id article-entries] articles]
@@ -630,11 +628,7 @@
       (-> (insert-into :article-label-history)
           (values current-entries)
           do-execute))
-    (db/clear-project-label-values-cache project-id confirm? user-id)
-    (db/clear-project-member-cache project-id user-id)
-    (db/clear-project-article-cache project-id article-id)
-    (when confirm?
-      (db/clear-project-public-labels-cache project-id))
+    (db/clear-project-cache project-id)
     true))
 
 (defn delete-project-user-labels [project-id]

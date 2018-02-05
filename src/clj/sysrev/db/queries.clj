@@ -8,7 +8,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-execute sql-now to-sql-array to-jsonb
-              sql-field with-project-cache clear-project-cache with-query-cache
+              sql-field with-project-cache clear-project-cache
               clear-query-cache sql-array-contains]]
             [sysrev.shared.util :refer [in?]])
   (:import java.util.UUID))
@@ -464,17 +464,15 @@
 (defn article-latest-predict-run-id
   "Gets the most recent predict-run ID for the project of an article."
   [article-id]
-  (with-query-cache
-    [:predict :article article-id :latest-predict-run-id]
-    (-> (select-latest-predict-run [:predict-run-id])
-        (merge-join [:project :p]
-                    [:= :p.project-id :pr.project-id])
-        (merge-join [:article :a]
-                    [:= :a.project-id :p.project-id])
-        (merge-where (if (or (string? article-id) (uuid? article-id))
-                       [:= :a.article-uuid article-id]
-                       [:= :a.article-id article-id]))
-        do-query first :predict-run-id)))
+  (-> (select-latest-predict-run [:predict-run-id])
+      (merge-join [:project :p]
+                  [:= :p.project-id :pr.project-id])
+      (merge-join [:article :a]
+                  [:= :a.project-id :p.project-id])
+      (merge-where (if (or (string? article-id) (uuid? article-id))
+                     [:= :a.article-uuid article-id]
+                     [:= :a.article-id article-id]))
+      do-query first :predict-run-id))
 
 ;;; article notes
 (defn with-project-note [m & [note-name]]

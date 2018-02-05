@@ -11,7 +11,7 @@
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :refer [set-active-db! make-db-config close-active-db
-                                    clear-query-cache with-rollback-transaction]]))
+                                    with-rollback-transaction]]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 

@@ -5,8 +5,8 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-query-map do-execute sql-now
-              with-query-cache clear-query-cache
-              with-project-cache clear-project-cache cached-project-ids]]
+              clear-query-cache with-project-cache clear-project-cache
+              cached-project-ids]]
             [sysrev.shared.util :refer [map-values]]
             [sysrev.db.project :refer [project-overall-label-id]]
             [sysrev.db.queries :as q]))

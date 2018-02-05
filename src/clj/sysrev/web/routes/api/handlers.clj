@@ -6,7 +6,7 @@
             [sysrev.shared.spec.web-api :as swa]
             [compojure.core :refer :all]
             [sysrev.shared.util :refer [map-values in? to-uuid]]
-            [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]

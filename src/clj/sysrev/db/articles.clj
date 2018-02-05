@@ -7,7 +7,7 @@
             [sysrev.shared.spec.article :as sa]
             [sysrev.db.core :as db :refer
              [do-query do-execute to-sql-array sql-now with-project-cache
-              with-query-cache clear-project-cache to-jsonb]]
+              clear-project-cache to-jsonb]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -56,26 +56,27 @@
                   do-query first)]
     (assert pnote "note type not defined in project")
     (assert (:project-id pnote) "project-id not found")
-    (clear-project-cache (:project-id pnote) [:article article-id :notes])
-    (clear-project-cache (:project-id pnote) [:users user-id :notes])
-    (let [fields {:article-id article-id
-                  :user-id user-id
-                  :project-note-id (:project-note-id pnote)
-                  :content content
-                  :updated-time (sql-now)}]
-      (if (nil? anote)
-        (-> (sqlh/insert-into :article-note)
-            (values [fields])
-            (returning :*)
-            do-query)
-        (-> (sqlh/update :article-note)
-            (where [:and
-                    [:= :article-id article-id]
-                    [:= :user-id user-id]
-                    [:= :project-note-id (:project-note-id pnote)]])
-            (sset fields)
-            (returning :*)
-            do-query)))))
+    (try
+      (let [fields {:article-id article-id
+                    :user-id user-id
+                    :project-note-id (:project-note-id pnote)
+                    :content content
+                    :updated-time (sql-now)}]
+        (if (nil? anote)
+          (-> (sqlh/insert-into :article-note)
+              (values [fields])
+              (returning :*)
+              do-query)
+          (-> (sqlh/update :article-note)
+              (where [:and
+                      [:= :article-id article-id]
+                      [:= :user-id user-id]
+                      [:= :project-note-id (:project-note-id pnote)]])
+              (sset fields)
+              (returning :*)
+              do-query)))
+      (finally
+        (clear-project-cache (:project-id pnote))))))
 ;;
 (s/fdef set-user-article-note
         :args (s/cat :article-id ::sc/article-id

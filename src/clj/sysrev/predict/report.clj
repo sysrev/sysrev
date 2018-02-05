@@ -3,8 +3,7 @@
    [sysrev.shared.util :refer [map-values]]
    [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
    [sysrev.db.core :refer
-    [do-query do-execute sql-now time-to-string to-jsonb
-     with-query-cache]]
+    [do-query do-execute sql-now time-to-string to-jsonb]]
    [sysrev.db.queries :as q]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
