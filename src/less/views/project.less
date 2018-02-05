@@ -5,8 +5,6 @@
 }
 
 div.project-content {
-    padding-left: 1em;
-    padding-right: 1em;
 }
 
 .ui.segment.project-segment .padded {
@@ -45,11 +43,6 @@ div.project-content {
 .ui.segment.project-header > h5 .ui.basic.label {
     margin: 0;
     font-size: 0.925rem;
-}
-
-.ui.segment.project-header .project-title {
-    font-size: 14px;
-    .medium-weight;
 }
 
 .ui.segment.project-header .ui.button {
@@ -137,15 +130,8 @@ div.projects-list .ui.list > .item:hover > .ui.labeled.button > .ui.basic.label 
 @media only screen and (max-width: 900px) {
     .ui.top.attached.segment.project-header {
         text-align: justify;
-        padding-left: 0.5em;
-        padding-top: 0.85em;
-        padding-bottom: 0.85em;
+        padding: 0.6em;
         font-size: 12px;
-    }
-
-    .ui.segment.project-header .project-title {
-        font-size: 13px;
-        .medium-weight;
     }
 
     .ui.top.attached.segment.project-header .ui.grid {
@@ -165,11 +151,8 @@ div.projects-list .ui.list > .item:hover > .ui.labeled.button > .ui.basic.label 
         padding: 0;
     }
 
-    div.project-content {
-        padding: 0.5em;
-    }
-
-    div.project-content > .column.stackable.grid {
+    div.project-content > .ui.stackable.grid {
+        margin-top: -0.5em;
         margin-bottom: -0.5em;
     }
 

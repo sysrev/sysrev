@@ -13,7 +13,7 @@
        [:div.ui.two.column.stackable.grid
         [:div.row
          [:div.column
-          [:div.ui.grey.segment
+          [:div.ui.segment
            [:h5.ui.dividing.header
             (doall
              (with-ui-help-tooltip

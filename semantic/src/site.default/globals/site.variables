@@ -3,3 +3,12 @@
 *******************************/
 
 @pageBackground: #eeeeee;
+
+@siteTextColor: rgba(70, 70, 70, 0.925);
+@textColor : @siteTextColor;
+@invertedTextColor: rgba(230, 230, 230, 0.925);
+@mutedTextColor : rgba(90, 90, 90, 0.85);
+@mutedInvertedTextColor: rgba(200, 200, 200, 0.85);
+
+@inputPlaceholderColor : rgba(120, 120, 120, 0.85);
+@inputPlaceholderFocusColor : rgba(90, 90, 90, 0.85);

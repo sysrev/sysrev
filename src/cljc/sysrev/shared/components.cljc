@@ -2,7 +2,7 @@
 
 (def loading-content
   [:div.main-content
-   [:div.ui.top.menu.site-menu
+   [:div.ui.menu.site-menu
     [:div.ui.container
      [:a.header.item {:href "/"}
       [:h3.ui.blue.header "sysrev.us"]]

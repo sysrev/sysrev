@@ -136,7 +136,7 @@
         valid? @(subscribe [::valid-input?])
         field-class #(if @(subscribe [::valid-input? %])
                        "" "error")]
-    [:div.ui.grey.segment
+    [:div.ui.segment
      [:h4.ui.dividing.header "Configuration options"]
      [:div.ui.form {:class (if valid? "" "warning")}
       (let [skey :second-review-prob]
@@ -181,7 +181,7 @@
         owner? false
         all-perms (if owner? ["admin" "resolve"] ["resolve"])
         user-ids @(subscribe [:project/member-user-ids nil true])]
-    [:div.ui.grey.segment
+    [:div.ui.segment
      [:h4.ui.dividing.header "Users"]
      [:div.ui.relaxed.divided.list
       (doall
@@ -250,7 +250,7 @@
   []
   (let [confirming? (r/cursor state [:confirming?])
         active-project-id (subscribe [:active-project-id])]
-    [:div.ui.grey.segment
+    [:div.ui.segment
      [:h4.ui.dividing.header "Delete Project"]
      [:div.ui.relaxed.divided.list
       (when @confirming?

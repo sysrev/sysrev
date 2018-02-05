@@ -2,7 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch]]
-            [sysrev.util :refer [full-size? mobile?]]
+            [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.views.components :refer [dropdown-menu]])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
@@ -28,7 +28,7 @@
                                     :action #(dispatch [:action [:dev/clear-query-cache]])}]
                     :dropdown-class "dropdown item"
                     :label [:i.fitted.code.icon]])]
-    [:div.ui.top.menu.site-menu
+    [:div.ui.menu.site-menu
      [:div.ui.container
       [:a.header.item
        {:on-click #(dispatch [:navigate []])}

@@ -552,7 +552,7 @@
       [:h5.no-margin text]
       [:div
        (with-ui-help-tooltip
-         [:h5.no-margin text [ui-help-icon]]
+         [:h5.no-margin text nbsp [ui-help-icon]]
          :help-content tooltip-content)])))
 
 ;; Render directional navigation buttons for article list interface
@@ -592,6 +592,7 @@
        [:div.ui.tiny.icon.button
         {:class (if (>= (+ display-offset display-count) total-count)
                   "disabled" "")
+         :style {:margin-right "0"}
          :on-click on-last}
         [:i.angle.double.right.icon]]]
       ;; mobile view
@@ -632,7 +633,7 @@
   (let [active-aid @(subscribe [::selected-article-id panel])
         show-article #(nav (article-uri panel %))
         full-size? (full-size?)]
-    [:div
+    [:div.ui.segments.article-list-segments
      (doall
       (->>
        @(subscribe [::visible-entries panel])
@@ -641,37 +642,37 @@
           (let [active? (= article-id active-aid)
                 classes (if active? "active" "")
                 loading? @(subscribe [:loading? [:article article-id]])]
-            [:div.article-list-segments
-             {:key article-id}
-             [:div.ui.middle.aligned.grid.segment.article-list-article
-              {:class (str (if active? "active" "")
-                           " "
-                           (if loading? "article-loading" ""))
-               :on-click #(show-article article-id)}
-              (when loading?
-                [:div.ui.active.inverted.dimmer
-                 [:div.ui.loader]])
-              [render-article-entry panel article full-size?]]])))))]))
+            [:div.ui.middle.aligned.attached.grid.segment.article-list-article
+             {:key article-id
+              :class (str (if active? "active" "")
+                          " "
+                          (if loading? "article-loading" ""))
+              :on-click #(show-article article-id)}
+             (when loading?
+               [:div.ui.active.inverted.dimmer
+                [:div.ui.loader]])
+             [render-article-entry panel article full-size?]])))))]))
 
 (defn- article-list-list-view [panel]
-  (let [user-id @(subscribe [:self/user-id])]
+  (let [user-id @(subscribe [:self/user-id])
+        filtered @(subscribe [:article-list/filtered panel])]
     (if (full-size?)
       [:div.article-list-view
-       [:div.ui.top.attached.segment.article-nav
+       [:div.ui.segment.article-nav
         [:div.ui.two.column.middle.aligned.grid
          [:div.ui.left.aligned.column
           [article-list-header-message panel]]
          [article-list-header-buttons panel]]]
-       [:div.ui.bottom.attached.segment.article-list-segment
-        [article-list-view-articles panel]]]
+       (when (not-empty filtered)
+         [article-list-view-articles panel])]
       [:div.article-list-view
        [:div.ui.segment.article-nav
         [:div.ui.middle.aligned.grid
          [:div.ui.left.aligned.seven.wide.column
           [article-list-header-message panel]]
          [article-list-header-buttons panel]]]
-       [:div.article-list-segment
-        [article-list-view-articles panel]]])))
+       (when (not-empty filtered)
+         [article-list-view-articles panel])])))
 
 (defn- article-list-article-view [article-id panel]
   (let [label-values @(subscribe [:review/active-labels article-id])
@@ -698,8 +699,7 @@
     [:div.article-view
      (if (full-size?)
        ;; non-mobile view
-       [:div.ui.top.attached.segment.article-nav
-        {:style {:padding "10px"}}
+       [:div.ui.segment.article-nav
         [:div.ui.three.column.middle.aligned.grid
          [:div.ui.left.aligned.column
           [:div.ui.tiny.fluid.button {:class back-class :on-click close-article}
@@ -728,21 +728,17 @@
            [:div.ui.tiny.button {:class next-class :on-click on-next}
             "Next" [:i.chevron.right.icon]]]]]])
      [:div
-      {:class (if (full-size?)
-                "ui bottom attached middle aligned segment"
-                "")}
-      [:div
-       [article-info-view article-id
-        :show-labels? true
-        :private-view? (private-article-view? panel)]
-       (cond editing?
-             [label-editor-view article-id]
+      [article-info-view article-id
+       :show-labels? true
+       :private-view? (private-article-view? panel)]
+      (cond editing?
+            [label-editor-view article-id]
 
-             editing-allowed?
-             [:div.ui.segment
-              [:div.ui.fluid.button
-               {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
-               (if resolving-allowed? "Resolve Labels" "Change Labels")]])]]]))
+            editing-allowed?
+            [:div.ui.segment
+             [:div.ui.fluid.button
+              {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
+              (if resolving-allowed? "Resolve Labels" "Change Labels")]])]]))
 
 ;; Top-level component for article list interface
 (defn article-list-view [panel & [loader-items]]

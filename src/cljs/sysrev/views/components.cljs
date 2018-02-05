@@ -77,11 +77,13 @@
   (s/keys :req-un [::tab-id ::content ::action]
           :opt-un [::class]))
 
-(defn primary-tabbed-menu [entries active-tab-id & [menu-class]]
+(defn primary-tabbed-menu
+  [left-entries right-entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
-        entries (remove nil? entries)
-        n-tabs (count entries)
-        n-tabs-word (num-to-english n-tabs)
+        left-entries (remove nil? left-entries)
+        right-entries (remove nil? right-entries)
+        ;; n-tabs (count entries)
+        ;; n-tabs-word (num-to-english n-tabs)
         render-entry (fn [{:keys [tab-id action content class] :as entry}]
                        (when entry
                          [:a {:key tab-id
@@ -96,20 +98,29 @@
 
                                               :else action)}
                           content]))]
-    [:div.project-menu-wrapper
-     [:div.ui
-      {:class
-       (str n-tabs-word " item " "small" " secondary pointing menu primary-menu " menu-class)}
-      (doall
-       (for [entry entries]
-         (render-entry entry)))]]))
+    [:div.ui.secondary.pointing.menu.primary-menu
+     {:class (str menu-class " " (if mobile? "tiny" ""))}
+     (doall
+      (for [entry left-entries]
+        (render-entry entry)))
+     (when-not (empty? right-entries)
+       (if (and false mobile?)
+         [:div.right.menu
+          [dropdown-menu right-entries
+           :dropdown-class "dropdown item"
+           :label "More"]]
+         [:div.right.menu
+          (doall
+           (for [entry right-entries]
+             (render-entry entry)))]))]))
 (s/fdef
  primary-tabbed-menu
  :args (s/cat :entries (s/coll-of ::menu-tab)
               :active-tab-id ::tab-id
               :menu-class (s/? string?)))
 
-(defn secondary-tabbed-menu [left-entries right-entries active-tab-id & [menu-class mobile?]]
+(defn secondary-tabbed-menu
+  [left-entries right-entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         render-entry (fn [{:keys [tab-id action content class] :as entry}]
                        (when entry
@@ -125,23 +136,24 @@
 
                                               :else action)}
                           content]))]
-    [:div.secondary-menu-wrapper
-     [:div.ui
-      {:class
-       (str "tiny" " secondary pointing menu secondary-menu " menu-class)}
-      (doall
-       (for [entry left-entries]
-         (render-entry entry)))
-      (when-not (empty? right-entries)
-        (if mobile?
-          [:div.right.menu
-           [dropdown-menu right-entries
-            :dropdown-class "dropdown item"
-            :label "More"]]
-          [:div.right.menu
-           (doall
-            (for [entry right-entries]
-              (render-entry entry)))]))]]))
+    [:div.ui
+     {:class
+      (str (if mobile? "small" "")
+           " secondary pointing menu secondary-menu "
+           menu-class)}
+     (doall
+      (for [entry left-entries]
+        (render-entry entry)))
+     (when-not (empty? right-entries)
+       (if mobile?
+         [:div.right.menu
+          [dropdown-menu right-entries
+           :dropdown-class "dropdown item"
+           :label "More"]]
+         [:div.right.menu
+          (doall
+           (for [entry right-entries]
+             (render-entry entry)))]))]))
 (s/fdef
  secondary-tabbed-menu
  :args (s/cat :left-entries (s/coll-of ::menu-tab)
@@ -279,7 +291,7 @@
             :style {:margin-left "0.25em"
                     :margin-right "0"}}])]))
 
-(defn ui-help-icon [& {:keys [size class style] :or {size "large"}}]
+(defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
   [:i.ui.grey.circle.question.mark.icon {:class (str size " " (or class ""))
                                          :style style}])
 
@@ -288,7 +300,7 @@
    ^{:key :tooltip-content}
    [with-tooltip
     element
-    {:delay {:show 400
+    {:delay {:show 300
              :hide 0}
      :hoverable false}]
    ^{:key :tooltip-help}
