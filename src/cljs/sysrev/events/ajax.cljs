@@ -107,5 +107,5 @@
  :ajax/default-failure
  [trim-v]
  (fn [db [response]]
-   (println (str "request failed: " (pr-str response)))
+   #_ (println (str "request failed: " (pr-str response)))
    db))

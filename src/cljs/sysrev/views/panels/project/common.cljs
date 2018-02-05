@@ -72,7 +72,6 @@
         {:keys [total]}
         @(subscribe [:project/article-counts])
         mobile? (mobile?)]
-    (println (str "active-tab = " (pr-str active-tab)))
     (when total
       (remove
        nil?
