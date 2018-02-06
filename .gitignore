@@ -18,6 +18,8 @@ target/
 !/semantic/src/site
 !/semantic/src/site.default/
 !/semantic/src/site.dark/
+/semantic
+
 /resources/public/css/style*.css
 /resources/public/out-dev
 /resources/public/out-production
@@ -191,3 +193,5 @@ resources/public/semantic
 /docs
 /resources/public/docs
 /README.html
+
+profiles.clj
