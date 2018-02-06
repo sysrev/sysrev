@@ -222,8 +222,8 @@
         [[:project]
          "/project"]
 
-        [[:project :project]
-         "/project"]
+        #_ [[:project :project]
+            "/project"]
 
         [[:project :project :overview]
          "/project"]

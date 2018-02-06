@@ -31,10 +31,8 @@
              [:div.row
               [:div.sixteen.wide.column.project-title
                [:span.project-title [:i.book.icon] nbsp project-name]]]]]
-           [:div.ui.bottom.attached.segment.project-segment
-            [project-page-menu]
-            [project-submenu]]
-           [:div child]])))))
+           (project-page-menu)
+           child])))))
 
 (defmethod panel-content [:project :project] []
   (fn [child]

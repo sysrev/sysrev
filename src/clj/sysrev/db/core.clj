@@ -120,7 +120,7 @@
   "Run SQL query defined by honeysql SQL map."
   [sql-map & [conn]]
   (j/query (or conn *conn* @active-db)
-           (-> sql-map prepare-honeysql-map sql/format)
+           (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
            {:identifiers format-column-name
             :result-set-fn vec}))
 
@@ -142,7 +142,7 @@
   "Execute SQL command defined by honeysql SQL map."
   [sql-map & [conn]]
   (j/execute! (or conn *conn* @active-db)
-              (-> sql-map prepare-honeysql-map sql/format)
+              (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
               {:transaction? (nil? (or conn *conn*))}))
 
 (defmacro with-transaction
@@ -267,7 +267,11 @@
                           #(dissoc % (last field-path)))))))
   nil)
 
+(defn clear-labels-cache []
+  (clear-query-cache [:all-labels]))
+
 (defn clear-project-cache [& [project-id field-path]]
+  (clear-labels-cache)
   (cond
     (and project-id field-path)
     (clear-query-cache (concat [:project project-id] field-path))
@@ -279,52 +283,11 @@
     (swap! query-cache assoc :project {}))
   nil)
 
-(defn clear-project-public-labels-cache [project-id]
-  (clear-project-cache project-id [:public-labels]))
-
-(defn clear-project-label-values-cache [project-id clear-confirmed? & [user-id]]
-  (when user-id
-    (clear-project-cache project-id [:users user-id :labels]))
-  (clear-project-cache project-id [:label-values :saved])
-  (clear-project-cache project-id [:members-info])
-  (when clear-confirmed?
-    (clear-project-cache project-id [:label-values :confirmed])))
-
-(defn clear-labels-cache [project-id]
-  (clear-query-cache [:all-labels])
-  (when project-id
-    (clear-project-cache project-id [:labels])))
-
-(defn clear-project-member-cache [project-id user-id]
-  (clear-project-cache project-id [:users user-id])
-  (clear-project-cache project-id [:members-info])
-  (clear-project-cache project-id [:users-info])
-  (clear-query-cache [:public-project-summaries])
-  (clear-query-cache [:users user-id]))
-
-(defn clear-user-cache [user-id]
-  (doseq [project-id (cached-project-ids)]
-    (clear-project-cache project-id [:users user-id])
-    (clear-project-cache project-id [:members-info])
-    (clear-project-cache project-id [:users-info]))
-  (clear-query-cache [:public-project-summaries])
-  (clear-query-cache [:users user-id]))
-
-(defn clear-project-article-cache [project-id article-id]
-  (clear-project-cache project-id [:article article-id]))
-
-(defn clear-project-users-cache [project-id]
-  (clear-project-cache project-id)
-  (clear-query-cache [:public-project-summaries])
-  (clear-query-cache [:users])
-  #_ (clear-project-cache project-id [:members-info])
-  #_ (clear-project-cache project-id [:users-info]))
-
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))
 
 (defn to-sql-string [sql]
-  (let [[sql & params] (sql/format sql :parameterizer :postgresql)
+  (let [[sql & params] (sql/format sql :quoting :ansi :parameterizer :postgresql)
         n-params (count params)]
     (reduce (fn [sql [i param]]
               (str/replace sql (str "$" (inc i))

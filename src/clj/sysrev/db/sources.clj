@@ -5,18 +5,17 @@
                                                delete-from merge-where group left-join
                                                having]]
             [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.db.core :refer [do-query do-execute clear-query-cache with-transaction]]
+            [sysrev.db.core :refer
+             [do-query do-execute clear-project-cache with-transaction with-project-cache]]
             [sysrev.db.queries :as q]))
 
 (defn source-id->project-id
   [source-id]
-  (-> (select :project_id)
-      (from :project_source)
-      (where [:= :source_id source-id])
-      do-query
-      first
-      :project-id))
-
+  (-> (select :project-id)
+      (from :project-source)
+      (where [:= :source-id source-id])
+      do-query first :project-id))
+;;
 (s/fdef source-id->project-id
         :args (s/cat :source-id int?)
         :ret int?)
@@ -24,11 +23,14 @@
 (defn create-project-source-metadata!
   "Create a project_source table entry with a metadata map for project-id"
   [project-id metadata]
-  (-> (insert-into :project_source)
-      (values [{:meta metadata
-                :project-id project-id}])
-      (returning :source_id)
-      do-query first :source-id))
+  (try
+    (-> (insert-into :project-source)
+        (values [{:meta metadata
+                  :project-id project-id}])
+        (returning :source-id)
+        do-query first :source-id)
+    (finally
+      (clear-project-cache project-id))))
 ;;
 (s/fdef create-project-source-metadata!
         :args (s/cat :project-id int?
@@ -66,56 +68,61 @@
   {:source "legacy"})
 
 (defn update-project-source-metadata!
-  "Replace the metadata for project-source-id"
-  [project-source-id metadata]
-  (-> (sqlh/update :project_source)
-      (sset {:meta metadata})
-      (where [:= :source_id project-source-id])
-      do-execute))
+  "Replace the metadata for source-id"
+  [source-id metadata]
+  (try
+    (-> (sqlh/update :project-source)
+        (sset {:meta metadata})
+        (where [:= :source-id source-id])
+        do-execute)
+    (finally
+      (clear-project-cache (source-id->project-id source-id)))))
 ;;
 (s/fdef update-project-source-metadata!
-        :args (s/cat :project-source-id int?
+        :args (s/cat :source-id int?
                      :metadata map?))
 
 (defn alter-project-source-metadata!
-  "Replaces the meta field for project-source-id with the result of
+  "Replaces the meta field for source-id with the result of
   applying function f to the existing value."
-  [project-source-id f]
+  [source-id f]
   (when-let [meta (-> (select :meta)
                       (from :project-source)
-                      (where [:= :source-id project-source-id])
+                      (where [:= :source-id source-id])
                       do-query first :meta)]
-    (update-project-source-metadata! project-source-id (f meta))))
+    (update-project-source-metadata! source-id (f meta))))
 ;;
 (s/fdef alter-project-source-metadata!
-        :args (s/cat :project-source-id int?
+        :args (s/cat :source-id int?
                      :f ifn?))
 
 (defn delete-project-source-articles!
   "Deletes all article-source entries for source-id, and their associated
   article entries unless contained in another source."
   [source-id]
-  (clear-query-cache)
-  (with-transaction
-    (-> (delete-from [:article :a])
-        (where (let [asources
-                     (-> (select :*)
-                         (from [:article-source :asrc])
-                         (where [:= :asrc.article-id :a.article-id]))]
-                 [:and
-                  [:exists
-                   (-> asources
-                       (merge-where
-                        [:= :asrc.source-id source-id]))]
-                  [:not
-                   [:exists
-                    (-> asources
-                        (merge-where
-                         [:!= :asrc.source-id source-id]))]]]))
-        do-execute)
-    (-> (delete-from :article-source)
-        (where [:= :source-id source-id])
-        do-execute)))
+  (try
+    (with-transaction
+      (-> (delete-from [:article :a])
+          (where (let [asources
+                       (-> (select :*)
+                           (from [:article-source :asrc])
+                           (where [:= :asrc.article-id :a.article-id]))]
+                   [:and
+                    [:exists
+                     (-> asources
+                         (merge-where
+                          [:= :asrc.source-id source-id]))]
+                    [:not
+                     [:exists
+                      (-> asources
+                          (merge-where
+                           [:!= :asrc.source-id source-id]))]]]))
+          do-execute)
+      (-> (delete-from :article-source)
+          (where [:= :source-id source-id])
+          do-execute))
+    (finally
+      (clear-project-cache (source-id->project-id source-id)))))
 
 (defn fail-project-source-import!
   "Update database in response to an error during the import process
@@ -128,38 +135,41 @@
 (defn update-project-articles-enabled!
   "Update the enabled fields of articles associated with project-id."
   [project-id]
-  (clear-query-cache)
-  ;; set all articles enabled to false
-  (-> (sqlh/update :article)
-      (sset {:enabled false})
-      (where [:= :project-id project-id])
-      do-execute)
-  ;; set all articles enabled to true for which they have a source
-  ;; that is enabled
-  (-> (sqlh/update :article)
-      (sset {:enabled true})
-      (where [:exists
-              (-> (select :*)
-                  (from [:article_source :ars])
-                  (left-join [:project_source :ps]
-                             [:= :ars.source_id :ps.source_id])
-                  (where [:and
-                          [:= :ps.project_id project-id]
-                          [:= :article.article_id :ars.article_id]
-                          [:= :ps.enabled true]]))])
-      do-execute)
-  ;; check the article_flags table as the ultimate truth
-  ;; for the enabled setting
-  (-> (sqlh/update :article)
-      (sset {:enabled false})
-      (where [:exists
-              (-> (select :*)
-                  (from [:article_flag :af])
-                  (where [:and
-                          [:= :af.article_id :article.article_id]
-                          [:= :af.disable true]]))])
-      do-execute))
-
+  (try
+    (with-transaction
+      ;; set all articles enabled to false
+      (-> (sqlh/update :article)
+          (sset {:enabled false})
+          (where [:= :project-id project-id])
+          do-execute)
+      ;; set all articles enabled to true for which they have a source
+      ;; that is enabled
+      (-> (sqlh/update :article)
+          (sset {:enabled true})
+          (where [:exists
+                  (-> (select :*)
+                      (from [:article-source :ars])
+                      (left-join [:project-source :ps]
+                                 [:= :ars.source-id :ps.source-id])
+                      (where [:and
+                              [:= :ps.project-id project-id]
+                              [:= :article.article-id :ars.article-id]
+                              [:= :ps.enabled true]]))])
+          do-execute)
+      ;; check the article_flags table as the ultimate truth
+      ;; for the enabled setting
+      (-> (sqlh/update :article)
+          (sset {:enabled false})
+          (where [:exists
+                  (-> (select :*)
+                      (from [:article-flag :af])
+                      (where [:and
+                              [:= :af.article-id :article.article-id]
+                              [:= :af.disable true]]))])
+          do-execute))
+    (finally
+      (clear-project-cache project-id))))
+;;
 (s/fdef update-project-articles-enabled!
         :args (s/cat :project-id int?))
 
@@ -168,7 +178,6 @@
   it from the database.  Warning: This fn doesn't care if there are
   labels associated with an article"
   [source-id]
-  (clear-query-cache)
   (alter-project-source-metadata!
    source-id #(assoc % :deleting? true))
   (let [project-id (source-id->project-id source-id)]
@@ -189,21 +198,14 @@
          (finally
            ;; update the article enabled flags
            (update-project-articles-enabled! project-id)))))
-
 ;;
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))
 
-(defn project-id-from-source-id [source-id]
-  (-> (select :project-id)
-      (from :project-source)
-      (where [:= :source-id source-id])
-      do-query first :project-id))
-
 (defn source-articles-with-labels
   "Given a source-id, return the amount of articles that have labels"
   [source-id]
-  (let [project-id (project-id-from-source-id source-id)]
+  (let [project-id (source-id->project-id source-id)]
     (-> (q/select-project-articles project-id [:%count.*] {:include-disabled-source? true})
         (merge-where
          [:exists
@@ -229,16 +231,16 @@
 (defn source-unique-articles-count
   "Given a project-id, return the amount of articles that are unique to a source"
   [project-id]
-  (let [sources (-> (select :source_id)
-                    (from :project_source)
+  (let [sources (-> (select :source-id)
+                    (from :project-source)
                     (where [:and
-                            [:= :project_id project-id]
+                            [:= :project-id project-id]
                             [:= :enabled true]]))
         project-sources (-> sources
                             do-query)
         articles (-> (select :*)
-                     (from [:article_source :ars])
-                     (where [:in :source_id sources])
+                     (from [:article-source :ars])
+                     (where [:in :source-id sources])
                      do-query)]
     (map (fn [project-source]
            {:source-id (:source-id project-source)
@@ -256,19 +258,18 @@
   will return 0"
   [project-id base-source-id source-id]
   (count (-> (select :%count.*)
-             (from [:article_source :ars])
-             (left-join [:project_source :ps]
-                        [:= :ars.source_id :ps.source_id])
+             (from [:article-source :ars])
+             (left-join [:project-source :ps]
+                        [:= :ars.source-id :ps.source-id])
              (where [:and
-                     [:= :ps.project_id project-id]
+                     [:= :ps.project-id project-id]
                      [:= :ps.enabled true]
                      [:or
-                      [:= :ps.source_id base-source-id]
-                      [:= :ps.source_id source-id]]])
-             (group :ars.article_id)
+                      [:= :ps.source-id base-source-id]
+                      [:= :ps.source-id source-id]]])
+             (group :ars.article-id)
              (having [:> :%count.* 1])
              do-query)))
-
 ;;
 (s/fdef project-source-overlap
         :args (s/cat :project-id int?
@@ -281,17 +282,16 @@
   [project-id]
   (filter #(not= (:source-id %) (:overlap-source-id %))
           (for [base-sources (mapv :source-id (-> (select :ps.source-id)
-                                                  (from [:project_source :ps])
-                                                  (where [:= :ps.project_id project-id])
+                                                  (from [:project-source :ps])
+                                                  (where [:= :ps.project-id project-id])
                                                   do-query))
                 sources (mapv :source-id (-> (select :ps.source-id)
-                                             (from [:project_source :ps])
-                                             (where [:= :ps.project_id project-id])
+                                             (from [:project-source :ps])
+                                             (where [:= :ps.project-id project-id])
                                              do-query))]
             {:source-id base-sources
              :overlap-source-id sources
              :count (project-source-overlap project-id base-sources sources)})))
-
 ;;
 (s/fdef project-sources-overlap
         :args (s/cat :project-id int?)
@@ -308,8 +308,8 @@
                 :ps.meta
                 :ps.enabled
                 :ps.date-created)
-        (from [:project_source :ps])
-        (where [:= :ps.project_id project-id])
+        (from [:project-source :ps])
+        (where [:= :ps.project-id project-id])
         ;; associate article-count and labeled counts
         (->> do-query
              (mapv
@@ -357,9 +357,9 @@
 (defn add-article-to-source!
   "Add article-id to source-id"
   [article-id source-id]
-  (-> (sqlh/insert-into :article_source)
-      (values [{:article_id article-id
-                :source_id source-id}])
+  (-> (sqlh/insert-into :article-source)
+      (values [{:article-id article-id
+                :source-id source-id}])
       do-execute))
 
 (defn source-exists?
@@ -367,8 +367,8 @@
   [source-id]
   (= source-id
      (-> (select :source-id)
-         (from [:project_source :ps])
-         (where [:= :ps.source_id source-id])
+         (from [:project-source :ps])
+         (where [:= :ps.source-id source-id])
          do-query
          first
          :source-id)))
@@ -380,13 +380,13 @@
 (defn toggle-source!
   "Toggle a source has enabled?"
   [source-id enabled?]
-  (-> (sqlh/update :project_source)
-      (sset {:enabled enabled?})
-      (where [:= :source_id source-id])
-      do-execute)
-  ;; logic for updating enabled in article
-  (update-project-articles-enabled! (source-id->project-id source-id)))
-
+  (with-transaction
+    (-> (sqlh/update :project-source)
+        (sset {:enabled enabled?})
+        (where [:= :source-id source-id])
+        do-execute)
+    ;; logic for updating enabled in article
+    (update-project-articles-enabled! (source-id->project-id source-id))))
 ;;
 (s/fdef toggle-source!
         :args (s/cat :source-id int?

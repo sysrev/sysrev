@@ -128,7 +128,7 @@
         valid? @(subscribe [::valid-input?])
         field-class #(if @(subscribe [::valid-input? %])
                        "" "error")]
-    [:div.ui.grey.segment.user-options
+    [:div.ui.segment.user-options
      [:h4.ui.dividing.header "Options"]
      [:div.ui.unstackable.form {:class (if valid? "" "warning")}
       (let [skey :ui-theme]
@@ -151,7 +151,7 @@
 (defn- user-dev-tools-box []
   (let [user-id @(subscribe [:self/user-id])]
     (when @(subscribe [:user/admin?])
-      [:div.ui.grey.segment
+      [:div.ui.segment
        [:h4.ui.dividing.header "Dev Tools"]
        [:div
         [:button.ui.yellow.button

@@ -35,3 +35,10 @@
     (taxi/input-text "input[name='password']" password)
     (taxi/click "button[name='submit']")
     (Thread/sleep 1000)))
+
+(defn open-first-project []
+  (go-route "/select-project")
+  (let [open-button {:xpath "//div[contains(@class,'projects-list')]/descendant::div[contains(@class,'button') and contains(text(),'Open')]"}]
+    (taxi/wait-until #(taxi/exists? open-button))
+    (taxi/click open-button)
+    (Thread/sleep 1000)))

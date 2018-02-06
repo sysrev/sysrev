@@ -36,11 +36,11 @@
                  [clojure-csv/clojure-csv "2.0.1"]
                  ;;; Database
                  [org.clojure/java.jdbc "0.7.5"]
-                 [org.postgresql/postgresql "42.1.4"]
+                 [org.postgresql/postgresql "42.2.1"]
                  [joda-time "2.9.9"]
                  [clj-time "0.14.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.0.0"]
+                 [hikari-cp "2.0.1"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
@@ -62,7 +62,7 @@
                  ;;; Email
                  [com.draines/postal "2.0.2"]
                  ;;; Amazon
-                 [amazonica "0.3.117"
+                 [amazonica "0.3.118"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
@@ -79,8 +79,8 @@
                  ;;;
                  [com.cognitect/transit-cljs "0.8.243"]
                  [reagent "0.7.0"]
-                 [re-frame "0.10.2"]
-                 [day8.re-frame/http-fx "0.1.4"]
+                 [re-frame "0.10.4"]
+                 [day8.re-frame/http-fx "0.1.5"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.8"]
                  [cljs-http "0.1.44"]
@@ -184,7 +184,7 @@
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[binaryage/devtools "0.9.8"]
+              :dependencies [[binaryage/devtools "0.9.9"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.8.1"]
                              [org.seleniumhq.selenium/selenium-support "3.8.1"]

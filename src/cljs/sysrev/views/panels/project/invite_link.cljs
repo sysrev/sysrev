@@ -10,7 +10,7 @@
      (when-let [invite-url @(subscribe [:project/invite-url])]
        [:div.ui.two.column.stackable.grid.invite-link
         [:div.column
-         [:div.ui.grey.segment
+         [:div.ui.segment
           [:h5.header "Send this link to invite another person to join the project:"]
           [:div.ui.fluid.action.input
            [:input#invite-url.ui.input {:readOnly true

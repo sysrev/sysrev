@@ -8,7 +8,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-execute sql-now to-sql-array to-jsonb
-              sql-field with-project-cache clear-project-cache with-query-cache
+              sql-field with-project-cache clear-project-cache
               clear-query-cache sql-array-contains]]
             [sysrev.shared.util :refer [in?]])
   (:import java.util.UUID))
@@ -102,7 +102,16 @@
 ;;;
 
 (defn select-project-articles
-  "Return all fields from project-id. When include-disabled? is true, then return all articles. When false, return only the articles that are enabled. Default is false. When include-disabled-source? is true, then return all articles that are not disabled by an article-flag. When false, return all articles. Only one predicate (include-disabled? or include-disabled-source?) should be set to true at one time."
+  "Constructs a honeysql query to select the articles in project-id.
+
+   Defaults to excluding any disabled articles.
+
+   Set option include-disabled? as true to include all disabled articles.
+
+   Set option include-disabled-source? as true to exclude only articles
+   which are disabled by an article-flag entry.
+
+   Only one of [include-disabled? include-disabled-source?] should be set."
   [project-id fields & [{:keys [include-disabled? tname include-disabled-source?]
                          :or {include-disabled? false
                               tname :a
@@ -111,21 +120,24 @@
   (cond->
       (-> (apply select fields)
           (from [:article tname]))
-      project-id (merge-where [:= (sql-field tname :project-id) project-id])
-      (and (not include-disabled?)
-           (not include-disabled-source?))
-      (merge-where [:= (sql-field tname :enabled) true])
-      include-disabled-source?
-      (merge-where
-       [:not
-        [:exists
-         (-> (select :*)
-             (from [:article-flag :af-test])
-             (where [:and
-                     [:= :af-test.disable true]
-                     [:=
-                      :af-test.article-id
-                      (sql-field tname :article-id)]]))]])))
+    project-id
+    (merge-where [:= (sql-field tname :project-id) project-id])
+
+    (and (not include-disabled?)
+         (not include-disabled-source?))
+    (merge-where [:= (sql-field tname :enabled) true])
+
+    include-disabled-source?
+    (merge-where
+     [:not
+      [:exists
+       (-> (select :*)
+           (from [:article-flag :af-test])
+           (where [:and
+                   [:= :af-test.disable true]
+                   [:=
+                    :af-test.article-id
+                    (sql-field tname :article-id)]]))]])))
 
 (defn select-article-where
   [project-id where-clause fields & [{:keys [include-disabled? tname]
@@ -437,7 +449,7 @@
 (defn select-latest-predict-run [fields]
   (-> (apply select fields)
       (from [:predict-run :pr])
-      (order-by [:pr.create-time :desc])
+      (order-by [:pr.create-time (sql/raw "DESC")])
       (limit 1)))
 
 (defn project-latest-predict-run-id
@@ -452,17 +464,15 @@
 (defn article-latest-predict-run-id
   "Gets the most recent predict-run ID for the project of an article."
   [article-id]
-  (with-query-cache
-    [:predict :article article-id :latest-predict-run-id]
-    (-> (select-latest-predict-run [:predict-run-id])
-        (merge-join [:project :p]
-                    [:= :p.project-id :pr.project-id])
-        (merge-join [:article :a]
-                    [:= :a.project-id :p.project-id])
-        (merge-where (if (or (string? article-id) (uuid? article-id))
-                       [:= :a.article-uuid article-id]
-                       [:= :a.article-id article-id]))
-        do-query first :predict-run-id)))
+  (-> (select-latest-predict-run [:predict-run-id])
+      (merge-join [:project :p]
+                  [:= :p.project-id :pr.project-id])
+      (merge-join [:article :a]
+                  [:= :a.project-id :p.project-id])
+      (merge-where (if (or (string? article-id) (uuid? article-id))
+                     [:= :a.article-uuid article-id]
+                     [:= :a.article-id article-id]))
+      do-query first :predict-run-id))
 
 ;;; article notes
 (defn with-project-note [m & [note-name]]

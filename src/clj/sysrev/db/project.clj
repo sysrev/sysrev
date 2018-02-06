@@ -50,15 +50,17 @@
    {:keys [permissions]
     :or {permissions ["member"]}}]
   (let [project-id (q/to-project-id project-id)
-        user-id (q/to-user-id user-id)]
-    (clear-project-cache project-id)
-    (let [entry {:project-id project-id
-                 :user-id user-id
-                 :permissions (to-sql-array "text" permissions)}]
+        user-id (q/to-user-id user-id)
+        entry {:project-id project-id
+               :user-id user-id
+               :permissions (to-sql-array "text" permissions)}]
+    (try
       (-> (insert-into :project-member)
           (values [entry])
           (returning :membership-id)
-          do-query first :membership-id))))
+          do-query first :membership-id)
+      (finally
+        (clear-project-cache project-id)))))
 ;;
 (s/fdef add-project-member
         :args (s/cat
@@ -72,12 +74,14 @@
   [project-id user-id]
   (let [project-id (q/to-project-id project-id)
         user-id (q/to-user-id user-id)]
-    (clear-project-cache project-id)
-    (-> (delete-from :project-member)
-        (where [:and
-                [:= :project-id project-id]
-                [:= :user-id user-id]])
-        do-execute first)))
+    (try
+      (-> (delete-from :project-member)
+          (where [:and
+                  [:= :project-id project-id]
+                  [:= :user-id user-id]])
+          do-execute)
+      (finally
+        (clear-project-cache project-id)))))
 ;;
 (s/fdef remove-project-member
         :args (s/cat :project-id ::sc/project-id
@@ -89,14 +93,16 @@
   [project-id user-id permissions]
   (let [project-id (q/to-project-id project-id)
         user-id (q/to-user-id user-id)]
-    (clear-project-cache project-id)
-    (-> (sqlh/update :project-member)
-        (sset {:permissions (to-sql-array "text" permissions)})
-        (where [:and
-                [:= :project-id project-id]
-                [:= :user-id user-id]])
-        (returning :user-id :permissions)
-        do-query)))
+    (try
+      (-> (sqlh/update :project-member)
+          (sset {:permissions (to-sql-array "text" permissions)})
+          (where [:and
+                  [:= :project-id project-id]
+                  [:= :user-id user-id]])
+          (returning :user-id :permissions)
+          do-query)
+      (finally
+        (clear-project-cache project-id)))))
 ;;
 (s/fdef set-member-permissions
         :args (s/cat :project-id ::sc/project-id
@@ -107,16 +113,18 @@
 (defn create-project
   "Create a new project entry."
   [project-name & {:keys [parent-project-id]}]
-  (clear-query-cache)
-  (-> (insert-into :project)
-      (values [{:name project-name
-                :enabled true
-                :project-uuid (UUID/randomUUID)
-                :settings (to-jsonb default-project-settings)
-                :parent-project-id parent-project-id}])
-      (returning :*)
-      do-query
-      first))
+  (try
+    (-> (insert-into :project)
+        (values [{:name project-name
+                  :enabled true
+                  :project-uuid (UUID/randomUUID)
+                  :settings (to-jsonb default-project-settings)
+                  :parent-project-id parent-project-id}])
+        (returning :*)
+        do-query
+        first)
+    (finally
+      (clear-query-cache))))
 ;;
 (s/fdef create-project
         :args (s/cat :project-name ::sp/name)
@@ -127,10 +135,12 @@
   ON DELETE CASCADE constraints in Postgres."
   [project-id]
   (let [project-id (q/to-project-id project-id)]
-    (clear-query-cache)
-    (-> (delete-from :project)
-        (where [:= :project-id project-id])
-        do-execute first)))
+    (try
+      (-> (delete-from :project)
+          (where [:= :project-id project-id])
+          do-execute first)
+      (finally
+        (clear-query-cache)))))
 ;;
 (s/fdef delete-project
         :args (s/cat :project-id ::sc/project-id)
@@ -139,12 +149,14 @@
 (defn disable-project!
   "Set the enabled flag for project-id to false"
   [project-id]
-  (clear-query-cache)
-  (-> (sqlh/update :project)
-      (sset {:enabled false})
-      (where [:= :project-id project-id])
-      do-execute
-      first))
+  (try
+    (-> (sqlh/update :project)
+        (sset {:enabled false})
+        (where [:= :project-id project-id])
+        do-execute
+        first)
+    (finally
+      (clear-query-cache))))
 
 (s/fdef disable-project!
         :args (s/cat :project-id int?)
@@ -158,11 +170,11 @@
                          do-query first :settings)
         new-settings (assoc cur-settings setting new-value)]
     (assert (s/valid? ::sp/settings new-settings))
-    (clear-project-cache project-id)
     (-> (sqlh/update :project)
         (sset {:settings (to-jsonb new-settings)})
         (where [:= :project-id project-id])
         do-execute)
+    (clear-project-cache project-id)
     new-settings))
 
 (defn project-contains-public-id
@@ -195,10 +207,13 @@
   "Delete all articles from project."
   [project-id]
   (let [project-id (q/to-project-id project-id)]
-    (clear-query-cache)
-    (-> (delete-from :article)
-        (where [:= :project-id project-id])
-        do-execute first)))
+    (try
+      (with-transaction
+        (-> (delete-from :article)
+            (where [:= :project-id project-id])
+            do-execute first))
+      (finally
+        (clear-project-cache project-id)))))
 ;;
 (s/fdef delete-project-articles
         :args (s/cat :project-id ::sc/project-id)
@@ -392,18 +407,21 @@
   (let [project-id (q/to-project-id project-id)
         user-id (and user-id (q/to-user-id user-id))
         label-id (and label-id (q/to-label-id label-id))]
-    (-> (insert-into :project-keyword)
-        (values [(cond->
-                     {:project-id project-id
-                      :value text
-                      :category category}
-                   user-id (assoc :user-id user-id)
-                   label-id (assoc :label-id label-id)
-                   ((comp not nil?) label-value)
-                   (assoc :label-value (to-jsonb label-value))
-                   color (assoc :color color))])
-        (returning :*)
-        do-query)))
+    (try
+      (-> (insert-into :project-keyword)
+          (values [(cond->
+                       {:project-id project-id
+                        :value text
+                        :category category}
+                     user-id (assoc :user-id user-id)
+                     label-id (assoc :label-id label-id)
+                     ((comp not nil?) label-value)
+                     (assoc :label-value (to-jsonb label-value))
+                     color (assoc :color color))])
+          (returning :*)
+          do-query)
+      (finally
+        (clear-project-cache project-id)))))
 ;;
 (s/fdef
  add-project-keyword
@@ -436,28 +454,30 @@
 
 (defn disable-missing-abstracts [project-id min-length]
   (let [project-id (q/to-project-id project-id)]
-    (-> (select :article-id)
-        (from [:article :a])
-        (where [:and
-                [:= :a.project-id project-id]
-                [:or
-                 [:= :a.abstract nil]
-                 [:= (sql/call :char_length :a.abstract) 0]]])
-        (->> do-query
-             (map :article-id)
-             (mapv #(set-article-flag % "no abstract" true))))
-    (-> (select :article-id)
-        (from [:article :a])
-        (where
-         [:and
-          [:= :a.project-id project-id]
-          [:!= :a.abstract nil]
-          [:< (sql/call :char_length :a.abstract) min-length]])
-        (->> do-query
-             (map :article-id)
-             (mapv #(set-article-flag % "short abstract" true
-                                      {:min-length min-length}))))
-    true))
+    (with-transaction
+      (-> (select :article-id)
+          (from [:article :a])
+          (where [:and
+                  [:= :a.project-id project-id]
+                  [:or
+                   [:= :a.abstract nil]
+                   [:= (sql/call :char_length :a.abstract) 0]]])
+          (->> do-query
+               (map :article-id)
+               (mapv #(set-article-flag % "no abstract" true))))
+      (-> (select :article-id)
+          (from [:article :a])
+          (where
+           [:and
+            [:= :a.project-id project-id]
+            [:!= :a.abstract nil]
+            [:< (sql/call :char_length :a.abstract) min-length]])
+          (->> do-query
+               (map :article-id)
+               (mapv #(set-article-flag % "short abstract" true
+                                        {:min-length min-length}))))
+      (clear-project-cache project-id)
+      true)))
 ;;
 (s/fdef disable-missing-abstracts
         :args (s/cat :project-id ::sc/project-id
@@ -648,4 +668,3 @@
 (s/fdef project-has-labeled-articles?
         :args (s/cat :project-id int?)
         :ret boolean?)
-

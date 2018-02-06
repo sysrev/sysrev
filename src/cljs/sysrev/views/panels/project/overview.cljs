@@ -76,39 +76,42 @@
                 :purple "rgba(146,29,252,0.5)"}
         statuses [:single :consistent :conflict :resolved]]
     [:div.project-summary
-     [:div.ui.grey.segment
-      [:h4.ui.center.aligned.dividing.header
-       (str reviewed " articles reviewed of " total " total")]
+     [:div.ui.segment
+      [:h4.ui.dividing.header
+       "Review Status"]
       (with-loader [[:project]] {:dimmer :fixed}
-        [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
-         [:div.row
-          [:div.column.pie-chart
-           [chart-container pie-chart nil
-            [["Include (Full)"
-              (+ (scount [:consistent true])
-                 (scount [:resolved true]))
-              (:green colors)]
-             ["Include (Partial)"
-              (scount [:single true])
-              (:dim-green colors)]
-             ["Exclude (Full)"
-              (+ (scount [:consistent false])
-                 (scount [:resolved false]))
-              (:orange colors)]
-             ["Exclude (Partial)"
-              (scount [:single false])
-              (:dim-orange colors)]
-             ["Conflicting"
-              (scount [:conflict nil])
-              (:red colors)]]
-            #(nav-article-status
-              (nth [[true :determined]
-                    [true :single]
-                    [false :determined]
-                    [false :single]
-                    [nil :conflict]] %))]]
-          [:div.column.pie-chart-help
-           [label-status-help-column colors]]]])]]))
+        [:div
+         [:h4.ui.center.aligned.header
+          (str reviewed " articles reviewed of " total " total")]
+         [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
+          [:div.row
+           [:div.column.pie-chart
+            [chart-container pie-chart nil
+             [["Include (Full)"
+               (+ (scount [:consistent true])
+                  (scount [:resolved true]))
+               (:green colors)]
+              ["Include (Partial)"
+               (scount [:single true])
+               (:dim-green colors)]
+              ["Exclude (Full)"
+               (+ (scount [:consistent false])
+                  (scount [:resolved false]))
+               (:orange colors)]
+              ["Exclude (Partial)"
+               (scount [:single false])
+               (:dim-orange colors)]
+              ["Conflicting"
+               (scount [:conflict nil])
+               (:red colors)]]
+             #(nav-article-status
+               (nth [[true :determined]
+                     [true :single]
+                     [false :determined]
+                     [false :single]
+                     [nil :conflict]] %))]]
+           [:div.column.pie-chart-help
+            [label-status-help-column colors]]]]])]]))
 
 (def file-types {"doc" "word"
                  "docx" "word"
@@ -153,7 +156,7 @@
             (delete-file [file-id] (dispatch [:action [:files/delete-file file-id]]))
             (pull-files [] (dispatch [:fetch [:project/files]]))]
       (fn []
-        [:div.ui.grey.segment.project-files
+        [:div.ui.segment.project-files
          [:h4.header "Project Documents"]
          [:div.ui.middle.aligned.celled.list
           (doall
@@ -196,7 +199,7 @@
                         (mapv #(deref (subscribe [:member/exclude-count %]))))
         yss [includes excludes]
         ynames ["Include" "Exclude"]]
-    [:div.ui.grey.segment
+    [:div.ui.segment
      [:h4.ui.dividing.header
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
@@ -251,7 +254,7 @@
                                                          (* xdiff 0.15))))}}]}
                    :responsive true})}]
             (js/Chart. context (clj->js chart-data))))]
-    [:div.ui.grey.segment
+    [:div.ui.segment
      [:h4.ui.dividing.header
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column

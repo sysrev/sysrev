@@ -26,6 +26,9 @@
         search-form {:xpath "//form[@id='search-bar']"}]
     (browser/wait-until-exists search-form)
     (browser/wait-until-exists search-input)
+    (let [close {:xpath "//div[contains(@class,'button') and contains(text(),'Close')]"}]
+      (when (taxi/exists? close)
+        (taxi/click close)))
     (taxi/clear search-input)
     (taxi/input-text search-input query)
     (taxi/submit search-form)))
@@ -124,9 +127,12 @@
   (browser/wait-until-exists {:xpath "//h3[contains(text(),'Create a New Project')]"}))
 
 (defn search-term-source-div-xpath
-  "Given a search term, return a string of the xpath corresponding to the project-source div"
+  "Given a search term, return a string of the xpath corresponding to the
+  project-source div"
   [search-term]
-  (str "//div[contains(@class,'import-label') and text()='\"" search-term "\"']/ancestor::div[@class='project-source']"))
+  (str "//div[contains(@class,'import-label') and text()='\""
+       search-term
+       "\"']/ancestor::div[@class='project-source']"))
 
 (defn search-term-delete-xpath
   "Given a search term, return the xpath corresponding to its delete button"
@@ -135,32 +141,39 @@
        "/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
 
 (defn search-term-articles-summary
-  "Given a search term, return the map corresponding to the overlap of the articles of the form:
+  "Given a search term, return the map corresponding to the overlap of the
+  articles of the form:
   {:unique-articles <int>
    :reviewed-articles <int>
    :total-articles <int>
    :overlap [{:overlap-count <int>
               :source string}]"
   [search-term]
-  (let [[reviewed unique & overlap] (-> {:xpath (str (search-term-source-div-xpath search-term)
-                                                     "/descendant::div[contains(@class,'source-description')]")}
-                                        taxi/text
-                                        (string/split #"\n"))
+  (let [[reviewed unique & overlap]
+        (-> {:xpath (str (search-term-source-div-xpath search-term)
+                         "/descendant::div[contains(@class,'source-description')]")}
+            taxi/text
+            (string/split #"\n"))
         [_ reviewed total] (re-matches #"(\d*) of (\d*)(?:\s|\S)*" reviewed)
-        overlap-string->overlap-map (fn [overlap-string]
-                                      (let [[_ overlap source]
-                                            (re-matches #"(\d*) article(?:s)? shared with (.*)" overlap-string)]
-                                        (if-not (and (nil? overlap) (nil? source))
-                                          {:overlap (read-string overlap) :source source})))
-        summary-map {:unique-articles (read-string (second (re-matches #"(\d*) unique article(?:s)?" unique)))
-                     :reviewed-articles (read-string reviewed)
-                     :total-articles (read-string total)}]
+        overlap-string->overlap-map
+        (fn [overlap-string]
+          (let [[_ overlap source]
+                (re-matches #"(\d*) article(?:s)? shared with (.*)"
+                            overlap-string)]
+            (if-not (and (nil? overlap) (nil? source))
+              {:overlap (read-string overlap) :source source})))
+        summary-map
+        {:unique-articles (->> (re-matches #"(\d*) unique article(?:s)?" unique)
+                               second read-string)
+         :reviewed-articles (read-string reviewed)
+         :total-articles (read-string total)}]
     (if-not (empty? overlap)
       (assoc summary-map :overlap-maps
-             (mapv overlap-string->overlap-map overlap))
+             (set (mapv overlap-string->overlap-map overlap)))
       summary-map)))
 
-(def import-button-xpath {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
+(def import-button-xpath
+  {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
 
 (defn add-articles-from-search-term
   "Create a new source using search-term"
@@ -170,10 +183,12 @@
   (browser/wait-until-displayed import-button-xpath)
   (taxi/click import-button-xpath)
   ;; check that they've loaded
-  (browser/wait-until-displayed {:xpath (str (search-term-source-div-xpath search-term)
-                                             "/descendant::div[contains(text(),'reviewed')]")})
-  (is (taxi/exists? {:xpath (str (search-term-source-div-xpath search-term)
-                                 "/descendant::div[contains(text(),'reviewed')]")})))
+  (browser/wait-until-displayed
+   {:xpath (str (search-term-source-div-xpath search-term)
+                "/descendant::div[contains(text(),'reviewed')]")})
+  (is (taxi/exists?
+       {:xpath (str (search-term-source-div-xpath search-term)
+                    "/descendant::div[contains(text(),'reviewed')]")})))
 
 (defn delete-search-term-source
   [search-term]
@@ -181,9 +196,12 @@
     (browser/wait-until-exists delete)
     (taxi/click delete)))
 
-(def project-title-xpath {:xpath "//span[contains(@class,'project-title')]"})
-(def article-sources-list-xpath {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"})
-(def project-source-xpath {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"})
+(def project-title-xpath
+  {:xpath "//span[contains(@class,'project-title')]"})
+(def article-sources-list-xpath
+  {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"})
+(def project-source-xpath
+  {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]/descendant::div[contains(@class,'project-source')]"})
 
 (deftest create-project-and-import-sources
   (let [project-name "Foo Bar"
@@ -217,20 +235,21 @@
     (taxi/wait-until #(= 2 (count (taxi/find-elements project-source-xpath))))
     (is (= 2 (count (taxi/find-elements project-source-xpath))))
     ;; check that there is no overlap
-    (is (and (nil? (:overlap-maps (search-term-articles-summary search-term-first)))
-             (nil? (:overlap-maps (search-term-articles-summary search-term-second)))))
+    (is (and (empty? (:overlap-maps (search-term-articles-summary search-term-first)))
+             (empty? (:overlap-maps (search-term-articles-summary search-term-second)))))
     ;; add articles from third search term
     (add-articles-from-search-term search-term-third)
     ;; search-term-third has no unique article or reviewed articles, only one article and one overlap with "foo bar"
     (is (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
-            :overlap-maps [{:overlap 1, :source "PubMed Search \"foo bar\""}]}
+            :overlap-maps (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
            (search-term-articles-summary search-term-third)))
     ;; add articles from fourth search term
     (add-articles-from-search-term search-term-fourth)
     ;; search-term-first has 4 unique articles, 0 reviewed articles, 6 total articles, and have two overalaps
     (is (= (search-term-articles-summary search-term-first)
            {:unique-articles 4, :reviewed-articles 0, :total-articles 6,
-            :overlap-maps [{:overlap 1, :source "PubMed Search \"foo bar Aung\""} {:overlap 1, :source "PubMed Search \"foo bar Jones\""}]}))
+            :overlap-maps (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}
+                                {:overlap 1, :source "PubMed Search \"foo bar Jones\""}])}))
 
 ;;; delete sources
     ;; delete the search-term-first source
@@ -241,10 +260,10 @@
     ;; article summaries are correct
     (is (= (search-term-articles-summary search-term-first)
            {:unique-articles 5, :reviewed-articles 0, :total-articles 6,
-            :overlap-maps [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}]}))
+            :overlap-maps (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}))
     (is (= (search-term-articles-summary search-term-third)
            {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
-            :overlap-maps [{:overlap 1, :source "PubMed Search \"foo bar\""}]}))
+            :overlap-maps (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}))
     ;; delete the search-term-second source
     (delete-search-term-source search-term-second)
     ;; total sources is two
@@ -252,16 +271,18 @@
     (is (= 2 (count (taxi/find-elements project-source-xpath))))
     ;; article summaries are correct
     (is (= (search-term-articles-summary search-term-first)
-           {:unique-articles 5, :reviewed-articles 0, :total-articles 6, :overlap-maps [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}]}))
+           {:unique-articles 5, :reviewed-articles 0, :total-articles 6,
+            :overlap-maps (set [{:overlap 1, :source "PubMed Search \"foo bar Aung\""}])}))
     (is (= (search-term-articles-summary search-term-third)
-           {:unique-articles 0, :reviewed-articles 0, :total-articles 1, :overlap-maps [{:overlap 1, :source "PubMed Search \"foo bar\""}]}))
+           {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
+            :overlap-maps (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}))
     ;; delete the search-term-third source
     (delete-search-term-source search-term-third)
     ;; total sources is one
     (taxi/wait-until #(= 1 (count (taxi/find-elements project-source-xpath))))
     (is (= 1 (count (taxi/find-elements project-source-xpath))))
     ;; article summaries are correct
-    (is (nil? (:overlap-maps (search-term-articles-summary search-term-first))))
+    (is (empty? (:overlap-maps (search-term-articles-summary search-term-first))))
     (is (= (search-term-articles-summary search-term-first)
            {:unique-articles 6, :reviewed-articles 0, :total-articles 6}))
     ;; delete the search-term-first source

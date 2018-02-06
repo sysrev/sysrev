@@ -1,2 +1,13 @@
-@background: darken(@pageBackground, 2);
 @dropdownItemColor: @invertedTextColor;
+
+@background: lighten(@pageBackground, 5);
+
+@hoverItemBackground: lighten(@pageBackground, 10);
+@activeItemBackground: lighten(@pageBackground, 15);
+@pressedItemBackground: lighten(@pageBackground, 18);
+@activeHoverItemBackground: lighten(@pageBackground, 18);
+
+@hoverItemTextColor: @siteTextColor;
+@activeItemTextColor: @siteTextColor;
+@pressedItemTextColor: @siteTextColor;
+@activeHoverItemColor: @siteTextColor;

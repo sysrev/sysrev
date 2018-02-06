@@ -47,7 +47,7 @@
              (-> (select :project-id)
                  (from [:project-member :m])
                  (where [:= :m.user-id user-id])
-                 (order-by [:join-date :asc])
+                 (order-by [:join-date])
                  (limit 1)
                  do-query
                  first

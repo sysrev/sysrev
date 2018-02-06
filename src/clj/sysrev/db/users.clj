@@ -98,7 +98,7 @@
              :date-created (sql-now)
              :user-uuid (UUID/randomUUID)
              :api-token (generate-api-token)}
-            user-id (assoc :user-id user-id))]
+          user-id (assoc :user-id user-id))]
     (when project-id
       (assert (-> (q/query-project-by-id project-id [:project-id])
                   :project-id)))
@@ -122,16 +122,16 @@
 (defn set-user-permissions
   "Change the site permissions for a user account."
   [user-id permissions]
-  (db/clear-user-cache user-id)
-  (-> (sqlh/update :web-user)
-      (sset {:permissions (to-sql-array "text" permissions)})
-      (where [:= :user-id user-id])
-      (returning :user-id :permissions)
-      do-query))
+  (try
+    (-> (sqlh/update :web-user)
+        (sset {:permissions (to-sql-array "text" permissions)})
+        (where [:= :user-id user-id])
+        (returning :user-id :permissions)
+        do-query)
+    (finally
+      (db/clear-query-cache))))
 
 (defn set-user-default-project [user-id project-id]
-  (db/clear-user-cache user-id)
-  (db/clear-query-cache)
   (-> (sqlh/update :web-user)
       (sset {:default-project-id project-id})
       (where [:= :user-id user-id])
@@ -147,36 +147,33 @@
           (buddy.hashers/check password-attempt encrypted-password)))))
 
 (defn delete-user [user-id]
-  (db/clear-query-cache)
   (assert (integer? user-id))
   (-> (delete-from :web-user)
       (where [:= :user-id user-id])
       do-execute)
+  (db/clear-query-cache)
   nil)
 
 (defn verify-user-email [verify-code]
-  (db/clear-query-cache)
   (-> (sqlh/update :web-user)
       (sset {:verified true})
       (where [:= :verify-code verify-code])
       do-execute))
 
 (defn change-user-id [current-id new-id]
-  (db/clear-query-cache)
   (-> (sqlh/update :web-user)
       (sset {:user-id new-id})
       (where [:= :user-id current-id])
-      do-execute))
+      do-execute)
+  (db/clear-query-cache))
 
 (defn create-password-reset-code [user-id]
-  (db/clear-user-cache user-id)
   (-> (sqlh/update :web-user)
       (sset {:reset-code (crypto.random/hex 16)})
       (where [:= :user-id user-id])
       do-execute))
 
 (defn clear-password-reset-code [user-id]
-  (db/clear-user-cache user-id)
   (-> (sqlh/update :web-user)
       (sset {:reset-code nil})
       (where [:= :user-id user-id])
