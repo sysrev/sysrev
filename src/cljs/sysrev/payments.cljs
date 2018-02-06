@@ -4,6 +4,10 @@
             [re-frame.core :refer [dispatch]]
             [sysrev.action.core :refer [def-action]]))
 
+(def stripe-public-key
+  (-> (.getElementById js/document "stripe-public-key")
+      (.getAttribute "data-stripe-public-key")))
+
 ;; Stripe elements
 (def Elements (r/adapt-react-class js/ReactStripeElements.Elements))
 (def CardCVCElement (r/adapt-react-class js/ReactStripeElements.CardCVCElement))
@@ -53,6 +57,6 @@
 (defn StripeCardInfo
   []
   [:div.ui.secondary.segment
-   [StripeProvider {:apiKey "***REMOVED***"}
+   [StripeProvider {:apiKey stripe-public-key}
     [Elements
      [StripeForm]]]])

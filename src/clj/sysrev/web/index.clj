@@ -51,6 +51,9 @@
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")]
    [:body
+    [:div {:style "display: none;"
+           :id "stripe-public-key"
+           :data-stripe-public-key (:stripe-public-key env)}]
     [:div {:id "app"} loading-content]
     (let [js-name (if (= (:profile env) :prod)
                     (str "sysrev-" res/build-id ".js")
