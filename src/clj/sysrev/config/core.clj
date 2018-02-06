@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.edn :as edn]
             [clojure.string :as s]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [environ.core :as environ])
   (:import java.io.PushbackReader))
 
 (defn- keywordize [s]
@@ -50,6 +51,7 @@
         primary-config (read-config-file "config.edn")
         private-config (:private-config primary-config)]
     (merge
+     environ/env
      primary-config
      (when private-config (read-config-file private-config))
      (read-env-file (:config env-props))

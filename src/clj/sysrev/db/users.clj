@@ -257,7 +257,7 @@
                     (apply concat)
                     vec)}))
 
-(defn create-stripe-customer!
+(defn create-sysrev-stripe-customer!
   "Create a stripe customer from user"
   [user]
   (let [{:keys [email user-uuid user-id]} user

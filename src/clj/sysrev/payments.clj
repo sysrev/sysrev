@@ -5,13 +5,11 @@
             [clj-stripe.customers :as customers]
             [clj-stripe.plans :as plans]
             [clj-stripe.subscriptions :as subscriptions]
-            [environ.core :refer [env]]))
+            [sysrev.config.core :refer [env]]))
 
 (def token (atom nil))
 
-(def stripe-secret-key (or
-                        (System/getProperty "STRIPE_SECRET_KEY")
-                        (env :stripe-secret-key)))
+(def stripe-secret-key (env :stripe-secret-key))
 
 (defn execute-action
   [action]
@@ -39,9 +37,9 @@
   [stripe-customer-id])
 
 (defn delete-customer!
-  "Delete a stripe customer"
-  [stripe-customer-id]
-  (execute-action (customers/delete-customer stripe-customer-id)))
+  "Delete user as a SysRev stripe customer"
+  [user]
+  (execute-action (customers/delete-customer (:stripe-id user))))
 
 (defn get-plans
   "Get all plans that SysRev offers"
@@ -56,11 +54,11 @@
    first :id))
 
 (defn subscribe-customer!
-  "Subscribe customer with stripe-customer-id to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
-  [stripe-customer-id plan-name]
+  "Subscribe SysRev user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
+  [user plan-name]
   (execute-action (subscriptions/subscribe-customer
                    (common/plan (get-plan-id plan-name))
-                   (common/customer stripe-customer-id)
+                   (common/customer (:stripe-id user))
                    (subscriptions/do-not-prorate))))
 
 (defn unsubscribe-customer!

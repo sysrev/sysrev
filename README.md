@@ -145,6 +145,11 @@ repl> (sysrev.web.index/set-web-asset-path)
 repl> (sysrev.init/start-app {:dbname "sysrev_test"})
 true
 ```
+or just
+```clojure
+repl> (sysrev.init/start-db {:db-name "sysrev_test"})
+{:datasource #object[com.zaxxer.hikari.HikariDataSource 0x6fcbe652 "HikariDataSource (HikariPool-3)"], :config {:dbname "sysrev", :user "postgres", :password "", :host "localhost", :port 5432, :db-name "sysrev_test"}}
+```
 
 * To manage database with Flyway:
 
