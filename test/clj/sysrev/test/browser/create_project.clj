@@ -6,7 +6,7 @@
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.test.browser.core :as browser]
-            [sysrev.test.browser.navigate :refer [log-in log-out register-user]]))
+            [sysrev.test.browser.navigate :refer [log-in log-out]]))
 
 ;; manual tests
 ;; (browser/start-visual-webdriver)

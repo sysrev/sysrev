@@ -1,5 +1,6 @@
 (ns sysrev.db.users
   (:require
+   [clojure.tools.logging :as log]
    [clojure.spec.alpha :as s]
    [sysrev.shared.spec.core :as sc]
    [sysrev.shared.spec.users :as su]
@@ -7,6 +8,7 @@
     [do-query do-execute sql-now to-sql-array with-transaction to-jsonb]]
    [sysrev.payments :as payments]
    [sysrev.shared.util :refer [map-values in?]]
+   [sysrev.util :as util]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -261,8 +263,19 @@
   "Create a stripe customer from user"
   [user]
   (let [{:keys [email user-uuid user-id]} user
-        {:keys [id]} (payments/create-customer! email (str user-uuid))]
-    (-> (sqlh/update :web-user)
-        (sset {:stripe-id id})
-        (where [:= :user-id user-id])
-        do-execute)))
+        stripe-response (payments/create-customer! email (str user-uuid))
+        stripe-customer-id (:id stripe-response)]
+    (if-not (nil? stripe-customer-id)
+      (try
+        (-> (sqlh/update :web-user)
+            (sset {:stripe-id stripe-customer-id})
+            (where [:= :user-id user-id])
+            do-execute)
+        (catch Throwable e
+          (let [error-message (.getMessage e)]
+            (log/error (str "Error in " (util/current-function-name) ": " error-message))
+            {:error error-message}))
+        (finally {:success true}))
+      (let [error-message (str "No customer id returned by stripe.com for email: " email " and uuid: " user-uuid)]
+        (log/error (str "Error in " (util/current-function-name) ": " error-message))
+        {:error error-message}))))

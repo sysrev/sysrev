@@ -5,11 +5,13 @@
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
+            [sysrev.db.users :as users]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.payments :as payments]
             [sysrev.shared.spec.project :as sp]
-            [sysrev.shared.spec.core :as sc]))
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.util :as util]))
 
 ;; Error code used
 (def forbidden 403)
@@ -226,6 +228,40 @@
         :args (s/cat :source-id int?
                      :enabled? boolean?)
         :ret map?)
+
+(defn register-user!
+  "Register a user and add them as a stripe customer"
+  [email password project-id]
+  (assert (string? email))
+  (let [user (users/get-user-by-email email)
+        db-result
+        (when-not user
+          (try
+            (users/create-user email password :project-id project-id)
+            true
+            (catch Throwable e
+              e)))]
+    (cond
+      user
+      {:result
+       {:success false
+        :message "Account already exists for this email address"}}
+      (isa? (type db-result) Throwable)
+      {:error
+       {:status 500
+        :message "An error occurred while creating account"
+        :exception db-result}}
+      (true? db-result)
+      (do
+        ;; create-sysrev-stripe-customer! will handle
+        ;; logging any error messages related to not
+        ;; being able to create a stripe customer for the
+        ;; user
+        (users/create-sysrev-stripe-customer!
+         (users/get-user-by-email email))
+        {:result
+         {:success true}})
+      :else (throw (util/should-never-happen-exception)))))
 
 (defn stripe-token
   "Pass a stripe token"

@@ -1,5 +1,6 @@
 (ns sysrev.util
-  (:require [clojure.xml]
+  (:require [clojure.main :refer [demunge]]
+            [clojure.xml]
             [crypto.random]
             [clojure.math.numeric-tower :as math]
             [cognitect.transit :as transit]
@@ -156,3 +157,10 @@
  (-> (ByteArrayInputStream. (.getBytes s "UTF-8"))
      (transit/reader :json)
      (transit/read)))
+
+;; see: https://groups.google.com/forum/#!topic/clojure/ORRhWgYd2Dk
+;;      https://stackoverflow.com/questions/22116257/how-to-get-functions-name-as-string-in-clojure
+(defmacro current-function-name
+  "Returns a string, the name of the current Clojure function."
+  []
+  `(-> (Throwable.) .getStackTrace first .getClassName demunge))
