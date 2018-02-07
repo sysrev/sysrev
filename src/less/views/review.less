@@ -6,15 +6,6 @@ div.label-editor-view .ui.header .ui.grid > .right.aligned.column {
     padding: 0.5rem;
 }
 
-div.ui.grid.label-editor-buttons-view {
-    margin-top: 0;
-}
-
-div.ui.grid.label-editor-buttons-view .column,
-div.ui.grid.label-editor-buttons-view .column > .ui.grid > .row {
-    padding-top: 0.75em;
-}
-
 .row.label-edit-name i {
     font-size: 17px;
     width: 25px;
@@ -39,76 +30,70 @@ div.ui.grid.label-editor-buttons-view .column > .ui.grid > .row {
     font-size: 13px;
 }
 
-/*
-.row.label-edit-name span.name span.inner {
-    margin-left: -25px;
-}
-*/
-
 .ui.buttons.three-state .ui.button {
     padding-top: 0.6em;
     padding-bottom: 0.6em;
 }
 
-.ui.celled.grid > .row > .ui.column.label-edit {
+.ui.celled.grid > .row > .column.label-edit {
     padding: 0.0em;
 }
 
-.ui.column.label-edit.required {
+.column.label-edit.required {
     background-color: @background1;
 }
 
-.ui.column.label-edit.inconsistent {
+.column.label-edit.inconsistent {
     background-color: @warningBackground;
 }
 
-.ui.column.label-edit.extra {
+.column.label-edit.extra {
 }
 
-.ui.column.label-edit > .middle.aligned.grid {
+.column.label-edit > .middle.aligned.grid {
     margin: 0px;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-name {
+.column.label-edit > .middle.aligned.grid .row.label-edit-name {
     padding-bottom: 6px;
     padding-top: 5px;
     text-align: center;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value {
+.column.label-edit > .middle.aligned.grid .row.label-edit-value {
     padding-top: 0px;
     padding-bottom: 12px;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.boolean div.inner {
+.column.label-edit > .middle.aligned.grid .row.label-edit-value.boolean div.inner {
     margin-left: auto;
     margin-right: auto;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.string div.inner {
+.column.label-edit > .middle.aligned.grid .row.label-edit-value.string div.inner {
     width: 100%;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category {
+.column.label-edit > .middle.aligned.grid .row.label-edit-value.category {
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.string,
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.numeric {
+.column.label-edit > .middle.aligned.grid .row.label-edit-value.string,
+.column.label-edit > .middle.aligned.grid .row.label-edit-value.numeric {
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
 
-.ui.column.label-edit .ui.icon.button.input-row {
+.column.label-edit .ui.icon.button.input-row {
     padding: 0.5em;
 }
 
-.ui.column.label-edit .ui.label.input-remove {
+.column.label-edit .ui.label.input-remove {
     padding: 0;
 }
 
-.ui.column.label-edit .ui.label.input-remove .ui.button {
+.column.label-edit .ui.label.input-remove .ui.button {
     padding-left: 0.5em;
     padding-right: 0.5em;
     padding-top: 0.75em;
@@ -118,7 +103,7 @@ div.ui.grid.label-editor-buttons-view .column > .ui.grid > .row {
     border-bottom-right-radius: 0;
 }
 
-.ui.column.label-edit .ui.label.input-remove i.icon {
+.column.label-edit .ui.label.input-remove i.icon {
     padding: 0;
     margin: 0;
 }
@@ -139,14 +124,14 @@ div.ui.segment.labels-warning .ui.message {
     padding-bottom: 0.15em;
 }
 
-.ui.column.label-edit input {
+.column.label-edit input {
     padding-left: 0.6em;
     padding-right: 0.6em;
     padding-top: 0.6em;
     padding-bottom: 0.6em;
 }
 
-.ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category div.inner {
+.column.label-edit > .middle.aligned.grid .row.label-edit-value.category div.inner {
     width: 100%;
     margin: 0;
 }
@@ -156,17 +141,17 @@ div.ui.segment.labels-warning .ui.message {
         font-size: 1.0em;
     }
 
-    .ui.column.label-edit > .middle.aligned.grid .row.label-edit-value.category {
+    .column.label-edit > .middle.aligned.grid .row.label-edit-value.category {
         padding-left: 0.4em;
         padding-right: 0.4em;
     }
 
-    .ui.grid.label-editor-buttons-view > .row > .eight.wide.column {
+    .ui.grid.label-editor-buttons-view > .eight.wide.column {
         padding-left: 0;
         padding-right: 0;
     }
 
-    .ui.grid.label-editor-buttons-view > .row > .four.wide.column {
+    .ui.grid.label-editor-buttons-view > .four.wide.column {
         padding-left: 0.5em;
         padding-right: 0.5em;
     }

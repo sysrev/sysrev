@@ -7,7 +7,7 @@
    [sysrev.views.components :refer [out-link document-link]]
    [sysrev.views.labels :refer
     [label-values-component article-labels-view]]
-   [sysrev.util :refer [full-size?]])
+   [sysrev.util :refer [full-size? nbsp]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn- author-names-text [nmax coll]
@@ -77,7 +77,11 @@
 
 (defn- article-flag-label [description]
   [:div.ui.left.labeled.button.article-flag
-   [:div.ui.basic.label "Flag"]
+   [:div.ui.basic.label
+    [:i.fitted.flag.icon
+     {:style {:padding-left "0.25em"
+              :padding-right "0.25em"
+              :margin "0"}}]]
    [:div.ui.small.orange.basic.button description]])
 
 (defn- article-flags-view [article-id & [wrapper-class]]

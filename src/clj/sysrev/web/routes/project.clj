@@ -457,34 +457,35 @@
                 (apply hash-map))))))))
 
 (defn project-info [project-id]
-  (let [[fields predict articles status-counts members
-         users keywords notes settings files documents progress sources]
-        (pvalues (q/query-project-by-id project-id [:*])
-                 (predict-summary (q/project-latest-predict-run-id project-id))
-                 (project-article-count project-id)
-                 (project-article-status-counts project-id)
-                 (project-members-info project-id)
-                 (project-users-info project-id)
-                 (project-keywords project-id)
-                 (project-notes project-id)
-                 (project-settings project-id)
-                 (project-files project-id)
-                 (docs/all-article-document-paths project-id)
-                 (labels/query-progress-over-time project-id 30)
-                 (sources/project-sources project-id))]
-    {:project {:project-id project-id
-               :name (:name fields)
-               :project-uuid (:project-uuid fields)
-               :members members
-               :stats {:articles articles
-                       :status-counts status-counts
-                       :predict predict
-                       :progress progress}
-               :labels (project-labels project-id)
-               :keywords keywords
-               :notes notes
-               :settings settings
-               :files files
-               :documents documents
-               :sources sources}
-     :users users}))
+  (with-project-cache
+    project-id [:project-info]
+    (let [[fields predict articles status-counts members
+           users keywords notes files documents progress sources]
+          (pvalues (q/query-project-by-id project-id [:*])
+                   nil #_ (predict-summary (q/project-latest-predict-run-id project-id))
+                   (project-article-count project-id)
+                   (project-article-status-counts project-id)
+                   (project-members-info project-id)
+                   (project-users-info project-id)
+                   (project-keywords project-id)
+                   (project-notes project-id)
+                   (project-files project-id)
+                   (docs/all-article-document-paths project-id)
+                   (labels/query-progress-over-time project-id 30)
+                   (sources/project-sources project-id))]
+      {:project {:project-id project-id
+                 :name (:name fields)
+                 :project-uuid (:project-uuid fields)
+                 :members members
+                 :stats {:articles articles
+                         :status-counts status-counts
+                         :predict predict
+                         :progress progress}
+                 :labels (project-labels project-id)
+                 :keywords keywords
+                 :notes notes
+                 :settings (:settings fields)
+                 :files files
+                 :documents documents
+                 :sources sources}
+       :users users})))

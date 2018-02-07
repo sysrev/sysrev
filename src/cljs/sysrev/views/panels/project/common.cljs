@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.project.common
   (:require [re-frame.core :as re-frame :refer [subscribe dispatch]]
-            [sysrev.util :refer [full-size? mobile?]]
+            [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.shared.util :refer [in?]]
             [sysrev.views.components :refer
              [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]))
@@ -11,20 +11,20 @@
         @(subscribe [:project/article-counts])]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
-       :content "Sources"
+       :content [:span [:i.list.icon] "Sources"]
        :action [:project :project :add-articles]}
       {:tab-id :labels
-       :content "Label Definitions"
+       :content [:span [:i.tags.icon] "Label Definitions"]
        :action [:project :project :labels]}
       {:tab-id :invite-link
-       :content [:span "Invite Link " [:i.ui.mail.outline.icon]]
+       :content [:span [:i.mail.outline.icon] "Invite Link"]
        :action [:project :project :invite-link]}
       (when (> total 0)
         {:tab-id :export-data
-         :content [:span "Export " [:i.ui.download.icon]]
+         :content [:span [:i.download.icon] "Export"]
          :action [:project :project :export-data]})
       {:tab-id :settings
-       :content [:span "Settings " [:i.ui.settings.icon]]
+       :content [:span [:i.configure.icon] "Settings"]
        :action [:project :project :settings]}]
      []
      active-tab
@@ -35,19 +35,19 @@
   (let [active-tab (->> @(subscribe [:active-panel]) (drop 2) first)]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
-       :content "Sources"
+       :content [:span #_ [:i.list.icon] "Sources"]
        :action [:project :project :add-articles]}
       {:tab-id :labels
-       :content "Labels"
+       :content [:span #_ [:i.tags.icon] "Labels"]
        :action [:project :project :labels]}
       {:tab-id :invite-link
-       :content [:span "Invite Link " [:i.ui.mail.outline.icon]]
+       :content [:span #_ [:i.mail.outline.icon] "Invite Link"]
        :action [:project :project :invite-link]}
       {:tab-id :export-data
-       :content [:span "Export " [:i.ui.download.icon]]
+       :content [:span #_ [:i.download.icon] "Export"]
        :action [:project :project :export-data]}
       {:tab-id :settings
-       :content [:span "Settings " [:i.ui.settings.icon]]
+       :content [:span #_ [:i.configure.icon] "Settings"]
        :action [:project :project :settings]}]
      []
      active-tab
@@ -80,16 +80,30 @@
         [primary-tabbed-menu
          [(when (> total 0)
             {:tab-id [:project :overview]
-             :content "Overview"
+             :content [:span "Overview"]
              :action [:project :project :overview]})
           (when (> total 0)
             {:tab-id [:project :articles]
-             :content "Articles"
+             :content [:span
+                       (when-not mobile?
+                         [:span
+                          [:i.icons
+                           [:i.text.file.outline.icon]
+                           [:i.corner.tag.icon]]
+                          " "])
+                       "Articles"]
              :action [:project :project :articles]})
           (when (> total 0)
             {:tab-id [:user :labels]
-             :content (if mobile?
-                        "Answers" "Saved Answers")
+             :content [:span
+                       (when-not mobile?
+                         [:span
+                          [:i.icons
+                           [:i.user.icon]
+                           [:i.corner.tag.icon]]
+                          " "])
+                       (if mobile?
+                         "Answers" "Saved Answers")]
              :action [:project :user :labels]})
           (when false
             {:tab-id :predict
@@ -97,13 +111,17 @@
              :action [:project :project :predict]})
           (when (> total 0)
             {:tab-id [:review]
-             :content "Review Articles"
+             :content [:span
+                       (when-not mobile?
+                         [:span
+                          [:i.write.square.icon]])
+                       "Review Articles"]
              :action [:project :review]
              :class "review-articles"})]
          [{:tab-id :manage
            :content (if mobile?
-                      [:span [:i.ui.settings.icon]]
-                      [:span "Manage " [:i.ui.settings.icon]])
+                      [:span [:i.settings.icon]]
+                      [:span [:i.settings.icon] "Manage"])
            :action [:project :project :add-articles]}]
          active-tab
          (if manage?

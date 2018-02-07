@@ -34,9 +34,10 @@
        {:on-click #(dispatch [:navigate []])}
        [:h3.ui.blue.header
         "sysrev.us"]]
-      [:a.item
-       {:on-click #(dispatch [:navigate [:select-project]])}
-       "Select Project"]
+      (when logged-in?
+        [:a.item
+         {:on-click #(dispatch [:navigate [:select-project]])}
+         "Select Project"])
       (when-not full? dev-menu)
       [:div.item.loading-indicator
        [loading-indicator]]
@@ -46,16 +47,14 @@
          [:a.item {:id "user-name-link"
                    :on-click #(dispatch [:navigate [:user-settings]])}
           [:span.blue-text [:i.user.icon] user-display]]
-         (when-not mobile?
-           [:a.item {:id "user-settings-link"
-                     :on-click #(dispatch [:navigate [:user-settings]])}
-            "Settings"])
          [:a.item {:id "log-out-link"
                    :on-click #(dispatch [:action [:auth/log-out]])}
-          "Log Out"]
+          (if mobile?
+            "Log Out"
+            [:span "Log Out" nbsp nbsp [:i.fitted.sign.out.icon]])]
          [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          [:a.item.distinct {:id "log-in-link"
                             :on-click #(dispatch [:navigate [:login]])}
-          "Log in"]
+          [:span "Log In" nbsp nbsp [:i.fitted.sign.in.icon]]]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))

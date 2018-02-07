@@ -138,7 +138,7 @@
                           content]))]
     [:div.ui
      {:class
-      (str (if mobile? "small" "")
+      (str (if mobile? "" "")
            " secondary pointing menu secondary-menu "
            menu-class)}
      (doall

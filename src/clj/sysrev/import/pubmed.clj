@@ -198,7 +198,9 @@
                   (sources/add-article-to-source! article-id source-id))
                 ;; otherwise add new article
                 (when-let [article-id (add-article
-                                       (dissoc article :locations)
+                                       (-> article
+                                           (dissoc :locations)
+                                           (assoc :enabled false))
                                        project-id)]
                   (sources/add-article-to-source! article-id source-id)
                   (when (not-empty (:locations article))

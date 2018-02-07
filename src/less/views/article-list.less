@@ -50,7 +50,7 @@ div.article-list-article div.ui.row {
     padding-bottom: 0px;
 }
 
-.article-list-article div.ui.column.article-title {
+.article-list-article div.column.article-title {
     padding: 10px;
 }
 
@@ -67,15 +67,15 @@ div.ui.segments.article-list-segments > div.ui.attached.segment {
     border-left: 0;
 }
 
-div.ui.column.article-answers {
+div.column.article-answers {
     height: 100%;
 }
-div.ui.column.article-answers>div.ui.grid {
+div.column.article-answers>div.ui.grid {
     margin-top: 0;
     margin-bottom: 0;
     height: 100%;
 }
-div.ui.column.article-answers>div.ui.grid>div.row {
+div.column.article-answers>div.ui.grid>div.row {
     padding-top: 5px;
     padding-bottom: 5px;
 }
@@ -135,19 +135,19 @@ div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
 }
 
 @media only screen and (max-width: 900px) {
-    div.ui.column.article-answers >div.ui.grid > div.row > div.column {
+    div.column.article-answers >div.ui.grid > div.row > div.column {
         padding-left: 10px;
         padding-right: 10px;
         font-size: 13px;
     }
 
-    div.ui.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
+    div.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
         padding-left: 3px;
     }
 
     .article-list-view > .ui.segment.article-nav,
     .article-view > .ui.segment.article-nav {
-        padding: 0.5em;
+        padding: 0.3em;
     }
 
     .article-view > .ui.segment.article-nav > .ui.grid > .column,
@@ -160,18 +160,34 @@ div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
         padding-right: 0.5em;
     }
 
-    .article-view > .ui.segment.article-nav > .ui.grid > .left.aligned.column .ui.tiny.button {
-        font-size: 11px;
+    .article-view > .ui.segment.article-nav > .ui.grid > .left.aligned.column h5,
+    .article-list-view > .ui.segment.article-nav > .ui.grid > .left.aligned.column h5 {
+        font-size: 12px;
     }
 
     .article-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button,
     .article-list-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button {
-        font-size: 11px;
+        font-size: 10px;
         padding: 0.75em;
     }
 
+    div.article-filters .ui.buttons,
+    div.article-filters .ui.button {
+        font-size: 12px;
+    }
+
+    div.article-filters div.ui.selection.dropdown,
+    div.article-filters div.ui.selection.dropdown div.text,
+    div.article-filters div.ui.selection.dropdown div.menu,
+    div.article-filters div.ui.input,
+    div.article-filters div.ui.input input[type=text],
+    div.article-filters div.ui.input i.icon
+    {
+        font-size: 12px;
+    }
+
     div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
-        font-size: 15px;
+        font-size: 12px;
     }
 
     div.article-filters .ui.form .field .fields {
@@ -225,8 +241,7 @@ div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
     }
 
     .article-list-article .article-title {
-        font-size: 13px;
-        font-weight: bold;
+        font-size: 12px;
     }
 
     .article-list-article .article-title div.ui.tiny.label {

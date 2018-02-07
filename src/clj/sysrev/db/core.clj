@@ -270,14 +270,18 @@
 (defn clear-labels-cache []
   (clear-query-cache [:all-labels]))
 
-(defn clear-project-cache [& [project-id field-path]]
+(defn clear-project-cache [& [project-id field-path clear-protected?]]
   (clear-labels-cache)
   (cond
     (and project-id field-path)
     (clear-query-cache (concat [:project project-id] field-path))
 
     project-id
-    (swap! query-cache assoc-in [:project project-id] {})
+    (swap! query-cache
+           #(assoc-in % [:project project-id]
+                      {:protected
+                       (if clear-protected? {}
+                           (get-in % [:project project-id :protected]))}))
 
     :else
     (swap! query-cache assoc :project {}))

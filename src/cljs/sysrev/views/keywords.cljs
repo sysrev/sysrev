@@ -82,7 +82,7 @@
 
 (defn render-abstract [article-id]
   (let [sections @(subscribe [:article/abstract-render article-id])]
-    [:div
+    [:div.article-abstract
      (doall
       (map-indexed (fn [idx {:keys [name content]}]
                      (if name

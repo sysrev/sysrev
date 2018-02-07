@@ -8,7 +8,7 @@
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.base :refer [active-route]]
    [sysrev.util :refer
-    [full-size? mobile? validate wrap-prevent-default]]
+    [full-size? mobile? validate wrap-prevent-default nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -203,58 +203,55 @@
     (with-loader (if register-hash
                    [[:register-project register-hash]]
                    []) {}
-      [:div.ui.padded.segments.auto-margin
+      [:div.ui.segment.auto-margin
        {:id "login-register-panel"
-        :style {:max-width "550px" :margin-top "10px"}}
-       [:div.ui.top.attached.segment>h2
+        :style {:max-width "500px" :margin-top "10px"}}
+       [:h3.ui.dividing.header
         @(subscribe [::header-title])]
        (when register-hash
-         [:div.ui.attached.segment>h4
+         [:h4.ui.header
           (if project-name project-name "< Project not found >")])
-       [:div.ui.bottom.attached.segment
-        [:form.ui.form
-         {:class form-class
-          :on-submit
-          (wrap-prevent-default
-           #(let [email (email-input), password (password-input)]
-              (dispatch [::submit-form {:email email
-                                        :password password
-                                        :register? register?
-                                        :project-id project-id}])))}
-         [:div.field {:class (field-class :email)}
-          [:label "Email"]
-          [:input {:type "email" :name "email"
-                   :id "login-email-input"
-                   :on-change
-                   #(dispatch-sync [::set-email (-> % .-target .-value)])}]]
-         [:div.field {:class (field-class :password)}
-          [:label "Password"]
-          [:input {:type "password" :name "password"
-                   :id "login-password-input"
-                   :on-change
-                   #(dispatch-sync [::set-password (-> % .-target .-value)])}]]
-         [field-error :email]
-         [field-error :password]
-         [:div.ui.divider]
-         [:button.ui.button {:type "submit" :name "submit"} "Submit"]
-         (when-let [err @(subscribe [::login-error-msg])]
-           [:div.ui.negative.message err])]
+       [:form.ui.form
+        {:class form-class
+         :on-submit
+         (wrap-prevent-default
+          #(let [email (email-input), password (password-input)]
+             (dispatch [::submit-form {:email email
+                                       :password password
+                                       :register? register?
+                                       :project-id project-id}])))}
+        [:div.field {:class (field-class :email)}
+         [:label "Email"]
+         [:input {:type "email" :name "email"
+                  :id "login-email-input"
+                  :on-change
+                  #(dispatch-sync [::set-email (-> % .-target .-value)])}]]
+        [:div.field {:class (field-class :password)}
+         [:label "Password"]
+         [:input {:type "password" :name "password"
+                  :id "login-password-input"
+                  :on-change
+                  #(dispatch-sync [::set-password (-> % .-target .-value)])}]]
+        [field-error :email]
+        [field-error :password]
         [:div.ui.divider]
+        [:button.ui.button {:type "submit" :name "submit"} "Submit"]
+        (when-let [err @(subscribe [::login-error-msg])]
+          [:div.ui.negative.message err])]
+       [:div.ui.divider]
+       [:div
         (if register?
-          [:div.center.aligned
+          [:div
            [:a {:href (if register-hash
                         (str @active-route "/login")
                         "/login")}
             "Already have an account?"]]
-          [:div.center.aligned
-           #_ [:h4 "If you haven't created an account yet, please register using the link you received for your project."]
-           [:div.center.aligned
-            [:a {:href "/register"}
-             "Create account"]]
-           [:div.ui.divider]
-           [:div.center.aligned
-            [:a {:href "/request-password-reset"}
-             "Forgot password?"]]])]])))
+          [:div
+           [:a.medium-weight {:href "/register"}
+            "Create Account"]
+           nbsp nbsp nbsp "|" nbsp nbsp nbsp
+           [:a.medium-weight {:href "/request-password-reset"}
+            "Forgot Password?"]])]])))
 
 (defn join-project-panel []
   (let [register-hash @(subscribe [:register/register-hash])

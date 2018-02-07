@@ -33,7 +33,8 @@
 
 (defmethod list-header-tooltip :default [] nil)
 
-(def ^:private display-count 10)
+(defn- display-count []
+  (if (mobile?) 10 20))
 
 (def group-statuses
   [:single :determined :conflict :consistent :resolved])
@@ -261,7 +262,8 @@
  (fn [[_ panel]]
    [(subscribe [:article-list/filtered panel])])
  (fn [[articles]]
-   (* display-count (quot (dec (count articles)) display-count))))
+   (let [display-count (display-count)]
+     (* display-count (quot (dec (count articles)) display-count)))))
 ;;
 (reg-event-fx
  ::set-display-offset
@@ -541,7 +543,7 @@
      (if (zero? total-count)
        "No matching articles found"
        (str "Showing " (+ display-offset 1)
-            "-" (min total-count (+ display-offset display-count))
+            "-" (min total-count (+ display-offset (display-count)))
             " of "
             total-count " matching articles ")))))
 
@@ -558,6 +560,7 @@
 ;; Render directional navigation buttons for article list interface
 (defn- article-list-header-buttons [panel]
   (let [total-count (count @(subscribe [:article-list/filtered panel]))
+        display-count (display-count)
         max-display-offset @(subscribe [::max-display-offset panel])
         display-offset @(subscribe [::display-offset panel])
         on-first #(dispatch [::set-display-offset 0 panel])
@@ -627,7 +630,7 @@
  (fn [[articles display-offset]]
    (->> articles
         (drop display-offset)
-        (take display-count))))
+        (take (display-count)))))
 
 (defn- article-list-view-articles [panel]
   (let [active-aid @(subscribe [::selected-article-id panel])

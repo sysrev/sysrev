@@ -6,7 +6,7 @@
     [subscribe dispatch]]
    [re-frame.db :refer [app-db]]
    [sysrev.views.base :refer [panel-content]]
-   [sysrev.views.components :refer [CenteredColumn]]
+   [sysrev.views.components :as ui]
    [sysrev.util :refer [wrap-prevent-default]]
    [clojure.string :as str]))
 
@@ -211,8 +211,9 @@
       [:div.pubmed-search-results
        [:h4.ui.dividing.header
         [:div.ui.middle.aligned.grid>div.row
-         [:div.ui.six.wide.column
-          [CenteredColumn (str "Found " n-results " articles")]]
+         [ui/CenteredColumn
+          (str "Found " n-results " articles")
+          "six wide column"]
          [:div.ui.ten.wide.right.aligned.column
           [ImportArticlesButton]
           [PubMedSearchLink]
