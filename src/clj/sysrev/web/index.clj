@@ -2,6 +2,7 @@
   (:require [hiccup.page :as page]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
+            [sysrev.stripe :refer [stripe-public-key]]
             [sysrev.resources :as res]
             [sysrev.db.users :as users]
             [clojure.string :as str]))
@@ -53,7 +54,7 @@
    [:body
     [:div {:style "display: none;"
            :id "stripe-public-key"
-           :data-stripe-public-key (:stripe-public-key env)}]
+           :data-stripe-public-key stripe-public-key}]
     [:div {:id "app"} loading-content]
     (let [js-name (if (= (:profile env) :prod)
                     (str "sysrev-" res/build-id ".js")

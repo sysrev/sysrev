@@ -1,6 +1,7 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require [clojure.spec.alpha :as s]
+            [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
@@ -8,11 +9,12 @@
             [sysrev.db.users :as users]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
-            [sysrev.payments :as payments]
+            [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]))
 
+(def default-plan "Basic")
 ;; Error code used
 (def forbidden 403)
 (def not-found 404)
@@ -259,6 +261,9 @@
         ;; user
         (users/create-sysrev-stripe-customer!
          (users/get-user-by-email email))
+        ;; subscribe the customer to the basic plan, by default
+        (stripe/subscribe-customer! (users/get-user-by-email email)
+                                      default-plan)
         {:result
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
@@ -266,5 +271,10 @@
 (defn stripe-token
   "Pass a stripe token"
   [token]
-  (reset! payments/token token)
+  (reset! stripe/token token)
   {:success true})
+
+(defn test-response
+  "Server Sanity Check"
+  []
+  {:test "passing"})

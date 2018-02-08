@@ -12,7 +12,7 @@
 
 (def stripe-secret-key (or (env :stripe-secret-key)
                            (System/getProperty "STRIPE_SECRET_KEY")))
-(def stripe-public-key (or (env :stripe-private-key)
+(def stripe-public-key (or (env :stripe-public-key)
                            (System/getProperty "STRIPE_PUBLIC_KEY")))
 
 (defn execute-action

@@ -321,7 +321,11 @@
 
   (POST "/api/stripe-token" request
         (let [{:keys [token]} (:body request)]
-          (api/stripe-token token))))
+          (api/stripe-token token)))
+
+  ;;  we are still getting sane responses from the server?
+  (GET "/api/test" request
+       (api/test-response)))
 
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]

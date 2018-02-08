@@ -21,7 +21,8 @@
             [sysrev.import.pubmed :refer [extract-article-location-entries]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
-            [sysrev.db.sources :as sources])
+            [sysrev.db.sources :as sources]
+            [sysrev.stripe :as stripe])
   (:import java.util.UUID))
 
 (defn ensure-user-default-project-ids
@@ -255,6 +256,18 @@
                          project-id))
           (doseq [article-id article-ids]
             (articles/set-article-flag article-id "legacy-disable" true)))))))
+
+(defn update-stripe-plans-table
+  "Update the stripe_plans table based upon what is stored on stripe. We never delete plans, even though they may no longer exist on stripe so that there is a record of their existence. If a plan is changed on the stripe, it is updated here."
+  []
+  (let [plans (->> (stripe/get-plans)
+                   :data
+                   (mapv #(select-keys % [:name :amount :product])))]
+    (-> (insert-into :stripe-plan)
+        (values plans)
+        (upsert (-> (on-conflict :product)
+                    (do-update-set :name :amount)))
+        do-execute)))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."

@@ -9,8 +9,9 @@
             [sysrev.test.browser.navigate :refer [log-in log-out]]))
 
 ;; manual tests
+;; (sysrev.init/start-app {:dbname "sysrev_test"}) ; start the app, if
+;; not already running
 ;; (browser/start-visual-webdriver)
-;; (sysrev.init/start-app) ; start the app, if not already running
 ;; run some tests
 ;; (browser/stop-webdriver)
 ;; if you close Chrome, you will also need to take care of the active-webdriver atom

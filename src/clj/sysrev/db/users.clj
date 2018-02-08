@@ -6,7 +6,7 @@
    [sysrev.shared.spec.users :as su]
    [sysrev.db.core :refer
     [do-query do-execute sql-now to-sql-array with-transaction to-jsonb]]
-   [sysrev.payments :as payments]
+   [sysrev.stripe :as stripe]
    [sysrev.shared.util :refer [map-values in?]]
    [sysrev.util :as util]
    [honeysql.core :as sql]
@@ -263,7 +263,7 @@
   "Create a stripe customer from user"
   [user]
   (let [{:keys [email user-uuid user-id]} user
-        stripe-response (payments/create-customer! email (str user-uuid))
+        stripe-response (stripe/create-customer! email (str user-uuid))
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
       (try
