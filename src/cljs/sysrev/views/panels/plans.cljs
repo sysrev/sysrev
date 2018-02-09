@@ -53,16 +53,19 @@
 
 (defn Plans
   []
-  [:div {:class "ui three columns stackable grid"}
-   (when (nil? @plans)
-     {:key :loader}
-     [:div.ui.small.active.loader])
-   (when-not (nil? @plans)
-     (doall (map (fn [plan]
-                   (.log js/console (clj->js plan))
-                   ^{:key (:product plan)}
-                   [Plan plan])
-                 (sort-by :amount @plans))))])
+  (let [color-vector ["teal" "blue" "violet"]]
+    [:div {:class "ui three columns stackable grid"}
+     (when (nil? @plans)
+       {:key :loader}
+       [:div.ui.small.active.loader])
+     (when-not (nil? @plans)
+       (doall (map-indexed
+               (fn [index plan]
+                 (.log js/console (clj->js plan))
+                 ^{:key (:product plan)}
+                 [Plan (merge plan
+                              {:color (nth color-vector index)})])
+               (sort-by :amount @plans))))]))
 
 (defmethod panel-content [:plans] []
   (fn [child]
