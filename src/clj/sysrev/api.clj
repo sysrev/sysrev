@@ -274,6 +274,14 @@
   (reset! stripe/token token)
   {:success true})
 
+(defn plans
+  "Get available plans"
+  []
+  {:result {:success true
+            :plans (->> (stripe/get-plans)
+                        :data
+                        (mapv #(select-keys % [:name :amount :product])))}})
+
 (defn test-response
   "Server Sanity Check"
   []

@@ -323,6 +323,9 @@
         (let [{:keys [token]} (:body request)]
           (api/stripe-token token)))
 
+  (GET "/api/plans" request
+       (api/plans))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (api/test-response)))

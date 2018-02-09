@@ -1,6 +1,20 @@
 (ns sysrev.views.panels.plans
-  (:require [sysrev.payments :as payments]
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [dispatch subscribe]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.payments :as payments]
             [sysrev.views.base :refer [panel-content]]))
+
+(def plans (r/atom nil))
+
+(def-data :plans
+  :loaded? (nil? @plans)
+  :uri (fn [] "/api/plans")
+  :prereqs (fn [] [[:identity]])
+  :process (fn [{:keys [db]} _ result]
+             (.log js/console (clj->js (:plans result)))
+             (reset! plans (:plans result))
+             {:db db}))
 
 (defn cents->dollars
   "Converts an integer value of cents to dollars"
@@ -40,17 +54,18 @@
 (defn Plans
   []
   [:div {:class "ui three columns stackable grid"}
-   [Plan {:name "Basic"
-          :amount 0
-          :color "teal"}]
-   [Plan {:name "Pro"
-          :amount 1000
-          :color "blue"}]
-   [Plan {:name "Premium"
-          :amount 2000
-          :color "violet"}]])
+   (when (nil? @plans)
+     {:key :loader}
+     [:div.ui.small.active.loader])
+   (when-not (nil? @plans)
+     (doall (map (fn [plan]
+                   (.log js/console (clj->js plan))
+                   ^{:key (:product plan)}
+                   [Plan plan])
+                 (sort-by :amount @plans))))])
 
 (defmethod panel-content [:plans] []
   (fn [child]
+    (dispatch [:fetch [:plans]])
     [:div.ui.segment
      [Plans]]))
