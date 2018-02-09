@@ -10,10 +10,11 @@
 
 (def token (atom nil))
 
-(def stripe-secret-key (or (env :stripe-secret-key)
-                           (System/getProperty "STRIPE_SECRET_KEY")))
-(def stripe-public-key (or (env :stripe-public-key)
-                           (System/getProperty "STRIPE_PUBLIC_KEY")))
+(def stripe-secret-key (or (System/getProperty "STRIPE_SECRET_KEY")
+                           (env :stripe-secret-key)))
+
+(def stripe-public-key (or (System/getProperty "STRIPE_PUBLIC_KEY")
+                           (env :stripe-public-key)))
 
 (defn execute-action
   [action]

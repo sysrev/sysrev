@@ -278,6 +278,7 @@
                       ;; #'ensure-article-location-entries
                       ;; #'ensure-label-inclusion-values
                       #'ensure-no-null-authors
+                      #'update-stripe-plans-table
                       ;; #'ensure-project-sources-exist
                       ;; #'ensure-article-flag-disable-entries
                       ]]

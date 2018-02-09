@@ -5,6 +5,7 @@
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip selection-dropdown]]
    [sysrev.payments :refer [StripeCardInfo]]
+   [sysrev.views.panels.subscriptions :refer [Plans]]
    [sysrev.routes :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]))
 
@@ -174,4 +175,6 @@
         [user-options-box]]
        [:div.ui.column
         [user-dev-tools-box]]]]
-     [StripeCardInfo]]))
+     ;;     [StripeCardInfo]
+     [Plans]
+     ]))
