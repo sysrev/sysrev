@@ -30,7 +30,7 @@
             [:div.ui.middle.aligned.grid
              [:div.row
               [:div.sixteen.wide.column.project-title
-               [:span.project-title [:i.book.icon] nbsp project-name]]]]]
+               [:span.project-title [:i.grey.book.icon] nbsp project-name]]]]]
            (project-page-menu)
            child])))))
 

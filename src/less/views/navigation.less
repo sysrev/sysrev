@@ -17,6 +17,8 @@
     padding-top: 2px;
     padding-bottom: 2px;
     font-size: 13px;
+    color: @text;
+    .medium-weight;
 }
 
 .ui.menu div.item.loading-indicator:before {
@@ -76,12 +78,15 @@
 }
 
 @media only screen and (max-width: 900px) {
+    .ui.menu.site-menu {
+    }
+
     .ui.menu.site-menu .header {
-        font-size: 20px;
+        font-size: 18px;
     }
 
     .ui.menu.site-menu .item {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .ui.menu .item,
@@ -106,11 +111,11 @@
     }
 
     .ui.secondary.pointing.menu.secondary-menu {
-        font-size: 11px;
+        font-size: 12px;
     }
 
     .ui.secondary.pointing.menu.secondary-menu .item {
-        font-size: 11px;
+        font-size: 12px;
     }
 }
 

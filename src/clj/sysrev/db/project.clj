@@ -438,15 +438,17 @@
   "Returns a vector with all `project-keyword` entries for the project."
   [project-id]
   (let [project-id (q/to-project-id project-id)]
-    (->> (q/select-project-keywords project-id [:*])
-         do-query
-         (map
-          (fn [kw]
-            (assoc kw :toks
-                   (->> (str/split (:value kw) #" ")
-                        (mapv canonical-keyword)))))
-         (group-by :keyword-id)
-         (map-values first))))
+    (with-project-cache
+      project-id [:keywords :all]
+      (->> (q/select-project-keywords project-id [:*])
+           do-query
+           (map
+            (fn [kw]
+              (assoc kw :toks
+                     (->> (str/split (:value kw) #" ")
+                          (mapv canonical-keyword)))))
+           (group-by :keyword-id)
+           (map-values first)))))
 ;;
 (s/fdef project-keywords
         :args (s/cat :project-id ::sc/project-id)
@@ -515,11 +517,13 @@
   "Returns a vector with all `project-note` entries for the project."
   [project-id]
   (let [project-id (q/to-project-id project-id)]
-    (->> (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
-             (q/with-project-note)
-             do-query)
-         (group-by :name)
-         (map-values first))))
+    (with-project-cache
+      project-id [:notes :all]
+      (->> (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
+               (q/with-project-note)
+               do-query)
+           (group-by :name)
+           (map-values first)))))
 ;;
 (s/fdef project-notes
         :args (s/cat :project-id ::sc/project-id)

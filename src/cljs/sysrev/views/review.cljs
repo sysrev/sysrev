@@ -7,7 +7,7 @@
     [subscribe dispatch dispatch-sync reg-sub
      reg-event-db reg-event-fx reg-fx trim-v]]
    [re-frame.db :refer [app-db]]
-   [sysrev.views.components :refer [with-tooltip three-state-selection]]
+   [sysrev.views.components :as ui]
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.subs.review :as review]
    [sysrev.subs.labels :as labels]
@@ -106,7 +106,7 @@
 (defmethod label-input-el "boolean"
   [label-id article-id]
   (let [answer @(subscribe [:review/active-labels article-id label-id])]
-    [three-state-selection
+    [ui/three-state-selection
      #(dispatch [::set-label-value article-id label-id %])
      answer]))
 
@@ -312,7 +312,7 @@
     ^{:key {:article-label [article-id label-id]}}
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
-      [with-tooltip
+      [ui/with-tooltip
        (let [name-content
              [:span.name
               {:class (when (>= (count label-string) 30)
@@ -436,11 +436,12 @@
                    (dispatch [:fetch [:review/task]]))]
     [:div.ui.bottom.attached.segment
      (if (full-size?)
-       [:div.ui.center.aligned.grid.label-editor-buttons-view
-        [:div.left.aligned.four.wide.column
+       [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
+        [ui/CenteredColumn
          (when on-review-task?
-           [activity-report])]
-        [:div.center.aligned.eight.wide.column
+           [activity-report])
+         "left aligned four wide column"]
+        [ui/CenteredColumn
          [:div.ui.grid.centered
           [:div.ui.row
            (let [save-button
@@ -450,7 +451,7 @@
                   (if resolving? "Resolve Labels" "Save Labels")
                   [:i.check.circle.outline.icon]]]
              (if disabled?
-               [with-tooltip [:div save-button]]
+               [ui/with-tooltip [:div save-button]]
                save-button))
            [:div.ui.inverted.popup.top.left.transition.hidden
             "Answer missing for a required label"]
@@ -459,19 +460,18 @@
               {:class (if loading-task? "loading" "")
                :on-click on-next}
               "Skip Article"
-              [:i.right.circle.arrow.icon]])]]]
-        [:div.ui.right.aligned.four.wide.column
-         #_ (when @(subscribe [:review/on-review-task?])
-              [:div
-               [:div.ui.green.button
-                (str "Review unconfirmed")]
-               [:a.ui.label n-str nbsp [:i.file.text.icon]]])]]
-       [:div.ui.center.aligned.grid.label-editor-buttons-view
-        [:div.left.aligned.four.wide.column
+              [:i.right.circle.arrow.icon]])]]
+         "center aligned eight wide column"]
+        [ui/CenteredColumn
+         [:span]
+         "right aligned four wide column"]]
+       [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
+        [ui/CenteredColumn
          (when on-review-task?
-           [activity-report])]
-        [:div.center.aligned.eight.wide.column
-         [:div.ui.grid.centered
+           [activity-report])
+         "left aligned four wide column"]
+        [ui/CenteredColumn
+         [:div.ui.center.aligned.grid
           [:div.ui.row
            (let [save-button
                  [:div.ui.small
@@ -480,7 +480,7 @@
                   (if resolving? "Resolve" "Save")
                   [:i.right.check.circle.outline.icon]]]
              (if disabled?
-               [with-tooltip [:div save-button]]
+               [ui/with-tooltip [:div save-button]]
                save-button))
            [:div.ui.inverted.popup.top.left.transition.hidden
             "Answer missing for a required label"]
@@ -489,8 +489,11 @@
               {:class (if loading-task? "loading" "")
                :on-click on-next}
               "Skip"
-              [:i.right.circle.arrow.icon]])]]]
-        [:div.ui.right.aligned.four.wide.column]])]))
+              [:i.right.circle.arrow.icon]])]]
+         "center aligned eight wide column"]
+        [ui/CenteredColumn
+         [:span]
+         "right aligned four wide column"]])]))
 
 ;; Top-level component for label editor
 (defn label-editor-view [article-id]

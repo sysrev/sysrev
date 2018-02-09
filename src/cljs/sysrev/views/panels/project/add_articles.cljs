@@ -9,7 +9,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
             [sysrev.views.upload :refer [upload-container basic-text-button]]
-            [sysrev.views.components :refer [tabbed-panel-menu CenteredColumn]]))
+            [sysrev.views.components :as ui]))
 
 (def panel [:project :project :add-articles])
 
@@ -206,12 +206,12 @@
        (cond
          (= (:source meta) "legacy")
          (list
-          [:div.eight.wide.column.left.aligned
+          [:div.eight.wide.column.left.aligned.reviewed-count
            {:key :reviewed-count}
-           [CenteredColumn
-            (str (.toLocaleString labeled-article-count)
-                 " of "
-                 (.toLocaleString article-count) " " (article-or-articles article-count) " reviewed")]]
+           [:div
+            (str (.toLocaleString labeled-article-count) " of "
+                 (.toLocaleString article-count) " "
+                 (article-or-articles article-count) " reviewed")]]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
            nil])
@@ -221,8 +221,7 @@
          (list
           [:div.eight.wide.column.left.aligned
            {:key :deleting}
-           [CenteredColumn
-            [:div "Deleting source..."]]]
+           [:div "Deleting source..."]]
           [:div.six.wide.column
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
@@ -234,8 +233,7 @@
          (list
           [:div.eight.wide.column.left.aligned
            {:key :import-failed}
-           [CenteredColumn
-            "Import error"]]
+           "Import error"]
           ;; need to check if the user is an admin
           ;; before displaying this option
           [:div.eight.wide.column.right.aligned
@@ -246,10 +244,11 @@
          (and (true? importing-articles?) polling?
               article-count (> article-count 0))
          (list
-          [:div.eight.wide.column.left.aligned
+          [:div.eight.wide.column.left.aligned.loaded-count
            {:key :loaded-count}
-           [CenteredColumn
-            [:div (str (.toLocaleString article-count) " " (article-or-articles article-count) " loaded")]]]
+           [:div
+            (str (.toLocaleString article-count) " "
+                 (article-or-articles article-count) " loaded")]]
           [:div.six.wide.column
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
@@ -262,10 +261,10 @@
          (list
           [:div.source-description.eight.wide.column.left.aligned
            {:key :reviewed-count}
-           [CenteredColumn
-            (str (.toLocaleString labeled-article-count)
-                 " of "
-                 (.toLocaleString article-count) " " (article-or-articles article-count) " reviewed")]
+           [:div
+            (str (.toLocaleString labeled-article-count) " of "
+                 (.toLocaleString article-count) " "
+                 (article-or-articles article-count) " reviewed")]
            ;; put unique
            (let [unique-articles-count (:unique-articles-count source)]
              (when-not (nil? unique-articles-count)
@@ -275,22 +274,24 @@
                  non-empty-overlap (filter #(> (:count %) 0) overlap)]
              [:div
               (when-not (empty? non-empty-overlap)
-                (doall (map (fn [overlap-map]
-                              ^{:key (gensym (:overlap-source-id overlap-map))}
-                              [:div
-                               [:span (str (:count overlap-map) " " (article-or-articles (:count overlap-map)) " shared with "
-                                           (let [name (source-name (:overlap-source-id overlap-map))]
-                                             (str (first name) " " (second name))))]
-                               [:br]])
-                            non-empty-overlap)))])]
+                (doall
+                 (map (fn [{:keys [count overlap-source-id]} overlap-map]
+                        ^{:key (gensym (:overlap-source-id overlap-map))}
+                        [:div
+                         [:span
+                          (str
+                           count " " (article-or-articles count) " shared with "
+                           (let [name (source-name overlap-source-id)]
+                             (str (first name) " " (second name))))]
+                         [:br]])
+                      non-empty-overlap)))])]
           [:div.eight.wide.column.right.aligned
            {:key :buttons}
            [ToggleArticleSource source-id enabled?]
            ;; need to check if user is an admin
            ;; before displaying this
-           (when (<= labeled-article-count 0)
-             [DeleteArticleSource source-id])
-           ])
+           (when (and (<= labeled-article-count 0))
+             [DeleteArticleSource source-id])])
 
          :else
          (list
@@ -324,10 +325,10 @@
   (ensure-state)
   (let [import-tab (r/cursor state [:import-tab])
         active-tab (or @import-tab :pubmed)]
-    [:div.ui.segment
+    [:div#import-articles.ui.segment
      [:h4.ui.dividing.header
       "Import Articles"]
-     [tabbed-panel-menu
+     [ui/tabbed-panel-menu
       [{:tab-id :pubmed
         :content "PubMed Search"
         :action #(reset! import-tab :pubmed)}
@@ -352,5 +353,5 @@
 
 (defmethod panel-content panel []
   (fn [child]
-    [:div.project-content
+    [:div#add-articles.project-content
      [ProjectSourcesPanel]]))

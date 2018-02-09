@@ -112,7 +112,9 @@
                         (and (coll? v) (empty? v)))
                 (log/debug (format "sysrev.import.endnote/import-articles-to-project!: * field `%s` is empty" (pr-str k)))))
             (when-let [article-id (add-article
-                                   (dissoc article :locations)
+                                   (-> article
+                                       (dissoc :locations)
+                                       (assoc :enabled false))
                                    project-id)]
               ;; associate this article with a project-source-id
               (sources/add-article-to-source! article-id project-source-id)

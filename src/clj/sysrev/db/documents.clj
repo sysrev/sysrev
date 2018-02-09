@@ -1,7 +1,8 @@
 (ns sysrev.db.documents
   (:require
    [sysrev.shared.util :refer [map-values]]
-   [sysrev.db.core :refer [do-query do-execute to-sql-array]]
+   [sysrev.db.core :refer
+    [do-query do-execute to-sql-array with-project-cache]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [me.raynes.fs :as fs]
@@ -50,15 +51,17 @@
     nil))
 
 (defn all-article-document-paths [project-id]
-  (->>
-   (-> (select :document-id :fs-path)
-       (from :document)
-       (where [:and
-               [:= :project-id project-id]
-               [:= :document-type "article-pdf"]])
-       do-query)
-   (group-by :document-id)
-   (map-values #(mapv :fs-path %))))
+  (with-project-cache
+    project-id [:protected :document-paths]
+    (->>
+     (-> (select :document-id :fs-path)
+         (from :document)
+         (where [:and
+                 [:= :project-id project-id]
+                 [:= :document-type "article-pdf"]])
+         do-query)
+     (group-by :document-id)
+     (map-values #(mapv :fs-path %)))))
 
 (defn load-project-document-ids [project-id article-doc-ids]
   (doseq [article-uuid (keys article-doc-ids)]

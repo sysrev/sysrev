@@ -167,14 +167,9 @@
 
 (defmethod panel-content [:user-settings] []
   (fn [child]
-    [:div.ui.segment
-     [:h3.ui.dividing.header "User Settings"]
+    [:div
+     [:div.ui.segment
+      [:h4 "User Settings"]]
      [:div.ui.two.column.stackable.grid
-      [:div.ui.row
-       [:div.ui.column
-        [user-options-box]]
-       [:div.ui.column
-        [user-dev-tools-box]]]]
-     ;;     [StripeCardInfo]
-     [Plans]
-     ]))
+      [:div.column [user-options-box]]
+      [:div.column [user-dev-tools-box]]]]))
