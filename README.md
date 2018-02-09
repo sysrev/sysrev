@@ -336,7 +336,7 @@ false
           [SearchResult state]]]))))
 ```
 
-1. If a new namespace was created, add it to sysrev.views.main
+1. If a new namespace was created, **add it to sysrev.views.main**
 
 1. Add a method to panel-content so that the :set-active-panel event
    can be dispatched in routes.cljs (below)

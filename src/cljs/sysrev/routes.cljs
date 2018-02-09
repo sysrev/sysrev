@@ -211,6 +211,11 @@
             "/pubmed-search"]))
 
 (sr-defroute
+ plans "/plans" []
+ (dispatch [:set-active-panel [:plans]
+            "/plans"]))
+
+(sr-defroute
  user-settings "/user/settings" []
  (dispatch [:set-active-panel [:user-settings]
             "/user/settings"]))
@@ -273,6 +278,9 @@
         [[:pubmed-search]
          "/pubmed-search"]
 
+        [[:plans]
+         "/plans"]
+        
         [[:user-settings]
          "/user/settings"]]
        (reduce (fn [db [prefix uri]]
