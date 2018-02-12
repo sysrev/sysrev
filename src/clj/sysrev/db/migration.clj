@@ -262,7 +262,7 @@
   []
   (let [plans (->> (stripe/get-plans)
                    :data
-                   (mapv #(select-keys % [:name :amount :product])))]
+                   (mapv #(select-keys % [:name :amount :product :created])))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :product)

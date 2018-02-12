@@ -4,10 +4,9 @@
             [sysrev.db.core :refer [do-query do-execute]]))
 
 (defn add-user-to-plan!
-  "Add user to plan in the db. Assumes the user has already been added to plan on Stripe"
-  [user name]
-  (let [{:keys [user-id]} user
-        product (-> (select :product)
+  "Add user-id to plan with name at time created with subscription id sub-id"
+  [{:keys [user-id name created sub-id]}]
+  (let [product (-> (select :product)
                     (from :stripe-plan)
                     (where [:= :name name])
                     do-query
@@ -15,7 +14,9 @@
                     :product)]
     (-> (insert-into :plan-user)
         (values [{:user-id user-id
-                  :product product}])
+                  :product product
+                  :created created
+                  :sub-id sub-id}])
         do-execute)))
 
 (defn get-user-plan

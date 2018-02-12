@@ -29,6 +29,12 @@
     (customers/email email)
     (common/description (str "SysRev UUID: " uuid)))))
 
+(defn get-customer
+  "Get customer associated with stripe customer id"
+  [stripe-customer-id]
+  (execute-action
+   (customers/get-customer stripe-customer-id)))
+
 (defn update-customer-card!
   "Update a stripe customer with a stripe-token returned by stripe.js"
   [stripe-customer-id stripe-token]
@@ -61,15 +67,20 @@
 (defn subscribe-customer!
   "Subscribe SysRev user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
   [user plan-name]
-  (let [stripe-response (execute-action (subscriptions/subscribe-customer
-                                         (common/plan (get-plan-id plan-name))
-                                         (common/customer (:stripe-id user))
-                                         (subscriptions/do-not-prorate)))]
-    (db-plans/add-user-to-plan! user plan-name)
+  (let [{:keys [created id] :as stripe-response}
+        (execute-action (subscriptions/subscribe-customer
+                         (common/plan (get-plan-id plan-name))
+                         (common/customer (:stripe-id user))
+                         (subscriptions/do-not-prorate)))]
+    (db-plans/add-user-to-plan! {:user-id (:user-id user)
+                                 :name plan-name
+                                 :created created
+                                 :sub-id id})
     stripe-response))
 
 (defn unsubscribe-customer!
   "Unsubscribe a customer. This just removes user from all plans"
   [stripe-customer-id]
+  ;; need to remove the user from plan_user table!!!
   (execute-action (subscriptions/unsubscribe-customer
                    (common/customer stripe-customer-id))))
