@@ -1,8 +1,12 @@
-(ns sysrev.payments
+(ns sysrev.stripe
   (:require [cljsjs.react-stripe-elements]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch]]
             [sysrev.action.core :refer [def-action]]))
+
+(def default-state {:error-message nil})
+
+(def state (r/atom default-state))
 
 (def stripe-public-key
   (-> (.getElementById js/document "stripe-public-key")
@@ -29,7 +33,10 @@
              {:token token})
   :process (fn [_ _ {:keys [success] :as result}]
              (if success
-               (.log js/console "token uplaoded"))))
+               ;; don't need to ask for a card anymore
+               (dispatch [:plans/set-need-card? false])
+               ;; there was an error message processing the card
+               (reset! (r/cursor state [:error-message]) (get-in result [:error :message])))))
 
 (def StripeForm
   (r/adapt-react-class
@@ -52,7 +59,7 @@
                           [CardCVCElement {:style element-style}]]
                          [:label "Postal code"
                           [PostalCodeElement {:style element-style}]]
-                         [:button.ui.primary.button "Pay"]])})))))
+                         [:button.ui.primary.button "Use Card"]])})))))
 
 (defn StripeCardInfo
   []

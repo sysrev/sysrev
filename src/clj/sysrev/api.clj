@@ -275,8 +275,9 @@
   (let [stripe-response (stripe/update-customer-card!
                          user
                          token)]
-    (log/info stripe-response)
-    stripe-response))
+    (if (:error stripe-response)
+      stripe-response
+      {:success true})))
 
 (defn plans
   "Get available plans"

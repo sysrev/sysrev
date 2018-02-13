@@ -1,18 +1,26 @@
 (ns sysrev.views.panels.plans
   (:require [reagent.core :as r]
-            [re-frame.core :refer [dispatch subscribe]]
+            [re-frame.core :refer [dispatch subscribe reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.payments :refer [StripeCardInfo]]
+            [sysrev.stripe :refer [StripeCardInfo]]
             [sysrev.views.base :refer [panel-content]]))
 
 (def default-state {:plans nil
                     :current-plan nil
                     :selected-plan nil
                     :changing-plan? false
+                    :need-card? false
                     :error-message nil})
 
 (def state (r/atom default-state))
+
+(reg-event-fx
+ :plans/set-need-card?
+ [trim-v]
+ (fn [_ [need-card?] _]
+   (reset! (r/cursor state [:need-card?]) need-card?)
+   {}))
 
 (def-data :plans
   :loaded? (nil? (:plans @state))
@@ -38,17 +46,14 @@
              (cond (:created result)
                    (do
                      (reset! (r/cursor state [:changing-plan?]) false)
-                     {:dispatch [:fetch [:current-plan]]})
-                   (= (get-in result [:error :type])
-                      "invalid_request_error")
-                   (do (reset! (r/cursor state [:error-message])
-                               "You must enter a payment method before subscribing to this plan")
-                       {:db db})))
+                     (reset! (r/cursor state [:error-messsage]) nil)
+                     {:dispatch [:fetch [:current-plan]]})))
   :on-error (fn [{:keys [db response]} _ _]
               (cond (= (get-in response [:response :error :type])
                        "invalid_request_error")
                     (do (reset! (r/cursor state [:error-message])
                                 "You must enter a payment method before subscribing to this plan")
+                        (reset! (r/cursor state [:need-card?]) true)
                         {:db db}))))
 
 (defn cents->dollars
@@ -106,8 +111,7 @@
                                          (first (filter #(= product
                                                             (:product %))
                                                         @plans)))
-                                 (reset! changing-plan? true)
-                                 (.log js/console @selected-plan)))))}
+                                 (reset! changing-plan? true)))))}
          (if subscribed?
            "Subscribed"
            [:div
@@ -125,7 +129,6 @@
        (when-not (nil? @plans)
          (doall (map-indexed
                  (fn [index plan]
-                   (.log js/console (clj->js plan))
                    ^{:key (:product plan)}
                    [Plan (merge plan
                                 {:color (nth color-vector index)})])
@@ -136,12 +139,15 @@
   (fn [state]
     (let [selected-plan (r/cursor state [:selected-plan])
           changing-plan? (r/cursor state [:changing-plan?])
-          error-message (r/cursor state [:error-message])]
+          error-message (r/cursor state [:error-message])
+          need-card? (r/cursor state [:need-card?])]
       [:div [:h1 (str "You will be charged "
                       "$" (cents->dollars (:amount @selected-plan))
                       " per month and subscribed to the "
                       (:name @selected-plan) " plan.")]
-       [:div {:class "ui button primary"
+       [:div {:class (str "ui button primary "
+                          (when @need-card?
+                            " disabled"))
               :on-click (fn [e]
                           (.preventDefault e)
                           (dispatch [:action [:subscribe-plan (:name @selected-plan)]]))}
@@ -151,15 +157,19 @@
               (fn [e]
                 (.preventDefault e)
                 (reset! selected-plan nil)
-                (reset! changing-plan? false))} "Cancel"]
+                (reset! changing-plan? false)
+                (reset! error-message nil)
+                (reset! need-card? false)
+                )} "Cancel"]
        (when @error-message
          [:div.ui.red.header @error-message])
        [:br]
        [:br]
-       [:div {:class "ui two columns stackable grid"}
-        [:div {:class "column"}
-         [:div {:class "ui segment secondary"}
-          [StripeCardInfo]]]]])))
+       (when @need-card?
+         [:div {:class "ui two columns stackable grid"}
+          [:div {:class "column"}
+           [:div {:class "ui segment secondary"}
+            [StripeCardInfo]]]])])))
 
 (defmethod panel-content [:plans] []
   (fn [child]
