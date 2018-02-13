@@ -19,17 +19,20 @@
                   :sub-id sub-id}])
         do-execute)))
 
-(defn get-user-plan
-  "Get the users current plan"
+(defn get-current-plan
+  "Get the plan for which user is currently subscribed"
   [user]
-  (let [{:keys [user-id]} user
-        product (-> (select :product)
-                    (from :plan-user)
-                    (where [:= :user-id user-id])
-                    do-query first :product)]
-    (-> (select :name)
+  (let [product (->> (-> (select :product :created)
+                         (from :plan-user)
+                         (where [:= :user-id (:user-id user)])
+                         do-query)
+                     (sort-by :created)
+                     reverse
+                     first
+                     :product)]
+    (-> (select :name :product)
         (from :stripe-plan)
         (where [:= :product product])
         do-query
-        first
-        :name)))
+        first)))
+

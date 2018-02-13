@@ -319,12 +319,20 @@
            (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
              {:result {:project {:project-id project-id :name name}}}))))
 
-  (POST "/api/stripe-token" request
+  (POST "/api/payment-method" request
         (let [{:keys [token]} (:body request)]
-          (api/stripe-token token)))
+          (api/add-payment-method (users/get-user-by-id (current-user-id request)) token)))
 
   (GET "/api/plans" request
        (api/plans))
+
+  (GET "/api/current-plan" request
+       (api/get-current-plan (users/get-user-by-id (current-user-id request))))
+
+  (POST "/api/subscribe-plan" request
+        (let [{:keys [plan-name]} (:body request)]
+          (api/subscribe-to-plan (users/get-user-by-id (current-user-id request))
+                                 plan-name)))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

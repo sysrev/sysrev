@@ -24,7 +24,7 @@
                     :invalid {:color "#9e2146"}}) 
 
 (def-action :payments/stripe-token
-  :uri (fn [] "/api/stripe-token")
+  :uri (fn [] "/api/payment-method")
   :content (fn [token]
              {:token token})
   :process (fn [_ _ {:keys [success] :as result}]
@@ -56,7 +56,6 @@
 
 (defn StripeCardInfo
   []
-  [:div.ui.secondary.segment
-   [StripeProvider {:apiKey stripe-public-key}
-    [Elements
-     [StripeForm]]]])
+  [StripeProvider {:apiKey stripe-public-key}
+   [Elements
+    [StripeForm]]])

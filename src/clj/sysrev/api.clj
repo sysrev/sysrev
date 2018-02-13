@@ -4,6 +4,7 @@
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
+            [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
@@ -268,11 +269,14 @@
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
 
-(defn stripe-token
-  "Pass a stripe token"
-  [token]
-  (reset! stripe/token token)
-  {:success true})
+(defn add-payment-method
+  "Using a stripe token, update the payment method for user"
+  [user token]
+  (let [stripe-response (stripe/update-customer-card!
+                         user
+                         token)]
+    (log/info stripe-response)
+    stripe-response))
 
 (defn plans
   "Get available plans"
@@ -281,6 +285,23 @@
             :plans (->> (stripe/get-plans)
                         :data
                         (mapv #(select-keys % [:name :amount :product])))}})
+
+(defn get-current-plan
+  "Get the plan for user-id"
+  [user]
+  {:result {:success true
+            :plan (plans/get-current-plan user)}})
+
+(defn subscribe-to-plan
+  "Subscribe user to plan-name"
+  [user plan-name]
+  (let [stripe-response (stripe/subscribe-customer! user plan-name)]
+    (if (:error stripe-response)
+      (assoc stripe-response
+             :error
+             (merge (:error stripe-response)
+                    {:status not-found}))
+      stripe-response)))
 
 (defn test-response
   "Server Sanity Check"

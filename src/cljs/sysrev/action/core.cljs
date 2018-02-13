@@ -13,7 +13,7 @@
 
 (defn def-action
   "Creates definition for a server request action."
-  [name & {:keys [uri method content process content-type] :as fields}]
+  [name & {:keys [uri method content process content-type on-error] :as fields}]
   (swap! action-defs assoc name fields))
 
 ;;
@@ -120,4 +120,14 @@
  ::on-failure
  (fn [cofx [[name args] result]]
    (let [item (vec (concat [name] args))]
-     {::returned item})))
+     (merge
+      {::returned item}
+      (when-let [entry (get @action-defs name)]
+        (when-let [process (:on-error entry)]
+          (apply process [cofx args result])))))))
+
+#_(reg-event-ajax-fx
+   ::on-failure
+   (fn [cofx [[name args] result]]
+     (let [item (vec (concat [name] args))]
+       {::returned item})))

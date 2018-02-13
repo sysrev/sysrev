@@ -30,7 +30,7 @@
                :subscriptions :data first :items :data first :plan :name)))
     ;; do we think the user is subscribed to a basic plan?
     (is (= api/default-plan
-           (plans/get-user-plan (users/get-user-by-email email))))
+           (:name (plans/get-current-plan (users/get-user-by-email email)))))
     ;; clean up
     (let [user (users/get-user-by-email email)]
       (users/delete-user (:user-id user))

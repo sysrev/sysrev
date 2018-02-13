@@ -8,8 +8,6 @@
             [environ.core :refer [env]]
             [sysrev.db.plans :as db-plans]))
 
-(def token (atom nil))
-
 (def stripe-secret-key (or (System/getProperty "STRIPE_SECRET_KEY")
                            (env :stripe-secret-key)))
 
@@ -31,16 +29,16 @@
 
 (defn get-customer
   "Get customer associated with stripe customer id"
-  [stripe-customer-id]
+  [user]
   (execute-action
-   (customers/get-customer stripe-customer-id)))
+   (customers/get-customer (:stripe-id user))))
 
 (defn update-customer-card!
   "Update a stripe customer with a stripe-token returned by stripe.js"
-  [stripe-customer-id stripe-token]
+  [user stripe-token]
   (execute-action
    (customers/update-customer
-    stripe-customer-id
+    (:stripe-id user)
     (common/card (get-in stripe-token ["token" "id"])))))
 
 (defn delete-customer-card!
@@ -64,6 +62,10 @@
    (filter #(= (:name %) plan-name) (:data (get-plans)))
    first :id))
 
+
+;; prorating does occur, but only on renewal day (e.g. day payment is due)
+;; it is not prorated at the time of upgrade/downgrade
+;; https://stripe.com/docs/subscriptions/upgrading-downgrading
 (defn subscribe-customer!
   "Subscribe SysRev user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
   [user plan-name]
@@ -72,15 +74,18 @@
                          (common/plan (get-plan-id plan-name))
                          (common/customer (:stripe-id user))
                          (subscriptions/do-not-prorate)))]
-    (db-plans/add-user-to-plan! {:user-id (:user-id user)
-                                 :name plan-name
-                                 :created created
-                                 :sub-id id})
-    stripe-response))
+    (cond (:error stripe-response)
+          stripe-response
+          created
+          (do (db-plans/add-user-to-plan! {:user-id (:user-id user)
+                                           :name plan-name
+                                           :created created
+                                           :sub-id id})
+              stripe-response))))
 
 (defn unsubscribe-customer!
-  "Unsubscribe a customer. This just removes user from all plans"
-  [stripe-customer-id]
+  "Unsubscribe a user. This just removes user from all plans"
+  [user]
   ;; need to remove the user from plan_user table!!!
   (execute-action (subscriptions/unsubscribe-customer
-                   (common/customer stripe-customer-id))))
+                   (common/customer (:stripe-id user)))))
