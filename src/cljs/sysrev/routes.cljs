@@ -216,6 +216,11 @@
             "/plans"]))
 
 (sr-defroute
+ payment "/payment" []
+ (dispatch [:set-active-panel [:payment]
+            "/payment"]))
+
+(sr-defroute
  user-settings "/user/settings" []
  (dispatch [:set-active-panel [:user-settings]
             "/user/settings"]))
@@ -280,6 +285,9 @@
 
         [[:plans]
          "/plans"]
+
+        [[:payment]
+         "/payment"]
         
         [[:user-settings]
          "/user/settings"]]

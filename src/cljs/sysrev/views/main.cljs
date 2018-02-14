@@ -8,6 +8,7 @@
    [sysrev.views.panels.create-project]
    [sysrev.views.panels.login :refer [login-register-panel]]
    [sysrev.views.panels.password-reset]
+   [sysrev.views.panels.payment]
    [sysrev.views.panels.pubmed]
    [sysrev.views.panels.plans]
    [sysrev.views.panels.select-project]

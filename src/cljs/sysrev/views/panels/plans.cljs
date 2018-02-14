@@ -11,6 +11,7 @@
                     :selected-plan nil
                     :changing-plan? false
                     :need-card? false
+                    :updating-card? false
                     :error-message nil})
 
 (def state (r/atom default-state))
@@ -21,6 +22,19 @@
  (fn [_ [need-card?] _]
    (reset! (r/cursor state [:need-card?]) need-card?)
    {}))
+
+(reg-event-fx
+ :plans/set-updating-card?
+ [trim-v]
+ (fn [_ [updating-card?] _]
+   (reset! (r/cursor state [:updating-card?]) updating-card?)
+   {}))
+
+(reg-event-fx
+ :plans/clear-error-message!
+ [trim-v]
+ (fn [_ _ _]
+   (reset! (r/cursor state [:error-message]) nil)))
 
 (def-data :plans
   :loaded? (nil? (:plans @state))
@@ -51,10 +65,13 @@
   :on-error (fn [{:keys [db response]} _ _]
               (cond (= (get-in response [:response :error :type])
                        "invalid_request_error")
-                    (do (reset! (r/cursor state [:error-message])
-                                "You must enter a payment method before subscribing to this plan")
-                        (reset! (r/cursor state [:need-card?]) true)
-                        {:db db}))))
+                    (reset! (r/cursor state [:error-message])
+                            "You must enter a valid payment method before subscribing to this plan")
+                    :else
+                    (reset! (r/cursor state [:error-message])
+                            (get-in response [:response :error :message])))
+              (reset! (r/cursor state [:need-card?]) true)
+              {:db db}))
 
 (defn cents->dollars
   "Converts an integer value of cents to dollars"
@@ -134,6 +151,16 @@
                                 {:color (nth color-vector index)})])
                  (sort-by :amount @plans))))])))
 
+(defn UpdatePaymentButton
+  []
+  (fn []
+    [:div {:class "ui button primary"
+           :on-click (fn [e]
+                       (.preventDefault e)
+                       (dispatch [:payment/set-calling-route! [:plans]])
+                       (dispatch [:navigate [:payment]]))}
+     "Update Payment Information"]))
+
 (defn ChangePlan
   []
   (fn [state]
@@ -150,7 +177,8 @@
                             " disabled"))
               :on-click (fn [e]
                           (.preventDefault e)
-                          (dispatch [:action [:subscribe-plan (:name @selected-plan)]]))}
+                          (dispatch [:action [:subscribe-plan (:name @selected-plan)]])
+                          (dispatch [:stripe/reset-error-message!]))}
         "Subscribe"]
        [:div {:class "ui button"
               :on-click
@@ -166,17 +194,20 @@
        [:br]
        [:br]
        (when @need-card?
-         [:div {:class "ui two columns stackable grid"}
-          [:div {:class "column"}
-           [:div {:class "ui segment secondary"}
-            [StripeCardInfo]]]])])))
+         [UpdatePaymentButton])])))
 
 (defmethod panel-content [:plans] []
   (fn [child]
-    (let [changing-plan? (r/cursor state [:changing-plan?])]
+    (let [changing-plan? (r/cursor state [:changing-plan?])
+          updating-card? (r/cursor state [:updating-card?])
+          need-card? (r/cursor state [:need-card?])]
       (dispatch [:fetch [:plans]])
       (dispatch [:fetch [:current-plan]])
       [:div.ui.segment
+       (when-not @changing-plan?
+         [UpdatePaymentButton])
+       [:br]
+       [:br]
        (when @changing-plan?
          [ChangePlan state])
        (when-not @changing-plan?
