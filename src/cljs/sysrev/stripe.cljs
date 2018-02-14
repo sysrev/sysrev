@@ -71,8 +71,6 @@
                               element-on-change (fn [e]
                                                   (let [e (js->clj e :keywordize-keys true)
                                                         error (:error e)]
-                                                    (.log js/console "element: " (:elementType e))
-                                                    (.log js/console "e: " e)
                                                     ;; keeping the state for each element in the state atom
                                                     (swap! (r/state-atom this)
                                                            assoc (keyword (:elementType e))
@@ -82,13 +80,13 @@
                                         ;; so this should be true only when there are errors
                                         (not (every? nil? (vals @(r/state-atom this)))))]
                           [:form {:on-submit (fn [e]
-                                               (.log js/console e)
                                                (.preventDefault e)
                                                ;; make sure there aren't any errors
                                                (when-not (errors?)
                                                  (.then (this.props.stripe.createToken)
                                                         (fn [payload]
-                                                          (dispatch [:action [:payments/stripe-token payload]])))))
+                                                          (when-not (:error (js->clj payload :keywordize-keys true))
+                                                            (dispatch [:action [:payments/stripe-token payload]]))))))
                                   :class "StripeForm"}
                            ;; In the case where the form elements themselves catch errors, they are
                            ;; displayed below the input. Errors returned from the server are shown below the submit button
@@ -105,6 +103,13 @@
                            [:label "CVC"
                             [CardCVCElement {:style element-style
                                              :on-change element-on-change}]]
+                           ;; this might not ever even generate an error, included here
+                           ;; for consistency
+                           [:div {:class "ui red header"}
+                            @(r/cursor (r/state-atom this) [:cardCvc :message])]
+                           ;; unexplained behavior: Why do you need a minimum of
+                           ;; 6 digits to be entered in the cardNumber input for
+                           ;; in order for this to start checking input?
                            [:label "Postal code"
                             [PostalCodeElement {:style element-style
                                                 :on-change element-on-change}]]
