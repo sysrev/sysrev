@@ -11,4 +11,6 @@
             sysrev.test.browser.simple
             sysrev.test.browser.create-project
             sysrev.test.browser.plans
+            sysrev.test.stripe
+            sysrev.test.web.routes.api.handlers
             sysrev.test.web.routes.project))

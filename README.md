@@ -6,6 +6,7 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
 * [Database Connection](#markdown-header-database-connection)
 * [Dev Environment](#markdown-header-dev-environment)
 * [IDE Setup](#markdown-header-ide-setup)
+* [Testing](#markdown-header-testing)
 * [Config Files](#markdown-header-config-files)
 * [Project Structure](#markdown-header-project-structure)
 * [Server Project](#markdown-header-server-project)
@@ -380,6 +381,12 @@ false
 <!-- 1. Define data retrieval and handling in 'data/definitions.cljs' -->
 
 <!-- 1. Create or modify a reagent component in 'views/' -->
+
+## Testing
+
+Testing is done both locally and on our Jenkins continuous deployment server at builds.insilica.co. 
+If a new test namespace is created, it should be added to the sysrev.test.all in order for it to be 
+picked up by the Jenkins test server.
 
 ## Config Files
 
