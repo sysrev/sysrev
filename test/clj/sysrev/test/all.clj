@@ -10,4 +10,5 @@
             sysrev.test.browser.core
             sysrev.test.browser.simple
             sysrev.test.browser.create-project
+            sysrev.test.browser.plans
             sysrev.test.web.routes.project))
