@@ -449,7 +449,7 @@
 (defn select-latest-predict-run [fields]
   (-> (apply select fields)
       (from [:predict-run :pr])
-      (order-by [:pr.create-time (sql/raw "DESC")])
+      (order-by [:pr.create-time :desc])
       (limit 1)))
 
 (defn project-latest-predict-run-id
