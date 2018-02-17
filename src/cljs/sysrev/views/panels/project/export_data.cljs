@@ -14,16 +14,23 @@
         [:div.row
          [:div.column
           [:div.ui.segment
-           [:h5.ui.dividing.header
-            (doall
-             (with-ui-help-tooltip
-               [:span
-                "Export project data "
-                [ui-help-icon]]
-               :help-content
-               ["Download JSON-format export of articles and labels"]))]
+           [:h4.ui.dividing.header
+            "Export User Answers (CSV)"]
+           [:h5 "Download CSV file of all user answers and notes"]
            [:div.ui.fluid.left.labeled.button
-            [:div.ui.fluid.label "v1.0.1 JSON"]
+            [:div.ui.fluid.label "User Answers"]
+            [:a.ui.fluid.primary.button
+             {:href "/api/export-answers-csv"
+              :target "_blank"
+              :download (str "sr_answers_" project-id "_" (today-string) ".csv")}
+             "Download"]]]]
+         [:div.column
+          [:div.ui.segment
+           [:h4.ui.dividing.header
+            "Export Project Data (JSON)"]
+           [:h5 "Download raw dump of project data in internal custom format"]
+           [:div.ui.fluid.left.labeled.button
+            [:div.ui.fluid.label "Project Data"]
             [:a.ui.fluid.primary.button
              {:href "/api/export-project"
               :target "_blank"

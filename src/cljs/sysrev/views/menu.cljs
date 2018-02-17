@@ -51,10 +51,12 @@
                    :on-click #(dispatch [:action [:auth/log-out]])}
           (if mobile?
             "Log Out"
-            [:span "Log Out" nbsp nbsp [:i.fitted.sign.out.icon]])]
+            [:span "Log Out" ;; nbsp nbsp [:i.fitted.sign.out.icon]
+             ])]
          [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          [:a.item.distinct {:id "log-in-link"
                             :on-click #(dispatch [:navigate [:login]])}
-          [:span "Log In" nbsp nbsp [:i.fitted.sign.in.icon]]]
+          [:span "Log In" ;; nbsp nbsp [:i.fitted.sign.in.icon]
+           ]]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))
