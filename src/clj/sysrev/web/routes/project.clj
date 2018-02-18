@@ -283,24 +283,35 @@
               data (slurp-bytes (:filestream file-data))]
           (response/response (ByteArrayInputStream. data)))))
 
-  (GET "/api/export-project" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [project-id (active-project request)
-              data (json/write-str (export/export-project project-id))]
-          (-> (response/response data)
-              (response/header "Content-Type"
-                               "application/json; charset=utf-8")))))
+  ;; TODO: fix permissions without breaking download on Safari
+  (GET "/api/export-project/:project-id/:filename" request
+       (let [filename (-> request :params :filename)
+             project-id (-> request :params :project-id Integer/parseInt)
+             ;; project-id (active-project request)
+             data (json/write-str (export/export-project project-id))]
+         (-> (response/response data)
+             (response/header
+              "Content-Type"
+              "application/json; charset=utf-8")
+             (response/header
+              "Content-Disposition"
+              (format "attachment; filename=\"%s\""
+                      filename)))))
 
-  (GET "/api/export-answers-csv" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [project-id (active-project request)
-              data (->> (export/export-project-answers project-id)
-                        (csv/write-csv))]
-          (-> (response/response data)
-              (response/header "Content-Type"
-                               "text/csv; charset=utf-8")))))
+  ;; TODO: fix permissions without breaking download on Safari
+  (GET "/api/export-answers-csv/:project-id/:filename" request
+       (let [filename (-> request :params :filename)
+             project-id (-> request :params :project-id Integer/parseInt)
+             ;; project-id (active-project request)
+             data (->> (export/export-project-answers project-id)
+                       (csv/write-csv))]
+         (-> (response/response data)
+             (response/header "Content-Type"
+                              "text/csv; charset=utf-8")
+             (response/header
+              "Content-Disposition"
+              (format "attachment; filename=\"%s\""
+                      filename)))))
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions
