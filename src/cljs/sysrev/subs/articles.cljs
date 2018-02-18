@@ -119,7 +119,10 @@
    [(subscribe [::urls article-id])
     (subscribe [:article/locations article-id])])
  (fn [[urls locations]]
-   (concat urls (article-location-urls locations))))
+   (->> (concat urls (article-location-urls locations))
+        (filter #(or (re-matches #"^http://.*" %)
+                     (re-matches #"^https://.*" %)
+                     (re-matches #"^ftp://.*" %))))))
 
 (defn article-labels [db article-id & [user-id label-id]]
   (when-let [labels (get-in db [:data :articles article-id :labels])]
