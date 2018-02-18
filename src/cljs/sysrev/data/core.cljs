@@ -182,7 +182,7 @@
    (let [[name & args] item
          entry (get @data-defs name)
          elapsed-millis (- (js/Date.now) @last-fetch-millis)]
-     (when entry
+     (when (and entry (not (item-loading? db item)))
        (cond (< elapsed-millis 25)
              (do (js/setTimeout #(dispatch [:fetch item])
                                 (- 30 elapsed-millis))
@@ -192,23 +192,22 @@
                                 50)
                  {})
              :else
-             (when-not (item-loading? db item)
+             (let [uri (apply (:uri entry) args)
+                   content (some-> (:content entry) (apply args))
+                   content-type (or (:content-type entry)
+                                    "application/transit+json")]
                (reset! last-fetch-millis (js/Date.now))
-               (let [uri (apply (:uri entry) args)
-                     content (some-> (:content entry) (apply args))
-                     content-type (or (:content-type entry)
-                                      "application/transit+json")]
-                 (merge
-                  {::sent item}
-                  (run-ajax
-                   (cond->
-                       {:db db
-                        :method :get
-                        :uri uri
-                        :on-success [::on-success [name args]]
-                        :on-failure [::on-failure [name args]]
-                        :content-type content-type}
-                     content (assoc :content content)))))))))))
+               (merge
+                {::sent item}
+                (run-ajax
+                 (cond->
+                     {:db db
+                      :method :get
+                      :uri uri
+                      :on-success [::on-success [name args]]
+                      :on-failure [::on-failure [name args]]
+                      :content-type content-type}
+                   content (assoc :content content))))))))))
 
 (reg-event-ajax-fx
  ::on-success
