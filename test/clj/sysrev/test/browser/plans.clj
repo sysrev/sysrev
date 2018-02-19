@@ -5,7 +5,7 @@
             [sysrev.api :as api]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
-            [sysrev.test.core :refer [default-fixture]]
+            [sysrev.test.core :refer [default-fixture wait-until]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.stripe :as stripe]))
@@ -49,6 +49,7 @@
   (let [email "foo@bar.com"
         password "foobar"]
     (navigate/register-user email password)
+    (browser/wait-until-loading-completes)
     ;; after registering, does the stripe customer exist?
     (is (= email
            (:email (stripe/execute-action
@@ -66,7 +67,9 @@
     ;; clean up
     (let [user (users/get-user-by-email email)]
       (users/delete-user (:user-id user))
-      (is (:deleted (stripe/delete-customer! user))))))
+      (is (:deleted (stripe/delete-customer! user)))
+      ;; make sure this has occurred for the next test
+      (wait-until #(nil? (users/get-user-by-email email))))))
 
 ;; elements
 (def basic-plan-div {:xpath "//span[contains(text(),'Basic')]/ancestor::div[contains(@class,'plan')]"})
@@ -108,6 +111,7 @@
   (let [email "foo@bar.com"
         password "foobar"]
     (navigate/register-user email password)
+    (browser/wait-until-loading-completes)
     ;; after registering, does the stripe customer exist?
     (is (= email
            (:email (stripe/execute-action
@@ -140,8 +144,9 @@
     (taxi/click update-payment-button)
     ;; wait until a card number is available for input
     (browser/wait-until-exists (label-input "Card Number"))
-
     ;; just try to 'Use Card', do we have all the error messages we would expect?
+    ;; let's just wait five seconds for everything to load
+    (Thread/sleep 5000)
     (taxi/click use-card-button)
     (browser/wait-until-exists (error-msg-xpath incomplete-card-number-error))
     ;; incomplete fields are shown
@@ -273,4 +278,6 @@
     ;; clean up
     (let [user (users/get-user-by-email email)]
       (users/delete-user (:user-id user))
-      (is (:deleted (stripe/delete-customer! user))))))
+      (is (:deleted (stripe/delete-customer! user)))
+      ;; make sure this has occurred for the next test
+      (wait-until #(nil? (users/get-user-by-email email))))))

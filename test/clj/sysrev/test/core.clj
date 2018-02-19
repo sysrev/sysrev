@@ -1,6 +1,7 @@
 (ns sysrev.test.core
   (:import [java.util UUID])
   (:require [amazonica.aws.s3 :as s3]
+            [clj-time.core :as time]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
@@ -90,3 +91,27 @@
       (s3/create-bucket bucket-name)
       (test)
       (s3/delete-bucket bucket-name))))
+
+;; wait-until macro modified from
+;; https://gist.github.com/kornysietsma/df45bbea3196adb5821b
+
+(def default-timeout (time/seconds 5))
+(def default-wait-delay-ms 10)
+
+(defn wait-until*
+  ([name pred] (wait-until* name pred default-timeout))
+  ([name pred timeout]
+   (let [die (time/plus (time/now) timeout)]
+     (loop []
+       (if-let [result (pred)]
+         result
+         (do
+           (Thread/sleep default-wait-delay-ms)
+           (if (time/after? (time/now) die)
+             (throw (Exception. (str "timed out waiting for: " name)))
+             (recur))))))))
+
+(defmacro wait-until
+  "wait until pred has become true with optional :timeout"
+  [pred]
+  `(wait-until* ~(pr-str pred) ~pred))
