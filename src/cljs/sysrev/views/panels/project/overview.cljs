@@ -79,7 +79,8 @@
      [:div.ui.segment
       [:h4.ui.dividing.header
        "Review Status"]
-      (with-loader [[:project]] {:dimmer :fixed}
+      (with-loader [[:project]] {:dimmer :fixed
+                                 :require false}
         [:div
          [:h4.ui.center.aligned.header
           (str reviewed " articles reviewed of " total " total")]
@@ -204,7 +205,8 @@
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
         "Member Activity"]]]
-     (with-loader [[:project]] {:dimmer :fixed}
+     (with-loader [[:project]] {:dimmer :fixed
+                                :require false}
        [chart-container
         bar-chart (str (+ 35 (* 15 (count visible-user-ids))) "px")
         user-names ynames yss
@@ -259,7 +261,8 @@
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
         "Recent Progress"]]]
-     (with-loader [[:project]] {:dimmer :fixed}
+     (with-loader [[:project]] {:dimmer :fixed
+                                :require false}
        [chart-container
         make-chart nil
         (->> progress (mapv :completed)

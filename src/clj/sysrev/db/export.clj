@@ -7,6 +7,8 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [sysrev.db.core :refer [do-query]]
    [sysrev.db.queries :as q]
+   [sysrev.db.labels :as labels]
+   [sysrev.db.project :as project]
    [sysrev.shared.util :refer [map-values in?]]))
 
 (defn export-project [project-id]
@@ -88,3 +90,77 @@
      :project-labels (->> ldefs-map vals (sort-by :label-id <))
      :users users
      :version "1.0.1"}))
+
+(defn export-project-answers [project-id]
+  (let [all-articles (-> (q/select-project-articles
+                          project-id [:a.article-id
+                                      :a.primary-title
+                                      :a.secondary-title
+                                      :a.authors])
+                         (->> do-query
+                              (group-by :article-id)
+                              (map-values first)))
+        all-labels (-> (q/select-label-where
+                        project-id true
+                        [:label-id :short-label])
+                       (order-by :label-id)
+                       (->> do-query))
+        user-answers (-> (q/select-project-articles
+                          project-id [:al.article-id
+                                      :al.label-id
+                                      :al.user-id
+                                      :al.answer
+                                      :al.resolve
+                                      :al.updated-time
+                                      :u.email])
+                         (q/join-article-labels)
+                         (q/filter-valid-article-label true)
+                         (q/join-article-label-defs)
+                         (q/join-users :al.user-id)
+                         (->> do-query
+                              (group-by #(vector (:article-id %) (:user-id %)))
+                              vec
+                              (sort-by first)
+                              (mapv second)))
+        user-notes (-> (q/select-project-articles
+                        project-id [:anote.article-id
+                                    :anote.user-id
+                                    :anote.content])
+                       (merge-join [:article-note :anote]
+                                   [:= :anote.article-id :a.article-id])
+                       (->> do-query
+                            (group-by #(vector (:article-id %) (:user-id %)))
+                            (map-values first)))]
+    (concat
+     [(concat ["Article ID" "User Name" "Resolve?"]
+              (map :short-label all-labels)
+              ["User Note" "Title" "Journal" "Authors"])]
+     (->> user-answers
+          (mapv
+           (fn [user-article]
+             (let [{:keys [article-id user-id email]}
+                   (first user-article)
+
+                   resolve? (some :resolve user-article)
+
+                   user-name (first (str/split email #"@"))
+                   user-note (:content (get user-notes [article-id user-id]))
+
+                   {:keys [primary-title secondary-title authors]}
+                   (get all-articles article-id)
+
+                   label-answers
+                   (->> all-labels
+                        (map :label-id)
+                        (map (fn [label-id]
+                               (->> user-article
+                                    (filter #(= (:label-id %) label-id))
+                                    first :answer))))]
+               (->> (concat
+                     [article-id user-name (if (true? resolve?)
+                                             true nil)]
+                     label-answers
+                     [user-note primary-title secondary-title authors])
+                    (mapv #(cond (or (nil? %) (and (coll? %) (empty? %))) ""
+                                 (sequential? %) (->> % (map str) (str/join ", "))
+                                 :else (str %)))))))))))

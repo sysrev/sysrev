@@ -14,6 +14,14 @@
     -webkit-touch-callout: auto;
 }
 
+.select-text {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: auto;
+}
+
 .ui.popup.tooltip {
     .noselect;
 }
@@ -116,6 +124,10 @@ div#project-sources div.source-description,
 div#project-sources div.source-description div,
 div#project-sources div.source-description span {
     .noselect;
+}
+
+div#project-sources div.import-label.ui.label {
+    .select-text;
 }
 
 @media only screen and (max-width: 767px) {

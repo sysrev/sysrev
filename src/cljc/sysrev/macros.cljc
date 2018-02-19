@@ -29,12 +29,14 @@
          dimmer# (:dimmer options#)
          min-height# (:min-height options#)
          class# (:class options#)
+         require# (get options# :require true)
          loading# (some #(deref (subscribe [:loading? %])) reqs#)
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
          content-form# ~content-form
          dimmer-active# (and dimmer# (or loading# (and class# (not have-data#))))]
-     (doseq [item# reqs#]
-       (dispatch [:require item#]))
+     (when require#
+       (doseq [item# reqs#]
+         (dispatch [:require item#])))
      [:div {:style (when (and (not have-data#) min-height#)
                      {:min-height min-height#})
             :class (cond class# class#

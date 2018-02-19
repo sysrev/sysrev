@@ -9,7 +9,7 @@
    [sysrev.db.project :as project :refer
     [project-labels project-member project-article-count project-keywords
      project-notes project-settings]]
-   [sysrev.db.export :refer [export-project]]
+   [sysrev.db.export :as export]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
@@ -31,7 +31,8 @@
    [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
    [compojure.core :refer :all]
    [ring.util.response :as response]
-   [clojure.data.json :as json])
+   [clojure.data.json :as json]
+   [clojure-csv.core :as csv])
   (:import [java.util UUID]
            [java.io InputStream]
            [java.io ByteArrayInputStream]
@@ -282,18 +283,39 @@
               data (slurp-bytes (:filestream file-data))]
           (response/response (ByteArrayInputStream. data)))))
 
-  (GET "/api/export-project" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [project-id (active-project request)
-              data (json/write-str (export-project project-id))]
-          (-> (response/response data)
-              (response/header "Content-Type"
-                               "application/json; charset=utf-8")))))
+  ;; TODO: fix permissions without breaking download on Safari
+  (GET "/api/export-project/:project-id/:filename" request
+       (let [filename (-> request :params :filename)
+             project-id (-> request :params :project-id Integer/parseInt)
+             ;; project-id (active-project request)
+             data (json/write-str (export/export-project project-id))]
+         (-> (response/response data)
+             (response/header
+              "Content-Type"
+              "application/json; charset=utf-8")
+             (response/header
+              "Content-Disposition"
+              (format "attachment; filename=\"%s\""
+                      filename)))))
+
+  ;; TODO: fix permissions without breaking download on Safari
+  (GET "/api/export-answers-csv/:project-id/:filename" request
+       (let [filename (-> request :params :filename)
+             project-id (-> request :params :project-id Integer/parseInt)
+             ;; project-id (active-project request)
+             data (->> (export/export-project-answers project-id)
+                       (csv/write-csv))]
+         (-> (response/response data)
+             (response/header "Content-Type"
+                              "text/csv; charset=utf-8")
+             (response/header
+              "Content-Disposition"
+              (format "attachment; filename=\"%s\""
+                      filename)))))
 
   (POST "/api/files/delete/:key" request
         (wrap-permissions
-                                        ;TODO: This should be file owner or admin?
+         ;; TODO: This should be file owner or admin?
          request [] ["member"]
          (let [project-id (active-project request)
                key (-> request :params :key)

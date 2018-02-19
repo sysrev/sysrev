@@ -60,6 +60,7 @@
             [clojure.data.xml :as dxml]
             [clojure.string :as str]
             [cognitect.transit :as transit]
+            [clojure-csv.core :as csv]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]

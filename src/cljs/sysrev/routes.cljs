@@ -16,8 +16,8 @@
 
 (defn- go-project-panel [uri]
   (let [panel [:project :project :overview]
-        item [:project]
-        diff-panel (not= panel @(subscribe [:active-panel]))]
+        prev-panel @(subscribe [:active-panel])
+        diff-panel (and prev-panel (not= panel prev-panel))]
     (when diff-panel
       (dispatch [:reload [:project]]))
     (dispatch [:set-active-panel panel uri])))
