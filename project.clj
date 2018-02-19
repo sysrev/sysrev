@@ -88,7 +88,7 @@
                  ;; only provides ext.js for stripe.js
                  [cljsjs/stripe "2.0-0"]
                  ;; stripe provided form components
-                 [cljsjs/react-stripe-elements "1.4.1-0"]
+                 [cljsjs/react-stripe-elements "1.4.1-1"]
                  #_ [cljsjs/semantic-ui "2.2.4-0"]
                  ;; custom build of cljsjs/semantic-ui to use latest version
                  ;; built from ./cljsjs/semantic-ui
