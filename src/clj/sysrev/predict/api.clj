@@ -65,8 +65,10 @@
           ;; _ (println (-> response :body (json/read-str :key-fn keyword)))
           entries
           (->> (-> response :body (json/read-str :key-fn keyword) :articles)
-               (mapv (fn [{:keys [article_id probability]}]
+               (mapv (fn [{:keys [article_id probability prediction]}]
                        {:article-id article_id
-                        :value probability})))]
+                        :value (if (true? prediction)
+                                 probability
+                                 (- 1.0 probability))})))]
       (predict/store-article-predictions
        project-id predict-run-id label-id entries))))
