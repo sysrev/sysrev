@@ -5,13 +5,14 @@
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
-            [sysrev.test.core :refer [default-fixture wait-until]]
+            [sysrev.test.core :refer [default-fixture wait-until delete-user-fixture]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.test.browser.create-project :as create-project]))
 
+(def email "foo@bar.com")
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
-(use-fixtures :each browser/webdriver-fixture-each)
+(use-fixtures :each browser/webdriver-fixture-each (delete-user-fixture email))
 ;; helpful manual testing functions:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
 
@@ -30,7 +31,7 @@
 
 (def include-label-server-name "overall include")
 (def review-articles-button
-  {:xpath "//span[contains(text(),'Review Articles')]"})
+  {:xpath "//span[text()='Review Articles']"})
 (def articles-button
   {:xpath "//span[text()='Articles']"})
 
@@ -102,8 +103,7 @@
   (-> user-id users/user-self-info :projects first :project-id))
 
 (deftest create-project-and-review-article
-  (let [email "foo@bar.com"
-        password "foobar"
+  (let [password "foobar"
         project-name "Foo Bar"
         search-term-first "foo bar"]
     ;; register the user
@@ -168,7 +168,6 @@
                                             baz-label-definition)
 ;;;; review an article
         (browser/wait-until-loading-completes)
-        (wait-until #(taxi/exists? review-articles-button))
         (browser/wait-until-displayed review-articles-button)
         (taxi/click review-articles-button)
         (browser/wait-until-displayed {:xpath (label-div-with-name include-label-name)})
@@ -230,11 +229,4 @@
         ;; cleanup
         (navigate/log-out)
         ;; delete the project in the database
-        (project/delete-project project-id)
-        (let [user (users/get-user-by-email email)]
-          (users/delete-user (:user-id user))
-          (is (:deleted (stripe/delete-customer! user)))
-          ;; make sure this has occurred for the next test
-          (wait-until #(nil? (users/get-user-by-email email)))
-          (is (nil? (users/get-user-by-email email)))
-          )))))
+        (project/delete-project project-id)))))

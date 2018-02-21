@@ -5,13 +5,16 @@
             [sysrev.api :as api]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
-            [sysrev.test.core :refer [default-fixture wait-until]]
+            [sysrev.test.core :refer [default-fixture wait-until delete-user-fixture]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.stripe :as stripe]))
 
+;; this is our test users email for registering
+(def email "foo@bar.com")
+
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
-(use-fixtures :each browser/webdriver-fixture-each)
+(use-fixtures :each browser/webdriver-fixture-each (delete-user-fixture email))
 
 ;; for manual testing purposes, this is handy:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
@@ -46,8 +49,7 @@
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 
 (deftest register-and-check-basic-plan-subscription
-  (let [email "foo@bar.com"
-        password "foobar"]
+  (let [password "foobar"]
     (navigate/register-user email password)
     (browser/wait-until-loading-completes)
     ;; after registering, does the stripe customer exist?
@@ -75,7 +77,7 @@
 (def basic-plan-div {:xpath "//span[contains(text(),'Basic')]/ancestor::div[contains(@class,'plan')]"})
 (def subscribe-button {:xpath "//div[contains(@class,'button') and contains(text(),'Subscribe')]"})
 (def update-payment-button {:xpath "//div[contains(@class,'button') and contains(text(),'Update Payment Information')]"})
-(def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card')]"})
+(def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card') and not(contains(@class,'disabled'))]"})
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
@@ -145,7 +147,7 @@
     ;; wait until a card number is available for input
     (browser/wait-until-exists (label-input "Card Number"))
     ;; just try to 'Use Card', do we have all the error messages we would expect?
-    (wait-until #(taxi/exists? use-card-button))
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-exists (error-msg-xpath incomplete-card-number-error))
     ;; incomplete fields are shown
@@ -168,6 +170,7 @@
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
     (taxi/input-text (label-input "Postal code") "11111")
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath invalid-security-code-error))
     (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
@@ -175,6 +178,7 @@
     ;;  card-declined-cc
     (backspace-clear 20 (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") card-declined-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath card-declined-error))
     (is (taxi/exists? (error-msg-xpath card-declined-error)))
@@ -182,6 +186,7 @@
     ;; incorrect-cvc-cc
     (backspace-clear 20 (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath invalid-security-code-error))
     (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
@@ -189,6 +194,7 @@
     ;; expired-card-cc
     (backspace-clear 20 (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") expired-card-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath card-expired-error))
     (is (taxi/exists? (error-msg-xpath card-expired-error)))
@@ -196,6 +202,7 @@
     ;; processing-error-cc
     (backspace-clear 20 (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") processing-error-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath card-processing-error))
     (is (taxi/exists? (error-msg-xpath card-processing-error)))
@@ -206,6 +213,7 @@
     ;; through
     (backspace-clear 20 (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed subscribe-button)
     (taxi/click subscribe-button)
@@ -220,6 +228,7 @@
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
     (taxi/input-text (label-input "Postal code") "11111")
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     ;; try to subscribe again
     (browser/wait-until-displayed subscribe-button)
@@ -235,6 +244,7 @@
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
     (taxi/input-text (label-input "Postal code") "11111")
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     ;; try to subscribe again
     (browser/wait-until-displayed subscribe-button)
@@ -274,11 +284,4 @@
     (select-plan "Basic")
     (taxi/wait-until #(subscribed-to? "Basic")
                      10000)
-    (is (subscribed-to? "Basic"))
-    ;; clean up
-    (let [user (users/get-user-by-email email)]
-      (users/delete-user (:user-id user))
-      (is (:deleted (stripe/delete-customer! user)))
-      ;; make sure this has occurred for the next test
-      (wait-until #(nil? (users/get-user-by-email email)))
-      (is (nil? (users/get-user-by-email email))))))
+    (is (subscribed-to? "Basic"))))
