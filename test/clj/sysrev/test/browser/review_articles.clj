@@ -168,6 +168,7 @@
                                             baz-label-definition)
 ;;;; review an article
         (browser/wait-until-loading-completes)
+        (browser/go-route "/")
         (browser/wait-until-displayed review-articles-button)
         (taxi/click review-articles-button)
         (browser/wait-until-displayed {:xpath (label-div-with-name include-label-name)})
