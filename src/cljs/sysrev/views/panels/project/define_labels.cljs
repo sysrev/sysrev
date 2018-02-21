@@ -95,6 +95,7 @@
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
           active (active-labels)]
+      (.log js/console (clj->js active))
       [:div.define-labels
        [:div
         (->> active
@@ -104,3 +105,7 @@
        [AddLabelButton]
        [:div.ui.divider]
        [SaveCancelButtons]])))
+
+;; I really like: https://github.com/kevinchappell/formBuilder
+;; https://jsfiddle.net/kevinchappell/ajp60dzk/5/
+;; however, it is a jQuery library =(

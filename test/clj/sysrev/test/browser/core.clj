@@ -7,7 +7,7 @@
             [clj-webdriver.driver :as driver]
             [clj-webdriver.taxi :as taxi]
             [sysrev.config.core :refer [env]]
-            [sysrev.test.core :refer [default-fixture get-selenium-config]]
+            [sysrev.test.core :refer [default-fixture get-selenium-config wait-until]]
             [sysrev.db.users :refer
              [delete-user create-user get-user-by-email]]
             [clojure.string :as str])
@@ -127,18 +127,21 @@
 (defn wait-until-exists
   "Given a query q, wait until the element it represents exists"
   [q]
-  (taxi/wait-until
-   #(taxi/exists? q)
-   10000))
+  #_  (taxi/wait-until
+       #(taxi/exists? q)
+       10000)
+  (wait-until #(taxi/exists? q)))
 
 (defn wait-until-displayed
   "Given a query q, wait until the element it represents exists
   and is displayed"
   [q]
-  (taxi/wait-until
-   #(and (taxi/exists? q)
-         (taxi/displayed? q))
-   10000))
+  ;; (taxi/wait-until
+  ;;  #(and (taxi/exists? q)
+  ;;        (taxi/displayed? q))
+  ;;  10000)
+  (wait-until #(and (taxi/exists? q)
+                    (taxi/displayed? q))))
 
 (defn panel-name
   [panel-keys]

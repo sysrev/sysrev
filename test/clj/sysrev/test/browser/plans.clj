@@ -257,6 +257,7 @@
 ;;; Subscribe to the Premium plan
     (select-plan "Premium")
     ;; Click the subscribe button
+    (wait-until #(taxi/exists? subscribe-button))
     (browser/wait-until-displayed subscribe-button)
     (taxi/click subscribe-button)
     (browser/wait-until-displayed basic-plan-div)

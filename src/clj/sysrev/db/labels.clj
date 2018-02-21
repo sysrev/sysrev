@@ -88,6 +88,8 @@
   `inclusion-value` may be `true` or `false` to set that value as required
   for overall inclusion, or may be `nil` for no inclusion requirement.
 
+  `required` is `true` or `false` to determine if this label must be set for an  article
+
   `custom-category` is optional, unless specified the label category will be
   determined from the value of `inclusion-value`."
   [project-id
@@ -111,6 +113,8 @@
   "Creates an entry for a categorical label definition.
 
   `name` `question` `short-label` are strings describing the label.
+
+  `all-values` are the values from which to choose from
 
   `inclusion-values` should be a sequence of the values that are acceptable
   for inclusion. If `inclusion-values` is empty, answers for this label
@@ -188,12 +192,16 @@
   "Creates an entry for a string label definition. Value is provided by user
   in a text input field.
 
+  `name` `question` `short-label` are strings describing the label.
   `max-length` is a required integer.
   `regex` is an optional vector of strings to require that answers must match
   one of the regex values.
   `entity` is an optional string to identify what the value represents.
   `examples` is an optional list of example strings to indicate to users
   the required format.
+
+  `required` is `true` or `false` to determine if this label must be set for an  article
+
   `multi?` if true allows multiple string values in answer."
   [project-id
    {:keys [name question short-label required custom-category
