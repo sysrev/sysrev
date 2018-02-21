@@ -41,7 +41,7 @@
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments
-                              ["window-size=1200,800"
+                              ["window-size=1920,1080"
                                "headless"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
@@ -127,21 +127,18 @@
 (defn wait-until-exists
   "Given a query q, wait until the element it represents exists"
   [q]
-  #_  (taxi/wait-until
-       #(taxi/exists? q)
-       10000)
-  (wait-until #(taxi/exists? q)))
+  (taxi/wait-until
+   #(taxi/exists? q)
+   10000))
 
 (defn wait-until-displayed
   "Given a query q, wait until the element it represents exists
   and is displayed"
   [q]
-  ;; (taxi/wait-until
-  ;;  #(and (taxi/exists? q)
-  ;;        (taxi/displayed? q))
-  ;;  10000)
-  (wait-until #(and (taxi/exists? q)
-                    (taxi/displayed? q))))
+  (taxi/wait-until
+   #(and (taxi/exists? q)
+         (taxi/displayed? q))
+   10000))
 
 (defn panel-name
   [panel-keys]

@@ -145,8 +145,7 @@
     ;; wait until a card number is available for input
     (browser/wait-until-exists (label-input "Card Number"))
     ;; just try to 'Use Card', do we have all the error messages we would expect?
-    ;; let's just wait five seconds for everything to load
-    (Thread/sleep 5000)
+    (wait-until #(taxi/exists? use-card-button))
     (taxi/click use-card-button)
     (browser/wait-until-exists (error-msg-xpath incomplete-card-number-error))
     ;; incomplete fields are shown
@@ -281,4 +280,5 @@
       (users/delete-user (:user-id user))
       (is (:deleted (stripe/delete-customer! user)))
       ;; make sure this has occurred for the next test
-      (wait-until #(nil? (users/get-user-by-email email))))))
+      (wait-until #(nil? (users/get-user-by-email email)))
+      (is (nil? (users/get-user-by-email email))))))

@@ -3,7 +3,7 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as string]
             [clojure.test :refer :all]
-            [sysrev.test.core :refer [default-fixture]]
+            [sysrev.test.core :refer [default-fixture wait-until]]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :refer [log-in log-out]]))
@@ -289,7 +289,7 @@
     ;; delete the search-term-first source
     (delete-search-term-source search-term-first)
     ;; total sources is zero
-    (taxi/wait-until #(= 0 (count (taxi/find-elements project-source-xpath))))
+    (wait-until #(= 0 (count (taxi/find-elements project-source-xpath))))
     (is (= 0 (count (taxi/find-elements project-source-xpath))))
 
 ;;; clean up
