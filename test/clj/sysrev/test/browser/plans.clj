@@ -17,7 +17,7 @@
 (use-fixtures :each browser/webdriver-fixture-each (delete-user-fixture email))
 
 ;; for manual testing purposes, this is handy:
-;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
+;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
 
 ;; valid number
 (def valid-visa-cc "4242424242424242")
@@ -81,12 +81,13 @@
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
+(def backspace-clear-length 30)
 ;; might be worth it to pull this library in at some point
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
   (doall (repeatedly length
-                     #(taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)))
+                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE))))
   true)
 
 (defn label-input
@@ -165,7 +166,7 @@
     ;; cvc-check-fail-cc
     ;; why so many backspaces? the exact amount needed, 16,
     ;; doesn't consistently clear the fields
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") cvc-check-fail-cc)
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
@@ -176,7 +177,7 @@
     (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
 
     ;;  card-declined-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") card-declined-cc)
     (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
@@ -184,7 +185,7 @@
     (is (taxi/exists? (error-msg-xpath card-declined-error)))
 
     ;; incorrect-cvc-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
     (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
@@ -192,7 +193,7 @@
     (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
 
     ;; expired-card-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") expired-card-cc)
     (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
@@ -200,7 +201,7 @@
     (is (taxi/exists? (error-msg-xpath card-expired-error)))
 
     ;; processing-error-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") processing-error-cc)
     (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
@@ -211,7 +212,7 @@
     ;; in this case, the card is attached to the customer
     ;; but they won't be able to subscribe because the card doesn't go
     ;; through
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
     (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
