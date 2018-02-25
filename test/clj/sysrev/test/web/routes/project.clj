@@ -5,6 +5,7 @@
             [sysrev.db.users :as users]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
+            [sysrev.test.browser.core :refer [test-login create-test-user]]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
             [sysrev.import.pubmed :as pubmed]
             [ring.mock.request :as mock]
@@ -15,11 +16,10 @@
 
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)
-        email "foo@bar.com"
-        password "foobar"
+        {:keys [email password]} test-login
         route-response (route-response-fn handler)]
     ;; create user
-    (users/create-user email password :project-id 100)
+    (create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
@@ -42,12 +42,11 @@
 
 (deftest create-project-test
   (let [handler (sysrev-handler)
-        email "foo@bar.com"
-        password "foobar"
+        {:keys [email password]} test-login
         search-term "foo bar"
         route-response (route-response-fn handler)]
     ;; create user
-    (users/create-user email password :project-id 100)
+    (create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
@@ -73,7 +72,9 @@
       ;; deletion can't happen for a user who isn't part of the project
       (let [non-member-email "non@member.com"
             non-member-password "nonmember"
-            {:keys [user-id]} (users/create-user non-member-email non-member-password)]
+            {:keys [user-id]} (create-test-user
+                               :email non-member-email
+                               :password non-member-password)]
         (route-response :post "/api/auth/login"
                         {:email non-member-email :password non-member-password})
         (is (= "Not authorized (project)"
@@ -94,10 +95,10 @@
 
 (deftest identity-project-response-test
   (let [handler (sysrev-handler)
-        email "foo@bar.com"
-        password "foobar"
+        {:keys [email password]} test-login
         ;; create user
-        {:keys [user-id]} (users/create-user email password)
+        {:keys [user-id]} (create-test-user :project-id nil)
+        _ (users/set-user-permissions user-id ["user"])
         route-response (route-response-fn handler)]
     (is (integer? user-id))
     ;; the projects array in identity is empty
@@ -113,7 +114,8 @@
           (route-response :post "/api/create-project"
                           {:project-name "The taming of the foo"})]
       (is (true? (-> create-response :result :success))))
-    (let [projects (:projects (users/user-self-info user-id))]
+    (let [projects (->> (:projects (users/user-self-info user-id))
+                        (filter :member?))]
       (is (= 1 (count projects)))
       (let [project-id (-> projects first :project-id)]
         (is (integer? project-id))
@@ -124,18 +126,19 @@
               (format "response = %s" (pr-str select-response))))))
 
     ;; the projects array in identity contains one entry
-    (let [response (route-response :get "/api/auth/identity")]
-      (is (= 1 (-> response :result :projects count))
+    (let [response (route-response :get "/api/auth/identity")
+          projects (->> response :result :projects
+                        (filter :member?))]
+      (is (= 1 (count projects))
           (format "response = %s" (pr-str response))))))
 
 (deftest add-articles-from-pubmed-search-test
   (let [handler (sysrev-handler)
-        email "foo@bar.com"
-        password "foobar"
+        {:keys [email password]} test-login
         search-term "foo bar"
         route-response (route-response-fn handler)]
     ;; create user
-    (users/create-user email password :project-id 100)
+    (create-test-user)
     ;; login this user
     (is (get-in (route-response :post "/api/auth/login"
                                 {:email email :password password})
@@ -163,7 +166,8 @@
       (let [new-user-email "baz@qux.com"
             new-user-password "bazqux"]
         ;; create and log the new member in
-        (users/create-user new-user-email new-user-password)
+        (create-test-user :email new-user-email
+                          :password new-user-password)
         ;; login this user
         (is (get-in (route-response :post "/api/auth/login"
                                     {:email new-user-email :password new-user-password})
@@ -214,10 +218,9 @@
 
 (deftest delete-project-and-sources
   (let [handler (sysrev-handler)
-        email "foo@bar.com"
-        password "foobar"
+        {:keys [email password]} test-login
         route-response (route-response-fn handler)
-        _ (users/create-user email password)
+        _ (create-test-user)
         _ (route-response :post "/api/auth/login"
                           {:email email :password password})
         create-project-response (route-response :post "/api/create-project"

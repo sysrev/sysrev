@@ -10,8 +10,7 @@
               login-form-shown? panel-rendered? element-rendered?
               wait-until-panel-exists panel-exists?]]
             [sysrev.test.browser.navigate :as nav]
-            [clojure.string :as str]
-            [sysrev.db.users :refer [delete-user create-user]]))
+            [clojure.string :as str]))
 
 (use-fixtures :once default-fixture webdriver-fixture-once)
 (use-fixtures :each webdriver-fixture-each)

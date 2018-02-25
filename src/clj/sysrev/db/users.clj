@@ -150,11 +150,21 @@
 
 (defn delete-user [user-id]
   (assert (integer? user-id))
-  (-> (delete-from :web-user)
-      (where [:= :user-id user-id])
-      do-execute)
-  (db/clear-query-cache)
-  nil)
+  (try
+    (-> (delete-from :web-user)
+        (where [:= :user-id user-id])
+        do-execute)
+    (finally
+      (db/clear-query-cache))))
+
+(defn delete-user-by-email [email]
+  (assert (string? email))
+  (try
+    (-> (delete-from :web-user)
+        (where [:= :email email])
+        do-execute)
+    (finally
+      (db/clear-query-cache))))
 
 (defn verify-user-email [verify-code]
   (-> (sqlh/update :web-user)

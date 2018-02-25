@@ -5,16 +5,13 @@
             [sysrev.api :as api]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
-            [sysrev.test.core :refer [default-fixture wait-until delete-user-fixture]]
+            [sysrev.test.core :refer [default-fixture wait-until]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.stripe :as stripe]))
 
-;; this is our test users email for registering
-(def email "foo@bar.com")
-
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
-(use-fixtures :each browser/webdriver-fixture-each (delete-user-fixture email))
+(use-fixtures :each browser/webdriver-fixture-each)
 
 ;; for manual testing purposes, this is handy:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
@@ -49,7 +46,8 @@
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 
 (deftest register-and-check-basic-plan-subscription
-  (let [password "foobar"]
+  (let [{:keys [email password]} browser/test-login]
+    (browser/delete-test-user)
     (navigate/register-user email password)
     (browser/wait-until-loading-completes)
     ;; after registering, does the stripe customer exist?
@@ -111,10 +109,12 @@
   (taxi/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
 (deftest register-and-subscribe-to-paid-plans
-  (let [email "foo@bar.com"
-        password "foobar"]
+  (let [{:keys [email password]} browser/test-login]
+    (browser/delete-test-user)
     (navigate/register-user email password)
     (browser/wait-until-loading-completes)
+    (assert stripe/stripe-secret-key)
+    (assert stripe/stripe-public-key)
     ;; after registering, does the stripe customer exist?
     (is (= email
            (:email (stripe/execute-action
@@ -266,9 +266,9 @@
 
 ;;; Subscribe to the Premium plan
     (select-plan "Premium")
+    (Thread/sleep 2000)
     ;; Click the subscribe button
-    (wait-until #(taxi/exists? subscribe-button))
-    (browser/wait-until-displayed subscribe-button)
+    (browser/wait-until-exists subscribe-button)
     (taxi/click subscribe-button)
     (browser/wait-until-displayed basic-plan-div)
     (subscribed-to? "Premium")

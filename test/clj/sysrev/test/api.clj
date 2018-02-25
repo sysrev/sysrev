@@ -6,6 +6,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.test.core :refer
              [default-fixture completes? get-selenium-config database-rollback-fixture]]
+            [sysrev.test.browser.core :refer [test-login create-test-user]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
@@ -19,9 +20,8 @@
 
 (deftest test-get-api-token
   (let [url (:url (get-selenium-config))
-        email "test+apitest@insilica.co"
-        password "1234567890"
-        {:keys [user-id]} (users/create-user email password)]
+        {:keys [email password]} test-login
+        {:keys [user-id]} (create-test-user)]
     (try
       (let [response (webapi-get "get-api-token"
                                  {:email email :password password}
@@ -33,10 +33,8 @@
 
 (deftest test-import-pmids
   (let [url (:url (get-selenium-config))
-        email "test+apitest@insilica.co"
-        password "1234567890"
         {:keys [user-id api-token]}
-        (users/create-user email password)
+        (create-test-user)
         {:keys [project-id] :as project}
         (project/create-project "test-import-pmids")]
     (try
@@ -53,10 +51,8 @@
 
 (deftest test-copy-articles
   (let [url (:url (get-selenium-config))
-        email "test+apitest@insilica.co"
-        password "1234567890"
         {:keys [user-id api-token]}
-        (users/create-user email password)
+        (create-test-user)
         {:keys [project-id] :as project}
         (project/create-project "test-copy-articles")
         dest-project
@@ -87,10 +83,8 @@
 
 (deftest test-import-pmid-nct-arms
   (let [url (:url (get-selenium-config))
-        email "test+apitest@insilica.co"
-        password "1234567890"
         {:keys [user-id api-token]}
-        (users/create-user email password)
+        (create-test-user)
         {:keys [project-id] :as project}
         (project/create-project "test-import-pmid-nct-arms")]
     (try
@@ -115,10 +109,8 @@
 
 (deftest test-create-project
   (let [url (:url (get-selenium-config))
-        email "test+apitest@insilica.co"
-        password "1234567890"
-        {:keys [user-id api-token]}
-        (users/create-user email password :permissions ["user" "admin"])
+        {:keys [user-id api-token]} (create-test-user)
+        _ (users/set-user-permissions user-id ["user" "admin"])
         project-name "test-create-project"]
     (try
       (let [response (webapi-post
@@ -148,9 +140,7 @@
 
 (deftest test-check-allow-answers
   (let [url (:url (get-selenium-config))
-        email "test+apitest@insilica.co"
-        password "1234567890"
-        {:keys [user-id api-token]} (users/create-user email password)
+        {:keys [user-id api-token]} (create-test-user)
         {:keys [project-id]
          :as project} (project/create-project "test-check-allow-answers")]
     (try

@@ -7,6 +7,7 @@
             [sysrev.import.pubmed :as pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
+            [sysrev.test.browser.core :refer [test-login create-test-user]]
             [ring.mock.request :as mock]))
 
 (use-fixtures :once default-fixture)
@@ -14,11 +15,10 @@
 
 (deftest create-project-test
   (let [handler (sysrev-handler)
-        email "foo@bar.com"
-        password "foobar"
+        {:keys [email password]} test-login
         search-term "foo bar"]
     ;; create user
-    (users/create-user email password :project-id 100)
+    (create-test-user)
     ;; login this user
     (let [web-api-token (-> (handler
                              (-> (mock/request :get "/web-api/get-api-token")
