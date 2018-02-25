@@ -11,8 +11,9 @@
             [sysrev.init :refer [start-app]]
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
-            [sysrev.db.core :refer [set-active-db! make-db-config close-active-db
-                                    with-rollback-transaction]]))
+            [sysrev.db.core :refer [set-active-db! make-db-config close-active-db with-rollback-transaction]]
+            [sysrev.db.users :as users]
+            [sysrev.stripe :as stripe]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
@@ -95,7 +96,7 @@
 ;; wait-until macro modified from
 ;; https://gist.github.com/kornysietsma/df45bbea3196adb5821b
 
-(def default-timeout (time/seconds 5))
+(def default-timeout (time/seconds 10))
 (def default-wait-delay-ms 10)
 
 (defn wait-until*
@@ -115,3 +116,16 @@
   "wait until pred has become true with optional :timeout"
   [pred]
   `(wait-until* ~(pr-str pred) ~pred))
+
+(defn delete-user-fixture
+  [email]
+  (fn [test]
+    (do (test)
+        (let [user (users/get-user-by-email email)
+              user-id (:user-id user)]
+          (when (int? user-id)
+            (users/delete-user (:user-id user))
+            (is (:deleted (stripe/delete-customer! user)))
+            ;; make sure this has occurred for the next test
+            (wait-until #(nil? (users/get-user-by-email email)))
+            (is (nil? (users/get-user-by-email email))))))))

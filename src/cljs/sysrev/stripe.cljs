@@ -64,14 +64,14 @@
   (r/adapt-react-class
    (js/ReactStripeElements.injectStripe
     (r/reactify-component
-     (r/create-class {:display-name "foo-form"
+     (r/create-class {:display-name "stripe-reagent-form"
                       :render
                       (fn [this]
                         (let [error-message (r/cursor state [:error-message])
                               element-on-change (fn [e]
                                                   (let [e (js->clj e :keywordize-keys true)
                                                         error (:error e)]
-                                                    ;; keeping the state for each element in the state atom
+                                                    ;; keeping the error for each element in the state atom
                                                     (swap! (r/state-atom this)
                                                            assoc (keyword (:elementType e))
                                                            error)))

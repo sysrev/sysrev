@@ -3,14 +3,14 @@
             [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as t]
             [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [cljs.build.api :as cljs]
             [clj-webdriver.driver :as driver]
             [clj-webdriver.taxi :as taxi]
             [sysrev.config.core :refer [env]]
-            [sysrev.test.core :refer [default-fixture get-selenium-config]]
-            [sysrev.db.users :refer
-             [delete-user create-user get-user-by-email]]
-            [clojure.string :as str])
+            [sysrev.test.core :refer [default-fixture get-selenium-config wait-until]]
+            [sysrev.db.users :as users]
+            [sysrev.stripe :as stripe])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -41,7 +41,7 @@
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
                              (.addArguments
-                              ["window-size=1200,800"
+                              ["window-size=1920,1080"
                                "headless"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
@@ -73,16 +73,21 @@
   {:email "browser+test@insilica.co"
    :password "1234567890"})
 
-(defn delete-test-user []
-  (let [email (-> test-login :email)]
-    (when-let [user-id (-> (get-user-by-email email) :user-id)]
-      (delete-user user-id))))
+(defn delete-test-user [& {:keys [email]
+                           :or {email (:email test-login)}}]
+  (try
+    (when-let [user (users/get-user-by-email email)]
+      (stripe/delete-customer! user))
+    (catch Throwable t
+      nil))
+  (users/delete-user-by-email email))
 
-(defn create-test-user []
-  (let [email (-> test-login :email)
-        password (-> test-login :password)]
-    (delete-test-user)
-    (create-user email password :project-id 100)))
+(defn create-test-user [& {:keys [email password project-id]
+                           :or {email (:email test-login)
+                                password (:password test-login)
+                                project-id 100}}]
+  (delete-test-user :email email)
+  (users/create-user email password :project-id project-id))
 
 (defn webdriver-fixture-once
   [f]
@@ -127,6 +132,7 @@
 (defn wait-until-exists
   "Given a query q, wait until the element it represents exists"
   [q]
+  (Thread/sleep 250)
   (taxi/wait-until
    #(taxi/exists? q)
    10000))
@@ -135,6 +141,7 @@
   "Given a query q, wait until the element it represents exists
   and is displayed"
   [q]
+  (Thread/sleep 250)
   (taxi/wait-until
    #(and (taxi/exists? q)
          (taxi/displayed? q))

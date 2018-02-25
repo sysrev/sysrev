@@ -14,7 +14,7 @@
 (use-fixtures :each browser/webdriver-fixture-each)
 
 ;; for manual testing purposes, this is handy:
-;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
+;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
 
 ;; valid number
 (def valid-visa-cc "4242424242424242")
@@ -46,8 +46,8 @@
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 
 (deftest register-and-check-basic-plan-subscription
-  (let [email "foo@bar.com"
-        password "foobar"]
+  (let [{:keys [email password]} browser/test-login]
+    (browser/delete-test-user)
     (navigate/register-user email password)
     (browser/wait-until-loading-completes)
     ;; after registering, does the stripe customer exist?
@@ -75,16 +75,17 @@
 (def basic-plan-div {:xpath "//span[contains(text(),'Basic')]/ancestor::div[contains(@class,'plan')]"})
 (def subscribe-button {:xpath "//div[contains(@class,'button') and contains(text(),'Subscribe')]"})
 (def update-payment-button {:xpath "//div[contains(@class,'button') and contains(text(),'Update Payment Information')]"})
-(def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card')]"})
+(def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card') and not(contains(@class,'disabled'))]"})
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
+(def backspace-clear-length 30)
 ;; might be worth it to pull this library in at some point
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
   (doall (repeatedly length
-                     #(taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)))
+                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE))))
   true)
 
 (defn label-input
@@ -108,10 +109,12 @@
   (taxi/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
 (deftest register-and-subscribe-to-paid-plans
-  (let [email "foo@bar.com"
-        password "foobar"]
+  (let [{:keys [email password]} browser/test-login]
+    (browser/delete-test-user)
     (navigate/register-user email password)
     (browser/wait-until-loading-completes)
+    (assert stripe/stripe-secret-key)
+    (assert stripe/stripe-public-key)
     ;; after registering, does the stripe customer exist?
     (is (= email
            (:email (stripe/execute-action
@@ -145,8 +148,7 @@
     ;; wait until a card number is available for input
     (browser/wait-until-exists (label-input "Card Number"))
     ;; just try to 'Use Card', do we have all the error messages we would expect?
-    ;; let's just wait five seconds for everything to load
-    (Thread/sleep 5000)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-exists (error-msg-xpath incomplete-card-number-error))
     ;; incomplete fields are shown
@@ -164,39 +166,44 @@
     ;; cvc-check-fail-cc
     ;; why so many backspaces? the exact amount needed, 16,
     ;; doesn't consistently clear the fields
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") cvc-check-fail-cc)
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
     (taxi/input-text (label-input "Postal code") "11111")
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath invalid-security-code-error))
     (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
 
     ;;  card-declined-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") card-declined-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath card-declined-error))
     (is (taxi/exists? (error-msg-xpath card-declined-error)))
 
     ;; incorrect-cvc-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath invalid-security-code-error))
     (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
 
     ;; expired-card-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") expired-card-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath card-expired-error))
     (is (taxi/exists? (error-msg-xpath card-expired-error)))
 
     ;; processing-error-cc
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") processing-error-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed (error-msg-xpath card-processing-error))
     (is (taxi/exists? (error-msg-xpath card-processing-error)))
@@ -205,8 +212,9 @@
     ;; in this case, the card is attached to the customer
     ;; but they won't be able to subscribe because the card doesn't go
     ;; through
-    (backspace-clear 20 (label-input "Card Number"))
+    (backspace-clear backspace-clear-length (label-input "Card Number"))
     (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     (browser/wait-until-displayed subscribe-button)
     (taxi/click subscribe-button)
@@ -221,6 +229,7 @@
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
     (taxi/input-text (label-input "Postal code") "11111")
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     ;; try to subscribe again
     (browser/wait-until-displayed subscribe-button)
@@ -236,6 +245,7 @@
     (taxi/input-text (label-input "Expiration date") "0120")
     (taxi/input-text (label-input "CVC") "123")
     (taxi/input-text (label-input "Postal code") "11111")
+    (browser/wait-until-displayed use-card-button)
     (taxi/click use-card-button)
     ;; try to subscribe again
     (browser/wait-until-displayed subscribe-button)
@@ -256,8 +266,9 @@
 
 ;;; Subscribe to the Premium plan
     (select-plan "Premium")
+    (Thread/sleep 2000)
     ;; Click the subscribe button
-    (browser/wait-until-displayed subscribe-button)
+    (browser/wait-until-exists subscribe-button)
     (taxi/click subscribe-button)
     (browser/wait-until-displayed basic-plan-div)
     (subscribed-to? "Premium")
@@ -274,10 +285,4 @@
     (select-plan "Basic")
     (taxi/wait-until #(subscribed-to? "Basic")
                      10000)
-    (is (subscribed-to? "Basic"))
-    ;; clean up
-    (let [user (users/get-user-by-email email)]
-      (users/delete-user (:user-id user))
-      (is (:deleted (stripe/delete-customer! user)))
-      ;; make sure this has occurred for the next test
-      (wait-until #(nil? (users/get-user-by-email email))))))
+    (is (subscribed-to? "Basic"))))

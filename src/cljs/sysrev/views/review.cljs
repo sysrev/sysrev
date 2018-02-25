@@ -525,11 +525,12 @@
                       (when (< (count row) n-cols)
                         [^{:key {:label-row-end (last row)}}
                          [:div.column]])))])))]
+          (.log js/console (clj->js label-ids))
           [:div.ui.segments.label-editor-view
            [:div.ui.top.attached.header
             [:div.ui.two.column.middle.aligned.grid
              [:div.ui.left.aligned.column
-              [:h3 (if resolving? "Resolve Labels" "Edit Labels")]]
+              [:h3 (if resolving? "Resolve Labels" "Set Labels")]]
              [:div.ui.right.aligned.column
               (when change-set?
                 [:div.ui.tiny.button
