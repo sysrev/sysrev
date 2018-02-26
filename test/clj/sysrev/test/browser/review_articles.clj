@@ -13,13 +13,14 @@
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
 ;; helpful manual testing functions:
-;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
+;; (browser/delete-test-user)
 
 ;; delete the project after it has been reviewed
 ;; find the project
-;; (users/user-self-info (:user-id (users/get-user-by-email email)))
+;; (users/user-self-info (:user-id (users/get-user-by-email (:email browser/test-login))))
+
 ;; delete the project
-;; (let [project-id (-> (users/get-user-by-email email) :user-id users/user-self-info :projects first :project-id)] (project/delete-project project-id))
+;; (let [project-id (-> (users/get-user-by-email (:email browser/test-login) :user-id users/user-self-info :projects first :project-id)] (project/delete-project project-id))
 
 ;; useful definitions after basic values have been set by tests
 ;; (def email "foo@bar.com")
@@ -228,7 +229,7 @@
           (is (= baz-label-value
                  (label-button-value baz-label-name))))
         ;; cleanup
-        (navigate/log-out)
+        ;;(navigate/log-out)
         ;; delete the project in the database
-        (project/delete-project project-id)
+        ;;(project/delete-project project-id)
         ))))

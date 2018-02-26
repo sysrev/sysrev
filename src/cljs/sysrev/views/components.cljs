@@ -221,7 +221,7 @@
 
 (defn three-state-selection
   "props are:
-  {:set-asnwer! <fn>     ; sets the label's answer to argument of fn
+  {:set-answer! <fn>     ; sets the label's answer to argument of fn
    :value       <r/atom> ; atom resolves to single value boolean or nil
   }"
   [{:keys [set-answer! value]}]
