@@ -1,6 +1,7 @@
 (ns sysrev.test.stripe
   (:require [clojure.test :refer :all]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
+            [sysrev.test.browser.core :refer [create-test-user test-login]]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]))
 
@@ -8,9 +9,8 @@
 (use-fixtures :each database-rollback-fixture)
 
 (deftest create-user-subscribe
-  (let [email "foo@bar.com"
-        password "foobar"
-        new-user (users/create-user email password)
+  (let [{:keys [email password]} test-login
+        new-user (create-test-user)
         plan-name "Basic"]
     ;; register user to stripe
     (users/create-sysrev-stripe-customer! new-user)

@@ -5,14 +5,13 @@
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
-            [sysrev.test.core :refer [default-fixture wait-until delete-user-fixture]]
+            [sysrev.test.core :refer [default-fixture wait-until]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.test.browser.create-project :as create-project]))
 
-(def email "foo@bar.com")
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
-(use-fixtures :each browser/webdriver-fixture-each (delete-user-fixture email))
+(use-fixtures :each browser/webdriver-fixture-each)
 ;; helpful manual testing functions:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
 
@@ -103,10 +102,11 @@
   (-> user-id users/user-self-info :projects first :project-id))
 
 (deftest create-project-and-review-article
-  (let [password "foobar"
+  (let [{:keys [email password]} browser/test-login
         project-name "Foo Bar"
         search-term-first "foo bar"]
     ;; register the user
+    (browser/delete-test-user)
     (navigate/register-user email password)
     (browser/wait-until-loading-completes)
 ;;; create a project
