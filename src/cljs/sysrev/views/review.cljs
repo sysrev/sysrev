@@ -105,10 +105,11 @@
 
 (defmethod label-input-el "boolean"
   [label-id article-id]
-  (let [answer @(subscribe [:review/active-labels article-id label-id])]
+  (let [answer (subscribe [:review/active-labels article-id label-id])]
     [ui/three-state-selection
-     #(dispatch [::set-label-value article-id label-id %])
-     answer]))
+     {:set-answer!
+      #(dispatch [::set-label-value article-id label-id %])
+      :value answer}]))
 
 (defmethod label-input-el "categorical"
   [label-id article-id]
@@ -190,8 +191,9 @@
 
 (defmethod label-input-el "string"
   [label-id article-id]
-  (let [curvals (as-> @(subscribe [:review/active-labels article-id label-id]) vs
-                  (if (empty? vs) [""] vs))
+  (let [curvals (as-> @(subscribe [:review/active-labels article-id label-id])
+                    vs
+                    (if (empty? vs) [""] vs))
         multi? @(subscribe [:label/multi? label-id])
         nvals (count curvals)]
     (when (= article-id @(subscribe [:review/editing-id]))

@@ -230,4 +230,5 @@
         ;; cleanup
         (navigate/log-out)
         ;; delete the project in the database
-        (project/delete-project project-id)))))
+        (project/delete-project project-id)
+        ))))

@@ -7,75 +7,104 @@
      reg-event-db reg-event-fx trim-v]]
    [re-frame.db :refer [app-db]]
    [sysrev.subs.labels :as labels]
+   [sysrev.subs.project :refer [active-project-id]]
    [sysrev.util :refer [mobile?]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :as ui]
-   [sysrev.views.review :refer [label-help-popup]]
+   [sysrev.views.review :refer [label-help-popup inclusion-tag]]
    [sysrev.shared.util :refer [in?]]
    [sysrev.util :refer [desktop-size?]]))
 
 (def panel [:project :project :labels :edit])
 
-(defonce state (r/cursor app-db [:state :panels panel]))
+(def state (r/atom {}))
 
-(defn- get-labels []
+(defn- get-local-labels []
   (get-in @state [:labels]))
 
 (defn- set-labels [labels]
   (swap! state assoc-in [:labels] labels))
 
-(defn- saved-labels []
+(defn- saved-labels
+  "Get the label values for project from the app-db"
+  []
   (let [db @app-db]
-    (->> (labels/project-label-ids @app-db)
-         (mapv #(labels/get-label-raw db %)))))
+    (get-in @app-db [:data :project (active-project-id @app-db) :labels])))
 
-(defn- active-labels []
+(defn add-answers
+  "Add default answers to each label"
+  [labels]
+  (let [insert-answer-fn (fn [label-value]
+                           (condp = (:value-type label-value)
+                             "boolean"
+                             (assoc label-value :answer true)
+                             (assoc label-value :answer ["bar"])))]
+    (apply merge (map (fn [item]
+                        (let [label-id (first item)
+                              label-value (second item)]
+                          (hash-map label-id (insert-answer-fn label-value))))
+                      labels))))
+
+(defn sync-local-labels!
+  "Sync the local state labels with the app-db labels"
+  []
+  (reset! state
+          (assoc-in @state [:labels]
+                    (add-answers (saved-labels)))))
+
+#_ (defn- active-labels
+  "Get the current local state of the labels."
+  []
   (if (and (nil? (get-labels))
            (not-empty (saved-labels)))
-    (do (set-labels (saved-labels))
+    (do (set-labels (add-answers (saved-labels)))
         (get-labels))
     (get-labels)))
 
-(defn- labels-changed? []
-  (not= (active-labels) (saved-labels)))
+#_(defn- labels-changed? []
+    (not= (active-labels) (saved-labels)))
 
-(defn- revert-changes []
-  (set-labels (saved-labels)))
+#_ (defn- revert-changes []
+     (set-labels (saved-labels)))
 
-(defn- add-empty-label []
+#_ (defn- add-empty-label []
   (let [active (active-labels)]
     (set-labels (vec (concat active [nil])))))
 
-(defn- delete-label-index [i]
-  (let [active (active-labels)]
-    (set-labels (vec (concat (->> active (take i))
-                             (->> active (drop (inc i))))))))
+#_ (defn- delete-label-index [i]
+     (let [active (active-labels)]
+       (set-labels (vec (concat (->> active (take i))
+                                (->> active (drop (inc i))))))))
 
 (defn- DeleteLabelButton [i label]
   [:div.ui.small.orange.icon.button
-   {:on-click #(delete-label-index i)
+   {:on-click #(.log js/console "I would delete a label")
     :style {:margin "0"}}
    [:i.remove.icon]])
 
 (defn- AddLabelButton []
   [:div.ui.fluid.large.icon.button
-   {:on-click #'add-empty-label}
+   {:on-click #(.log js/console "I would add a label")}
    [:i.plus.circle.icon]
    "Add Label"])
 
 (defn- SaveButton []
-  (let [changed? (labels-changed?)]
+  (let [;;changed? (labels-changed?)
+        ]
     [:div.ui.large.right.labeled.positive.icon.button
-     {:on-click nil
-      :class (if changed? "" "disabled")}
+     {:on-click #(.log js/console "I would save")
+      :class "disabled" ;;(if changed? "" "disabled")
+      }
      "Save Labels"
      [:i.check.circle.outline.icon]]))
 
 (defn- CancelButton []
-  (let [changed? (labels-changed?)]
+  (let [;;changed? (labels-changed?)
+        ]
     [:div.ui.large.right.labeled.icon.button
-     {:on-click #'revert-changes
-      :class (if changed? "" "disabled")}
+     {:on-click #(.log js/console "I would cancel")
+      :class "disabled";;(if changed? "" "disabled")
+      }
      "Cancel"
      [:i.undo.icon]]))
 
@@ -83,19 +112,51 @@
   [:div.ui.center.aligned.grid>div.row>div.ui.sixteen.wide.column
    [SaveButton] [CancelButton]])
 
-(defn BooleanLabel
+(defn InclusionTag
   [label]
-  (let [value (r/atom true)]
-    (fn []
-      [ui/three-state-selection
-       #(reset! value (not @value))
-       @value])))
+  (fn [{:keys [category answer definition value-type]}]
+    (let [criteria? (= category "inclusion criteria")
+          inclusion-values (:inclusion-values definition)
+          inclusion (case value-type
+                      "boolean"
+                      (cond
+                        (empty? inclusion-values) nil
+                        (nil? answer) nil
+                        :else (boolean (in? inclusion-values answer)))
+                      "categorical"
+                      (cond
+                        (empty? inclusion-values) nil
+                        (nil? answer) nil
+                        (empty? answer) nil
+                        :else (boolean (some (in? inclusion-values) answer)))
+                      nil)
+          color (case inclusion
+                  true   "green"
+                  false  "orange"
+                  nil    "grey")
+          iclass (case inclusion
+                   true   "circle plus icon"
+                   false  "circle minus icon"
+                   nil    "circle outline icon")]
+      (if criteria?
+        [:i.left.floated.fitted {:class (str color " " iclass)}]
+        [:i.left.floated.fitted {:class "grey content icon"
+                                 :style {} #_ (when-not boolean-label?
+                                                {:visibility "hidden"})}]))))
 
-(defn StringLabel
+(defn BooleanLabelForm
+  "props
+  {:value     <r/atom>   ; atom resolves to boolean}"
+  [{:keys [value]}]
+  (fn []
+    [ui/three-state-selection
+     {:set-answer! #(reset! value %)
+      :value value}]))
+
+(defn StringLabelForm
   [label]
-  (let [{:keys [value-type question short-label label-id]} label
+  (let [{:keys [label-id]} label
         value (r/atom "")]
-    (.log js/console "StringLabel rendered")
     (fn []
       (let [left-action? true]
         ^{:key [label-id]}
@@ -121,11 +182,10 @@
               (fn [ev]
                 (reset! value (-> ev .-target .-value)))}]]]]]))))
 
-(defn CategoricalLabel
+(defn CategoricalLabelForm
   [label]
   (let [{:keys [definition label-id required]} label
         all-values (:all-values definition)
-        inclusion-values (:inclusion-values definition)
         current-values (r/atom (list))]
     (r/create-class
      {:component-did-mount
@@ -196,7 +256,7 @@
 (defn Label
   []
   (fn [label]
-    (let [{:keys [value-type question short-label label-id]} label]
+    (let [{:keys [value-type question short-label label-id category]} label]
       [:div.ui.column.label-edit {:class ;;label-css-class
                                   "required"
                                   }
@@ -209,13 +269,13 @@
                 [:span.inner short-label]]]
            (if (and (mobile?) (>= (count short-label) 30))
              [:div.ui.row.label-edit-name
-              ;;[inclusion-tag article-id label-id]
+              [InclusionTag label]
               [:span.name " "]
               (when (not-empty question)
                 [:i.right.floated.fitted.grey.circle.question.mark.icon])
               [:div.clear name-content]]
              [:div.ui.row.label-edit-name
-              ;;[inclusion-tag article-id label-id]
+              [InclusionTag label]
               name-content
               (when (not-empty question)
                 [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
@@ -242,11 +302,13 @@
          [:div.inner
           (condp = value-type
             "boolean"
-            [BooleanLabel label]
+            (let [current-answer-cursor (r/cursor state [:labels label-id :answer])]
+              [BooleanLabelForm
+               {:value current-answer-cursor}])
             "string"
-            [StringLabel label]
+            [StringLabelForm label]
             "categorical"
-            [CategoricalLabel label]
+            [CategoricalLabelForm label]
             (pr-str label))]]]])))
 
 (defn- LabelItem [i label]
@@ -266,15 +328,19 @@
   (fn [child]
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
-          active (active-labels)]
-      (.log js/console (clj->js active))
+          ;;active (vals (active-labels))
+          ]
+      (when (empty? (get-local-labels))
+        (sync-local-labels!))
+      ;;(.log js/console (clj->js (get-local-labels)))
       [:div.define-labels
        [:div
         (doall (map-indexed
                 (fn [i label]
                   ^{:key i}
                   [LabelItem i label])
-                (sort-by :label-id-local active)))]
+                (sort-by :label-id-local (vals (get-local-labels)))
+                ))]
        [AddLabelButton]
        [:div.ui.divider]
        [SaveCancelButtons]])))
@@ -282,3 +348,32 @@
 ;; I really like: https://github.com/kevinchappell/formBuilder
 ;; https://jsfiddle.net/kevinchappell/ajp60dzk/5/
 ;; however, it is a jQuery library =(
+
+
+;; state will have the labels in the form
+;; {<uuid> <label-map>, ... }
+
+;; we are reworking it this way because the labels on articles are of the form
+;; {<user-id> {<label-uuid> {:answer <string>, :resolve <boolean>, :confirmed <boolean>, :confirm-epoch <int>} ..}}
+;;
+;; we want to have some congruence between sysrev.views.review and sysrev.views.panels.project.define-labels
+;; we need to add an :answer to each label (boolean value for bools, empty vector for string/categories) for the local
+;; state atom,so they are similar
+
+;; we will also need to distinguish between "saved" labels ... labels which are on the server, and labels which are being created/modified in the client
+
+;; when the label definitions tab is opened, the local namespace labels should be  updated to reflect the client definitions
+;; if the save button is clicked, the label definitions will be sent to the server
+;; if there are no errors, the label definitions are fetched from the server and updated in the client
+;; if there are errors, errors are added to the local namespace labels for the user to correct and save again.
+
+
+;; the current task is to make Forms which will accept the on-change/value and are independent of whether they are label definitions or article labels
+;; this has been started with boolean. currently, this form doesn't seem to be updating with the proper 'on-change' fn
+
+;; After that, there is the need to better emulate the indicator for required/unrequired... this namespace does not currently do that
+
+;; once these basics are done, syncing with the server and the client state is the next step. 
+
+
+
