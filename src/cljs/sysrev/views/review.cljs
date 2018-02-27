@@ -266,12 +266,12 @@
                                :style {} #_ (when-not boolean-label?
                                               {:visibility "hidden"})}])))
 
-(defn- label-help-popup [label-id]
+(defn- label-help-popup [label]
   (when (or true (full-size?))
-    (let [criteria? @(subscribe [:label/inclusion-criteria? label-id])
-          required? @(subscribe [:label/required? label-id])
-          question @(subscribe [:label/question label-id])
-          examples @(subscribe [:label/examples label-id])]
+    (let [{:keys [category required question definition]} label
+          criteria? (= category "inclusion criteria")
+          required? required
+          examples (:examples definition)]
       [:div.ui.inverted.grid.popup.transition.hidden.label-help
        [:div.middle.aligned.center.aligned.row.label-help-header
         [:div.ui.sixteen.wide.column
@@ -344,7 +344,10 @@
                     :else
                     "top center")
         :distanceAway 8}]
-      [label-help-popup label-id]
+      [label-help-popup {:category @(subscribe [:label/inclusion-criteria? label-id])
+                         :required @(subscribe [:label/required? label-id])
+                         :question @(subscribe [:label/question label-id])
+                         :definition {:examples @(subscribe [:label/examples label-id])}}]
       [:div.ui.row.label-edit-value
        {:class (case value-type
                  "boolean"      "boolean"

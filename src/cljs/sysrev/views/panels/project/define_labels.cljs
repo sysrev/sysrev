@@ -114,11 +114,15 @@
                                 (->> active (drop (inc i))))))))
 
 (defn- DeleteLabelButton [label]
-  [:div.ui.small.orange.icon.button
-   {:on-click #(if (string? (:label-id label))
-                 (swap! (r/cursor state [:labels]) dissoc (:label-id label)))
-    :style {:margin "0"}}
-   [:i.remove.icon]])
+  (let [editing?  (r/cursor state [:labels (:label-id label) :editing?])]
+    [:div.ui.small.orange.icon.button
+     {:on-click #(cond @editing?
+                       (reset! editing? false)
+                       (and (not @editing?)
+                            (string? (:label-id label)))
+                       (swap! (r/cursor state [:labels]) dissoc (:label-id label)))
+      :style {:margin "0"}}
+     [:i.remove.icon]]))
 
 (defn EditLabelButton [label]
   [:div.ui.small.primary.icon.button
@@ -200,52 +204,78 @@
                                  :style {} #_ (when-not boolean-label?
                                                 {:visibility "hidden"})}]))))
 
-(defn BooleanLabelEditForm
-  [{:keys [label-id name short-label required value-type]}]
-  [:div
-   [:label
-    "Type of Label"
-    [:select {:on-change #(reset! (r/cursor state [:labels label-id :value-type])
-                                  (-> % .-target .-value))}
-     [:option {:on-change #(.log js/console "I choose boolean")
-               :value "boolean"
-               :selected (if (= "boolean"
-                                value-type)
-                           true
-                           false)}
-      "Boolean"]
-     [:option {:on-change #(.log js/console "I choose string")
-               :value "string"
-               :selected (if (= "string"
-                                value-type)
-                           true
-                           false)}
-      "String"]
-     [:option {:on-change #(.log js/console "I choose Categorical")
-               :value "categorical"
-               :selected (if (= "categorical"
-                                value-type)
-                           true
-                           false)}
-      "Categorical"]]]
-   [:label "Name"
-    [:input {:value name
-             :type "text"
-             :on-change (fn [event]
-                          (reset! (r/cursor state [:labels label-id :name])
-                                  (-> event .-target .-value)))}]]
-   [:label "Display Label"
-    [:input {:value short-label
-             :type "text"
-             :on-change (fn [event]
-                          (reset! (r/cursor state [:labels label-id :short-label])
-                                  (-> event .-target .-value)))}]]
-   [:label "Required"
-    [:input {:checked required
-             :type "radio"
-             :on-change (fn [event]
-                          (swap! (r/cursor state [:labels label-id :required])
-                                 not))}]]])
+(defn LabelEditForm
+  [{:keys [label-id]}]
+  (let [label (r/cursor state [:labels label-id])
+        value-type (r/cursor label [:value-type])
+        name (r/cursor label [:name])               ; required, string
+        short-label (r/cursor label [:short-label]) ; required, string
+        required (r/cursor label [:required]) ; required, boolean
+        question (r/cursor label [:question]) ; required, string
+        definition (r/cursor label [:definition])
+        ;; boolean
+        inclusion-values (r/cursor definition [:inclusion-values]) ; required, vector of booleans
+        ;; string
+        examples (r/cursor definition [:examples]) ; optional, array of strings
+        max-length (r/cursor definition [:max-length]) ; required, integer
+        multi? (r/cursor definition [:multi?]) ; required (also in categorical), boolean
+        ;; categorical
+        all-values (r/cursor definition [:all-values]) ; required, vector of strings
+        inclusion-values (r/cursor definition [:inclusion-values]) ; optional, vector of string, must be in all-values
+        ]
+    (fn []
+      [:div
+       [:label
+        "Type of Label"
+        [:select {:on-change #(do (.log js/console (-> % .-target .-value))
+                                  (reset! value-type
+                                          (-> % .-target .-value)))
+                  :value @value-type}
+         [:option {:on-change #(.log js/console "I choose boolean")
+                   :value "boolean"}
+          "Boolean"]
+         [:option {:on-change #(.log js/console "I choose string")
+                   :value "string"}
+          "String"]
+         [:option {:on-change #(.log js/console "I choose Categorical")
+                   :value "categorical"}
+          "Categorical"]]]
+       [:label "Name"
+        [:input {:value @name
+                 :type "text"
+                 :on-change (fn [event]
+                              (reset! name
+                                      (-> event .-target .-value)))}]]
+       [:label "Display Label"
+        [:input {:value @short-label
+                 :type "text"
+                 :on-change (fn [event]
+                              (reset! short-label
+                                      (-> event .-target .-value)))}]]
+       [:label "Required"
+        [:input {:checked @required
+                 :type "radio"
+                 :on-change (fn [event]
+                              (swap! required
+                                     not))}]]
+       [:label "Question"
+        [:input {:value @question
+                 :type "text"
+                 :on-change (fn [event]
+                              (reset! question
+                                      (-> event .-target .-value)))}]]
+       ;; (when (= @value-type "boolean")
+       ;;   [:label "Question"
+       ;;    [:input {:value @}]
+       ;;    ])
+       (when (= @value-type "string")
+         [:label "Max Length"
+          [:input {:value @max-length
+                   :type "text"
+                   :on-change (fn [event]
+                                (reset! max-length
+                                        (-> event .-target .-value)))}]])
+       ])))
 
 (defn StringLabelForm
   [{:keys [set-answer! value label-id]}]
@@ -376,7 +406,7 @@
                         "top center")
           "top center"
           :distanceAway 8}]
-        [label-help-popup label-id]
+        [label-help-popup label]
         [:div.ui.row.label-edit-value
          {:class (case value-type
                    "boolean"      "boolean"
@@ -408,21 +438,27 @@
               (pr-str label)))]]]])))
 
 (defn- LabelItem [i label]
-  [:div.ui.middle.aligned.grid.segment.label-item
-   [:div.row
-    [ui/CenteredColumn
-     [:div.ui.blue.label (str (inc i))]
-     "one wide center aligned column label-index"]
-    [:div.fourteen.wide.column
-     (if @(r/cursor state [:labels (:label-id label) :editing?])
-       ;;[:div "I would be editing this label"]
-       [BooleanLabelEditForm label]
-       [Label label])]
-    [ui/CenteredColumn
-     [:div
-      [DeleteLabelButton label]
-      [EditLabelButton label]]
-     "one wide center aligned column delete-label"]]])
+  (let [hovering? (r/atom false)
+        label (r/cursor state [:labels (:label-id label)])]
+    (fn []
+      [:div.ui.middle.aligned.grid.segment.label-item
+       {:on-mouse-enter #(reset! hovering? true)
+        :on-mouse-leave #(reset! hovering? false)}
+       [:div.row
+        [ui/CenteredColumn
+         [:div.ui.blue.label (str (inc i))]
+         "one wide center aligned column label-index"]
+        [:div.fourteen.wide.column
+         (if @(r/cursor label [:editing?])
+           ;;[:div "I would be editing this label"]
+           [LabelEditForm @label]
+           [Label @label])]
+        [ui/CenteredColumn
+         (when @hovering?
+           [:div
+            [DeleteLabelButton @label]
+            [EditLabelButton @label]])
+         "one wide center aligned column delete-label"]]])))
 
 
 (defmethod panel-content panel []
@@ -430,18 +466,17 @@
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
           ;;active (vals (active-labels))
+          labels (r/cursor state [:labels])
           ]
-      (when (empty? (get-local-labels))
+      (when (empty? @labels)
         (sync-local-labels!))
       ;;(.log js/console (clj->js (get-local-labels)))
       [:div.define-labels
-
        (doall (map-indexed
                (fn [i label]
                  ^{:key i}
                  [LabelItem i label])
-               (sort-by :project-ordering (vals (get-local-labels)))
-               ))
+               (sort-by :project-ordering (vals @labels))))
        [AddLabelButton "boolean"]
        [:br]
        [AddLabelButton "string"]
