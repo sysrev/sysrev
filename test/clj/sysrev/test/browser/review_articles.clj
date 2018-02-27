@@ -229,7 +229,7 @@
           (is (= baz-label-value
                  (label-button-value baz-label-name))))
         ;; cleanup
-        ;;(navigate/log-out)
+        (navigate/log-out)
         ;; delete the project in the database
-        ;;(project/delete-project project-id)
+        (project/delete-project project-id)
         ))))

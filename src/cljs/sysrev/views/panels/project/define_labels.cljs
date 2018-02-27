@@ -206,7 +206,11 @@
 
 (defn LabelEditForm
   [{:keys [label-id]}]
-  (let [label (r/cursor state [:labels label-id])
+  (let [label-style {:display "block"
+                     :margin-top "0.5em"
+                     :margin-bottom "0.5em"}
+        input-style {:margin-left "0.5em"}
+        label (r/cursor state [:labels label-id])
         value-type (r/cursor label [:value-type])
         name (r/cursor label [:name])               ; required, string
         short-label (r/cursor label [:short-label]) ; required, string
@@ -225,56 +229,59 @@
         ]
     (fn []
       [:div
-       [:label
+       [:label {:style label-style}
         "Type of Label"
-        [:select {:on-change #(do (.log js/console (-> % .-target .-value))
-                                  (reset! value-type
-                                          (-> % .-target .-value)))
+        [:select {:class "ui dropdown"
+                  :style input-style
+                  :on-change #(reset! value-type
+                                      (-> % .-target .-value))
                   :value @value-type}
-         [:option {:on-change #(.log js/console "I choose boolean")
-                   :value "boolean"}
+         [:option {:value "boolean"}
           "Boolean"]
-         [:option {:on-change #(.log js/console "I choose string")
-                   :value "string"}
+         [:option {:value "string"}
           "String"]
-         [:option {:on-change #(.log js/console "I choose Categorical")
-                   :value "categorical"}
+         [:option {:value "categorical"}
           "Categorical"]]]
-       [:label "Name"
-        [:input {:value @name
-                 :type "text"
-                 :on-change (fn [event]
-                              (reset! name
-                                      (-> event .-target .-value)))}]]
-       [:label "Display Label"
-        [:input {:value @short-label
-                 :type "text"
-                 :on-change (fn [event]
-                              (reset! short-label
-                                      (-> event .-target .-value)))}]]
-       [:label "Required"
-        [:input {:checked @required
+       [:label {:style label-style} "Name"
+        [:div.ui.fluid.input
+         [:input {:value @name
+                  :type "text"
+                  :on-change (fn [event]
+                               (reset! name
+                                       (-> event .-target .-value)))}]]]
+       [:label {:style label-style} "Display Label"
+        [:div.ui.fluid.input
+         [:input {:value @short-label
+                  :type "text"
+                  :on-change (fn [event]
+                               (reset! short-label
+                                       (-> event .-target .-value)))}]]]
+       [:label {:style label-style} "Required"
+        [:input {:style input-style
+                 :checked @required
                  :type "radio"
                  :on-change (fn [event]
                               (swap! required
                                      not))}]]
-       [:label "Question"
-        [:input {:value @question
-                 :type "text"
-                 :on-change (fn [event]
-                              (reset! question
-                                      (-> event .-target .-value)))}]]
+       [:label {:style label-style} "Question"
+        [:div.ui.fluid.input
+         [:input {:value @question
+                  :type "text"
+                  :on-change (fn [event]
+                               (reset! question
+                                       (-> event .-target .-value)))}]]]
        ;; (when (= @value-type "boolean")
        ;;   [:label "Question"
        ;;    [:input {:value @}]
        ;;    ])
        (when (= @value-type "string")
-         [:label "Max Length"
-          [:input {:value @max-length
-                   :type "text"
-                   :on-change (fn [event]
-                                (reset! max-length
-                                        (-> event .-target .-value)))}]])
+         [:label {:style label-style} "Max Length"
+          [:div.ui.fluid.input
+           [:input {:value @max-length
+                    :type "text"
+                    :on-change (fn [event]
+                                 (reset! max-length
+                                         (-> event .-target .-value)))}]]])
        ])))
 
 (defn StringLabelForm
@@ -450,7 +457,6 @@
          "one wide center aligned column label-index"]
         [:div.fourteen.wide.column
          (if @(r/cursor label [:editing?])
-           ;;[:div "I would be editing this label"]
            [LabelEditForm @label]
            [Label @label])]
         [ui/CenteredColumn
