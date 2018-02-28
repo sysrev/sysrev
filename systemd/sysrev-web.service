@@ -6,7 +6,7 @@ After=network.target postgresql.service
 Type=simple
 User=ubuntu
 WorkingDirectory=/data/sysrev
-ExecStart=/usr/bin/java -jar /data/sysrev/sysrev-web-standalone.jar
+ExecStart=/bin/bash /data/sysrev/sysrev-web.sh
 Restart=always
 
 [Install]
