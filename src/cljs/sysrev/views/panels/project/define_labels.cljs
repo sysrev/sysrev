@@ -27,29 +27,34 @@
   []
   (apply max (map :project-ordering (vals (get-local-labels)))))
 
+(defn default-answer
+  "Return a default answer for value-type"
+  [value-type]
+  (condp = value-type
+    "boolean" nil
+    "string" []
+    "categorical" []
+    ;; default
+    nil))
+
 (defn create-blank-label
   "Create a label map"
   [value-type]
   (let [label-id (str "new-label-" (random-id))]
-    {:definition {:inclusion-values [true]},
-     ;; :name (condp = type
-     ;;         "boolean" "New Boolean Label"
-     ;;         "string" "New String Label"
-     ;;         "categorical" "New Categorical Label"),
-     ;;:question "Include this article?",
+    {:definition
+     (cond-> {}
+       (= value-type "boolean") (assoc :inclusion-values [true])
+       (= value-type "categorical") (assoc :inclusion-values [])),
+     ;; we are assuming people want all labels as inclusion criteria
+     :category "inclusion criteria"
+     :multi? false
      :project-ordering (inc (max-project-ordering)),
-     ;;:short-label "Include",
      :label-id label-id
      :project-id (active-project-id @app-db),
      :enabled true,
      :value-type value-type
      :required true
-     :answer (condp = value-type
-               "boolean" nil
-               "string" ""
-               "categorical" []
-               ;; default
-               nil)}))
+     :answer (default-answer value-type)}))
 
 
 (defn- set-labels [labels]
@@ -88,30 +93,6 @@
   (reset! state
           (assoc-in @state [:labels]
                     (add-answers (saved-labels)))))
-
-#_ (defn- active-labels
-  "Get the current local state of the labels."
-  []
-  (if (and (nil? (get-labels))
-           (not-empty (saved-labels)))
-    (do (set-labels (add-answers (saved-labels)))
-        (get-labels))
-    (get-labels)))
-
-#_(defn- labels-changed? []
-    (not= (active-labels) (saved-labels)))
-
-#_ (defn- revert-changes []
-     (set-labels (saved-labels)))
-
-#_ (defn- add-empty-label []
-  (let [active (active-labels)]
-    (set-labels (vec (concat active [nil])))))
-
-#_ (defn- delete-label-index [i]
-     (let [active (active-labels)]
-       (set-labels (vec (concat (->> active (take i))
-                                (->> active (drop (inc i))))))))
 
 (defn- DeleteLabelButton [label]
   (let [editing?  (r/cursor state [:labels (:label-id label) :editing?])]
@@ -212,16 +193,18 @@
         input-style {:margin-left "0.5em"}
         label (r/cursor state [:labels label-id])
         value-type (r/cursor label [:value-type])
-        name (r/cursor label [:name])               ; required, string
-        short-label (r/cursor label [:short-label]) ; required, string
-        required (r/cursor label [:required]) ; required, boolean
-        question (r/cursor label [:question]) ; required, string
-        definition (r/cursor label [:definition])
+        answer (r/cursor label [:answer])
+        ;; name is redundant with label-id
+        name (r/cursor label [:name])   ; required, string, ✓
+        short-label (r/cursor label [:short-label]) ; required, string, ✓
+        required (r/cursor label [:required]) ; required, boolean, ✓
+        question (r/cursor label [:question]) ; required, string, ✓
+        definition (r/cursor label [:definition]) ; not used, ✓
         ;; boolean
         inclusion-values (r/cursor definition [:inclusion-values]) ; required, vector of booleans
         ;; string
-        examples (r/cursor definition [:examples]) ; optional, array of strings
-        max-length (r/cursor definition [:max-length]) ; required, integer
+        examples (r/cursor definition [:examples]) ; optional, vector of strings, ✓
+        max-length (r/cursor definition [:max-length]) ; required, integer, ✓
         multi? (r/cursor definition [:multi?]) ; required (also in categorical), boolean
         ;; categorical
         all-values (r/cursor definition [:all-values]) ; required, vector of strings
@@ -233,8 +216,12 @@
         "Type of Label"
         [:select {:class "ui dropdown"
                   :style input-style
-                  :on-change #(reset! value-type
-                                      (-> % .-target .-value))
+                  :on-change #(do
+                                ;; need to change the type
+                                (reset! value-type
+                                        (-> % .-target .-value))
+                                ;; but also clear the current answer as it is likely nonsense
+                                (reset! answer (default-answer @value-type)))
                   :value @value-type}
          [:option {:value "boolean"}
           "Boolean"]
@@ -242,13 +229,16 @@
           "String"]
          [:option {:value "categorical"}
           "Categorical"]]]
-       [:label {:style label-style} "Name"
-        [:div.ui.fluid.input
-         [:input {:value @name
-                  :type "text"
-                  :on-change (fn [event]
-                               (reset! name
-                                       (-> event .-target .-value)))}]]]
+       ;; this is going to be filled in some other way, or the field
+       ;; deleted
+       #_ [:label {:style label-style} "Name"
+           [:div.ui.fluid.input
+            [:input {:value @name
+                     :type "text"
+                     :on-change (fn [event]
+                                  (reset! name
+                                          (-> event .-target .-value)))}]]]
+       ;; short-label
        [:label {:style label-style} "Display Label"
         [:div.ui.fluid.input
          [:input {:value @short-label
@@ -256,6 +246,7 @@
                   :on-change (fn [event]
                                (reset! short-label
                                        (-> event .-target .-value)))}]]]
+       ;; required
        [:label {:style label-style} "Required"
         [:input {:style input-style
                  :checked @required
@@ -263,6 +254,7 @@
                  :on-change (fn [event]
                               (swap! required
                                      not))}]]
+       ;; question
        [:label {:style label-style} "Question"
         [:div.ui.fluid.input
          [:input {:value @question
@@ -270,11 +262,12 @@
                   :on-change (fn [event]
                                (reset! question
                                        (-> event .-target .-value)))}]]]
-       ;; (when (= @value-type "boolean")
-       ;;   [:label "Question"
-       ;;    [:input {:value @}]
-       ;;    ])
+       ;; inclusion-values
+       #_ (when (= @value-type "boolean")
+            [:label "Which values for inclusion?"
+             [:input {:value @foo}]])
        (when (= @value-type "string")
+         ;; max-length
          [:label {:style label-style} "Max Length"
           [:div.ui.fluid.input
            [:input {:value @max-length
@@ -282,6 +275,56 @@
                     :on-change (fn [event]
                                  (reset! max-length
                                          (-> event .-target .-value)))}]]])
+       (when (= @value-type "string")
+         ;; examples
+         [:label {:style label-style} "Examples (comma separated)"
+          [:div.ui.fluid.input
+           [:input {:default-value (str/join "," @examples)
+                    :type "text"
+                    :on-change
+                    (fn [event]
+                      (let [value (-> event .-target .-value)]
+                        (if (empty? value)
+                          (reset! examples nil)
+                          (reset! examples
+                                  (str/split value #",")))))}]]])
+       (when (= @value-type "categorical")
+         ;; all-values
+         [:label {:style label-style} "Categories (comma separated options)"
+          [:div.ui.form
+           [:input {:default-value (str/join "," @all-values)
+                    :type "text"
+                    :placeholder "Heart,Liver,Brain"
+                    :on-change
+                    (fn [event]
+                      (let [value (-> event .-target .-value)]
+                        (if (empty? value)
+                          (reset! all-values nil)
+                          (reset! all-values
+                                  (str/split value #",")))))}]]])
+       (when (= @value-type "boolean")
+         [:div
+          [:label {:style label-style} "Inclusion Criteria"]
+          [:div.ui.checkbox
+           [:input {:type "checkbox"
+                    :on-change (fn [event]
+                                 (let [checked? (-> event .-target .-checked)]
+                                   (reset! inclusion-values
+                                           (if checked?
+                                             (into [] (conj (set @inclusion-values) false))
+                                             (into [] (remove false? (set @inclusion-values)))))))
+                    :checked (contains? (set @inclusion-values) false)}]
+           [:label {:style {:margin-right "0.5em"}} "No"]]
+          [:div.ui.checkbox
+           [:input {:type "checkbox"
+                    :on-change (fn [event]
+                                 (let [checked? (-> event .-target .-checked)]
+                                   (reset! inclusion-values
+                                           (if checked?
+                                             (into [] (conj (set @inclusion-values) true))
+                                             (into [] (remove true? (set @inclusion-values)))))))
+                    :checked (contains? (set @inclusion-values) true)}]
+           [:label {:style {:margin-right "0.5em"}} "Yes"]]])
        ])))
 
 (defn StringLabelForm
@@ -300,7 +343,7 @@
             {:class " "
              :on-click
              (fn [ev]
-               (reset! value ""))}
+               (reset! value [""]))}
             [:i.fitted.remove.icon]]])
         [:input
          {:type "text"
@@ -387,7 +430,7 @@
                [:span.name
                 {:class (when (>= (count short-label) 30)
                           "small-text")}
-                [:span.inner short-label]]]
+                [:span.inner (str short-label " is " label-id)]]]
            (if (and (mobile?) (>= (count short-label) 30))
              [:div.ui.row.label-edit-name
               [InclusionTag label]
@@ -430,7 +473,7 @@
               "string"
               [StringLabelForm {:value value
                                 :set-answer!
-                                #(reset! value (-> % .-target .-value))
+                                #(reset! value [(-> % .-target .-value)])
                                 :label-id label-id}]
               "categorical"
               [CategoricalLabelForm
@@ -444,39 +487,36 @@
                                    #(into [] (remove (partial = v) %))))}]
               (pr-str label)))]]]])))
 
-(defn- LabelItem [i label]
-  (let [hovering? (r/atom false)
-        label (r/cursor state [:labels (:label-id label)])]
-    (fn []
-      [:div.ui.middle.aligned.grid.segment.label-item
-       {:on-mouse-enter #(reset! hovering? true)
-        :on-mouse-leave #(reset! hovering? false)}
-       [:div.row
-        [ui/CenteredColumn
-         [:div.ui.blue.label (str (inc i))]
-         "one wide center aligned column label-index"]
-        [:div.fourteen.wide.column
-         (if @(r/cursor label [:editing?])
-           [LabelEditForm @label]
-           [Label @label])]
-        [ui/CenteredColumn
-         (when @hovering?
-           [:div
-            [DeleteLabelButton @label]
-            [EditLabelButton @label]])
-         "one wide center aligned column delete-label"]]])))
+(defn- LabelItem []
+  (let [hovering? (r/atom false)]
+    (fn [i label]
+      (let [label (r/cursor state [:labels (:label-id label)])]
+        [:div.ui.middle.aligned.grid.segment.label-item
+         {:on-mouse-enter #(reset! hovering? true)
+          :on-mouse-leave #(reset! hovering? false)}
+         [:div.row
+          [ui/CenteredColumn
+           [:div.ui.blue.label (str (inc i))]
+           "one wide center aligned column label-index"]
+          [:div.fourteen.wide.column
+           (if @(r/cursor label [:editing?])
+             [LabelEditForm @label]
+             [Label @label])]
+          [ui/CenteredColumn
+           (when @hovering?
+             [:div
+              [DeleteLabelButton @label]
+              [EditLabelButton @label]])
+           "one wide center aligned column delete-label"]]]))))
 
 
 (defmethod panel-content panel []
   (fn [child]
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
-          ;;active (vals (active-labels))
-          labels (r/cursor state [:labels])
-          ]
+          labels (r/cursor state [:labels])]
       (when (empty? @labels)
         (sync-local-labels!))
-      ;;(.log js/console (clj->js (get-local-labels)))
       [:div.define-labels
        (doall (map-indexed
                (fn [i label]
