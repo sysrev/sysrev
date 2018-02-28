@@ -10,6 +10,7 @@
     [project-labels project-member project-article-count project-keywords
      project-notes project-settings]]
    [sysrev.db.export :as export]
+   [sysrev.export.endnote :as endnote-out]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
@@ -308,6 +309,20 @@
          (-> (response/response data)
              (response/header "Content-Type"
                               "text/csv; charset=utf-8")
+             (response/header
+              "Content-Disposition"
+              (format "attachment; filename=\"%s\""
+                      filename)))))
+
+  ;; TODO: fix permissions without breaking download on Safari
+  (GET "/api/export-endnote-xml/:project-id/:filename" request
+       (let [filename (-> request :params :filename)
+             project-id (-> request :params :project-id Integer/parseInt)
+             ;; project-id (active-project request)
+             data (endnote-out/project-to-endnote-xml project-id)]
+         (-> (response/response data)
+             (response/header "Content-Type"
+                              "text/xml; charset=utf-8")
              (response/header
               "Content-Disposition"
               (format "attachment; filename=\"%s\""

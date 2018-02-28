@@ -282,3 +282,23 @@
 (s/fdef articles-have-labels?
         :args (s/cat :coll coll?)
         :ret boolean?)
+
+(defn article-location-urls [locations]
+  (let [sources [:pubmed :doi :pii :nct]]
+    (->>
+     sources
+     (map
+      (fn [source]
+        (let [entries (get locations (name source))]
+          (->>
+           entries
+           (map
+            (fn [{:keys [external-id]}]
+              (case (keyword source)
+                :pubmed (str "https://www.ncbi.nlm.nih.gov/pubmed/?term=" external-id)
+                :doi (str "https://dx.doi.org/" external-id)
+                :pmc (str "https://www.ncbi.nlm.nih.gov/pmc/articles/" external-id "/")
+                :nct (str "https://clinicaltrials.gov/ct2/show/" external-id)
+                nil)))))))
+     (apply concat)
+     (filter identity))))

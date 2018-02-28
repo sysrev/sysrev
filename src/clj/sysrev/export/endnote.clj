@@ -6,10 +6,11 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.util :refer
-             [xml-find-value parse-xml-str]]
+             [xml-find-value parse-xml-str today-string]]
             [sysrev.shared.util :refer [in? map-values]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
+            [sysrev.db.articles :as articles]
             [sysrev.import.endnote :refer
              [load-endnote-record parse-endnote-file]]
             [clojure.string :as str]))
@@ -71,3 +72,91 @@
           (str/replace f #"\n" "\r")
           (str/trim-newline f)))
   true)
+
+(defn- with-style [& content]
+  (apply vector
+         :style
+         {:size "100%" :font "default" :face "normal"}
+         content))
+
+(defn article-to-endnote-xml
+  [article-id {:keys [filename]
+               :or {filename "Sysrev_Articles"}}]
+  (let [article (articles/query-article-by-id-full
+                 article-id {:include-disabled? true})]
+    [:record
+     [:database {:name (str filename ".enl")}
+      (str filename ".enl")]
+     [:source-app {:version "17.7" :name "EndNote"} "EndNote"]
+     [:rec-number (str article-id)]
+     [:ref-type {:name "Journal Article"} "17"]
+     [:contributors
+      (when (-> article :authors not-empty)
+        [:authors
+         (doall
+          (->> article :authors
+               (map (fn [s]
+                      [:author (with-style s)]))))])]
+     [:titles
+      [:title
+       (with-style (-> article :primary-title))]
+      (when (-> article :secondary-title)
+        [:secondary-title
+         (with-style (-> article :secondary-title))])]
+     (when (-> article :secondary-title)
+       [:periodical
+        [:full-title
+         (with-style (-> article :secondary-title))]])
+     #_ [:pages]
+     #_ [:volume]
+     #_ [:number]
+     (when (-> article :keywords not-empty)
+       [:keywords {}
+        (doall
+         (->> article :keywords
+              (map (fn [s]
+                     [:keyword (with-style s)]))))])
+     (when (-> article :year)
+       [:dates
+        [:year (with-style (-> article :year str))]])
+     #_ [:isbn]
+     [:abstract (with-style (-> article :abstract))]
+     #_ [:notes]
+     [:urls
+      (let [urls (concat
+                  (-> article :urls)
+                  (-> article :locations
+                      articles/article-location-urls))]
+        (when (not-empty urls)
+          [:related-urls
+           (doall
+            (->> urls
+                 (map (fn [s]
+                        [:url (with-style s)]))))]))]
+     (when-let [doi (-> article :locations (get "doi"))]
+       [:electronic-resource-num
+        (doall
+         (->> doi
+              (map (fn [x]
+                     (with-style (-> x :external-id))))))])
+     (when (-> article :remote-database-name)
+       [:remote-database-name
+        (with-style (-> article :remote-database-name))])
+     [:custom4 (-> article-id str)]
+     [:custom5 (-> article :article-uuid str)]]))
+
+(defn project-to-endnote-xml [project-id]
+  (let [filename (str "SysRev_Articles_"
+                      project-id
+                      "_"
+                      (today-string))
+        records (-> (q/select-project-articles project-id [:article-id])
+                    (->> do-query
+                         (map :article-id)
+                         (map #(article-to-endnote-xml
+                                % {:filename filename}))))]
+    (dxml/emit-str
+     (dxml/sexp-as-element
+      [:xml
+       [:records
+        (doall records)]]))))

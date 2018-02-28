@@ -33,14 +33,21 @@
          ;; :periodical [:periodical :full-title]
          :abstract [:abstract]
          :remote-database-name [:remote-database-name]
-         :year [:dates :year]
-         :rec-number [:rec-number]
-         :custom4 [:custom4]
-         :custom5 [:custom5]}
+         :year [:dates :year]}
         (map-values
          (fn [path]
            (-> (xml-find [e] (concat path [:style]))
                first :content first))))
+       (->>
+        {:rec-number [:rec-number]
+         :custom4 [:custom4]
+         :custom5 [:custom5]}
+        (map-values
+         (fn [path]
+           (or (-> (xml-find [e] (concat path [:style]))
+                   first :content first)
+               (-> (xml-find [e] path)
+                   first :content first)))))
        (->>
         {:urls [:urls :related-urls :url]
          :authors [:contributors :authors :author]

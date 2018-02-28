@@ -4,6 +4,9 @@
             [crypto.random]
             [clojure.math.numeric-tower :as math]
             [cognitect.transit :as transit]
+            [clj-time.core :as t]
+            [clj-time.coerce :as tc]
+            [clj-time.format :as tformat]
             [clojure.java.io :as io])
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
            java.util.UUID
@@ -164,3 +167,8 @@
   "Returns a string, the name of the current Clojure function."
   []
   `(-> (Throwable.) .getStackTrace first .getClassName demunge))
+
+(defn today-string []
+  (let [now (t/now)
+        fmt (tformat/formatters :basic-date)]
+    (tformat/unparse fmt now)))
