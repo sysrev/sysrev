@@ -54,7 +54,10 @@
      :enabled true,
      :value-type value-type
      :required true
-     :answer (default-answer value-type)}))
+     ;; below are values for editing labels
+     :answer (default-answer value-type)
+     :editing? false
+     :hovering? false}))
 
 
 (defn- set-labels [labels]
@@ -95,19 +98,22 @@
                     (add-answers (saved-labels)))))
 
 (defn- DeleteLabelButton [label]
-  (let [editing?  (r/cursor state [:labels (:label-id label) :editing?])]
+  (let [editing?  (r/cursor label [:editing?])
+        label-id  (r/cursor label [:label-id])]
     [:div.ui.small.orange.icon.button
      {:on-click #(cond @editing?
                        (reset! editing? false)
                        (and (not @editing?)
-                            (string? (:label-id label)))
-                       (swap! (r/cursor state [:labels]) dissoc (:label-id label)))
+                            (string? @label-id))
+                       (swap! (r/cursor state [:labels]) dissoc @label-id))
       :style {:margin "0"}}
      [:i.remove.icon]]))
 
-(defn EditLabelButton [label]
+(defn EditLabelButton
+  "label is a cursor into the state representing the label"
+  [label]
   [:div.ui.small.primary.icon.button
-   {:on-click #(swap! (r/cursor state [:labels (:label-id label) :editing?]) not)
+   {:on-click #(swap! (r/cursor label [:editing?]) not)
     :style {:margin "0"}}
    [:i.edit.icon]])
 
@@ -186,146 +192,166 @@
                                                 {:visibility "hidden"})}]))))
 
 (defn LabelEditForm
-  [{:keys [label-id]}]
-  (let [label-style {:display "block"
-                     :margin-top "0.5em"
-                     :margin-bottom "0.5em"}
-        input-style {:margin-left "0.5em"}
-        label (r/cursor state [:labels label-id])
-        value-type (r/cursor label [:value-type])
-        answer (r/cursor label [:answer])
-        ;; name is redundant with label-id
-        name (r/cursor label [:name])   ; required, string, ✓
-        short-label (r/cursor label [:short-label]) ; required, string, ✓
-        required (r/cursor label [:required]) ; required, boolean, ✓
-        question (r/cursor label [:question]) ; required, string, ✓
-        definition (r/cursor label [:definition]) ; not used, ✓
-        ;; boolean
-        inclusion-values (r/cursor definition [:inclusion-values]) ; required, vector of booleans
-        ;; string
-        examples (r/cursor definition [:examples]) ; optional, vector of strings, ✓
-        max-length (r/cursor definition [:max-length]) ; required, integer, ✓
-        multi? (r/cursor definition [:multi?]) ; required (also in categorical), boolean
-        ;; categorical
-        all-values (r/cursor definition [:all-values]) ; required, vector of strings
-        inclusion-values (r/cursor definition [:inclusion-values]) ; optional, vector of string, must be in all-values
-        ]
-    (fn []
-      [:div
-       [:label {:style label-style}
-        "Type of Label"
-        [:select {:class "ui dropdown"
-                  :style input-style
-                  :on-change #(do
-                                ;; need to change the type
-                                (reset! value-type
-                                        (-> % .-target .-value))
-                                ;; but also clear the current answer as it is likely nonsense
-                                (reset! answer (default-answer @value-type)))
-                  :value @value-type}
-         [:option {:value "boolean"}
-          "Boolean"]
-         [:option {:value "string"}
-          "String"]
-         [:option {:value "categorical"}
-          "Categorical"]]]
-       ;; this is going to be filled in some other way, or the field
-       ;; deleted
-       #_ [:label {:style label-style} "Name"
-           [:div.ui.fluid.input
-            [:input {:value @name
-                     :type "text"
-                     :on-change (fn [event]
-                                  (reset! name
-                                          (-> event .-target .-value)))}]]]
-       ;; short-label
-       [:label {:style label-style} "Display Label"
-        [:div.ui.fluid.input
-         [:input {:value @short-label
-                  :type "text"
-                  :on-change (fn [event]
-                               (reset! short-label
-                                       (-> event .-target .-value)))}]]]
-       ;; required
-       [:label {:style label-style} "Required"
-        [:input {:style input-style
-                 :checked @required
-                 :type "radio"
-                 :on-change (fn [event]
-                              (swap! required
-                                     not))}]]
-       ;; question
-       [:label {:style label-style} "Question"
-        [:div.ui.fluid.input
-         [:input {:value @question
-                  :type "text"
-                  :on-change (fn [event]
-                               (reset! question
-                                       (-> event .-target .-value)))}]]]
-       ;; inclusion-values
-       #_ (when (= @value-type "boolean")
-            [:label "Which values for inclusion?"
-             [:input {:value @foo}]])
-       (when (= @value-type "string")
-         ;; max-length
-         [:label {:style label-style} "Max Length"
+  []
+  (let []
+    (fn [label]
+      (let [label-style {:display "block"
+                         :margin-top "0.5em"
+                         :margin-bottom "0.5em"}
+            input-style {:margin-left "0.5em"}
+            value-type (r/cursor label [:value-type])
+            answer (r/cursor label [:answer])
+            ;; name is redundant with label-id
+            name (r/cursor label [:name]) ; required, string, ✓
+            short-label (r/cursor label [:short-label]) ; required, string, ✓
+            required (r/cursor label [:required]) ; required, boolean, ✓
+            question (r/cursor label [:question]) ; required, string, ✓
+            definition (r/cursor label [:definition]) ; not used, ✓
+            ;; boolean
+            inclusion-values (r/cursor definition [:inclusion-values]) ; required, vector of booleans, ✓
+            ;; string
+            examples (r/cursor definition [:examples]) ; optional, vector of strings, ✓
+            max-length (r/cursor definition [:max-length]) ; required, integer, ✓
+            multi? (r/cursor definition [:multi?]) ; required (also in categorical), boolean
+            ;; categorical
+            all-values (r/cursor definition [:all-values]) ; required, vector of strings,✓
+            inclusion-values (r/cursor definition [:inclusion-values]) ; optional, vector of string, must be in all-values
+            ]
+        [:div
+         [:label {:style label-style}
+          "Type of Label"
+          [:select {:class "ui dropdown"
+                    :style input-style
+                    :on-change #(do
+                                  ;; need to change the type
+                                  (reset! value-type
+                                          (-> % .-target .-value))
+                                  ;; but also clear the current answer as it is likely nonsense
+                                  (reset! answer (default-answer @value-type)))
+                    :value @value-type}
+           [:option {:value "boolean"}
+            "Boolean"]
+           [:option {:value "string"}
+            "String"]
+           [:option {:value "categorical"}
+            "Categorical"]]]
+         ;; this is going to be filled in some other way, or the field
+         ;; deleted
+         #_ [:label {:style label-style} "Name"
+             [:div.ui.fluid.input
+              [:input {:value @name
+                       :type "text"
+                       :on-change (fn [event]
+                                    (reset! name
+                                            (-> event .-target .-value)))}]]]
+         ;; short-label
+         [:label {:style label-style} "Display Label"
           [:div.ui.fluid.input
-           [:input {:value @max-length
+           [:input {:value @short-label
                     :type "text"
                     :on-change (fn [event]
-                                 (reset! max-length
-                                         (-> event .-target .-value)))}]]])
-       (when (= @value-type "string")
-         ;; examples
-         [:label {:style label-style} "Examples (comma separated)"
+                                 (reset! short-label
+                                         (-> event .-target .-value)))}]]]
+         ;; required
+         [:label {:style label-style} "Required"
+          [:input {:style input-style
+                   :checked @required
+                   :type "radio"
+                   :on-change (fn [event]
+                                (swap! required
+                                       not))}]]
+         ;; question
+         [:label {:style label-style} "Question"
           [:div.ui.fluid.input
-           [:input {:default-value (str/join "," @examples)
+           [:input {:value @question
                     :type "text"
-                    :on-change
-                    (fn [event]
-                      (let [value (-> event .-target .-value)]
-                        (if (empty? value)
-                          (reset! examples nil)
-                          (reset! examples
-                                  (str/split value #",")))))}]]])
-       (when (= @value-type "categorical")
-         ;; all-values
-         [:label {:style label-style} "Categories (comma separated options)"
-          [:div.ui.form
-           [:input {:default-value (str/join "," @all-values)
-                    :type "text"
-                    :placeholder "Heart,Liver,Brain"
-                    :on-change
-                    (fn [event]
-                      (let [value (-> event .-target .-value)]
-                        (if (empty? value)
-                          (reset! all-values nil)
-                          (reset! all-values
-                                  (str/split value #",")))))}]]])
-       (when (= @value-type "boolean")
-         [:div
-          [:label {:style label-style} "Inclusion Criteria"]
-          [:div.ui.checkbox
-           [:input {:type "checkbox"
                     :on-change (fn [event]
-                                 (let [checked? (-> event .-target .-checked)]
-                                   (reset! inclusion-values
-                                           (if checked?
-                                             (into [] (conj (set @inclusion-values) false))
-                                             (into [] (remove false? (set @inclusion-values)))))))
-                    :checked (contains? (set @inclusion-values) false)}]
-           [:label {:style {:margin-right "0.5em"}} "No"]]
-          [:div.ui.checkbox
-           [:input {:type "checkbox"
-                    :on-change (fn [event]
-                                 (let [checked? (-> event .-target .-checked)]
-                                   (reset! inclusion-values
-                                           (if checked?
-                                             (into [] (conj (set @inclusion-values) true))
-                                             (into [] (remove true? (set @inclusion-values)))))))
-                    :checked (contains? (set @inclusion-values) true)}]
-           [:label {:style {:margin-right "0.5em"}} "Yes"]]])
-       ])))
+                                 (reset! question
+                                         (-> event .-target .-value)))}]]]
+         ;; inclusion-values
+         #_ (when (= @value-type "boolean")
+              [:label "Which values for inclusion?"
+               [:input {:value @foo}]])
+         (when (= @value-type "string")
+           ;; max-length
+           [:label {:style label-style} "Max Length"
+            [:div.ui.fluid.input
+             [:input {:value @max-length
+                      :type "text"
+                      :on-change (fn [event]
+                                   (reset! max-length
+                                           (-> event .-target .-value)))}]]])
+         (when (= @value-type "string")
+           ;; examples
+           [:label {:style label-style} "Examples (comma separated)"
+            [:div.ui.fluid.input
+             [:input {:default-value (str/join "," @examples)
+                      :type "text"
+                      :on-change
+                      (fn [event]
+                        (let [value (-> event .-target .-value)]
+                          (if (empty? value)
+                            (reset! examples nil)
+                            (reset! examples
+                                    (str/split value #",")))))}]]])
+         (when (= @value-type "categorical")
+           ;; all-values
+           [:label {:style label-style} "Categories (comma separated options)"
+            [:div.ui.form
+             [:input {:default-value (str/join "," @all-values)
+                      :type "text"
+                      :placeholder "Heart,Liver,Brain"
+                      :on-change
+                      (fn [event]
+                        (let [value (-> event .-target .-value)]
+                          (if (empty? value)
+                            (reset! all-values nil)
+                            (reset! all-values
+                                    (str/split value #",")))))}]]])
+         (when (= @value-type "boolean")
+           [:div
+            [:label {:style label-style} "Inclusion Criteria"]
+            [:div.ui.checkbox
+             [:input {:type "checkbox"
+                      :on-change (fn [event]
+                                   (let [checked? (-> event .-target .-checked)]
+                                     (reset! inclusion-values
+                                             (if checked?
+                                               (into [] (conj (set @inclusion-values) false))
+                                               (into [] (remove false? (set @inclusion-values)))))))
+                      :checked (contains? (set @inclusion-values) false)}]
+             [:label {:style {:margin-right "0.5em"}} "No"]]
+            [:div.ui.checkbox
+             [:input {:type "checkbox"
+                      :on-change (fn [event]
+                                   (let [checked? (-> event .-target .-checked)]
+                                     (reset! inclusion-values
+                                             (if checked?
+                                               (into [] (conj (set @inclusion-values) true))
+                                               (into [] (remove true? (set @inclusion-values)))))))
+                      :checked (contains? (set @inclusion-values) true)}]
+             [:label {:style {:margin-right "0.5em"}} "Yes"]]])
+         ;; inclusion criteria for categorical
+         (when (and (= @value-type "categorical")
+                    (not (empty? @all-values)))
+           [:div
+            [:label {:style label-style} "Inclusion Criteria"]
+            (doall (map
+                    (fn [option-value]
+                      ^{:key (gensym option-value)}
+                      [:div.ui.checkbox
+                       [:input {:type "checkbox"
+                                :on-change (fn [event]
+                                             (let [checked? (-> event .-target .-checked)]
+                                               (reset! inclusion-values
+                                                       (if checked?
+                                                         (into [] (conj (set @inclusion-values) option-value))
+                                                         (into [] (remove #(= option-value %) (set @inclusion-values)))))))
+                                :checked (contains? (set @inclusion-values) option-value)}]
+                       [:label {:style {:margin-right "0.5em"}} option-value]])
+                    @all-values))])
+         ]
+        ))))
 
 (defn StringLabelForm
   [{:keys [set-answer! value label-id]}]
@@ -420,7 +446,7 @@
 (defn Label
   []
   (fn [label]
-    (let [{:keys [value-type question short-label label-id category]} label]
+    (let [{:keys [value-type question short-label label-id category]} @label]
       [:div.ui.column.label-edit {:class ;;label-css-class
                                   "required"
                                   }
@@ -430,16 +456,16 @@
                [:span.name
                 {:class (when (>= (count short-label) 30)
                           "small-text")}
-                [:span.inner (str short-label " is " label-id)]]]
+                [:span.inner (str short-label)]]]
            (if (and (mobile?) (>= (count short-label) 30))
              [:div.ui.row.label-edit-name
-              [InclusionTag label]
+              [InclusionTag @label]
               [:span.name " "]
               (when (not-empty question)
                 [:i.right.floated.fitted.grey.circle.question.mark.icon])
               [:div.clear name-content]]
              [:div.ui.row.label-edit-name
-              [InclusionTag label]
+              [InclusionTag @label]
               name-content
               (when (not-empty question)
                 [:i.right.floated.fitted.grey.circle.question.mark.icon])]))
@@ -464,8 +490,8 @@
                    "string"       "string"
                    "")}
          [:div.inner
-          (let [value (r/cursor state [:labels label-id :answer])
-                {:keys [label-id definition required]} label]
+          (let [value (r/cursor label [:answer])
+                {:keys [label-id definition required]} @label]
             (condp = value-type
               "boolean"
               [ui/three-state-selection {:set-answer! #(reset! value %)
@@ -488,26 +514,26 @@
               (pr-str label)))]]]])))
 
 (defn- LabelItem []
-  (let [hovering? (r/atom false)]
-    (fn [i label]
-      (let [label (r/cursor state [:labels (:label-id label)])]
-        [:div.ui.middle.aligned.grid.segment.label-item
-         {:on-mouse-enter #(reset! hovering? true)
-          :on-mouse-leave #(reset! hovering? false)}
-         [:div.row
-          [ui/CenteredColumn
-           [:div.ui.blue.label (str (inc i))]
-           "one wide center aligned column label-index"]
-          [:div.fourteen.wide.column
-           (if @(r/cursor label [:editing?])
-             [LabelEditForm @label]
-             [Label @label])]
-          [ui/CenteredColumn
-           (when @hovering?
-             [:div
-              [DeleteLabelButton @label]
-              [EditLabelButton @label]])
-           "one wide center aligned column delete-label"]]]))))
+  (fn [i label]
+    (let [hovering? (r/cursor label [:hovering?])
+          editing? (r/cursor label [:editing?])]
+      [:div.ui.middle.aligned.grid.segment.label-item
+       {:on-mouse-enter #(reset! hovering? true)
+        :on-mouse-leave #(reset! hovering? false)}
+       [:div.row
+        [ui/CenteredColumn
+         [:div.ui.blue.label (str (inc i))]
+         "one wide center aligned column label-index"]
+        [:div.fourteen.wide.column
+         (if @editing?
+           [LabelEditForm label]
+           [Label label])]
+        [ui/CenteredColumn
+         (when @hovering?
+           [:div
+            [DeleteLabelButton label]
+            [EditLabelButton label]])
+         "one wide center aligned column delete-label"]]])))
 
 
 (defmethod panel-content panel []
@@ -521,7 +547,8 @@
        (doall (map-indexed
                (fn [i label]
                  ^{:key i}
-                 [LabelItem i label])
+                 ;; let's pass a cursor to the state
+                 [LabelItem i (r/cursor state [:labels (:label-id label)])])
                (sort-by :project-ordering (vals @labels))))
        [AddLabelButton "boolean"]
        [:br]
