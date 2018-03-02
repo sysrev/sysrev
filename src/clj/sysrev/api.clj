@@ -1,6 +1,8 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
-  (:require [clojure.spec.alpha :as s]
+  (:require [bouncer.core :as b]
+            [clojure.set :refer [rename-keys]]
+            [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
@@ -304,6 +306,41 @@
                     {:status not-found}))
       stripe-response)))
 
+(defn sync-labels
+  "Given a map of labels, sync them with project-id."
+  [project-id labels-map]
+  ;; first let's convert the labels to a set
+  (let [labels (set (vals labels-map))
+        all-labels-valid? (fn [labels]
+                            (every? true? (map #(b/valid? % (labels/label-validations (:value-type %))) labels)))]
+    ;; labels must be valid
+    (if (all-labels-valid? labels)
+      ;; labels are valid
+      {:result {:valid? true
+                :labels labels-map}}
+      ;; labels are invalid
+      {:result {:valid? false
+                :labels
+                (->> labels
+                     ;; validate each label
+                     (map #(b/validate % (labels/label-validations (:value-type %))))
+                     ;; get the label map with attached errors
+                     (map second)
+                     ;; rename bouncer.core/errors -> errors
+                     (map #(rename-keys % {:bouncer.core/errors :errors}))
+                     ;; create a new hash map of labels which include
+                     ;; errors
+                     (map #(hash-map (:label-id %) %))
+                     ;; finally, return a map
+                     (apply merge))}}))
+  ;; if valid, get the current labels and compare the sets
+  ;; sort into a pile of no-change, modified and new
+
+  ;; modify the current labels
+
+  ;; update the new labels
+
+  )
 (defn test-response
   "Server Sanity Check"
   []

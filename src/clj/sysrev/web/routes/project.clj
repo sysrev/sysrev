@@ -333,6 +333,12 @@
                 (labels/filter-recent-public-articles project-id exclude-hours)
                 (sr-transit/encode-public-labels))})))
 
+  (POST "/api/sync-project-labels" request
+        (let [{:keys [project-id labels]} (:body request)]
+          (wrap-permissions
+           request [] ["admin"]
+           (api/sync-labels project-id labels))))
+
   (GET "/api/query-register-project" request
        (let [register-hash (-> request :params :register-hash)
              project-id (project/project-id-from-register-hash register-hash)]
