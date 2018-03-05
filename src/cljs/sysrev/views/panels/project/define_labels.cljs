@@ -14,7 +14,7 @@
    [sysrev.views.components :as ui]
    [sysrev.views.review :refer [label-help-popup inclusion-tag]]
    [sysrev.shared.util :refer [in?]]
-   [sysrev.util :refer [desktop-size? random-id]]))
+   [sysrev.util :refer [desktop-size? random-id string->integer]]))
 
 (def panel [:project :project :labels :edit])
 
@@ -50,6 +50,7 @@
      ;; we are assuming people want all labels as inclusion criteria
      ;; label influences inclusion
      :category "inclusion criteria"
+     :name (str value-type (random-id))
      :multi? false
      :project-ordering (inc (max-project-ordering)),
      :label-id label-id
@@ -104,11 +105,16 @@
           (assoc-in @state [:labels]
                     (labels->local-labels labels))))
 
+(defn errors-in-labels?
+  "Are there errors in the labels?"
+  [labels]
+  (not (every? nil? (map :errors (vals labels)))))
+
 (defn local-labels->global-labels
   [labels]
   (->> labels
        vals
-       (map #(dissoc % :editing? :hovering? :answer))
+       (map #(dissoc % :editing? :hovering? :answer :errors))
        (map #(hash-map (:label-id %) %))
        (apply merge)))
 
@@ -179,8 +185,9 @@
 
 (defn- SaveButton []
   [:div.ui.large.right.labeled.positive.icon.button
-   {:on-click #(dispatch [:action [:labels/sync-project-labels (active-project-id @app-db) (get-local-labels)]])
-    :class (if (labels-synced?) "disabled" "enabled")}
+   {:on-click #(dispatch [:action [:labels/sync-project-labels (active-project-id @app-db) (local-labels->global-labels (get-local-labels))]])
+    :class (if (and (labels-synced?)
+                    (not (errors-in-labels? (get-local-labels)))) "disabled" "enabled")}
    "Save Labels"
    [:i.check.circle.outline.icon]])
 
@@ -346,7 +353,8 @@
                        :type "text"
                        :on-change (fn [event]
                                     (reset! max-length
-                                            (-> event .-target .-value)))}]]]
+                                            (-> event .-target .-value
+                                                string->integer)))}]]]
             (when-let [error (get-in @errors [:definition :max-length])]
               [:div {:class "ui red header"}
                error])])

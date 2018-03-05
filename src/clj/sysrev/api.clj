@@ -1,7 +1,7 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require [bouncer.core :as b]
-            [clojure.set :refer [rename-keys]]
+            [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
@@ -17,6 +17,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]))
 
+(def temp-new-current-labels (atom {}))
 (def default-plan "Basic")
 ;; Error code used
 (def forbidden 403)
@@ -310,20 +311,54 @@
   "Given a map of labels, sync them with project-id."
   [project-id labels-map]
   ;; first let's convert the labels to a set
-  (let [labels (set (vals labels-map))
+  (let [client-labels (set (vals labels-map))
         all-labels-valid? (fn [labels]
-                            (every? true? (map #(b/valid? % (labels/label-validations (:value-type %))) labels)))]
+                            (every? true? (map #(b/valid? % (labels/label-validations %)) client-labels)))]
     ;; labels must be valid
-    (if (all-labels-valid? labels)
+    (if (all-labels-valid? client-labels)
       ;; labels are valid
-      {:result {:valid? true
-                :labels labels-map}}
+      (let [server-labels (set (vals (project/project-labels project-id)))
+            ;; new labels are given a randomly generated string id on
+            ;; the client, so labels that are non-existent on the server
+            ;; will have string as opposed to UUID label-ids
+            new-client-labels (set (filter #(= java.lang.String
+                                               (type (:label-id %)))
+                                           client-labels))
+            current-client-labels (set (filter #(= java.util.UUID
+                                                   (type (:label-id %)))
+                                               client-labels))
+            modified-client-labels (difference current-client-labels server-labels)
+            deleted-client-labels-id (difference (set (map :label-id server-labels))
+                                                 (set (map :label-id current-client-labels)))]
+        (println "I should change temp-labels")
+        ;; new-client-labels can just be saved as they have
+        ;; been validated
+        
+        ;; modified-client-labels
+        ;; must check to see if
+        ;; 1. Are there any articles who have this label set for them?
+        ;;    if they are not, just make the changes on the server
+        ;;    if there are set values, check that
+        ;; 1. type didn't change - not allowed for saved values
+        ;; 2. for categorical labels, categories are not being deleted
+
+        ;; deleted-client-labels-id
+        ;; check if
+        ;; 1. Are there any articles which have this label set for them?
+        ;;    if not, just delete the label
+        ;;    if so, just set 'enabled' to false
+
+
+        {:result {:valid? true
+                  :labels ;;(project/project-labels project-id)
+                  labels-map
+                  }})
       ;; labels are invalid
       {:result {:valid? false
                 :labels
-                (->> labels
+                (->> client-labels
                      ;; validate each label
-                     (map #(b/validate % (labels/label-validations (:value-type %))))
+                     (map #(b/validate % (labels/label-validations %)))
                      ;; get the label map with attached errors
                      (map second)
                      ;; rename bouncer.core/errors -> errors

@@ -215,3 +215,9 @@
                     (do (f)
                         (continuous-update-until f pred on-success n)))
                  n))
+
+(defn string->integer
+  "Convert a string to an integer, assumes that string will parse to
+  an integer"
+  [s]
+  (js/parseInt s))
