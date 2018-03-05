@@ -17,7 +17,6 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]))
 
-(def temp-new-current-labels (atom {}))
 (def default-plan "Basic")
 ;; Error code used
 (def forbidden 403)
@@ -333,7 +332,8 @@
         (println "I should change temp-labels")
         ;; new-client-labels can just be saved as they have
         ;; been validated
-        
+        #_(when-not (empty? new-client-labels)
+            (map ))
         ;; modified-client-labels
         ;; must check to see if
         ;; 1. Are there any articles who have this label set for them?

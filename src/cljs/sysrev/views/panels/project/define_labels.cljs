@@ -18,7 +18,7 @@
 
 (def panel [:project :project :labels :edit])
 
-(def state (r/atom {}))
+(defonce state (r/atom {:server-syncing? false}))
 
 (defn- get-local-labels []
   (get-in @state [:labels]))
@@ -101,9 +101,9 @@
 (defn sync-local-labels!
   "Sync the local state labels with labels map"
   [labels]
-  (reset! state
-          (assoc-in @state [:labels]
-                    (labels->local-labels labels))))
+  (swap! state
+         assoc-in [:labels]
+         (labels->local-labels labels)))
 
 (defn errors-in-labels?
   "Are there errors in the labels?"
@@ -164,10 +164,11 @@
 (def-action :labels/sync-project-labels
   :uri (fn [] "/api/sync-project-labels")
   :content (fn [project-id labels]
+             (swap! state assoc-in [:server-syncing?] true)
              {:project-id project-id
               :labels labels})
   :process (fn [_ _ {:keys [valid? labels] :as result}]
-             (let [labels-map (first labels)])
+             (swap! state assoc-in [:server-syncing?] false)
              (if valid?
                ;; no errors
                (do
@@ -186,8 +187,11 @@
 (defn- SaveButton []
   [:div.ui.large.right.labeled.positive.icon.button
    {:on-click #(dispatch [:action [:labels/sync-project-labels (active-project-id @app-db) (local-labels->global-labels (get-local-labels))]])
-    :class (if (and (labels-synced?)
-                    (not (errors-in-labels? (get-local-labels)))) "disabled" "enabled")}
+    :class (if (and (or (not (labels-synced?))
+                        (errors-in-labels? (get-local-labels)))
+                    (not @(r/cursor state [:server-syncing?])))
+             "enabled"
+             "disabled")}
    "Save Labels"
    [:i.check.circle.outline.icon]])
 

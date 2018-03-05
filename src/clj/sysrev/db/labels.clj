@@ -978,7 +978,7 @@
         do-execute)))
 
 (defn get-label-by-id
-  "Get a label by its UUID label_id"
+  "Get a label by its UUID label_id."
   [label-id]
   (-> (select :*)
       (from :label)
@@ -1098,7 +1098,13 @@
                                (str/join "," (rest valid-label-value-types)) " or " (first valid-label-value-types))]
                 [(partial editable-value-type? label-id)
                  :message (str "You can not change the type of label if a user has already labeled an article with it. "
-                               "The label was originally a " (:value-type (get-label-by-id label-id)) " and has been set as a " value-type)]]
+                               ;; get-label-by-id might encounter an error because a label with label-id doesn't exist on the server
+                               (when-not (string? label-id)
+                                 (str "The label was originally a "
+                                      (:value-type (get-label-by-id label-id))
+                                      " and has been set as a "
+                                      value-type)))
+                 ]]
 
    :project-id [[v/required
                  :message "Project ID must not be blank"]

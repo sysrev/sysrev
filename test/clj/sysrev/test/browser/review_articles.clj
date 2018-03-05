@@ -169,6 +169,7 @@
                                             baz-label-definition)
 ;;;; review an article
         (browser/wait-until-loading-completes)
+        (Thread/sleep 500)
         (browser/go-route "/")
         (browser/wait-until-displayed review-articles-button)
         (taxi/click review-articles-button)
