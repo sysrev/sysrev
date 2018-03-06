@@ -326,33 +326,26 @@
             current-client-labels (set (filter #(= java.util.UUID
                                                    (type (:label-id %)))
                                                client-labels))
-            modified-client-labels (difference current-client-labels server-labels)
-            deleted-client-labels-id (difference (set (map :label-id server-labels))
-                                                 (set (map :label-id current-client-labels)))]
-        (println "I should change temp-labels")
-        ;; new-client-labels can just be saved as they have
-        ;; been validated
-        #_(when-not (empty? new-client-labels)
-            (map ))
-        ;; modified-client-labels
-        ;; must check to see if
-        ;; 1. Are there any articles who have this label set for them?
-        ;;    if they are not, just make the changes on the server
-        ;;    if there are set values, check that
-        ;; 1. type didn't change - not allowed for saved values
-        ;; 2. for categorical labels, categories are not being deleted
-
-        ;; deleted-client-labels-id
-        ;; check if
-        ;; 1. Are there any articles which have this label set for them?
-        ;;    if not, just delete the label
-        ;;    if so, just set 'enabled' to false
-
-
+            modified-client-labels (difference current-client-labels server-labels)]
+        (println "modified-client-labels: " modified-client-labels)
+        ;; creation/modification of labels should be done
+        ;; on labels that have been validated.
+        ;;
+        ;; labels are never deleted, the enabled flag is set to 'empty'
+        ;; instead
+        ;;
+        ;; If there are issues with a label being incorrectly
+        ;; modified, add a validator for that case so that
+        ;; the error can easily be reported in the client
+        (when-not (empty? new-client-labels)
+          (doall (map (partial labels/add-label-entry project-id)
+                      new-client-labels)))
+        (when-not (empty? modified-client-labels)
+          (doall (map #(labels/alter-label-entry project-id
+                                                 (:label-id %) %)
+                      modified-client-labels)))
         {:result {:valid? true
-                  :labels ;;(project/project-labels project-id)
-                  labels-map
-                  }})
+                  :labels (project/project-labels project-id)}})
       ;; labels are invalid
       {:result {:valid? false
                 :labels
@@ -367,15 +360,8 @@
                      ;; errors
                      (map #(hash-map (:label-id %) %))
                      ;; finally, return a map
-                     (apply merge))}}))
-  ;; if valid, get the current labels and compare the sets
-  ;; sort into a pile of no-change, modified and new
+                     (apply merge))}})))
 
-  ;; modify the current labels
-
-  ;; update the new labels
-
-  )
 (defn test-response
   "Server Sanity Check"
   []

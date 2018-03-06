@@ -16,9 +16,19 @@
    [sysrev.shared.util :refer [in?]]
    [sysrev.util :refer [desktop-size? random-id string->integer]]))
 
+;; Convention -
+;; A (new) label that exists in the client but not on the server
+;; has a label-id of type string
+;;
+;; After it is saved on the server, the label-id type is #object[Transit$UUID] on the client and java.util.UUID on the server
+
+;; The jQuery plugin formBuilder as inspiration for the UI
+;; repo: https://github.com/kevinchappell/formBuilder
+;; demo: https://jsfiddle.net/kevinchappell/ajp60dzk/5/
+
 (def panel [:project :project :labels :edit])
 
-(defonce state (r/atom {:server-syncing? false}))
+(def state (r/atom {:server-syncing? false}))
 
 (defn- get-local-labels []
   (get-in @state [:labels]))
@@ -52,16 +62,17 @@
      :category "inclusion criteria"
      :name (str value-type (random-id))
      :multi? false
-     :project-ordering (inc (max-project-ordering)),
+     :project-ordering (inc (max-project-ordering))
+     ;; string, per convention
      :label-id label-id
-     :project-id (active-project-id @app-db),
-     :enabled true,
+     :project-id (active-project-id @app-db)
+     :enabled true
      :value-type value-type
      ;; must be answered
      :required true
      ;; below are values for editing labels
      :answer (default-answer value-type)
-     :editing? false
+     :editing? true
      :hovering? false
      :errors (list)
      }))
@@ -124,15 +135,26 @@
   (= (saved-labels)
      (local-labels->global-labels (get-local-labels))))
 
+(defn sync-app-db-labels!
+  "Sync the local labels with the global labels. label maps in labels
+  should not have local keywords such as :editing?, :errors, etc"
+  [labels]
+  ;; set the global labels
+  (reset!
+   (r/cursor app-db
+             [:data :project (active-project-id @app-db) :labels])
+   labels))
+
 (defn- DeleteLabelButton [label]
   (let [editing?  (r/cursor label [:editing?])
         label-id  (r/cursor label [:label-id])]
     [:div.ui.small.orange.icon.button
      {:on-click #(cond @editing?
                        (reset! editing? false)
-                       (and (not @editing?)
-                            (string? @label-id))
-                       (swap! (r/cursor state [:labels]) dissoc @label-id))
+                       (string? @label-id)
+                       (swap! (r/cursor state [:labels]) dissoc @label-id)
+                       :else
+                       (reset! (r/cursor label [:enabled]) false))
       :style {:margin "0"}}
      [:i.remove.icon]]))
 
@@ -160,9 +182,9 @@
    [:i.plus.circle.icon]
    (str "Add " (str/capitalize value-type) " Label")])
 
-;; labels in this case have been processed for the server
 (def-action :labels/sync-project-labels
   :uri (fn [] "/api/sync-project-labels")
+  ;; labels in this case have already been processed for the server
   :content (fn [project-id labels]
              (swap! state assoc-in [:server-syncing?] true)
              {:project-id project-id
@@ -173,10 +195,10 @@
                ;; no errors
                (do
                  ;; sync the labels with app-db
-                 (sync-local-labels! labels)
+                 (sync-app-db-labels! labels)
                  ;; sync the local labels with app-db
-                 )
-               ;;
+                 (sync-local-labels! (labels->local-labels labels)))
+               ;; errors
                (do
                  ;; sync the local labels, now with errors
                  (sync-local-labels! labels)))
@@ -196,14 +218,14 @@
    [:i.check.circle.outline.icon]])
 
 (defn- CancelButton []
-  (let [;;changed? (labels-changed?)
-        ]
-    [:div.ui.large.right.labeled.icon.button
-     {:on-click #(.log js/console "I would cancel")
-      :class "disabled";;(if changed? "" "disabled")
-      }
-     "Cancel"
-     [:i.undo.icon]]))
+  [:div.ui.large.right.labeled.icon.button
+   {:on-click #(sync-local-labels! (saved-labels))
+    :class (if (and (not (labels-synced?))
+                    (not @(r/cursor state [:server-syncing?])))
+             "enabled"
+             "disabled")}
+   "Cancel"
+   [:i.undo.icon]])
 
 (defn- SaveCancelButtons []
   [:div.ui.center.aligned.grid>div.row>div.ui.sixteen.wide.column
@@ -252,19 +274,19 @@
             value-type (r/cursor label [:value-type])
             answer (r/cursor label [:answer])
             ;; name is redundant with label-id
-            name (r/cursor label [:name]) ; required, string, ✓
-            short-label (r/cursor label [:short-label]) ; required, string, ✓
-            required (r/cursor label [:required]) ; required, boolean, ✓
-            question (r/cursor label [:question]) ; required, string, ✓
-            definition (r/cursor label [:definition]) ; not used, ✓
+            name (r/cursor label [:name]) ; required, string
+            short-label (r/cursor label [:short-label]) ; required, string
+            required (r/cursor label [:required]) ; required, boolean
+            question (r/cursor label [:question]) ; required, string
+            definition (r/cursor label [:definition])
             ;; boolean
-            inclusion-values (r/cursor definition [:inclusion-values]) ; required, vector of booleans, ✓
+            inclusion-values (r/cursor definition [:inclusion-values]) ; required, vector of booleans
             ;; string
-            examples (r/cursor definition [:examples]) ; optional, vector of strings, ✓
-            max-length (r/cursor definition [:max-length]) ; required, integer, ✓
+            examples (r/cursor definition [:examples]) ; optional, vector of strings
+            max-length (r/cursor definition [:max-length]) ; required, integer
             multi? (r/cursor definition [:multi?]) ; required (also in categorical), boolean
             ;; categorical
-            all-values (r/cursor definition [:all-values]) ; required, vector of strings,✓
+            all-values (r/cursor definition [:all-values]) ; required, vector of strings
             inclusion-values (r/cursor definition [:inclusion-values]) ; optional, vector of string, must be in all-values
             ;; errors
             errors (r/cursor label [:errors])]
@@ -289,15 +311,6 @@
          (when-let [error (:value-type @errors)]
            [:div {:class "ui red header"}
             error])
-         ;; this is going to be filled in some other way, or the field
-         ;; deleted
-         #_ [:label {:style label-style} "Name"
-             [:div.ui.fluid.input
-              [:input {:value @name
-                       :type "text"
-                       :on-change (fn [event]
-                                    (reset! name
-                                            (-> event .-target .-value)))}]]]
          ;; short-label
          [:label {:style label-style} "Display Label"
           [:div.ui.fluid.input
@@ -344,12 +357,8 @@
          (when-let [error (:question @errors)]
            [:div {:class "ui red header"}
             error])
-         ;; inclusion-values
-         #_ (when (= @value-type "boolean")
-              [:label "Which values for inclusion?"
-               [:input {:value @foo}]])
+         ;; max-length on a string label
          (when (= @value-type "string")
-           ;; max-length
            [:div
             [:label {:style label-style} "Max Length"
              [:div.ui.fluid.input
@@ -362,8 +371,8 @@
             (when-let [error (get-in @errors [:definition :max-length])]
               [:div {:class "ui red header"}
                error])])
+         ;; examples on a string label
          (when (= @value-type "string")
-           ;; examples
            [:div
             [:label {:style label-style} "Examples (comma separated)"
              [:div.ui.fluid.input
@@ -379,8 +388,8 @@
             (when-let [error (get-in @errors [:definition :examples])]
               [:div {:class "ui red header"}
                error])])
+         ;; all-values on a categorical label
          (when (= @value-type "categorical")
-           ;; all-values
            [:div
             [:label {:style label-style} "Categories (comma separated options)"
              [:div.ui.form
@@ -397,6 +406,7 @@
             (when-let [error (get-in @errors [:definition :all-values])]
               [:div {:class "ui red header"}
                error])])
+         ;; inclusion-values on a boolean label
          (when (= @value-type "boolean")
            [:div
             [:label {:style label-style} "Value for Inclusion"]
@@ -423,7 +433,7 @@
             (when-let [error (get-in @errors [:definition :inclusion-values])]
               [:div {:class "ui red header"}
                error])])
-         ;; inclusion criteria for categorical
+         ;; inclusion criteria for a categorical label
          (when (and (= @value-type "categorical")
                     (not (empty? @all-values)))
            [:div
@@ -444,10 +454,10 @@
                     @all-values))
             (when-let [error (get-in @errors [:definition :inclusion-values])]
               [:div {:class "ui red header"}
-               error])])
-         ]
-        ))))
+               error])])]))))
 
+;; this corresponds to
+;; (defmethod sysrev.views.review/label-input-el "string" ...)
 (defn StringLabelForm
   [{:keys [set-answer! value label-id]}]
   (let [left-action? true]
@@ -472,6 +482,8 @@
           :value @value
           :on-change set-answer!}]]]]]))
 
+;; this corresponds to
+;; (defmethod sysrev.views.review/label-input-el "categorical" ...)
 (defn CategoricalLabelForm
   [{:keys [definition label-id required value
            onAdd onRemove]}]
@@ -588,6 +600,8 @@
           (let [value (r/cursor label [:answer])
                 {:keys [label-id definition required]} @label]
             (condp = value-type
+              ;; this is the only form that is shared with
+              ;; sysrev.views.review
               "boolean"
               [ui/three-state-selection {:set-answer! #(reset! value %)
                                          :value value}]
@@ -633,13 +647,14 @@
             [EditLabelButton label]])
          "one wide center aligned column delete-label"]]])))
 
-
 (defmethod panel-content panel []
   (fn [child]
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
           labels (r/cursor state [:labels])]
+      ;; (.log js/console "labels: " (clj->js @labels))
       (when (empty? @labels)
+        ;; (.log js/console "I am reseting labels")
         (sync-local-labels! (saved-labels)))
       [:div.define-labels
        (doall (map-indexed
@@ -647,7 +662,7 @@
                  ^{:key i}
                  ;; let's pass a cursor to the state
                  [LabelItem i (r/cursor state [:labels (:label-id label)])])
-                 (sort-by :project-ordering (vals @labels))))
+               (sort-by :project-ordering (filter :enabled (vals @labels)))))
        [AddLabelButton "boolean"]
        [:br]
        [AddLabelButton "string"]
@@ -655,36 +670,3 @@
        [AddLabelButton "categorical"]
        [:div.ui.divider]
        [SaveCancelButtons]])))
-
-;; I really like: https://github.com/kevinchappell/formBuilder
-;; https://jsfiddle.net/kevinchappell/ajp60dzk/5/
-;; however, it is a jQuery library =(
-
-
-;; state will have the labels in the form
-;; {<uuid> <label-map>, ... }
-
-;; we are reworking it this way because the labels on articles are of the form
-;; {<user-id> {<label-uuid> {:answer <string>, :resolve <boolean>, :confirmed <boolean>, :confirm-epoch <int>} ..}}
-;;
-;; we want to have some congruence between sysrev.views.review and sysrev.views.panels.project.define-labels
-;; we need to add an :answer to each label (boolean value for bools, empty vector for string/categories) for the local
-;; state atom,so they are similar
-
-;; we will also need to distinguish between "saved" labels ... labels which are on the server, and labels which are being created/modified in the client
-
-;; when the label definitions tab is opened, the local namespace labels should be  updated to reflect the client definitions
-;; if the save button is clicked, the label definitions will be sent to the server
-;; if there are no errors, the label definitions are fetched from the server and updated in the client
-;; if there are errors, errors are added to the local namespace labels for the user to correct and save again.
-
-
-;; the current task is to make Forms which will accept the on-change/value and are independent of whether they are label definitions or article labels
-;; this has been started with boolean. currently, this form doesn't seem to be updating with the proper 'on-change' fn
-
-;; After that, there is the need to better emulate the indicator for required/unrequired... this namespace does not currently do that
-
-;; once these basics are done, syncing with the server and the client state is the next step. 
-
-
-

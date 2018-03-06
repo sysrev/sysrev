@@ -233,8 +233,7 @@
 
 (defn alter-label-entry [project-id label-id values-map]
   (let [project-id (q/to-project-id project-id)
-        label-id (q/to-label-id label-id)
-        ]
+        label-id (q/to-label-id label-id)]
     (-> (sqlh/update :label)
         (sset (dissoc values-map :label-id :project-id))
         (where [:and
@@ -990,11 +989,18 @@
 (defn used-label?
   "Has a label been set for an article?"
   [label-id]
-  (boolean (> (count (-> (select :article_id)
-                         (from :article_label)
-                         (where [:= :label_id label-id])
-                         (do-query)))
-              0)))
+  (if (= java.util.UUID
+         (type label-id))
+    (boolean (> (count (-> (select :article_id)
+                           (from :article_label)
+                           (where [:= :label_id label-id])
+                           (do-query)))
+                0))
+    ;; label-id must be a UUID, otherwise above will throw an error
+    ;; safe to assume that it hasn't been used if its label-id isn't
+    ;; of the correct type
+    false
+    ))
 
 (defn boolean-or-nil?
   "Is the value supplied boolean or nil?"
