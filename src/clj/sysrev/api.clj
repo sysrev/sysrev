@@ -327,7 +327,6 @@
                                                    (type (:label-id %)))
                                                client-labels))
             modified-client-labels (difference current-client-labels server-labels)]
-        (println "modified-client-labels: " modified-client-labels)
         ;; creation/modification of labels should be done
         ;; on labels that have been validated.
         ;;

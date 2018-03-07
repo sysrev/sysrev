@@ -1049,7 +1049,7 @@
 
 (def string-definition-validations
   {:multi?     [[v/required
-                 :message "A setting for multiple responses must be made"]
+                 :message "Allow multiple values responses must be set"]
                 [boolean-or-nil?
                  :message "Allow multiple values must be true, false or nil"]]
 
@@ -1057,7 +1057,7 @@
                  :message "Examples must be strings"]]
 
    :max-length [[v/required
-                 :message "A max length must be provided"]
+                 :message "Max Length must be provided"]
                 [v/integer
                  :message "Max length must be defined by an integer"]]
 
@@ -1082,8 +1082,9 @@
                  (str "An option can not be removed from a category if
                  the label has already been set for an article. "
                       "The options for this label were originally "
-                      (str/join "," (get-in (get-label-by-id label-id)
-                                            [:definition :all-values])))]]
+                      (when-not (string? label-id)
+                        (str/join "," (get-in (get-label-by-id label-id)
+                                              [:definition :all-values]))))]]
 
    :inclusion-values [[sequential?
                        :message "Inclusion values must be within a sequence"]
@@ -1108,7 +1109,7 @@
                                (when-not (string? label-id)
                                  (str "The label was originally a "
                                       (:value-type (get-label-by-id label-id))
-                                      " and has been set as a "
+                                      " and has been set as "
                                       value-type)))
                  ]]
 
