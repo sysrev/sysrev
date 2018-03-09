@@ -448,6 +448,7 @@
         ;; make a selection
         (select-with-text-label-name (:short-label categorical-label-definition) categorical-label-value)
         ;; save the labeling
+        (browser/wait-until-displayed save-button)
         (taxi/click save-button)
         ;; verify we are on the next article
         (browser/wait-until-displayed disabled-save-button)
