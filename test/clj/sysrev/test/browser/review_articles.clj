@@ -294,12 +294,14 @@
                         included? (contains? (set inclusion-values)
                                              %)]
                     ;; each time a selection is made, the checkboxes
-                    ;; are re-rendered. Need to make sure they are all there here
-                    (taxi/wait-until (fn [] (= (count all-values)
-                                               (count (taxi/find-elements
-                                                       {:xpath (str xpath "/descendant::"
-                                                                    (label-name-xpath "for Inclusion")
-                                                                    "/parent::div/" "/input[@type='checkbox']")})))))
+                    ;; are re-rendered. Need to make sure they are all present
+                    #_(taxi/wait-until (fn [] (= (count all-values)
+                                                 (count (taxi/find-elements
+                                                         {:xpath (str xpath "/descendant::"
+                                                                      (label-name-xpath "for Inclusion")
+                                                                      "/parent::div/" "/input[@type='checkbox']")})))))
+                    ;; addition check for Jenkins server (browser tests with stale elements)
+                    (browser/wait-until-exists inclusion-checkbox)
                     (when (not= (taxi/selected? inclusion-checkbox)
                                 included?)
                       (taxi/click inclusion-checkbox)))
