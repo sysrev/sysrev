@@ -55,13 +55,13 @@
     {:definition
      (cond-> {}
        (= value-type "boolean") (assoc :inclusion-values [true])
-       (= value-type "categorical") (assoc :inclusion-values [])
-       (= value-type "string") (assoc :multi? false)),
+       (= value-type "string") (assoc :multi? false)
+       (= value-type "categorical") (assoc :inclusion-values []
+                                           :multi? false)),
      ;; we are assuming people want all labels as inclusion criteria
      ;; label influences inclusion
      :category "inclusion criteria"
      :name (str value-type (random-id))
-     :multi? false
      :project-ordering (inc (max-project-ordering))
      ;; string, per convention
      :label-id label-id
@@ -282,6 +282,7 @@
                          :margin-top "0.5em"
                          :margin-bottom "0.5em"}
             input-style {:margin-left "0.5em"}
+            error-message-class {:class "ui red message"}
             value-type (r/cursor label [:value-type])
             answer (r/cursor label [:answer])
             ;; name is redundant with label-id
@@ -308,11 +309,18 @@
            "Type of Label"
            [:select {:class "ui dropdown"
                      :on-change #(do
-                                   ;; need to change the type
+                                   ;; change the type
                                    (reset! value-type
                                            (-> % .-target .-value))
-                                   ;; but also clear the current answer as it is likely nonsense
-                                   (reset! answer (default-answer @value-type)))
+                                   ;; clear the current answer as it is likely nonsense
+                                   ;; for this type
+                                   (reset! answer (default-answer @value-type))
+                                   ;; reset the definition of the label as well
+                                   (condp = @value-type
+                                     "boolean"     (reset! definition {:inclusion-values [true]})
+                                     "string"      (reset! definition {:multi? false})
+                                     "categorical" (reset! definition {:inclusion-values []
+                                                                       :multi? true})))
                      :value @value-type}
             [:option {:value "boolean"}
              "Boolean"]
@@ -321,7 +329,7 @@
             [:option {:value "categorical"}
              "Categorical"]]]
           (when-let [error (:value-type @errors)]
-            [:div {:class "ui red message"}
+            [:div error-message-class
              error])]
          ;; short-label
          [:div {:class (cond-> "field "
@@ -334,7 +342,7 @@
                                  (reset! short-label
                                          (-> event .-target .-value)))}]]
           (when-let [error (:short-label @errors)]
-            [:div {:class "ui red message"}
+            [:div error-message-class
              error])]
          ;; required
          [:div {:class (cond-> "field "
@@ -348,7 +356,7 @@
                                  (swap! required
                                         not))}]]]
          (when-let [error (:required @errors)]
-           [:div {:class "ui red message"}
+           [:div error-message-class
             error])
          ;; multi?
          (when (= @value-type "string")
@@ -362,7 +370,7 @@
                                    (swap! multi?
                                           not))}]]
             (when-let [error (get-in @errors [:definition :multi?])]
-              [:div {:class "ui red message"}
+              [:div error-message-class
                error])])
          ;; question
          [:div {:class (cond-> "field "
@@ -375,7 +383,7 @@
                                  (reset! question
                                          (-> event .-target .-value)))}]]
           (when-let [error (:question @errors)]
-            [:div {:class "ui red message"}
+            [:div error-message-class
              error])]
          ;; max-length on a string label
          (when (= @value-type "string")
@@ -394,7 +402,7 @@
                                                         value)]
                                       (reset! max-length parse-value)))}]]]
             (when-let [error (get-in @errors [:definition :max-length])]
-              [:div {:class "ui red message"}
+              [:div error-message-class
                error])])
          ;; examples on a string label
          (when (= @value-type "string")
@@ -414,7 +422,7 @@
                              (reset! examples
                                      (str/split value #",")))))}]]]
             (when-let [error (get-in @errors [:definition :examples])]
-              [:div {:class "ui red message"}
+              [:div error-message-class
                error])])
          ;; all-values on a categorical label
          (when (= @value-type "categorical")
@@ -434,7 +442,7 @@
                              (reset! all-values
                                      (str/split value #",")))))}]]]
             (when-let [error (get-in @errors [:definition :all-values])]
-              [:div {:class "ui red message"}
+              [:div error-message-class
                error])])
          ;; inclusion-values on a boolean label
          (when (= @value-type "boolean")
@@ -463,7 +471,7 @@
                       :checked (contains? (set @inclusion-values) true)}]
              [:label {:style {:margin-right "0.5em"}} "Yes"]]
             (when-let [error (get-in @errors [:definition :inclusion-values])]
-              [:div {:class "ui red message"}
+              [:div error-message-class
                error])])
          ;; inclusion criteria for a categorical label
          (when (and (= @value-type "categorical")
@@ -487,7 +495,7 @@
                        [:label {:style {:margin-right "0.5em"}} option-value]])
                     @all-values))
             (when-let [error (get-in @errors [:definition :inclusion-values])]
-              [:div {:class "ui red message"}
+              [:div error-message-class
                error])])]))))
 
 ;; this corresponds to
@@ -662,9 +670,11 @@
     (let [hovering? (r/cursor label [:hovering?])
           editing? (r/cursor label [:editing?])
           errors (r/cursor label [:errors])
-          name (r/cursor label [:name])]
+          name (r/cursor label [:name])
+          label-id (r/cursor label [:label-id])]
       [:div.ui.middle.aligned.grid.segment.label-item
-       {:on-mouse-enter #(reset! hovering? true)
+       {:id (str @label-id)
+        :on-mouse-enter #(reset! hovering? true)
         :on-mouse-leave #(reset! hovering? false)}
        [:div.row
         [ui/CenteredColumn
