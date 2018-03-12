@@ -45,7 +45,8 @@
           title-render @(subscribe [:article/title-render article-id])
           journal-render @(subscribe [:article/journal-render article-id])
           urls @(subscribe [:article/urls article-id])
-          documents @(subscribe [:article/documents article-id])]
+          documents @(subscribe [:article/documents article-id])
+          date @(subscribe [:article/date article-id])]
       [:div
        [:h3.header
         [render-keywords article-id title-render
@@ -54,6 +55,9 @@
          [:h3.header {:style {:margin-top "0px"}}
           [render-keywords article-id journal-render
            {:label-class "large"}]])
+       (when-not (empty? date)
+         [:h5.header {:style {:margin-top "0px"}}
+          date])
        (when-not (empty? authors)
          [:h5.header {:style {:margin-top "0px"}}
           (author-names-text 5 authors)])
