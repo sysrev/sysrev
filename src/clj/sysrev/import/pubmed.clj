@@ -81,8 +81,12 @@
         pmid (xml-find-value pxml [:MedlineCitation :PMID])
         keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
         locations (extract-article-location-entries pxml)
-        year (-> (xml-find [pxml] [:MedlineCitation :Article :ArticleDate :Year])
-                 first :content first parse-integer)]
+        year (-> (xml-find [pxml] [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Year])
+                 first :content first parse-integer)
+        month (-> (xml-find [pxml] [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Month])
+                  first :content first)
+        day (-> (xml-find [pxml] [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day])
+                first :content first)]
     {:raw (dxml/emit-str pxml)
      :remote-database-name "MEDLINE"
      :primary-title title
@@ -92,7 +96,9 @@
      :year year
      :keywords keywords
      :public-id (str pmid)
-     :locations locations}))
+     :locations locations
+     :date (str year " " month " " day)
+     }))
 
 (defn fetch-pmids-xml [pmids]
   (-> (str "https://eutils.ncbi.nlm.nih.gov"
