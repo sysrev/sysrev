@@ -716,3 +716,8 @@
        [AddLabelButton "categorical"]
        [:div.ui.divider]
        [SaveCancelButtons]])))
+
+(defmethod panel-content [:project :project :labels] []
+  (fn [child]
+    [:div.project-content
+     child]))
