@@ -64,6 +64,7 @@
   [:div
    [:h4.ui.dividing.header "Import from PMIDs in text file"]
    [:div.upload-container
+    [:h4 "Upload a plain text file with each PubMed ID (PMID) on a separate line"]
     [upload-container
      basic-text-button
      "/api/import-articles-from-file"
