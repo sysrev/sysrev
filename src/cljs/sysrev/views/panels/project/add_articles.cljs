@@ -54,6 +54,8 @@
   [:div
    [:h4.ui.dividing.header "Import from EndNote XML file"]
    [:div.upload-container
+    [:h4 (str "To create an EndNote XML file in EndNote, go to File > Export."
+              " Select 'XML' in 'Save file as type'")]
     [upload-container
      basic-text-button
      "/api/import-articles-from-endnote-file"

@@ -36,7 +36,8 @@
          :year [:dates :year]
          :rec-number [:rec-number]
          :custom4 [:custom4]
-         :custom5 [:custom5]}
+         :custom5 [:custom5]
+         :pubdate [:dates :pub-dates :date]}
         (map-values
          (fn [path]
            (-> (xml-find [e] (concat path [:style]))
@@ -60,6 +61,9 @@
                 (remove nil?)
                 vec)))))
       (update :year parse-integer)
+      ((fn [parsed-xml]
+         (assoc parsed-xml :date (str (:year parsed-xml) " " (:pubdate parsed-xml)))))
+      (dissoc :pubdate)
       (assoc :raw (dxml/emit-str e))))
 
 (defn load-endnote-library-xml
