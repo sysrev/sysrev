@@ -22,7 +22,7 @@
 ;;
 ;; After it is saved on the server, the label-id type is #object[Transit$UUID] on the client and java.util.UUID on the server
 
-;; The jQuery plugin formBuilder as inspiration for the UI
+;; The jQuery plugin formBuilder is inspiration for the UI
 ;; repo: https://github.com/kevinchappell/formBuilder
 ;; demo: https://jsfiddle.net/kevinchappell/ajp60dzk/5/
 
@@ -349,26 +349,36 @@
                          (:required @errors)
                          (str " error"))}
           [:label {:style label-style} "Must be answered?"
-           [:input {:style input-style
-                    :checked @required
-                    :type "radio"
-                    :on-change (fn [event]
-                                 (swap! required
-                                        not))}]]]
-         (when-let [error (:required @errors)]
-           [:div error-message-class
-            error])
+           [:div.ui.checkbox {:style {:margin-left "0.5em"}}
+            [:input
+             {:type "checkbox"
+              :on-change (fn [event]
+                           (let [checked? (-> event .-target .-checked)]
+                             (reset! required
+                                     (if checked?
+                                       true
+                                       false))))
+              :checked @required}]
+            [:label {:style {:margin-right "0.5em"}}]]]
+          (when-let [error (:required @errors)]
+            [:div error-message-class
+             error])]
          ;; multi?
          (when (= @value-type "string")
            [:div {:class (cond-> "field "
                            (get-in @errors [:definition :multi?]) (str "error"))}
             [:label {:style label-style} "Allow Multiple Values?"
-             [:input {:style input-style
-                      :checked @multi?
-                      :type "radio"
-                      :on-change (fn [event]
-                                   (swap! multi?
-                                          not))}]]
+             [:div.ui.checkbox {:style {:margin-left "0.5em"}}
+              [:input {:style input-style
+                       :type "checkbox"
+                       :on-change (fn [event]
+                                    (let [checked? (-> event .-target .-checked)]
+                                      (reset! multi?
+                                              (if checked?
+                                                true
+                                                false))))
+                       :checked @multi?}]
+              [:label {:style {:margin-right "0.5em"}}]]]
             (when-let [error (get-in @errors [:definition :multi?])]
               [:div error-message-class
                error])])
@@ -457,7 +467,7 @@
                                      (reset! inclusion-values
                                              (if checked?
                                                [false]
-                                               [true]))))
+                                               []))))
                       :checked (contains? (set @inclusion-values) false)}]
              [:label {:style {:margin-right "0.5em"}} "No"]]
             [:div.ui.checkbox
@@ -467,7 +477,7 @@
                                      (reset! inclusion-values
                                              (if checked?
                                                [true]
-                                               [false]))))
+                                               []))))
                       :checked (contains? (set @inclusion-values) true)}]
              [:label {:style {:margin-right "0.5em"}} "Yes"]]
             (when-let [error (get-in @errors [:definition :inclusion-values])]
