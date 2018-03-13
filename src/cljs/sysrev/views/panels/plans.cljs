@@ -3,7 +3,6 @@
             [re-frame.core :refer [dispatch subscribe reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.stripe :refer [StripeCardInfo]]
             [sysrev.views.base :refer [panel-content]]))
 
 (def default-state {:plans nil

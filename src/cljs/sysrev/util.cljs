@@ -215,3 +215,25 @@
                     (do (f)
                         (continuous-update-until f pred on-success n)))
                  n))
+
+(defn string->integer
+  "Convert a string to an integer, assumes that string will parse to
+  an integer"
+  [s]
+  (js/parseInt s))
+
+(defn parse-to-number?
+  "Will s parse to a number?
+  ex:
+  (parse-to-number? '1234') => true
+  (parse-to-number? '1234aasdf') => false
+
+  note: returns false for blank strings
+  "
+  [s]
+  (if (str/blank? s)
+    false
+    (-> s
+        js/Number
+        js/isNaN
+        not)))

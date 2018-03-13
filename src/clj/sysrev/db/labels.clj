@@ -1,5 +1,6 @@
 (ns sysrev.db.labels
-  (:require [clojure.spec.alpha :as s]
+  (:require [bouncer.validators :as v]
+            [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.db.core :as db :refer
              [do-query do-query-map do-execute with-transaction
@@ -233,7 +234,7 @@
   (let [project-id (q/to-project-id project-id)
         label-id (q/to-label-id label-id)]
     (-> (sqlh/update :label)
-        (sset values-map)
+        (sset (dissoc values-map :label-id :project-id))
         (where [:and
                 [:= :label-id label-id]
                 [:= :project-id project-id]])
@@ -1085,3 +1086,175 @@
                                     count 0)}]))
            (apply concat)
            (apply hash-map)))))
+
+(defn get-label-by-id
+  "Get a label by its UUID label_id."
+  [label-id]
+  (-> (select :*)
+      (from :label)
+      (where [:= :label_id label-id])
+      do-query first))
+
+;; label validations
+
+(defn used-label?
+  "Has a label been set for an article?"
+  [label-id]
+  (if (= java.util.UUID
+         (type label-id))
+    (boolean (> (count (-> (select :article_id)
+                           (from :article_label)
+                           (where [:= :label_id label-id])
+                           (do-query)))
+                0))
+    ;; label-id must be a UUID, otherwise above will throw an error
+    ;; safe to assume that it hasn't been used if its label-id isn't
+    ;; of the correct type
+    false
+    ))
+
+(defn boolean-or-nil?
+  "Is the value supplied boolean or nil?"
+  [value]
+  (or (boolean? value)
+      (nil? value)))
+
+(defn every-boolean-or-nil?
+  "Is every value boolean or nil?"
+  [value]
+  (every? boolean-or-nil? value))
+
+(defn editable-value-type?
+  "If the label-id is a string (i.e. it doesn't yet exist on the server), the label hasn't been set for an article, or the value-type is the same as what exists on the server, return true. Otherwise, return false"
+  [label-id value-type]
+  (cond (string? label-id)
+        true
+        (not (used-label? label-id))
+        true
+        (used-label? label-id)
+        (= (:value-type (get-label-by-id label-id))
+           value-type)))
+
+(defn only-deleteable-all-values-removed?
+  "If the label-id is a string (i.e. it doesn't yet exist on the server), the label hasn't been set for an article, or all-values has not had entries deleted if the label does exist, return true. Otherwise, return false"
+  [label-id all-values]
+  (cond
+    ;; label-id a string, the label has not been saved yet
+    (string? label-id)
+    true
+    ;; the label hasn't been used yet
+    (not (used-label? label-id))
+    true
+    ;; the label has been used
+    (used-label? label-id)
+    ;; ... so determine if a category has been deleted
+    (clojure.set/superset? (set all-values)
+                           (set (get-in (get-label-by-id label-id)
+                                        [:definition :all-values])))))
+
+(def boolean-definition-validations
+  {:inclusion-values [[v/required
+                       :message "Inclusion values must be included"]
+                      [every-boolean-or-nil?
+                       :message "Inclusion values must be boolean or nil"]]})
+
+(def string-definition-validations
+  {:multi?     [[v/required
+                 :message "Allow multiple values responses must be set"]
+                [boolean-or-nil?
+                 :message "Allow multiple values must be true, false or nil"]]
+
+   :examples   [[v/every string?
+                 :message "Examples must be strings"]]
+
+   :max-length [[v/required
+                 :message "Max Length must be provided"]
+                [v/integer
+                 :message "Max length must be defined by an integer"]]
+
+   :entity     [[v/string
+                 :message "Entity must be defined by a string"]]})
+
+(defn categorical-definition-validations
+  [definition label-id]
+  {:multi? [[v/required
+             :message "A setting for multiple responses must be made"]
+            [boolean-or-nil?
+             :message "Allow multiple values must be true, false or nil"]]
+
+   :all-values [[v/required
+                 :message "A category must have defined options"]
+                [sequential?
+                 :message "Categories must be within a sequence"]
+                [v/every string?
+                 :message "All options must be strings"]
+                [(partial only-deleteable-all-values-removed? label-id)
+                 :message
+                 (str "An option can not be removed from a category if
+                 the label has already been set for an article. "
+                      "The options for this label were originally "
+                      (when-not (string? label-id)
+                        (str/join "," (get-in (get-label-by-id label-id)
+                                              [:definition :all-values]))))]]
+
+   :inclusion-values [[sequential?
+                       :message "Inclusion values must be within a sequence"]
+                      [v/every #(contains? (set (:all-values definition)) %)
+                       :message "All inclusion values must be within categories"]
+                      [v/every string?
+                       :message "All inclusion values must be strings"]]})
+
+(defn label-validations
+  "Given a label, return a validation map for it"
+  [{:keys [value-type definition label-id]}]
+  {:value-type [[v/required
+                 :message "A label must have a type"]
+                [v/string
+                 :message "Label type must be a string"]
+                [(partial contains? (set valid-label-value-types))
+                 :message (str "A label must of type "
+                               (str/join "," (rest valid-label-value-types)) " or " (first valid-label-value-types))]
+                [(partial editable-value-type? label-id)
+                 :message (str "You can not change the type of label if a user has already labeled an article with it. "
+                               ;; get-label-by-id might encounter an error because a label with label-id doesn't exist on the server
+                               (when-not (string? label-id)
+                                 (str "The label was originally a "
+                                      (:value-type (get-label-by-id label-id))
+                                      " and has been set as "
+                                      value-type)))
+                 ]]
+
+   :project-id [[v/required
+                 :message "Project ID must not be blank"]
+                [v/integer
+                 :message "Project ID must be an integer"]]
+
+   ;; these are going to be generated by the client so shouldn't
+   ;; be blank, checking anyway
+   :name [[v/required
+           :message "Name must not be blank"]
+          [v/string
+           :message "Name must be a string"]]
+
+   :question [[v/required
+               :message "Question can not be blank"]
+              [v/string
+               :message "Question must be a string"]]
+
+   :short-label [[v/required
+                  :message "Label must have a name"]
+                 [v/string
+                  :message "Label must be a string"]]
+
+   :inclusion-values [[boolean-or-nil?
+                       :message "Inclusion must be true, false or nil"]]
+
+   :required [[boolean-or-nil?
+               :message "Required must be true, false or nil"]]
+
+   ;; each value-type has a different definition
+   :definition (condp = value-type
+                 "boolean" boolean-definition-validations
+                 "string" string-definition-validations
+                 "categorical" (categorical-definition-validations definition label-id)
+                 {})})

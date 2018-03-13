@@ -54,6 +54,8 @@
   [:div
    [:h4.ui.dividing.header "Import from EndNote XML file"]
    [:div.upload-container
+    [:h4 (str "To create an EndNote XML file in EndNote, go to File > Export."
+              " Select 'XML' in 'Save file as type'")]
     [upload-container
      basic-text-button
      "/api/import-articles-from-endnote-file"
@@ -64,6 +66,7 @@
   [:div
    [:h4.ui.dividing.header "Import from PMIDs in text file"]
    [:div.upload-container
+    [:h4 "Upload a plain text file with each PubMed ID (PMID) on a separate line"]
     [upload-container
      basic-text-button
      "/api/import-articles-from-file"

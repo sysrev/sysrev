@@ -219,7 +219,12 @@
 (defn updated-time-label [dt]
   [:div.ui.tiny.label (time-elapsed-string dt)])
 
-(defn three-state-selection [on-change curval]
+(defn three-state-selection
+  "props are:
+  {:set-answer! <fn>     ; sets the label's answer to argument of fn
+   :value       <r/atom> ; atom resolves to single value boolean or nil
+  }"
+  [{:keys [set-answer! value]}]
   ;; nil for unset, true, false
   (let [size (if (full-size?) "large" "small")
         class (str "ui " size " buttons three-state")
@@ -230,14 +235,14 @@
                             :else             "primary")
                       " icon button"))]
     [:div {:class class}
-     [:div.ui {:class (bclass false (false? curval))
-               :on-click #(on-change false)}
+     [:div.ui {:class (bclass false (false? @value))
+               :on-click #(set-answer! false)}
       "No"]
-     [:div.ui {:class (bclass true (nil? curval))
-               :on-click #(on-change nil)}
+     [:div.ui {:class (bclass true (nil? @value))
+               :on-click #(set-answer! nil)}
       "?"]
-     [:div.ui {:class (bclass false (true? curval))
-               :on-click #(on-change true)}
+     [:div.ui {:class (bclass false (true? @value))
+               :on-click #(set-answer! true)}
       "Yes"]]))
 
 (defn three-state-selection-icons

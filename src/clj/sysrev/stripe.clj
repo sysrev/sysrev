@@ -50,6 +50,31 @@
   [user]
   (execute-action (customers/delete-customer (:stripe-id user))))
 
+;; !!! WARNING !!!
+;; !! This is only a util for dev environemnt !!
+;; !! DO NOT RUN IN PRODUCTION !!
+;;
+;; Beware, you could delete all of our customers if you are using
+;; a production stripe-secret-key in your profiles.clj, which you should
+;; absolutely NEVER DO IN THE FIRST PLACE!!!!
+;;
+;; Because of the sensitive nature of this fn, it is hardcoded to only use the
+;; test key.
+;;
+;; !!! WARNING !!!
+(defn- delete-all-customers!
+  []
+  (let [do-action (fn [action]
+                    (common/with-token (env :stripe-secret-key)
+                      (common/execute action)))]
+    (mapv #(do-action (customers/delete-customer %))
+          ;; note that even the limit-count is hard coded here
+          ;; you may have to run this function more than once if you have
+          ;; created a lot of stray stripe customers
+          (->> (do-action (customers/get-customers (common/limit-count 100)))
+               :data
+               (mapv :id)))))
+
 (defn get-plans
   "Get all plans that SysRev offers"
   []

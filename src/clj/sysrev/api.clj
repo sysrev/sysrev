@@ -1,6 +1,8 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
-  (:require [clojure.spec.alpha :as s]
+  (:require [bouncer.core :as b]
+            [clojure.set :refer [rename-keys difference]]
+            [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
@@ -303,6 +305,61 @@
              (merge (:error stripe-response)
                     {:status not-found}))
       stripe-response)))
+
+(defn sync-labels
+  "Given a map of labels, sync them with project-id."
+  [project-id labels-map]
+  ;; first let's convert the labels to a set
+  (let [client-labels (set (vals labels-map))
+        all-labels-valid? (fn [labels]
+                            (every? true? (map #(b/valid? % (labels/label-validations %)) client-labels)))]
+    ;; labels must be valid
+    (if (all-labels-valid? client-labels)
+      ;; labels are valid
+      (let [server-labels (set (vals (project/project-labels project-id)))
+            ;; new labels are given a randomly generated string id on
+            ;; the client, so labels that are non-existent on the server
+            ;; will have string as opposed to UUID label-ids
+            new-client-labels (set (filter #(= java.lang.String
+                                               (type (:label-id %)))
+                                           client-labels))
+            current-client-labels (set (filter #(= java.util.UUID
+                                                   (type (:label-id %)))
+                                               client-labels))
+            modified-client-labels (difference current-client-labels server-labels)]
+        ;; creation/modification of labels should be done
+        ;; on labels that have been validated.
+        ;;
+        ;; labels are never deleted, the enabled flag is set to 'empty'
+        ;; instead
+        ;;
+        ;; If there are issues with a label being incorrectly
+        ;; modified, add a validator for that case so that
+        ;; the error can easily be reported in the client
+        (when-not (empty? new-client-labels)
+          (doall (map (partial labels/add-label-entry project-id)
+                      new-client-labels)))
+        (when-not (empty? modified-client-labels)
+          (doall (map #(labels/alter-label-entry project-id
+                                                 (:label-id %) %)
+                      modified-client-labels)))
+        {:result {:valid? true
+                  :labels (project/project-labels project-id)}})
+      ;; labels are invalid
+      {:result {:valid? false
+                :labels
+                (->> client-labels
+                     ;; validate each label
+                     (map #(b/validate % (labels/label-validations %)))
+                     ;; get the label map with attached errors
+                     (map second)
+                     ;; rename bouncer.core/errors -> errors
+                     (map #(rename-keys % {:bouncer.core/errors :errors}))
+                     ;; create a new hash map of labels which include
+                     ;; errors
+                     (map #(hash-map (:label-id %) %))
+                     ;; finally, return a map
+                     (apply merge))}})))
 
 (defn test-response
   "Server Sanity Check"

@@ -105,10 +105,11 @@
 
 (defmethod label-input-el "boolean"
   [label-id article-id]
-  (let [answer @(subscribe [:review/active-labels article-id label-id])]
+  (let [answer (subscribe [:review/active-labels article-id label-id])]
     [ui/three-state-selection
-     #(dispatch [::set-label-value article-id label-id %])
-     answer]))
+     {:set-answer!
+      #(dispatch [::set-label-value article-id label-id %])
+      :value answer}]))
 
 (defmethod label-input-el "categorical"
   [label-id article-id]
@@ -190,8 +191,9 @@
 
 (defmethod label-input-el "string"
   [label-id article-id]
-  (let [curvals (as-> @(subscribe [:review/active-labels article-id label-id]) vs
-                  (if (empty? vs) [""] vs))
+  (let [curvals (as-> @(subscribe [:review/active-labels article-id label-id])
+                    vs
+                    (if (empty? vs) [""] vs))
         multi? @(subscribe [:label/multi? label-id])
         nvals (count curvals)]
     (when (= article-id @(subscribe [:review/editing-id]))
@@ -264,12 +266,12 @@
                                :style {} #_ (when-not boolean-label?
                                               {:visibility "hidden"})}])))
 
-(defn- label-help-popup [label-id]
+(defn- label-help-popup [label]
   (when (or true (full-size?))
-    (let [criteria? @(subscribe [:label/inclusion-criteria? label-id])
-          required? @(subscribe [:label/required? label-id])
-          question @(subscribe [:label/question label-id])
-          examples @(subscribe [:label/examples label-id])]
+    (let [{:keys [category required question definition]} label
+          criteria? (= category "inclusion criteria")
+          required? required
+          examples (:examples definition)]
       [:div.ui.inverted.grid.popup.transition.hidden.label-help
        [:div.middle.aligned.center.aligned.row.label-help-header
         [:div.ui.sixteen.wide.column
@@ -342,7 +344,10 @@
                     :else
                     "top center")
         :distanceAway 8}]
-      [label-help-popup label-id]
+      [label-help-popup {:category @(subscribe [:label/inclusion-criteria? label-id])
+                         :required @(subscribe [:label/required? label-id])
+                         :question @(subscribe [:label/question label-id])
+                         :definition {:examples @(subscribe [:label/examples label-id])}}]
       [:div.ui.row.label-edit-value
        {:class (case value-type
                  "boolean"      "boolean"

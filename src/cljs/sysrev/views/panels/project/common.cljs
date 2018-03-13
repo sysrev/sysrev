@@ -15,7 +15,7 @@
        :action [:project :project :add-articles]}
       {:tab-id :labels
        :content [:span [:i.tags.icon] "Label Definitions"]
-       :action [:project :project :labels]}
+       :action [:project :project :labels :edit]}
       {:tab-id :invite-link
        :content [:span [:i.mail.outline.icon] "Invite Link"]
        :action [:project :project :invite-link]}

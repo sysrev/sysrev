@@ -38,6 +38,13 @@
    (:secondary-title article)))
 
 (reg-sub
+ :article/date
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article]]
+   (:date article)))
+
+(reg-sub
  :article/authors
  (fn [[_ article-id]]
    [(subscribe [:article/raw article-id])])
