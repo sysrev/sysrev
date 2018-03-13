@@ -16,6 +16,18 @@
         extra (when (> (count coll) nmax) " et al")]
     (str display extra)))
 
+(defn- article-score-label [score]
+  (when score
+    (let [icon (if (> score 0.5)
+                 "plus" "minus")
+          percent (-> score (* 100) (+ 0.5) int)]
+      [:div.ui.label.article-score
+       "Prediction"
+       [:div.detail
+        [:span
+         [:i {:class (str "grey " icon " circle icon")}]
+         (str percent "%")]]])))
+
 (defn- review-status-label [status]
   (let [resolving? @(subscribe [:review/resolving?])
         sstr
@@ -101,9 +113,11 @@
         (doall entries)))))
 
 (defn article-info-view
-  [article-id & {:keys [show-labels? private-view?]}]
+  [article-id & {:keys [show-labels? private-view? show-score?]
+                 :or {show-score? true}}]
   (let [status @(subscribe [:article/review-status article-id])
-        full-size? (full-size?)]
+        full-size? (full-size?)
+        score @(subscribe [:article/score article-id])]
     [:div
      (with-loader [[:article article-id]]
        {:class "ui segments article-info"}
@@ -115,6 +129,8 @@
            (when full-size? (article-flags-view article-id nil))]]
          (when (or status private-view?)
            [:div {:style {:float "right"}}
+            (when (and score show-score? (not= status :single))
+              [article-score-label score])
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         (when-not full-size? (article-flags-view article-id "ui attached segment"))

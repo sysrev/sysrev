@@ -1,30 +1,26 @@
 (ns sysrev.web.routes.project
   (:require
    [sysrev.api :as api]
-   [sysrev.web.app :refer [wrap-permissions current-user-id active-project]]
+   [sysrev.web.app :refer
+    [wrap-permissions current-user-id active-project]]
    [sysrev.db.core :refer
     [do-query do-execute with-project-cache]]
    [sysrev.db.queries :as q]
    [sysrev.db.users :as users]
-   [sysrev.db.project :as project :refer
-    [project-labels project-member project-article-count project-keywords
-     project-notes project-settings]]
+   [sysrev.db.project :as project]
    [sysrev.db.export :as export]
    [sysrev.export.endnote :as endnote-out]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
    [sysrev.db.sources :as sources]
-   [sysrev.files.stores :refer [store-file project-files delete-file get-file]]
-   [sysrev.predict.report :refer [predict-summary]]
-   [sysrev.shared.article-list :refer
-    [is-resolved? is-conflict? is-single? is-consistent?]]
-   [sysrev.shared.util :refer [map-values in?]]
-   [sysrev.shared.keywords :refer [process-keywords format-abstract]]
+   [sysrev.files.stores :as fstore]
+   [sysrev.predict.api :as predict-api]
+   [sysrev.predict.report :as predict-report]
+   [sysrev.shared.keywords :as keywords]
    [sysrev.shared.transit :as sr-transit]
    [sysrev.import.pubmed :as pubmed]
-   [sysrev.util :refer
-    [should-never-happen-exception integerify-map-keys uuidify-map-keys]]
+   [sysrev.shared.util :refer [map-values in?]]
    [sysrev.config.core :refer [env]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -33,14 +29,12 @@
    [compojure.core :refer :all]
    [ring.util.response :as response]
    [clojure.data.json :as json]
-   [clojure-csv.core :as csv])
+   [clojure-csv.core :as csv]
+   [sysrev.db.files :as files])
   (:import [java.util UUID]
            [java.io InputStream]
            [java.io ByteArrayInputStream]
            [org.apache.commons.io IOUtils]))
-
-(declare project-info
-         prepare-article-response)
 
 (defn slurp-bytes
   "Slurp the bytes from a slurpable thing.
@@ -49,6 +43,55 @@
   (with-open [out (java.io.ByteArrayOutputStream.)]
     (clojure.java.io/copy (clojure.java.io/input-stream x) out)
     (.toByteArray out)))
+
+(defn prepare-article-response
+  [{:keys [abstract primary-title secondary-title] :as article}]
+  (let [keywords (project/project-keywords (:project-id article))]
+    (cond-> article
+      true (dissoc :raw)
+      abstract
+      (assoc :abstract-render
+             (keywords/format-abstract abstract keywords))
+      primary-title
+      (assoc :title-render
+             (keywords/process-keywords primary-title keywords))
+      secondary-title
+      (assoc :journal-render
+             (keywords/process-keywords secondary-title keywords)))))
+
+(defn project-info [project-id]
+  (with-project-cache
+    project-id [:project-info]
+    (let [[fields predict articles status-counts members
+           users keywords notes files documents progress sources]
+          (pvalues (q/query-project-by-id project-id [:*])
+                   (predict-report/predict-summary (q/project-latest-predict-run-id project-id))
+                   (project/project-article-count project-id)
+                   (labels/project-article-status-counts project-id)
+                   (labels/project-members-info project-id)
+                   (project/project-users-info project-id)
+                   (project/project-keywords project-id)
+                   (project/project-notes project-id)
+                   (fstore/project-files project-id)
+                   (docs/all-article-document-paths project-id)
+                   (labels/query-progress-over-time project-id 30)
+                   (sources/project-sources project-id))]
+      {:project {:project-id project-id
+                 :name (:name fields)
+                 :project-uuid (:project-uuid fields)
+                 :members members
+                 :stats {:articles articles
+                         :status-counts status-counts
+                         :predict predict
+                         :progress progress}
+                 :labels (project/project-labels project-id)
+                 :keywords keywords
+                 :notes notes
+                 :settings (:settings fields)
+                 :files files
+                 :documents documents
+                 :sources sources}
+       :users users})))
 
 (defroutes project-routes
   ;; Returns full information for active project
@@ -142,6 +185,9 @@
         (wrap-permissions
          request [] ["member"]
          (let [user-id (current-user-id request)
+               project-id (active-project request)
+               before-count (-> (labels/project-article-status-counts project-id)
+                                :reviewed)
                {:keys [article-id label-values confirm? change? resolve?]
                 :as body} (-> request :body)]
            (assert (or change? resolve?
@@ -151,6 +197,12 @@
                                            :confirm? confirm?
                                            :change? change?
                                            :resolve? resolve?)
+           (let [after-count (-> (labels/project-article-status-counts project-id)
+                                 :reviewed)]
+             (when (and (> after-count before-count)
+                        (not= 0 after-count)
+                        (= 0 (mod after-count 15)))
+               (predict-api/schedule-predict-update project-id)))
            {:result body})))
 
   (POST "/api/set-article-note" request
@@ -223,7 +275,7 @@
        (wrap-permissions
         request [] ["member"]
         (let [project-id (active-project request)]
-          {:result {:settings (project-settings project-id)}})))
+          {:result {:settings (project/project-settings project-id)}})))
 
   (POST "/api/change-project-settings" request
         (wrap-permissions
@@ -235,7 +287,7 @@
               project-id (keyword setting) value))
            {:result
             {:success true
-             :settings (project-settings project-id)}})))
+             :settings (project/project-settings project-id)}})))
 
   (GET "/api/project-sources" request
        (wrap-permissions
@@ -265,14 +317,14 @@
                file (:tempfile file-data)
                filename (:filename file-data)
                user-id (current-user-id request)]
-           (store-file project-id user-id filename file)
+           (fstore/store-file project-id user-id filename file)
            {:result 1})))
 
   (GET "/api/files" request
        (wrap-permissions
         request [] ["member"]
         (let [project-id (active-project request)
-              files (project-files project-id)]
+              files (fstore/project-files project-id)]
           {:result (vec files)})))
 
   (GET "/api/files/:key/:name" request
@@ -280,7 +332,7 @@
         request [] ["member"]
         (let [project-id (active-project request)
               uuid (-> request :params :key (UUID/fromString))
-              file-data (get-file project-id uuid)
+              file-data (fstore/get-file project-id uuid)
               data (slurp-bytes (:filestream file-data))]
           (response/response (ByteArrayInputStream. data)))))
 
@@ -334,7 +386,7 @@
          request [] ["member"]
          (let [project-id (active-project request)
                key (-> request :params :key)
-               deletion (delete-file project-id (UUID/fromString key))]
+               deletion (fstore/delete-file project-id (UUID/fromString key))]
            {:result deletion})))
 
   (GET "/api/public-labels" request
@@ -342,7 +394,7 @@
         request [] ["member"]
         (let [project-id (active-project request)
               exclude-hours (if (= :dev (:profile env))
-                              nil nil #_ 4)]
+                              nil nil)]
           {:result
            (->> (labels/query-public-article-labels project-id)
                 (labels/filter-recent-public-articles project-id exclude-hours)
@@ -374,174 +426,3 @@
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (api/test-response)))
-
-(defn prepare-article-response
-  [{:keys [abstract primary-title secondary-title] :as article}]
-  (let [keywords (project/project-keywords (:project-id article))]
-    (cond-> article
-      true (dissoc :raw)
-      abstract
-      (assoc :abstract-render
-             (format-abstract abstract keywords))
-      primary-title
-      (assoc :title-render
-             (process-keywords primary-title keywords))
-      secondary-title
-      (assoc :journal-render
-             (process-keywords secondary-title keywords)))))
-
-(defn project-include-labels [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-labels]
-    (->>
-     (-> (q/select-project-article-labels
-          project-id true
-          [:a.article-id :al.user-id :al.answer :al.resolve])
-         (q/filter-overall-label)
-         do-query)
-     (group-by :article-id))))
-
-(defn project-include-label-conflicts [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-label-conflicts]
-    (->> (project-include-labels project-id)
-         (filter (fn [[aid labels]]
-                   (< 1 (->> labels (map :answer) distinct count))))
-         (filter (fn [[aid labels]]
-                   (= 0 (->> labels (filter :resolve) count))))
-         (apply concat)
-         (apply hash-map))))
-
-(defn project-include-label-resolved [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-label-resolved]
-    (->> (project-include-labels project-id)
-         (filter (fn [[aid labels]]
-                   (not= 0 (->> labels (filter :resolve) count))))
-         (apply concat)
-         (apply hash-map))))
-
-(defn project-user-inclusions [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :user-inclusions]
-    (->>
-     (-> (q/select-project-article-labels
-          project-id true [:al.article-id :user-id :answer])
-         (q/filter-overall-label)
-         do-query)
-     (group-by :user-id)
-     (mapv (fn [[user-id entries]]
-             (let [includes
-                   (->> entries
-                        (filter (comp true? :answer))
-                        (mapv :article-id))
-                   excludes
-                   (->> entries
-                        (filter (comp false? :answer))
-                        (mapv :article-id))]
-               [user-id {:includes includes
-                         :excludes excludes}])))
-     (apply concat)
-     (apply hash-map))))
-
-(defn project-members-info [project-id]
-  (with-project-cache
-    project-id [:members-info]
-    (let [users (->> (-> (q/select-project-members
-                          project-id [:u.* [:m.permissions :project-permissions]])
-                         do-query)
-                     (group-by :user-id)
-                     (map-values first))
-          inclusions (project-user-inclusions project-id)
-          in-progress
-          (->> (-> (q/select-project-articles
-                    project-id [:al.user-id :%count.%distinct.al.article-id])
-                   (q/join-article-labels)
-                   (q/filter-valid-article-label false)
-                   (group :al.user-id)
-                   do-query)
-               (group-by :user-id)
-               (map-values (comp :count first)))]
-      (->> users
-           (mapv (fn [[user-id user]]
-                   [user-id
-                    {:permissions (:project-permissions user)
-                     :articles (get inclusions user-id)
-                     :in-progress (if-let [count (get in-progress user-id)]
-                                    count 0)}]))
-           (apply concat)
-           (apply hash-map)))))
-
-(defn project-users-info [project-id]
-  (with-project-cache
-    project-id [:users-info]
-    (->> (-> (q/select-project-members project-id [:u.*])
-             do-query)
-         (group-by :user-id)
-         (map-values first)
-         (map-values
-          #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
-
-(defn project-article-status-counts [project-id]
-  (with-project-cache
-    project-id [:public-labels :status-counts]
-    (let [articles (labels/query-public-article-labels project-id)
-          overall-id (project/project-overall-label-id project-id)]
-      (when overall-id
-        (let [status-vals
-              (->> (vals articles)
-                   (map
-                    (fn [article]
-                      (let [labels (get-in article [:labels overall-id])
-                            group-status
-                            (cond (is-single? labels)     :single
-                                  (is-resolved? labels)   :resolved
-                                  (is-conflict? labels)   :conflict
-                                  :else                   :consistent)
-                            inclusion-status
-                            (case group-status
-                              :conflict nil,
-                              :resolved (->> labels (filter :resolve) (map :inclusion) first),
-                              (->> labels (map :inclusion) first))]
-                        [group-status inclusion-status]))))]
-          (merge
-           {:reviewed (count articles)}
-           (->> (distinct status-vals)
-                (map (fn [status]
-                       [status (->> status-vals (filter (partial = status)) count)]))
-                (apply concat)
-                (apply hash-map))))))))
-
-(defn project-info [project-id]
-  (with-project-cache
-    project-id [:project-info]
-    (let [[fields predict articles status-counts members
-           users keywords notes files documents progress sources]
-          (pvalues (q/query-project-by-id project-id [:*])
-                   nil #_ (predict-summary (q/project-latest-predict-run-id project-id))
-                   (project-article-count project-id)
-                   (project-article-status-counts project-id)
-                   (project-members-info project-id)
-                   (project-users-info project-id)
-                   (project-keywords project-id)
-                   (project-notes project-id)
-                   (project-files project-id)
-                   (docs/all-article-document-paths project-id)
-                   (labels/query-progress-over-time project-id 30)
-                   (sources/project-sources project-id))]
-      {:project {:project-id project-id
-                 :name (:name fields)
-                 :project-uuid (:project-uuid fields)
-                 :members members
-                 :stats {:articles articles
-                         :status-counts status-counts
-                         :predict predict
-                         :progress progress}
-                 :labels (project-labels project-id)
-                 :keywords keywords
-                 :notes notes
-                 :settings (:settings fields)
-                 :files files
-                 :documents documents
-                 :sources sources}
-       :users users})))

@@ -525,7 +525,6 @@
                       (when (< (count row) n-cols)
                         [^{:key {:label-row-end (last row)}}
                          [:div.column]])))])))]
-          (.log js/console (clj->js label-ids))
           [:div.ui.segments.label-editor-view
            [:div.ui.top.attached.header
             [:div.ui.two.column.middle.aligned.grid

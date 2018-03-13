@@ -1,13 +1,14 @@
 (ns sysrev.predict.report
   (:require
    [sysrev.shared.util :refer [map-values]]
-   [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
    [sysrev.db.core :refer
-    [do-query do-execute sql-now time-to-string to-jsonb]]
+    [do-query do-execute sql-now time-to-string to-jsonb
+     clear-project-cache]]
    [sysrev.db.queries :as q]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [sysrev.predict.core]))
+   [sysrev.predict.core]
+   [sysrev.db.project :as project]))
 
 (defn estimate-articles-with-value
   "Calculates an estimate of the number of project articles for which
@@ -15,7 +16,10 @@
   [predict-run-id label-id]
   (-> (select :%sum.lp.val :%count.lp.val)
       (from [:label-predicts :lp])
+      (join [:article :a]
+            [:= :a.article-id :lp.article-id])
       (where [:and
+              [:= :a.enabled true]
               [:= :predict-run-id predict-run-id]
               [:= :label-id label-id]
               [:= :stage 1]])
@@ -25,7 +29,10 @@
 (defn article-count-by-label-prob [predict-run-id label-id cutoff greater?]
   (-> (select :%count.*)
       (from [:label-predicts :lp])
+      (join [:article :a]
+            [:= :a.article-id :lp.article-id])
       (where [:and
+              [:= :a.enabled true]
               [:= :predict-run-id predict-run-id]
               [:= :label-id label-id]
               [:= :stage 1]
@@ -41,7 +48,10 @@
       (from [:label-predicts :lp])
       (join [:predict-run :pr]
             [:= :pr.predict-run-id :lp.predict-run-id])
+      (merge-join [:article :a]
+                  [:= :a.article-id :lp.article-id])
       (where [:and
+              [:= :a.enabled true]
               [:= :lp.predict-run-id predict-run-id]
               [:= :lp.label-id label-id]
               [:= :lp.stage 1]
@@ -49,7 +59,10 @@
                     [:exists
                      (-> (select :*)
                          (from [:article-label :al])
+                         (join [:article :a2]
+                               [:= :a2.article-id :al.article-id])
                          (where [:and
+                                 [:= :a2.enabled true]
                                  [:= :al.article-id :lp.article-id]
                                  [:= :al.label-id label-id]
                                  [:!= :al.answer nil]
@@ -110,6 +123,17 @@
      :estimate estimate
      :include include
      :exclude exclude}))
+
+(defn update-predict-meta [project-id predict-run-id]
+  (try
+    (let [label-id (project/project-overall-label-id project-id)
+          meta (predict-summary-for-label predict-run-id label-id)]
+      (-> (sqlh/update :predict-run)
+          (sset {:meta (to-jsonb meta)})
+          (where [:= :predict-run-id predict-run-id])
+          do-execute))
+    (finally
+      (clear-project-cache project-id))))
 
 (defn predict-summary [predict-run-id]
   (-> (q/query-predict-run-by-id predict-run-id [:meta])

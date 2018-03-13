@@ -270,12 +270,26 @@
         (->> progress (mapv :day)
              (mapv #(->> (str/split % #"\-") (drop 1) (str/join "-"))))])]))
 
+(defn label-predictions-box []
+  (when (not-empty @(subscribe [:project/predict]))
+    (let [updated @(subscribe [:predict/update-time])
+          labeled @(subscribe [:predict/labeled-count])
+          total @(subscribe [:predict/article-count])]
+      [:div.ui.segment
+       [:h4.ui.dividing.header
+        "Label Predictions"]
+       [:p "Last updated: " (str updated)]
+       [:p "Trained from " (str labeled)
+        " labeled articles; " (str total)
+        " article predictions loaded"]])))
+
 (defn project-overview-panel []
   [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
     [:div.ui.column
      [project-summary-box]
-     [recent-progress-chart]]
+     [recent-progress-chart]
+     [label-predictions-box]]
     [:div.ui.column
      [user-summary-chart]
      [project-files-box]]]])

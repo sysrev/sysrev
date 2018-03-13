@@ -2,22 +2,24 @@
   (:require [clojure.xml :as xml]
             [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
+            [clojure.tools.logging :as log]
+            [clojure.string :as str]
+            [clojure.java.jdbc :as j]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute clear-project-cache with-transaction *conn*]]
+            [sysrev.db.core :refer
+             [do-query do-execute clear-project-cache with-transaction *conn*]]
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
             [sysrev.db.sources :as sources]
-            [clojure.tools.logging :as log]
+            [sysrev.predict.api :as predict-api]
+            [sysrev.db.queries :as q]
             [sysrev.util :refer
              [xml-find xml-find-vector xml-find-vector
               parse-integer parse-xml-str]]
-            [sysrev.shared.util :refer [map-values to-uuid]]
-            [clojure.string :as str]
-            [sysrev.db.queries :as q]
-            [clojure.java.jdbc :as j]))
+            [sysrev.shared.util :refer [map-values to-uuid]]))
 
 (defn parse-endnote-file [fname]
   (-> fname io/file io/reader dxml/parse))
@@ -165,7 +167,8 @@
               success? (every? true? thread-results)]
           (if success?
             (do (sources/update-project-source-metadata!
-                 source-id (assoc meta :importing-articles? false)))
+                 source-id (assoc meta :importing-articles? false))
+                (predict-api/schedule-predict-update project-id))
             (sources/fail-project-source-import! source-id))
           success?)
         (catch Throwable e

@@ -4,6 +4,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
+            [sysrev.predict.api :as predict-api]
             [sysrev.util :refer
              [parse-xml-str parse-integer
               xml-find xml-find-value xml-find-vector]]
@@ -248,9 +249,9 @@
                      (mapv deref))
                 success? (every? true? thread-results)]
             (if success?
-              (do
-                (sources/update-project-source-metadata!
-                 source-id (assoc meta :importing-articles? false)))
+              (do (sources/update-project-source-metadata!
+                   source-id (assoc meta :importing-articles? false))
+                  (predict-api/schedule-predict-update project-id))
               (sources/fail-project-source-import! source-id))
             success?)
           (catch Throwable e

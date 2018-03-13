@@ -211,12 +211,7 @@
                               :exclusions [org.clojure/tools.reader]]]
               :plugins [[lein-figwheel "0.5.14"]
                         [cider/cider-nrepl "0.16.0"]
-                        [lein-environ "1.1.0"]]
-              :env {:squiggly
-                    {:checkers [:eastwood #_ :kibit]
-                     :eastwood-exclude-linters
-                     [:unlimited-use :unused-ret-vals :constant-test]
-                     :eastwood-options {:config-files ["eastwood.clj"]}}}}
+                        [lein-environ "1.1.0"]]}
              :figwheel
              {:jvm-opts ["-Xms300m" "-Xmx600m"]}
              :dev-spark

@@ -2,7 +2,6 @@
   (:require [sysrev.db.core :as db :refer
              [do-query do-execute sql-now clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project]
             [sysrev.shared.util :refer [map-values in?]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

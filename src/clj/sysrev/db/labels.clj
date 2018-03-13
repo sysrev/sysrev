@@ -6,8 +6,7 @@
               sql-now to-sql-array to-jsonb sql-cast
               with-query-cache with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :refer
-             [project-labels project-overall-label-id project-settings]]
+            [sysrev.db.project :as project]
             [sysrev.db.articles :refer [query-article-by-id-full]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
@@ -369,7 +368,7 @@
 
 (defn get-user-label-task [project-id user-id]
   (let [{:keys [second-review-prob]
-         :or {second-review-prob 0.5}} (project-settings project-id)
+         :or {second-review-prob 0.5}} (project/project-settings project-id)
         articles (get-articles-with-label-users project-id)
         [pending unlabeled today-count]
         (pvalues
@@ -577,7 +576,7 @@
                              (update :answer to-jsonb)
                              (update :imported boolean)
                              (dissoc :article-label-id :article-label-local-id))))))
-        overall-label-id (project-overall-label-id project-id)
+        overall-label-id (project/project-overall-label-id project-id)
         confirm? (if imported?
                    (boolean (get valid-values overall-label-id))
                    confirm?)
@@ -783,7 +782,7 @@
 (defn query-progress-over-time [project-id n-days]
   (with-project-cache
     project-id [:public-labels :progress n-days]
-    (let [overall-id (project-overall-label-id project-id)
+    (let [overall-id (project/project-overall-label-id project-id)
           articles (->> (vals (query-public-article-labels project-id))
                         (filter
                          (fn [article]
@@ -809,7 +808,7 @@
     (let [cutoff-epoch
           (tc/to-epoch (t/minus (tc/from-sql-date (sql-now))
                                 (t/hours exclude-hours)))
-          overall-id (project-overall-label-id project-id)]
+          overall-id (project/project-overall-label-id project-id)]
       (->> (vec articles)
            (filter (fn [[article-id article]]
                      (let [labels (get-in article [:labels overall-id])]
@@ -941,7 +940,7 @@
 
 (defn project-included-articles [project-id]
   (let [articles (query-public-article-labels project-id)
-        overall-id (project-overall-label-id project-id)]
+        overall-id (project/project-overall-label-id project-id)]
     (when overall-id
       (->> (vec articles)
            (filter
@@ -974,3 +973,115 @@
     (-> (insert-into :label)
         (values entries)
         do-execute)))
+
+(defn project-include-labels [project-id]
+  (with-project-cache
+    project-id [:label-values :confirmed :include-labels]
+    (->>
+     (-> (q/select-project-article-labels
+          project-id true
+          [:a.article-id :al.user-id :al.answer :al.resolve])
+         (q/filter-overall-label)
+         do-query)
+     (group-by :article-id))))
+
+(defn project-include-label-conflicts [project-id]
+  (with-project-cache
+    project-id [:label-values :confirmed :include-label-conflicts]
+    (->> (project-include-labels project-id)
+         (filter (fn [[aid labels]]
+                   (< 1 (->> labels (map :answer) distinct count))))
+         (filter (fn [[aid labels]]
+                   (= 0 (->> labels (filter :resolve) count))))
+         (apply concat)
+         (apply hash-map))))
+
+(defn project-include-label-resolved [project-id]
+  (with-project-cache
+    project-id [:label-values :confirmed :include-label-resolved]
+    (->> (project-include-labels project-id)
+         (filter (fn [[aid labels]]
+                   (not= 0 (->> labels (filter :resolve) count))))
+         (apply concat)
+         (apply hash-map))))
+
+(defn project-user-inclusions [project-id]
+  (with-project-cache
+    project-id [:label-values :confirmed :user-inclusions]
+    (->>
+     (-> (q/select-project-article-labels
+          project-id true [:al.article-id :user-id :answer])
+         (q/filter-overall-label)
+         do-query)
+     (group-by :user-id)
+     (mapv (fn [[user-id entries]]
+             (let [includes
+                   (->> entries
+                        (filter (comp true? :answer))
+                        (mapv :article-id))
+                   excludes
+                   (->> entries
+                        (filter (comp false? :answer))
+                        (mapv :article-id))]
+               [user-id {:includes includes
+                         :excludes excludes}])))
+     (apply concat)
+     (apply hash-map))))
+
+(defn project-article-status-counts [project-id]
+  (with-project-cache
+    project-id [:public-labels :status-counts]
+    (let [articles (query-public-article-labels project-id)
+          overall-id (project/project-overall-label-id project-id)]
+      (when overall-id
+        (let [status-vals
+              (->> (vals articles)
+                   (map
+                    (fn [article]
+                      (let [labels (get-in article [:labels overall-id])
+                            group-status
+                            (cond (is-single? labels)     :single
+                                  (is-resolved? labels)   :resolved
+                                  (is-conflict? labels)   :conflict
+                                  :else                   :consistent)
+                            inclusion-status
+                            (case group-status
+                              :conflict nil,
+                              :resolved (->> labels (filter :resolve) (map :inclusion) first),
+                              (->> labels (map :inclusion) first))]
+                        [group-status inclusion-status]))))]
+          (merge
+           {:reviewed (count articles)}
+           (->> (distinct status-vals)
+                (map (fn [status]
+                       [status (->> status-vals (filter (partial = status)) count)]))
+                (apply concat)
+                (apply hash-map))))))))
+
+(defn project-members-info [project-id]
+  (with-project-cache
+    project-id [:members-info]
+    (let [users (->> (-> (q/select-project-members
+                          project-id [:u.* [:m.permissions :project-permissions]])
+                         do-query)
+                     (group-by :user-id)
+                     (map-values first))
+          inclusions (project-user-inclusions project-id)
+          in-progress
+          (->> (-> (q/select-project-articles
+                    project-id [:al.user-id :%count.%distinct.al.article-id])
+                   (q/join-article-labels)
+                   (q/filter-valid-article-label false)
+                   (group :al.user-id)
+                   do-query)
+               (group-by :user-id)
+               (map-values (comp :count first)))]
+      (->> users
+           (mapv (fn [[user-id user]]
+                   [user-id
+                    {:permissions (:project-permissions user)
+                     :articles (get inclusions user-id)
+                     :in-progress (if-let [count (get in-progress user-id)]
+                                    count 0)}]))
+           (apply concat)
+           (apply hash-map)))))

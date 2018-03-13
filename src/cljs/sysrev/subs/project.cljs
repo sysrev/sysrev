@@ -150,6 +150,30 @@
      (get-in project [:documents document-id]))))
 
 (reg-sub
+ :project/predict
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]] (-> project :stats :predict)))
+
+(reg-sub
+ :predict/labeled-count
+ (fn [[_ project-id]]
+   [(subscribe [:project/predict project-id])])
+ (fn [[predict]] (-> predict :counts :labeled)))
+
+(reg-sub
+ :predict/article-count
+ (fn [[_ project-id]]
+   [(subscribe [:project/predict project-id])])
+ (fn [[predict]] (-> predict :counts :total)))
+
+(reg-sub
+ :predict/update-time
+ (fn [[_ project-id]]
+   [(subscribe [:project/predict project-id])])
+ (fn [[predict]] (-> predict :update-time)))
+
+(reg-sub
  :project/sources
  (fn [db]
    (get-in db [:data :project (active-project-id db) :sources])))

@@ -18,6 +18,7 @@
         sysrev.export.endnote
         sysrev.predict.core
         sysrev.predict.api
+        sysrev.predict.report
         sysrev.web.core
         sysrev.web.session
         sysrev.web.index

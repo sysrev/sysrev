@@ -10,8 +10,12 @@
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.predict.core :as predict]
+            [sysrev.predict.report :as report]
             [sysrev.shared.article-list :as alist]
+            [sysrev.config.core :as config]
             [clojure.tools.logging :as log]))
+
+(defonce insilica-api (agent nil))
 
 (def api-host "http://api.insilica.co/")
 
@@ -38,17 +42,18 @@
        (apply hash-map)))
 
 (defn create-predict-model [project-id]
-  (let [label-id (project/project-overall-label-id project-id)]
+  (let [label-id (project/project-overall-label-id project-id)
+        body (json/write-str
+              {"project_id" project-id
+               "articles" (->> (get-training-label-values project-id label-id)
+                               (mapv (fn [[article-id answer]]
+                                       {"article_id" article-id
+                                        "label" answer})))
+               "feature" (str label-id)})]
     (http/post
      (str api-host "sysrev/modelService")
      {:content-type "application/json"
-      :body (json/write-str
-             {"project_id" project-id
-              "articles" (->> (get-training-label-values project-id label-id)
-                              (mapv (fn [[article-id answer]]
-                                      {"article_id" article-id
-                                       "label" answer})))
-              "feature" (str label-id)})})))
+      :body body})))
 
 (defn store-model-predictions [project-id label-id & {:keys [predict-version-id]
                                                       :or {predict-version-id 3}}]
@@ -62,7 +67,7 @@
            {:content-type "application/json"
             :query-params {"project_id" project-id
                            "feature" (str label-id)}})
-          ;; _ (println (-> response :body (json/read-str :key-fn keyword)))
+          ;; _ (println (-> response :body))
           entries
           (->> (-> response :body (json/read-str :key-fn keyword) :articles)
                (mapv (fn [{:keys [article_id probability prediction]}]
@@ -72,3 +77,46 @@
                                  (- 1.0 probability))})))]
       (predict/store-article-predictions
        project-id predict-run-id label-id entries))))
+
+(defn update-project-predictions [project-id]
+  (let [reviewed (-> (labels/project-article-status-counts project-id)
+                     :reviewed)]
+    (when (and reviewed (>= reviewed 10))
+      (send
+       insilica-api
+       (fn [_]
+         (try
+           (with-transaction
+             (create-predict-model project-id)
+             (store-model-predictions project-id nil)
+             (let [predict-run-id (q/project-latest-predict-run-id project-id)]
+               (report/update-predict-meta project-id predict-run-id))
+             true)
+           (catch Throwable e
+             (log/info "Exception in update-project-predictions:")
+             (log/info (.getMessage e))
+             (.printStackTrace e)
+             false))))
+      (await insilica-api)
+      (when (true? @insilica-api)
+        (q/project-latest-predict-run-id project-id)))))
+
+(defn schedule-predict-update [project-id]
+  (when (= :prod (-> config/env :profile))
+    (future (update-project-predictions project-id))))
+
+(defn force-predict-update-all-projects []
+  (let [project-ids (project/all-project-ids)]
+    (log/info "Updating predictions for projects:"
+              (pr-str project-ids))
+    (doseq [project-id project-ids]
+      (log/info "Loading for project #" project-id "...")
+      (let [predict-run-id (update-project-predictions project-id)]
+        (if (nil? predict-run-id)
+          (log/info "... no predictions loaded")
+          (let [meta (report/predict-summary predict-run-id)]
+            (if (empty? meta)
+              (log/info "... predict results not found (?)")
+              (log/info "... success:" meta))))))
+    (log/info "Finished updating predictions for"
+              (count project-ids) "projects")))

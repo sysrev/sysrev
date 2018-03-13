@@ -14,7 +14,9 @@
      with-transaction]]
    [sysrev.db.articles :refer
     [set-article-flag remove-article-flag article-to-sql]]
+   [sysrev.db.documents :as docs]
    [sysrev.db.queries :as q]
+   [sysrev.files.stores :as files]
    [sysrev.shared.util :refer [map-values in? short-uuid to-uuid]]
    [sysrev.shared.keywords :refer [canonical-keyword]]
    [honeysql.core :as sql]
@@ -26,6 +28,12 @@
 
 (def default-project-settings
   {:second-review-prob 0.5})
+
+(defn all-project-ids []
+  (-> (select :project-id)
+      (from [:project :p])
+      (order-by :project-id)
+      (->> do-query (mapv :project-id))))
 
 (defn all-projects
   "Returns seq of short info on all projects, for interactive use."
@@ -672,3 +680,15 @@
 (s/fdef project-has-labeled-articles?
         :args (s/cat :project-id int?)
         :ret boolean?)
+
+(defn project-users-info [project-id]
+  (with-project-cache
+    project-id [:users-info]
+    (->> (-> (q/select-project-members project-id [:u.*])
+             do-query)
+         (group-by :user-id)
+         (map-values first)
+         (map-values
+          #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
+
+
