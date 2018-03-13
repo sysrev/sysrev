@@ -17,7 +17,9 @@
     (str display extra)))
 
 (defn- article-score-label [score]
-  (when score
+  (when (and score
+             (not= score 0)
+             (not= score 0.0))
     (let [icon (if (> score 0.5)
                  "plus" "minus")
           percent (-> score (* 100) (+ 0.5) int)]
