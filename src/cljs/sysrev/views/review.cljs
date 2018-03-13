@@ -344,7 +344,7 @@
                     :else
                     "top center")
         :distanceAway 8}]
-      [label-help-popup {:category @(subscribe [:label/inclusion-criteria? label-id])
+      [label-help-popup {:category @(subscribe [:label/category label-id])
                          :required @(subscribe [:label/required? label-id])
                          :question @(subscribe [:label/question label-id])
                          :definition {:examples @(subscribe [:label/examples label-id])}}]

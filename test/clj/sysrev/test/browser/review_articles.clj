@@ -24,7 +24,8 @@
 ;; (let [project-id (-> (users/get-user-by-email (:email browser/test-login)) :user-id users/user-self-info :projects first :project-id)] (project/delete-project project-id))
 
 ;; useful definitions after basic values have been set by tests
-;; (def email "browser+test@insilica.co")
+;; (def email (:email browser/test-login))
+;; (def password (:password browser/test-login))
 ;; (def user-id (:user-id (users/get-user-by-email email)))
 ;; (def project-id (get-user-project-id user-id))
 ;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
@@ -156,13 +157,26 @@
   (str xpath "/descendant::" (label-name-xpath label-name) "/parent::div/descendant::input[@type='text']"))
 
 (defn label-radio-input-xpath
-  "Given an xpath, get the radio button for label-name user xpath"
+  "Given an xpath, get the radio button for label-name under xpath"
   [xpath label-name]
   (str xpath "/descendant::" (label-name-xpath label-name) "/parent::div/descendant::input[@type='radio']"))
 
 (defn set-radio-button
-  "When selected? is true, set radio button defined by xpath to 'on',
-  otherwise if selected? is false, set radio button to 'off'"
+  "When selected? is true, set radio input defined by xpath to 'on',
+  otherwise if selected? is false, set radio input to 'off'"
+  [xpath selected?]
+  (when-not (= (taxi/selected? {:xpath xpath})
+               selected?)
+    (taxi/click {:xpath xpath})))
+
+(defn label-checkbox-input-xpath
+  "Given an xpath, get the check box for label-name under xpath"
+  [xpath label-name]
+  (str xpath "/descendant::" (label-name-xpath label-name) "/parent::div/descendant::input[@type='checkbox']"))
+
+(defn set-checkbox-button
+  "When selected? is true, set checkbox defined by xpath to 'on',
+  otherwise if selected? is false, set checkbox button to 'off'"
   [xpath selected?]
   (when-not (= (taxi/selected? {:xpath xpath})
                selected?)
@@ -214,7 +228,7 @@
      {:xpath (label-text-input-xpath xpath "Question")}
      question)
     ;; required setting
-    (set-radio-button (label-radio-input-xpath xpath "Must be answered?") required)
+    (set-checkbox-button (label-checkbox-input-xpath xpath "Must be answered?") required)
     ;; inclusion values
     (set-boolean-inclusion xpath (first inclusion-values))))
 
@@ -237,9 +251,9 @@
      {:xpath (label-text-input-xpath xpath "Display Label")}
      short-label)
     ;; required setting
-    (set-radio-button (label-radio-input-xpath xpath "Must be answered?") required)
+    (set-checkbox-button (label-checkbox-input-xpath xpath "Must be answered?") required)
     ;; allow multiple values?
-    (set-radio-button (label-radio-input-xpath xpath "Allow Multiple Values?") multi?)
+    (set-checkbox-button (label-checkbox-input-xpath xpath "Allow Multiple Values?") multi?)
     ;; enter the question
     (taxi/clear {:xpath (label-text-input-xpath xpath "Question")})
     (taxi/input-text
@@ -275,7 +289,7 @@
      {:xpath (label-text-input-xpath xpath "Display Label")}
      short-label)
     ;; required setting
-    (set-radio-button (label-radio-input-xpath xpath "Must be answered?") required)
+    (set-checkbox-button (label-checkbox-input-xpath xpath "Must be answered?") required)
     ;; enter the question
     (taxi/clear {:xpath (label-text-input-xpath xpath "Question")})
     (taxi/input-text
