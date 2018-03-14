@@ -287,12 +287,12 @@
                                     :date))
         article-xml-extract-date (fn [article-xml]
                                    (cond (clojure.string/blank? article-xml)
-                                         ""
+                                         nil
                                          (not (clojure.string/blank? (pubmed-extract-date article-xml)))
                                          (pubmed-extract-date article-xml)
                                          (not (clojure.string/blank? (endnote-extract-date article-xml)))
                                          (endnote-extract-date article-xml)
-                                         :else ""))]
+                                         :else nil))]
     (println "Started Converting dates... ")
     (doall (map (fn [article]
                   (let [date (article-xml-extract-date (:raw article))]
