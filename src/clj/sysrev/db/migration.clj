@@ -5,6 +5,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [clojure.stacktrace :refer [print-cause-trace]]
             [clojure.data.json :as json]
+            [clojure.data.xml :as dxml]
             [clojure.tools.logging :as log]
             [sysrev.db.core :refer
              [do-query do-query-map do-execute with-transaction
@@ -18,7 +19,9 @@
             [sysrev.db.labels :refer [add-label-entry-boolean]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
-            [sysrev.import.pubmed :refer [extract-article-location-entries]]
+            [sysrev.import.endnote :refer [load-endnote-record]]
+            [sysrev.import.pubmed :refer [extract-article-location-entries
+                                          parse-pmid-xml]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
             [sysrev.db.sources :as sources]
@@ -268,6 +271,41 @@
         (upsert (-> (on-conflict :product)
                     (do-update-set :name :amount)))
         do-execute)))
+
+(defn update-dates-from-article-raw
+  "Extract the date from the raw column of the article and then update the corresponding date field"
+  []
+  (let [pubmed-extract-date (fn [article-xml]
+                              (->> article-xml
+                                   parse-xml-str
+                                   parse-pmid-xml
+                                   :date))
+        endnote-extract-date (fn [article-xml]
+                               (->  article-xml
+                                    dxml/parse-str
+                                    load-endnote-record
+                                    :date))
+        article-xml-extract-date (fn [article-xml]
+                                   (cond (clojure.string/blank? article-xml)
+                                         ""
+                                         (not (clojure.string/blank? (pubmed-extract-date article-xml)))
+                                         (pubmed-extract-date article-xml)
+                                         (not (clojure.string/blank? (endnote-extract-date article-xml)))
+                                         (endnote-extract-date article-xml)
+                                         :else ""))]
+    (println "Started Converting dates... ")
+    (doall (map (fn [article]
+                  (let [date (article-xml-extract-date (:raw article))]
+                    (if-not (clojure.string/blank? date)
+                      (-> (sqlh/update :article)
+                          (sset {:date date})
+                          (where [:= :article-id (:article-id article)])
+                          do-execute))))
+                (-> (select :raw :article_id)
+                    (from [:article :a])
+                    (order-by [:a.article_id :desc])
+                    do-query)))
+    (println "Finished Converting Dates. ")))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
