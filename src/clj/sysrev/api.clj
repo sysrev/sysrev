@@ -10,6 +10,7 @@
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
+            [sysrev.import.biosource :as biosource]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.stripe :as stripe]
@@ -360,6 +361,29 @@
                      (map #(hash-map (:label-id %) %))
                      ;; finally, return a map
                      (apply merge))}})))
+
+(defn important-terms
+  "Given a project-id, return the counts of kind limited to n results where kind is 'chemical','mesh' and 'gene'."
+  [project-id kind & [n]]
+  (let [n             (or n 20)
+        pmids         (project/project-pmids project-id)
+        project-terms (biosource/important-terms pmids)]
+    {:result {:terms
+              (condp = kind
+                "chemical"
+                (into []
+                      (take n
+                            (reverse
+                             (sort-by :count (:chemicalCounts project-terms)))))
+                "mesh" (into []
+                             (take n
+                                   (reverse
+                                    (sort-by :count (:meshCounts project-terms)))))
+                "gene" (mapv (fn [gene-map]
+                               (merge (:gene gene-map)
+                                      {:count (:count gene-map)}))
+                             (take n (reverse
+                                      (sort-by :count (:geneCounts project-terms))))))}}))
 
 (defn test-response
   "Server Sanity Check"

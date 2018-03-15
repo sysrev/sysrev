@@ -19,6 +19,7 @@
    [sysrev.files.stores :as files]
    [sysrev.shared.util :refer [map-values in? short-uuid to-uuid]]
    [sysrev.shared.keywords :refer [canonical-keyword]]
+   [sysrev.util :refer [parse-number]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -691,4 +692,13 @@
          (map-values
           #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
-
+(defn project-pmids
+  "Given a project-id, return all PMIDs associated with the project"
+  [project-id]
+  (->>  (-> (select :public_id)
+            (from :article)
+            (where [:= :project_id project-id])
+            do-query)
+        (mapv :public-id)
+        (mapv parse-number)
+        (filterv (comp not nil?))))

@@ -16,12 +16,11 @@
 ;; helpful manual testing functions:
 ;; (browser/delete-test-user)
 
-;; delete the project after it has been reviewed
 ;; find the project
 ;; (users/user-self-info (:user-id (users/get-user-by-email (:email browser/test-login))))
 
 ;; delete the project
-;; (let [project-id (-> (users/get-user-by-email (:email browser/test-login)) :user-id users/user-self-info :projects first :project-id)] (project/delete-project project-id))
+;; (let [project-id (-> (users/get-user-by-email (:email browser/test-login)) :user-id users/user-self-info :projects first :project-id)] (if (not= project-id 100) (project/delete-project project-id) (println "Didn't delete project 100")))
 
 ;; useful definitions after basic values have been set by tests
 ;; (def email (:email browser/test-login))
