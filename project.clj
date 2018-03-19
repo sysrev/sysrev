@@ -36,7 +36,7 @@
                  [clojure-csv/clojure-csv "2.0.1"]
                  ;;; Database
                  [org.clojure/java.jdbc "0.7.5"]
-                 [org.postgresql/postgresql "42.2.1"]
+                 [org.postgresql/postgresql "42.2.2"]
                  [joda-time "2.9.9"]
                  [clj-time "0.14.2" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
@@ -44,7 +44,7 @@
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
-                 [honeysql "0.9.1"]
+                 [honeysql "0.9.2"]
                  [nilenso/honeysql-postgres "0.2.3"]
                  ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
@@ -58,11 +58,11 @@
                  ;;; Encryption / Authentication
                  [buddy "2.0.0"]
                  ;;; Web client
-                 [clj-http "3.7.0"]
+                 [clj-http "3.8.0"]
                  ;;; Email
                  [com.draines/postal "2.0.2"]
                  ;;; Amazon
-                 [amazonica "0.3.118"
+                 [amazonica "0.3.121"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
@@ -79,7 +79,7 @@
                  ;;;
                  [com.cognitect/transit-cljs "0.8.243"]
                  [reagent "0.7.0"]
-                 [re-frame "0.10.4"]
+                 [re-frame "0.10.5"]
                  [day8.re-frame/http-fx "0.1.5"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.8"]
@@ -206,12 +206,12 @@
              :dev-jvm
              {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.14"]
+             {:dependencies [[figwheel-sidecar "0.5.15"]
                              [org.clojure/tools.nrepl "0.2.13"]
                              [com.cemerick/piggieback "0.2.2"]
                              [acyclic/squiggly-clojure "0.1.8"
                               :exclusions [org.clojure/tools.reader]]]
-              :plugins [[lein-figwheel "0.5.14"]
+              :plugins [[lein-figwheel "0.5.15"]
                         [cider/cider-nrepl "0.16.0"]
                         [lein-environ "1.1.0"]]}
              :figwheel
