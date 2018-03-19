@@ -36,7 +36,8 @@
     (if success
       {:dispatch-n
        (list [:fetch [:review/task]]
-             [:reload [:project]])})))
+             [:reload [:project]]
+             [:overview/reset-state!])})))
 
 (defn plural-or-singular
   "Return the singular form of string when item-count is one, return plural otherwise"
@@ -59,7 +60,8 @@
     [upload-container
      basic-text-button
      "/api/import-articles-from-endnote-file"
-     #(dispatch [:reload [:project/sources]])
+     #(do (dispatch [:reload [:project/sources]])
+          (dispatch [:overview/reset-state!]))
      "Upload File..."]]])
 
 (defn ImportPMIDsView []
@@ -70,7 +72,8 @@
     [upload-container
      basic-text-button
      "/api/import-articles-from-file"
-     #(dispatch [:reload [:project/sources]])
+     #(do (dispatch [:reload [:project/sources]])
+          (dispatch [:overview/reset-state!]))
      "Upload File..."]]])
 
 (defn ImportPubMedView []
