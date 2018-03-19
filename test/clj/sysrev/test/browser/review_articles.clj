@@ -20,7 +20,7 @@
 ;; (users/user-self-info (:user-id (users/get-user-by-email (:email browser/test-login))))
 
 ;; delete the project
-;; (let [project-id (-> (users/get-user-by-email (:email browser/test-login)) :user-id users/user-self-info :projects first :project-id)] (if (not= project-id 100) (project/delete-project project-id) (println "Didn't delete project 100")))
+;; (let [project-ids (->> (users/get-user-by-email (:email browser/test-login)) :user-id users/user-self-info :projects (mapv :project-id) (filterv #(not= % 100)))] (mapv #(project/delete-project %) project-ids))
 
 ;; useful definitions after basic values have been set by tests
 ;; (def email (:email browser/test-login))

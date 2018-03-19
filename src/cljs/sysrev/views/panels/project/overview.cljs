@@ -3,6 +3,8 @@
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch reg-event-fx reg-sub trim-v]]
+   [re-frame.db :refer [app-db]]
+   [sysrev.data.core :refer [def-data]]
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :refer [with-ui-help-tooltip]]
@@ -11,12 +13,36 @@
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]
-   [sysrev.util :refer [full-size?]]
+   [sysrev.util :refer [full-size? random-id]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
    [sysrev.shared.util :refer [in?]]
    [clojure.string :as str])
   (:require-macros [sysrev.macros :refer [with-loader]]))
+
+(def initial-state {})
+(def state (r/cursor app-db [:state :panels :project :overview]))
+
+(def-data :project/important-terms
+  :loaded? (fn [db n]
+             ;;(.log js/console "t or f " (not (empty? (get-in db [:state :panels :project :overview]))))
+             (not (empty? (get-in db [:state :panels :project :overview]))))
+  :uri (fn [] "/api/important-terms")
+  :prereqs
+  (fn [] [[:identity]])
+  :content
+  (fn [n] {:n n})
+  :process
+  (fn [_ [n] response]
+    (reset! state (:terms response))
+    {}))
+
+(reg-event-fx
+ :overview/reset-state!
+ [trim-v]
+ (fn [_]
+   (reset! state initial-state)
+   {}))
 
 (defn nav-article-status [[inclusion group-status]]
   (routes/nav-scroll-top "/project/articles")
@@ -283,6 +309,77 @@
         " labeled articles; " (str total)
         " article predictions loaded"]])))
 
+(defn ImportantTermsChart
+  [props title]
+  (let [id (random-id)
+        props-fn (fn [props]
+                   (let [term (:term props)
+                         display-key (:display-key props)
+                         data (get-in props [:data term])]
+                     (when (> (count data) 0)
+                       (let [vectorized-data (mapv #(vector (display-key %) (:count %)) (reverse (sort-by :count data)))
+                             labels (mapv first vectorized-data)
+                             counts (mapv second vectorized-data)]
+                         (js/Chart. (get-canvas-context id)
+                                    (clj->js {:type "horizontalBar"
+                                              :data {:labels labels
+                                                     :datasets [{:data counts
+                                                                 :backgroundColor "rgba(33,186,69,0.55)"}]}
+                                              :options {:scales {:xAxes [{:display true
+                                                                          :ticks {:suggestedMin 0
+                                                                                  :callback (fn [value idx values]
+                                                                                              (if (or (= 0 (mod idx 5))
+                                                                                                      (= idx (dec (count values))))
+                                                                                                value ""))}}]}
+                                                        :legend {:display false}}}))))))]
+    (r/create-class
+     {:reagent-render
+      (fn []
+        [:div.ui.segment
+         [:h4.ui.dividing.header
+          [:div.ui.two.column.middle.aligned.grid
+           [:div.ui.left.aligned.column
+            title]]]
+         [:div [:canvas {:id id}]]])
+      :component-will-update (fn [this new-argv]
+                               ;;(.log js/console "Important Terms Chart: component-will-update")
+                               (props-fn (second new-argv)))
+      :component-did-mount (fn [this]
+                             ;;(.log js/console "ImportantTermsChart: component-did-mount")
+                             (props-fn props))
+      :display-name "important-mesh-terms"})))
+
+(defn KeyTerms
+  [{:keys [project-id]}]
+  (r/create-class
+   {:reagent-render (fn []
+                      [:div
+                       (when (> (count (get-in @state [:mesh])) 0)
+                         [ImportantTermsChart {:data @state
+                                               :term :mesh
+                                               :display-key :term} "Important Mesh Terms"])
+                       (when (> (count (get-in @state [:chemical])) 0)
+                         [ImportantTermsChart {:data @state
+                                               :term :chemical
+                                               :display-key :term} "Important Compounds"])
+                       (when (> (count (get-in @state [:gene])) 0)
+                         [ImportantTermsChart {:data @state
+                                               :term :gene
+                                               :display-key :symbol} "Important Genes"])])
+    :component-will-mount (fn [this]
+                            ;;                            (reset! state {})
+                            ;;(.log js/console "KeyTerms: component-will-mount")
+                            (dispatch [:require [:project/important-terms 10]]))
+    :component-will-unmount (fn [this]
+                              ;;(.log js/console "KeyTerms: component-will-umount")
+                              ;;(dispatch [:overview/reset-state!])
+                              ;;(reset! state {})
+                              )
+    :component-will-update (fn [this new-argv]
+                             ;;(.log js/console "KeyTerms: component-will-update")
+                             )
+    :display-name "key-terms"}))
+
 (defn project-overview-panel []
   [:div.ui.two.column.stackable.grid.project-overview
    [:div.ui.row
@@ -292,7 +389,8 @@
      [label-predictions-box]]
     [:div.ui.column
      [user-summary-chart]
-     [project-files-box]]]])
+     [project-files-box]
+     [KeyTerms]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

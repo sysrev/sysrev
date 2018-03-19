@@ -363,27 +363,37 @@
                      (apply merge))}})))
 
 (defn important-terms
-  "Given a project-id, return the counts of kind limited to n results where kind is 'chemical','mesh' and 'gene'."
-  [project-id kind & [n]]
+  "Given a project-id, return the term counts for the top n most used terms"
+  [project-id & [n]]
   (let [n             (or n 20)
         pmids         (project/project-pmids project-id)
-        project-terms (biosource/important-terms pmids)]
+        important-terms (biosource/important-terms pmids)]
     {:result {:terms
-              (condp = kind
-                "chemical"
-                (into []
-                      (take n
-                            (reverse
-                             (sort-by :count (:chemicalCounts project-terms)))))
-                "mesh" (into []
-                             (take n
-                                   (reverse
-                                    (sort-by :count (:meshCounts project-terms)))))
-                "gene" (mapv (fn [gene-map]
-                               (merge (:gene gene-map)
-                                      {:count (:count gene-map)}))
-                             (take n (reverse
-                                      (sort-by :count (:geneCounts project-terms))))))}}))
+              {:chemical
+               (into []
+                     (take n
+                           (reverse
+                            (sort-by :count (sort-by :count (:chemicalCounts important-terms))
+                                     #_ '({:term "foo" :count 10}
+                                       {:term "bar" :count 4}
+                                       {:term "baz" :count 3}
+                                       {:term "qux" :count 3}))
+                            )))
+               :mesh (into []
+                           (take n
+                                 (reverse
+                                  (sort-by :count (:meshCounts important-terms)
+                                           #_ '({:term "Qux" :count 4}
+                                             {:term "Grault" :count 2}
+                                             {:term "Corge" :count 2})))))
+               :gene (mapv (fn [gene-map]
+                             (merge (:gene gene-map)
+                                    {:count (:count gene-map)}))
+                           (take n (reverse
+                                    (sort-by :count (:geneCounts important-terms)
+                                             #_'({:gene {:symbol "TAVES"} :count 4}
+                                               {:gene {:symbol "HDHG1"} :count 2})
+                                             ))))}}}))
 
 (defn test-response
   "Server Sanity Check"

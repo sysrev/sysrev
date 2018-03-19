@@ -30,6 +30,7 @@
    [ring.util.response :as response]
    [clojure.data.json :as json]
    [clojure-csv.core :as csv]
+   [sysrev.util :refer [parse-integer]]
    [sysrev.db.files :as files])
   (:import [java.util UUID]
            [java.io InputStream]
@@ -428,6 +429,10 @@
         (let [{:keys [plan-name]} (:body request)]
           (api/subscribe-to-plan (users/get-user-by-id (current-user-id request))
                                  plan-name)))
+
+  (GET "/api/important-terms" request
+       (let [{:keys [n]} (-> :params request)]
+         (api/important-terms (active-project request) (parse-integer n))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
