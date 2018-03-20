@@ -330,7 +330,8 @@
                                                                                   :callback (fn [value idx values]
                                                                                               (if (or (= 0 (mod idx 5))
                                                                                                       (= idx (dec (count values))))
-                                                                                                value ""))}}]}
+                                                                                                value ""))}}]
+                                                                 :yAxes [{:maxBarThickness 10}]}
                                                         :legend {:display false}}}))))))]
     (r/create-class
      {:reagent-render
