@@ -282,6 +282,12 @@
                                  :style {} #_ (when-not boolean-label?
                                                 {:visibility "hidden"})}]))))
 
+(defn InputLabel
+  [label]
+  [:label {:display "block"
+           :margin-top "0.5em"
+           :margin-bottom "0.5em"} label])
+
 (defn TextInput
   "Props:
   {:error         <string>       ; error message, optional
@@ -294,7 +300,9 @@
   [{:keys [error value on-change placeholder default-value label]}]
   [:div {:class (cond-> "field "
                   error (str "error"))}
-   [:label label]
+   [:label {:style {:display "block"
+                    :margin-top "0.5em"
+                    :margin-bottom "0.5em"}} label]
    [:div.ui.form
     [:input (cond-> {:type "text"
                      :on-change on-change}
@@ -306,6 +314,32 @@
      [:div {:class "ui red message"}
       error])])
 
+(defn InclusionCheckbox
+  [{:keys [checked? on-change label]}]
+  [:div.ui.checkbox
+   [:input {:type "checkbox"
+            :on-change on-change
+            :checked checked?}]
+   [:label {:style {:margin-right "0.5em"}} label]])
+
+(defn LabeledCheckboxInput
+  [{:keys [error on-change checked? label]}]
+  [:div {:class (cond-> "field "
+                  error (str " error"))}
+   [:label label
+    [:div.ui.checkbox {:style {:margin-left "0.5em"}}
+     [:input
+      {:type "checkbox"
+       :on-change on-change
+       :checked checked?
+       :style {:display "block"}}]
+     ;; including label here is a hack to allow for a checkbox
+     ;; to appear next to a label instead of below it
+     [:label {:style {:margin-right "0.5em"}}]]]
+   (when error
+     [:div {:class "ui red message"}
+      error])])
+
 (defn LabelEditForm
   []
   (let []
@@ -313,7 +347,6 @@
       (let [label-style {:display "block"
                          :margin-top "0.5em"
                          :margin-bottom "0.5em"}
-            input-style {:margin-left "0.5em"}
             error-message-class {:class "ui red message"}
             value-type (r/cursor label [:value-type])
             answer (r/cursor label [:answer])
@@ -334,7 +367,8 @@
             inclusion-values (r/cursor definition [:inclusion-values]) ; optional, vector of string, must be in all-values
             ;; errors
             errors (r/cursor label [:errors])]
-        [:div.ui.form
+        [:div {:class "ui form"
+               :style {:margin-bottom "1em"}}
          [:div {:class (cond-> "field "
                          (:value-type @errors) (str " error"))}
           [:label {:style label-style}
@@ -371,43 +405,26 @@
                                           (-> event .-target .-value)))
                      :label "Display Label"}]
          ;; required
-         [:div {:class (cond-> "field "
-                         (:required @errors)
-                         (str " error"))}
-          [:label {:style label-style} "Must be answered?"
-           [:div.ui.checkbox {:style {:margin-left "0.5em"}}
-            [:input
-             {:type "checkbox"
-              :on-change (fn [event]
-                           (let [checked? (-> event .-target .-checked)]
-                             (reset! required
-                                     (if checked?
-                                       true
-                                       false))))
-              :checked @required}]
-            [:label {:style {:margin-right "0.5em"}}]]]
-          (when-let [error (:required @errors)]
-            [:div error-message-class
-             error])]
+         [LabeledCheckboxInput {:error (:required @errors)
+                                :on-change (fn [event]
+                                             (let [checked? (-> event .-target .-checked)]
+                                               (reset! required
+                                                       (if checked?
+                                                         true
+                                                         false))))
+                                :checked? @required
+                                :label "Must be answered?"}]
          ;; multi?
          (when (= @value-type "string")
-           [:div {:class (cond-> "field "
-                           (get-in @errors [:definition :multi?]) (str "error"))}
-            [:label {:style label-style} "Allow Multiple Values?"
-             [:div.ui.checkbox {:style {:margin-left "0.5em"}}
-              [:input {:style input-style
-                       :type "checkbox"
-                       :on-change (fn [event]
-                                    (let [checked? (-> event .-target .-checked)]
-                                      (reset! multi?
-                                              (if checked?
-                                                true
-                                                false))))
-                       :checked @multi?}]
-              [:label {:style {:margin-right "0.5em"}}]]]
-            (when-let [error (get-in @errors [:definition :multi?])]
-              [:div error-message-class
-               error])])
+           [LabeledCheckboxInput {:error (get-in @errors [:definition :multi?])
+                                  :on-change (fn [event]
+                                               (let [checked? (-> event .-target .-checked)]
+                                                 (reset! multi?
+                                                         (if checked?
+                                                           true
+                                                           false))))
+                                  :checked? @multi?
+                                  :label "Allow Multiple Values?"}])
          ;; question
          [TextInput {:error (:question @errors)
                      :value question
@@ -462,16 +479,15 @@
                (doall (map
                        (fn [option-value]
                          ^{:key (gensym option-value)}
-                         [:div.ui.checkbox
-                          [:input {:type "checkbox"
-                                   :on-change (fn [event]
-                                                (let [checked? (-> event .-target .-checked)]
-                                                  (reset! inclusion-values
-                                                          (if checked?
-                                                            (into [] (conj (set @inclusion-values) option-value))
-                                                            (into [] (remove #(= option-value %) (set @inclusion-values)))))))
-                                   :checked (contains? (set @inclusion-values) option-value)}]
-                          [:label {:style {:margin-right "0.5em"}} option-value]])
+                         [InclusionCheckbox
+                          {:checked? (contains? (set @inclusion-values) option-value)
+                           :on-change (fn [event]
+                                        (let [checked? (-> event .-target .-checked)]
+                                          (reset! inclusion-values
+                                                  (if checked?
+                                                    (into [] (conj (set @inclusion-values) option-value))
+                                                    (into [] (remove #(= option-value %) (set @inclusion-values)))))))
+                           :label option-value}])
                        @all-values))
                (when-let [error (get-in @errors [:definition :inclusion-values])]
                  [:div error-message-class
@@ -482,26 +498,22 @@
                            (get-in @errors [:definition :inclusion-values])
                            (str " error"))}
             [:label {:style label-style} "Value for Inclusion"]
-            [:div.ui.checkbox
-             [:input {:type "checkbox"
-                      :on-change (fn [event]
-                                   (let [checked? (-> event .-target .-checked)]
-                                     (reset! inclusion-values
-                                             (if checked?
-                                               [false]
-                                               []))))
-                      :checked (contains? (set @inclusion-values) false)}]
-             [:label {:style {:margin-right "0.5em"}} "No"]]
-            [:div.ui.checkbox
-             [:input {:type "checkbox"
-                      :on-change (fn [event]
-                                   (let [checked? (-> event .-target .-checked)]
-                                     (reset! inclusion-values
-                                             (if checked?
-                                               [true]
-                                               []))))
-                      :checked (contains? (set @inclusion-values) true)}]
-             [:label {:style {:margin-right "0.5em"}} "Yes"]]
+            [InclusionCheckbox {:checked? (contains? (set @inclusion-values) false)
+                                :on-change (fn [event]
+                                             (let [checked? (-> event .-target .-checked)]
+                                               (reset! inclusion-values
+                                                       (if checked?
+                                                         [false]
+                                                         []))))
+                                :label "No"}]
+            [InclusionCheckbox {:checked? (contains? (set @inclusion-values) true)
+                                :on-change (fn [event]
+                                             (let [checked? (-> event .-target .-checked)]
+                                               (reset! inclusion-values
+                                                       (if checked?
+                                                         [true]
+                                                         []))))
+                                :label "Yes"}]
             (when-let [error (get-in @errors [:definition :inclusion-values])]
               [:div error-message-class
                error])])]))))
