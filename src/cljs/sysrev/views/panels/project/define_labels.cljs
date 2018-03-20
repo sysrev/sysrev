@@ -282,12 +282,6 @@
                                  :style {} #_ (when-not boolean-label?
                                                 {:visibility "hidden"})}]))))
 
-(defn InputLabel
-  [label]
-  [:label {:display "block"
-           :margin-top "0.5em"
-           :margin-bottom "0.5em"} label])
-
 (defn TextInput
   "Props:
   {:error         <string>       ; error message, optional
@@ -315,6 +309,11 @@
       error])])
 
 (defn InclusionCheckbox
+  "Props:
+  {:checked?  <boolean>
+   :on-change <fn>      ; a fn of event
+   :label     <string>
+  }"
   [{:keys [checked? on-change label]}]
   [:div.ui.checkbox
    [:input {:type "checkbox"
@@ -323,6 +322,12 @@
    [:label {:style {:margin-right "0.5em"}} label]])
 
 (defn LabeledCheckboxInput
+  "Props:
+  {:checked?  <boolean>
+   :on-change <fn>      ; a fn of event
+   :error     <string>  ; optional
+   :label     <string>
+  }"
   [{:keys [error on-change checked? label]}]
   [:div {:class (cond-> "field "
                   error (str " error"))}
