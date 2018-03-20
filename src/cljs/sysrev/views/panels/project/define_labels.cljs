@@ -28,7 +28,15 @@
 
 (def panel [:project :project :labels :edit])
 
-(defonce state (r/atom {:server-syncing? false}))
+(def initial-state {:server-syncing? false})
+
+(def state (r/cursor app-db [:state :panels :project :define-labels]))
+
+(reg-event-fx
+ :define-labels/reset-state!
+ [trim-v]
+ (fn [_]
+   (reset! state initial-state)))
 
 (defn- get-local-labels []
   (get-in @state [:labels]))
@@ -708,9 +716,9 @@
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
           labels (r/cursor state [:labels])]
-      ;; (.log js/console "labels: " (clj->js @labels))
+      (when (empty? @state)
+        (reset! state initial-state))
       (when (empty? @labels)
-        ;; (.log js/console "I am resetting labels")
         (sync-local-labels! (labels->local-labels (saved-labels))))
       [:div.define-labels
        (doall (map-indexed
