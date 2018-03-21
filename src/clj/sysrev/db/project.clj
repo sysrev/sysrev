@@ -697,7 +697,9 @@
   [project-id]
   (->>  (-> (select :public_id)
             (from :article)
-            (where [:= :project_id project-id])
+            (where [:and
+                    [:= :project_id project-id]
+                    [:= :enabled true]])
             do-query)
         (mapv :public-id)
         (mapv parse-number)

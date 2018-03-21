@@ -205,9 +205,7 @@
         ;; send out event to check for article sources
         [:reload [:project/sources]]
         ;; clear state of pubmed.cljs
-        [:add-articles/reset-state!]
-        ;; clear overview state
-        [:overview/reset-state!])}
+        [:add-articles/reset-state!])}
       ;; does nothing, code should be created
       {:dispatch-n
        ;; (list [:set-import-articles-error-msg message])
@@ -222,4 +220,4 @@
     (if success
       {:dispatch-n
        (list [:reload [:project]]
-             [:overview/reset-state!])})))
+             [:fetch [:project/important-terms 10]])})))

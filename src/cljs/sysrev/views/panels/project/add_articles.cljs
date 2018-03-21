@@ -37,7 +37,7 @@
       {:dispatch-n
        (list [:fetch [:review/task]]
              [:reload [:project]]
-             [:overview/reset-state!])})))
+             [:fetch [:project/important-terms 10]])})))
 
 (defn plural-or-singular
   "Return the singular form of string when item-count is one, return plural otherwise"
@@ -60,8 +60,7 @@
     [upload-container
      basic-text-button
      "/api/import-articles-from-endnote-file"
-     #(do (dispatch [:reload [:project/sources]])
-          (dispatch [:overview/reset-state!]))
+     #(do (dispatch [:reload [:project/sources]]))
      "Upload File..."]]])
 
 (defn ImportPMIDsView []
@@ -72,8 +71,7 @@
     [upload-container
      basic-text-button
      "/api/import-articles-from-file"
-     #(do (dispatch [:reload [:project/sources]])
-          (dispatch [:overview/reset-state!]))
+     #(do (dispatch [:reload [:project/sources]]))
      "Upload File..."]]])
 
 (defn ImportPubMedView []
@@ -187,7 +185,8 @@
       (continuous-update-until #(dispatch [:fetch [:project/sources]])
                                #(not (source-updating? source-id))
                                #(do (reset! polling-sources? false)
-                                    (dispatch [:reload [:project]]))
+                                    (dispatch [:reload [:project]])
+                                    (dispatch [:fetch [:project/important-terms 10]]))
                                1500))))
 
 (defn ArticleSource [source]
