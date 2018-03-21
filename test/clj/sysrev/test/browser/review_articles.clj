@@ -30,7 +30,7 @@
 ;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
 ;; (def article-id (-> (labels/query-public-article-labels project-id) keys first))
 
-;;;; begin dom element defintions
+;;;; begin dom element definitions
 (def review-articles-button  {:xpath "//span[text()='Review Articles']"})
 (def articles-button  {:xpath "//span[text()='Articles']"})
 (def save-button {:xpath "//div[contains(text(),'Save')]"})
@@ -50,6 +50,7 @@
 ;; a string xpath for a label item div with errors
 (def label-item-div-with-errors "//div[contains(@class,'error')]/ancestor::div[contains(@class,'label-item')]")
 
+(def no-articles-need-review {:xpath "//h4[text()='No articles found needing review']"})
 (defn label-div-with-name
   [name]
   (str "//span[contains(@class,'name')]/span[contains(text(),'" name "')]/ancestor::div[contains(@class,'label-edit') and contains(@class,'column')]"))
@@ -112,6 +113,34 @@
 
 
 ;;;; end element definitions
+
+;;;; label definitions
+(def include-label-definition {:short-label "Include"
+                               :value-type "boolean"})
+
+(def boolean-label-definition {:value-type "boolean"
+                               :question "Is this true or false?"
+                               :short-label "Boolean Label"
+                               :definition {:inclusion-values [true]}
+                               :required true})
+
+(def string-label-definition {:value-type "string"
+                              :question "What value is present for Foo?"
+                              :short-label "String Label"
+                              :definition
+                              {:max-length 160
+                               :examples ["foo" "bar" "baz" "qux"]
+                               :multi? true}
+                              :required true})
+
+(def categorical-label-definition {:question "Does this label fit within the categories?"
+                                   :value-type "categorical"
+                                   :required true
+                                   :short-label "Categorical Label"
+                                   :definition
+                                   {:all-values ["Foo" "Bar" "Baz" "Qux"]
+                                    :inclusion-values ["Foo" "Bar"]
+                                    :multi? false}})
 (defn short-label-answer
   "Get label answer for short-label set for article-id in project-id by user-id"
   [project-id article-id user-id short-label]
@@ -327,6 +356,41 @@
       "categorical" (set-categorical-label-values xpath label-map)
       )))
 
+(defn set-article-label
+  "Set the labels for article using the values in the map
+  {:short-label <string> :value <boolean|string> :value-type <string>}"
+  [{:keys [short-label value value-type]}]
+  (condp = value-type
+    "boolean" (select-boolean-with-label-name
+               short-label
+               value)
+    "string" (input-string-with-label-name
+              short-label
+              value)
+    "categorical" (select-with-text-label-name
+                   short-label
+                   value)))
+
+(defn set-article-labels
+  "Given a vector of label-settings maps, set the labels for an article in the browser."
+  [label-settings]
+  (mapv #(set-article-label %)
+        label-settings)
+  ;; save the labeling
+  (browser/wait-until-displayed save-button)
+  (taxi/click save-button))
+
+(defn randomly-set-article-labels
+  "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
+  [label-settings]
+  (set-article-labels
+   (mapv (fn [label]
+           (let [all-values (or (get-in label [:definition :all-values])
+                                (get-in label [:definition :examples]))]
+             (merge label {:value
+                           (nth all-values (rand-int (count all-values)))})))
+         label-settings)))
+
 (deftest create-project-and-review-article
   (let [{:keys [email password]} browser/test-login
         project-name "Foo Bar"
@@ -355,31 +419,9 @@
 ;;;; create new labels
       ;; for now, this is manually in the db, eventually this whole
       ;; section will be replaced by what is in the label editor
-      (let [include-label-definition {:short-label "Include"}
-            include-label-value true
-            boolean-label-definition {:value-type "boolean"
-                                      :question "Is this true or false?"
-                                      :short-label "Boolean Label"
-                                      :definition {:inclusion-values [true]}
-                                      :required true}
+      (let [include-label-value true
             boolean-label-value true
-            string-label-definition {:value-type "string"
-                                     :question "What value is present for Foo?"
-                                     :short-label "String Label"
-                                     :definition
-                                     {:max-length 160
-                                      :examples ["foo" "bar" "baz" "qux"]
-                                      :multi? true}
-                                     :required true}
             string-label-value "Baz"
-            categorical-label-definition {:question "Does this label fit within the categories?"
-                                          :value-type "categorical"
-                                          :required true
-                                          :short-label "Categorical Label"
-                                          :definition
-                                          {:all-values ["Foo" "Bar" "Baz" "Qux"]
-                                           :inclusion-values ["Foo" "Bar"]
-                                           :multi? false}}
             categorical-label-value "Qux"]
         (taxi/click label-definitions-tab)
         (browser/wait-until-displayed add-boolean-label-button)
@@ -450,17 +492,16 @@
         (browser/wait-until-displayed {:xpath (label-div-with-name (:short-label include-label-definition))})
         ;; We shouldn't have any labels for this project
         (is (empty? (labels/query-public-article-labels project-id)))
-        ;; Check the booleans
-        (select-boolean-with-label-name (:short-label include-label-definition) include-label-value)
-        (select-boolean-with-label-name (:short-label boolean-label-definition) boolean-label-value)
-        ;; Input string
-        (input-string-with-label-name (:short-label string-label-definition) string-label-value)
-        ;; make a selection
-        (select-with-text-label-name (:short-label categorical-label-definition) categorical-label-value)
-        ;; save the labeling
-        (browser/wait-until-displayed save-button)
-        (taxi/click save-button)
-        ;; verify we are on the next article
+        ;; set the labels
+        (set-article-labels [(merge include-label-definition
+                                    {:value include-label-value})
+                             (merge boolean-label-definition
+                                    {:value boolean-label-value})
+                             (merge string-label-definition
+                                    {:value string-label-value})
+                             (merge categorical-label-definition
+                                    {:value categorical-label-value})])
+        ;;verify we are on the next article
         (browser/wait-until-displayed disabled-save-button)
         (is (taxi/exists? disabled-save-button))
 ;;;; check in the database for the labels
@@ -510,3 +551,19 @@
         ;; delete the project in the database
         (project/delete-project project-id)
         ))))
+
+(defn randomly-review-all-articles
+  "Randomly sets labels for articles until all have been reviewed"
+  []
+  (taxi/click review-articles-button)
+  (browser/wait-until-exists {:xpath "//div[@id='project_review']"})
+  (while (not (taxi/exists? no-articles-need-review))
+    (do (randomly-set-article-labels
+         [(merge include-label-definition
+                 {:definition {:all-values [true false]}})
+          (merge boolean-label-definition
+                 {:definition {:all-values [true false]}})
+          string-label-definition
+          categorical-label-definition])
+        (taxi/wait-until #(or (taxi/exists? disabled-save-button)
+                              (taxi/exists? no-articles-need-review))))))
