@@ -14,7 +14,8 @@
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
             [sysrev.db.sources :as sources]
-            [sysrev.predict.api :as predict-api]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.biosource.importance :as importance]
             [sysrev.db.queries :as q]
             [sysrev.util :refer
              [xml-find xml-find-vector xml-find-vector
@@ -175,7 +176,8 @@
           (if success?
             (do (sources/update-project-source-metadata!
                  source-id (assoc meta :importing-articles? false))
-                (predict-api/schedule-predict-update project-id))
+                (predict-api/schedule-predict-update project-id)
+                (importance/schedule-important-terms-update project-id))
             (sources/fail-project-source-import! source-id))
           success?)
         (catch Throwable e

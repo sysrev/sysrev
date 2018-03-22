@@ -23,20 +23,6 @@
 (def initial-state {})
 (def state (r/cursor app-db [:state :panels :project :overview]))
 
-(def-data :project/important-terms
-  :loaded? (fn [db n]
-             ;;(.log js/console "t or f " (not (empty? (get-in db [:state :panels :project :overview]))))
-             (not (empty? (get-in db [:state :panels :project :overview]))))
-  :uri (fn [] "/api/important-terms")
-  :prereqs
-  (fn [] [[:identity]])
-  :content
-  (fn [n] {:n n})
-  :process
-  (fn [_ [n] response]
-    (reset! state (:terms response))
-    {}))
-
 (reg-event-fx
  :overview/reset-state!
  [trim-v]
@@ -310,75 +296,99 @@
         " article predictions loaded"]])))
 
 (defn ImportantTermsChart
-  [props title]
-  (let [id (random-id)
-        props-fn (fn [props]
-                   (let [term (:term props)
-                         display-key (:display-key props)
-                         data (get-in props [:data term])]
-                     (when (> (count data) 0)
-                       (let [vectorized-data (mapv #(vector (display-key %) (:count %)) (reverse (sort-by :count data)))
-                             labels (mapv first vectorized-data)
-                             counts (mapv second vectorized-data)]
-                         (js/Chart. (get-canvas-context id)
-                                    (clj->js {:type "horizontalBar"
-                                              :data {:labels labels
-                                                     :datasets [{:data counts
-                                                                 :backgroundColor "rgba(33,186,69,0.55)"}]}
-                                              :options {:scales {:xAxes [{:display true
-                                                                          :ticks {:suggestedMin 0
-                                                                                  :callback (fn [value idx values]
-                                                                                              (if (or (= 0 (mod idx 5))
-                                                                                                      (= idx (dec (count values))))
-                                                                                                value ""))}}]
-                                                                 :yAxes [{:maxBarThickness 10}]}
-                                                        :legend {:display false}}}))))))]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [:div.ui.segment
-         [:h4.ui.dividing.header
-          [:div.ui.two.column.middle.aligned.grid
-           [:div.ui.left.aligned.column
-            title]]]
-         [:div [:canvas {:id id}]]])
-      :component-will-update (fn [this new-argv]
-                               ;;(.log js/console "Important Terms Chart: component-will-update")
-                               (props-fn (second new-argv)))
-      :component-did-mount (fn [this]
-                             ;;(.log js/console "ImportantTermsChart: component-did-mount")
-                             (props-fn props))
-      :display-name "important-mesh-terms"})))
+  [{:keys [entity data] :as props}
+   title]
+  (when (not-empty data)
+    (let [id (random-id)
+          init-chart-fn
+          (fn [{:keys [entity data]}]
+            (when (not-empty data)
+              (let [entries (->> data (sort-by :instance-count >))
+                    labels (mapv :instance-name entries)
+                    counts (mapv :instance-count entries)]
+                (js/Chart.
+                 (get-canvas-context id)
+                 (clj->js
+                  {:type "horizontalBar"
+                   :data {:labels labels
+                          :datasets [{:data counts
+                                      :backgroundColor "rgba(33,186,69,0.55)"}]}
+                   :options {:scales
+                             {:xAxes
+                              [{:display true
+                                :ticks {:suggestedMin 0
+                                        :callback (fn [value idx values]
+                                                    (if (or (= 0 (mod idx 5))
+                                                            (= idx (dec (count values))))
+                                                      value ""))}}]
+                              :yAxes
+                              [{:maxBarThickness 10}]}
+                             :legend {:display false}}})))))]
+      (r/create-class
+       {:reagent-render
+        (fn [{:keys [entity data]} title]
+          (when (not-empty data)
+            [:div.ui.segment
+             [:h4.ui.dividing.header
+              [:div.ui.two.column.middle.aligned.grid
+               [:div.ui.left.aligned.column
+                title]]]
+             [:div [:canvas {:id id}]]]))
+        :component-will-update
+        (fn [this new-argv]
+          ;;(.log js/console "Important Terms Chart: component-will-update")
+          (init-chart-fn (second new-argv)))
+        :component-did-mount
+        (fn [this]
+          ;;(.log js/console "ImportantTermsChart: component-did-mount")
+          (init-chart-fn props))
+        :display-name (str "important-terms_" (name entity))}))))
 
+(defn KeyTerms []
+  (let [terms @(subscribe [:project/important-terms])
+        {:keys [mesh chemical gene]} terms]
+    [:div
+     [ImportantTermsChart
+      {:entity :mesh, :data mesh}
+      "Important Mesh Terms"]
+     [ImportantTermsChart
+      {:entity :chemical, :data chemical}
+      "Important Compounds"]
+     [ImportantTermsChart
+      {:entity :gene, :data gene}
+      "Important Genes"]]))
+
+#_
 (defn KeyTerms
   [{:keys [project-id]}]
   (r/create-class
-   {:reagent-render (fn []
-                      [:div
-                       (when (> (count (get-in @state [:mesh])) 0)
-                         [ImportantTermsChart {:data @state
-                                               :term :mesh
-                                               :display-key :term} "Important Mesh Terms"])
-                       (when (> (count (get-in @state [:chemical])) 0)
-                         [ImportantTermsChart {:data @state
-                                               :term :chemical
-                                               :display-key :term} "Important Compounds"])
-                       (when (> (count (get-in @state [:gene])) 0)
-                         [ImportantTermsChart {:data @state
-                                               :term :gene
-                                               :display-key :symbol} "Important Genes"])])
-    :component-will-mount (fn [this]
-                            ;;                            (reset! state {})
-                            ;;(.log js/console "KeyTerms: component-will-mount")
-                            (dispatch [:require [:project/important-terms 10]]))
-    :component-will-unmount (fn [this]
-                              ;;(.log js/console "KeyTerms: component-will-umount")
-                              ;;(dispatch [:overview/reset-state!])
-                              ;;(reset! state {})
-                              )
-    :component-will-update (fn [this new-argv]
-                             ;;(.log js/console "KeyTerms: component-will-update")
-                             )
+   {:reagent-render
+    (fn []
+      [:div
+       (when (> (count (get-in @state [:mesh])) 0)
+         [ImportantTermsChart {:data @state
+                               :entity :mesh}
+          "Important Mesh Terms"])
+       (when (> (count (get-in @state [:chemical])) 0)
+         [ImportantTermsChart {:data @state
+                               :entity :chemical}
+          "Important Compounds"])
+       (when (> (count (get-in @state [:gene])) 0)
+         [ImportantTermsChart {:data @state
+                               :term :gene}
+          "Important Genes"])])
+    :component-will-mount
+    (fn [this]
+      #_ (.log js/console "KeyTerms: component-will-mount")
+      (dispatch [:require [:project/important-terms 10]]))
+    :component-will-unmount
+    (fn [this]
+      #_ (.log js/console "KeyTerms: component-will-umount")
+      #_ (dispatch [:overview/reset-state!])
+      #_ (reset! state {}))
+    :component-will-update
+    (fn [this new-argv]
+      #_ (.log js/console "KeyTerms: component-will-update"))
     :display-name "key-terms"}))
 
 (defn project-overview-panel []
@@ -391,7 +401,7 @@
     [:div.ui.column
      [user-summary-chart]
      [project-files-box]
-     #_ [KeyTerms]]]])
+     [KeyTerms]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

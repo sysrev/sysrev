@@ -184,3 +184,12 @@
    [(subscribe [:project/article-counts project-id])])
  (fn [[{:keys [total]}]]
    (when total (> total 0))))
+
+(reg-sub
+ :project/important-terms
+ (fn [[_ _ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ entity-type project-id]]
+   (if (nil? entity-type)
+     (get-in project [:importance])
+     (get-in project [:importance entity-type]))))

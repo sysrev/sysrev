@@ -1,4 +1,4 @@
-(ns sysrev.predict.api
+(ns sysrev.biosource.predict
   (:require [clj-http.client :as http]
             [clojure.data.json :as json]
             [honeysql.core :as sql]
