@@ -24,6 +24,8 @@
 (def not-found 404)
 (def internal-server-error 500)
 
+(def max-import-articles 100000)
+
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
   [project-name user-id]
@@ -79,8 +81,14 @@
   project e.g. 'foo bar' and 'baz qux'"
   [project-id search-term source & {:keys [threads] :or {threads 1}}]
   (let [project-sources (sources/project-sources project-id)
-        search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)]
-    (cond (not (project/project-exists? project-id))
+        search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)
+        pmids-count (:count (pubmed/get-search-query-response search-term 1)) ]
+    (cond (> pmids-count max-import-articles)
+          {:error {:status internal-server-error
+                   :message (format "Too many PMIDs from search (max %d; got %d)"
+                                    max-import-articles pmids-count)}}
+
+          (not (project/project-exists? project-id))
           {:error {:status not-found
                    :message "Project does not exist"}}
 
@@ -90,8 +98,8 @@
                (= source "PubMed"))
           (try
             (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (sources/import-pmids-search-term-meta search-term
-                                                              (count pmids))
+                  meta (sources/import-pmids-search-term-meta
+                        search-term (count pmids))
                   success?
                   (pubmed/import-pmids-to-project-with-meta!
                    pmids project-id meta
@@ -129,7 +137,13 @@
                                  project-sources)]
     (try
       (let [pmid-vector (pubmed/parse-pmid-file file)]
-        (cond (empty? pmid-vector)
+        (cond (and (sequential? pmid-vector)
+                   (> (count pmid-vector) max-import-articles))
+              {:error {:status internal-server-error
+                       :message (format "Too many PMIDs from file (max %d; got %d)"
+                                        max-import-articles (count pmid-vector))}}
+
+              (empty? pmid-vector)
               {:error {:status internal-server-error
                        :message "Error parsing file"}}
 

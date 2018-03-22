@@ -33,11 +33,18 @@
            result (when-let [result (and (map? response)
                                          (:result response))]
                     result)
+           error (when-let [error (and (map? response)
+                                       (map? (-> response :response))
+                                       (-> response :response :error))]
+                   error)
            csrf-token (and (map? response)
                            (:csrf-token response))]
        (-> context
            (update-in [:coeffects :event]
                       #(vec (concat (butlast %) [result])))
+           (#(if (nil? error)
+               %
+               (assoc-in % [:coeffects :error] error)))
            (assoc-in [:coeffects :success?] success?)
            (assoc-in [:coeffects :response] response)
            (assoc-in [:coeffects :csrf-token] csrf-token)

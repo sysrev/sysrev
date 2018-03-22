@@ -55,22 +55,24 @@
   :uri (fn [] "/api/subscribe-plan")
   :content (fn [plan-name]
              {:plan-name plan-name})
-  :process (fn [{:keys [db]} _ result]
-             (cond (:created result)
-                   (do
-                     (reset! (r/cursor state [:changing-plan?]) false)
-                     (reset! (r/cursor state [:error-messsage]) nil)
-                     {:dispatch [:fetch [:current-plan]]})))
-  :on-error (fn [{:keys [db response]} _ _]
-              (cond (= (get-in response [:response :error :type])
-                       "invalid_request_error")
-                    (reset! (r/cursor state [:error-message])
-                            "You must enter a valid payment method before subscribing to this plan")
-                    :else
-                    (reset! (r/cursor state [:error-message])
-                            (get-in response [:response :error :message])))
-              (reset! (r/cursor state [:need-card?]) true)
-              {:db db}))
+  :process
+  (fn [{:keys [db]} _ result]
+    (cond (:created result)
+          (do
+            (reset! (r/cursor state [:changing-plan?]) false)
+            (reset! (r/cursor state [:error-messsage]) nil)
+            {:dispatch [:fetch [:current-plan]]})))
+  :on-error
+  (fn [{:keys [db error]} _ _]
+    (cond
+      (= (-> error :type) "invalid_request_error")
+      (reset! (r/cursor state [:error-message])
+              "You must enter a valid payment method before subscribing to this plan")
+      :else
+      (reset! (r/cursor state [:error-message])
+              (-> error :message)))
+    (reset! (r/cursor state [:need-card?]) true)
+    {:db db}))
 
 (defn cents->dollars
   "Converts an integer value of cents to dollars"

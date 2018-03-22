@@ -161,16 +161,16 @@
   "Given a search query, return all PMIDs as a vector of integers"
   [query]
   (let [total-pmids (:count (get-search-query-response query 1))
-        retmax 100000
+        retmax 50000
         max-pages (int (Math/ceil (/ total-pmids retmax)))]
-    (vec (apply concat
-                (mapv
-                 (fn [page]
-                   (mapv (fn [string]
-                           (Integer/parseInt string))
-                         (get-in (get-search-query query retmax (* page retmax))
-                                 [:esearchresult :idlist])))
-                 (vec (range 0 max-pages)))))))
+    (->> (range 0 max-pages)
+         (mapv
+          (fn [page]
+            (mapv #(Integer/parseInt %)
+                  (get-in (get-search-query query retmax (* page retmax))
+                          [:esearchresult :idlist]))))
+         (apply concat)
+         vec)))
 
 (defn- add-article [article project-id]
   (try

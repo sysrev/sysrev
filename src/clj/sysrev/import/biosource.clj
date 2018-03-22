@@ -25,7 +25,6 @@
           (map (partial clojure.string/join "|"))
           (clojure.string/join "\n")))))
 
-
 (defn extract-pmids-from-sysrev-raw-json-export
   "Given a string file descriptor for a SysRev_Raw_*.json file, return a vector of PMIDs"
   [f]
