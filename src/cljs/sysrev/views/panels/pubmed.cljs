@@ -3,7 +3,7 @@
    [cljs-http.client :as http-client]
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch]]
+    [subscribe dispatch reg-event-fx trim-v]]
    [re-frame.db :refer [app-db]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :as ui]
@@ -20,6 +20,13 @@
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
+
+(reg-event-fx
+ :pubmed/set-import-error
+ [trim-v]
+ (fn [_ [message]]
+   (swap! state assoc :import-error message)
+   {}))
 
 (defn TextInput
   [{:keys [value default-value placeholder on-change class]
@@ -180,10 +187,12 @@
         on-change-search-term (r/cursor state [:on-change-search-term])
         page-number (r/cursor state [:page-number])
         show-results? (r/cursor state [:show-results?])
+        import-error (r/cursor state [:import-error])
         fetch-results
         #(do (reset! current-search-term @on-change-search-term)
              (reset! page-number 1)
              (reset! show-results? true)
+             (reset! import-error nil)
              (dispatch [:require [:pubmed-search @current-search-term 1]]))]
     [:form {:on-submit (wrap-prevent-default fetch-results)
             :id "search-bar"}
@@ -255,11 +264,16 @@
   (let [current-search-term (r/cursor state [:current-search-term])
         page-number (r/cursor state [:page-number])
         pmids-per-page (r/cursor state [:pmids-per-page])
+        import-error (r/cursor state [:import-error])
         search-results (subscribe [:pubmed/search-term-result
                                    @current-search-term])
         result-count (get-in @search-results [:count])]
     [:div.search-results-container
      (cond
+       @import-error
+       [:div.ui.error.message
+        (str @import-error)]
+
        ;; search input form is empty
        (or (nil? @current-search-term)
            (empty? @current-search-term))
@@ -278,6 +292,7 @@
 (defn SearchPanel
   "A panel for searching pubmed"
   []
+  (ensure-state)
   (let [current-search-term (r/cursor state [:current-search-term])
         on-change-search-term (r/cursor state [:on-change-search-term])
         page-number (r/cursor state [:page-number])]
@@ -287,6 +302,5 @@
 
 (defmethod panel-content panel []
   (fn [child]
-    (ensure-state)
     [:div.ui.segment
      [SearchPanel]]))

@@ -10,19 +10,22 @@
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
-            [sysrev.import.biosource :as biosource]
+            [sysrev.biosource.importance :as importance]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [map-values]]))
 
 (def default-plan "Basic")
 ;; Error code used
 (def forbidden 403)
 (def not-found 404)
 (def internal-server-error 500)
+
+(def max-import-articles 100000)
 
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
@@ -79,8 +82,14 @@
   project e.g. 'foo bar' and 'baz qux'"
   [project-id search-term source & {:keys [threads] :or {threads 1}}]
   (let [project-sources (sources/project-sources project-id)
-        search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)]
-    (cond (not (project/project-exists? project-id))
+        search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)
+        pmids-count (:count (pubmed/get-search-query-response search-term 1)) ]
+    (cond (> pmids-count max-import-articles)
+          {:error {:status internal-server-error
+                   :message (format "Too many PMIDs from search (max %d; got %d)"
+                                    max-import-articles pmids-count)}}
+
+          (not (project/project-exists? project-id))
           {:error {:status not-found
                    :message "Project does not exist"}}
 
@@ -90,8 +99,8 @@
                (= source "PubMed"))
           (try
             (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (sources/import-pmids-search-term-meta search-term
-                                                              (count pmids))
+                  meta (sources/import-pmids-search-term-meta
+                        search-term (count pmids))
                   success?
                   (pubmed/import-pmids-to-project-with-meta!
                    pmids project-id meta
@@ -129,7 +138,13 @@
                                  project-sources)]
     (try
       (let [pmid-vector (pubmed/parse-pmid-file file)]
-        (cond (empty? pmid-vector)
+        (cond (and (sequential? pmid-vector)
+                   (> (count pmid-vector) max-import-articles))
+              {:error {:status internal-server-error
+                       :message (format "Too many PMIDs from file (max %d; got %d)"
+                                        max-import-articles (count pmid-vector))}}
+
+              (empty? pmid-vector)
               {:error {:status internal-server-error
                        :message "Error parsing file"}}
 
@@ -214,8 +229,10 @@
         (not (sources/source-exists? source-id))
         {:error {:status not-found
                  :message (str "source-id " source-id " does not exist")}}
-        :else (do (sources/delete-project-source! source-id)
-                  {:result {:success true}})))
+        :else (let [project-id (sources/source-id->project-id source-id)]
+                (sources/delete-project-source! source-id)
+                (importance/schedule-important-terms-update project-id)
+                {:result {:success true}})))
 
 (s/fdef delete-source!
         :args (s/cat :source-id int?)
@@ -225,8 +242,10 @@
   "Toggle a source as being enabled or disabled."
   [source-id enabled?]
   (if (sources/source-exists? source-id)
-    (do (sources/toggle-source! source-id enabled?)
-        {:result {:success true}})
+    (let [project-id (sources/source-id->project-id source-id)]
+      (sources/toggle-source! source-id enabled?)
+      (importance/schedule-important-terms-update project-id)
+      {:result {:success true}})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 
@@ -365,35 +384,15 @@
 (defn important-terms
   "Given a project-id, return the term counts for the top n most used terms"
   [project-id & [n]]
-  (let [n             (or n 20)
-        pmids         (project/project-pmids project-id)
-        important-terms (biosource/important-terms pmids)]
-    {:result {:terms
-              {:chemical
-               (into []
-                     (take n
-                           (reverse
-                            (sort-by :count (sort-by :count (:chemicalCounts important-terms))
-                                     #_ '({:term "foo" :count 10}
-                                       {:term "bar" :count 4}
-                                       {:term "baz" :count 3}
-                                       {:term "qux" :count 3}))
-                            )))
-               :mesh (into []
-                           (take n
-                                 (reverse
-                                  (sort-by :count (:meshCounts important-terms)
-                                           #_ '({:term "Qux" :count 4}
-                                             {:term "Grault" :count 2}
-                                             {:term "Corge" :count 2})))))
-               :gene (mapv (fn [gene-map]
-                             (merge (:gene gene-map)
-                                    {:count (:count gene-map)}))
-                           (take n (reverse
-                                    (sort-by :count (:geneCounts important-terms)
-                                             #_'({:gene {:symbol "TAVES"} :count 4}
-                                               {:gene {:symbol "HDHG1"} :count 2})
-                                             ))))}}}))
+  (let [n (or n 20)
+        terms (importance/project-important-terms project-id)]
+    {:result
+     {:terms
+      (->> terms (map-values
+                  #(->> %
+                        (sort-by :instance-count >)
+                        (take n)
+                        (into []))))}}))
 
 (defn test-response
   "Server Sanity Check"

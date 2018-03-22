@@ -4,7 +4,8 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
-            [sysrev.predict.api :as predict-api]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.biosource.importance :as importance]
             [sysrev.util :refer
              [parse-xml-str parse-integer
               xml-find xml-find-value xml-find-vector]]
@@ -161,16 +162,16 @@
   "Given a search query, return all PMIDs as a vector of integers"
   [query]
   (let [total-pmids (:count (get-search-query-response query 1))
-        retmax 100000
+        retmax 50000
         max-pages (int (Math/ceil (/ total-pmids retmax)))]
-    (vec (apply concat
-                (mapv
-                 (fn [page]
-                   (mapv (fn [string]
-                           (Integer/parseInt string))
-                         (get-in (get-search-query query retmax (* page retmax))
-                                 [:esearchresult :idlist])))
-                 (vec (range 0 max-pages)))))))
+    (->> (range 0 max-pages)
+         (mapv
+          (fn [page]
+            (mapv #(Integer/parseInt %)
+                  (get-in (get-search-query query retmax (* page retmax))
+                          [:esearchresult :idlist]))))
+         (apply concat)
+         vec)))
 
 (defn- add-article [article project-id]
   (try
@@ -257,7 +258,8 @@
             (if success?
               (do (sources/update-project-source-metadata!
                    source-id (assoc meta :importing-articles? false))
-                  (predict-api/schedule-predict-update project-id))
+                  (predict-api/schedule-predict-update project-id)
+                  (importance/schedule-important-terms-update project-id))
               (sources/fail-project-source-import! source-id))
             success?)
           (catch Throwable e

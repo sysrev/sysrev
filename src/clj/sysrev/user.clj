@@ -17,8 +17,9 @@
         sysrev.import.endnote
         sysrev.export.endnote
         sysrev.predict.core
-        sysrev.predict.api
         sysrev.predict.report
+        sysrev.biosource.predict
+        sysrev.biosource.importance
         sysrev.web.core
         sysrev.web.session
         sysrev.web.index
@@ -71,6 +72,7 @@
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
             [sysrev.db.queries :as q]
+            [sysrev.api :as api]
             [cljs.env :as env])
   (:import java.util.UUID))
 

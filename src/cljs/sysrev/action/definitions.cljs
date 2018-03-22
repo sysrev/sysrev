@@ -209,7 +209,12 @@
       ;; does nothing, code should be created
       {:dispatch-n
        ;; (list [:set-import-articles-error-msg message])
-       (list)})))
+       (list)}))
+  :on-error
+  (fn [{:keys [db error]} _]
+    (let [{:keys [message]} error]
+      (when (string? message)
+        {:dispatch [:pubmed/set-import-error message]}))))
 
 (def-action :sources/delete
   :uri (fn [] "/api/delete-source")

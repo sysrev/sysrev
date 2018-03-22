@@ -9,19 +9,22 @@
    [sysrev.db.users :as users]
    [sysrev.db.project :as project]
    [sysrev.db.export :as export]
-   [sysrev.export.endnote :as endnote-out]
    [sysrev.db.articles :as articles]
    [sysrev.db.documents :as docs]
    [sysrev.db.labels :as labels]
    [sysrev.db.sources :as sources]
+   [sysrev.db.files :as files]
+   [sysrev.biosource.importance :as importance]
+   [sysrev.export.endnote :as endnote-out]
    [sysrev.files.stores :as fstore]
-   [sysrev.predict.api :as predict-api]
+   [sysrev.biosource.predict :as predict-api]
    [sysrev.predict.report :as predict-report]
    [sysrev.shared.keywords :as keywords]
    [sysrev.shared.transit :as sr-transit]
    [sysrev.import.pubmed :as pubmed]
-   [sysrev.shared.util :refer [map-values in?]]
    [sysrev.config.core :refer [env]]
+   [sysrev.util :refer [parse-integer]]
+   [sysrev.shared.util :refer [map-values in?]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -29,9 +32,7 @@
    [compojure.core :refer :all]
    [ring.util.response :as response]
    [clojure.data.json :as json]
-   [clojure-csv.core :as csv]
-   [sysrev.util :refer [parse-integer]]
-   [sysrev.db.files :as files])
+   [clojure-csv.core :as csv])
   (:import [java.util UUID]
            [java.io InputStream]
            [java.io ByteArrayInputStream]
@@ -64,9 +65,11 @@
   (with-project-cache
     project-id [:project-info]
     (let [[fields predict articles status-counts members
-           users keywords notes files documents progress sources]
+           users keywords notes files documents progress sources
+           importance]
           (pvalues (q/query-project-by-id project-id [:*])
-                   (predict-report/predict-summary (q/project-latest-predict-run-id project-id))
+                   (predict-report/predict-summary
+                    (q/project-latest-predict-run-id project-id))
                    (project/project-article-count project-id)
                    (labels/project-article-status-counts project-id)
                    (labels/project-members-info project-id)
@@ -76,7 +79,9 @@
                    (fstore/project-files project-id)
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
-                   (sources/project-sources project-id))]
+                   (sources/project-sources project-id)
+                   (->> (api/important-terms project-id)
+                        :result :terms))]
       {:project {:project-id project-id
                  :name (:name fields)
                  :project-uuid (:project-uuid fields)
@@ -91,7 +96,8 @@
                  :settings (:settings fields)
                  :files files
                  :documents documents
-                 :sources sources}
+                 :sources sources
+                 :importance importance}
        :users users})))
 
 (defroutes project-routes

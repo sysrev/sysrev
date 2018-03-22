@@ -206,12 +206,12 @@
              :dev-jvm
              {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.15"]
+             {:dependencies [[figwheel-sidecar "0.5.14"]
                              [org.clojure/tools.nrepl "0.2.13"]
                              [com.cemerick/piggieback "0.2.2"]
                              [acyclic/squiggly-clojure "0.1.8"
                               :exclusions [org.clojure/tools.reader]]]
-              :plugins [[lein-figwheel "0.5.15"]
+              :plugins [[lein-figwheel "0.5.14"]
                         [cider/cider-nrepl "0.16.0"]
                         [lein-environ "1.1.0"]]}
              :figwheel

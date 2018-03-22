@@ -41,24 +41,27 @@
   :uri (fn [] "/api/payment-method")
   :content (fn [token]
              {:token token})
-  :process (fn [{:keys [db]} _ {:keys [success] :as result}]
-             (let [;; calling-route should be set by the :payment/set-calling-route! event
-                   ;; this is just in case it wasn't set
-                   ;; e.g. user went directly to /payment route
-                   calling-route (or (get-in db [:state :stripe :calling-route])
-                                     [:payment])]
-               ;; don't need to ask for a card anymore
-               (dispatch [:plans/set-need-card? false])
-               ;; clear any error message that was present in plans
-               (dispatch [:plans/clear-error-message!])
-               ;; go back to where this panel was called from
-               (dispatch [:navigate calling-route])
-               ;; empty map, just interested in causing side effects
-               {}))
-  :on-error (fn [{:keys [db response]} _ _]
-              ;; we have an error message, set it so that it can be display to the user
-              (reset! (r/cursor state [:error-message]) (get-in response [:response :error :message]))
-              {}))
+  :process
+  (fn [{:keys [db]} _ {:keys [success] :as result}]
+    (let [;; calling-route should be set by the :payment/set-calling-route! event
+          ;; this is just in case it wasn't set
+          ;; e.g. user went directly to /payment route
+          calling-route (or (get-in db [:state :stripe :calling-route])
+                            [:payment])]
+      ;; don't need to ask for a card anymore
+      (dispatch [:plans/set-need-card? false])
+      ;; clear any error message that was present in plans
+      (dispatch [:plans/clear-error-message!])
+      ;; go back to where this panel was called from
+      (dispatch [:navigate calling-route])
+      ;; empty map, just interested in causing side effects
+      {}))
+  :on-error
+  (fn [{:keys [db error]} _]
+    ;; we have an error message, set it so that it can be display to the user
+    (reset! (r/cursor state [:error-message])
+            (-> error :message))
+    {}))
 
 (def StripeForm
   (r/adapt-react-class
