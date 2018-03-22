@@ -391,7 +391,7 @@
     [:div.ui.column
      [user-summary-chart]
      [project-files-box]
-     [KeyTerms]]]])
+     #_ [KeyTerms]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
