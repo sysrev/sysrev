@@ -20,6 +20,11 @@
    (get-in db [:data :project (active-project-id db)])
    :sources))
 
+(defn project-important-terms-loaded? [db]
+  (contains?
+   (get-in db [:data :project (active-project-id db)])
+   :importance))
+
 (defn get-project-raw [db project-id]
   (get-in db [:data :project project-id]))
 
@@ -191,5 +196,12 @@
    [(subscribe [:project/raw project-id])])
  (fn [[project] [_ entity-type project-id]]
    (if (nil? entity-type)
-     (get-in project [:importance])
-     (get-in project [:importance entity-type]))))
+     (get-in project [:importance :terms])
+     (get-in project [:importance :terms entity-type]))))
+
+(reg-sub
+ :project/important-terms-loading?
+ (fn [[_ _ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ entity-type project-id]]
+   (true? (get-in project [:importance :loading]))))

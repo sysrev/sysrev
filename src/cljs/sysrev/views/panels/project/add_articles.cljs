@@ -36,8 +36,7 @@
     (if success
       {:dispatch-n
        (list [:fetch [:review/task]]
-             [:reload [:project]]
-             [:fetch [:project/important-terms 10]])})))
+             [:reload [:project]])})))
 
 (defn plural-or-singular
   "Return the singular form of string when item-count is one, return plural otherwise"
@@ -185,8 +184,7 @@
       (continuous-update-until #(dispatch [:fetch [:project/sources]])
                                #(not (source-updating? source-id))
                                #(do (reset! polling-sources? false)
-                                    (dispatch [:reload [:project]])
-                                    (dispatch [:fetch [:project/important-terms 10]]))
+                                    (dispatch [:reload [:project]]))
                                1500))))
 
 (defn ArticleSource [source]

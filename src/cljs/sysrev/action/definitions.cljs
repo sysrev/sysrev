@@ -224,5 +224,4 @@
   (fn [_ _ {:keys [success] :as result}]
     (if success
       {:dispatch-n
-       (list [:reload [:project]]
-             [:fetch [:project/important-terms 10]])})))
+       (list [:reload [:project]])})))

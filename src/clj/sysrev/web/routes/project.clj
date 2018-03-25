@@ -80,8 +80,7 @@
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
                    (sources/project-sources project-id)
-                   (->> (api/important-terms project-id)
-                        :result :terms))]
+                   (:result (api/important-terms project-id)))]
       {:project {:project-id project-id
                  :name (:name fields)
                  :project-uuid (:project-uuid fields)

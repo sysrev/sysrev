@@ -392,7 +392,9 @@
                   #(->> %
                         (sort-by :instance-count >)
                         (take n)
-                        (into []))))}}))
+                        (into []))))
+      :loading
+      (importance/project-importance-loading? project-id)}}))
 
 (defn test-response
   "Server Sanity Check"

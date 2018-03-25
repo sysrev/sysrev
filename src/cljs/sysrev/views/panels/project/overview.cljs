@@ -13,7 +13,7 @@
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]
-   [sysrev.util :refer [full-size? random-id]]
+   [sysrev.util :refer [full-size? random-id continuous-update-until]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
    [sysrev.shared.util :refer [in?]]
@@ -295,101 +295,60 @@
         " labeled articles; " (str total)
         " article predictions loaded"]])))
 
-(defn ImportantTermsChart
-  [{:keys [entity data] :as props}
-   title]
+(defonce polling-important-terms? (r/atom false))
+
+(defn poll-important-terms []
+  (when (not @polling-important-terms?)
+    (reset! polling-important-terms? true)
+    (dispatch [:fetch [:project/important-terms]])
+    (let [server-loading? (subscribe [:project/important-terms-loading?])
+          ajax-loading? (subscribe [:loading? [:project/important-terms]])
+          updating? (fn [] (or @server-loading? @ajax-loading?))]
+      (continuous-update-until #(dispatch [:fetch [:project/important-terms]])
+                               #(not (updating?))
+                               #(reset! polling-important-terms? false)
+                               1000))))
+
+(defn ImportantTermsChart [{:keys [entity data loading?]} title]
   (when (not-empty data)
-    (let [id (random-id)
-          init-chart-fn
-          (fn [{:keys [entity data]}]
-            (when (not-empty data)
-              (let [entries (->> data (sort-by :instance-count >))
-                    labels (mapv :instance-name entries)
-                    counts (mapv :instance-count entries)]
-                (js/Chart.
-                 (get-canvas-context id)
-                 (clj->js
-                  {:type "horizontalBar"
-                   :data {:labels labels
-                          :datasets [{:data counts
-                                      :backgroundColor "rgba(33,186,69,0.55)"}]}
-                   :options {:scales
-                             {:xAxes
-                              [{:display true
-                                :ticks {:suggestedMin 0
-                                        :callback (fn [value idx values]
-                                                    (if (or (= 0 (mod idx 5))
-                                                            (= idx (dec (count values))))
-                                                      value ""))}}]
-                              :yAxes
-                              [{:maxBarThickness 10}]}
-                             :legend {:display false}}})))))]
-      (r/create-class
-       {:reagent-render
-        (fn [{:keys [entity data]} title]
-          (when (not-empty data)
-            [:div.ui.segment
-             [:h4.ui.dividing.header
-              [:div.ui.two.column.middle.aligned.grid
-               [:div.ui.left.aligned.column
-                title]]]
-             [:div [:canvas {:id id}]]]))
-        :component-will-update
-        (fn [this new-argv]
-          ;;(.log js/console "Important Terms Chart: component-will-update")
-          (init-chart-fn (second new-argv)))
-        :component-did-mount
-        (fn [this]
-          ;;(.log js/console "ImportantTermsChart: component-did-mount")
-          (init-chart-fn props))
-        :display-name (str "important-terms_" (name entity))}))))
+    (let [height (str (+ 35 (* 10 (count data))) "px")]
+      [:div.ui.segment
+       [:div
+        [:h4.ui.dividing.header
+         [:div.ui.two.column.middle.aligned.grid
+          [:div.ui.left.aligned.column
+           title]]]
+        (with-loader
+          [[:project] [:project/important-terms]]
+          {:require false
+           :dimmer :fixed
+           :force-dimmer loading?}
+          (let [entries (->> data (sort-by :instance-count >))
+                labels (mapv :instance-name entries)
+                counts (mapv :instance-count entries)]
+            [chart-container
+             bar-chart height
+             labels ["count"] [counts]
+             ["rgba(33,186,69,0.55)"]
+             {:legend {:display false}}]))]])))
 
 (defn KeyTerms []
   (let [terms @(subscribe [:project/important-terms])
+        loading? @(subscribe [:project/important-terms-loading?])
         {:keys [mesh chemical gene]} terms]
-    [:div
-     [ImportantTermsChart
-      {:entity :mesh, :data mesh}
-      "Important Mesh Terms"]
-     [ImportantTermsChart
-      {:entity :chemical, :data chemical}
-      "Important Compounds"]
-     [ImportantTermsChart
-      {:entity :gene, :data gene}
-      "Important Genes"]]))
-
-#_
-(defn KeyTerms
-  [{:keys [project-id]}]
-  (r/create-class
-   {:reagent-render
-    (fn []
+    (with-loader [[:project]]
+      (when loading?
+        (poll-important-terms))
       [:div
-       (when (> (count (get-in @state [:mesh])) 0)
-         [ImportantTermsChart {:data @state
-                               :entity :mesh}
-          "Important Mesh Terms"])
-       (when (> (count (get-in @state [:chemical])) 0)
-         [ImportantTermsChart {:data @state
-                               :entity :chemical}
-          "Important Compounds"])
-       (when (> (count (get-in @state [:gene])) 0)
-         [ImportantTermsChart {:data @state
-                               :term :gene}
-          "Important Genes"])])
-    :component-will-mount
-    (fn [this]
-      #_ (.log js/console "KeyTerms: component-will-mount")
-      (dispatch [:require [:project/important-terms 10]]))
-    :component-will-unmount
-    (fn [this]
-      #_ (.log js/console "KeyTerms: component-will-umount")
-      #_ (dispatch [:overview/reset-state!])
-      #_ (reset! state {}))
-    :component-will-update
-    (fn [this new-argv]
-      #_ (.log js/console "KeyTerms: component-will-update"))
-    :display-name "key-terms"}))
+       [ImportantTermsChart
+        {:entity :mesh, :data mesh, :loading? loading?}
+        "Important Mesh Terms"]
+       [ImportantTermsChart
+        {:entity :chemical, :data chemical, :loading? loading?}
+        "Important Compounds"]
+       [ImportantTermsChart
+        {:entity :gene, :data gene, :loading? loading?}
+        "Important Genes"]])))
 
 (defn project-overview-panel []
   [:div.ui.two.column.stackable.grid.project-overview

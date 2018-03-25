@@ -9,7 +9,8 @@
 (defn loading-indicator []
   (let [;; ready? @(subscribe [:data/ready?])
         loading? (and @(subscribe [:any-loading?])
-                      (not @(subscribe [:loading? [:project/sources]])))
+                      (not @(subscribe [:loading? [:project/sources]]))
+                      (not @(subscribe [:loading? [:project/important-terms]])))
         action? @(subscribe [:action/any-running?
                              nil [:sources/delete]])]
     (when (or loading? action? #_ (not ready?))
