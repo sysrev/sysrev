@@ -13,6 +13,7 @@
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]
+   [sysrev.subs.project :refer [active-project-id]]
    [sysrev.util :refer [full-size? random-id]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
@@ -29,6 +30,36 @@
  (fn [_]
    (reset! state initial-state)
    {}))
+
+;; Paul Tol colors: https://personal.sron.nl/~pault/
+;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js
+;; (it is under an MIT license)
+;;
+;; A working demo of color selections: http://google.github.io/palette.js/
+;;
+;; which in turn is a reproduction of Paul Tol's work at: https://personal.sron.nl/~pault/colourschemes.pdf
+;;
+;; Paul developed this palette for scientific charts to clearly differentiate colors and to be color-blind
+;; safe
+(def paul-tol-colors
+  [["#4477aa"],
+   ["#4477aa", "#cc6677"],
+   ["#4477aa", "#ddcc77", "#cc6677"],
+   ["#4477aa", "#117733", "#ddcc77", "#cc6677"],
+   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677"],
+   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
+    "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
+    "#882255", "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#661100",
+    "#cc6677", "#882255", "#aa4499"],
+   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
+    "#661100", "#cc6677", "#882255", "#aa4499"],
+   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
+    "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
+
 
 (defn nav-article-status [[inclusion group-status]]
   (routes/nav-scroll-top "/project/articles")
@@ -336,11 +367,9 @@
              [:div [:canvas {:id id}]]]))
         :component-will-update
         (fn [this new-argv]
-          ;;(.log js/console "Important Terms Chart: component-will-update")
           (init-chart-fn (second new-argv)))
         :component-did-mount
         (fn [this]
-          ;;(.log js/console "ImportantTermsChart: component-did-mount")
           (init-chart-fn props))
         :display-name (str "important-terms_" (name entity))}))))
 
@@ -358,50 +387,165 @@
       {:entity :gene, :data gene}
       "Important Genes"]]))
 
-#_
-(defn KeyTerms
-  [{:keys [project-id]}]
-  (r/create-class
-   {:reagent-render
+;; (dispatch [:fetch [:project/public-labels]])
+(defn label-answer-counts
+  "Extract the answer counts for labels for the current project"
+  [public-labels]
+  (let [raw-labels-with-values (->> public-labels
+                                    (mapv #(hash-map :labels (:labels %) :article-id (:article-id %))))
+        label-definitions  (get-in @app-db [:data :project (active-project-id @app-db) :labels])
+        label-uuid->short-label (fn [label-uuid]
+                                  (:short-label (label-definitions label-uuid)))
+        label-uuid->value-type (fn [label-uuid]
+                                 (:value-type (label-definitions label-uuid)))
+        extract-labels-fn (fn [raw-label]
+                            (->> raw-label
+                                 ((fn [article] (map #(map (partial merge
+                                                                    {:short-label (label-uuid->short-label (first %))
+                                                                     :article-id (:article-id article)
+                                                                     :value-type (label-uuid->value-type (first %))})
+                                                           (second %))
+                                                     (:labels article))))
+                                 flatten))
+        label-values (flatten (map extract-labels-fn raw-labels-with-values))
+        label-counts-fn (fn [label]
+                          (hash-map :short-label (first label)
+                                    :answer-counts (frequencies (map :answer (second label)))
+                                    :value-type (:value-type (first (second label)))))]
+    (map label-counts-fn (group-by :short-label label-values))))
+
+;; I want to refactor this so that {:keys options}
+;; just become options
+(defn Chart
+  [{:keys [options] :as props}
+   title]
+  (let [id (random-id)
+        draw-chart-fn (fn [{:keys [options]}]
+                        (js/Chart.
+                         (get-canvas-context id)
+                         (clj->js options)))]
+    (r/create-class
+     {:reagent-render
+      (fn [{:keys [chart-options]} title]
+        [:div.ui.segment
+         [:h4.ui.dividing.header
+          [:div.ui.two.column.middle.aligned.grid
+           [:div.ui.left.aligned.column
+            title]]]
+         [:div [:canvas {:id id}]]])
+      :component-will-update
+      (fn [this new-argv]
+       ;; (.log js/console "[Chart] component-will-update")
+        (draw-chart-fn (second new-argv))
+        )
+      :component-did-mount
+      (fn [this]
+        ;;(.log js/console "[Chart] component-did-mount")
+        ;;(.log js/console "[Chart] props: " (clj->js props))
+        (draw-chart-fn props)
+        ;;(.log js/console "[Chart] after draw-chart-fn")
+        )
+      :display-name (str (gensym title))})))
+
+(defn process-label-count
+  "Given a coll of public-labels, return a vector of value-count maps"
+  [public-labels]
+  (->> public-labels
+       label-answer-counts
+       (map (fn [label-count]
+              (map #(hash-map :short-label
+                              (:short-label label-count)
+                              :value-type (:value-type label-count)
+                              :value (let [putative-value (first %)]
+                                       (if (vector? putative-value)
+                                         (clojure.string/join "," putative-value)
+                                         putative-value))
+                              :count (second %))
+                   (:answer-counts label-count))))
+       flatten
+       (into [])))
+
+(defn short-labels-vector
+  "Given a set of label-counts, get the set of short-labels"
+  [processed-label-counts]
+  ((comp (partial into []) sort set (partial mapv :short-label))
+   processed-label-counts))
+
+(defn processed-label-color-map
+  "Given a set of label-counts, generate a color map"
+  [processed-label-counts]
+  (let [short-labels (short-labels-vector processed-label-counts)
+        palette (nth paul-tol-colors (- (count short-labels) 1))
+        color-map (zipmap short-labels palette)]
+    color-map))
+
+(defn add-color-processed-label-counts
+  "Given a processed-label-count, add color to each label"
+  [processed-label-counts]
+  (let [color-map (processed-label-color-map processed-label-counts)]
+    (mapv #(merge % {:color (color-map (:short-label %))})
+          processed-label-counts)))
+
+(defn LabelCountChart
+  []
+  (fn [public-labels]
+    (when (not (empty? public-labels))
+      (let [processed-label-counts (->> public-labels
+                                        process-label-count
+                                        (filterv #(not= (:value-type %)
+                                                        "string"))
+                                        add-color-processed-label-counts
+                                        (sort-by :short-label))
+            labels (mapv :value processed-label-counts)
+            counts (mapv :count processed-label-counts)
+            background-colors (mapv :color processed-label-counts)
+            color-map (processed-label-color-map processed-label-counts)
+            legend-labels (mapv #(hash-map :text (first %) :fillStyle (second %)) color-map)]
+        [Chart {:options {:type "horizontalBar"
+                          :data {:labels labels
+                                 :datasets [{:data counts
+                                             :backgroundColor background-colors
+                                             }]}
+                          :options {:scales
+                                    {:xAxes
+                                     [{:display true
+                                       :ticks {:suggestedMin 0
+                                               :callback (fn [value idx values]
+                                                           (if (or (= 0 (mod idx 5))
+                                                                   (= idx (dec (count values))))
+                                                             value ""))}}]
+                                     :yAxes
+                                     [{:maxBarThickness 10}]}
+                                    :legend {:labels {
+                                                      :generateLabels (fn [chart]
+                                                                        (clj->js legend-labels))}}}}}
+         "Label Counts"]))))
+
+(defn LabelCounts
+  []
+  (let [public-labels (r/cursor app-db [:data :project (active-project-id @app-db) :public-labels])]
+    ;; check to see if public-labels is empty
+    (when (empty? @public-labels)
+      (dispatch [:fetch [:project/public-labels]]))
+    ;; render the label charts
     (fn []
-      [:div
-       (when (> (count (get-in @state [:mesh])) 0)
-         [ImportantTermsChart {:data @state
-                               :entity :mesh}
-          "Important Mesh Terms"])
-       (when (> (count (get-in @state [:chemical])) 0)
-         [ImportantTermsChart {:data @state
-                               :entity :chemical}
-          "Important Compounds"])
-       (when (> (count (get-in @state [:gene])) 0)
-         [ImportantTermsChart {:data @state
-                               :term :gene}
-          "Important Genes"])])
-    :component-will-mount
-    (fn [this]
-      #_ (.log js/console "KeyTerms: component-will-mount")
-      (dispatch [:require [:project/important-terms 10]]))
-    :component-will-unmount
-    (fn [this]
-      #_ (.log js/console "KeyTerms: component-will-umount")
-      #_ (dispatch [:overview/reset-state!])
-      #_ (reset! state {}))
-    :component-will-update
-    (fn [this new-argv]
-      #_ (.log js/console "KeyTerms: component-will-update"))
-    :display-name "key-terms"}))
+      (when (not (empty? (label-answer-counts @public-labels)))
+        [:div
+         [LabelCountChart @public-labels]]))))
 
 (defn project-overview-panel []
-  [:div.ui.two.column.stackable.grid.project-overview
-   [:div.ui.row
-    [:div.ui.column
-     [project-summary-box]
-     [recent-progress-chart]
-     [label-predictions-box]]
-    [:div.ui.column
-     [user-summary-chart]
-     [project-files-box]
-     [KeyTerms]]]])
+  (let []
+    [:div.ui.two.column.stackable.grid.project-overview
+     [:div.ui.row
+      [:div.ui.column
+       [project-summary-box]
+       [recent-progress-chart]
+       [label-predictions-box]]
+      [:div.ui.column
+       [user-summary-chart]
+       [project-files-box]
+       [KeyTerms]
+       [LabelCounts]]]]))
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
