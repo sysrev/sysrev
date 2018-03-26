@@ -695,12 +695,12 @@
 (defn project-pmids
   "Given a project-id, return all PMIDs associated with the project"
   [project-id]
-  (->>  (-> (select :public_id)
-            (from :article)
-            (where [:and
-                    [:= :project_id project-id]
-                    [:= :enabled true]])
-            do-query)
-        (mapv :public-id)
-        (mapv parse-number)
-        (filterv (comp not nil?))))
+  (->> (-> (select :public_id)
+           (from :article)
+           (where [:and
+                   [:= :project_id project-id]
+                   [:= :enabled true]])
+           do-query)
+       (mapv :public-id)
+       (mapv parse-number)
+       (filterv (comp not nil?))))
