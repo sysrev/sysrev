@@ -42,7 +42,7 @@
 (defn fetch-important-terms
   "Given a coll of pmids, return a map of important term counts from biosource"
   [pmids]
-  (-> (http/post "http://api.insilica.co/sysrev/importance"
+  (-> (http/post "https://api.insilica.co/sysrev/importance"
                  {:content-type "application/json"
                   :body (json/write-str pmids)})
       :body

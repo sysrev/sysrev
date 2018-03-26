@@ -17,7 +17,7 @@
 
 (defonce insilica-api (agent nil))
 
-(def api-host "http://api.insilica.co/")
+(def api-host "https://api.insilica.co/")
 
 ;; TODO: this only works for boolean inclusion criteria labels
 (defn get-training-label-values [project-id label-id]
