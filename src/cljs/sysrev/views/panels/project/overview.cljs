@@ -9,7 +9,8 @@
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :refer [with-ui-help-tooltip]]
    [sysrev.views.charts :refer [chart-container pie-chart bar-chart
-                                get-canvas-context wrap-animate-options]]
+                                get-canvas-context wrap-animate-options
+                                paul-tol-colors Chart]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]
@@ -30,36 +31,6 @@
  (fn [_]
    (reset! state initial-state)
    {}))
-
-;; Paul Tol colors: https://personal.sron.nl/~pault/
-;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js
-;; (it is under an MIT license)
-;;
-;; A working demo of color selections: http://google.github.io/palette.js/
-;;
-;; which in turn is a reproduction of Paul Tol's work at: https://personal.sron.nl/~pault/colourschemes.pdf
-;;
-;; Paul developed this palette for scientific charts to clearly differentiate colors and to be color-blind
-;; safe
-(def paul-tol-colors
-  [["#4477aa"],
-   ["#4477aa", "#cc6677"],
-   ["#4477aa", "#ddcc77", "#cc6677"],
-   ["#4477aa", "#117733", "#ddcc77", "#cc6677"],
-   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677"],
-   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
-    "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
-    "#882255", "#aa4499"],
-   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#661100",
-    "#cc6677", "#882255", "#aa4499"],
-   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
-    "#661100", "#cc6677", "#882255", "#aa4499"],
-   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
-    "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
-
 
 (defn nav-article-status [[inclusion group-status]]
   (routes/nav-scroll-top "/project/articles")
@@ -408,39 +379,6 @@
                                     :value-type (:value-type (first (second label)))))]
     (map label-counts-fn (group-by :short-label label-values))))
 
-;; I want to refactor this so that {:keys options}
-;; just become options
-(defn Chart
-  [{:keys [options] :as props}
-   title]
-  (let [id (random-id)
-        draw-chart-fn (fn [{:keys [options]}]
-                        (js/Chart.
-                         (get-canvas-context id)
-                         (clj->js options)))]
-    (r/create-class
-     {:reagent-render
-      (fn [{:keys [chart-options]} title]
-        [:div.ui.segment
-         [:h4.ui.dividing.header
-          [:div.ui.two.column.middle.aligned.grid
-           [:div.ui.left.aligned.column
-            title]]]
-         [:div [:canvas {:id id}]]])
-      :component-will-update
-      (fn [this new-argv]
-       ;; (.log js/console "[Chart] component-will-update")
-        (draw-chart-fn (second new-argv))
-        )
-      :component-did-mount
-      (fn [this]
-        ;;(.log js/console "[Chart] component-did-mount")
-        ;;(.log js/console "[Chart] props: " (clj->js props))
-        (draw-chart-fn props)
-        ;;(.log js/console "[Chart] after draw-chart-fn")
-        )
-      :display-name (str (gensym title))})))
-
 (defn process-label-count
   "Given a coll of public-labels, return a vector of value-count maps"
   [public-labels]
@@ -481,51 +419,54 @@
           processed-label-counts)))
 
 (defn LabelCountChart
-  []
-  (fn [public-labels]
-    (when (not (empty? public-labels))
-      (let [processed-label-counts (->> public-labels
-                                        process-label-count
-                                        (filterv #(not= (:value-type %)
-                                                        "string"))
-                                        add-color-processed-label-counts
-                                        (sort-by :short-label))
-            labels (mapv :value processed-label-counts)
-            counts (mapv :count processed-label-counts)
-            background-colors (mapv :color processed-label-counts)
-            color-map (processed-label-color-map processed-label-counts)
-            legend-labels (mapv #(hash-map :text (first %) :fillStyle (second %)) color-map)]
-        [Chart {:options {:type "horizontalBar"
-                          :data {:labels labels
-                                 :datasets [{:data counts
-                                             :backgroundColor background-colors
-                                             }]}
-                          :options {:scales
-                                    {:xAxes
-                                     [{:display true
-                                       :ticks {:suggestedMin 0
-                                               :callback (fn [value idx values]
-                                                           (if (or (= 0 (mod idx 5))
-                                                                   (= idx (dec (count values))))
-                                                             value ""))}}]
-                                     :yAxes
-                                     [{:maxBarThickness 10}]}
-                                    :legend {:labels {
-                                                      :generateLabels (fn [chart]
-                                                                        (clj->js legend-labels))}}}}}
-         "Label Counts"]))))
+  [public-labels]
+  #_  (fn [public-labels])
+  ;;(.log js/console "[LabelCountChart] drawing")
+  ;;(.log js/console "[LabelCountChart] count: " (count public-labels))
+  (when (not (empty? public-labels))
+    (let [
+          processed-label-counts (->> public-labels
+                                      process-label-count
+                                      (filterv #(not= (:value-type %)
+                                                      "string"))
+                                      add-color-processed-label-counts
+                                      (sort-by :short-label))
+          labels (mapv :value processed-label-counts)
+          counts (mapv :count processed-label-counts)
+          background-colors (mapv :color processed-label-counts)
+          color-map (processed-label-color-map processed-label-counts)
+          legend-labels (mapv #(hash-map :text (first %) :fillStyle (second %)) color-map)
+          ]
+      [Chart {:type "horizontalBar"
+              :data {:labels labels
+                     :datasets [{:data counts
+                                 :backgroundColor background-colors}]}
+              :options {:scales
+                        {:xAxes
+                         [{:display true
+                           :ticks {:suggestedMin 0
+                                   :callback (fn [value idx values]
+                                               (if (or (= 0 (mod idx 5))
+                                                       (= idx (dec (count values))))
+                                                 value ""))}}]
+                         :yAxes
+                         [{:maxBarThickness 10}]}
+                        :legend {:labels
+                                 {:generateLabels (fn [chart]
+                                                    (clj->js legend-labels))}}}}
+       "Label Counts"])))
 
 (defn LabelCounts
   []
   (let [public-labels (r/cursor app-db [:data :project (active-project-id @app-db) :public-labels])]
-    ;; check to see if public-labels is empty
-    (when (empty? @public-labels)
-      (dispatch [:fetch [:project/public-labels]]))
-    ;; render the label charts
     (fn []
-      (when (not (empty? (label-answer-counts @public-labels)))
-        [:div
-         [LabelCountChart @public-labels]]))))
+      (.log js/console "[LabelCounts] drawing")
+      ;; check to see if public-labels is empty
+      (when (empty? @public-labels)
+        (.log js/console "[LabelCounts] project/public-labels dispatched")
+        (dispatch [:fetch [:project/public-labels]]))
+      ;; render the label charts
+      [LabelCountChart @public-labels])))
 
 (defn project-overview-panel []
   (let []

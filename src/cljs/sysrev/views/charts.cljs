@@ -4,6 +4,35 @@
             [re-frame.core :refer [subscribe]]
             [sysrev.util :refer [random-id mobile?]]))
 
+;; Paul Tol colors: https://personal.sron.nl/~pault/
+;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js
+;; (it is under an MIT license)
+;;
+;; A working demo of color selections: http://google.github.io/palette.js/
+;;
+;; which in turn is a reproduction of Paul Tol's work at: https://personal.sron.nl/~pault/colourschemes.pdf
+;;
+;; Paul developed this palette for scientific charts to clearly differentiate colors and to be color-blind
+;; safe
+(def paul-tol-colors
+  [["#4477aa"],
+   ["#4477aa", "#cc6677"],
+   ["#4477aa", "#ddcc77", "#cc6677"],
+   ["#4477aa", "#117733", "#ddcc77", "#cc6677"],
+   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677"],
+   ["#332288", "#88ccee", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#ddcc77", "#cc6677", "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
+    "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#cc6677",
+    "#882255", "#aa4499"],
+   ["#332288", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77", "#661100",
+    "#cc6677", "#882255", "#aa4499"],
+   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
+    "#661100", "#cc6677", "#882255", "#aa4499"],
+   ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
+    "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
+
 (defn animate-duration []
   (if (mobile?) 0 1000))
 
@@ -155,3 +184,34 @@
                    (when-let [idx (-> elts first (aget "_index"))]
                      (on-click idx))))))})}]
     (js/Chart. context (clj->js chart-data))))
+
+(defn Chart
+  [chart-options title]
+  (let [id (random-id)
+        draw-chart-fn (fn [props]
+                        (js/Chart.
+                         (get-canvas-context id)
+                         (clj->js chart-options)))]
+    (r/create-class
+     {:reagent-render
+      (fn [{:keys [chart-options]} title]
+        [:div.ui.segment
+         [:h4.ui.dividing.header
+          [:div.ui.two.column.middle.aligned.grid
+           [:div.ui.left.aligned.column
+            title]]]
+         [:div [:canvas {:id id}]]])
+      :component-will-update
+      (fn [this new-argv]
+        (.log js/console "[Chart] component-will-update")
+        (draw-chart-fn (second new-argv))
+        )
+      :component-did-mount
+      (fn [this]
+        (.log js/console "[Chart] component-did-mount")
+        ;;(.log js/console "[Chart] props: " (clj->js props))
+        (draw-chart-fn chart-options)
+        ;;(.log js/console "[Chart] after draw-chart-fn")
+        )
+      :display-name (str (gensym title))})))
+
