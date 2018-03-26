@@ -154,56 +154,63 @@
                                          :or {use-future? false threads 1}}]
   (if (and use-future? (nil? *conn*))
     (future
-      (try
-        (let [thread-groups
-              (->> articles
-                   (partition-all (max 1 (quot (count articles) threads))))
-              thread-results
-              (->> thread-groups
-                   (mapv
-                    (fn [thread-articles]
-                      (future
-                        (try
-                          (import-articles-to-project!
-                           thread-articles project-id source-id)
-                          true
-                          (catch Throwable e
-                            (println "Error in sysrev.import.endnote/add-articles! (inner future)"
-                                     (.getMessage e))
-                            false)))))
-                   (mapv deref))
-              success? (every? true? thread-results)]
-          (if success?
-            (do (sources/update-project-source-metadata!
-                 source-id (assoc meta :importing-articles? false))
-                (predict-api/schedule-predict-update project-id)
-                (importance/schedule-important-terms-update project-id))
-            (sources/fail-project-source-import! source-id))
-          success?)
-        (catch Throwable e
-          (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
-                    (.getMessage e))
-          (sources/fail-project-source-import! source-id)
-          false)
-        (finally
-          ;; update the enabled flag for the articles
-          (sources/update-project-articles-enabled! project-id))))
-    (try
-      ;; import the data
       (let [success?
-            (import-articles-to-project! articles project-id source-id)]
-        (if success?
-          (sources/update-project-source-metadata!
-           source-id (assoc meta :importing-articles? false))
-          (sources/fail-project-source-import! source-id))
-        success?)
-      (catch Throwable e
-        (println "Error in sysrev.import.endnote/add-articles!"
-                 (.getMessage e))
-        (sources/fail-project-source-import! source-id))
-      (finally
+            (try
+              (let [thread-groups
+                    (->> articles
+                         (partition-all (max 1 (quot (count articles) threads))))
+                    thread-results
+                    (->> thread-groups
+                         (mapv
+                          (fn [thread-articles]
+                            (future
+                              (try
+                                (import-articles-to-project!
+                                 thread-articles project-id source-id)
+                                true
+                                (catch Throwable e
+                                  (println "Error in sysrev.import.endnote/add-articles! (inner future)"
+                                           (.getMessage e))
+                                  false)))))
+                         (mapv deref))
+                    success? (every? true? thread-results)]
+                (if success?
+                  (sources/update-project-source-metadata!
+                   source-id (assoc meta :importing-articles? false))
+                  (sources/fail-project-source-import! source-id))
+                success?)
+              (catch Throwable e
+                (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
+                          (.getMessage e))
+                (sources/fail-project-source-import! source-id)
+                false))]
         ;; update the enabled flag for the articles
-        (sources/update-project-articles-enabled! project-id)))))
+        (sources/update-project-articles-enabled! project-id)
+        (when success?
+          (predict-api/schedule-predict-update project-id)
+          (importance/schedule-important-terms-update project-id))
+        success?))
+    (let [success?
+          (try
+            ;; import the data
+            (let [success?
+                  (import-articles-to-project! articles project-id source-id)]
+              (if success?
+                (sources/update-project-source-metadata!
+                 source-id (assoc meta :importing-articles? false))
+                (sources/fail-project-source-import! source-id))
+              success?)
+            (catch Throwable e
+              (println "Error in sysrev.import.endnote/add-articles!"
+                       (.getMessage e))
+              (sources/fail-project-source-import! source-id)
+              false))]
+      ;; update the enabled flag for the articles
+      (sources/update-project-articles-enabled! project-id)
+      (when success?
+        (predict-api/schedule-predict-update project-id)
+        (importance/schedule-important-terms-update project-id))
+      success?)))
 
 (defn endnote-file->articles
   [file]

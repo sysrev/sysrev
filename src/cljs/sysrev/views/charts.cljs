@@ -92,7 +92,7 @@
     (js/Chart. context (clj->js chart-data))))
 
 (defn bar-chart
-  [id xlabels ynames yss & [colors]]
+  [id xlabels ynames yss & [colors options]]
   (let [context (get-canvas-context id)
         font-color (if (= (:ui-theme @(subscribe [:self/settings]))
                           "Dark")
@@ -102,15 +102,20 @@
          :data {:labels xlabels
                 :datasets (->> (get-datasets ynames yss colors)
                                (map #(merge % {:borderWidth 1})))}
-         :options (wrap-animate-options
-                   {:scales
-                    {:xAxes [{:stacked true
-                              :ticks {:fontColor font-color}
-                              :scaleLabel {:fontColor font-color}}]
-                     :yAxes [{:stacked true
-                              :ticks {:fontColor font-color}
-                              :scaleLabel {:fontColor font-color}}]}
-                    :legend {:labels {:fontColor font-color}}})}]
+         :options (merge-with
+                   (fn [x1 x2]
+                     (if (or (map? x1) (map? x2))
+                       (merge x1 x2) x2))
+                   (wrap-animate-options
+                    {:scales
+                     {:xAxes [{:stacked true
+                               :ticks {:fontColor font-color}
+                               :scaleLabel {:fontColor font-color}}]
+                      :yAxes [{:stacked true
+                               :ticks {:fontColor font-color}
+                               :scaleLabel {:fontColor font-color}}]}
+                     :legend {:labels {:fontColor font-color}}})
+                   options)}]
     (js/Chart. context (clj->js chart-data))))
 
 (defn pie-chart

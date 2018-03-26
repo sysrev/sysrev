@@ -4,8 +4,7 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.data.core :refer [def-data]]
    [sysrev.subs.auth :refer [have-identity?]]
-   [sysrev.subs.project :refer
-    [project-loaded? active-project-id have-public-labels? project-sources-loaded?]]
+   [sysrev.subs.project :as project :refer [active-project-id project-loaded?]]
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
@@ -60,7 +59,7 @@
         {:dispatch [:project/load-files project-id result]}))))
 
 (def-data :project/public-labels
-  :loaded? have-public-labels?
+  :loaded? project/have-public-labels?
   :uri (fn [] "/api/public-labels")
   :prereqs (fn [] [[:identity] [:project]])
   :process
@@ -69,7 +68,7 @@
       {:dispatch [:project/load-public-labels result-decoded]})))
 
 (def-data :project/sources
-  :loaded? project-sources-loaded?
+  :loaded? project/project-sources-loaded?
   :uri (fn [] "/api/project-sources")
   :prereqs (fn [] [[:identity] [:project]])
   :process
@@ -77,6 +76,16 @@
     (let [project-id (active-project-id db)]
       {:dispatch
        [:project/load-sources project-id (:sources result)]})))
+
+(def-data :project/important-terms
+  :loaded? project/project-important-terms-loaded?
+  :uri (fn [] "/api/important-terms")
+  :prereqs (fn [] [[:identity] [:project]])
+  :process
+  (fn [{:keys [db]} _ result]
+    (let [project-id (active-project-id db)]
+      {:dispatch
+       [:project/load-important-terms project-id result]})))
 
 (def-data :member/articles
   :loaded? have-member-articles?

@@ -17,7 +17,8 @@
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values]]))
+            [sysrev.shared.util :refer [map-values]]
+            [sysrev.biosource.predict :as predict-api]))
 
 (def default-plan "Basic")
 ;; Error code used
@@ -231,6 +232,7 @@
                  :message (str "source-id " source-id " does not exist")}}
         :else (let [project-id (sources/source-id->project-id source-id)]
                 (sources/delete-project-source! source-id)
+                (predict-api/schedule-predict-update project-id)
                 (importance/schedule-important-terms-update project-id)
                 {:result {:success true}})))
 
@@ -244,6 +246,7 @@
   (if (sources/source-exists? source-id)
     (let [project-id (sources/source-id->project-id source-id)]
       (sources/toggle-source! source-id enabled?)
+      (predict-api/schedule-predict-update project-id)
       (importance/schedule-important-terms-update project-id)
       {:result {:success true}})
     {:error {:status not-found
@@ -392,7 +395,9 @@
                   #(->> %
                         (sort-by :instance-count >)
                         (take n)
-                        (into []))))}}))
+                        (into []))))
+      :loading
+      (importance/project-importance-loading? project-id)}}))
 
 (defn test-response
   "Server Sanity Check"

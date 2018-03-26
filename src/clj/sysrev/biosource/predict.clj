@@ -1,6 +1,8 @@
 (ns sysrev.biosource.predict
   (:require [clj-http.client :as http]
             [clojure.data.json :as json]
+            [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -12,12 +14,11 @@
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
             [sysrev.shared.article-list :as alist]
-            [sysrev.config.core :as config]
-            [clojure.tools.logging :as log]))
+            [sysrev.config.core :as config]))
 
 (defonce insilica-api (agent nil))
 
-(def api-host "http://api.insilica.co/")
+(def api-host "https://api.insilica.co/")
 
 ;; TODO: this only works for boolean inclusion criteria labels
 (defn get-training-label-values [project-id label-id]
@@ -41,42 +42,75 @@
        (apply concat)
        (apply hash-map)))
 
+(defn get-article-texts [training? project-id & [label-id]]
+  (let [label-id (or label-id (project/project-overall-label-id project-id))]
+    (-> (q/select-project-articles
+         project-id [:a.article-id :a.primary-title :a.secondary-title
+                     :a.abstract :a.keywords])
+        (merge-where (if training?
+                       [:exists
+                        (-> (select :*)
+                            (from [:article-label :al])
+                            (where [:and
+                                    [:= :al.label-id label-id]
+                                    [:= :al.article-id :a.article-id]])
+                            (q/filter-valid-article-label true))]
+                       true))
+        (->> do-query
+             (mapv (fn [{:keys [article-id primary-title secondary-title
+                                abstract keywords]}]
+                     [article-id
+                      (str/join " \n " [primary-title
+                                        secondary-title
+                                        abstract
+                                        (str/join " \n " keywords)])]))
+             (apply concat)
+             (apply hash-map)))))
+
 (defn create-predict-model [project-id]
   (let [label-id (project/project-overall-label-id project-id)
+        article-texts (get-article-texts true project-id label-id)
         body (json/write-str
               {"project_id" project-id
-               "articles" (->> (get-training-label-values project-id label-id)
-                               (mapv (fn [[article-id answer]]
-                                       {"article_id" article-id
-                                        "label" answer})))
-               "feature" (str label-id)})]
+               "feature" (str label-id)
+               "documents" (->> (get-training-label-values project-id label-id)
+                                (mapv (fn [[article-id answer]]
+                                        {"text" (get article-texts article-id)
+                                         "tag" answer}))
+                                (filterv #(and (string? (get % "text"))
+                                               (boolean? (get % "tag")))))})]
     (http/post
-     (str api-host "sysrev/modelService")
+     (str api-host "sysrev/modelService/v2")
      {:content-type "application/json"
       :body body})))
 
-(defn store-model-predictions [project-id label-id & {:keys [predict-version-id]
-                                                      :or {predict-version-id 3}}]
+(defn store-model-predictions [project-id & {:keys [label-id predict-version-id]
+                                             :or {predict-version-id 3}}]
   (with-transaction
     (let [label-id (or label-id (project/project-overall-label-id project-id))
           predict-run-id (predict/create-predict-run
                           project-id predict-version-id)
+          article-texts (get-article-texts false project-id label-id)
+          article-ids (vec (keys article-texts))
           response
-          (http/get
+          (http/post
            (str api-host "sysrev/predictionService")
            {:content-type "application/json"
-            :query-params {"project_id" project-id
-                           "feature" (str label-id)}})
+            :body (json/write-str
+                   {"project_id" project-id
+                    "feature" (str label-id)
+                    "documents" (mapv #(get article-texts %) article-ids)})})
           ;; _ (println (-> response :body))
           entries
           (->> (-> response :body (json/read-str :key-fn keyword) :articles)
-               (mapv (fn [{:keys [article_id probability prediction]}]
-                       {:article-id article_id
-                        :value (if (true? prediction)
-                                 probability
-                                 (- 1.0 probability))})))]
+               (map-indexed (fn [i {:keys [prediction probability]}]
+                              {:article-id (nth article-ids i)
+                               :value (if (true? prediction)
+                                        probability
+                                        (- 1.0 probability))})))]
       (predict/store-article-predictions
-       project-id predict-run-id label-id entries))))
+       project-id predict-run-id label-id entries)
+      (report/update-predict-meta project-id predict-run-id))))
 
 (defn update-project-predictions [project-id]
   (let [reviewed (-> (labels/project-article-status-counts project-id)
@@ -88,9 +122,7 @@
          (try
            (with-transaction
              (create-predict-model project-id)
-             (store-model-predictions project-id nil)
-             (let [predict-run-id (q/project-latest-predict-run-id project-id)]
-               (report/update-predict-meta project-id predict-run-id))
+             (store-model-predictions project-id)
              true)
            (catch Throwable e
              (log/info "Exception in update-project-predictions:")

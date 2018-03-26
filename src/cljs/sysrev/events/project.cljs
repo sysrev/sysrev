@@ -25,6 +25,12 @@
    (assoc-in db [:data :project project-id :sources] sources)))
 
 (reg-event-db
+ :project/load-important-terms
+ [trim-v]
+ (fn [db [project-id terms]]
+   (assoc-in db [:data :project project-id :importance] terms)))
+
+(reg-event-db
  :project/load-files
  [trim-v]
  (fn [db [project-id files]]

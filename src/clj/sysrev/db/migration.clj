@@ -293,10 +293,10 @@
                                          (not (clojure.string/blank? (endnote-extract-date article-xml)))
                                          (endnote-extract-date article-xml)
                                          :else nil))]
-    (println "Started Converting dates... ")
+    (log/info "Started Converting dates... ")
     (doall (map (fn [article]
                   (let [date (article-xml-extract-date (:raw article))]
-                    (if-not (clojure.string/blank? date)
+                    (when-not (clojure.string/blank? date)
                       (-> (sqlh/update :article)
                           (sset {:date date})
                           (where [:= :article-id (:article-id article)])
@@ -305,7 +305,7 @@
                     (from [:article :a])
                     (order-by [:a.article_id :desc])
                     do-query)))
-    (println "Finished Converting Dates. ")))
+    (log/info "Finished Converting Dates. ")))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
@@ -315,7 +315,7 @@
                       #'ensure-permissions-set
                       ;; #'ensure-article-location-entries
                       ;; #'ensure-label-inclusion-values
-                      #'ensure-no-null-authors
+                      ;; #'ensure-no-null-authors
                       #'update-stripe-plans-table
                       ;; #'ensure-project-sources-exist
                       ;; #'ensure-article-flag-disable-entries

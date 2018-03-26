@@ -237,56 +237,63 @@
                    project-id (assoc meta :importing-articles? true))]
     (if (and use-future? (nil? *conn*))
       (future
-        (try
-          (let [thread-groups
-                (->> pmids
-                     (partition-all (max 1 (quot (count pmids) threads))))
-                thread-results
-                (->> thread-groups
-                     (mapv
-                      (fn [thread-pmids]
-                        (future
-                          (try
-                            (import-pmids-to-project
-                             thread-pmids project-id source-id)
-                            (catch Throwable e
-                              (log/info "Error in import-pmids-to-project-with-meta! (inner future)"
-                                        (.getMessage e))
-                              false)))))
-                     (mapv deref))
-                success? (every? true? thread-results)]
-            (if success?
-              (do (sources/update-project-source-metadata!
-                   source-id (assoc meta :importing-articles? false))
-                  (predict-api/schedule-predict-update project-id)
-                  (importance/schedule-important-terms-update project-id))
-              (sources/fail-project-source-import! source-id))
-            success?)
-          (catch Throwable e
-            (log/info "Error in import-pmids-to-project-with-meta! (outer future)"
-                      (.getMessage e))
-            (sources/fail-project-source-import! source-id)
-            false)
-          (finally
-            ;; update the enabled flag for the articles
-            (sources/update-project-articles-enabled! project-id))))
-      (try
-        ;; import the data
         (let [success?
-              (import-pmids-to-project pmids project-id source-id)]
-          (if success?
-            (sources/update-project-source-metadata!
-             source-id (assoc meta :importing-articles? false))
-            (sources/fail-project-source-import! source-id))
-          success?)
-        (catch Throwable e
-          (log/info "Error in import-pmids-to-project-with-meta!"
-                    (.getMessage e))
-          (sources/fail-project-source-import! source-id)
-          false)
-        (finally
+              (try
+                (let [thread-groups
+                      (->> pmids
+                           (partition-all (max 1 (quot (count pmids) threads))))
+                      thread-results
+                      (->> thread-groups
+                           (mapv
+                            (fn [thread-pmids]
+                              (future
+                                (try
+                                  (import-pmids-to-project
+                                   thread-pmids project-id source-id)
+                                  (catch Throwable e
+                                    (log/info "Error in import-pmids-to-project-with-meta! (inner future)"
+                                              (.getMessage e))
+                                    false)))))
+                           (mapv deref))
+                      success? (every? true? thread-results)]
+                  (if success?
+                    (sources/update-project-source-metadata!
+                     source-id (assoc meta :importing-articles? false))
+                    (sources/fail-project-source-import! source-id))
+                  success?)
+                (catch Throwable e
+                  (log/info "Error in import-pmids-to-project-with-meta! (outer future)"
+                            (.getMessage e))
+                  (sources/fail-project-source-import! source-id)
+                  false))]
           ;; update the enabled flag for the articles
-          (sources/update-project-articles-enabled! project-id))))))
+          (sources/update-project-articles-enabled! project-id)
+          ;; start threads for updates from api.insilica.co
+          (when success?
+            (predict-api/schedule-predict-update project-id)
+            (importance/schedule-important-terms-update project-id))
+          success?))
+      (let [success?
+            (try
+              (let [success?
+                    (import-pmids-to-project pmids project-id source-id)]
+                (if success?
+                  (sources/update-project-source-metadata!
+                   source-id (assoc meta :importing-articles? false))
+                  (sources/fail-project-source-import! source-id))
+                success?)
+              (catch Throwable e
+                (log/info "Error in import-pmids-to-project-with-meta!"
+                          (.getMessage e))
+                (sources/fail-project-source-import! source-id)
+                false))]
+        ;; update the enabled flag for the articles
+        (sources/update-project-articles-enabled! project-id)
+        ;; start threads for updates from api.insilica.co
+        (when success?
+          (predict-api/schedule-predict-update project-id)
+          (importance/schedule-important-terms-update project-id))
+        success?))))
 
 (defn reload-project-abstracts [project-id]
   (let [articles

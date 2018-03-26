@@ -15,6 +15,20 @@
             [sysrev.shared.util :refer [map-values]]
             [sysrev.config.core :as config]))
 
+(defonce importance-loading (atom {}))
+
+(defn record-importance-load-start [project-id]
+  (swap! importance-loading update project-id
+         #(if (nil? %) 1 (inc %))))
+
+(defn record-importance-load-stop [project-id]
+  (swap! importance-loading update project-id
+         #(if (nil? %) nil (dec %))))
+
+(defn project-importance-loading? [project-id]
+  (let [load-count (get @importance-loading project-id)]
+    (and (integer? load-count) (>= load-count 1))))
+
 (defn project-important-terms [project-id]
   (with-project-cache
     project-id [:important-terms]
@@ -28,7 +42,7 @@
 (defn fetch-important-terms
   "Given a coll of pmids, return a map of important term counts from biosource"
   [pmids]
-  (-> (http/post "http://api.insilica.co/sysrev/importance"
+  (-> (http/post "https://api.insilica.co/sysrev/importance"
                  {:content-type "application/json"
                   :body (json/write-str pmids)})
       :body
@@ -38,57 +52,63 @@
   "Queries important terms for `project-id` from Insilica API
   and stores results in local database."
   [project-id]
-  (let [max-count 100
-        entities {:gene "gene", :mesh "mesh", :chemical "chemical"}
-        {:keys [geneCounts chemicalCounts meshCounts]}
-        (fetch-important-terms (project/project-pmids project-id))]
-    (let [entries
-          (->> [(->> geneCounts
-                     (mapv (fn [{:keys [gene count tfidf]}]
-                             {:entity-type (-> entities :gene)
-                              :instance-name (:symbol gene)
-                              :instance-count count
-                              :instance-score tfidf}))
-                     (sort-by :instance-count >)
-                     (take max-count))
-                (->> chemicalCounts
-                     (mapv (fn [{:keys [term count tfidf]}]
-                             {:entity-type (-> entities :chemical)
-                              :instance-name term
-                              :instance-count count
-                              :instance-score tfidf}))
-                     (sort-by :instance-count >)
-                     (take max-count))
-                (->> meshCounts
-                     (mapv (fn [{:keys [term count tfidf]}]
-                             {:entity-type (-> entities :mesh)
-                              :instance-name term
-                              :instance-count count
-                              :instance-score tfidf}))
-                     (sort-by :instance-count >)
-                     (take max-count))]
-               (apply concat)
-               (filter #(and %
-                             (-> % :entity-type string?)
-                             (-> % :instance-name string?)
-                             (or (-> % :instance-count integer?)
-                                 (-> % :instance-count nil?))
-                             (or (-> % :instance-score number?)
-                                 (-> % :instance-score nil?))
-                             (or (-> % :instance-count integer?)
-                                 (-> % :instance-score number?))))
-               (mapv #(assoc % :project-id project-id)))]
-      (when (not-empty entries)
-        (with-transaction
-          (-> (delete-from :project-entity)
-              (where [:= :project-id project-id])
-              do-execute)
-          (doseq [entries-group (partition-all 500 entries)]
-            (-> (insert-into :project-entity)
-                (values entries-group)
-                do-execute))))
+  (try
+    (do
+      (record-importance-load-start project-id)
       (clear-project-cache project-id)
-      nil)))
+      (let [max-count 100
+            entities {:gene "gene", :mesh "mesh", :chemical "chemical"}
+            {:keys [geneCounts chemicalCounts meshCounts]}
+            (fetch-important-terms (project/project-pmids project-id))]
+        (let [entries
+              (->> [(->> geneCounts
+                         (mapv (fn [{:keys [gene count tfidf]}]
+                                 {:entity-type (-> entities :gene)
+                                  :instance-name (:symbol gene)
+                                  :instance-count count
+                                  :instance-score tfidf}))
+                         (sort-by :instance-count >)
+                         (take max-count))
+                    (->> chemicalCounts
+                         (mapv (fn [{:keys [term count tfidf]}]
+                                 {:entity-type (-> entities :chemical)
+                                  :instance-name term
+                                  :instance-count count
+                                  :instance-score tfidf}))
+                         (sort-by :instance-count >)
+                         (take max-count))
+                    (->> meshCounts
+                         (mapv (fn [{:keys [term count tfidf]}]
+                                 {:entity-type (-> entities :mesh)
+                                  :instance-name term
+                                  :instance-count count
+                                  :instance-score tfidf}))
+                         (sort-by :instance-count >)
+                         (take max-count))]
+                   (apply concat)
+                   (filter #(and %
+                                 (-> % :entity-type string?)
+                                 (-> % :instance-name string?)
+                                 (or (-> % :instance-count integer?)
+                                     (-> % :instance-count nil?))
+                                 (or (-> % :instance-score number?)
+                                     (-> % :instance-score nil?))
+                                 (or (-> % :instance-count integer?)
+                                     (-> % :instance-score number?))))
+                   (mapv #(assoc % :project-id project-id)))]
+          (when (not-empty entries)
+            (with-transaction
+              (-> (delete-from :project-entity)
+                  (where [:= :project-id project-id])
+                  do-execute)
+              (doseq [entries-group (partition-all 500 entries)]
+                (-> (insert-into :project-entity)
+                    (values entries-group)
+                    do-execute))))
+          (clear-project-cache project-id)
+          nil)))
+    (finally
+      (record-importance-load-stop project-id))))
 
 (defn schedule-important-terms-update [project-id]
   (future (load-project-important-terms project-id)))
