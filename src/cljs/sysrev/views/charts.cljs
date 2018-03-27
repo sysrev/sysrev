@@ -188,10 +188,12 @@
 (defn Chart
   [chart-options title]
   (let [id (random-id)
+        chart (r/atom nil)
         draw-chart-fn (fn [props]
-                        (js/Chart.
-                         (get-canvas-context id)
-                         (clj->js chart-options)))]
+                        (reset! chart
+                                (js/Chart.
+                                 (get-canvas-context id)
+                                 (clj->js props))))]
     (r/create-class
      {:reagent-render
       (fn [{:keys [chart-options]} title]
@@ -201,17 +203,12 @@
            [:div.ui.left.aligned.column
             title]]]
          [:div [:canvas {:id id}]]])
-      :component-will-update
-      (fn [this new-argv]
-        (.log js/console "[Chart] component-will-update")
-        (draw-chart-fn (second new-argv))
-        )
       :component-did-mount
       (fn [this]
-        (.log js/console "[Chart] component-did-mount")
-        ;;(.log js/console "[Chart] props: " (clj->js props))
-        (draw-chart-fn chart-options)
-        ;;(.log js/console "[Chart] after draw-chart-fn")
-        )
+        (draw-chart-fn chart-options))
+      :component-will-update
+      (fn [this new-argv]
+        (draw-chart-fn (second new-argv))
+        (.update @chart))
       :display-name (str (gensym title))})))
 

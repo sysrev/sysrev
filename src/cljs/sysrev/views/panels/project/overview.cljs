@@ -352,13 +352,11 @@
         {:entity :gene, :data gene, :loading? loading?}
         "Important Genes"]])))
 
-;; (dispatch [:fetch [:project/public-labels]])
 (defn label-answer-counts
   "Extract the answer counts for labels for the current project"
-  [public-labels]
+  [label-definitions public-labels]
   (let [raw-labels-with-values (->> public-labels
                                     (mapv #(hash-map :labels (:labels %) :article-id (:article-id %))))
-        label-definitions  (get-in @app-db [:data :project (active-project-id @app-db) :labels])
         label-uuid->short-label (fn [label-uuid]
                                   (:short-label (label-definitions label-uuid)))
         label-uuid->value-type (fn [label-uuid]
@@ -368,7 +366,8 @@
                                  ((fn [article] (map #(map (partial merge
                                                                     {:short-label (label-uuid->short-label (first %))
                                                                      :article-id (:article-id article)
-                                                                     :value-type (label-uuid->value-type (first %))})
+                                                                     :value-type (label-uuid->value-type (first %))
+                                                                     :label-id (first %)})
                                                            (second %))
                                                      (:labels article))))
                                  flatten))
@@ -376,14 +375,15 @@
         label-counts-fn (fn [label]
                           (hash-map :short-label (first label)
                                     :answer-counts (frequencies (map :answer (second label)))
-                                    :value-type (:value-type (first (second label)))))]
+                                    :value-type (:value-type (first (second label)))
+                                    :label-id (:label-id (first (second label)))))]
     (map label-counts-fn (group-by :short-label label-values))))
 
 (defn process-label-count
   "Given a coll of public-labels, return a vector of value-count maps"
-  [public-labels]
+  [label-definitions public-labels]
   (->> public-labels
-       label-answer-counts
+       ((partial label-answer-counts label-definitions))
        (map (fn [label-count]
               (map #(hash-map :short-label
                               (:short-label label-count)
@@ -392,7 +392,8 @@
                                        (if (vector? putative-value)
                                          (clojure.string/join "," putative-value)
                                          putative-value))
-                              :count (second %))
+                              :count (second %)
+                              :label-id (:label-id label-count))
                    (:answer-counts label-count))))
        flatten
        (into [])))
@@ -409,64 +410,74 @@
   (let [short-labels (short-labels-vector processed-label-counts)
         palette (nth paul-tol-colors (- (count short-labels) 1))
         color-map (zipmap short-labels palette)]
-    color-map))
+    (mapv (fn [label palette]
+            {:short-label label :color palette})
+          short-labels palette)))
 
 (defn add-color-processed-label-counts
   "Given a processed-label-count, add color to each label"
   [processed-label-counts]
   (let [color-map (processed-label-color-map processed-label-counts)]
-    (mapv #(merge % {:color (color-map (:short-label %))})
+    (mapv #(merge % {:color (:color (first (filter (fn [m]
+                                                     (= (:short-label %)
+                                                        (:short-label m))) color-map)))})
           processed-label-counts)))
 
 (defn LabelCountChart
-  [public-labels]
-  #_  (fn [public-labels])
-  ;;(.log js/console "[LabelCountChart] drawing")
-  ;;(.log js/console "[LabelCountChart] count: " (count public-labels))
-  (when (not (empty? public-labels))
-    (let [
-          processed-label-counts (->> public-labels
-                                      process-label-count
-                                      (filterv #(not= (:value-type %)
-                                                      "string"))
-                                      add-color-processed-label-counts
-                                      (sort-by :short-label))
-          labels (mapv :value processed-label-counts)
-          counts (mapv :count processed-label-counts)
-          background-colors (mapv :color processed-label-counts)
-          color-map (processed-label-color-map processed-label-counts)
-          legend-labels (mapv #(hash-map :text (first %) :fillStyle (second %)) color-map)
-          ]
-      [Chart {:type "horizontalBar"
-              :data {:labels labels
-                     :datasets [{:data counts
-                                 :backgroundColor background-colors}]}
-              :options {:scales
-                        {:xAxes
-                         [{:display true
-                           :ticks {:suggestedMin 0
-                                   :callback (fn [value idx values]
-                                               (if (or (= 0 (mod idx 5))
-                                                       (= idx (dec (count values))))
-                                                 value ""))}}]
-                         :yAxes
-                         [{:maxBarThickness 10}]}
-                        :legend {:labels
-                                 {:generateLabels (fn [chart]
-                                                    (clj->js legend-labels))}}}}
-       "Label Counts"])))
+  []
+  (let [label-definitions (get-in @app-db [:data :project (active-project-id @app-db) :labels])]
+    (fn [public-labels]
+      (when (not (empty? public-labels))
+        (let [label-ids @(subscribe [:project/label-ids])
+              processed-label-counts (->> public-labels
+                                          ((partial process-label-count label-definitions))
+                                          (filterv #(not= (:value-type %)
+                                                          "string"))
+                                          add-color-processed-label-counts
+                                          ;; taken from
+                                          ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
+                                          (sort-by
+                                           #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %))))
+              labels (mapv :value processed-label-counts)
+              counts (mapv :count processed-label-counts)
+              background-colors (mapv :color processed-label-counts)
+              color-map (processed-label-color-map processed-label-counts)
+              short-label->label-uuid (fn [short-label]
+                                        (:label-id (first (filter #(= short-label
+                                                                      (:short-label %))
+                                                                  (vals label-definitions)))))
+              legend-labels (->> color-map
+                                 (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (short-label->label-uuid (:short-label %))))
+                                 (mapv #(hash-map :text (:short-label %) :fillStyle (:color %))))]
+          [Chart {:type "horizontalBar"
+                  :data {:labels labels
+                         :datasets [{:data counts
+                                     :backgroundColor background-colors}]}
+                  :options {:scales
+                            {:xAxes
+                             [{:display true
+                               :ticks {:suggestedMin 0
+                                       :callback (fn [value idx values]
+                                                   (if (or (= 0 (mod idx 5))
+                                                           (= idx (dec (count values))))
+                                                     value ""))}}]
+                             :yAxes
+                             [{:maxBarThickness 10}]}
+                            :legend {:labels
+                                     {:generateLabels (fn [chart]
+                                                        (clj->js legend-labels))}}
+                            }}
+           "Label Counts"])))))
 
 (defn LabelCounts
   []
   (let [public-labels (r/cursor app-db [:data :project (active-project-id @app-db) :public-labels])]
-    (fn []
-      (.log js/console "[LabelCounts] drawing")
-      ;; check to see if public-labels is empty
-      (when (empty? @public-labels)
-        (.log js/console "[LabelCounts] project/public-labels dispatched")
-        (dispatch [:fetch [:project/public-labels]]))
-      ;; render the label charts
-      [LabelCountChart @public-labels])))
+    (r/create-class
+     {:reagent-render
+      (fn []
+        [LabelCountChart @public-labels])
+      :component-did-mount
+      (dispatch [:fetch [:project/public-labels]])})))
 
 (defn project-overview-panel []
   (let []
