@@ -159,19 +159,12 @@
   [user-id]
   (-> user-id users/user-self-info :projects first :project-id))
 
-(defn click-x
-  "Click the X on a label described by xpath string"
-  [xpath]
-  (taxi/click {:xpath xpath})
-  (taxi/click {:xpath (str xpath "/descendant::i[contains(@class,'remove')]")}))
-
 (defn delete-label
   "Delete the label-item described by xpath string"
   [xpath]
   (let [div-id (taxi/attribute {:xpath xpath} :id)
         div-xpath (str "//div[@id='" div-id"']")]
-    (click-x div-xpath)
-    (click-x div-xpath)))
+    (taxi/click {:xpath (str div-xpath "/descendant::i[contains(@class,'remove')]")})))
 
 (defn click-edit
   "Click the Edit button on a label describe by a string xpath"

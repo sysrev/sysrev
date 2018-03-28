@@ -158,25 +158,57 @@
              [:data :project (active-project-id @app-db) :labels])
    labels))
 
-(defn- DeleteLabelButton [label]
-  (let [editing?  (r/cursor label [:editing?])
-        label-id  (r/cursor label [:label-id])
-        errors (r/cursor label [:errors])]
-    [:div.ui.small.orange.icon.button
-     {:on-click #(cond @editing?
-                       (reset! editing? false)
-                       (string? @label-id)
-                       (swap! (r/cursor state [:labels]) dissoc @label-id)
-                       :else
-                       (reset! (r/cursor label [:enabled]) false))
-      :style {:margin "0"}}
-     [:i.remove.icon]]))
+(defn DeleteLabelButton
+  [label]
+  (let [label-id (r/cursor label [:label-id])]
+    [:div.ui.small.icon.button
+     {:on-click #(if (string? @label-id)
+                   ;; this is just an ephemeral label that hasn't been saved
+                   (swap! (r/cursor state [:labels]) dissoc @label-id)
+                   ;; this label has already been saved
+                   (do
+                     ;; we need to reset the label back to its initial
+                     ;; state from the server so that the user can
+                     ;; just delete a label, even with errors in it
+                     (reset! label (get (saved-labels) @label-id))
+                     ;; set the label to disabled
+                     (reset! (r/cursor label [:enabled]) false)
+                     ;; save the labels
+                     (dispatch [:action [:labels/sync-project-labels
+                                         (active-project-id @app-db)
+                                         (local-labels->global-labels (get-local-labels))]])))}
+     [:i.remove.icon]
+     "Delete"]))
+
+(defn SaveLabelButton
+  [label]
+  [:div
+   {:class (-> "ui small positive icon"
+               (cond->
+                   @(r/cursor state [:server-syncing?])
+                   (str " loading button")
+                   (not @(r/cursor state [:server-syncing?]))
+                   (str " button")))
+    :on-click #(do
+                 ;; save on server
+                 (dispatch [:action [:labels/sync-project-labels
+                                     (active-project-id @app-db)
+                                     (local-labels->global-labels (get-local-labels))]]))}
+   [:i.check.circle.outline.icon]
+   "Save"])
 
 (defn EditLabelButton
   "label is a cursor into the state representing the label"
   [label]
   [:div.ui.small.primary.icon.button
-   {:on-click #(swap! (r/cursor label [:editing?]) not)
+   {:on-click #(do
+                 (when @(r/cursor label [:editing?])
+                   ;; save the labels
+                   (dispatch [:action [:labels/sync-project-labels
+                                       (active-project-id @app-db)
+                                       (local-labels->global-labels (get-local-labels))]]))
+                 ;; set the editing? to its boolean opposite
+                 (swap! (r/cursor label [:editing?]) not))
     :style {:margin "0"}}
    [:i.edit.icon]])
 
@@ -227,7 +259,9 @@
 
 (defn- SaveButton []
   [:div.ui.large.right.labeled.positive.icon.button
-   {:on-click #(dispatch [:action [:labels/sync-project-labels (active-project-id @app-db) (local-labels->global-labels (get-local-labels))]])
+   {:on-click #(dispatch [:action [:labels/sync-project-labels
+                                   (active-project-id @app-db)
+                                   (local-labels->global-labels (get-local-labels))]])
     :class (if (and (or (not (labels-synced?))
                         (errors-in-labels? (get-local-labels)))
                     (not @(r/cursor state [:server-syncing?])))
@@ -521,7 +555,11 @@
                                 :label "Yes"}]
             (when-let [error (get-in @errors [:definition :inclusion-values])]
               [:div error-message-class
-               error])])]))))
+               error])])
+         [:div.ui
+          [:br]
+          [SaveLabelButton label]
+          [DeleteLabelButton label]]]))))
 
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "string" ...)
@@ -700,7 +738,7 @@
       [:div.ui.middle.aligned.grid.segment.label-item
        {:id (str @label-id)
         :on-mouse-enter #(reset! hovering? true)
-        :on-mouse-leave #(reset! hovering? false)}
+        :on-mouse-leave #( reset! hovering? false)}
        [:div.row
         [ui/CenteredColumn
          [:div.ui.blue.label (str (inc i))]
@@ -714,7 +752,6 @@
                     (not= "overall include"
                           @name))
            [:div
-            [DeleteLabelButton label]
             [EditLabelButton label]])
          "one wide center aligned column delete-label"]]])))
 
