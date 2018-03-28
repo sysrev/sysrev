@@ -430,12 +430,25 @@
       (when (not (empty? public-labels))
         (let [label-ids @(subscribe [:project/label-ids])
               processed-label-counts (->> public-labels
+                                          ;; get the counts of the label's values
                                           ((partial process-label-count label-definitions))
+                                          ;; filter out labels of type string
                                           (filterv #(not= (:value-type %)
                                                           "string"))
+                                          ;; add color
                                           add-color-processed-label-counts
-                                          ;; taken from
+                                          ;; do initial sort by values
+                                          (sort-by #(str (:value %)))
+                                          ;; sort booleans such that true goes before false
+                                          ;; sort categorical alphabetically
+                                          ((fn [processed-public-labels]
+                                             (let [grouped-processed-public-labels (group-by :value-type processed-public-labels)
+                                                   boolean-labels (get grouped-processed-public-labels "boolean")
+                                                   categorical-labels (get grouped-processed-public-labels "categorical")]
+                                               (concat (reverse (sort-by :value boolean-labels))
+                                                       (sort-by :value categorical-labels)))))
                                           ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
+                                          ;; use the order of the labels as they appear in review articles (label-ids)
                                           (sort-by
                                            #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %))))
               labels (mapv :value processed-label-counts)
@@ -477,7 +490,7 @@
       (fn []
         [LabelCountChart @public-labels])
       :component-did-mount
-      (dispatch [:fetch [:project/public-labels]])})))
+      (fn [this] (dispatch [:fetch [:project/public-labels]]))})))
 
 (defn project-overview-panel []
   (let []
