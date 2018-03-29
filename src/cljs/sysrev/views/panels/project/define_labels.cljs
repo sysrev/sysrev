@@ -28,7 +28,8 @@
 
 (def panel [:project :project :labels :edit])
 
-(def initial-state {:server-syncing? false})
+(def initial-state {:server-syncing? false
+                    :read-only-message-closed? false})
 
 (def state (r/cursor app-db [:state :panels :project :define-labels]))
 
@@ -189,11 +190,14 @@
                    (str " loading button")
                    (not @(r/cursor state [:server-syncing?]))
                    (str " button")))
-    :on-click #(do
+    :on-click #(if (not (labels-synced?))
                  ;; save on server
                  (dispatch [:action [:labels/sync-project-labels
                                      (active-project-id @app-db)
-                                     (local-labels->global-labels (get-local-labels))]]))}
+                                     (local-labels->global-labels (get-local-labels))]])
+                 ;; just reset editing
+                 (do (reset! (r/cursor label [:editing?]) false)
+                     (reset! (r/cursor label [:hovering?]) false)))}
    [:i.check.circle.outline.icon]
    "Save"])
 
@@ -203,10 +207,11 @@
   [:div.ui.small.primary.icon.button
    {:on-click #(do
                  (when @(r/cursor label [:editing?])
-                   ;; save the labels
-                   (dispatch [:action [:labels/sync-project-labels
-                                       (active-project-id @app-db)
-                                       (local-labels->global-labels (get-local-labels))]]))
+                   (when (not (labels-synced?))
+                     ;; save the labels
+                     (dispatch [:action [:labels/sync-project-labels
+                                         (active-project-id @app-db)
+                                         (local-labels->global-labels (get-local-labels))]])))
                  ;; set the editing? to its boolean opposite
                  (swap! (r/cursor label [:editing?]) not))
     :style {:margin "0"}}
@@ -734,11 +739,13 @@
           editing? (r/cursor label [:editing?])
           errors (r/cursor label [:errors])
           name (r/cursor label [:name])
-          label-id (r/cursor label [:label-id])]
+          label-id (r/cursor label [:label-id])
+          admin? (or @(subscribe [:member/admin?])
+                     @(subscribe [:user/admin?]))]
       [:div.ui.middle.aligned.grid.segment.label-item
        {:id (str @label-id)
         :on-mouse-enter #(reset! hovering? true)
-        :on-mouse-leave #( reset! hovering? false)}
+        :on-mouse-leave #(reset! hovering? false)}
        [:div.row
         [ui/CenteredColumn
          [:div.ui.blue.label (str (inc i))]
@@ -750,7 +757,8 @@
         [ui/CenteredColumn
          (when (and @hovering?
                     (not= "overall include"
-                          @name))
+                          @name)
+                    admin?)
            [:div
             [EditLabelButton label]])
          "one wide center aligned column delete-label"]]])))
@@ -759,25 +767,35 @@
   (fn [child]
     (let [admin? (or @(subscribe [:member/admin?])
                      @(subscribe [:user/admin?]))
-          labels (r/cursor state [:labels])]
+          labels (r/cursor state [:labels])
+          read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
       (when (empty? @state)
         (reset! state initial-state))
       (when (empty? @labels)
         (sync-local-labels! (labels->local-labels (saved-labels))))
       [:div.define-labels
+       (when (and (not admin?)
+                  (not @read-only-message-closed?))
+         [:div.ui.message
+          [:i {:class "close icon"
+               :on-click #(do (reset! read-only-message-closed? true))}]
+          [:div.header "Read-Only View"]
+          [:p "Label editing is restricted to project administrators."]])
        (doall (map-indexed
                (fn [i label]
                  ^{:key i}
                  ;; let's pass a cursor to the state
                  [LabelItem i (r/cursor state [:labels (:label-id label)])])
                (sort-by :project-ordering (filter :enabled (vals @labels)))))
-       [AddLabelButton "boolean"]
-       [:br]
-       [AddLabelButton "string"]
-       [:br]
-       [AddLabelButton "categorical"]
-       [:div.ui.divider]
-       [SaveCancelButtons]])))
+       (when admin?
+         [:div
+          [AddLabelButton "boolean"]
+          [:br]
+          [AddLabelButton "string"]
+          [:br]
+          [AddLabelButton "categorical"]
+          [:div.ui.divider]
+          [SaveCancelButtons]])])))
 
 (defmethod panel-content [:project :project :labels] []
   (fn [child]
