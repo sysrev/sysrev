@@ -13,7 +13,8 @@
 
 (def panel [:project :project :add-articles])
 
-(def initial-state {})
+(def initial-state {:read-only-message-closed? false})
+
 (defonce state (r/cursor app-db [:state :panels panel]))
 (defn ensure-state []
   (when (nil? @state)
@@ -37,6 +38,11 @@
       {:dispatch-n
        (list [:fetch [:review/task]]
              [:reload [:project]])})))
+
+(defn admin?
+  []
+  (or @(subscribe [:member/admin?])
+      @(subscribe [:user/admin?])))
 
 (defn plural-or-singular
   "Return the singular form of string when item-count is one, return plural otherwise"
@@ -288,14 +294,12 @@
                              (str (first name) " " (second name))))]
                          [:br]])
                       non-empty-overlap)))])]
-          [:div.eight.wide.column.right.aligned
-           {:key :buttons}
-           [ToggleArticleSource source-id enabled?]
-           ;; need to check if user is an admin
-           ;; before displaying this
-           (when (and (<= labeled-article-count 0))
-             [DeleteArticleSource source-id])])
-
+          (when (admin?)
+            [:div.eight.wide.column.right.aligned
+             {:key :buttons}
+             [ToggleArticleSource source-id enabled?]
+             (when (and (<= labeled-article-count 0))
+               [DeleteArticleSource source-id])]))
          :else
          (list
           [:div.eight.wide.column.left.aligned
@@ -350,9 +354,18 @@
 
 (defn ProjectSourcesPanel []
   (ensure-state)
-  [:div
-   [ImportArticlesView]
-   [ProjectSourcesList]])
+  (let [read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
+    [:div
+     (when (admin?)
+       [ImportArticlesView])
+     (when (and (not (admin?))
+                (not @read-only-message-closed?))
+       [:div.ui.message
+        [:i {:class "close icon"
+             :on-click #(do (reset! read-only-message-closed? true))}]
+        [:div.header "Read-Only View"]
+        [:p "Source editing is restricted to project administrators."]])
+     [ProjectSourcesList]]))
 
 (defmethod panel-content panel []
   (fn [child]
