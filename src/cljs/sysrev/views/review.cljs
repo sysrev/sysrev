@@ -6,12 +6,12 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch dispatch-sync reg-sub
      reg-event-db reg-event-fx reg-fx trim-v]]
-   [re-frame.db :refer [app-db]]
    [sysrev.views.components :as ui]
    [sysrev.subs.ui :refer [active-panel]]
    [sysrev.subs.review :as review]
    [sysrev.subs.labels :as labels]
    [sysrev.subs.articles :as articles]
+   [sysrev.events.all]
    [sysrev.routes :refer [nav nav-scroll-top]]
    [sysrev.util :refer [full-size? mobile? desktop-size? nbsp]]
    [sysrev.shared.util :refer [in?]])
@@ -503,47 +503,48 @@
 ;; Top-level component for label editor
 (defn label-editor-view [article-id]
   (when article-id
-    (with-loader [[:article article-id]] {}
-      (if (not= article-id @(subscribe [:review/editing-id]))
-        [:div]
-        (let [change-set? @(subscribe [:review/change-labels? article-id])
-              label-ids @(subscribe [:project/label-ids])
-              resolving? @(subscribe [:review/resolving?])
-              n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
-              n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
-              make-label-columns
-              (fn [label-ids n-cols]
-                (doall
-                 (for [row (partition-all n-cols label-ids)]
-                   ^{:key [(first row)]}
-                   [:div.row
-                    (doall
-                     (concat
-                      (map-indexed
-                       (fn [i label-id]
-                         (label-column
-                          article-id label-id
-                          (cond (= i 0) :left
-                                (= i (dec n-cols)) :right
-                                :else :middle)))
-                       row)
-                      (when (< (count row) n-cols)
-                        [^{:key {:label-row-end (last row)}}
-                         [:div.column]])))])))]
-          [:div.ui.segments.label-editor-view
-           [:div.ui.top.attached.header
-            [:div.ui.two.column.middle.aligned.grid
-             [:div.ui.left.aligned.column
-              [:h3 (if resolving? "Resolve Labels" "Set Labels")]]
-             [:div.ui.right.aligned.column
-              (when change-set?
-                [:div.ui.tiny.button
-                 {:on-click #(dispatch [:review/disable-change-labels article-id])}
-                 "Cancel"])]]]
-           [:div.ui.label-section
-            {:class (str "attached "
-                         n-cols-str " column "
-                         "celled grid segment")}
-            (make-label-columns label-ids n-cols)]
-           [note-input-element "default"]
-           [label-editor-buttons-view article-id]])))))
+    (when-let [project-id @(subscribe [:active-project-id])]
+      (with-loader [[:article project-id article-id]] {}
+        (if (not= article-id @(subscribe [:review/editing-id]))
+          [:div]
+          (let [change-set? @(subscribe [:review/change-labels? article-id])
+                label-ids @(subscribe [:project/label-ids])
+                resolving? @(subscribe [:review/resolving?])
+                n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
+                n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
+                make-label-columns
+                (fn [label-ids n-cols]
+                  (doall
+                   (for [row (partition-all n-cols label-ids)]
+                     ^{:key [(first row)]}
+                     [:div.row
+                      (doall
+                       (concat
+                        (map-indexed
+                         (fn [i label-id]
+                           (label-column
+                            article-id label-id
+                            (cond (= i 0) :left
+                                  (= i (dec n-cols)) :right
+                                  :else :middle)))
+                         row)
+                        (when (< (count row) n-cols)
+                          [^{:key {:label-row-end (last row)}}
+                           [:div.column]])))])))]
+            [:div.ui.segments.label-editor-view
+             [:div.ui.top.attached.header
+              [:div.ui.two.column.middle.aligned.grid
+               [:div.ui.left.aligned.column
+                [:h3 (if resolving? "Resolve Labels" "Set Labels")]]
+               [:div.ui.right.aligned.column
+                (when change-set?
+                  [:div.ui.tiny.button
+                   {:on-click #(dispatch [:review/disable-change-labels article-id])}
+                   "Cancel"])]]]
+             [:div.ui.label-section
+              {:class (str "attached "
+                           n-cols-str " column "
+                           "celled grid segment")}
+              (make-label-columns label-ids n-cols)]
+             [note-input-element "default"]
+             [label-editor-buttons-view article-id]]))))))

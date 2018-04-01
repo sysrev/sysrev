@@ -2,7 +2,8 @@
   (:require [cljs.analyzer.api :as ana-api]
             [re-frame.core :refer [subscribe dispatch]]
             [secretary.core :refer [defroute]]
-            [sysrev.shared.util :refer [map-values]]))
+            [sysrev.shared.util :refer [map-values]]
+            [clojure.string :as str]))
 
 (defmacro with-mount-hook [on-mount]
   `(fn [content#]
@@ -15,7 +16,7 @@
 (defmacro import-vars [[_quote ns]]
   `(do
      ~@(->>
-        (ana-api/ns-interns ns)
+        (ana-api/ns-publics ns)
         (remove (comp :macro second))
         (map (fn [[k# _]]
                `(def ~(symbol k#) ~(symbol (name ns) (name k#))))))))
@@ -63,34 +64,62 @@
 
             :else [:div])]))
 
+(defn go-route-sync-data [route-fn]
+  (if-let [article-id @(subscribe [:review/editing-id])]
+    (let [user-id @(subscribe [:self/user-id])
+          article-values (->> @(subscribe [:article/labels article-id user-id])
+                              (map-values :answer))
+          active-values @(subscribe [:review/active-labels article-id])
+          user-status @(subscribe [:article/user-status article-id user-id])
+          unconfirmed? (or (= user-status :unconfirmed)
+                           (= user-status :none))
+          resolving? @(subscribe [:review/resolving?])
+          article-loading? @(subscribe [:loading? [:article article-id]])
+          send-labels? (and unconfirmed?
+                            (not resolving?)
+                            (not article-loading?)
+                            (not= active-values article-values))
+          sync-notes? (not @(subscribe [:review/all-notes-synced? article-id]))
+          ui-notes @(subscribe [:review/ui-notes article-id])
+          article-notes @(subscribe [:article/notes article-id user-id])]
+      (do (when send-labels?
+            (dispatch [:action [:review/send-labels
+                                {:article-id article-id
+                                 :label-values active-values
+                                 :confirm? false
+                                 :resolve? false
+                                 :change? false}]]))
+          (when sync-notes?
+            (dispatch [:review/sync-article-notes
+                       article-id ui-notes article-notes]))
+          (if (or send-labels? sync-notes?)
+            #?(:cljs (js/setTimeout route-fn 125)
+               :clj (route-fn))
+            (route-fn))
+          (dispatch [:review/reset-saving])))
+    (route-fn)))
+
 (defmacro sr-defroute
   [name uri params & body]
   `(defroute ~name ~uri ~params
-     (let [bodyfn# #(do ~@body)]
-       (if-let [article-id# @(subscribe [:review/editing-id])]
-         (let [user-id# @(subscribe [:self/user-id])
-               article-values# (->> @(subscribe [:article/labels article-id# user-id#])
-                                    (map-values :answer))
-               active-values# @(subscribe [:review/active-labels article-id#])
-               user-status# @(subscribe [:article/user-status article-id# user-id#])
-               unconfirmed?# (or (= user-status# :unconfirmed)
-                                 (= user-status# :none))
-               resolving?# @(subscribe [:review/resolving?])
-               article-loading?# @(subscribe [:loading? [:article article-id#]])
-               send-labels?# (and unconfirmed?#
-                                  (not resolving?#)
-                                  (not article-loading?#)
-                                  (not= active-values# article-values#))
-               sent-notes# (sysrev.events.notes/sync-article-notes article-id#)]
-           (do (when send-labels?#
-                 (dispatch [:action [:review/send-labels
-                                     {:article-id article-id#
-                                      :label-values active-values#
-                                      :confirm? false
-                                      :resolve? false
-                                      :change? false}]]))
-               (if (or send-labels?# (not-empty sent-notes#))
-                 (js/setTimeout bodyfn# 125)
-                 (bodyfn#))
-               (dispatch [:review/reset-saving])))
-         (bodyfn#)))))
+     (let [route-fn# #(do
+                        (dispatch [:self/set-active-project nil])
+                        ~@body)]
+       (go-route-sync-data route-fn#))))
+
+(defmacro sr-defroute-project
+  [name suburi params & body]
+  (assert (or (empty? suburi)
+              (str/starts-with? suburi "/"))
+          (str "sr-defroute-project: suburi must be empty (root) or begin with \"/\"\n"
+               "suburi = " (pr-str suburi)))
+  (assert (= (first params) 'project-id)
+          (str "sr-defroute-project: params must include 'project-id\n"
+               "params = " (pr-str params)))
+  (let [uri (str "/project/:project-id" suburi)]
+    `(defroute ~name ~uri ~params
+       (let [route-fn#
+             #(let [project-id# (js/parseInt ~(first params))]
+                (dispatch [:self/set-active-project project-id#])
+                ~@body)]
+         (go-route-sync-data route-fn#)))))

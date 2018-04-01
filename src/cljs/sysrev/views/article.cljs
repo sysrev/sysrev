@@ -52,46 +52,47 @@
        (str sstr)])))
 
 (defn article-info-main-content [article-id]
-  (with-loader [[:article article-id]] {}
-    (let [authors @(subscribe [:article/authors article-id])
-          journal-name @(subscribe [:article/journal-name article-id])
-          abstract @(subscribe [:article/abstract article-id])
-          title-render @(subscribe [:article/title-render article-id])
-          journal-render @(subscribe [:article/journal-render article-id])
-          urls @(subscribe [:article/urls article-id])
-          documents @(subscribe [:article/documents article-id])
-          date @(subscribe [:article/date article-id])]
-      [:div
-       [:h3.header
-        [render-keywords article-id title-render
-         {:label-class "large"}]]
-       (when-not (empty? journal-name)
-         [:h3.header {:style {:margin-top "0px"}}
-          [render-keywords article-id journal-render
-           {:label-class "large"}]])
-       (when-not (empty? date)
-         [:h5.header {:style {:margin-top "0px"}}
-          date])
-       (when-not (empty? authors)
-         [:h5.header {:style {:margin-top "0px"}}
-          (author-names-text 5 authors)])
-       (when-not (empty? abstract)
-         [render-abstract article-id])
-       ;; article file links went here (article-docs-component)
-       (when-not (empty? documents)
-         [:div {:style {:padding-top "0.75em"}}
-          [:div.content.ui.horizontal.list
-           (doall
-            (map-indexed (fn [idx {:keys [fs-path url]}]
-                           ^{:key [idx]} [document-link url fs-path])
-                         documents))]])
-       (when-not (empty? urls)
-         [:div {:style {:padding-top "0.75em"}}
-          [:div.content.ui.horizontal.list
-           (doall
-            (map-indexed (fn [idx url]
-                           ^{:key [idx]} [out-link url])
-                         urls))]])])))
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:article project-id article-id]] {}
+      (let [authors @(subscribe [:article/authors article-id])
+            journal-name @(subscribe [:article/journal-name article-id])
+            abstract @(subscribe [:article/abstract article-id])
+            title-render @(subscribe [:article/title-render article-id])
+            journal-render @(subscribe [:article/journal-render article-id])
+            urls @(subscribe [:article/urls article-id])
+            documents @(subscribe [:article/documents article-id])
+            date @(subscribe [:article/date article-id])]
+        [:div
+         [:h3.header
+          [render-keywords article-id title-render
+           {:label-class "large"}]]
+         (when-not (empty? journal-name)
+           [:h3.header {:style {:margin-top "0px"}}
+            [render-keywords article-id journal-render
+             {:label-class "large"}]])
+         (when-not (empty? date)
+           [:h5.header {:style {:margin-top "0px"}}
+            date])
+         (when-not (empty? authors)
+           [:h5.header {:style {:margin-top "0px"}}
+            (author-names-text 5 authors)])
+         (when-not (empty? abstract)
+           [render-abstract article-id])
+         ;; article file links went here (article-docs-component)
+         (when-not (empty? documents)
+           [:div {:style {:padding-top "0.75em"}}
+            [:div.content.ui.horizontal.list
+             (doall
+              (map-indexed (fn [idx {:keys [fs-path url]}]
+                             ^{:key [idx]} [document-link url fs-path])
+                           documents))]])
+         (when-not (empty? urls)
+           [:div {:style {:padding-top "0.75em"}}
+            [:div.content.ui.horizontal.list
+             (doall
+              (map-indexed (fn [idx url]
+                             ^{:key [idx]} [out-link url])
+                           urls))]])]))))
 
 (defn- article-flag-label [description]
   [:div.ui.left.labeled.button.article-flag
@@ -121,11 +122,12 @@
 (defn article-info-view
   [article-id & {:keys [show-labels? private-view? show-score?]
                  :or {show-score? true}}]
-  (let [status @(subscribe [:article/review-status article-id])
+  (let [project-id @(subscribe [:active-project-id])
+        status @(subscribe [:article/review-status article-id])
         full-size? (full-size?)
         score @(subscribe [:article/score article-id])]
     [:div
-     (with-loader [[:article article-id]]
+     (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list
         [:div.ui.top.attached.middle.aligned.header

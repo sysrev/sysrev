@@ -6,49 +6,53 @@
              [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]))
 
 (defn project-submenu-full []
-  (let [active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
+  (let [project-id @(subscribe [:active-project-id])
+        active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
         {:keys [total]}
-        @(subscribe [:project/article-counts])]
+        @(subscribe [:project/article-counts])
+        action-params {:project-id project-id}]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span [:i.list.icon] "Sources"]
-       :action [:project :project :add-articles]}
+       :action (list [:project :project :add-articles] action-params)}
       {:tab-id :labels
        :content [:span [:i.tags.icon] "Label Definitions"]
-       :action [:project :project :labels :edit]}
+       :action (list [:project :project :labels :edit] action-params)}
       {:tab-id :invite-link
        :content [:span [:i.mail.outline.icon] "Invite Link"]
-       :action [:project :project :invite-link]}
+       :action (list [:project :project :invite-link] action-params)}
       (when (> total 0)
         {:tab-id :export-data
          :content [:span [:i.download.icon] "Export"]
-         :action [:project :project :export-data]})
+         :action (list [:project :project :export-data] action-params)})
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
-       :action [:project :project :settings]}]
+       :action (list [:project :project :settings] action-params)}]
      []
      active-tab
      "bottom attached project-menu-2"
      false]))
 
 (defn project-submenu-mobile []
-  (let [active-tab (->> @(subscribe [:active-panel]) (drop 2) first)]
+  (let [project-id @(subscribe [:active-project-id])
+        active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
+        action-params {:project-id project-id}]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span #_ [:i.list.icon] "Sources"]
-       :action [:project :project :add-articles]}
+       :action (list [:project :project :add-articles] action-params)}
       {:tab-id :labels
        :content [:span #_ [:i.tags.icon] "Labels"]
-       :action [:project :project :labels]}
+       :action (list [:project :project :labels] action-params)}
       {:tab-id :invite-link
        :content [:span #_ [:i.mail.outline.icon] "Invite Link"]
-       :action [:project :project :invite-link]}
+       :action (list [:project :project :invite-link] action-params)}
       {:tab-id :export-data
        :content [:span #_ [:i.download.icon] "Export"]
-       :action [:project :project :export-data]}
+       :action (list [:project :project :export-data] action-params)}
       {:tab-id :settings
        :content [:span #_ [:i.configure.icon] "Settings"]
-       :action [:project :project :settings]}]
+       :action (list [:project :project :settings] action-params)}]
      []
      active-tab
      "bottom attached project-menu-2"
@@ -60,7 +64,8 @@
     [project-submenu-full]))
 
 (defn project-page-menu []
-  (let [active-tab (->> @(subscribe [:active-panel]) (drop 1) (take 2) vec)
+  (let [project-id @(subscribe [:active-project-id])
+        active-tab (->> @(subscribe [:active-panel]) (drop 1) (take 2) vec)
         active-tab (if (in? [[:project :add-articles]
                              [:project :labels]
                              [:project :invite-link]
@@ -71,7 +76,8 @@
         manage? (= active-tab :manage)
         {:keys [total]}
         @(subscribe [:project/article-counts])
-        mobile? (mobile?)]
+        mobile? (mobile?)
+        action-params {:project-id project-id}]
     (when total
       (remove
        nil?
@@ -81,7 +87,7 @@
          [(when (> total 0)
             {:tab-id [:project :overview]
              :content [:span "Overview"]
-             :action [:project :project :overview]})
+             :action (list [:project :project :overview] action-params)})
           (when (> total 0)
             {:tab-id [:project :articles]
              :content [:span
@@ -92,7 +98,7 @@
                            [:i.corner.tag.icon]]
                           " "])
                        "Articles"]
-             :action [:project :project :articles]})
+             :action (list [:project :project :articles] action-params)})
           (when (> total 0)
             {:tab-id [:user :labels]
              :content [:span
@@ -104,11 +110,11 @@
                           " "])
                        (if mobile?
                          "Answers" "Saved Answers")]
-             :action [:project :user :labels]})
+             :action (list [:project :user :labels] action-params)})
           (when false
             {:tab-id :predict
              :content "Prediction"
-             :action [:project :project :predict]})
+             :action (list [:project :project :predict] action-params)})
           (when (> total 0)
             {:tab-id [:review]
              :content [:span
@@ -116,13 +122,13 @@
                          [:span
                           [:i.write.square.icon]])
                        "Review Articles"]
-             :action [:project :review]
+             :action (list [:project :review] action-params)
              :class "review-articles"})]
          [{:tab-id :manage
            :content (if mobile?
                       [:span [:i.settings.icon]]
                       [:span [:i.settings.icon] "Manage"])
-           :action [:project :project :add-articles]}]
+           :action (list [:project :project :add-articles] action-params)}]
          active-tab
          (if manage?
            "attached project-menu"

@@ -22,17 +22,17 @@
   :loaded? have-identity?
   :uri (fn [] "/api/auth/identity")
   :process
-  (fn [_ _ {:keys [identity active-project projects]}]
+  (fn [_ _ {:keys [identity projects]}]
     {:dispatch-n
      (list [:self/set-identity identity]
-           [:self/set-active-project active-project]
            [:self/set-projects projects]
            [:user/store identity])}))
 
 (def-data :project
   :loaded? project-loaded?
-  :uri (fn [] "/api/project-info")
-  :prereqs (fn [] [[:identity]])
+  :uri (fn [project-id] "/api/project-info")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity]])
   :process
   (fn [_ _ {:keys [project users]}]
     {:dispatch-n
@@ -41,67 +41,72 @@
 
 (def-data :project/settings
   :loaded? project-loaded?
-  :uri (fn [] "/api/project-settings")
-  :prereqs (fn [] [[:identity]])
+  :uri (fn [project-id] "/api/project-settings")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity]])
   :process
-  (fn [{:keys [db]} _ {:keys [settings]}]
-    (let [project-id (active-project-id db)]
-      {:dispatch [:project/load-settings project-id settings]})))
+  (fn [_ [project-id] {:keys [settings]}]
+    {:dispatch [:project/load-settings project-id settings]}))
 
 (def-data :project/files
   :loaded? project-loaded?
-  :uri (fn [] "/api/files")
-  :prereqs (fn [] [[:identity]])
+  :uri (fn [project-id] "/api/files")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity]])
   :process
-  (fn [{:keys [db]} _ result]
-    (let [project-id (active-project-id db)]
-      (when (vector? result)
-        {:dispatch [:project/load-files project-id result]}))))
+  (fn [_ [project-id] result]
+    (when (vector? result)
+      {:dispatch [:project/load-files project-id result]})))
 
 (def-data :project/public-labels
   :loaded? project/have-public-labels?
-  :uri (fn [] "/api/public-labels")
-  :prereqs (fn [] [[:identity] [:project]])
+  :uri (fn [project-id] "/api/public-labels")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process
-  (fn [{:keys [db]} _ result]
+  (fn [_ [project-id] result]
     (let [result-decoded (sr-transit/decode-public-labels result)]
-      {:dispatch [:project/load-public-labels result-decoded]})))
+      {:dispatch [:project/load-public-labels project-id result-decoded]})))
 
 (def-data :project/sources
   :loaded? project/project-sources-loaded?
-  :uri (fn [] "/api/project-sources")
-  :prereqs (fn [] [[:identity] [:project]])
+  :uri (fn [project-id] "/api/project-sources")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process
-  (fn [{:keys [db]} _ result]
-    (let [project-id (active-project-id db)]
-      {:dispatch
-       [:project/load-sources project-id (:sources result)]})))
+  (fn [_ [project-id] {:keys [sources]}]
+    {:dispatch
+     [:project/load-sources project-id sources]}))
 
 (def-data :project/important-terms
   :loaded? project/project-important-terms-loaded?
-  :uri (fn [] "/api/important-terms")
-  :prereqs (fn [] [[:identity] [:project]])
+  :uri (fn [project-id] "/api/important-terms")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process
-  (fn [{:keys [db]} _ result]
-    (let [project-id (active-project-id db)]
-      {:dispatch
-       [:project/load-important-terms project-id result]})))
+  (fn [_ [project-id] result]
+    {:dispatch
+     [:project/load-important-terms project-id result]}))
 
 (def-data :member/articles
   :loaded? have-member-articles?
-  :uri (fn [user-id] (str "/api/member-articles/" user-id))
-  :prereqs (fn [user-id] [[:identity] [:project]])
+  :uri (fn [project-id user-id] (str "/api/member-articles/" user-id))
+  :content (fn [project-id user-id] {:project-id project-id})
+  :prereqs (fn [project-id user-id] [[:identity] [:project project-id]])
   :process
-  (fn [{:keys [db]} [user-id] result]
+  (fn [_ [project-id user-id] result]
     (let [result-decoded (sr-transit/decode-member-articles result)]
       {:dispatch [:member/load-articles user-id result-decoded]})))
 
 (def-data :review/task
   :loaded? task-id
-  :uri (fn [] "/api/label-task")
-  :prereqs (fn [] [[:identity] [:project]])
+  :uri (fn [project-id] "/api/label-task")
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :content (fn [project-id] {:project-id project-id})
   :process
-  (fn [{:keys [db]} _ {:keys [article labels notes today-count] :as result}]
+  (fn [{:keys [db]}
+       [project-id]
+       {:keys [article labels notes today-count] :as result}]
     (if (= result :none)
       {:dispatch [:review/load-task :none nil]}
       (cond->
@@ -114,10 +119,12 @@
 
 (def-data :article
   :loaded? have-article?
-  :uri (fn [article-id] (str "/api/article-info/" article-id))
-  :prereqs (fn [_] [[:identity] [:project]])
+  :uri (fn [project-id article-id]
+         (str "/api/article-info/" project-id "/" article-id))
+  :prereqs (fn [project-id article-id] [[:identity] [:project project-id]])
+  :content (fn [project-id article-id] {:project-id project-id})
   :process
-  (fn [_ [article-id] {:keys [article labels notes]}]
+  (fn [_ [project-id article-id] {:keys [article labels notes]}]
     {:dispatch [:article/load (merge article {:labels labels :notes notes})]}))
 
 (def-data :register-project
@@ -151,14 +158,15 @@
   (fn [db search-term page-number]
     (let [pmids-per-page 20
           result-count (get-in db [:data :pubmed-search search-term :count])]
-      ;; the result-count hasn't been updated, so the search term results still need to
-      ;; be populated
+      ;; the result-count hasn't been updated, so the search term results
+      ;; still need to be populated
       (if (nil? result-count)
         false
         ;; the page number exists
         (if (<= page-number
                 (Math/ceil (/ result-count pmids-per-page)))
-          (not (empty? (get-in db [:data :pubmed-search search-term :pages page-number :pmids])))
+          (not-empty (get-in db [:data :pubmed-search search-term
+                                 :pages page-number :pmids]))
           ;; the page number doesn't exist, retrieve nothing
           true))))
 
@@ -188,7 +196,8 @@
     {:dispatch-n
      ;; this defined in events/search.cljs dir in the
      ;; sysrev.events.search namespace
-     (list [:pubmed/save-search-term-results search-term page-number response])}))
+     (list [:pubmed/save-search-term-results
+            search-term page-number response])}))
 
 (def-data :pubmed-summaries
   :loaded?
@@ -198,7 +207,8 @@
       (if (<= page-number
               (Math/ceil (/ result-count pmids-per-page)))
         ;; the page number exists, the results should too
-        (not (empty? (get-in db [:data :pubmed-search search-term :pages page-number :summaries])))
+        (not-empty (get-in db [:data :pubmed-search search-term
+                               :pages page-number :summaries]))
         ;; the page number isn't in the result, retrieve nothing
         true)))
 
@@ -209,9 +219,11 @@
   (fn [] [[:identity]])
 
   :content
-  (fn [search-term page-number pmids] {:pmids (clojure.string/join "," pmids)})
+  (fn [search-term page-number pmids]
+    {:pmids (clojure.string/join "," pmids)})
 
   :process
   (fn [_ [search-term page-number pmids] response]
     {:dispatch-n
-     (list [:pubmed/save-search-term-summaries search-term page-number response])}))
+     (list [:pubmed/save-search-term-summaries
+            search-term page-number response])}))

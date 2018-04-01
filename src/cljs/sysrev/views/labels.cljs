@@ -66,7 +66,8 @@
 
 (defn article-labels-view [article-id &
                            {:keys [self-only?] :or {self-only? false}}]
-  (let [self-id @(subscribe [:self/user-id])
+  (let [project-id @(subscribe [:active-project-id])
+        self-id @(subscribe [:self/user-id])
         user-labels @(subscribe [:article/labels article-id])
         user-ids (sort (keys user-labels))
         label-ids
@@ -103,7 +104,7 @@
         (cond->> (concat user-ids-resolved user-ids-other)
           self-only? (filter (partial = self-id)))]
     (when (seq user-ids-ordered)
-      (with-loader [[:article article-id]]
+      (with-loader [[:article project-id article-id]]
         {:class "ui segments article-labels-view"}
         (doall
          (for [user-id user-ids-ordered]

@@ -228,7 +228,8 @@
               :email
               :verified
               :permissions
-              :settings)
+              :settings
+              :default-project-id)
       (from :web-user)
       (where [:= :user-id user-id])
       do-query

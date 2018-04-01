@@ -19,20 +19,22 @@
 (defmethod panel-content [:project] []
   (fn [child]
     (ensure-state)
-    (if (empty? @(subscribe [:self/projects]))
-      [SelectProject]
-      (with-loader [[:project]] {}
-        (let [project-name @(subscribe [:project/name])
-              admin? @(subscribe [:user/admin?])
-              projects @(subscribe [:self/projects true])]
-          [:div
-           [:div.ui.top.attached.segment.project-header
-            [:div.ui.middle.aligned.grid
-             [:div.row
-              [:div.sixteen.wide.column.project-title
-               [:span.project-title [:i.grey.book.icon] nbsp project-name]]]]]
-           (project-page-menu)
-           child])))))
+    (let [project-id @(subscribe [:active-project-id])]
+      (if (or (nil? project-id)
+              (empty? @(subscribe [:self/projects])))
+        [SelectProject]
+        (with-loader [[:project project-id]] {}
+          (let [project-name @(subscribe [:project/name])
+                admin? @(subscribe [:user/admin?])
+                projects @(subscribe [:self/projects true])]
+            [:div
+             [:div.ui.top.attached.segment.project-header
+              [:div.ui.middle.aligned.grid
+               [:div.row
+                [:div.sixteen.wide.column.project-title
+                 [:span.project-title [:i.grey.book.icon] nbsp project-name]]]]]
+             (project-page-menu)
+             child]))))))
 
 (defmethod panel-content [:project :project] []
   (fn [child]

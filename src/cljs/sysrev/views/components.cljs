@@ -60,13 +60,19 @@
       (for [{:keys [action content] :as entry} entries]
         (when entry
           ^{:key entry}
-          [:a.item {:href (when (string? action) action)
-                    :on-click (cond (vector? action)
-                                    #(dispatch [:navigate action])
+          [:a.item
+           {:href (when (string? action) action)
+            :on-click (cond (and (seq? action)
+                                 (= (count action) 2))
+                            #(dispatch [:navigate
+                                        (first action) (second action)])
 
-                                    (string? action) nil
+                            (vector? action)
+                            #(dispatch [:navigate action])
 
-                                    :else action)}
+                            (string? action) nil
+
+                            :else action)}
            content])))]]])
 
 (s/def ::tab-id keyword?)
@@ -84,20 +90,26 @@
         right-entries (remove nil? right-entries)
         ;; n-tabs (count entries)
         ;; n-tabs-word (num-to-english n-tabs)
-        render-entry (fn [{:keys [tab-id action content class] :as entry}]
-                       (when entry
-                         [:a {:key tab-id
-                              :class (str (if (= tab-id active-tab-id)
-                                            "active item" "item")
-                                          " " (if class class ""))
-                              :href (when (string? action) action)
-                              :on-click (cond (vector? action)
-                                              #(dispatch [:navigate action])
+        render-entry
+        (fn [{:keys [tab-id action content class] :as entry}]
+          (when entry
+            [:a {:key tab-id
+                 :class (str (if (= tab-id active-tab-id)
+                               "active item" "item")
+                             " " (if class class ""))
+                 :href (when (string? action) action)
+                 :on-click (cond (and (seq? action)
+                                      (= (count action) 2))
+                                 #(dispatch [:navigate
+                                             (first action) (second action)])
 
-                                              (string? action) nil
+                                 (vector? action)
+                                 #(dispatch [:navigate action])
 
-                                              :else action)}
-                          content]))]
+                                 (string? action) nil
+
+                                 :else action)}
+             content]))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (str menu-class " " (if mobile? "tiny" ""))}
      (doall
@@ -122,20 +134,26 @@
 (defn secondary-tabbed-menu
   [left-entries right-entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
-        render-entry (fn [{:keys [tab-id action content class] :as entry}]
-                       (when entry
-                         [:a {:key tab-id
-                              :class (str (if (= tab-id active-tab-id)
-                                            "active item" "item")
-                                          " " (if class class ""))
-                              :href (when (string? action) action)
-                              :on-click (cond (vector? action)
-                                              #(dispatch [:navigate action])
+        render-entry
+        (fn [{:keys [tab-id action content class] :as entry}]
+          (when entry
+            [:a {:key tab-id
+                 :class (str (if (= tab-id active-tab-id)
+                               "active item" "item")
+                             " " (if class class ""))
+                 :href (when (string? action) action)
+                 :on-click (cond (and (seq? action)
+                                      (= (count action) 2))
+                                 #(dispatch [:navigate
+                                             (first action) (second action)])
 
-                                              (string? action) nil
+                                 (vector? action)
+                                 #(dispatch [:navigate action])
 
-                                              :else action)}
-                          content]))]
+                                 (string? action) nil
+
+                                 :else action)}
+             content]))]
     [:div.ui
      {:class
       (str (if mobile? "" "")
@@ -164,20 +182,26 @@
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
-        render-entry (fn [{:keys [tab-id action content class] :as entry}]
-                       (when entry
-                         [:a {:key tab-id
-                              :class (str (if (= tab-id active-tab-id)
-                                            "active item" "item")
-                                          " " (if class class ""))
-                              :href (when (string? action) action)
-                              :on-click (cond (vector? action)
-                                              #(dispatch [:navigate action])
+        render-entry
+        (fn [{:keys [tab-id action content class] :as entry}]
+          (when entry
+            [:a {:key tab-id
+                 :class (str (if (= tab-id active-tab-id)
+                               "active item" "item")
+                             " " (if class class ""))
+                 :href (when (string? action) action)
+                 :on-click (cond (and (seq? action)
+                                      (= (count action) 2))
+                                 #(dispatch [:navigate
+                                             (first action) (second action)])
 
-                                              (string? action) nil
+                                 (vector? action)
+                                 #(dispatch [:navigate action])
 
-                                              :else action)}
-                          content]))]
+                                 (string? action) nil
+
+                                 :else action)}
+             content]))]
     [:div.tabbed-panel
      [:div.ui
       {:class

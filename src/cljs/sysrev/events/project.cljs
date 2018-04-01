@@ -47,7 +47,12 @@
 (reg-event-db
  :project/load-public-labels
  [trim-v]
- (fn [db [content]]
-   (let [project-id (active-project-id db)]
-     (assoc-in db [:data :project project-id :public-labels]
-               content))))
+ (fn [db [project-id content]]
+   (assoc-in db [:data :project project-id :public-labels]
+             content)))
+
+(reg-event-fx
+ :project/navigate
+ [trim-v]
+ (fn [_ [project-id]]
+   {:nav-scroll-top (str "/project/" project-id)}))

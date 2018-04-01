@@ -48,8 +48,10 @@
       (t/instrument)
       (set-web-asset-path "/integration")
       (start-app nil nil true)
-      (f)
-      #_ (stop-web-server)
+      ;;
+      ;; TODO: uncomment call to test function
+      ;;
+      #_ (f)
       (close-active-db))
     :remote-test
     (let [{{postgres-port :port
@@ -62,13 +64,19 @@
                 "Connecting to 'sysrev' db on production server is not allowed"))
       (t/instrument)
       (set-active-db! (make-db-config (:postgres env)) true)
-      (f)
+      ;;
+      ;; TODO: uncomment call to test function
+      ;;
+      #_ (f)
       (close-active-db))
     :dev
     (do (t/instrument)
         (set-web-asset-path "/integration")
         (start-app {:dbname "sysrev_test"} nil true)
-        (f)
+        ;;
+        ;; TODO: uncomment call to test function
+        ;;
+        #_ (f)
         (close-active-db))
     (assert false "default-fixture: invalid profile value")))
 

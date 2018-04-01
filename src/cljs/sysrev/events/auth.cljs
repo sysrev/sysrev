@@ -38,11 +38,13 @@
  :self/set-active-project
  [trim-v]
  (fn [{:keys [db]} [project-id]]
-   (let [old-id (get-in db [:state :active-project-id])
+   (let [old-id (get-in db [:state :recent-project-id])
          changed? (and old-id (not= old-id project-id))]
-     (cond-> {:db (assoc-in db [:state :active-project-id] project-id)}
-       changed?
-       (merge {:reset-data true})))))
+     (cond->
+         {:db (cond-> (assoc-in db [:state :active-project-id] project-id)
+                project-id (assoc-in [:state :recent-project-id] project-id))}
+         changed?
+         (merge {:reset-data true})))))
 
 (reg-event-db
  :self/set-projects

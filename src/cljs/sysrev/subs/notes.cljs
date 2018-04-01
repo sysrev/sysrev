@@ -65,3 +65,13 @@
  (fn [[user-id ui-note article-notes] [_ article-id note-name]]
    (let [article-note (get-in article-notes [user-id note-name])]
      (or (nil? ui-note) (= ui-note article-note)))))
+
+(reg-sub
+ :review/all-notes-synced?
+ (fn [[_ article-id]]
+   [(subscribe [:self/user-id])
+    (subscribe [:review/ui-notes article-id])
+    (subscribe [:article/notes article-id])])
+ (fn [[user-id ui-notes article-notes] [_ article-id]]
+   (every? #(= (get ui-notes %) (get-in article-notes [user-id %]))
+           (keys ui-notes))))

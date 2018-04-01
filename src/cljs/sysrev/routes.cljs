@@ -8,40 +8,54 @@
    [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
    [sysrev.base :refer [history]]
    [sysrev.subs.project :refer [project-loaded?]]
-   [sysrev.events.notes :refer [sync-article-notes]]
    [sysrev.events.ui :refer [set-subpanel-default-uri]]
    [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
-                   [sysrev.macros :refer [sr-defroute]]))
+                   [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
 
-(defn- go-project-panel [uri]
+(defn force-dispatch [uri]
+  (secretary/dispatch! uri))
+
+(defn nav
+  "Change the current route."
+  [route]
+  (pushy/set-token! history route))
+
+(defn nav-scroll-top
+  "Change the current route then scroll to top of page."
+  [route]
+  (pushy/set-token! history route)
+  (scroll-top))
+
+(defn- go-project-panel [project-id]
   (let [panel [:project :project :overview]
         prev-panel @(subscribe [:active-panel])
         diff-panel (and prev-panel (not= panel prev-panel))]
     (when diff-panel
-      (dispatch [:reload [:project]]))
-    (dispatch [:set-active-panel panel uri])))
+      (dispatch [:reload [:project project-id]]))
+    (dispatch [:set-active-panel panel])))
 
 (sr-defroute
  home "/" []
- (go-project-panel "/"))
+ (nav-scroll-top "/select-project"))
 
-(sr-defroute
- project "/project" []
- (go-project-panel "/project"))
+(sr-defroute-project
+ project "" [project-id]
+ (let [project-id (js/parseInt project-id)]
+   (go-project-panel project-id)))
 
-(sr-defroute
- articles "/project/articles" []
- (let [panel [:project :project :articles]
-       item [:project/public-labels]
-       set-panel [:set-active-panel [:project :project :articles]
-                  "/project/articles"]
+(sr-defroute-project
+ articles "/articles" [project-id]
+ (let [project-id (js/parseInt project-id)
+       panel [:project :project :articles]
+       item [:project/public-labels project-id]
+       set-panel [:set-active-panel [:project :project :articles]]
        ensure-visible #(ensure-dom-elt-visible-soon
                         ".article-list-view div.ui.segment.article-nav")
        on-article? (and (= @(subscribe [:active-panel]) panel)
                         @(subscribe [:public-labels/article-id]))
        data-loaded? @(subscribe [:have? item])
-       have-project? @(subscribe [:have? [:project]])]
+       have-project? @(subscribe [:have? [:project project-id]])]
    (when (not have-project?)
      (dispatch set-panel))
    (if (and on-article? data-loaded?)
@@ -56,13 +70,13 @@
          (dispatch [:require item])
          (dispatch [:reload item])))))
 
-(sr-defroute
- articles-id "/project/articles/:article-id" [article-id]
- (let [article-id (js/parseInt article-id)
-       item [:article article-id]
-       set-panel [:set-active-panel [:project :project :articles]
-                  (str "/project/articles/" article-id)]
-       have-project? @(subscribe [:have? [:project]])]
+(sr-defroute-project
+ articles-id "/articles/:article-id" [project-id article-id]
+ (let [project-id (js/parseInt project-id)
+       article-id (js/parseInt article-id)
+       item [:article project-id article-id]
+       set-panel [:set-active-panel [:project :project :articles]]
+       have-project? @(subscribe [:have? [:project project-id]])]
    (when (not have-project?)
      (dispatch set-panel))
    (dispatch
@@ -74,12 +88,12 @@
    (dispatch [:require item])
    (dispatch [:reload item])))
 
-(sr-defroute
- project-user "/project/user" []
- (let [user-id @(subscribe [:self/user-id])
-       item [:member/articles user-id]
-       set-panel [:set-active-panel [:project :user :labels]
-                  "/project/user"]]
+(sr-defroute-project
+ project-user "/user" [project-id]
+ (let [project-id (js/parseInt project-id)
+       user-id @(subscribe [:self/user-id])
+       item [:member/articles project-id user-id]
+       set-panel [:set-active-panel [:project :user :labels]]]
    (if user-id
      (do (dispatch
           [:data/after-load item :user-articles-route
@@ -95,8 +109,7 @@
  project-user-article "/project/user/article/:article-id" [article-id]
  (let [article-id (js/parseInt article-id)
        item [:article article-id]
-       set-panel [:set-active-panel [:project :user :labels]
-                  (str "/project/user/article/" article-id)]
+       set-panel [:set-active-panel [:project :user :labels]]
        have-project? @(subscribe [:have? [:project]])]
    (when (not have-project?)
      (dispatch set-panel))
@@ -111,14 +124,12 @@
 
 (sr-defroute
  project-labels-edit "/project/labels/edit" []
- (dispatch [:set-active-panel [:project :project :labels :edit]
-            "/project/labels/edit"]))
+ (dispatch [:set-active-panel [:project :project :labels :edit]]))
 
 (sr-defroute
  review "/project/review" []
  (let [have-project? @(subscribe [:have? [:project]])
-       set-panel [:set-active-panel [:project :review]
-                  "/project/review"]
+       set-panel [:set-active-panel [:project :review]]
        set-panel-after #(dispatch
                          [:data/after-load % :review-route set-panel])]
    (when (not have-project?)
@@ -135,130 +146,117 @@
 (sr-defroute
  add-articles "/project/add-articles" []
  (dispatch [:reload [:project/sources]])
- (dispatch [:set-active-panel [:project :project :add-articles]
-            "/project/add-articles"]))
+ (dispatch [:set-active-panel [:project :project :add-articles]]))
 
 (sr-defroute
  project-settings "/project/settings" []
  (dispatch [:reload [:project/settings]])
- (dispatch [:set-active-panel [:project :project :settings]
-            "/project/settings"]))
+ (dispatch [:set-active-panel [:project :project :settings]]))
 
 (sr-defroute
  invite-link "/project/invite-link" []
- (dispatch [:set-active-panel [:project :project :invite-link]
-            "/project/invite-link"]))
+ (dispatch [:set-active-panel [:project :project :invite-link]]))
 
 (sr-defroute
  project-export "/project/export" []
- (dispatch [:set-active-panel [:project :project :export-data]
-            "/project/export"]))
+ (dispatch [:set-active-panel [:project :project :export-data]]))
 
 (sr-defroute
  create-project "/project/create-project" []
- (dispatch [:set-active-panel [:create-project]]
-           "/create-project"))
+ (dispatch [:set-active-panel [:create-project]]))
 
 (sr-defroute
  login "/login" []
- (dispatch [:set-active-panel [:login]
-            "/login"]))
+ (dispatch [:set-active-panel [:login]]))
 
 (sr-defroute
  register-user "/register" []
- (dispatch [:set-active-panel [:register]
-            "/register"]))
+ (dispatch [:set-active-panel [:register]]))
 
 (sr-defroute
  register-project "/register/:register-hash" [register-hash]
- (dispatch [:set-active-panel [:register]
-            (str "/register/" register-hash)])
+ (dispatch [:set-active-panel [:register]])
  (dispatch [:register/register-hash register-hash]))
 
 (sr-defroute
  register-project-login "/register/:register-hash/login" [register-hash]
- (dispatch [:set-active-panel [:register]
-            (str "/register/" register-hash "/login")])
+ (dispatch [:set-active-panel [:register]])
  (dispatch [:register/register-hash register-hash])
  (dispatch [:register/login? true])
  (dispatch [:set-login-redirect-url (str "/register/" register-hash)]))
 
 (sr-defroute
  request-password-reset "/request-password-reset" []
- (dispatch [:set-active-panel [:request-password-reset]
-            "/request-password-reset"]))
+ (dispatch [:set-active-panel [:request-password-reset]]))
 
 (sr-defroute
  reset-password "/reset-password/:reset-code" [reset-code]
- (dispatch [:set-active-panel [:reset-password]
-            (str "/reset-password/" reset-code)])
+ (dispatch [:set-active-panel [:reset-password]])
  (dispatch [:reset-password/reset-code reset-code])
  (dispatch [:fetch [:password-reset reset-code]]))
 
 (sr-defroute
  select-project "/select-project" []
- (dispatch [:set-active-panel [:select-project]
-            "/select-project"]))
+ (dispatch [:set-active-panel [:select-project]]))
 
 (sr-defroute
  pubmed-search "/pubmed-search" []
- (dispatch [:set-active-panel [:pubmed-search]
-            "/pubmed-search"]))
+ (dispatch [:set-active-panel [:pubmed-search]]))
 
 (sr-defroute
  plans "/plans" []
- (dispatch [:set-active-panel [:plans]
-            "/plans"]))
+ (dispatch [:set-active-panel [:plans]]))
 
 (sr-defroute
  payment "/payment" []
- (dispatch [:set-active-panel [:payment]
-            "/payment"]))
+ (dispatch [:set-active-panel [:payment]]))
 
 (sr-defroute
  user-settings "/user/settings" []
- (dispatch [:set-active-panel [:user-settings]
-            "/user/settings"]))
+ (dispatch [:set-active-panel [:user-settings]]))
+
+(defn- project-uri [project-id suburi]
+  (str "/project/" project-id suburi))
 
 (defn- load-default-panels [db]
   (->> [[[]
          "/"]
 
         [[:project]
-         "/project"]
+         #(project-uri (:project-id %) "")]
 
         #_ [[:project :project]
             "/project"]
 
         [[:project :project :overview]
-         "/project"]
+         #(project-uri (:project-id %) "")]
 
         [[:project :project :articles]
-         "/project/articles"]
+         #(project-uri (:project-id %) "/articles")]
 
         [[:project :project :add-articles]
-         "/project/add-articles"]
+         #(project-uri (:project-id %) "/add-articles")]
 
         [[:project :user]
-         "/project/user"]
+         #(project-uri (:project-id %) "/user")]
 
         [[:project :user :labels]
-         "/project/user"]
+         #(project-uri (:project-id %) "/user")]
 
         [[:project :project :labels :edit]
-         "/project/labels/edit"]
+         #(project-uri (:project-id %) "/labels/edit")]
 
         [[:project :review]
-         "/project/review"]
+         #(project-uri (:project-id %) "/review")]
 
         [[:project :project :settings]
-         "/project/settings"]
+         #(project-uri (:project-id %) "/settings")]
 
         [[:project :project :invite-link]
-         "/project/invite-link"]
+         #(project-uri (:project-id %) "/invite-link")]
 
         [[:project :project :export-data]
-         "/project/export"]
+         #(project-uri (:project-id %) "/export")]
 
         [[:login]
          "/login"]
@@ -285,17 +283,3 @@
                db)))
 
 (reg-event-db :ui/load-default-panels load-default-panels)
-
-(defn force-dispatch [uri]
-  (secretary/dispatch! uri))
-
-(defn nav
-  "Change the current route."
-  [route]
-  (pushy/set-token! history route))
-
-(defn nav-scroll-top
-  "Change the current route then scroll to top of page."
-  [route]
-  (pushy/set-token! history route)
-  (scroll-top))

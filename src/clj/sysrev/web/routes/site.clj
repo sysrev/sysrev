@@ -20,24 +20,6 @@
   (GET "/api/all-projects" request
        (public-project-summaries))
 
-  ;; Sets the active project for the session
-  (POST "/api/select-project" request
-        (wrap-permissions
-         request [] []
-         (let [user-id (current-user-id request)
-               project-id (-> request :body :project-id)]
-           (if (nil? (project/project-member project-id user-id))
-             {:error
-              {:status 403
-               :type :member
-               :message "Not authorized (project)"}}
-             (let [session (assoc (:session request)
-                                  :active-project project-id)]
-               (users/set-user-default-project user-id project-id)
-               (with-meta
-                 {:result {:project-id project-id}}
-                 {:session session}))))))
-
   (POST "/api/delete-user" request
         (wrap-permissions
          request ["admin"] []

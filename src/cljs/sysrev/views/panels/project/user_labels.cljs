@@ -159,7 +159,9 @@
 
 (defmethod panel-content [:project :user :labels] []
   (fn [child]
-    (when-let [user-id @(subscribe [:self/user-id])]
-      [:div.project-content
-       [al/article-list-view panel [[:member/articles user-id]]]
-       child])))
+    (let [user-id @(subscribe [:self/user-id])
+          project-id @(subscribe [:active-project-id])]
+      (when (and user-id project-id)
+        [:div.project-content
+         [al/article-list-view panel [[:member/articles project-id user-id]]]
+         child]))))

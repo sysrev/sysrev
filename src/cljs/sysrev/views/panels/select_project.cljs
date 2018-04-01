@@ -21,7 +21,7 @@
    {:style {:width "100%"}}
    [:div.ui.fluid.labeled.button
     {:on-click (if member?
-                 #(dispatch [:action [:select-project project-id]])
+                 #(dispatch [:project/navigate project-id])
                  #(dispatch [:action [:join-project project-id]]))}
     (if member?
       [:div.ui.button "Open"]

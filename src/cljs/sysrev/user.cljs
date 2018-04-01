@@ -35,6 +35,8 @@
   (import-vars 'sysrev.routes)
   (import-vars 'sysrev.fx)
   (import-vars 'sysrev.subs.core)
+  (import-vars 'sysrev.subs.ui)
+  (import-vars 'sysrev.events.ui)
   (import-vars 'sysrev.data.core)
   (import-vars 'sysrev.views.base)
   (import-vars 'sysrev.views.main)

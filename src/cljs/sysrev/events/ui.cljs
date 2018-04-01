@@ -22,7 +22,8 @@
  :set-active-panel
  [trim-v]
  (fn [{:keys [db]} [panel uri]]
-   (let [active (active-panel db)]
+   (let [active (active-panel db)
+         uri (or uri (default-subpanel-uri db panel))]
      {:db (assoc-in db [:state :active-panel] panel)
       :dispatch-n
       (concat
@@ -36,12 +37,14 @@
 (reg-event-fx
  :navigate
  [trim-v]
- (fn [{:keys [db]} [path & {:keys [scroll-top?]}]]
+ (fn [{:keys [db]} [path params & {:keys [scroll-top?]}]]
    (let [active (active-panel db)]
      {(if scroll-top? :nav-scroll-top :nav)
-      (if (= path (take (count path) active))
-        (default-subpanel-uri db path)
-        (active-subpanel-uri db path))})))
+      (let [uri
+            (if (= path (take (count path) active))
+              (default-subpanel-uri db path)
+              (active-subpanel-uri db path))]
+        (if (fn? uri) (uri params) uri))})))
 
 (defn set-panel-field [db path val & [panel]]
   (let [panel (or panel (active-panel db))]

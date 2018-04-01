@@ -173,6 +173,7 @@
 
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
-    [:div.project-content
-     [al/article-list-view panel [[:project/public-labels]]]
-     child]))
+    (when-let [project-id @(subscribe [:active-project-id])]
+      [:div.project-content
+       [al/article-list-view panel [[:project/public-labels project-id]]]
+       child])))

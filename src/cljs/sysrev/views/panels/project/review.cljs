@@ -10,13 +10,14 @@
 
 (defmethod panel-content [:project :review] []
   (fn [child]
-    (let [article-id @(subscribe [:review/task-id])]
+    (let [project-id @(subscribe [:active-project-id])
+          article-id @(subscribe [:review/task-id])]
       (if (= article-id :none)
         [:div.project-content
          [:div.ui.segment
           [:h4.header "No articles found needing review"]]]
         [:div.project-content
-         (with-loader [[:review/task]] {}
+         (with-loader [[:review/task project-id]] {}
            [article-info-view article-id :show-labels? false])
          (when article-id
            [label-editor-view article-id])

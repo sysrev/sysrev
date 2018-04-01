@@ -34,8 +34,7 @@
                 {:session
                  (assoc session
                         :identity (select-keys
-                                   user [:user-id :user-uuid :email])
-                        :active-project (:default-project-id user))}))))
+                                   user [:user-id :user-uuid :email :default-project-id]))}))))
 
   (POST "/api/auth/logout" request
         (let [{{identity :identity :as session} :session} request
@@ -52,15 +51,12 @@
   
   (GET "/api/auth/identity" request
        (let [{{{:keys [user-id] :as identity} :identity
-               active-project :active-project
                :as session} :session} request]
          (if user-id
            (merge
-            {:identity (users/user-identity-info user-id true)
-             :active-project active-project}
+            {:identity (users/user-identity-info user-id true)}
             (users/user-self-info user-id))
-           {:identity nil
-            :active-project nil})))
+           {:identity nil})))
 
   (GET "/api/auth/lookup-reset-code" request
        (let [{{:keys [reset-code] :as params}

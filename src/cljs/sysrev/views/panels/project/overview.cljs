@@ -4,7 +4,6 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch reg-event-fx reg-sub trim-v]]
    [re-frame.db :refer [app-db]]
-   [sysrev.data.core :refer [def-data]]
    [sysrev.views.article-list :refer [group-statuses]]
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :refer [with-ui-help-tooltip]]
@@ -33,10 +32,12 @@
    {}))
 
 (defn nav-article-status [[inclusion group-status]]
-  (routes/nav-scroll-top "/project/articles")
-  (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
-  (dispatch [:public-labels/set-group-status group-status])
-  (dispatch [:public-labels/set-inclusion-status inclusion]))
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (dispatch [:navigate [:project :project :articles]
+               {:project-id project-id}])
+    (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
+    (dispatch [:public-labels/set-group-status group-status])
+    (dispatch [:public-labels/set-inclusion-status inclusion])))
 
 (defn- label-status-help-column [colors]
   (let [scounts @(subscribe [:project/status-counts])
@@ -76,7 +77,8 @@
                             (scount [:resolved false])) ")")]]]))
 
 (defn- project-summary-box []
-  (let [{:keys [reviewed unreviewed total]}
+  (let [project-id @(subscribe [:active-project-id])
+        {:keys [reviewed unreviewed total]}
         @(subscribe [:project/article-counts])
         scounts @(subscribe [:project/status-counts])
         scount #(get scounts % 0)
@@ -93,8 +95,9 @@
      [:div.ui.segment
       [:h4.ui.dividing.header
        "Review Status"]
-      (with-loader [[:project]] {:dimmer :fixed
-                                 :require false}
+      (with-loader [[:project project-id]]
+        {:dimmer :fixed
+         :require false}
         [:div
          [:h4.ui.center.aligned.header
           (str reviewed " articles reviewed of " total " total")]
@@ -204,7 +207,8 @@
             [:i.ui.blue.pencil.icon]]]]]))))
 
 (defn user-summary-chart []
-  (let [visible-user-ids (->> @(subscribe [:project/member-user-ids])
+  (let [project-id @(subscribe [:active-project-id])
+        visible-user-ids (->> @(subscribe [:project/member-user-ids])
                               (sort-by #(deref (subscribe [:member/article-count %])) >))
         user-names (->> visible-user-ids
                         (mapv #(deref (subscribe [:user/display %]))))
@@ -219,8 +223,8 @@
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
         "Member Activity"]]]
-     (with-loader [[:project]] {:dimmer :fixed
-                                :require false}
+     (with-loader [[:project project-id]] {:dimmer :fixed
+                                           :require false}
        [chart-container
         bar-chart (str (+ 35 (* 15 (count visible-user-ids))) "px")
         user-names ynames yss
@@ -228,7 +232,8 @@
          "rgba(242,113,28,0.55)"]])]))
 
 (defn recent-progress-chart []
-  (let [font-color (if (= (:ui-theme @(subscribe [:self/settings]))
+  (let [project-id @(subscribe [:active-project-id])
+        font-color (if (= (:ui-theme @(subscribe [:self/settings]))
                           "Dark")
                      "#dddddd" "#222222")
         progress (reverse @(subscribe [:project/progress-counts]))
@@ -275,8 +280,8 @@
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
         "Recent Progress"]]]
-     (with-loader [[:project]] {:dimmer :fixed
-                                :require false}
+     (with-loader [[:project project-id]] {:dimmer :fixed
+                                           :require false}
        [chart-container
         make-chart nil
         (->> progress (mapv :completed)
@@ -313,15 +318,16 @@
 
 (defn ImportantTermsChart [{:keys [entity data loading?]} title]
   (when (not-empty data)
-    (let [height (str (+ 35 (* 10 (count data))) "px")]
+    (let [project-id @(subscribe [:active-project-id])
+          height (str (+ 35 (* 10 (count data))) "px")]
       [:div.ui.segment
        [:div
         [:h4.ui.dividing.header
          [:div.ui.two.column.middle.aligned.grid
           [:div.ui.left.aligned.column
            title]]]
-        (with-loader
-          [[:project] [:project/important-terms]]
+        (with-loader [[:project project-id]
+                      [:project/important-terms project-id]]
           {:require false
            :dimmer :fixed
            :force-dimmer loading?}
@@ -335,10 +341,11 @@
              {:legend {:display false}}]))]])))
 
 (defn KeyTerms []
-  (let [terms @(subscribe [:project/important-terms])
+  (let [project-id @(subscribe [:active-project-id])
+        terms @(subscribe [:project/important-terms])
         loading? @(subscribe [:project/important-terms-loading?])
         {:keys [mesh chemical gene]} terms]
-    (with-loader [[:project]]
+    (with-loader [[:project project-id]]
       (when loading?
         (poll-important-terms))
       [:div
@@ -504,7 +511,7 @@
        [user-summary-chart]
        [project-files-box]
        [KeyTerms]
-       [LabelCounts]]]]))
+       #_ [LabelCounts]]]]))
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]

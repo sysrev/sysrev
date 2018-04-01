@@ -111,8 +111,9 @@
          request [] []
          (let [project-id (-> request :body :project-id)
                user-id (current-user-id request)
-               session (assoc (:session request)
-                              :active-project project-id)]
+               session (assoc-in (:session request)
+                                 [:identity :default-project-id]
+                                 project-id)]
            (assert (nil? (project/project-member project-id user-id))
                    "join-project: User is already a member of this project")
            (project/add-project-member project-id user-id)

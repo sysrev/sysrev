@@ -745,10 +745,11 @@
 
 ;; Top-level component for article list interface
 (defn article-list-view [panel & [loader-items]]
-  (let [article-id @(subscribe [:article-list/article-id panel])]
+  (let [project-id @(subscribe [:active-project-id])
+        article-id @(subscribe [:article-list/article-id panel])]
     [:div
      [article-list-filter-form panel]
-     (with-loader (concat [[:project]] loader-items) {}
+     (with-loader (concat [[:project project-id]] loader-items) {}
        (if article-id
          [article-list-article-view article-id panel]
          [article-list-list-view panel]))]))
