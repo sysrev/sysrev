@@ -25,6 +25,15 @@
 (def initial-state {})
 (def state (r/cursor app-db [:state :panels :project :overview]))
 
+(def colors {:grey "rgba(160,160,160,0.5)"
+             :green "rgba(33,186,69,0.55)"
+             :dim-green "rgba(33,186,69,0.35)"
+             :orange "rgba(242,113,28,0.55)"
+             :dim-orange "rgba(242,113,28,0.35)"
+             :red "rgba(230,30,30,0.6)"
+             :blue "rgba(30,100,230,0.5)"
+             :purple "rgba(146,29,252,0.5)"})
+
 (reg-event-fx
  :overview/reset-state!
  [trim-v]
@@ -492,6 +501,81 @@
       :component-did-mount
       (fn [this] (dispatch [:fetch [:project/public-labels]]))})))
 
+(def-data :project/prediction-histograms
+  :loaded? (constantly false)
+  :uri (fn [] "/api/prediction-histograms")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [] [[:identity]])
+  :process (fn [_ [project-id] response]
+             (reset! (r/cursor state [:prediction-histograms])
+                     (:prediction-histograms response))
+             {}))
+
+(defn PredictionHistogramChart
+  []
+  (fn [prediction-histograms]
+    (let [labels (-> prediction-histograms
+                     vals
+                     merge
+                     flatten
+                     (->> (sort-by :score)
+                          (mapv :score))
+                     set
+                     (->> (into [])))
+          process-histogram-fn (fn [histogram]
+                                 (let [score-count-map (zipmap (mapv :score histogram)
+                                                               (mapv :count histogram))]
+                                   (mapv #(if-let [label-count (get score-count-map %)]
+                                            label-count
+                                            0) labels)))
+          processed-reviewed-include-histogram (process-histogram-fn
+                                                (:reviewed-include-histogram prediction-histograms))
+          processed-reviewed-exclude-histogram (process-histogram-fn
+                                                (:reviewed-exclude-histogram prediction-histograms))
+          processed-unreviewed-histogram (process-histogram-fn
+                                          (:unreviewed-histogram prediction-histograms))
+          datasets (cond-> []
+                     (not (every? #(= 0 %) processed-reviewed-include-histogram))
+                     (merge {:label "Reviewed - Include"
+                             :data ;;(mapv (partial * 2) (into [] (range 1 (+ (count labels) 1))))
+                             processed-reviewed-include-histogram
+                             :backgroundColor (:green colors)})
+                     (not (every? #(= 0 %) processed-reviewed-exclude-histogram))
+                     (merge {:label "Reviewed - Exclude"
+                             :data processed-reviewed-exclude-histogram
+                             ;;(mapv (partial * 1) (into [] (range 1 (+ (count labels) 1))))
+                             :backgroundColor (:red colors)})
+                     (not (every? #(= 0 %) processed-unreviewed-histogram))
+                     (merge {:label "Unreviewed"
+                             :data processed-unreviewed-histogram
+                             ;;(mapv (partial * 3) (into [] (range 1 (+ (count labels) 1))))
+                             :backgroundColor (:orange colors)}))]
+      (when (not (empty? datasets))
+        [Chart {:type "bar"
+                :data {:labels labels
+                       :datasets datasets}
+                ;; :options {:scales {:xAxes
+                ;;                    [{:ticks {:max 1
+                ;;                              :min 0
+                ;;                              :stepSize 0.01}
+                ;;                      :type "linear"}
+                ;;                     ]}}
+                :options {:scales {:xAxes [{:stacked true}]
+                                   ;;:yAxes [{:stacked true}]
+                                   }}
+                }
+         "Prediction Histograms"]))))
+
+(defn PredictionHistogram
+  []
+  (let [probability-histograms (r/cursor state [:prediction-histograms])]
+    (r/create-class
+     {:reagent-render
+      (fn []
+        [PredictionHistogramChart @probability-histograms])
+      :component-did-mount
+      (fn [this] (dispatch [:fetch [:project/prediction-histograms (active-project-id @app-db)]]))})))
+
 (defn project-overview-panel []
   (let []
     [:div.ui.two.column.stackable.grid.project-overview
@@ -504,7 +588,8 @@
        [user-summary-chart]
        [project-files-box]
        [KeyTerms]
-       [LabelCounts]]]]))
+       [LabelCounts]
+       [PredictionHistogram]]]]))
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
