@@ -185,8 +185,15 @@
                      (on-click idx))))))})}]
     (js/Chart. context (clj->js chart-data))))
 
+(defn label-count->chart-height
+  "Given a label count n, return the chart height in px"
+  [n]
+  (str (+ 35 (* 15 n)) "px"))
+
 (defn Chart
-  [chart-options title]
+  "Create a chart using chart-options and title with optional canvas dimensions.
+  Canvas dimension are of the form {:height <number> :width <number>}"
+  [chart-options title & [{:keys [height width]}]]
   (let [id (random-id)
         chart (r/atom nil)
         draw-chart-fn (fn [props]
@@ -202,7 +209,9 @@
           [:div.ui.two.column.middle.aligned.grid
            [:div.ui.left.aligned.column
             title]]]
-         [:div [:canvas {:id id}]]])
+         [:div [:canvas (cond-> {:id id}
+                          height (merge {:height height})
+                          width (merge {:width width}))]]])
       :component-did-mount
       (fn [this]
         (draw-chart-fn chart-options))

@@ -10,7 +10,7 @@
    [sysrev.views.components :refer [with-ui-help-tooltip]]
    [sysrev.views.charts :refer [chart-container pie-chart bar-chart
                                 get-canvas-context wrap-animate-options
-                                paul-tol-colors Chart]]
+                                paul-tol-colors Chart label-count->chart-height]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]
@@ -487,9 +487,9 @@
                              [{:maxBarThickness 10}]}
                             :legend {:labels
                                      {:generateLabels (fn [chart]
-                                                        (clj->js legend-labels))}}
-                            }}
-           "Label Counts"])))))
+                                                        (clj->js legend-labels))}}}}
+           "Label Counts"
+           {:height (label-count->chart-height (count labels))}])))))
 
 (defn LabelCounts
   []
