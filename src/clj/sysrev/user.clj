@@ -47,6 +47,7 @@
             [clojure.java.jdbc :as j]
             [clj-time.core :as time]
             [clj-time.coerce :as tc]
+            [clj-http.client :as http]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
