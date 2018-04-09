@@ -443,6 +443,10 @@
        (let [{:keys [project-id]} (-> request :params)]
          (api/prediction-histogram (parse-integer project-id))))
 
+  (POST "/api/annotations" request
+        (let [{:keys [string]} (:body request)]
+          (api/annotations string)))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (api/test-response)))
