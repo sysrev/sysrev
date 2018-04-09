@@ -3,6 +3,37 @@
             [clojure.string :as str])
   #?(:clj (:import java.util.UUID)))
 
+(defn parse-number
+  "Reads a number from a string. Returns nil if not a number."
+  [s]
+  (when (and (string? s) (re-find #"^-?\d+\.?\d*$" s))
+    #?(:clj
+       (read-string s)
+
+       :cljs
+       (let [int-val (js/parseInt s)]
+         (if (and (integer? int-val)
+                  (not= int-val ##NaN))
+           int-val
+           (let [float-val (js/parseFloat s)]
+             (when (and (number? float-val)
+                        (not= float-val ##NaN))
+               float-val)))))))
+
+(defn parse-integer
+  "Reads a number from a string. Returns nil if not a number."
+  [s]
+  #?(:clj
+     (when-let [n (parse-number s)]
+       (when (integer? n)
+         n))
+
+     :cljs
+     (let [int-val (js/parseInt s)]
+       (when (and (integer? int-val)
+                  (not= int-val ##NaN))
+         int-val))))
+
 #?(:clj
    ;; http://stackoverflow.com/questions/3262195/compact-clojure-code-for-regular-expression-matches-and-their-position-in-string
    (defn re-pos [re s]

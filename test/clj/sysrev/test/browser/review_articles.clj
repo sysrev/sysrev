@@ -402,7 +402,7 @@
           project-id (get-user-project-id user-id)]
       ;; was the project actually created?
       (is (.contains (taxi/text create-project/project-title-xpath) project-name))
-      (browser/go-route "/project/add-articles")
+      (browser/go-project-route "/add-articles")
 ;;;; add sources
       ;; create a new source
       (create-project/add-articles-from-search-term search-term-first)
@@ -477,9 +477,9 @@
         (is (taxi/exists? {:xpath (str "//span[text()='" (:short-label categorical-label-definition) "']")}))
 ;;;; review an article
         (browser/wait-until-loading-completes)
-        (browser/go-route "/")
+        (browser/go-project-route "")
         (Thread/sleep 500)
-        (browser/go-route "/")
+        (browser/go-project-route "")
         (browser/wait-until-displayed review-articles-button)
         (taxi/click review-articles-button)
         (browser/wait-until-displayed {:xpath (label-div-with-name (:short-label include-label-definition))})

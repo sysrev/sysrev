@@ -18,9 +18,8 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.db.queries :as q]
             [sysrev.util :refer
-             [xml-find xml-find-vector xml-find-vector
-              parse-integer parse-xml-str]]
-            [sysrev.shared.util :refer [map-values to-uuid]]))
+             [xml-find xml-find-vector xml-find-vector parse-xml-str]]
+            [sysrev.shared.util :refer [map-values to-uuid parse-integer]]))
 
 (defn parse-endnote-file [fname]
   (-> fname io/file io/reader dxml/parse))

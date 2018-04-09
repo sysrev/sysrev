@@ -120,7 +120,7 @@
 (def-data :article
   :loaded? have-article?
   :uri (fn [project-id article-id]
-         (str "/api/article-info/" project-id "/" article-id))
+         (str "/api/article-info/" article-id))
   :prereqs (fn [project-id article-id] [[:identity] [:project project-id]])
   :content (fn [project-id article-id] {:project-id project-id})
   :process

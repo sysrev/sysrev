@@ -9,8 +9,8 @@
             [sysrev.web.index :as index]
             [sysrev.db.users :refer [get-user-by-id get-user-by-api-token]]
             [sysrev.db.project :refer [project-member]]
-            [sysrev.util :refer [parse-integer]]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.util]
+            [sysrev.shared.util :refer [in? parse-integer]]
             [sysrev.resources :as res]))
 
 (defn current-user-id [request]
@@ -22,7 +22,12 @@
   (if-let [api-token (-> request :body :api-token)]
     (when (get-user-by-api-token api-token)
       (-> request :body :project-id))
-    (-> request :params :project-id parse-integer)))
+    (let [project-id (or (-> request :params :project-id)
+                         (-> request :body :project-id))]
+      (cond
+        (integer? project-id) project-id
+        (string? project-id)  (parse-integer project-id)
+        :else                 nil))))
 
 (defn make-error-response
   [http-code etype emessage & [exception response]]

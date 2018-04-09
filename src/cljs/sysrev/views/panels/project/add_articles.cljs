@@ -29,15 +29,16 @@
 
 (def-action :sources/toggle-source
   :uri (fn [] "/api/toggle-source")
-  :content (fn [source-id enabled?]
-             {:source-id source-id
+  :content (fn [project-id source-id enabled?]
+             {:project-id project-id
+              :source-id source-id
               :enabled? enabled?})
   :process
-  (fn [_ _ {:keys [success] :as result}]
+  (fn [_ [project-id _ _] {:keys [success] :as result}]
     (if success
       {:dispatch-n
-       (list [:fetch [:review/task]]
-             [:reload [:project]])})))
+       (list [:reload [:review/task project-id]]
+             [:reload [:project project-id]])})))
 
 (defn admin?
   []
@@ -57,27 +58,29 @@
   (plural-or-singular item-count "article"))
 
 (defn ImportEndNoteView []
-  [:div
-   [:h4.ui.dividing.header "Import from EndNote XML file"]
-   [:div.upload-container
-    [:h4 (str "To create an EndNote XML file in EndNote, go to File > Export."
-              " Select 'XML' in 'Save file as type'")]
-    [upload-container
-     basic-text-button
-     "/api/import-articles-from-endnote-file"
-     #(do (dispatch [:reload [:project/sources]]))
-     "Upload File..."]]])
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div
+     [:h4.ui.dividing.header "Import from EndNote XML file"]
+     [:div.upload-container
+      [:h4 (str "To create an EndNote XML file in EndNote, go to File > Export."
+                " Select 'XML' in 'Save file as type'")]
+      [upload-container
+       basic-text-button
+       "/api/import-articles-from-endnote-file"
+       #(do (dispatch [:reload [:project/sources project-id]]))
+       "Upload File..."]]]))
 
 (defn ImportPMIDsView []
-  [:div
-   [:h4.ui.dividing.header "Import from PMIDs in text file"]
-   [:div.upload-container
-    [:h4 "Upload a plain text file with each PubMed ID (PMID) on a separate line"]
-    [upload-container
-     basic-text-button
-     "/api/import-articles-from-file"
-     #(do (dispatch [:reload [:project/sources]]))
-     "Upload File..."]]])
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div
+     [:h4.ui.dividing.header "Import from PMIDs in text file"]
+     [:div.upload-container
+      [:h4 "Upload a plain text file with each PubMed ID (PMID) on a separate line"]
+      [upload-container
+       basic-text-button
+       "/api/import-articles-from-file"
+       #(do (dispatch [:reload [:project/sources project-id]]))
+       "Upload File..."]]]))
 
 (defn ImportPubMedView []
   (pubmed/ensure-state)
@@ -88,27 +91,30 @@
 
 (defn DeleteArticleSource
   [source-id]
-  [:div.ui.tiny.orange.basic.icon.button.delete-button
-   {:on-click
-    (fn [] (do (dispatch
-                [:action [:sources/delete source-id]])
-               (js/setTimeout
-                #(dispatch [:fetch [:project/sources]])
-                100)))}
-   "Delete " [:i.circle.remove.icon]])
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div.ui.tiny.orange.basic.icon.button.delete-button
+     {:on-click
+      (fn [] (do (dispatch
+                  [:action [:sources/delete project-id source-id]])
+                 (js/setTimeout
+                  #(dispatch [:fetch [:project/sources project-id]])
+                  100)))}
+     "Delete " [:i.circle.remove.icon]]))
 
 (defn ToggleArticleSource
   [source-id enabled?]
-  [:div.ui.tiny.button
-   {:on-click
-    (fn []
-      (do (dispatch [:action [:sources/toggle-source source-id (not enabled?)]])
-          (js/setTimeout
-           #(dispatch [:fetch [:project/sources]])
-           100)))}
-   (if enabled?
-     "Enabled"
-     "Disabled")])
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div.ui.tiny.button
+     {:on-click
+      (fn []
+        (do (dispatch [:action [:sources/toggle-source
+                                project-id source-id (not enabled?)]])
+            (js/setTimeout
+             #(dispatch [:fetch [:project/sources project-id]])
+             100)))}
+     (if enabled?
+       "Enabled"
+       "Disabled")]))
 
 (defn meta->source-name-vector
   [meta]
@@ -165,14 +171,14 @@
 
 (defonce polling-sources? (r/atom false))
 
-(defn poll-project-sources [source-id]
+(defn poll-project-sources [project-id source-id]
   (when (not @polling-sources?)
     (reset! polling-sources? true)
-    (dispatch [:fetch [:project/sources]])
+    (dispatch [:fetch [:project/sources project-id]])
     (let [sources (subscribe [:project/sources])
           delete-running?
           (subscribe
-           [:action/running? [:sources/delete source-id]])
+           [:action/running? [:sources/delete project-id source-id]])
           source-updating?
           (fn [source-id]
             (or @delete-running?
@@ -187,25 +193,26 @@
                       (or (and (true? importing-articles?)
                                (not (source-import-timed-out? source)))
                           (true? deleting?))))))))]
-      (continuous-update-until #(dispatch [:fetch [:project/sources]])
+      (continuous-update-until #(dispatch [:fetch [:project/sources project-id]])
                                #(not (source-updating? source-id))
                                #(do (reset! polling-sources? false)
-                                    (dispatch [:reload [:project]]))
+                                    (dispatch [:reload [:project project-id]]))
                                1500))))
 
 (defn ArticleSource [source]
-  (let [{:keys [meta source-id date-created
+  (let [project-id @(subscribe [:active-project-id])
+        {:keys [meta source-id date-created
                 article-count labeled-article-count
                 enabled]} source
         enabled? enabled
         {:keys [importing-articles? deleting?]} meta
         polling? @polling-sources?
         delete-running? @(subscribe
-                          [:action/running? [:sources/delete source-id]])
+                          [:action/running? [:sources/delete project-id source-id]])
         timed-out? (source-import-timed-out? source)]
     (when (or (and (true? importing-articles?) (not timed-out?))
               deleting? delete-running?)
-      (poll-project-sources source-id)
+      (poll-project-sources project-id source-id)
       nil)
     [:div.project-source
      [:div.ui.top.attached.segment

@@ -6,9 +6,10 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :refer [default-fixture completes?]]
             [sysrev.test.browser.core :as browser :refer
-             [webdriver-fixture-once webdriver-fixture-each go-route
+             [webdriver-fixture-once webdriver-fixture-each
               login-form-shown? panel-rendered? element-rendered?
-              wait-until-panel-exists panel-exists?]]
+              wait-until-panel-exists panel-exists?
+              go-route go-project-route]]
             [sysrev.test.browser.navigate :as nav]
             [clojure.string :as str]))
 
@@ -27,28 +28,28 @@
   (is (or (panel-rendered? [:project :project :overview])
           (panel-rendered? [:project :project :add-articles])))
   (is (not (panel-rendered? [:project :project :fake-panel])))
-  (go-route "/project/labels/edit")
+  (go-project-route "/labels/edit")
   (wait-until-panel-exists [:project :project :labels :edit])
   (is (panel-rendered? [:project :project :labels :edit]))
-  (go-route "/project/settings")
+  (go-project-route "/settings")
   (wait-until-panel-exists [:project :project :settings])
   (is (panel-rendered? [:project :project :settings]))
-  (go-route "/project/invite-link")
+  (go-project-route "/invite-link")
   (wait-until-panel-exists [:project :project :invite-link])
   (is (panel-rendered? [:project :project :invite-link]))
-  (go-route "/project/export")
+  (go-project-route "/export")
   (wait-until-panel-exists [:project :project :export-data])
   (is (panel-rendered? [:project :project :export-data]))
-  (go-route "/project/user")
+  (go-project-route "/user")
   (wait-until-panel-exists [:project :user :labels])
   (is (panel-rendered? [:project :user :labels]))
-  (go-route "/project/review")
+  (go-project-route "/review")
   (wait-until-panel-exists [:project :review])
   (is (panel-rendered? [:project :review]))
-  (go-route "/project/articles")
+  (go-project-route "/articles")
   (wait-until-panel-exists [:project :project :articles])
   (is (panel-rendered? [:project :project :articles]))
-  (go-route "/")
+  (go-project-route "")
   (taxi/wait-until
    #(or (panel-exists? [:project :project :overview])
         (panel-exists? [:project :project :add-articles]))

@@ -23,8 +23,8 @@
    [sysrev.shared.transit :as sr-transit]
    [sysrev.import.pubmed :as pubmed]
    [sysrev.config.core :refer [env]]
-   [sysrev.util :refer [parse-integer]]
-   [sysrev.shared.util :refer [map-values in?]]
+   [sysrev.util]
+   [sysrev.shared.util :refer [map-values in? parse-integer]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]
@@ -240,9 +240,10 @@
                  (articles/query-article-by-id-full article-id)
                  (labels/article-user-labels-map project-id article-id)
                  (articles/article-user-notes-map project-id article-id))]
-            {:article (prepare-article-response article)
-             :labels user-labels
-             :notes user-notes}))))
+            (when (= (:project-id article) project-id)
+              {:article (prepare-article-response article)
+               :labels user-labels
+               :notes user-notes})))))
 
   ;; Note that transit-clj is not used with query params.
   ;; Therefore, the string request parameter 'page-number' is converted to an integer

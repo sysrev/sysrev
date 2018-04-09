@@ -42,21 +42,22 @@
   (let [parsed (fetch-pmid-entry 28280522)]
     (is (= (:public-id parsed) "28280522"))))
 
-#_ (deftest test-importing-articles?
-     (let [new-project (project/create-project "test project")
-           new-project-id (:project-id new-project)
-           non-existent-project-id 0000]
-       (is (not (importing-articles? new-project-id)))
-       ;; catch exception
-       (is (= (str "No project with project-id: " non-existent-project-id))
-           (try (importing-articles? non-existent-project-id)
-                (catch Throwable e (.getMessage e))))
-       ;; manually set the meta data 'importing-articles?' to true
-       (-> (sqlh/update :project)
-           (sset {:meta (to-jsonb (assoc-in {} [:importing-articles?] true))})
-           (where [:= :project_id new-project-id])
-           do-execute)
-       (is (importing-articles? new-project-id))))
+#_
+(deftest test-importing-articles?
+  (let [new-project (project/create-project "test project")
+        new-project-id (:project-id new-project)
+        non-existent-project-id 0000]
+    (is (not (importing-articles? new-project-id)))
+    ;; catch exception
+    (is (= (str "No project with project-id: " non-existent-project-id))
+        (try (importing-articles? non-existent-project-id)
+             (catch Throwable e (.getMessage e))))
+    ;; manually set the meta data 'importing-articles?' to true
+    (-> (sqlh/update :project)
+        (sset {:meta (to-jsonb (assoc-in {} [:importing-articles?] true))})
+        (where [:= :project_id new-project-id])
+        do-execute)
+    (is (importing-articles? new-project-id))))
 
 (deftest retrieve-articles
   (let [result-count (fn [result] (-> result first :count))
@@ -67,10 +68,10 @@
         new-project (project/create-project "test project")
         new-project-id (:project-id new-project)
         article-summaries (get-pmids-summary pmids)]
-    #_    (is (not (importing-articles? new-project-id)))
+    #_ (is (not (importing-articles? new-project-id)))
     (import-pmids-to-project-with-meta! (get-all-pmids-for-query search-term) new-project-id
                                         meta)
-    #_    (is (not (importing-articles? new-project-id)))
+    #_ (is (not (importing-articles? new-project-id)))
     
     ;; Do we have the correct amount of PMIDS?
     (is (= (count pmids)

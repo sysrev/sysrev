@@ -59,7 +59,7 @@
        (in? permissions "admin")
        (in? permissions "resolve"))))
 
-(defn have-member-articles? [db user-id project-id]
+(defn have-member-articles? [db project-id user-id]
   (let [project-id (or project-id (project/active-project-id db))
         project (project/get-project-raw db project-id)]
     (contains? (:member-articles project) user-id)))

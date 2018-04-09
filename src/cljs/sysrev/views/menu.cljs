@@ -3,14 +3,21 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch]]
             [sysrev.util :refer [full-size? mobile? nbsp]]
-            [sysrev.views.components :refer [dropdown-menu]])
+            [sysrev.views.components :refer [dropdown-menu]]
+            [sysrev.routes :refer [nav nav-scroll-top]])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
-  (let [;; ready? @(subscribe [:data/ready?])
-        loading? (and @(subscribe [:any-loading?])
-                      (not @(subscribe [:loading? [:project/sources]]))
-                      (not @(subscribe [:loading? [:project/important-terms]])))
+  (let [ ;; ready? @(subscribe [:data/ready?])
+        project-id @(subscribe [:active-project-id])
+        loading?
+        (and @(subscribe [:any-loading?])
+             (not (and project-id
+                       @(subscribe
+                         [:loading? [:project/sources project-id]])))
+             (not (and project-id
+                       @(subscribe
+                         [:loading? [:project/important-terms project-id]]))))
         action? @(subscribe [:action/any-running?
                              nil [:sources/delete]])]
     (when (or loading? action? #_ (not ready?))
@@ -32,7 +39,7 @@
     [:div.ui.menu.site-menu
      [:div.ui.container
       [:a.header.item
-       {:on-click #(dispatch [:navigate []])}
+       {:href "/"}
        [:h3.ui.blue.header
         "sysrev.us"]]
       (when logged-in?

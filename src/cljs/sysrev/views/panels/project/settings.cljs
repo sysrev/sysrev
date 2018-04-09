@@ -4,8 +4,10 @@
    [re-frame.core :refer
     [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.action.core :refer [def-action]]
+   [sysrev.subs.project :refer [active-project-id]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer [with-tooltip]]))
+   [sysrev.views.components :refer [with-tooltip]]
+   [sysrev.shared.util :refer [parse-integer]]))
 
 (def ^:private panel-name [:project :project :settings])
 
@@ -15,7 +17,7 @@
 (defn- parse-input [skey input]
   (case skey
     :second-review-prob
-    (let [n (js/parseInt input)]
+    (let [n (parse-integer input)]
       (when (and (int? n) (>= n 0) (<= n 100))
         (* n 0.01)))
     nil))
@@ -107,15 +109,16 @@
 (reg-event-fx
  ::save-changes
  [trim-v]
- (fn [_ [values saved]]
+ (fn [{:keys [db]} [values saved]]
    (let [changed-keys (filter #(not= (get values %)
                                      (get saved %))
                               (keys values))
-         changes  (mapv (fn [skey]
-                          {:setting skey
-                           :value (get values skey)})
-                        changed-keys)]
-     (dispatch [:action [:project/change-settings changes]]))))
+         changes (mapv (fn [skey]
+                         {:setting skey
+                          :value (get values skey)})
+                       changed-keys)
+         project-id (active-project-id db)]
+     (dispatch [:action [:project/change-settings project-id changes]]))))
 
 (def-action :project/delete
   :uri (fn [] "/api/delete-project")

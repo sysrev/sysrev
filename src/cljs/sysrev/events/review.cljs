@@ -56,7 +56,7 @@
 (reg-event-fx
  :review/send-labels
  [trim-v]
- (fn [{:keys [db]} [{:keys [article-id confirm? resolve? on-success]}]]
+ (fn [{:keys [db]} [{:keys [project-id article-id confirm? resolve? on-success]}]]
    (let [label-values (review/active-labels db article-id)
          change? (= (articles/article-user-status db article-id)
                     :confirmed)
@@ -66,6 +66,7 @@
        (->> (list (when confirm? [:review/mark-saving article-id panel])
                   [:action
                    [:review/send-labels
+                    project-id
                     {:article-id article-id
                      :label-values label-values
                      :confirm? confirm?

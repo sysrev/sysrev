@@ -153,11 +153,11 @@
       [:div.ui.segment
        [:h4.ui.dividing.header "Dev Tools"]
        [:div
-        [:button.ui.yellow.button
-         {:on-click
-          #(do (dispatch [:action [:user/delete-member-labels user-id]])
-               (nav-scroll-top "/"))}
-         "Delete Member Labels"]
+        #_ [:button.ui.yellow.button
+            {:on-click
+             #(do (dispatch [:action [:user/delete-member-labels user-id]])
+                  (nav-scroll-top "/"))}
+            "Delete Member Labels"]
         [:button.ui.orange.button
          {:on-click
           #(dispatch [:action [:user/delete-account user-id]])}

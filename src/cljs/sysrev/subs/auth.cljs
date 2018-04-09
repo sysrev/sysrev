@@ -36,6 +36,12 @@
      (->> projects (filterv :member?)))))
 
 (reg-sub
+ :self/default-project-id
+ :<- [::identity]
+ (fn [{:keys [default-project-id]}]
+   default-project-id))
+
+(reg-sub
  :self/member?
  :<- [:self/projects false]
  :<- [:active-project-id]

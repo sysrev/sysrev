@@ -12,7 +12,7 @@
    [sysrev.subs.labels :as labels]
    [sysrev.subs.articles :as articles]
    [sysrev.events.all]
-   [sysrev.routes :refer [nav nav-scroll-top]]
+   [sysrev.routes :refer [nav nav-scroll-top project-uri]]
    [sysrev.util :refer [full-size? mobile? desktop-size? nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -96,8 +96,10 @@
        {::select-categorical-value [article-id label-id label-value]}))))
 
 (defn- review-article-loading? []
-  (when-let [article-id @(subscribe [:review/editing-id])]
-    @(subscribe [:loading? [:article article-id]])))
+  (let [article-id @(subscribe [:review/editing-id])
+        project-id @(subscribe [:active-project-id])]
+    (when (and article-id project-id)
+      @(subscribe [:loading? [:article project-id article-id]]))))
 
 ;; Renders input component for label
 (defmulti label-input-el
@@ -392,7 +394,8 @@
 
 ;; Component for row of action buttons below label inputs grid
 (defn- label-editor-buttons-view [article-id]
-  (let [active-labels @(subscribe [:review/active-labels article-id])
+  (let [project-id @(subscribe [:active-project-id])
+        active-labels @(subscribe [:review/active-labels article-id])
         resolving? @(subscribe [:review/resolving?])
         missing @(subscribe [:review/missing-labels article-id])
         disabled? (not-empty missing)
@@ -401,7 +404,7 @@
                          @(subscribe [:any-loading?])))
         loading-task? (and (not saving?)
                            @(subscribe [:review/on-review-task?])
-                           @(subscribe [:loading? [:review/task]]))
+                           @(subscribe [:loading? [:review/task project-id]]))
         on-review-task? @(subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         on-save
@@ -409,14 +412,15 @@
           (sysrev.events.notes/sync-article-notes article-id)
           (dispatch
            [:review/send-labels
-            {:article-id article-id
+            {:project-id project-id
+             :article-id article-id
              :confirm? true
              :resolve? (boolean resolving?)
              :on-success
              (->> (list (when (or on-review-task? (= article-id review-task-id))
-                          [:fetch [:review/task]])
+                          [:fetch [:review/task project-id]])
                         (when (not on-review-task?)
-                          [:fetch [:article article-id]])
+                          [:fetch [:article project-id article-id]])
                         (when (not on-review-task?)
                           [:review/disable-change-labels article-id])
                         (when @(subscribe [:user-labels/article-id])
@@ -424,7 +428,7 @@
                           ;; the :review/send-labels logic in sr-defroute before
                           ;; state has been fully updated
                           #(js/setTimeout
-                            (fn [] (nav-scroll-top "/project/user"))
+                            (fn [] (nav-scroll-top (project-uri project-id "/user")))
                             50)))
                   (remove nil?))}]))
         save-class (str (if disabled? "disabled" "")
@@ -435,10 +439,11 @@
         on-next #(when on-review-task?
                    (sysrev.events.notes/sync-article-notes article-id)
                    (dispatch [:review/send-labels
-                              {:article-id article-id
+                              {:project-id project-id
+                               :article-id article-id
                                :confirm? false
                                :resolve? false}])
-                   (dispatch [:fetch [:review/task]]))]
+                   (dispatch [:fetch [:review/task project-id]]))]
     [:div.ui.bottom.attached.segment
      (if (full-size?)
        [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view

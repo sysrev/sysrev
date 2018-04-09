@@ -18,8 +18,7 @@
       {:dispatch-n
        (list [:ga-event "auth" "login_success"]
              [:self/unset-identity]
-             [:do-login-redirect]
-             #_ [:fetch [:identity]])
+             [:do-login-redirect])
        ;; :reset-data true
        :reload-page [true 50]}
       {:dispatch-n

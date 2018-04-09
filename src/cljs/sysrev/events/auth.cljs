@@ -16,7 +16,8 @@
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels]))
     :dispatch [:fetch [:identity]]
-    :fetch-missing true}))
+    :fetch-missing true
+    :data/reset-required true}))
 
 (reg-fx
  :reset-data

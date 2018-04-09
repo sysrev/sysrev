@@ -89,6 +89,9 @@
  (fn [db]
    (assoc db :needed [])))
 
+(reg-fx
+ :data/reset-required (fn [_] (dispatch [:data/reset-required])))
+
 ;; Tests if `item` is loaded
 (defn- have-item? [db item]
   (let [[name & args] item
@@ -127,8 +130,14 @@
  ::sent
  [trim-v]
  (fn [db [item]]
-   (update-in db [:ajax :data :sent item]
-              #(-> % (or 0) inc))))
+   (let [time-ms (js/Date.now)]
+     (-> db
+         (update-in [:ajax :data :sent item]
+                    #(-> % (or 0) inc))
+         (update-in [:ajax :data :timings item]
+                    #(->> (concat [time-ms] %)
+                          (take 10)))))))
+
 (reg-fx ::sent (fn [item] (dispatch [::sent item])))
 
 (reg-event-db
@@ -137,6 +146,42 @@
  (fn [db [item]]
    (update-in db [:ajax :data :returned item]
               #(-> % (or 0) inc))))
+
+(reg-event-fx
+ ::failed
+ [trim-v]
+ (fn [{:keys [db]} [item]]
+   (let [time-ms (js/Date.now)]
+     {:db (assoc-in db [:ajax :data :failed item] true)
+      :data/reset-required true})))
+
+(reg-fx ::failed (fn [item] (dispatch [::failed item])))
+
+(reg-event-db
+ ::reset-failed
+ [trim-v]
+ (fn [db [item]]
+   (assoc-in db [:ajax :data :failed item] false)))
+
+(reg-fx ::reset-failed (fn [item] (dispatch [::reset-failed item])))
+
+(defn- item-failed? [db item]
+  (true? (get-in db [:ajax :data :failed item])))
+
+;; Returns the time (ms) of 4th most recent fetch of item
+(defn- get-spam-time [db item]
+  (->> (get-in db [:ajax :data :timings item])
+       (drop 4)
+       first))
+
+;; Checks if item has been fetched 5 times within last 2.5s
+(defn- item-spammed? [db item]
+  (let [spam-ms (get-spam-time db item)]
+    (if (nil? spam-ms)
+      false
+      (let [now-ms (js/Date.now)]
+        (< (- now-ms spam-ms) 2500)))))
+
 (reg-fx ::returned (fn [item] (dispatch [::returned item])))
 
 (reg-sub ::ajax-data-counts (fn [db] (get-in db [:ajax :data])))
@@ -183,14 +228,19 @@
          entry (get @data-defs name)
          elapsed-millis (- (js/Date.now) @last-fetch-millis)]
      (when (and entry (not (item-loading? db item)))
-       (cond (< elapsed-millis 25)
+       (cond (item-spammed? db item)
+             {::failed item}
+
+             (< elapsed-millis 25)
              (do (js/setTimeout #(dispatch [:fetch item])
                                 (- 30 elapsed-millis))
                  {})
+
              (any-action-running? db nil [:sources/delete])
              (do (js/setTimeout #(dispatch [:fetch item])
                                 50)
                  {})
+
              :else
              (let [uri (apply (:uri entry) args)
                    content (some-> (:content entry) (apply args))
@@ -204,38 +254,46 @@
                      {:db db
                       :method :get
                       :uri uri
-                      :on-success [::on-success [name args]]
-                      :on-failure [::on-failure [name args]]
+                      :on-success [::on-success item]
+                      :on-failure [::on-failure item]
                       :content-type content-type}
                    content (assoc :content content))))))))))
 
 (reg-event-ajax-fx
  ::on-success
- (fn [{:keys [db] :as cofx} [[name args] result]]
-   (let [item (vec (concat [name] args))]
+ (fn [{:keys [db] :as cofx} [item result]]
+   (let [[name & args] item
+         item (vec (concat [name] args))
+         spammed? (item-spammed? db item)]
      (merge
       {::returned item}
-      (when-let [entry (get @data-defs name)]
-        (when-let [process (:process entry)]
-          (merge (apply process [cofx args result])
-                 ;; Run :fetch-missing in case this request provided any
-                 ;; missing data prerequisites.
-                 {:fetch-missing true}
-                 (when (not-empty (lookup-load-triggers db item))
-                   {::process-load-triggers item}))))))))
+      (if spammed?
+        {::failed item}
+        {::reset-failed item})
+      (when (not spammed?)
+        (when-let [entry (get @data-defs name)]
+          (when-let [process (:process entry)]
+            (merge (apply process [cofx args result])
+                   ;; Run :fetch-missing in case this request provided any
+                   ;; missing data prerequisites.
+                   {:fetch-missing true}
+                   (when (not-empty (lookup-load-triggers db item))
+                     {::process-load-triggers item})))))))))
 
 (reg-event-ajax-fx
  ::on-failure
- (fn [cofx [[name args] result]]
-   (let [item (vec (concat [name] args))]
-     {::returned item})))
+ (fn [cofx [item result]]
+   (let [[name & args] item]
+     {::returned item
+      ::failed item})))
 
 ;; Reload data item from server if already loaded.
 (reg-event-fx
  :reload
  [trim-v]
  (fn [{:keys [db]} [item]]
-   (when (and (have-item? db item)
+   (when (and (or (have-item? db item)
+                  (item-failed? db item))
               (not (item-loading? db item)))
      {:dispatch [:fetch item]})))
 
@@ -244,15 +302,17 @@
  :fetch-missing
  (fn [{:keys [db]}]
    {:dispatch-n
-    (map (fn [item] [:fetch item])
-         (get-missing-items db))}))
+    (->> (get-missing-items db)
+         (remove #(item-failed? db %))
+         (map (fn [item] [:fetch item])))}))
 
 (reg-fx
  ::fetch-if-missing
  (fn [item]
    (js/setTimeout
     #(let [missing (get-missing-items @app-db)]
-       (when (and item (in? missing item))
+       (when (and item (in? missing item)
+                  (not (item-failed? @app-db item)))
          (dispatch [:fetch item])))
     10)))
 

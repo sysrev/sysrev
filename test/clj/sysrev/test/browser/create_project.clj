@@ -88,14 +88,14 @@
   (browser/go-route "/pubmed-search")
   (browser/wait-until-panel-exists [:pubmed-search])
   (testing "Various search terms will yield the correct pmid count"
-    (search-term-count-matches? "foo")
+    #_ (search-term-count-matches? "foo")
     (search-term-count-matches? "foo bar"))
   (testing "A search term with no documents"
     (search-for "foo bar baz qux quux")
     (browser/wait-until-exists {:xpath "//h3[contains(text(),'No documents match your search terms')]"})
     (is (taxi/exists? {:xpath "//h3[contains(text(),'No documents match your search terms')]"})))
   (testing "Pager works properly"
-    (search-for "foo")
+    (search-for "dangerous statistics three")
     (is (disabled-pager-link? "First"))
     (is (disabled-pager-link? "Prev"))
     ;; Go to next page
@@ -120,7 +120,7 @@
 
 (defn delete-current-project
   []
-  (browser/go-route "/project/settings")
+  (browser/go-project-route "/settings")
   (browser/wait-until-exists {:xpath "//h4[contains(text(),'Delete Project')]"})
   (taxi/click {:xpath "//button[contains(text(),'Delete this Project')]"})
   (browser/wait-until-exists {:xpath "//button[text()='Yes']"})
@@ -219,7 +219,7 @@
     (browser/wait-until-displayed project-title-xpath)
     ;; was the project actually created?
     (is (.contains (taxi/text project-title-xpath) project-name))
-    (browser/go-route "/project/add-articles")
+    (browser/go-project-route "/add-articles")
 
 ;;; add sources
     ;; create a new source

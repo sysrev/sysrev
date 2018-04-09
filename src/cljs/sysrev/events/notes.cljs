@@ -1,7 +1,8 @@
 (ns sysrev.events.notes
   (:require
    [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-event-db reg-event-fx trim-v]]))
+    [subscribe dispatch reg-event-db reg-event-fx trim-v]]
+   [sysrev.subs.project :refer [active-project-id]]))
 
 (reg-event-db
  :review/reset-ui-notes
@@ -24,10 +25,12 @@
 (reg-event-fx
  :review/send-article-note
  [trim-v]
- (fn [_ [article-id note-name content]]
-   {:dispatch [:action [:article/send-note {:article-id article-id
-                                            :name note-name
-                                            :content content}]]}))
+ (fn [{:keys [db]} [article-id note-name content]]
+   {:dispatch [:action [:article/send-note
+                        (active-project-id db)
+                        {:article-id article-id
+                         :name note-name
+                         :content content}]]}))
 
 (reg-event-fx
  :review/sync-article-notes

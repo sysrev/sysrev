@@ -12,7 +12,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values]]
+            [sysrev.shared.util :refer [map-values parse-number]]
             [sysrev.config.core :as config]))
 
 (defonce importance-loading (atom {}))
@@ -144,7 +144,7 @@
                                          (filter #(= "pubmed" (:source %)))
                                          first
                                          :external-id
-                                         util/parse-number))]
+                                         parse-number))]
     (->>
      ;; extract the articles json
      (-> f

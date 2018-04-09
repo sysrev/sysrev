@@ -12,19 +12,20 @@
    [sysrev.shared.article-list :refer
     [is-resolved? is-consistent? is-single? is-conflict?]]
    [sysrev.subs.ui :refer [get-panel-field]]
-   [sysrev.routes :refer [nav nav-scroll-top]]
+   [sysrev.routes :refer [nav nav-scroll-top project-uri]]
    [sysrev.util :refer [nbsp full-size? number-to-word time-from-epoch]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :project :articles])
 
-(defmethod al/panel-base-uri panel []
-  "/project/articles")
+(defmethod al/panel-base-uri panel
+  [_ project-id]
+  (project-uri project-id "/articles"))
 
 (defmethod al/article-uri panel
-  [_ article-id]
-  (str "/project/articles/" article-id))
+  [_ project-id article-id]
+  (project-uri project-id (str "/articles/" article-id)))
 
 (defmethod al/all-articles-sub panel []
   [:project/public-labels])
@@ -47,11 +48,11 @@
 (defmethod al/private-article-view? panel []
   false)
 
-(defmethod al/loading-articles? panel []
-  @(subscribe [:loading? [:project/public-labels]]))
+(defmethod al/loading-articles? panel [_ project-id]
+  @(subscribe [:loading? [:project/public-labels project-id]]))
 
-(defmethod al/reload-articles panel []
-  (dispatch [:reload [:project/public-labels]]))
+(defmethod al/reload-articles panel [_ project-id]
+  (dispatch [:reload [:project/public-labels project-id]]))
 
 (defmethod al/auto-refresh? panel []
   false)

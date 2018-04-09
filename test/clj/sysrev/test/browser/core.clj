@@ -10,7 +10,8 @@
             [sysrev.config.core :refer [env]]
             [sysrev.test.core :refer [default-fixture get-selenium-config wait-until]]
             [sysrev.db.users :as users]
-            [sysrev.stripe :as stripe])
+            [sysrev.stripe :as stripe]
+            [sysrev.shared.util :refer [parse-integer]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -132,7 +133,7 @@
 (defn wait-until-exists
   "Given a query q, wait until the element it represents exists"
   [q]
-  (Thread/sleep 250)
+  (Thread/sleep 300)
   (taxi/wait-until
    #(taxi/exists? q)
    10000))
@@ -141,7 +142,7 @@
   "Given a query q, wait until the element it represents exists
   and is displayed"
   [q]
-  (Thread/sleep 250)
+  (Thread/sleep 300)
   (taxi/wait-until
    #(and (taxi/exists? q)
          (taxi/displayed? q))
@@ -160,9 +161,19 @@
 
 (defn wait-until-loading-completes
   []
-  (Thread/sleep 200)
+  (Thread/sleep 300)
   (taxi/wait-until
    #(not (taxi/exists?
           {:xpath "//div[contains(@class,'loader')]"}))
    10000))
 
+(defn current-project-id []
+  (let [url (taxi/current-url)
+        [_ id-str] (re-matches #".*/project/(\d+)/?.*" url)]
+    (when id-str
+      (parse-integer id-str))))
+
+(defn go-project-route [suburi & [project-id]]
+  (let [project-id (or project-id (current-project-id))]
+    (assert (integer? project-id))
+    (go-route (str "/project/" project-id suburi))))

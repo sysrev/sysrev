@@ -7,7 +7,8 @@
    [cljs-time.core :as t]
    [cljs-time.coerce :as tc]
    [cljs-time.format :as tformat]
-   [cljsjs.jquery]))
+   [cljsjs.jquery]
+   [sysrev.shared.util :refer [parse-integer]]))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed 
@@ -19,7 +20,7 @@
     (->> m
          (mapv (fn [[k v]]
                  (let [k-int (and (re-matches #"^\d+$" (name k))
-                                  (js/parseInt (name k)))
+                                  (parse-integer (name k)))
                        k-new (if (integer? k-int) k-int k)
                        ;; integerify sub-maps recursively
                        v-new (if (map? v)
@@ -215,12 +216,6 @@
                     (do (f)
                         (continuous-update-until f pred on-success n)))
                  n))
-
-(defn string->integer
-  "Convert a string to an integer, assumes that string will parse to
-  an integer"
-  [s]
-  (js/parseInt s))
 
 (defn parse-to-number?
   "Will s parse to a number?

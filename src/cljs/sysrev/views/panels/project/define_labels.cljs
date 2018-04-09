@@ -13,8 +13,8 @@
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :as ui]
    [sysrev.views.review :refer [label-help-popup inclusion-tag]]
-   [sysrev.shared.util :refer [in?]]
-   [sysrev.util :refer [desktop-size? random-id string->integer parse-to-number?]]))
+   [sysrev.shared.util :refer [in? parse-integer]]
+   [sysrev.util :refer [desktop-size? random-id parse-to-number?]]))
 
 ;; Convention -
 ;; A (new) label that exists in the client but not on the server
@@ -483,7 +483,7 @@
                        :on-change (fn [event]
                                     (let [value (-> event .-target .-value)
                                           parse-value (if (parse-to-number? value)
-                                                        (string->integer value)
+                                                        (parse-integer value)
                                                         value)]
                                       (reset! max-length parse-value)))
                        :placeholder "140"

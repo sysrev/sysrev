@@ -2,7 +2,7 @@
   (:require [cljs.analyzer.api :as ana-api]
             [re-frame.core :refer [subscribe dispatch]]
             [secretary.core :refer [defroute]]
-            [sysrev.shared.util :refer [map-values]]
+            [sysrev.shared.util :refer [map-values parse-integer]]
             [clojure.string :as str]))
 
 (defmacro with-mount-hook [on-mount]
@@ -66,7 +66,8 @@
 
 (defn go-route-sync-data [route-fn]
   (if-let [article-id @(subscribe [:review/editing-id])]
-    (let [user-id @(subscribe [:self/user-id])
+    (let [project-id @(subscribe [:active-project-id])
+          user-id @(subscribe [:self/user-id])
           article-values (->> @(subscribe [:article/labels article-id user-id])
                               (map-values :answer))
           active-values @(subscribe [:review/active-labels article-id])
@@ -74,7 +75,7 @@
           unconfirmed? (or (= user-status :unconfirmed)
                            (= user-status :none))
           resolving? @(subscribe [:review/resolving?])
-          article-loading? @(subscribe [:loading? [:article article-id]])
+          article-loading? @(subscribe [:loading? [:article project-id article-id]])
           send-labels? (and unconfirmed?
                             (not resolving?)
                             (not article-loading?)
@@ -84,6 +85,7 @@
           article-notes @(subscribe [:article/notes article-id user-id])]
       (do (when send-labels?
             (dispatch [:action [:review/send-labels
+                                project-id
                                 {:article-id article-id
                                  :label-values active-values
                                  :confirm? false
@@ -119,7 +121,7 @@
   (let [uri (str "/project/:project-id" suburi)]
     `(defroute ~name ~uri ~params
        (let [route-fn#
-             #(let [project-id# (js/parseInt ~(first params))]
+             #(let [project-id# (parse-integer ~(first params))]
                 (dispatch [:self/set-active-project project-id#])
                 ~@body)]
          (go-route-sync-data route-fn#)))))

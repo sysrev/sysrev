@@ -3,7 +3,7 @@
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
    [reagent.ratom :refer [reaction]]
-   [sysrev.routes :refer [nav]]
+   [sysrev.routes :refer [nav project-uri]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [note-content-label updated-time-label]]
    [sysrev.views.labels :as labels]
@@ -17,11 +17,12 @@
 
 (def ^:private panel [:project :user :labels])
 
-(defmethod al/panel-base-uri panel []
-  "/project/user")
+(defmethod al/panel-base-uri panel
+  [_ project-id]
+  (project-uri project-id "/user"))
 
-(defmethod al/article-uri panel [_ article-id]
-  (str "/project/user/article/" article-id))
+(defmethod al/article-uri panel [_ project-id article-id]
+  (project-uri project-id (str "/user/article/" article-id)))
 
 (defmethod al/all-articles-sub panel []
   [:member/articles])
@@ -40,11 +41,11 @@
 (defmethod al/private-article-view? panel []
   true)
 
-(defmethod al/loading-articles? panel [_ user-id]
-  @(subscribe [:loading? [:member/articles user-id]]))
+(defmethod al/loading-articles? panel [_ project-id user-id]
+  @(subscribe [:loading? [:member/articles project-id user-id]]))
 
-(defmethod al/reload-articles panel [_ user-id]
-  (dispatch [:reload [:member/articles user-id]]))
+(defmethod al/reload-articles panel [_ project-id user-id]
+  (dispatch [:reload [:member/articles project-id user-id]]))
 
 (defmethod al/auto-refresh? panel []
   true)

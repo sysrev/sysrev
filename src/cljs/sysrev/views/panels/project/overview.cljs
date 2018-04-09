@@ -96,8 +96,7 @@
       [:h4.ui.dividing.header
        "Review Status"]
       (with-loader [[:project project-id]]
-        {:dimmer :fixed
-         :require false}
+        {:dimmer :fixed}
         [:div
          [:h4.ui.center.aligned.header
           (str reviewed " articles reviewed of " total " total")]
@@ -165,14 +164,15 @@
 (defn- toggler [panel-key] (updater panel-key not))
 
 (defn project-files-box []
-  (let [[editing-files toggle-editing] (toggler ::editing-files)
+  (let [project-id @(subscribe [:active-project-id])
+        [editing-files toggle-editing] (toggler ::editing-files)
         files (subscribe [:project/files])]
     (letfn [(show-date [file]
               (let [date (from-date (:upload-time file))
                     parts (mapv #(% date) [t/month t/day t/year])]
                 (apply goog.string/format "%d/%d/%d" parts)))
-            (delete-file [file-id] (dispatch [:action [:files/delete-file file-id]]))
-            (pull-files [] (dispatch [:fetch [:project/files]]))]
+            (delete-file [file-id] (dispatch [:action [:files/delete-file project-id file-id]]))
+            (pull-files [] (dispatch [:fetch [:project/files project-id]]))]
       (fn []
         [:div.ui.segment.project-files
          [:h4.header "Project Documents"]
@@ -223,8 +223,7 @@
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
         "Member Activity"]]]
-     (with-loader [[:project project-id]] {:dimmer :fixed
-                                           :require false}
+     (with-loader [[:project project-id]] {:dimmer :fixed}
        [chart-container
         bar-chart (str (+ 35 (* 15 (count visible-user-ids))) "px")
         user-names ynames yss
@@ -280,8 +279,7 @@
       [:div.ui.two.column.middle.aligned.grid
        [:div.ui.left.aligned.column
         "Recent Progress"]]]
-     (with-loader [[:project project-id]] {:dimmer :fixed
-                                           :require false}
+     (with-loader [[:project project-id]] {:dimmer :fixed}
        [chart-container
         make-chart nil
         (->> progress (mapv :completed)
@@ -304,14 +302,14 @@
 
 (defonce polling-important-terms? (r/atom false))
 
-(defn poll-important-terms []
+(defn poll-important-terms [project-id]
   (when (not @polling-important-terms?)
     (reset! polling-important-terms? true)
-    (dispatch [:fetch [:project/important-terms]])
+    (dispatch [:fetch [:project/important-terms project-id]])
     (let [server-loading? (subscribe [:project/important-terms-loading?])
-          ajax-loading? (subscribe [:loading? [:project/important-terms]])
+          ajax-loading? (subscribe [:loading? [:project/important-terms project-id]])
           updating? (fn [] (or @server-loading? @ajax-loading?))]
-      (continuous-update-until #(dispatch [:fetch [:project/important-terms]])
+      (continuous-update-until #(dispatch [:fetch [:project/important-terms project-id]])
                                #(not (updating?))
                                #(reset! polling-important-terms? false)
                                1000))))
@@ -328,8 +326,7 @@
            title]]]
         (with-loader [[:project project-id]
                       [:project/important-terms project-id]]
-          {:require false
-           :dimmer :fixed
+          {:dimmer :fixed
            :force-dimmer loading?}
           (let [entries (->> data (sort-by :instance-count >))
                 labels (mapv :instance-name entries)
@@ -347,7 +344,7 @@
         {:keys [mesh chemical gene]} terms]
     (with-loader [[:project project-id]]
       (when loading?
-        (poll-important-terms))
+        (poll-important-terms project-id))
       [:div
        [ImportantTermsChart
         {:entity :mesh, :data mesh, :loading? loading?}
@@ -489,36 +486,37 @@
                             }}
            "Label Counts"])))))
 
-(defn LabelCounts
-  []
-  (let [public-labels (r/cursor app-db [:data :project (active-project-id @app-db) :public-labels])]
+(defn LabelCounts []
+  (let [project-id @(subscribe [:active-project-id])
+        public-labels (r/cursor app-db [:data :project project-id :public-labels])]
     (r/create-class
      {:reagent-render
       (fn []
         [LabelCountChart @public-labels])
       :component-did-mount
-      (fn [this] (dispatch [:fetch [:project/public-labels]]))})))
+      (fn [this] (dispatch [:fetch [:project/public-labels project-id]]))})))
 
 (defn project-overview-panel []
-  (let []
-    [:div.ui.two.column.stackable.grid.project-overview
-     [:div.ui.row
-      [:div.ui.column
-       [project-summary-box]
-       [recent-progress-chart]
-       [label-predictions-box]]
-      [:div.ui.column
-       [user-summary-chart]
-       [project-files-box]
-       [KeyTerms]
-       #_ [LabelCounts]]]]))
+  [:div.ui.two.column.stackable.grid.project-overview
+   [:div.ui.row
+    [:div.ui.column
+     [project-summary-box]
+     [recent-progress-chart]
+     [label-predictions-box]]
+    [:div.ui.column
+     [user-summary-chart]
+     [project-files-box]
+     [KeyTerms]
+     #_ [LabelCounts]]]])
 
 (defmethod panel-content [:project :project :overview] []
   (fn [child]
-    (let [has-articles? @(subscribe [:project/has-articles?])]
+    (let [project-id @(subscribe [:active-project-id])
+          has-articles? @(subscribe [:project/has-articles?])]
       [:div.project-content
        (if (false? has-articles?)
-         (do (routes/nav-scroll-top "/project/add-articles")
+         (do (routes/nav-scroll-top
+              (routes/project-uri project-id "/add-articles"))
              [:div])
          [project-overview-panel])
        child])))

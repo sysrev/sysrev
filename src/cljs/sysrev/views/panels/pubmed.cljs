@@ -145,11 +145,13 @@
 (defn ImportArticlesButton
   "Add articles to a project from a PubMed search"
   []
-  (let [current-search-term (r/cursor state [:current-search-term])]
+  (let [current-search-term (r/cursor state [:current-search-term])
+        project-id (subscribe [:active-project-id])]
     [:div.ui.tiny.icon.button.search-results
-     {:on-click #(do (dispatch [:action [:project/import-articles-from-search
-                                         @current-search-term "PubMed"]])
-                     (reset! state initial-state))}
+     {:on-click
+      #(do (dispatch [:action [:project/import-articles-from-search
+                               @project-id @current-search-term "PubMed"]])
+           (reset! state initial-state))}
      "Import " [:i.download.icon]]))
 
 (defn PubMedSearchLink

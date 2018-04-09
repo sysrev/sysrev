@@ -169,7 +169,7 @@ repl> (sysrev.init/start-db {:db-name "sysrev_test"})
 
 * AWS Credentials for dev environment
 
-	Request the config.local.edn from a developer. Copy this file into config/dev/ and config/test/
+    Request the config.local.edn from a developer. Copy this file into config/dev/ and config/test/
 
 
 ## IDE Setup
@@ -361,14 +361,11 @@ false
   (->> [[[]
          "/"]
 
-		...
+        ...
 
-        [[:project :project :add-articles]
-         "/project/add-articles"]
+        ...
 
-		...
-
-		[[:user-settings]
+        [[:user-settings]
          "/user/settings"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))

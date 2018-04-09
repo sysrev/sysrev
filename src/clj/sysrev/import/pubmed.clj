@@ -7,8 +7,8 @@
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
             [sysrev.util :refer
-             [parse-xml-str parse-integer
-              xml-find xml-find-value xml-find-vector]]
+             [parse-xml-str xml-find xml-find-value xml-find-vector]]
+            [sysrev.shared.util :refer [parse-integer]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]

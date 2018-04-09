@@ -7,24 +7,12 @@
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tformat]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [sysrev.shared.util :as shared])
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
            java.util.UUID
            (java.io ByteArrayOutputStream)
            (java.io ByteArrayInputStream)))
-
-(defn parse-number
-  "Reads a number from a string. Returns nil if not a number."
-  [s]
-  (when (and (string? s) (re-find #"^-?\d+\.?\d*$" s))
-    (read-string s)))
-
-(defn parse-integer
-  "Reads a number from a string. Returns nil if not a number."
-  [s]
-  (when-let [n (parse-number s)]
-    (when (integer? n)
-      n)))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
@@ -37,7 +25,7 @@
          (mapv (fn [[k v]]
                  (let [k-int (and (keyword? k)
                                   (re-matches #"^\d+$" (name k))
-                                  (parse-number (name k)))
+                                  (shared/parse-number (name k)))
                        k-new (if (integer? k-int) k-int k)
                        ;; integerify sub-maps recursively
                        v-new (if (map? v)

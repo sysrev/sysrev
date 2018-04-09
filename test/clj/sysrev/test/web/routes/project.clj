@@ -118,12 +118,7 @@
                         (filter :member?))]
       (is (= 1 (count projects)))
       (let [project-id (-> projects first :project-id)]
-        (is (integer? project-id))
-        (let [select-response
-              (route-response :post "/api/select-project"
-                              {:project-id project-id})]
-          (is (= (-> select-response :result :project-id) project-id)
-              (format "response = %s" (pr-str select-response))))))
+        (is (integer? project-id))))
 
     ;; the projects array in identity contains one entry
     (let [response (route-response :get "/api/auth/identity")
@@ -147,19 +142,15 @@
     (let [create-project-response
           (route-response :post "/api/create-project"
                           {:project-name "The taming of the foo"})
-          new-project-id (get-in create-project-response [:result :project :project-id])]
-      ;; select this project as the current project
-      (is (= new-project-id
-             (get-in (route-response :post "/api/select-project"
-                                     {:project-id new-project-id})
-                     [:result :project-id])))
+          project-id (get-in create-project-response [:result :project :project-id])]
       ;; confirm project is created for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
       (is (= 0
-             (project/project-article-count new-project-id)))
+             (project/project-article-count project-id)))
       ;; these should be no sources for this project yet
-      (let [response (route-response :get "/api/project-sources")]
+      (let [response (route-response :get "/api/project-sources"
+                                     {:project-id project-id})]
         (is (empty? (get-in response
                             [:result :sources]))))
       ;; add a member to a project
@@ -173,14 +164,15 @@
                                     {:email new-user-email :password new-user-password})
                     [:result :valid]))
         ;; add member to project
-        (is (= new-project-id
+        (is (= project-id
                (get-in (route-response :post "/api/join-project"
-                                       {:project-id new-project-id})
+                                       {:project-id project-id})
                        [:result :project-id])))
         ;; that member can't add articles to a project
         (is (= "Not authorized"
                (get-in (route-response :post "/api/import-articles-from-search"
-                                       {:search-term search-term :source "PubMed"})
+                                       {:project-id project-id
+                                        :search-term search-term :source "PubMed"})
                        [:error :message]))))
       ;; log back in as admin
       (is (get-in (route-response :post "/api/auth/login"
@@ -188,32 +180,38 @@
                   [:result :valid]))
       ;; user can add articles from a short search
       (is (get-in (route-response :post "/api/import-articles-from-search"
-                                  {:search-term search-term :source "PubMed"})
+                                  {:project-id project-id
+                                   :search-term search-term :source "PubMed"})
                   [:result :success]))
       ;; meta data looks right
       (is (= 1
              (count
-              (filter #(= (:project-id %) new-project-id)
-                      (get-in (route-response :get "/api/project-sources")
+              (filter #(= (:project-id %) project-id)
+                      (get-in (route-response :get "/api/project-sources"
+                                              {:project-id project-id})
                               [:result :sources])))))
       ;; repeat search, check to see that the import is not happening over and over
       (dotimes [n 10]
         (route-response :post "/api/import-articles-from-search"
-                        {:search-term search-term :source "PubMed"}))
+                        {:project-id project-id
+                         :search-term search-term :source "PubMed"}))
       ;; sources would be added multiple times if the same import was being run
       ;; if only one occurs, the count should be 1
       (is (= 1
              (count
-              (filter #(= (:project-id %) new-project-id)
-                      (get-in (route-response :get "/api/project-sources")
+              (filter #(= (:project-id %) project-id)
+                      (get-in (route-response :get "/api/project-sources"
+                                              {:project-id project-id})
                               [:result :sources])))))
       ;; let's do another search, multiple times and see that only one import occurred
       (dotimes [n 10]
         (route-response :post "/api/import-articles-from-search"
-                        {:search-term "grault" :source "PubMed"}))
+                        {:project-id project-id
+                         :search-term "grault" :source "PubMed"}))
       (is (= 2
-             (count (filter #(= (:project-id %) new-project-id)
-                            (get-in (route-response :get "/api/project-sources")
+             (count (filter #(= (:project-id %) project-id)
+                            (get-in (route-response :get "/api/project-sources"
+                                                    {:project-id project-id})
                                     [:result :sources]))))))))
 
 (deftest delete-project-and-sources
@@ -225,62 +223,71 @@
                           {:email email :password password})
         create-project-response (route-response :post "/api/create-project"
                                                 {:project-name "Foo's Bar"})
-        _ (route-response :post "/api/select-project"
-                          {:project-id (get-in create-project-response [:result :project :project-id])})
-        new-project-id (get-in create-project-response [:result :project :project-id])
+        project-id (get-in create-project-response [:result :project :project-id])
         ;; add articles to the project
         import-articles-response (route-response :post "/api/import-articles-from-search"
-                                                 {:search-term "foo bar" :source "PubMed"})
-        project-info (route-response :get "/api/project-info")
+                                                 {:project-id project-id
+                                                  :search-term "foo bar" :source "PubMed"})
+        project-info (route-response :get "/api/project-info"
+                                     {:project-id project-id})
         project-label (second (first (get-in project-info [:result :project :labels])))
         label-id (get-in project-label [:label-id])
-        article-to-label (route-response :get "/api/label-task")
+        article-to-label (route-response :get "/api/label-task"
+                                         {:project-id project-id})
         article-id (get-in article-to-label [:result :article :article-id])
-        project-sources-response (route-response :get "/api/project-sources")
+        project-sources-response (route-response :get "/api/project-sources"
+                                                 {:project-id project-id})
         foo-bar-search-source (first (get-in project-sources-response [:result :sources]))
         foo-bar-search-source-id (:source-id foo-bar-search-source)]
     ;; the project does not have labeled articles, this should not
     ;; be true
-    (is (not (project/project-has-labeled-articles? new-project-id)))
+    (is (not (project/project-has-labeled-articles? project-id)))
     ;; set an article label to true
     (route-response :post "/api/set-labels"
-                    {:article-id article-id
+                    {:project-id project-id
+                     :article-id article-id
                      :label-values {label-id true}
                      :confirm? true
                      :resolve? false
                      :change? false})
     ;; now the project has labeled articles
-    (is (project/project-has-labeled-articles? new-project-id))
+    (is (project/project-has-labeled-articles? project-id))
     (is (get-in (route-response :post "/api/delete-project"
-                                {:project-id new-project-id})
+                                {:project-id project-id})
                 [:result :success]))
     ;; the project source has labeled articles as well
     (is (sources/source-has-labeled-articles? foo-bar-search-source-id))
     ;; the project source can not be deleted
     (is (= "Source contains reviewed articles"
            (get-in (route-response :post "/api/delete-source"
-                                   {:source-id foo-bar-search-source-id})
+                                   {:project-id project-id
+                                    :source-id foo-bar-search-source-id})
                    [:error :message])))
     (let [import-articles-response (route-response :post "/api/import-articles-from-search"
-                                                   {:search-term "grault" :source "PubMed"})
-          project-sources-response (route-response :get "/api/project-sources")
+                                                   {:project-id project-id
+                                                    :search-term "grault" :source "PubMed"})
+          project-sources-response (route-response :get "/api/project-sources"
+                                                   {:project-id project-id})
           grault-search-source (first (filter #(= (get-in % [:meta :search-term]) "grault")
                                               (get-in project-sources-response [:result :sources])))
           grault-search-source-id (:source-id grault-search-source)]
       ;; are the total project articles equivalent to the sum of its two sources?
       (is (= (+ (:article-count grault-search-source) (:article-count foo-bar-search-source))
-             (project/project-article-count new-project-id)))
+             (project/project-article-count project-id)))
       ;; try it another way
       (is (= (reduce + (map #(:article-count %)
-                            (get-in (route-response :get "/api/project-sources")
+                            (get-in (route-response :get "/api/project-sources"
+                                                    {:project-id project-id})
                                     [:result :sources])))
-             (project/project-article-count new-project-id)))
+             (project/project-article-count project-id)))
       ;; can grault-search-source be deleted?
       (is (get-in (route-response :post "/api/delete-source"
-                                  {:source-id grault-search-source-id})
+                                  {:project-id project-id
+                                   :source-id grault-search-source-id})
                   [:result :success]))
       ;; are the total articles equivalent to sum of its single source?
       (is (= (reduce + (map #(:article-count %)
-                            (get-in (route-response :get "/api/project-sources")
+                            (get-in (route-response :get "/api/project-sources"
+                                                    {:project-id project-id})
                                     [:result :sources])))
-             (project/project-article-count new-project-id))))))
+             (project/project-article-count project-id))))))

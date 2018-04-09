@@ -1,8 +1,8 @@
 (ns sysrev.custom.facts
   (:require [clojure-csv.core :as csv]
             [clojure.java.io :as io]
-            [sysrev.util :refer [parse-number]]
-            [sysrev.shared.util :refer [map-values]]
+            [sysrev.util]
+            [sysrev.shared.util :refer [map-values parse-number]]
             [sysrev.import.pubmed :as pm]
             [sysrev.db.core :refer [do-query do-execute clear-project-cache]]
             [sysrev.db.queries :as q]

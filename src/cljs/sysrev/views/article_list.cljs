@@ -20,15 +20,15 @@
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
-(defmulti panel-base-uri (fn [panel] panel))
-(defmulti article-uri (fn [panel _] panel))
-(defmulti all-articles-sub (fn [panel] panel))
+(defmulti panel-base-uri (fn [panel project-id] panel))
+(defmulti article-uri (fn [panel project-id article-id] panel))
+(defmulti all-articles-sub (fn [panel project-id] panel))
 (defmulti allow-null-label? (fn [panel] panel))
 (defmulti list-header-tooltip (fn [panel] panel))
 (defmulti render-article-entry (fn [panel article full-size?] panel))
 (defmulti private-article-view? (fn [panel] panel))
-(defmulti loading-articles? (fn [panel user-id] panel))
-(defmulti reload-articles (fn [panel user-id] panel))
+(defmulti loading-articles? (fn [panel project-id user-id] panel))
+(defmulti reload-articles (fn [panel project-id user-id] panel))
 (defmulti auto-refresh? (fn [panel] panel))
 
 (defmethod list-header-tooltip :default [] nil)
@@ -422,7 +422,8 @@
                   (str value)])))))])))
 
 (defn- article-list-filter-form [panel]
-  (let [label-id @(subscribe [:article-list/filter-value :label-id panel])
+  (let [project-id @(subscribe [:active-project-id])
+        label-id @(subscribe [:article-list/filter-value :label-id panel])
         overall-id @(subscribe [:project/overall-label-id])
         [overall? boolean? all-values criteria?]
         (when label-id
@@ -486,9 +487,9 @@
 
         refresh-button
         [:div.ui.right.labeled.icon.button.refresh-button
-         {:class (if (loading-articles? panel user-id) "loading" "")
+         {:class (if (loading-articles? panel project-id user-id) "loading" "")
           :style {:width "100%"}
-          :on-click #(reload-articles panel user-id)}
+          :on-click #(reload-articles panel project-id user-id)}
          [:i.repeat.icon]
          (if (full-size?) "Refresh Articles" "Refresh")]
 
@@ -633,8 +634,9 @@
         (take (display-count)))))
 
 (defn- article-list-view-articles [panel]
-  (let [active-aid @(subscribe [::selected-article-id panel])
-        show-article #(nav (article-uri panel %))
+  (let [project-id @(subscribe [:active-project-id])
+        active-aid @(subscribe [::selected-article-id panel])
+        show-article #(nav (article-uri panel project-id %))
         full-size? (full-size?)]
     [:div.ui.segments.article-list-segments
      (doall
@@ -644,7 +646,7 @@
         (fn [{:keys [article-id] :as article}]
           (let [active? (= article-id active-aid)
                 classes (if active? "active" "")
-                loading? @(subscribe [:loading? [:article article-id]])]
+                loading? @(subscribe [:loading? [:article project-id article-id]])]
             [:div.ui.middle.aligned.attached.grid.segment.article-list-article
              {:key article-id
               :class (str (if active? "active" "")
@@ -678,7 +680,8 @@
          [article-list-view-articles panel])])))
 
 (defn- article-list-article-view [article-id panel]
-  (let [label-values @(subscribe [:review/active-labels article-id])
+  (let [project-id @(subscribe [:active-project-id])
+        label-values @(subscribe [:review/active-labels article-id])
         overall-label-id @(subscribe [:project/overall-label-id])
         user-id @(subscribe [:self/user-id])
         user-status @(subscribe [:article/user-status article-id user-id])
@@ -686,19 +689,19 @@
         resolving-allowed? @(subscribe [::resolving-allowed? panel])
         editing? @(subscribe [:article-list/editing? panel])
         resolving? @(subscribe [:article-list/resolving? panel])
-        close-article #(nav (panel-base-uri panel))
+        close-article #(nav (panel-base-uri panel project-id))
         next-id @(subscribe [::next-article-id panel])
         prev-id @(subscribe [::prev-article-id panel])
-        next-loading? (when next-id @(subscribe [:loading? [:article next-id]]))
-        prev-loading? (when prev-id @(subscribe [:loading? [:article prev-id]]))
-        back-loading? (loading-articles? panel user-id)
+        next-loading? (when next-id @(subscribe [:loading? [:article project-id next-id]]))
+        prev-loading? (when prev-id @(subscribe [:loading? [:article project-id prev-id]]))
+        back-loading? (loading-articles? panel project-id user-id)
         prev-class (str (if (nil? prev-id) "disabled" "")
                         " " (if prev-loading? "loading" ""))
         next-class (str (if (nil? next-id) "disabled" "")
                         " " (if next-loading? "loading" ""))
         back-class (str (if back-loading? "loading" ""))
-        on-next #(when next-id (nav (article-uri panel next-id)))
-        on-prev #(when prev-id (nav (article-uri panel prev-id)))]
+        on-next #(when next-id (nav (article-uri panel project-id next-id)))
+        on-prev #(when prev-id (nav (article-uri panel project-id prev-id)))]
     [:div.article-view
      (if (full-size?)
        ;; non-mobile view

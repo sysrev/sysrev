@@ -17,9 +17,10 @@
    [sysrev.db.documents :as docs]
    [sysrev.db.queries :as q]
    [sysrev.files.stores :as files]
-   [sysrev.shared.util :refer [map-values in? short-uuid to-uuid]]
+   [sysrev.util]
+   [sysrev.shared.util :refer
+    [map-values in? short-uuid to-uuid parse-number]]
    [sysrev.shared.keywords :refer [canonical-keyword]]
-   [sysrev.util :refer [parse-number]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
    [honeysql-postgres.format :refer :all]

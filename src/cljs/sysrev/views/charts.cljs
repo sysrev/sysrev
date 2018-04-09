@@ -123,14 +123,14 @@
 (defn bar-chart
   [id xlabels ynames yss & [colors options]]
   (let [context (get-canvas-context id)
+        datasets (get-datasets ynames yss colors)
         font-color (if (= (:ui-theme @(subscribe [:self/settings]))
                           "Dark")
                      "#dddddd" "#222222")
         chart-data
         {:type "horizontalBar"
          :data {:labels xlabels
-                :datasets (->> (get-datasets ynames yss colors)
-                               (map #(merge % {:borderWidth 1})))}
+                :datasets (->> datasets (map #(merge % {:borderWidth 1})))}
          :options (merge-with
                    (fn [x1 x2]
                      (if (or (map? x1) (map? x2))
@@ -145,7 +145,8 @@
                                :scaleLabel {:fontColor font-color}}]}
                      :legend {:labels {:fontColor font-color}}})
                    options)}]
-    (js/Chart. context (clj->js chart-data))))
+    (when (and context (not-empty datasets))
+      (js/Chart. context (clj->js chart-data)))))
 
 (defn pie-chart
   [id entries & [on-click]]
@@ -183,7 +184,8 @@
                  (when (and (coll? elts) (not-empty elts))
                    (when-let [idx (-> elts first (aget "_index"))]
                      (on-click idx))))))})}]
-    (js/Chart. context (clj->js chart-data))))
+    (when (and context (not-empty values))
+      (js/Chart. context (clj->js chart-data)))))
 
 (defn Chart
   [chart-options title]
