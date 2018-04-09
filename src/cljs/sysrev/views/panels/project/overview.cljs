@@ -376,11 +376,19 @@
                                                                     {:short-label (label-uuid->short-label (first %))
                                                                      :article-id (:article-id article)
                                                                      :value-type (label-uuid->value-type (first %))
-                                                                     :label-id (first %)})
+                                                                     :label-id (first %)
+                                                                     })
                                                            (second %))
                                                      (:labels article))))
                                  flatten))
-        label-values (flatten (map extract-labels-fn raw-labels-with-values))
+        label-values (->> raw-labels-with-values
+                          (map extract-labels-fn)
+                          flatten
+                          ;; categorical data should be treated as sets, not vectors
+                          (map #(if (= "categorical"
+                                       (:value-type %))
+                                  (assoc % :answer (set (:answer %)))
+                                  %)))
         label-counts-fn (fn [label]
                           (hash-map :short-label (first label)
                                     :answer-counts (frequencies (map :answer (second label)))
@@ -397,15 +405,13 @@
               (map #(hash-map :short-label
                               (:short-label label-count)
                               :value-type (:value-type label-count)
-                              :value (let [putative-value (first %)]
-                                       (if (vector? putative-value)
-                                         (clojure.string/join "," putative-value)
-                                         putative-value))
+                              :value (first %)
                               :count (second %)
                               :label-id (:label-id label-count))
                    (:answer-counts label-count))))
        flatten
-       (into [])))
+       (into [])
+       ))
 
 (defn short-labels-vector
   "Given a set of label-counts, get the set of short-labels"
@@ -432,34 +438,49 @@
                                                         (:short-label m))) color-map)))})
           processed-label-counts)))
 
+(defn process-label-counts
+  [public-labels]
+  (let [label-ids @(subscribe [:project/label-ids])
+        label-definitions (get-in @app-db [:data :project (active-project-id @app-db) :labels])]
+    (->> public-labels
+         ;; get the counts of the label's values
+         ((partial process-label-count label-definitions))
+         ;; filter out labels of type string
+         (filterv #(not= (:value-type %)
+                         "string"))
+         ;; convert the categorical sets into string
+         (map #(if (= (:value-type %)
+                      "categorical")
+                 ;; convert a set to a comma-joined string
+                 (assoc % :value (clojure.string/join "," (sort (:value %))))
+                 ;; skip over this value
+                 %
+                 ))
+         ;; do initial sort by values
+         (sort-by #(str (:value %)))
+         ;; sort booleans such that true goes before false
+         ;; sort categorical alphabetically
+         ((fn [processed-public-labels]
+            (let [grouped-processed-public-labels (group-by :value-type processed-public-labels)
+                  boolean-labels (get grouped-processed-public-labels "boolean")
+                  categorical-labels (get grouped-processed-public-labels "categorical")]
+              (concat (reverse (sort-by :value boolean-labels))
+                      (sort-by :value categorical-labels)))))
+         ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
+         ;; use the order of the labels as they appear in review articles (label-ids)
+         (sort-by
+          #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %)))
+         ;; add color
+         add-color-processed-label-counts
+         )))
+
 (defn LabelCountChart
   []
   (let [label-definitions (get-in @app-db [:data :project (active-project-id @app-db) :labels])]
     (fn [public-labels]
       (when (not (empty? public-labels))
         (let [label-ids @(subscribe [:project/label-ids])
-              processed-label-counts (->> public-labels
-                                          ;; get the counts of the label's values
-                                          ((partial process-label-count label-definitions))
-                                          ;; filter out labels of type string
-                                          (filterv #(not= (:value-type %)
-                                                          "string"))
-                                          ;; add color
-                                          add-color-processed-label-counts
-                                          ;; do initial sort by values
-                                          (sort-by #(str (:value %)))
-                                          ;; sort booleans such that true goes before false
-                                          ;; sort categorical alphabetically
-                                          ((fn [processed-public-labels]
-                                             (let [grouped-processed-public-labels (group-by :value-type processed-public-labels)
-                                                   boolean-labels (get grouped-processed-public-labels "boolean")
-                                                   categorical-labels (get grouped-processed-public-labels "categorical")]
-                                               (concat (reverse (sort-by :value boolean-labels))
-                                                       (sort-by :value categorical-labels)))))
-                                          ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
-                                          ;; use the order of the labels as they appear in review articles (label-ids)
-                                          (sort-by
-                                           #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %))))
+              processed-label-counts (process-label-counts public-labels)
               labels (mapv :value processed-label-counts)
               counts (mapv :count processed-label-counts)
               background-colors (mapv :color processed-label-counts)
