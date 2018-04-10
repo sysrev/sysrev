@@ -423,7 +423,9 @@
   "Given a set of label-counts, generate a color map"
   [processed-label-counts]
   (let [short-labels (short-labels-vector processed-label-counts)
-        palette (nth paul-tol-colors (- (count short-labels) 1))
+        ;; need to account for the fact that this fn can handle empty datasets
+        color-count (max 0 (- (count short-labels) 1))
+        palette (nth paul-tol-colors color-count)
         color-map (zipmap short-labels palette)]
     (mapv (fn [label palette]
             {:short-label label :color palette})
@@ -439,51 +441,55 @@
           processed-label-counts)))
 
 (defn process-label-counts
-  [public-labels]
-  (let [label-ids @(subscribe [:project/label-ids])
-        label-definitions (get-in @app-db [:data :project (active-project-id @app-db) :labels])]
-    (->> public-labels
-         ;; get the counts of the label's values
-         ((partial process-label-count label-definitions))
-         ;; filter out labels of type string
-         (filterv #(not= (:value-type %)
-                         "string"))
-         ;; convert the categorical sets into string
-         (map #(if (= (:value-type %)
-                      "categorical")
-                 ;; convert a set to a comma-joined string
-                 (assoc % :value (clojure.string/join "," (sort (:value %))))
-                 ;; skip over this value
-                 %
-                 ))
-         ;; do initial sort by values
-         (sort-by #(str (:value %)))
-         ;; sort booleans such that true goes before false
-         ;; sort categorical alphabetically
-         ((fn [processed-public-labels]
-            (let [grouped-processed-public-labels (group-by :value-type processed-public-labels)
-                  boolean-labels (get grouped-processed-public-labels "boolean")
-                  categorical-labels (get grouped-processed-public-labels "categorical")]
-              (concat (reverse (sort-by :value boolean-labels))
-                      (sort-by :value categorical-labels)))))
-         ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
-         ;; use the order of the labels as they appear in review articles (label-ids)
-         (sort-by
-          #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %)))
-         ;; add color
-         add-color-processed-label-counts
-         )))
+  [label-ids label-definitions public-labels]
+  (->> public-labels
+       ;; get the counts of the label's values
+       ((partial process-label-count label-definitions))
+       ;; filter out labels of type string
+       (filterv #(not= (:value-type %)
+                       "string"))
+       ;; convert the categorical sets into string
+       (map #(if (= (:value-type %)
+                    "categorical")
+               ;; convert a set to a comma-joined string
+               (assoc % :value (clojure.string/join "," (sort (:value %))))
+               ;; skip over this value
+               %
+               ))
+       ;; do initial sort by values
+       (sort-by #(str (:value %)))
+       ;; sort booleans such that true goes before false
+       ;; sort categorical alphabetically
+       ((fn [processed-public-labels]
+          (let [grouped-processed-public-labels (group-by :value-type processed-public-labels)
+                boolean-labels (get grouped-processed-public-labels "boolean")
+                categorical-labels (get grouped-processed-public-labels "categorical")]
+            (concat (reverse (sort-by :value boolean-labels))
+                    (reverse (sort-by :count categorical-labels))))))
+       ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
+       ;; use the order of the labels as they appear in review articles (label-ids)
+       (sort-by
+        #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %)))
+       ;; add color
+       add-color-processed-label-counts
+       ))
 
 (defn LabelCountChart
   []
-  (let [label-definitions (get-in @app-db [:data :project (active-project-id @app-db) :labels])]
-    (fn [public-labels]
-      (when (not (empty? public-labels))
-        (let [label-ids @(subscribe [:project/label-ids])
-              processed-label-counts (process-label-counts public-labels)
-              labels (mapv :value processed-label-counts)
-              counts (mapv :count processed-label-counts)
-              background-colors (mapv :color processed-label-counts)
+  (let [color-filter (r/atom #{})]
+    (fn [label-definitions label-ids processed-label-counts]
+      (when (not (empty? processed-label-counts))
+        (let [filtered-color? #(contains? @color-filter %)
+              color-filter-fn (fn [items] (filterv #(not (filtered-color? (:color %))) items))
+              labels (->> processed-label-counts
+                          color-filter-fn
+                          (mapv :value))
+              counts (->> processed-label-counts
+                          color-filter-fn
+                          (mapv :count))
+              background-colors (->>  processed-label-counts
+                                      color-filter-fn
+                                      (mapv :color))
               color-map (processed-label-color-map processed-label-counts)
               short-label->label-uuid (fn [short-label]
                                         (:label-id (first (filter #(= short-label
@@ -491,34 +497,56 @@
                                                                   (vals label-definitions)))))
               legend-labels (->> color-map
                                  (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (short-label->label-uuid (:short-label %))))
-                                 (mapv #(hash-map :text (:short-label %) :fillStyle (:color %))))]
+                                 (mapv #(hash-map :text (:short-label %) :fillStyle (:color %) :hidden (filtered-color? (:color %)))))]
           [Chart {:type "horizontalBar"
                   :data {:labels labels
-                         :datasets [{:data counts
-                                     :backgroundColor background-colors}]}
+                         :datasets [{:data (if (empty? counts)
+                                             [0]
+                                             counts)
+                                     :backgroundColor (if (empty? counts)
+                                                        ["#000000"]
+                                                        background-colors)}]}
                   :options {:scales
                             {:xAxes
                              [{:display true
+                               :scaleLabel {:fontColor "#990000"
+                                            :display false
+                                            :padding {:top 200
+                                                      :bottom 200}}
+                               :stacked false
                                :ticks {:suggestedMin 0
                                        :callback (fn [value idx values]
                                                    (if (or (= 0 (mod idx 5))
                                                            (= idx (dec (count values))))
                                                      value ""))}}]
+                             ;; this is actually controlling the labels
                              :yAxes
                              [{:maxBarThickness 10}]}
                             :legend {:labels
                                      {:generateLabels (fn [chart]
-                                                        (clj->js legend-labels))}}}}
-           "Label Counts"
-           {:height (label-count->chart-height (count labels))}])))))
+                                                        (clj->js legend-labels))}
+                                     :onClick (fn [e legend-item]
+                                                (let [current-legend-color (:fillStyle (js->clj legend-item :keywordize-keys true))
+                                                      enabled? (not (filtered-color? current-legend-color))]
+                                                  (.preventDefault e)
+                                                  (if enabled?
+                                                    ;; filter out the associated data points
+                                                    (swap! color-filter #(conj % current-legend-color))
+                                                    ;; the associated data points should no longer be filtered out
+                                                    (swap! color-filter #(disj % current-legend-color)))))}}}
+           "Member Label Counts"
+           {:height (label-count->chart-height (count labels))}
+           ])))))
 
 (defn LabelCounts
   []
-  (let [public-labels (r/cursor app-db [:data :project (active-project-id @app-db) :public-labels])]
+  (let [public-labels (r/cursor app-db [:data :project (active-project-id @app-db) :public-labels])
+        label-definitions (r/cursor app-db [:data :project (active-project-id @app-db) :labels])
+        label-ids (subscribe [:project/label-ids])]
     (r/create-class
      {:reagent-render
       (fn []
-        [LabelCountChart @public-labels])
+        [LabelCountChart @label-definitions @label-ids (process-label-counts @label-ids @label-definitions @public-labels)])
       :component-did-mount
       (fn [this] (dispatch [:fetch [:project/public-labels]]))})))
 
