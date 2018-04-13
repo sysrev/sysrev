@@ -93,6 +93,7 @@
                  ;; custom build of cljsjs/semantic-ui to use latest version
                  ;; built from ./cljsjs/semantic-ui
                  [org.clojars.jeffwk/semantic-ui "2.2.13-0"]
+                 [cljsjs/semantic-ui-react "0.78.2-0"]
                  [cljsjs/chartjs "2.6.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [cljsjs/clipboard "1.6.1-1"]
