@@ -100,16 +100,16 @@
                {:db db
                 :method (or (:method entry) :post)
                 :uri uri
-                :on-success [::on-success [name args]]
-                :on-failure [::on-failure [name args]]
+                :on-success [::on-success item]
+                :on-failure [::on-failure item]
                 :content-type content-type}
              content (assoc :content content)))
           {::sent item}) )))))
 
 (reg-event-ajax-fx
  ::on-success
- (fn [cofx [[name args] result]]
-   (let [item (vec (concat [name] args))]
+ (fn [cofx [item result]]
+   (let [[name & args] item]
      (merge
       {::returned item}
       (when-let [entry (get @action-defs name)]
@@ -118,8 +118,8 @@
 
 (reg-event-ajax-fx
  ::on-failure
- (fn [cofx [[name args] result]]
-   (let [item (vec (concat [name] args))]
+ (fn [cofx [item result]]
+   (let [[name & args] item]
      (merge
       {::returned item}
       (when-let [entry (get @action-defs name)]

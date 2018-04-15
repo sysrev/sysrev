@@ -92,8 +92,8 @@
   (fn [_ [id] result]
     {:dispatch-n
      (list [:fetch [:identity]]
-           [:self/set-active-project id])
-     :nav-scroll-top "/"}))
+           [:fetch [:project id]]
+           [:project/navigate id])}))
 
 (def-action :review/send-labels
   :uri (fn [project-id _] "/api/set-labels")

@@ -109,6 +109,20 @@
                         ~@body)]
        (go-route-sync-data route-fn#))))
 
+(defn integer-project-id? [url-id]
+  (if (re-matches #"^[0-9]+$" url-id)
+    true false))
+
+(defn lookup-project-url-id [url-id]
+  (cond (integer? url-id)
+        url-id
+
+        (integer-project-id? url-id)
+        (parse-integer url-id)
+
+        :else
+        @(subscribe [:project-url-id url-id])))
+
 (defmacro sr-defroute-project
   [name suburi params & body]
   (assert (or (empty? suburi)
@@ -118,10 +132,24 @@
   (assert (= (first params) 'project-id)
           (str "sr-defroute-project: params must include 'project-id\n"
                "params = " (pr-str params)))
-  (let [uri (str "/project/:project-id" suburi)]
+  (let [uri (str "/p/:project-id" suburi)]
     `(defroute ~name ~uri ~params
-       (let [route-fn#
-             #(let [project-id# (parse-integer ~(first params))]
-                (dispatch [:self/set-active-project project-id#])
-                ~@body)]
+       (let [body-fn# (fn [] ~@body)
+             route-fn#
+             #(let [url-id# ~(first params)
+                    literal-id# (and (integer-project-id? url-id#)
+                                     (parse-integer url-id#))
+                    project-id# (or literal-id#
+                                    (lookup-project-url-id url-id#))]
+                (if (integer? literal-id#)
+                  (dispatch [:self/set-active-project literal-id#])
+                  (do (dispatch [:self/set-active-project nil])
+                      (dispatch [:self/set-active-project-url url-id#])
+                      (dispatch [:require [:project-url-id url-id#]])))
+                (if (= project-id# :not-found)
+                  (dispatch [:data/after-load
+                             [:project-url-id url-id#]
+                             [:project-url-loader ~uri]
+                             body-fn#])
+                  (body-fn#)))]
          (go-route-sync-data route-fn#)))))

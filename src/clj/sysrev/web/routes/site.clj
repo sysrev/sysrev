@@ -43,7 +43,7 @@
 
   (POST "/api/change-user-settings" request
         (wrap-permissions
-         request [] ["member"]
+         request [] []
          (let [user-id (current-user-id request)
                {:keys [changes]} (:body request)]
            (doseq [{:keys [setting value]} changes]

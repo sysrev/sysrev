@@ -6,7 +6,7 @@
    [sysrev.views.base :refer
     [panel-content logged-out-content render-panel-tree]]
    [sysrev.views.panels.create-project]
-   [sysrev.views.panels.login :refer [login-register-panel]]
+   [sysrev.views.panels.login :refer [LoginRegisterPanel]]
    [sysrev.views.panels.password-reset]
    [sysrev.views.panels.payment]
    [sysrev.views.panels.pubmed]
@@ -37,13 +37,17 @@
      [:h2 "route not found"]
      child]))
 (defmethod logged-out-content :default []
-  [login-register-panel])
+  nil)
 
 (defn active-panel-content []
-  (if @(subscribe [:self/logged-in?])
-    [render-panel-tree @(subscribe [:active-panel])]
-    [:div {:id "logged-out"}
-     [logged-out-content @(subscribe [:active-panel])]]))
+  (let [active-panel @(subscribe [:active-panel])
+        have-logged-out-content?
+        ((comp not nil?) (logged-out-content active-panel))
+        logged-in? @(subscribe [:self/logged-in?])]
+    (if (or logged-in? (not have-logged-out-content?))
+      [render-panel-tree active-panel]
+      [:div#logged-out
+       [logged-out-content active-panel]])))
 
 (defn notifier [entry]
   [:div])

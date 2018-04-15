@@ -38,7 +38,10 @@
     (dispatch [:set-active-panel panel])))
 
 (defn project-uri [project-id suburi]
-  (str "/project/" project-id suburi))
+  (let [project-url-id @(subscribe [:project/active-url-id project-id])
+        url-id (if (string? project-url-id)
+                 project-url-id project-id)]
+    (str "/p/" url-id suburi)))
 
 (sr-defroute
  home "/" []
@@ -60,12 +63,12 @@
 
 (sr-defroute-project
  project "" [project-id]
- (let [project-id (parse-integer project-id)]
+ (let [project-id @(subscribe [:active-project-id])]
    (go-project-panel project-id)))
 
 (sr-defroute-project
  articles "/articles" [project-id]
- (let [project-id (parse-integer project-id)
+ (let [project-id @(subscribe [:active-project-id])
        panel [:project :project :articles]
        item [:project/public-labels project-id]
        set-panel [:set-active-panel [:project :project :articles]]
@@ -91,7 +94,7 @@
 
 (sr-defroute-project
  articles-id "/articles/:article-id" [project-id article-id]
- (let [project-id (parse-integer project-id)
+ (let [project-id @(subscribe [:active-project-id])
        article-id (parse-integer article-id)
        item [:article project-id article-id]
        set-panel [:set-active-panel [:project :project :articles]]
@@ -109,7 +112,7 @@
 
 (sr-defroute-project
  project-user "/user" [project-id]
- (let [project-id (parse-integer project-id)
+ (let [project-id @(subscribe [:active-project-id])
        user-id @(subscribe [:self/user-id])
        item [:member/articles project-id user-id]
        set-panel [:set-active-panel [:project :user :labels]]]
@@ -126,7 +129,7 @@
 
 (sr-defroute-project
  project-user-article "/user/article/:article-id" [project-id article-id]
- (let [project-id (parse-integer project-id)
+ (let [project-id @(subscribe [:active-project-id])
        article-id (parse-integer article-id)
        item [:article project-id article-id]
        set-panel [:set-active-panel [:project :user :labels]]
@@ -148,7 +151,7 @@
 
 (sr-defroute-project
  review "/review" [project-id]
- (let [project-id (parse-integer project-id)
+ (let [project-id @(subscribe [:active-project-id])
        have-project? @(subscribe [:have? [:project project-id]])
        set-panel [:set-active-panel [:project :review]]
        set-panel-after #(dispatch
@@ -166,13 +169,13 @@
 
 (sr-defroute-project
  add-articles "/add-articles" [project-id]
- (let [project-id (parse-integer project-id)]
+ (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:reload [:project/sources project-id]])
    (dispatch [:set-active-panel [:project :project :add-articles]])))
 
 (sr-defroute-project
  project-settings "/settings" [project-id]
- (let [project-id (parse-integer project-id)]
+ (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:reload [:project/settings project-id]])
    (dispatch [:set-active-panel [:project :project :settings]])))
 

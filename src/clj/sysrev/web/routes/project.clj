@@ -32,7 +32,8 @@
    [compojure.core :refer :all]
    [ring.util.response :as response]
    [clojure.data.json :as json]
-   [clojure-csv.core :as csv])
+   [clojure-csv.core :as csv]
+   [clojure.tools.logging :as log])
   (:import [java.util UUID]
            [java.io InputStream]
            [java.io ByteArrayInputStream]
@@ -66,7 +67,7 @@
     project-id [:project-info]
     (let [[fields predict articles status-counts members
            users keywords notes files documents progress sources
-           importance]
+           importance url-ids]
           (pvalues (q/query-project-by-id project-id [:*])
                    (predict-report/predict-summary
                     (q/project-latest-predict-run-id project-id))
@@ -80,7 +81,12 @@
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
                    (sources/project-sources project-id)
-                   (:result (api/important-terms project-id)))]
+                   (:result (api/important-terms project-id))
+                   (try
+                     (project/project-url-ids project-id)
+                     (catch Throwable e
+                       (log/info "exception in project-url-ids")
+                       [])))]
       {:project {:project-id project-id
                  :name (:name fields)
                  :project-uuid (:project-uuid fields)
@@ -96,7 +102,8 @@
                  :files files
                  :documents documents
                  :sources sources
-                 :importance importance}
+                 :importance importance
+                 :url-ids url-ids}
        :users users})))
 
 (defroutes project-routes
@@ -413,6 +420,16 @@
           (wrap-permissions
            request [] ["admin"]
            (api/sync-labels project-id labels))))
+
+  (GET "/api/lookup-project-url" request
+       {:result
+        (when-let [url-id (-> request :params :url-id)]
+          (when-let [project-id
+                     (try
+                       (project/project-id-from-url-id url-id)
+                       (catch Throwable e
+                         nil))]
+            {:project-id project-id}))})
 
   (GET "/api/query-register-project" request
        (let [register-hash (-> request :params :register-hash)

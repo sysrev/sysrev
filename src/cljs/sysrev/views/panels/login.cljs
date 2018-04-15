@@ -190,7 +190,7 @@
    (when submitted
      (validate fields login-validation))))
 
-(defn login-register-panel []
+(defn LoginRegisterPanel []
   (let [register? @(subscribe [::register?])
         project-id @(subscribe [:register/project-id])
         project-name @(subscribe [:register/project-name])
@@ -290,11 +290,11 @@
 
 (defmethod logged-out-content [:login] []
   (fn [child]
-    [login-register-panel]))
+    [LoginRegisterPanel]))
 
 (defmethod logged-out-content [:register] []
   (fn [child]
-    [login-register-panel]))
+    [LoginRegisterPanel]))
 
 (defmethod panel-content [:login] []
   (fn [child]

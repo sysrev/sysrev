@@ -241,6 +241,21 @@
   [user-id]
   (let [uperms (:permissions (get-user-by-id user-id))
         admin? (in? uperms "admin")
+        project-url-ids
+        (-> (select :purl.url-id :purl.project-id)
+            (from [:project-member :m])
+            (join [:project :p]
+                  [:= :p.project-id :m.project-id])
+            (merge-join [:project-url-id :purl]
+                        [:= :purl.project-id :p.project-id])
+            (where [:and
+                    [:= :m.user-id user-id]
+                    [:= :p.enabled true]
+                    [:= :m.enabled true]])
+            (order-by [:purl.date-created :desc])
+            (->> do-query
+                 (group-by :project-id)
+                 (map-values #(mapv :url-id %))))
         projects
         (-> (select :p.project-id :p.name :p.date-created :m.join-date
                     [:p.enabled :project-enabled]
@@ -254,7 +269,9 @@
                     [:= :m.enabled true]])
             (order-by :p.date-created)
             (->> do-query
-                 (mapv #(assoc % :member? true))))
+                 (mapv #(assoc % :member? true
+                               :url-ids (get project-url-ids
+                                             (:project-id %))))))
         self-project-ids (->> projects (map :project-id))
         all-projects
         (when admin?
@@ -265,7 +282,9 @@
               (order-by :p.date-created)
               (->> do-query
                    (filterv #(not (in? self-project-ids (:project-id %))))
-                   (mapv #(assoc % :member? false)))))]
+                   (mapv #(assoc % :member? false
+                                 :url-ids (get project-url-ids
+                                               (:project-id %)))))))]
     {:projects (->> [projects all-projects]
                     (apply concat)
                     vec)}))

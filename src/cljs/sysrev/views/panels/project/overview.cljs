@@ -5,7 +5,7 @@
     [subscribe dispatch reg-event-fx reg-sub trim-v]]
    [re-frame.db :refer [app-db]]
    [sysrev.views.article-list :refer [group-statuses]]
-   [sysrev.views.base :refer [panel-content]]
+   [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-ui-help-tooltip]]
    [sysrev.views.charts :refer [chart-container pie-chart bar-chart
                                 get-canvas-context wrap-animate-options
@@ -496,27 +496,30 @@
       :component-did-mount
       (fn [this] (dispatch [:fetch [:project/public-labels project-id]]))})))
 
-(defn project-overview-panel []
-  [:div.ui.two.column.stackable.grid.project-overview
-   [:div.ui.row
-    [:div.ui.column
-     [project-summary-box]
-     [recent-progress-chart]
-     [label-predictions-box]]
-    [:div.ui.column
-     [user-summary-chart]
-     [project-files-box]
-     [KeyTerms]
-     #_ [LabelCounts]]]])
+(defn ProjectOverviewContent []
+  [:div.project-content
+   [:div.ui.two.column.stackable.grid.project-overview
+    [:div.ui.row
+     [:div.ui.column
+      [project-summary-box]
+      [recent-progress-chart]
+      [label-predictions-box]]
+     [:div.ui.column
+      [user-summary-chart]
+      [project-files-box]
+      [KeyTerms]
+      #_ [LabelCounts]]]]])
+
+(defn ProjectOverviewPanel [child]
+  (let [project-id @(subscribe [:active-project-id])
+        has-articles? @(subscribe [:project/has-articles?])]
+    [:div.project-content
+     (if (false? has-articles?)
+       (do (routes/nav-scroll-top
+            (routes/project-uri project-id "/add-articles"))
+           [:div])
+       [ProjectOverviewContent])
+     child]))
 
 (defmethod panel-content [:project :project :overview] []
-  (fn [child]
-    (let [project-id @(subscribe [:active-project-id])
-          has-articles? @(subscribe [:project/has-articles?])]
-      [:div.project-content
-       (if (false? has-articles?)
-         (do (routes/nav-scroll-top
-              (routes/project-uri project-id "/add-articles"))
-             [:div])
-         [project-overview-panel])
-       child])))
+  (fn [child] [ProjectOverviewPanel child]))

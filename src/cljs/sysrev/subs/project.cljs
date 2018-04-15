@@ -1,16 +1,37 @@
 (ns sysrev.subs.project
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
-            [sysrev.shared.util :refer [short-uuid]]))
+            [sysrev.shared.util :refer [short-uuid in?]]))
+
+(defn lookup-project-url-id [db url-id]
+  (get-in db [:data :project-url-ids url-id] :not-found))
+
+;; TODO: also check other locations? (like :active-project-id)
+(defn project-url-id-loaded? [db url-id]
+  (-> (get-in db [:data :project-url-ids])
+      (contains? url-id)))
+
+(defn active-project-url [db]
+  (get-in db [:state :active-project-url]))
+(reg-sub :active-project-url active-project-url)
 
 (defn active-project-id [db]
-  (get-in db [:state :active-project-id]))
+  (or (get-in db [:state :active-project-id])
+      (when-let [url-id (active-project-url db)]
+        (let [project-id (lookup-project-url-id db url-id)]
+          (when (integer? project-id)
+            project-id)))))
 (reg-sub :active-project-id active-project-id)
 
 (reg-sub
  :projects
  (fn [db]
    (get-in db [:data :project])))
+
+(reg-sub
+ :project-url-id
+ (fn [db [_ url-id]]
+   (lookup-project-url-id db url-id)))
 
 (defn project-loaded? [db]
   (contains? (get-in db [:data :project]) (active-project-id db)))
@@ -37,11 +58,30 @@
      (get projects project-id))))
 
 (reg-sub
- :project/loaded?
+ :project/error?
  (fn [[_ project-id]]
    [(subscribe [:project/raw project-id])])
  (fn [[project]]
-   (and (map? project) (not-empty project))))
+   (let [{:keys [error]} project]
+     ((comp not nil?) error))))
+
+(reg-sub
+ :project/unauthorized?
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]]
+   (let [error-type (-> project :error :type)]
+     (in? [:member :authentication] error-type))))
+
+(reg-sub
+ :project/loaded?
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])
+    (subscribe [:project/error? project-id])])
+ (fn [[project error?]]
+   (and (map? project)
+        (not-empty project)
+        (not error?))))
 
 (reg-sub
  :project/name
@@ -78,6 +118,20 @@
    [(subscribe [:project/hash project-id])])
  (fn [[project-hash]]
    (str "https://sysrev.us/register/" project-hash)))
+
+(reg-sub
+ :project/active-url-id
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])
+    (subscribe [:self/projects true])])
+ (fn [[project self-projects] [_ project-id]]
+   (let [project-url
+         (-> project :url-ids first :url-id)
+         self-url
+         (->> self-projects
+              (filter #(= (:project-id %) project-id))
+              first :url-ids first)]
+     (or project-url self-url))))
 
 (reg-sub
  ::stats

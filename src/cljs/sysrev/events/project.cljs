@@ -3,7 +3,8 @@
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx trim-v]]
    [sysrev.util :refer [dissoc-in]]
-   [sysrev.subs.project :refer [active-project-id]]))
+   [sysrev.subs.project :refer [active-project-id]]
+   [sysrev.routes :as routes]))
 
 (reg-event-db
  :project/load
@@ -55,4 +56,11 @@
  :project/navigate
  [trim-v]
  (fn [_ [project-id]]
-   {:nav-scroll-top (str "/project/" project-id)}))
+   {:nav-scroll-top (routes/project-uri project-id "")}))
+
+(reg-event-db
+ :load-project-url-ids
+ [trim-v]
+ (fn [db [url-ids-map]]
+   (update-in db [:data :project-url-ids]
+              #(merge % url-ids-map))))

@@ -705,3 +705,33 @@
        (mapv :public-id)
        (mapv parse-number)
        (filterv (comp not nil?))))
+
+(defn project-url-ids [project-id]
+  (-> (select :url-id :user-id :date-created)
+      (from [:project-url-id :purl])
+      (where [:= :project-id project-id])
+      (order-by [:date-created :desc])
+      (->> do-query vec)))
+
+(defn project-id-from-url-id [url-id]
+  (-> (select :project-id)
+      (from [:project-url-id :purl])
+      (where [:= :url-id url-id])
+      do-query first :project-id))
+
+(defn add-project-url-id
+  [project-id url-id & {:keys [user-id]}]
+  (try
+    (with-transaction
+      (-> (delete-from :project-url-id)
+          (where [:and
+                  [:= :project-id project-id]
+                  [:= :url-id url-id]])
+          do-execute)
+      (-> (insert-into :project-url-id)
+          (values [{:project-id project-id
+                    :url-id url-id
+                    :user-id user-id}])
+          do-execute))
+    (finally
+      (clear-project-cache project-id))))

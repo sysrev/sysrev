@@ -4,7 +4,8 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.data.core :refer [def-data]]
    [sysrev.subs.auth :refer [have-identity?]]
-   [sysrev.subs.project :as project :refer [active-project-id project-loaded?]]
+   [sysrev.subs.project :as project :refer
+    [active-project-id project-loaded? project-url-id-loaded?]]
    [sysrev.subs.review :refer [task-id]]
    [sysrev.subs.articles :refer [have-article?]]
    [sysrev.subs.members :refer [have-member-articles?]]
@@ -26,7 +27,27 @@
     {:dispatch-n
      (list [:self/set-identity identity]
            [:self/set-projects projects]
+           (let [url-ids-map
+                 (->> projects
+                      (map (fn [{:keys [project-id url-ids]}]
+                             (map (fn [u] [u project-id])
+                                  url-ids)))
+                      (apply concat)
+                      (apply concat)
+                      (apply hash-map))]
+             [:load-project-url-ids url-ids-map])
            [:user/store identity])}))
+
+(def-data :project-url-id
+  :loaded? project-url-id-loaded?
+  :uri (fn [url-id] "/api/lookup-project-url")
+  :content (fn [url-id] {:url-id url-id})
+  :prereqs (fn [url-id] [])
+  :process
+  (fn [_ [url-id] {:keys [project-id]}]
+    (if (integer? project-id)
+      {:dispatch [:load-project-url-ids {url-id project-id}]}
+      {:dispatch [:load-project-url-ids {url-id nil}]})))
 
 (def-data :project
   :loaded? project-loaded?
@@ -34,10 +55,22 @@
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity]])
   :process
-  (fn [_ _ {:keys [project users]}]
+  (fn [_ [project-id] {:keys [project users]}]
     {:dispatch-n
-     (list [:project/load project]
-           [:user/store-multi (vals users)])}))
+     (list
+      [:project/load (merge project {:error nil})]
+      [:user/store-multi (vals users)]
+      (let [url-ids-map
+            (->> (:url-ids project)
+                 (map (fn [{:keys [url-id]}]
+                        [url-id project-id]))
+                 (apply concat)
+                 (apply hash-map))]
+        [:load-project-url-ids url-ids-map]))})
+  :on-error
+  (fn [{:keys [db error]} [project-id] _]
+    {:dispatch [:project/load {:project-id project-id
+                               :error error}]}))
 
 (def-data :project/settings
   :loaded? project-loaded?

@@ -18,7 +18,7 @@
 
 (defn def-data
   "Create definition for a data item to fetch from server."
-  [name & {:keys [prereqs loaded? uri content process content-type]
+  [name & {:keys [prereqs loaded? uri content content-type process on-error]
            :as fields}]
   (swap! data-defs assoc name fields))
 
@@ -263,7 +263,6 @@
  ::on-success
  (fn [{:keys [db] :as cofx} [item result]]
    (let [[name & args] item
-         item (vec (concat [name] args))
          spammed? (item-spammed? db item)]
      (merge
       {::returned item}
@@ -284,8 +283,12 @@
  ::on-failure
  (fn [cofx [item result]]
    (let [[name & args] item]
-     {::returned item
-      ::failed item})))
+     (merge
+      {::returned item
+       ::failed item}
+      (when-let [entry (get @data-defs name)]
+        (when-let [process (:on-error entry)]
+          (apply process [cofx args result])))))))
 
 ;; Reload data item from server if already loaded.
 (reg-event-fx

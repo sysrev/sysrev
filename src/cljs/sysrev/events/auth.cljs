@@ -40,12 +40,19 @@
  [trim-v]
  (fn [{:keys [db]} [project-id]]
    (let [old-id (get-in db [:state :recent-project-id])
-         changed? (and old-id (not= old-id project-id))]
+         changed? (and old-id project-id (not= old-id project-id))]
      (cond->
          {:db (cond-> (assoc-in db [:state :active-project-id] project-id)
                 project-id (assoc-in [:state :recent-project-id] project-id))}
          changed?
          (merge {:reset-data true})))))
+
+;; TODO: add similar {:reset-data true} logic here?
+(reg-event-fx
+ :self/set-active-project-url
+ [trim-v]
+ (fn [{:keys [db]} [url-id]]
+   {:db (assoc-in db [:state :active-project-url] url-id)}))
 
 (reg-event-db
  :self/set-projects

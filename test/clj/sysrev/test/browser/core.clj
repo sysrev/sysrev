@@ -169,11 +169,11 @@
 
 (defn current-project-id []
   (let [url (taxi/current-url)
-        [_ id-str] (re-matches #".*/project/(\d+)/?.*" url)]
+        [_ id-str] (re-matches #".*/p/(\d+)/?.*" url)]
     (when id-str
       (parse-integer id-str))))
 
 (defn go-project-route [suburi & [project-id]]
   (let [project-id (or project-id (current-project-id))]
     (assert (integer? project-id))
-    (go-route (str "/project/" project-id suburi))))
+    (go-route (str "/p/" project-id suburi))))
