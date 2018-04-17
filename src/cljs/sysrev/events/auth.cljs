@@ -3,9 +3,9 @@
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx dispatch trim-v reg-fx]]
    [sysrev.routes :refer [nav nav-scroll-top force-dispatch]]
+   [sysrev.subs.ui :refer [get-login-redirect-url]]
    [sysrev.util :refer [dissoc-in]]
-   [sysrev.shared.util :refer [to-uuid]]
-   [sysrev.subs.ui :refer [get-login-redirect-url]]))
+   [sysrev.shared.util :refer [to-uuid]]))
 
 (reg-event-fx
  :reset-data
@@ -15,9 +15,8 @@
                    :needed [])
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels]))
-    :dispatch [:fetch [:identity]]
-    :fetch-missing true
-    :data/reset-required true}))
+    :dispatch [:require [:identity]]
+    :fetch-missing true}))
 
 (reg-fx
  :reset-data
@@ -34,25 +33,6 @@
  :self/unset-identity
  (fn [db]
    (dissoc-in db [:state :identity])))
-
-(reg-event-fx
- :self/set-active-project
- [trim-v]
- (fn [{:keys [db]} [project-id]]
-   (let [old-id (get-in db [:state :recent-project-id])
-         changed? (and old-id project-id (not= old-id project-id))]
-     (cond->
-         {:db (cond-> (assoc-in db [:state :active-project-id] project-id)
-                project-id (assoc-in [:state :recent-project-id] project-id))}
-         changed?
-         (merge {:reset-data true})))))
-
-;; TODO: add similar {:reset-data true} logic here?
-(reg-event-fx
- :self/set-active-project-url
- [trim-v]
- (fn [{:keys [db]} [url-id]]
-   {:db (assoc-in db [:state :active-project-url] url-id)}))
 
 (reg-event-db
  :self/set-projects

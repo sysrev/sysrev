@@ -102,3 +102,7 @@
 
 (defn short-uuid [uuid]
   (last (str/split (str uuid) #"\-")))
+
+(defn integer-project-id? [url-id]
+  (if (re-matches #"^[0-9]+$" url-id)
+    true false))

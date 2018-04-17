@@ -4,7 +4,36 @@
     [reg-event-db reg-event-fx trim-v]]
    [sysrev.util :refer [dissoc-in]]
    [sysrev.subs.project :refer [active-project-id]]
-   [sysrev.routes :as routes]))
+   [sysrev.routes :as routes]
+   [sysrev.shared.util :refer [parse-integer integer-project-id?]]))
+
+(reg-event-fx
+ :set-active-project-url
+ [trim-v]
+ (fn [{:keys [db]} [url-id]]
+   (let [literal-id (-> (and url-id
+                             (integer-project-id? url-id)
+                             (parse-integer url-id))
+                        (#(if (integer? %) % nil)))
+         recent-url (get-in db [:state :recent-project-url])
+         cur-active (active-project-id db)
+         new-db
+         (cond->
+             (-> db
+                 (assoc-in [:state :active-project-literal] literal-id)
+                 (assoc-in [:state :active-project-url] url-id))
+             url-id (assoc-in [:state :recent-project-url] url-id))
+         new-active (active-project-id new-db)
+         ;; Reset data if this causes changing to a new active project.
+         changed? (and recent-url url-id
+                       (not= recent-url url-id)
+                       (not= cur-active new-active))]
+     (cond-> {:db new-db}
+       changed?
+       (merge {:reset-data true})
+
+       (and url-id (nil? literal-id))
+       (merge {:dispatch [:require [:project-url-id url-id]]})))))
 
 (reg-event-db
  :project/load

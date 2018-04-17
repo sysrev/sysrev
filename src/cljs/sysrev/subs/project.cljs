@@ -16,11 +16,10 @@
 (reg-sub :active-project-url active-project-url)
 
 (defn active-project-id [db]
-  (or (get-in db [:state :active-project-id])
-      (when-let [url-id (active-project-url db)]
-        (let [project-id (lookup-project-url-id db url-id)]
-          (when (integer? project-id)
-            project-id)))))
+  (or (get-in db [:state :active-project-literal])
+      (some->> (active-project-url db)
+               (lookup-project-url-id db)
+               (#(if (integer? %) % nil)))))
 (reg-sub :active-project-id active-project-id)
 
 (reg-sub
@@ -33,18 +32,14 @@
  (fn [db [_ url-id]]
    (lookup-project-url-id db url-id)))
 
-(defn project-loaded? [db]
-  (contains? (get-in db [:data :project]) (active-project-id db)))
+(defn project-loaded? [db project-id]
+  (contains? (get-in db [:data :project]) project-id))
 
-(defn project-sources-loaded? [db]
-  (contains?
-   (get-in db [:data :project (active-project-id db)])
-   :sources))
+(defn project-sources-loaded? [db project-id]
+  (contains? (get-in db [:data :project project-id]) :sources))
 
-(defn project-important-terms-loaded? [db]
-  (contains?
-   (get-in db [:data :project (active-project-id db)])
-   :importance))
+(defn project-important-terms-loaded? [db project-id]
+  (contains? (get-in db [:data :project project-id]) :importance))
 
 (defn get-project-raw [db project-id]
   (get-in db [:data :project project-id]))
@@ -188,9 +183,8 @@
  (fn [[project]]
    (-> project :stats :progress)))
 
-(defn have-public-labels? [db]
-  (let [project-id (active-project-id db)
-        project (get-project-raw db project-id)]
+(defn have-public-labels? [db project-id]
+  (let [project (get-project-raw db project-id)]
     (contains? project :public-labels)))
 
 (reg-sub

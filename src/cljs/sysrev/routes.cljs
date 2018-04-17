@@ -8,7 +8,6 @@
    [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
    [sysrev.shared.util :refer [parse-integer]]
    [sysrev.base :refer [history]]
-   [sysrev.subs.project :refer [project-loaded?]]
    [sysrev.events.ui :refer [set-subpanel-default-uri]]
    [sysrev.macros]
    [clojure.string :as str])
@@ -33,9 +32,9 @@
   (let [panel [:project :project :overview]
         prev-panel @(subscribe [:active-panel])
         diff-panel (and prev-panel (not= panel prev-panel))]
+    (dispatch [:set-active-panel panel])
     (when diff-panel
-      (dispatch [:reload [:project project-id]]))
-    (dispatch [:set-active-panel panel])))
+      (dispatch [:reload [:project project-id]]))))
 
 (defn project-uri [project-id suburi]
   (let [project-url-id @(subscribe [:project/active-url-id project-id])
@@ -48,7 +47,7 @@
  (let [logged-in? (subscribe [:self/logged-in?])
        default-project-id (subscribe [:self/default-project-id])
        on-ready #(if @logged-in?
-                   (if false #_ (integer? @default-project-id)
+                   (if (integer? @default-project-id)
                      (nav-scroll-top (project-uri @default-project-id ""))
                      (nav-scroll-top "/select-project"))
                    (nav-scroll-top "/login"))]

@@ -45,24 +45,25 @@
 
 (defn ProjectPanel [child]
   (ensure-state)
-  (let [project-id @(subscribe [:active-project-id])]
-    (cond (nil? project-id)
-          [:div
-           [ProjectErrorNotice
-            "Project not found"]
-           [:div {:style {:margin-top "16px"}}
-            [SelectProject]]]
+  (when @(subscribe [:have? [:identity]])
+    (let [project-id @(subscribe [:active-project-id])]
+      (cond (nil? project-id)
+            [:div
+             [ProjectErrorNotice
+              "Project not found"]
+             [:div {:style {:margin-top "16px"}}
+              [SelectProject]]]
 
-          @(subscribe [:project/unauthorized? project-id])
-          [ProjectErrorNotice
-           "Not authorized to view project"]
+            @(subscribe [:project/unauthorized? project-id])
+            [ProjectErrorNotice
+             "Not authorized to view project"]
 
-          @(subscribe [:project/error? project-id])
-          [ProjectErrorNotice
-           "Unable to load project"]
+            @(subscribe [:project/error? project-id])
+            [ProjectErrorNotice
+             "Unable to load project"]
 
-          :else
-          [ProjectContent child])))
+            :else
+            [ProjectContent child]))))
 
 (defmethod panel-content [:project] []
   (fn [child] [ProjectPanel child]))
