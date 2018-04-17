@@ -15,8 +15,8 @@
              [load-endnote-record parse-endnote-file]]
             [clojure.string :as str]))
 
-(defn- all-included-articles [project-id]
-  (->> (keys (labels/project-included-articles 100))
+(defn all-included-articles [project-id]
+  (->> (keys (labels/project-included-articles project-id))
        (mapv
         (fn [article-id]
           (let [article (q/query-article-by-id article-id [:*])
@@ -145,18 +145,29 @@
      [:custom4 (-> article-id str)]
      [:custom5 (-> article :article-uuid str)]]))
 
+(defn- article-ids-to-endnote-xml [article-ids & [filename]]
+  (dxml/emit-str
+   (dxml/sexp-as-element
+    [:xml
+     [:records
+      (doall
+       (map #(article-to-endnote-xml
+              % {:filename filename})
+            article-ids))]])))
+
 (defn project-to-endnote-xml [project-id]
   (let [filename (str "SysRev_Articles_"
                       project-id
                       "_"
                       (today-string))
-        records (-> (q/select-project-articles project-id [:article-id])
-                    (->> do-query
-                         (map :article-id)
-                         (map #(article-to-endnote-xml
-                                % {:filename filename}))))]
-    (dxml/emit-str
-     (dxml/sexp-as-element
-      [:xml
-       [:records
-        (doall records)]]))))
+        article-ids (-> (q/select-project-articles project-id [:article-id])
+                        (->> do-query (map :article-id)))]
+    (article-ids-to-endnote-xml article-ids filename)))
+
+(defn project-included-to-endnote-xml [project-id]
+  (let [filename (str "SysRev_Included_"
+                      project-id
+                      "_"
+                      (today-string))
+        article-ids (keys (labels/project-included-articles project-id))]
+    (article-ids-to-endnote-xml article-ids filename)))

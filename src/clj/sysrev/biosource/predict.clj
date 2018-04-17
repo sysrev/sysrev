@@ -20,6 +20,8 @@
 
 (def api-host "https://api.insilica.co/")
 
+;; (do (create-predict-model 100) (store-model-predictions 100))
+
 ;; TODO: this only works for boolean inclusion criteria labels
 (defn get-training-label-values [project-id label-id]
   (->> (labels/query-public-article-labels project-id)
@@ -67,6 +69,8 @@
              (apply concat)
              (apply hash-map)))))
 
+;; Note: the prediction model will need a minimum of an article with a true
+;; tag and false tag, otherwise it will fail
 (defn create-predict-model [project-id]
   (let [label-id (project/project-overall-label-id project-id)
         article-texts (get-article-texts true project-id label-id)

@@ -644,14 +644,21 @@
                              (update :label-value to-jsonb))))
                  (remove nil?)
                  vec))]
-    (-> (insert-into :project-keyword)
+    (when-not (empty? entries)
+      (-> (insert-into :project-keyword)
         (values entries)
-        do-execute)))
+        do-execute))))
 
-(defn copy-project-members [src-project-id dest-project-id]
-  (doseq [user-id (project-user-ids src-project-id false)]
-    (let [{:keys [permissions]} (project-member src-project-id user-id)]
-      (add-project-member dest-project-id user-id :permissions permissions))))
+(defn copy-project-members [src-project-id dest-project-id &
+                            {:keys [user-ids-only admin-members-only]}]
+  (doseq [user-id (project-user-ids src-project-id)]
+    (when (or (nil? user-ids-only)
+              (in? user-ids-only user-id))
+      (let [{:keys [permissions]} (project-member src-project-id user-id)]
+        (when (or (not admin-members-only)
+                  (in? permissions "admin"))
+          (add-project-member dest-project-id user-id
+                              :permissions permissions))))))
 
 (defn project-exists?
   "Does a project with project-id exist?"
@@ -735,3 +742,46 @@
           do-execute))
     (finally
       (clear-project-cache project-id))))
+
+(defn copy-project-label-defs [src-project-id dest-project-id]
+  (let [entries
+        (-> (select :*)
+            (from [:label :l])
+            (where [:= :project-id src-project-id])
+            (->> do-query
+                 (mapv #(-> %
+                            (dissoc :label-id :label-id-local :project-id)
+                            (assoc :project-id dest-project-id)))))]
+    (-> (insert-into :label)
+        (values entries)
+        do-execute)))
+
+;; TODO: should copy "Project Documents" files
+;; TODO: should copy project sources (not just articles)
+(defn clone-project
+  "Creates a copy of a project.
+
+  Copies most project definition entries over from the parent project
+  (eg. project members, label definitions, keywords)."
+  [project-name src-id &
+   {:keys [user-ids-only admin-members-only]}]
+  (with-transaction
+    (let [dest-id
+          (:project-id (create-project project-name
+                                       :parent-project-id src-id))
+          article-uuids
+          (-> (q/select-project-articles src-id [:a.article-uuid])
+              (->> do-query (map :article-uuid)))]
+      (add-project-note dest-id {})
+      (println (format "created project (#%d, '%s')"
+                       dest-id project-name))
+      (populate-child-project-articles
+       src-id dest-id article-uuids)
+      (println (format "loaded %d articles"
+                       (project-article-count dest-id)))
+      (copy-project-label-defs src-id dest-id)
+      (copy-project-keywords src-id dest-id)
+      (copy-project-members src-id dest-id
+                            :user-ids-only user-ids-only
+                            :admin-members-only admin-members-only)))
+  (println "clone-project done"))

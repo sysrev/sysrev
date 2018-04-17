@@ -302,3 +302,25 @@
                 nil)))))))
      (apply concat)
      (filter identity))))
+
+(defn project-prediction-scores
+  "Given a project-id, return the prediction scores for all articles"
+  [project-id & {:keys [include-disabled? predict-run-id]
+                 :or {include-disabled? false
+                      predict-run-id (-> (select :predict-run-id)
+                                         (from [:predict-run :pr])
+                                         (where [:= :pr.project-id project-id])
+                                         (order-by [:pr.create-time :desc])
+                                         (limit 1)
+                                         do-query
+                                         first
+                                         :predict-run-id)}}]
+  (-> (select :lp.article-id :lp.val)
+      (from [:label_predicts :lp])
+      (join [:article :a] [:= :lp.article-id :a.article-id])
+      (where [:and
+              [:= :a.project_id project-id]
+              [:= :lp.predict_run_id predict-run-id]
+              (when (not include-disabled?)
+                [:= :a.enabled true])])
+      do-query))

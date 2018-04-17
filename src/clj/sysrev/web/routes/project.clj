@@ -455,8 +455,12 @@
                                  plan-name)))
 
   (GET "/api/important-terms" request
-       (let [{:keys [n]} (-> :params request)]
+       (let [{:keys [n]} (-> request :params)]
          (api/important-terms (active-project request) (parse-integer n))))
+
+  (GET "/api/prediction-histograms" request
+       (let [{:keys [project-id]} (-> request :params)]
+         (api/prediction-histogram (parse-integer project-id))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

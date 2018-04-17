@@ -187,15 +187,24 @@
     (when (and context (not-empty values))
       (js/Chart. context (clj->js chart-data)))))
 
+(defn label-count->chart-height
+  "Given a label count n, return the chart height in px"
+  [n]
+  (str (+ 35 (* 15 n)) "px"))
+
 (defn Chart
-  [chart-options title]
+  "Create a chart using chart-options and title with optional canvas dimensions.
+  Canvas dimension are of the form {:height <number> :width <number>}"
+  [chart-options title & [{:keys [height width]}]]
   (let [id (random-id)
         chart (r/atom nil)
-        draw-chart-fn (fn [props]
+        draw-chart-fn (fn [chart-options]
                         (reset! chart
                                 (js/Chart.
                                  (get-canvas-context id)
-                                 (clj->js props))))]
+                                 (clj->js chart-options))))
+        canvas-height (r/atom nil)
+        canvas-width (r/atom nil)]
     (r/create-class
      {:reagent-render
       (fn [{:keys [chart-options]} title]
@@ -204,13 +213,34 @@
           [:div.ui.two.column.middle.aligned.grid
            [:div.ui.left.aligned.column
             title]]]
-         [:div [:canvas {:id id}]]])
+         [:div
+          [:canvas
+           (cond-> {:id id}
+             ;; set the heights
+             @canvas-height (merge {:height @canvas-height})
+             @canvas-width  (merge {:width @canvas-width})
+             ;; set the styles
+             (or @canvas-height
+                 @canvas-width)
+             (merge {:style (cond-> {}
+                              @canvas-height (merge {:height @canvas-height})
+                              @canvas-width (merge {:width @canvas-width}))}))]]])
+      :component-will-mount
+      (fn [this]
+        (reset! canvas-height height)
+        (reset! canvas-width width))
       :component-did-mount
       (fn [this]
         (draw-chart-fn chart-options))
       :component-will-update
-      (fn [this new-argv]
-        (draw-chart-fn (second new-argv))
-        (.update @chart))
+      (fn [this [_ chart-options title {:keys [height width]}]]
+        (.destroy @chart)
+        ;; If the correct height was determinable
+        ;; (including the height of the legend)
+        ;; this would work in combination with
+        ;; label-count->chart-height
+        ;;
+        ;;(reset! canvas-height height)
+        ;;(reset! canvas-width width)
+        (draw-chart-fn chart-options))
       :display-name (str (gensym title))})))
-

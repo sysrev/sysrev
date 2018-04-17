@@ -962,19 +962,6 @@
            (apply concat)
            (apply hash-map)))))
 
-(defn copy-project-label-defs [src-project-id dest-project-id]
-  (let [entries
-        (-> (select :*)
-            (from [:label :l])
-            (where [:= :project-id src-project-id])
-            (->> do-query
-                 (mapv #(-> %
-                            (dissoc :label-id :label-id-local :project-id)
-                            (assoc :project-id dest-project-id)))))]
-    (-> (insert-into :label)
-        (values entries)
-        do-execute)))
-
 (defn project-include-labels [project-id]
   (with-project-cache
     project-id [:label-values :confirmed :include-labels]
@@ -1058,6 +1045,32 @@
                        [status (->> status-vals (filter (partial = status)) count)]))
                 (apply concat)
                 (apply hash-map))))))))
+
+(defn project-article-statuses
+  [project-id]
+  (let [articles (query-public-article-labels project-id)
+        overall-id (project/project-overall-label-id project-id)]
+    (when overall-id
+      (let [status-vals
+            (->> articles
+                 (map
+                  (fn [article]
+                    (let [article-labels (second article)
+                          labels (get-in article-labels [:labels overall-id])
+                          group-status
+                          (cond (is-single? labels)     :single
+                                (is-resolved? labels)   :resolved
+                                (is-conflict? labels)   :conflict
+                                :else                   :consistent)
+                          inclusion-status
+                          (case group-status
+                            :conflict nil,
+                            :resolved (->> labels (filter :resolve) (map :inclusion) first),
+                            (->> labels (map :inclusion) first))]
+                      (hash-map :group-status group-status
+                                :article-id (first article)
+                                :answer (:answer (first labels)))))))]
+        status-vals))))
 
 (defn project-members-info [project-id]
   (with-project-cache

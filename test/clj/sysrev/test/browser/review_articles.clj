@@ -560,3 +560,17 @@
           categorical-label-definition])
         (taxi/wait-until #(or (taxi/exists? disabled-save-button)
                               (taxi/exists? no-articles-need-review))))))
+
+(defn randomly-review-n-articles
+  "Randomly sets labels for n articles using a vector of label-definitions"
+  [n label-definitions]
+  (taxi/click review-articles-button)
+  (browser/wait-until-exists {:xpath "//div[@id='project_review']"})
+  (dotimes [i n]
+    (do
+      (randomly-set-article-labels label-definitions)
+      (taxi/wait-until #(or (taxi/exists? disabled-save-button)
+                            (taxi/exists? no-articles-need-review))))))
+
+
+;; (randomly-review-n-articles 15 [(merge include-label-definition {:definition {:all-values [true false]}})])

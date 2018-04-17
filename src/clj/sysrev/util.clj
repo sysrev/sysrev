@@ -160,3 +160,10 @@
   (let [now (t/now)
         fmt (tformat/formatters :basic-date)]
     (tformat/unparse fmt now)))
+
+;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places
+(defn round
+  "Round a double to the given precision (number of significant digits)"
+  [precision d]
+  (let [factor (Math/pow 10 precision)]
+    (/ (Math/round (* d factor)) factor)))

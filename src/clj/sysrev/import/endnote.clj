@@ -262,7 +262,7 @@
                      (project/project-article-count child-id)))
     (docs/load-article-documents child-id pdfs-path)
     (docs/load-project-document-ids child-id article-doc-ids)
-    (labels/copy-project-label-defs parent-id child-id)
+    (project/copy-project-label-defs parent-id child-id)
     (project/copy-project-keywords parent-id child-id)
     (project/copy-project-members parent-id child-id)
     (println "clone-subproject-endnote done")))

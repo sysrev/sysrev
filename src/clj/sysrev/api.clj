@@ -4,6 +4,7 @@
             [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [sysrev.db.articles :as articles]
             [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
             [sysrev.db.plans :as plans]
@@ -398,6 +399,51 @@
                         (into []))))
       :loading
       (importance/project-importance-loading? project-id)}}))
+
+(defn prediction-histogram
+  "Given a project-id, return a vector of {:count <int> :score <float>}"
+  [project-id]
+  (let [prediction-scores (->> (articles/project-prediction-scores project-id)
+                               (mapv #(assoc % :rounded-score (util/round 2 (:val %)))))
+        predictions-map (zipmap (mapv :article-id prediction-scores)
+                                (mapv :rounded-score prediction-scores))
+        project-article-statuses (labels/project-article-statuses project-id)
+        reviewed-articles-no-conflicts (->> project-article-statuses
+                                            (group-by :group-status)
+                                            ((fn [reviewed-articles]
+                                               (concat
+                                                (:consistent reviewed-articles)
+                                                (:single reviewed-articles)
+                                                (:resolved reviewed-articles)))))
+        unreviewed-articles (let [all-article-ids (set (mapv :article-id prediction-scores))
+                                  reviewed-article-ids (set (mapv :article-id project-article-statuses))]
+                              (clojure.set/difference all-article-ids reviewed-article-ids))
+        get-rounded-score-fn (fn [article-id]
+                               (get predictions-map article-id))
+        reviewed-articles-scores (mapv #(assoc % :rounded-score
+                                               (get-rounded-score-fn (:article-id %)))
+                                       reviewed-articles-no-conflicts)
+        unreviewed-articles-scores (mapv #(hash-map :rounded-score
+                                                    (get-rounded-score-fn %))
+                                         unreviewed-articles)
+        histogram-fn (fn [scores]
+                       (->> scores
+                            (group-by :rounded-score)
+                            (mapv #(hash-map :score (first %)
+                                             :count (count (second %))))))]
+    (if-not (empty? prediction-scores)
+      {:result
+       {:prediction-histograms
+        {:reviewed-include-histogram (histogram-fn (filterv #(= (:answer %)
+                                                                true) reviewed-articles-scores))
+         :reviewed-exclude-histogram (histogram-fn (filterv #(= (:answer %)
+                                                                false) reviewed-articles-scores))
+         :unreviewed-histogram (histogram-fn unreviewed-articles-scores)}}}
+      {:result
+       {:prediction-histograms
+        {:reviewed-include-histogram []
+         :reviewed-exclude-histogram []
+         :unreviewed-histogram []}}})))
 
 (defn test-response
   "Server Sanity Check"
