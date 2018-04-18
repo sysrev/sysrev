@@ -14,8 +14,6 @@
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.nav :as nav]
-   [sysrev.state.project.data :refer
-    [project-histograms-loaded?]]
    [sysrev.state.nav :refer [active-project-id project-uri]]
    [sysrev.util :refer [full-size? random-id continuous-update-until]]
    [cljs-time.core :as t]
@@ -559,9 +557,28 @@
             processed-label-counts (process-label-counts)]
         [LabelCountChart label-ids processed-label-counts]))))
 
+(reg-sub
+ ::prediction-histograms
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]] (:histograms project)))
+
+(def-data :project/prediction-histograms
+  :loaded?
+  (fn [db project-id]
+    (contains? (get-in db [:data :project project-id]) :histograms))
+  :uri (fn [] "/api/prediction-histograms")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [] [[:identity]])
+  :process
+  (fn [{:keys [db]} [project-id] {:keys [prediction-histograms]}]
+    {:db
+     (assoc-in db [:data :project project-id :histograms]
+               prediction-histograms)}))
+
 (defn PredictionHistogramChart []
   (let [prediction-histograms
-        @(subscribe [:project/prediction-histograms])
+        @(subscribe [::prediction-histograms])
         labels
         (-> prediction-histograms
             vals

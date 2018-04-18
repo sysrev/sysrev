@@ -119,16 +119,6 @@
     {:dispatch
      [:project/load-important-terms project-id result]}))
 
-(def-data :project/prediction-histograms
-  :loaded? project-data/project-histograms-loaded?
-  :uri (fn [] "/api/prediction-histograms")
-  :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [] [[:identity]])
-  :process
-  (fn [_ [project-id] {:keys [prediction-histograms]}]
-    {:dispatch [:project/load-prediction-histograms
-                project-id prediction-histograms]}))
-
 (def-data :member/articles
   :loaded? project-data/have-member-articles?
   :uri (fn [project-id user-id] (str "/api/member-articles/" user-id))

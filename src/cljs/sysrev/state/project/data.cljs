@@ -15,9 +15,6 @@
 (defn project-important-terms-loaded? [db project-id]
   (contains? (get-in db [:data :project project-id]) :importance))
 
-(defn project-histograms-loaded? [db project-id]
-  (contains? (get-in db [:data :project project-id]) :histograms))
-
 (defn have-public-labels? [db project-id]
   (let [project (get-project-raw db project-id)]
     (contains? project :public-labels)))
@@ -56,12 +53,6 @@
  [trim-v]
  (fn [db [project-id files]]
    (assoc-in db [:data :project project-id :files] files)))
-
-(reg-event-db
- :project/load-prediction-histograms
- [trim-v]
- (fn [db [project-id content]]
-   (assoc-in db [:data :project project-id :histograms] content)))
 
 (reg-event-db
  :project/clear-data
@@ -108,9 +99,3 @@
    [(subscribe [:project/raw project-id])])
  (fn [[project] [_ entity-type project-id]]
    (true? (get-in project [:importance :loading]))))
-
-(reg-sub
- :project/prediction-histograms
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]] (:histograms project)))
