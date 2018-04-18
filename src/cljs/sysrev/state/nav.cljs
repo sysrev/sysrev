@@ -121,6 +121,10 @@
                (#(if (integer? %) % nil)))))
 (reg-sub :active-project-id active-project-id)
 
+(reg-sub
+ :recent-active-project
+ (fn [db] (get-in db [:state :recent-active-project])))
+
 (reg-event-fx
  :set-active-project-url
  [trim-v]
@@ -138,6 +142,8 @@
                  (assoc-in [:state :active-project-url] url-id))
              url-id (assoc-in [:state :recent-project-url] url-id))
          new-active (active-project-id new-db)
+         new-db (cond-> new-db
+                  new-active (assoc-in [:state :recent-active-project] new-active))
          ;; Reset data if this causes changing to a new active project.
          changed? (and recent-url url-id
                        (not= recent-url url-id)

@@ -22,11 +22,14 @@
 (sr-defroute
  home "/" []
  (let [logged-in? (subscribe [:self/logged-in?])
+       recent-project-id (subscribe [:recent-active-project])
        default-project-id (subscribe [:self/default-project-id])
        on-ready #(if @logged-in?
-                   (if (integer? @default-project-id)
-                     (nav-scroll-top (project-uri @default-project-id ""))
-                     (nav-scroll-top "/select-project"))
+                   (let [project-id (or @recent-project-id
+                                        @default-project-id)]
+                     (if (integer? project-id)
+                       (nav-scroll-top (project-uri project-id ""))
+                       (nav-scroll-top "/select-project")))
                    (nav-scroll-top "/login"))]
    (if @(subscribe [:have? [:identity]])
      (on-ready)
