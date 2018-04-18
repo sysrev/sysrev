@@ -3,12 +3,10 @@
             sysrev.core
             sysrev.util
             sysrev.routes
-            sysrev.fx
             sysrev.ajax
             sysrev.nav
             sysrev.state.all
             sysrev.data.core
-            sysrev.data.definitions
             sysrev.views.main
             sysrev.shared.util
             sysrev.shared.keywords
@@ -34,7 +32,6 @@
   (import-vars 'sysrev.core)
   (import-vars 'sysrev.util)
   (import-vars 'sysrev.routes)
-  (import-vars 'sysrev.fx)
   (import-vars 'sysrev.state.core)
   (import-vars 'sysrev.state.ui)
   (import-vars 'sysrev.data.core)

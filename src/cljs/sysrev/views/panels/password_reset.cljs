@@ -4,10 +4,79 @@
     [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.state.ui :refer [get-panel-field]]
+   [sysrev.data.core :refer [def-data]]
+   [sysrev.action.core :refer [def-action]]
    [sysrev.util :refer [validate wrap-prevent-default]]))
 
 (def ^:private request-panel [:request-password-reset])
 (def ^:private reset-panel [:reset-password])
+
+(reg-event-fx
+ :reset-password/reset-code
+ [trim-v]
+ (fn [_ [reset-code]]
+   {:dispatch [:set-panel-field [:reset-code] reset-code reset-panel]}))
+
+(reg-sub
+ :reset-password/reset-code
+ :<- [:panel-field [:reset-code] reset-panel]
+ identity)
+
+(reg-event-fx
+ :reset-password/email
+ [trim-v]
+ (fn [_ [email]]
+   {:dispatch [:set-panel-field [:email] email reset-panel]}))
+
+(reg-sub
+ :reset-password/email
+ :<- [:panel-field [:email] reset-panel]
+ identity)
+
+(def-data :password-reset
+  :loaded? (fn [db reset-code]
+             (let [active-code (get-panel-field db [:reset-code] reset-panel)
+                   active-email (get-panel-field db [:email] reset-panel)]
+               (boolean
+                (and active-email (= reset-code active-code)))))
+  :uri (fn [_] "/api/auth/lookup-reset-code")
+  :prereqs (fn [_] nil)
+  :content (fn [reset-code] {:reset-code reset-code})
+  :process
+  (fn [_ [reset-code] {:keys [email]}]
+    (when email
+      {:dispatch-n
+       (list [:reset-password/reset-code reset-code]
+             [:reset-password/email email])})))
+
+(def-action :auth/request-password-reset
+  :uri (fn [_] "/api/auth/request-password-reset")
+  :content (fn [email] {:email email})
+  :process
+  (fn [_ [email] {:keys [success] :as result}]
+    (if success
+      {:dispatch [:request-password-reset/sent? true]}
+      {:dispatch-n
+       (list [:request-password-reset/sent? false]
+             [:request-password-reset/error
+              "No account found for this email address."])})))
+
+(def-action :auth/reset-password
+  :uri (fn [_] "/api/auth/reset-password")
+  :content (fn [{:keys [reset-code password] :as args}]
+             args)
+  :process
+  (fn [_ _ {:keys [success message] :as result}]
+    (if success
+      {:dispatch-n
+       (list [:ga-event "auth" "password_reset_success"]
+             [:reset-password/success? true])
+       :dispatch-later
+       [{:ms 2000 :dispatch [:navigate [:login]]}]}
+      {:dispatch-n
+       (list [:ga-event "error" "password_reset_failure"]
+             [:reset-password/error
+              (or message "Request failed")])})))
 
 (reg-event-fx
  ::request-email
@@ -52,34 +121,6 @@
  :request-password-reset/error
  :<- [:panel-field [:transient :error] request-panel]
  identity)
-
-(reg-event-fx
- :reset-password/reset-code
- [trim-v]
- (fn [_ [reset-code]]
-   {:dispatch [:set-panel-field [:reset-code] reset-code reset-panel]}))
-
-(reg-sub
- :reset-password/reset-code
- :<- [:panel-field [:reset-code] reset-panel]
- identity)
-
-(reg-event-fx
- :reset-password/email
- [trim-v]
- (fn [_ [email]]
-   {:dispatch [:set-panel-field [:email] email reset-panel]}))
-
-(reg-sub
- :reset-password/email
- :<- [:panel-field [:email] reset-panel]
- identity)
-
-(defn have-reset-code? [db reset-code]
-  (let [active-code (get-panel-field db [:reset-code] reset-panel)
-        active-email (get-panel-field db [:email] reset-panel)]
-    (boolean
-     (and active-email (= reset-code active-code)))))
 
 (reg-event-fx
  ::reset-submitted?

@@ -3,6 +3,8 @@
              [subscribe reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v reg-fx]]
             [reagent.ratom :refer [reaction]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel]]
             [sysrev.state.articles :as articles]
             [sysrev.state.identity :refer [current-user-id]]
@@ -12,6 +14,49 @@
   (get-in db [:data :review :task-id]))
 
 (reg-sub :review/task-id review-task-id)
+
+(defn- load-review-task [db article-id today-count]
+  (-> db
+      (assoc-in [:data :review :task-id] article-id)
+      (assoc-in [:data :review :today-count] today-count)))
+
+(def-data :review/task
+  :loaded? review-task-id
+  :uri (fn [project-id] "/api/label-task")
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :content (fn [project-id] {:project-id project-id})
+  :process
+  (fn [{:keys [db]}
+       [project-id]
+       {:keys [article labels notes today-count] :as result}]
+    (if (= result :none)
+      {:db (-> db
+               (load-review-task :none nil))}
+      (let [article (merge article {:labels labels :notes notes})]
+        (cond->
+           {:db (-> db
+                    (load-review-task (:article-id article) today-count)
+                    (articles/load-article article))}
+           (= (active-panel db) [:project :review])
+           (merge {:scroll-top true}))))))
+
+(def-action :review/send-labels
+  :uri (fn [project-id _] "/api/set-labels")
+  :content (fn [project-id {:keys [article-id label-values
+                                   change? confirm? resolve?]}]
+             {:project-id project-id
+              :article-id article-id
+              :label-values label-values
+              :confirm? (boolean confirm?)
+              :resolve? (boolean resolve?)
+              :change? (boolean change?)})
+  :process
+  (fn [_ [project-id {:keys [on-success]}] result]
+    (when on-success
+      (let [success-fns (filter fn? on-success)
+            success-events (remove fn? on-success)]
+        (doseq [f success-fns] (f))
+        {:dispatch-n success-events}))))
 
 (reg-sub
  :review/today-count
@@ -124,15 +169,6 @@
                          @(subscribe [:label/non-empty-answer?
                                       label-id (get active-labels label-id)]))]
       (->> required-ids (remove have-answer?) vec)))))
-
-;; Update review interface state based response from task request
-(reg-event-db
- :review/load-task
- [trim-v]
- (fn [db [article-id today-count]]
-   (-> db
-       (assoc-in [:data :review :task-id] article-id)
-       (assoc-in [:data :review :today-count] today-count))))
 
 ;; Record POST action to send labels having been initiated,
 ;; to show loading indicator on the button that was clicked.

@@ -2,7 +2,9 @@
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw
               dispatch reg-event-db reg-event-fx trim-v]]
-            [sysrev.state.nav :refer [active-project-id]]))
+            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.state.identity :refer [current-user-id]]
+            [sysrev.action.core :refer [def-action]]))
 
 (reg-sub
  ::note
@@ -118,3 +120,17 @@
         article-notes @(subscribe [:article/notes article-id user-id])]
     (dispatch [:review/sync-article-notes
                article-id ui-notes article-notes])))
+
+(def-action :article/send-note
+  :uri (fn [project-id _] "/api/set-article-note")
+  :content (fn [project-id {:keys [article-id name content] :as argmap}]
+             (merge {:project-id project-id}
+                    argmap))
+  :process
+  (fn [{:keys [db]}
+       [project-id {:keys [article-id name content]}]
+       result]
+    (when-let [user-id (current-user-id db)]
+      {:dispatch-n
+       (list [:article/set-note-content article-id (keyword name) content]
+             [:review/set-note-content article-id (keyword name) nil])})))

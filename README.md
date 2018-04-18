@@ -231,13 +231,13 @@ sysrev.user> (nav "/create-project")
 
 ### Development
 
-1. To update reframe data, that is defined by def-data in sysrev.data.definitions,
+1. To update reframe data, that is defined by a def-data form,
 
 ```clojurescript
 (dispatch [:fetch [:identity]])
 ```
 
-2. sysrev.action.definitions for post calls
+2. def-action form defines post calls
 
 3. Re-frame keeps all data in a  reframe.db/app-db reagent atom
 
@@ -255,12 +255,9 @@ sysrev.user> (nav "/create-project")
 
 #### Development Cycle
 
-1. To pull data from the server, add an entry into 'data/definitions.cljs'
+1. To pull data from the server, add a definition using `def-data` form
 
     ex: To make a GET request on the server, using term as a URL parameter, you would use:
-
-    bug: If you are viewing a bar chart, reloading 'data/definitions.cljs' will result in
-    a browser error
 
 ```clojurescript
 (def-data :pubmed-query
@@ -375,7 +372,7 @@ false
 ---
 <!-- 1. Define data in 'state/' -->
 
-<!-- 1. Define data retrieval and handling in 'data/definitions.cljs' -->
+<!-- 1. Define data retrieval and handling using `def-data` form (from sysrev.data.core) -->
 
 <!-- 1. Create or modify a reagent component in 'views/' -->
 
@@ -420,21 +417,21 @@ General-use functionality for data access and event handling is kept under `stat
 #### File layout structure
 
 * `user.cljs`
-    * Namespace for use in REPL. Imports symbols from all other namespaces for convenience.
+    * Namespace for use in REPL. Imports symbols from all other namespaces for convenience
 * `state/`
-    * re-frame subscriptions and events intended for general use.
+    * re-frame subscriptions and events intended for general use
 * `data/`
     * Defines data entries fetched via GET requests from server
-    * `sysrev.data.core` implements a system for defining these.
-    * `sysrev.data.definitions` contains all definitions for GET requests.
+    * `sysrev.data.core` implements a system for defining these
+    * `def-data` forms are defined in source files with relevant functionality
 * `action/`
     * Defines server interaction actions for POST requests
     * `sysrev.action.core` implements a system for defining these (similar to `sysrev.data.core`)
-    * `sysrev.action.definitions` contains all definitions for POST requests.
+    * `def-action` forms are defined in source files with relevant functionality
 * `routes.cljs`
-    * Contains all route handler definitions.
+    * Contains all route handler definitions
 * `views/`
-    * Contains all rendering code, and state management code which is specific to a UI component.
+    * Contains all rendering code, and state management code which is specific to a UI component
     * `views/panels/`
         * Defines rendering handlers for all routes in the app
         * Generally organized using a separate file for each route

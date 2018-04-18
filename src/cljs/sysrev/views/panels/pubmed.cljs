@@ -1,14 +1,15 @@
 (ns sysrev.views.panels.pubmed
-  (:require
-   [cljs-http.client :as http-client]
-   [reagent.core :as r]
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-event-fx trim-v]]
-   [re-frame.db :refer [app-db]]
-   [sysrev.views.base :refer [panel-content]]
-   [sysrev.views.components :as ui]
-   [sysrev.util :refer [wrap-prevent-default]]
-   [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [cljs-http.client :as http-client]
+            [reagent.core :as r]
+            [re-frame.core :as re-frame :refer
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+            [re-frame.db :refer [app-db]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.components :as ui]
+            [sysrev.util :refer [wrap-prevent-default]]))
 
 (def panel [:pubmed-search])
 
@@ -20,6 +21,158 @@
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
+
+(def-data :pubmed-search
+  :loaded?
+  ;; if loaded? is false, then data will be fetched from server,
+  ;; otherwise, no data is fetched. It is a fn of the dereferenced
+  ;; re-frame.db/app-db.
+  (fn [db search-term page-number]
+    (let [pmids-per-page 20
+          result-count (get-in db [:data :pubmed-search search-term :count])]
+      ;; the result-count hasn't been updated, so the search term results
+      ;; still need to be populated
+      (if (nil? result-count)
+        false
+        ;; the page number exists
+        (if (<= page-number
+                (Math/ceil (/ result-count pmids-per-page)))
+          (not-empty (get-in db [:data :pubmed-search search-term
+                                 :pages page-number :pmids]))
+          ;; the page number doesn't exist, retrieve nothing
+          true))))
+
+  :uri
+  ;; uri is a function that returns a uri string
+  (fn [] "/api/pubmed/search")
+
+  :prereqs
+  ;; a fn that returns a vector of def-data entries
+  (fn [] [[:identity]])
+
+  :content
+  ;; a fn that returns a map of http parameters (in a GET context)
+  ;; the parameters passed to this function are the same like in
+  ;; the dispatch statement which executes the query
+  ;; e.g. (dispatch [:fetch [:pubmed-query "animals" 1]])
+  ;;
+  ;; The data can later be retrieved using a re-frame.core/subscribe call
+  ;; that is defined in sysrev.state.pubmed
+  ;; e.g. @(subscribe [:pubmed/search-term-result "animals"])
+  (fn [search-term page-number] {:term search-term
+                                 :page-number page-number})
+
+  :process
+  ;;  fn of the form: [re-frame-db query-parameters (:result response)]
+  (fn [_ [search-term page-number] response]
+    {:dispatch-n
+     ;; this is defined in sysrev.state.pubmed
+     (list [:pubmed/save-search-term-results
+            search-term page-number response])}))
+
+(def-data :pubmed-summaries
+  :loaded?
+  (fn [db search-term page-number pmids]
+    (let [pmids-per-page 20
+          result-count (get-in db [:data :pubmed-search search-term :count])]
+      (if (<= page-number
+              (Math/ceil (/ result-count pmids-per-page)))
+        ;; the page number exists, the results should too
+        (not-empty (get-in db [:data :pubmed-search search-term
+                               :pages page-number :summaries]))
+        ;; the page number isn't in the result, retrieve nothing
+        true)))
+
+  :uri
+  (fn [] "/api/pubmed/summaries")
+
+  :prereqs
+  (fn [] [[:identity]])
+
+  :content
+  (fn [search-term page-number pmids]
+    {:pmids (clojure.string/join "," pmids)})
+
+  :process
+  (fn [_ [search-term page-number pmids] response]
+    {:dispatch-n
+     (list [:pubmed/save-search-term-summaries
+            search-term page-number response])}))
+
+(def-action :project/import-articles-from-search
+  :uri (fn [] "/api/import-articles-from-search")
+  :content (fn [project-id search-term source]
+             {:project-id project-id
+              :search-term search-term
+              :source source})
+  :process (fn [_ [project-id _ _] {:keys [success] :as result}]
+             (if success
+               {:dispatch-n
+                (list [:reload [:project/sources project-id]]
+                      [:add-articles/reset-state!])}
+               ;; TODO: handle non-success?
+               {}))
+  :on-error (fn [{:keys [db error]} _]
+              (let [{:keys [message]} error]
+                (when (string? message)
+                  {:dispatch [:pubmed/set-import-error message]}))))
+
+(reg-sub
+ :pubmed/search-term-result
+ (fn [db [_ search-term]]
+   (-> db :data :pubmed-search (get-in [search-term]))))
+
+;; A DB map representing a search term in :data :search-term <term>
+;;
+;;{:count <integer> ; total amount of documents that match a search term
+;; :pages {<page-number> ; an integer
+;;         {:pmids [PMIDS] ; a vector of PMID integers associated with page_no
+;;          :summaries {<pmid> ; an integer, should be in [PMIDS] vector above
+;;                      { PubMed Summary map} ; contains many key/val pairs
+;;                     }
+;;         }
+;;}
+
+(reg-event-fx
+ :pubmed/save-search-term-results
+ [trim-v]
+ ;; WARNING: This fn must return something (preferable the db map),
+ ;;          otherwise the system will hang!!!
+ (fn [{:keys [db]} [search-term page-number search-term-response]]
+   (let [pmids (:pmids search-term-response)
+         page-inserter
+         ;; We only want to insert a {page-number [pmids]} map
+         ;; if there are actually pmids for that page-number
+         ;; associated with the search term
+         ;; e.g. if you ask /api/pubmed/search for page-number 30 of the term "foo bar"
+         ;; you will get back an empty vector. This fn discards that response
+         (fn [db] (update-in db [:data :pubmed-search search-term :pages]
+                             #(let [data {page-number {:pmids pmids}}]
+                                ;; on the first request, the :pages keyword
+                                ;; doesn't yet exist so conj will return a list
+                                ;; and not a map. This makes sure only maps
+                                ;; are saved in our DB
+                                (if (nil? %)
+                                  data
+                                  (conj % data)))))]
+     (if-not (empty? pmids)
+       {:db (-> db
+                ;; include the count
+                (assoc-in [:data :pubmed-search search-term :count]
+                          (:count search-term-response))
+                ;; include the page-number and associated pmids
+                page-inserter)
+        :dispatch [:require [:pubmed-summaries search-term page-number pmids]]}
+       {:db (assoc-in db [:data :pubmed-search search-term :count]
+                      (:count search-term-response))}))))
+
+
+(reg-event-db
+ :pubmed/save-search-term-summaries
+ [trim-v]
+ (fn [db [search-term page-number response]]
+   (assoc-in db [:data :pubmed-search search-term :pages page-number :summaries]
+             response)))
 
 (reg-event-fx
  :pubmed/set-import-error

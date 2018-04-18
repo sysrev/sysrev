@@ -8,7 +8,6 @@
             sysrev.state.labels
             sysrev.state.review
             sysrev.state.notes
-            sysrev.state.pubmed
             sysrev.state.project.base
             sysrev.state.project.core
             sysrev.state.project.data

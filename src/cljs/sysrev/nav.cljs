@@ -1,7 +1,7 @@
 (ns sysrev.nav
   (:require [secretary.core :as secretary]
             [pushy.core :as pushy]
-            [re-frame.core :refer [reg-event-db]]
+            [re-frame.core :refer [reg-event-db reg-fx]]
             [sysrev.base :refer [history]]
             [sysrev.util :refer [scroll-top]]))
 
@@ -29,3 +29,26 @@
  (fn [db]
    (scroll-top)
    (dissoc db :scroll-top)))
+
+(reg-fx
+ :nav
+ (fn [url] (nav url)))
+
+(reg-fx
+ :nav-scroll-top
+ (fn [url] (nav-scroll-top url)))
+
+(reg-fx
+ :scroll-top
+ (fn [_] (scroll-top)))
+
+(defn- reload-page []
+  (-> js/window .-location (.reload true)))
+
+(reg-fx
+ :reload-page
+ (fn [[reload? delay-ms]]
+   (when reload?
+     (if delay-ms
+       (js/setTimeout #(reload-page) delay-ms)
+       (reload-page)))))

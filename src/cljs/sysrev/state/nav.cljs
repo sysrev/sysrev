@@ -4,6 +4,7 @@
               dispatch trim-v reg-fx]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.util :refer [dissoc-in]]
             [sysrev.shared.util :refer
              [in? parse-integer integer-project-id?]]))
@@ -100,11 +101,6 @@
 (defn lookup-project-url-id [db url-id]
   (get-in db [:data :project-url-ids url-id] :not-found))
 
-;; TODO: also check other locations? (like :active-project-id)
-(defn project-url-id-loaded? [db url-id]
-  (-> (get-in db [:data :project-url-ids])
-      (contains? url-id)))
-
 (reg-sub
  :project-url-id
  (fn [db [_ url-id]]
@@ -166,3 +162,22 @@
  [trim-v]
  (fn [_ [project-id]]
    {:nav-scroll-top (project-uri project-id "")}))
+
+(reg-event-db
+ :load-project-url-ids
+ [trim-v]
+ (fn [db [url-ids-map]]
+   (update-in db [:data :project-url-ids]
+              #(merge % url-ids-map))))
+
+(def-data :project-url-id
+  :loaded? (fn [db url-id]
+             (-> (get-in db [:data :project-url-ids])
+                 (contains? url-id)))
+  :uri (fn [url-id] "/api/lookup-project-url")
+  :content (fn [url-id] {:url-id url-id})
+  :prereqs (fn [url-id] [])
+  :process
+  (fn [_ [url-id] {:keys [project-id]}]
+    (let [project-id (-> project-id (#(if (integer? %) % nil)))]
+      {:dispatch [:load-project-url-ids {url-id project-id}]})))

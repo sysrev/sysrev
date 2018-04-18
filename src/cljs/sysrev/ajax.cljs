@@ -1,14 +1,12 @@
 (ns sysrev.ajax
-  (:require
-   [clojure.spec.alpha :as s]
-   [day8.re-frame.http-fx]
-   [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx dispatch trim-v reg-fx]]
-   [ajax.core :as ajax]
-   [sysrev.shared.util :refer [in? to-uuid]]
-   [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
-   [sysrev.state.core :refer [get-csrf-token]]
-   [cognitect.transit :as transit]))
+  (:require [clojure.spec.alpha :as s]
+            [cognitect.transit :as transit]
+            [ajax.core :as ajax]
+            [day8.re-frame.http-fx]
+            [re-frame.core :as re-frame :refer
+             [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
+            [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
+            [sysrev.shared.util :refer [in? to-uuid]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
 (s/def ::uri string?)
@@ -16,6 +14,63 @@
 (s/def ::on-success vector?)
 (s/def ::on-failure vector?)
 (s/def ::action-params any?)
+
+(defn get-csrf-token [db] (:csrf-token db))
+(reg-sub :csrf-token get-csrf-token)
+(defn get-build-id [db] (:build-id db))
+(reg-sub :build-id get-build-id)
+(defn get-build-time [db] (:build-time db))
+(reg-sub :build-time get-build-time)
+
+(reg-event-db
+ :set-csrf-token
+ [trim-v]
+ (fn [db [csrf-token]]
+   (assoc db :csrf-token csrf-token)))
+
+(reg-fx :set-csrf-token #(dispatch [:set-csrf-token %]))
+
+(reg-event-db
+ :set-build-id
+ [trim-v]
+ (fn [db [build-id]]
+   (assoc db :build-id build-id)))
+
+(reg-event-db
+ :set-build-time
+ [trim-v]
+ (fn [db [build-time]]
+   (assoc db :build-time build-time)))
+
+(reg-fx
+ :ajax-failure
+ (fn [response]
+   nil))
+
+(reg-event-fx
+ ::reload-on-new-build
+ [trim-v]
+ (fn [{:keys [db]} [build-id build-time]]
+   (let [cur-build-id (get-build-id db)
+         cur-build-time (get-build-time db)]
+     (merge
+      {:dispatch-n
+       (->> (list (when (nil? cur-build-id)
+                    [:set-build-id build-id])
+                  (when (nil? cur-build-time)
+                    [:set-build-time build-time]))
+            (remove nil?))}
+      (when (or (and build-id cur-build-id
+                     (not= build-id cur-build-id))
+                (and build-time cur-build-time
+                     (not= build-time cur-build-time)))
+        {:reload-page [true 50]})))))
+
+(reg-fx
+ :reload-on-new-build
+ (fn [[build-id build-time]]
+   (when (or build-id build-time)
+     (dispatch [::reload-on-new-build [build-id build-time]]))))
 
 ;; event interceptor for ajax response handlers
 (def handle-ajax

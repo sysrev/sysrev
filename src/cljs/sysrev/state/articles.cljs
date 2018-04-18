@@ -1,21 +1,29 @@
 (ns sysrev.state.articles
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw reg-event-db trim-v]]
-            [sysrev.state.identity :as self]))
+            [sysrev.state.identity :as self]
+            [sysrev.data.core :refer [def-data]]))
 
-(reg-event-db
- :article/load
- [trim-v]
- (fn [db [{:keys [article-id] :as article}]]
-   (assoc-in db [:data :articles article-id] article)))
+(defn load-article [db {:keys [article-id] :as article}]
+  (assoc-in db [:data :articles article-id] article))
+
+(def-data :article
+  :loaded? (fn [db project-id article-id]
+             (-> (get-in db [:data :articles])
+                 (contains? article-id)))
+  :uri (fn [project-id article-id]
+         (str "/api/article-info/" article-id))
+  :prereqs (fn [project-id article-id] [[:identity] [:project project-id]])
+  :content (fn [project-id article-id] {:project-id project-id})
+  :process
+  (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes]}]
+    (let [article (merge article {:labels labels :notes notes})]
+      {:db (-> db (load-article article))})))
 
 (reg-sub
  :articles/all
  (fn [db]
    (get-in db [:data :articles])))
-
-(defn have-article? [db project-id article-id]
-  (contains? (get-in db [:data :articles]) article-id))
 
 (reg-sub
  :article/raw

@@ -1,23 +1,33 @@
 (ns sysrev.views.panels.login
-  (:require
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.state.ui :refer [get-panel-field]]
-   [sysrev.nav :refer [nav-scroll-top]]
-   [sysrev.base :refer [active-route]]
-   [sysrev.util :refer
-    [full-size? mobile? validate wrap-prevent-default nbsp]]
-   [sysrev.shared.util :refer [in?]])
+  (:require [re-frame.core :as re-frame :refer
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+              reg-event-db reg-event-fx trim-v]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.base :refer [active-route]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.state.ui :refer [get-panel-field]]
+            [sysrev.util :refer
+             [full-size? mobile? validate wrap-prevent-default nbsp]]
+            [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private login-panel [:login])
 (def ^:private register-panel [:register])
 
-(defn have-register-project? [db register-hash]
-  ((complement nil?)
-   (get-panel-field db [:project register-hash] register-panel)))
+(def-data :register-project
+  :loaded? (fn [db register-hash]
+             ((comp not nil?)
+              (get-panel-field db [:project register-hash] register-panel)))
+  :uri (fn [_] "/api/query-register-project")
+  :prereqs (fn [_] nil)
+  :content (fn [register-hash] {:register-hash register-hash})
+  :process
+  (fn [_ [register-hash] {:keys [project]}]
+    {:dispatch-n
+     (list [:register/project-id register-hash (:project-id project)]
+           [:register/project-name register-hash (:name project)])}))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
@@ -289,12 +299,10 @@
            "Join project"]]]))))
 
 (defmethod logged-out-content [:login] []
-  (fn [child]
-    [LoginRegisterPanel]))
+  [LoginRegisterPanel])
 
 (defmethod logged-out-content [:register] []
-  (fn [child]
-    [LoginRegisterPanel]))
+  [LoginRegisterPanel])
 
 (defmethod panel-content [:login] []
   (fn [child]

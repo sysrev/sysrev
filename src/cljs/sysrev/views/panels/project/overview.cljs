@@ -181,7 +181,7 @@
               (let [date (from-date (:upload-time file))
                     parts (mapv #(% date) [t/month t/day t/year])]
                 (apply goog.string/format "%d/%d/%d" parts)))
-            (delete-file [file-id] (dispatch [:action [:files/delete-file project-id file-id]]))
+            (delete-file [file-id] (dispatch [:action [:project/delete-file project-id file-id]]))
             (pull-files [] (dispatch [:fetch [:project/files project-id]]))]
       (fn []
         [:div.ui.segment.project-files
@@ -309,6 +309,33 @@
        [:p "Trained from " (str labeled)
         " labeled articles; " (str total)
         " article predictions loaded"]])))
+
+(def-data :project/important-terms
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :importance)))
+  :uri (fn [project-id] "/api/important-terms")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :process
+  (fn [{:keys [db]} [project-id] result]
+    {:db (assoc-in db [:data :project project-id :importance] result)}))
+
+(reg-sub
+ :project/important-terms
+ (fn [[_ _ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ entity-type project-id]]
+   (if (nil? entity-type)
+     (get-in project [:importance :terms])
+     (get-in project [:importance :terms entity-type]))))
+
+(reg-sub
+ :project/important-terms-loading?
+ (fn [[_ _ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ entity-type project-id]]
+   (true? (get-in project [:importance :loading]))))
 
 (defonce polling-important-terms? (r/atom false))
 

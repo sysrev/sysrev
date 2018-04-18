@@ -2,57 +2,95 @@
   (:require [re-frame.core :refer
              [subscribe reg-sub reg-event-db reg-event-fx
               dispatch trim-v reg-fx]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.state.core :refer [store-user-maps]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
+            [sysrev.shared.transit :as sr-transit]
             [sysrev.util :refer [dissoc-in]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
 
-(defn project-sources-loaded? [db project-id]
-  (contains? (get-in db [:data :project project-id]) :sources))
+(defn- load-project [db {:keys [project-id] :as project}]
+  (update-in db [:data :project project-id]
+             #(merge % project)))
 
-(defn project-important-terms-loaded? [db project-id]
-  (contains? (get-in db [:data :project project-id]) :importance))
+(def-data :project
+  :loaded? project-loaded?
+  :uri (fn [project-id] "/api/project-info")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity]])
+  :process
+  (fn [{:keys [db]} [project-id] {:keys [project users]}]
+    (let [url-ids-map
+          (->> (:url-ids project)
+               (map (fn [{:keys [url-id]}]
+                      [url-id project-id]))
+               (apply concat)
+               (apply hash-map))]
+      {:db (-> db
+               (load-project (merge project {:error nil}))
+               (store-user-maps (vals users)))
+       :dispatch [:load-project-url-ids url-ids-map]}))
+  :on-error
+  (fn [{:keys [db error]} [project-id] _]
+    {:db (-> db (load-project {:project-id project-id
+                               :error error}))}))
 
-(defn have-public-labels? [db project-id]
-  (let [project (get-project-raw db project-id)]
-    (contains? project :public-labels)))
+(def-data :project/settings
+  :loaded? project-loaded?
+  :uri (fn [project-id] "/api/project-settings")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity]])
+  :process
+  (fn [{:keys [db]} [project-id] {:keys [settings]}]
+    {:db (assoc-in db [:data :project project-id :settings] settings)}))
 
-(defn have-member-articles? [db project-id user-id]
-  (let [project (get-project-raw db project-id)]
-    (contains? (:member-articles project) user-id)))
+(def-data :project/files
+  :loaded? project-loaded?
+  :uri (fn [project-id] "/api/files")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity]])
+  :process
+  (fn [{:keys [db]} [project-id] files]
+    (when (vector? files)
+      {:db (assoc-in db [:data :project project-id :files] files)})))
 
-(reg-event-db
- :project/load
- [trim-v]
- (fn [db [{:keys [project-id] :as pmap}]]
-   (update-in db [:data :project project-id]
-              #(merge % pmap))))
+(def-data :project/public-labels
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :public-labels)))
+  :uri (fn [project-id] "/api/public-labels")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :process
+  (fn [{:keys [db]} [project-id] result]
+    {:db (assoc-in db [:data :project project-id :public-labels]
+                   (sr-transit/decode-public-labels result))}))
 
-(reg-event-db
- :project/load-settings
- [trim-v]
- (fn [db [project-id settings]]
-   (assoc-in db [:data :project project-id :settings] settings)))
+(def-data :project/sources
+  :loaded? (fn [db project-id]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :sources)))
+  :uri (fn [project-id] "/api/project-sources")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
+             {:db (assoc-in db [:data :project project-id :sources]
+                            sources)}))
 
-(reg-event-db
- :project/load-sources
- [trim-v]
- (fn [db [project-id sources]]
-   (assoc-in db [:data :project project-id :sources] sources)))
-
-(reg-event-db
- :project/load-important-terms
- [trim-v]
- (fn [db [project-id terms]]
-   (assoc-in db [:data :project project-id :importance] terms)))
-
-(reg-event-db
- :project/load-files
- [trim-v]
- (fn [db [project-id files]]
-   (assoc-in db [:data :project project-id :files] files)))
+(def-data :member/articles
+  :loaded? (fn [db project-id user-id]
+             (-> (get-in db [:data :project project-id :member-articles])
+                 (contains? user-id)))
+  :uri (fn [project-id user-id] (str "/api/member-articles/" user-id))
+  :content (fn [project-id user-id] {:project-id project-id})
+  :prereqs (fn [project-id user-id] [[:identity] [:project project-id]])
+  :process
+  (fn [{:keys [db]} [project-id user-id] result]
+    {:db (assoc-in db [:data :project project-id :member-articles user-id]
+                   (sr-transit/decode-member-articles result))}))
 
 (reg-event-db
  :project/clear-data
@@ -62,40 +100,9 @@
      (dissoc-in db [:data :project project-id])
      db)))
 
-(reg-event-db
- :project/load-public-labels
- [trim-v]
- (fn [db [project-id content]]
-   (assoc-in db [:data :project project-id :public-labels]
-             content)))
-
-(reg-event-db
- :member/load-articles
- [trim-v]
- (fn [db [user-id articles]]
-   (let [project-id (active-project-id db)]
-     (assoc-in db [:data :project project-id :member-articles user-id]
-               articles))))
-
 (reg-sub
  :project/has-articles?
  (fn [[_ project-id]]
    [(subscribe [:project/article-counts project-id])])
  (fn [[{:keys [total]}]]
    (when total (> total 0))))
-
-(reg-sub
- :project/important-terms
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ entity-type project-id]]
-   (if (nil? entity-type)
-     (get-in project [:importance :terms])
-     (get-in project [:importance :terms entity-type]))))
-
-(reg-sub
- :project/important-terms-loading?
- (fn [[_ _ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project] [_ entity-type project-id]]
-   (true? (get-in project [:importance :loading]))))
