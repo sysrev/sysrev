@@ -41,6 +41,9 @@
 (defn project-important-terms-loaded? [db project-id]
   (contains? (get-in db [:data :project project-id]) :importance))
 
+(defn project-histograms-loaded? [db project-id]
+  (contains? (get-in db [:data :project project-id]) :histograms))
+
 (defn get-project-raw [db project-id]
   (get-in db [:data :project project-id]))
 
@@ -253,3 +256,9 @@
    [(subscribe [:project/raw project-id])])
  (fn [[project] [_ entity-type project-id]]
    (true? (get-in project [:importance :loading]))))
+
+(reg-sub
+ :project/prediction-histograms
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]] (:histograms project)))

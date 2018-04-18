@@ -14,7 +14,8 @@
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
    [sysrev.routes :as routes]
-   [sysrev.subs.project :refer [active-project-id]]
+   [sysrev.subs.project :refer
+    [active-project-id project-histograms-loaded?]]
    [sysrev.util :refer [full-size? random-id continuous-update-until]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
@@ -368,55 +369,54 @@
 
 (defn label-answer-counts
   "Extract the answer counts for labels for the current project"
-  [label-definitions public-labels]
-  (let [raw-labels-with-values (->> public-labels
-                                    (mapv #(hash-map :labels (:labels %) :article-id (:article-id %))))
-        label-uuid->short-label (fn [label-uuid]
-                                  (:short-label (label-definitions label-uuid)))
-        label-uuid->value-type (fn [label-uuid]
-                                 (:value-type (label-definitions label-uuid)))
-        extract-labels-fn (fn [raw-label]
-                            (->> raw-label
-                                 ((fn [article] (map #(map (partial merge
-                                                                    {:short-label (label-uuid->short-label (first %))
-                                                                     :article-id (:article-id article)
-                                                                     :value-type (label-uuid->value-type (first %))
-                                                                     :label-id (first %)
-                                                                     })
-                                                           (second %))
-                                                     (:labels article))))
-                                 flatten))
-        label-values (->> raw-labels-with-values
-                          (map extract-labels-fn)
-                          flatten
-                          ;; categorical data should be treated as sets, not vectors
-                          (map #(if (= "categorical"
-                                       (:value-type %))
-                                  (assoc % :answer (set (:answer %)))
-                                  %)))
-        label-counts-fn (fn [label]
-                          (hash-map :short-label (first label)
-                                    :answer-counts (frequencies (map :answer (second label)))
-                                    :value-type (:value-type (first (second label)))
-                                    :label-id (:label-id (first (second label)))))]
+  []
+  (let [article-labels
+        (->> @(subscribe [:project/public-labels])
+             (mapv #(select-keys % [:labels :article-id])))
+        extract-labels-fn
+        (fn [{:keys [labels article-id]}]
+          (->> labels
+               (map
+                (fn [[label-id entry]]
+                  (let [short-label
+                        @(subscribe [:label/display label-id])
+                        value-type
+                        @(subscribe [:label/value-type label-id])]
+                    (map
+                     (partial merge
+                              {:article-id article-id
+                               :short-label short-label
+                               :value-type value-type
+                               :label-id label-id})
+                     entry))))
+               flatten))
+        label-values
+        (->> article-labels
+             (map extract-labels-fn)
+             flatten
+             ;; categorical data should be treated as sets, not vectors
+             (map #(if (= "categorical" (:value-type %))
+                     (assoc % :answer (set (:answer %)))
+                     %)))
+        label-counts-fn
+        (fn [[short-label entries]]
+          {:short-label short-label
+           :answer-counts (frequencies (map :answer entries))
+           :value-type (:value-type (first entries))
+           :label-id (:label-id (first entries))})]
     (map label-counts-fn (group-by :short-label label-values))))
 
 (defn process-label-count
   "Given a coll of public-labels, return a vector of value-count maps"
-  [label-definitions public-labels]
-  (->> public-labels
-       ((partial label-answer-counts label-definitions))
-       (map (fn [label-count]
-              (map #(hash-map :short-label
-                              (:short-label label-count)
-                              :value-type (:value-type label-count)
-                              :value (first %)
-                              :count (second %)
-                              :label-id (:label-id label-count))
-                   (:answer-counts label-count))))
+  []
+  (->> (label-answer-counts)
+       (map (fn [{:keys [answer-counts] :as entry}]
+              (map (fn [[value value-count]]
+                     (merge entry {:value value
+                                   :count value-count}))
+                   answer-counts)))
        flatten
-       (into [])
-       ))
+       (into [])))
 
 (defn short-labels-vector
   "Given a set of label-counts, get the set of short-labels"
@@ -445,47 +445,46 @@
                                                         (:short-label m))) color-map)))})
           processed-label-counts)))
 
-(defn process-label-counts
-  [label-ids label-definitions public-labels]
-  (->> public-labels
-       ;; get the counts of the label's values
-       ((partial process-label-count label-definitions))
-       ;; filter out labels of type string
-       (filterv #(not= (:value-type %)
-                       "string"))
-       ;; convert the categorical sets into string
-       (map #(if (= (:value-type %)
-                    "categorical")
-               ;; convert a set to a comma-joined string
-               (assoc % :value (clojure.string/join "," (sort (:value %))))
-               ;; skip over this value
-               %
-               ))
-       ;; do initial sort by values
-       (sort-by #(str (:value %)))
-       ;; sort booleans such that true goes before false
-       ;; sort categorical alphabetically
-       ((fn [processed-public-labels]
-          (let [grouped-processed-public-labels (group-by :value-type processed-public-labels)
-                boolean-labels (get grouped-processed-public-labels "boolean")
-                categorical-labels (get grouped-processed-public-labels "categorical")]
-            (concat (reverse (sort-by :value boolean-labels))
-                    (reverse (sort-by :count categorical-labels))))))
-       ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
-       ;; use the order of the labels as they appear in review articles (label-ids)
-       (sort-by
-        #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (:label-id %)))
-       ;; add color
-       add-color-processed-label-counts
-       ))
+(defn process-label-counts []
+  (let [label-ids @(subscribe [:project/label-ids])]
+    (->>
+     ;; get the counts of the label's values
+     (process-label-count)
+     ;; filter out labels of type string
+     (filterv #(not= (:value-type %) "string"))
+     ;; convert the categorical sets into string
+     (map #(if (= (:value-type %) "categorical")
+             (assoc % :value (clojure.string/join "," (sort (:value %))))
+             %))
+     ;; do initial sort by values
+     (sort-by #(str (:value %)))
+     ;; sort booleans such that true goes before false
+     ;; sort categorical alphabetically
+     ((fn [processed-public-labels]
+        (let [grouped-processed-public-labels
+              (group-by :value-type processed-public-labels)
+              boolean-labels
+              (get grouped-processed-public-labels "boolean")
+              categorical-labels
+              (get grouped-processed-public-labels "categorical")]
+          (concat (reverse (sort-by :value boolean-labels))
+                  (reverse (sort-by :count categorical-labels))))))
+     ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
+     ;; use the order of the labels as they appear in review articles (label-ids)
+     (sort-by
+      #((into {} (map-indexed (fn [i e] [e i]) label-ids))
+        (:label-id %)))
+     ;; add color
+     add-color-processed-label-counts)))
 
-(defn LabelCountChart
-  [label-definitions label-ids processed-label-counts]
+(defn LabelCountChart [label-ids processed-label-counts]
   (let [color-filter (r/atom #{})]
-    (fn [label-definitions label-ids processed-label-counts]
+    (fn [label-ids processed-label-counts]
       (when (not (empty? processed-label-counts))
         (let [filtered-color? #(contains? @color-filter %)
-              color-filter-fn (fn [items] (filterv #(not (filtered-color? (:color %))) items))
+              color-filter-fn
+              (fn [items]
+                (filterv #(not (filtered-color? (:color %))) items))
               labels (->> processed-label-counts
                           color-filter-fn
                           (mapv :value))
@@ -496,142 +495,144 @@
                                       color-filter-fn
                                       (mapv :color))
               color-map (processed-label-color-map processed-label-counts)
-              short-label->label-uuid (fn [short-label]
-                                        (:label-id (first (filter #(= short-label
-                                                                      (:short-label %))
-                                                                  (vals label-definitions)))))
-              legend-labels (->> color-map
-                                 (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids)) (short-label->label-uuid (:short-label %))))
-                                 (mapv #(hash-map :text (:short-label %) :fillStyle (:color %) :hidden (filtered-color? (:color %)))))]
-          [Chart {:type "horizontalBar"
-                  :data {:labels labels
-                         :datasets [{:data (if (empty? counts)
-                                             [0]
-                                             counts)
-                                     :backgroundColor (if (empty? counts)
-                                                        ["#000000"]
-                                                        background-colors)}]}
-                  :options {:scales
-                            {:xAxes
-                             [{:display true
-                               :scaleLabel {:fontColor "#990000"
-                                            :display false
-                                            :padding {:top 200
-                                                      :bottom 200}}
-                               :stacked false
-                               :ticks {:suggestedMin 0
-                                       :callback (fn [value idx values]
-                                                   (if (or (= 0 (mod idx 5))
-                                                           (= idx (dec (count values))))
-                                                     value ""))}}]
-                             ;; this is actually controlling the labels
-                             :yAxes
-                             [{:maxBarThickness 10}]}
-                            :legend {:labels
-                                     {:generateLabels (fn [chart]
-                                                        (clj->js legend-labels))}
-                                     :onClick (fn [e legend-item]
-                                                (let [current-legend-color (:fillStyle (js->clj legend-item :keywordize-keys true))
-                                                      enabled? (not (filtered-color? current-legend-color))]
-                                                  (.preventDefault e)
-                                                  (if enabled?
-                                                    ;; filter out the associated data points
-                                                    (swap! color-filter #(conj % current-legend-color))
-                                                    ;; the associated data points should no longer be filtered out
-                                                    (swap! color-filter #(disj % current-legend-color)))))}}}
+              short-label->label-uuid
+              (fn [short-label]
+                @(subscribe [:label/id-from-short-label short-label]))
+              legend-labels
+              (->> color-map
+                   (sort-by #((into {} (map-indexed (fn [i e] [e i]) label-ids))
+                              (short-label->label-uuid (:short-label %))))
+                   (mapv (fn [{:keys [short-label color]}]
+                           {:text short-label :fillStyle color
+                            :hidden (filtered-color? color)})))]
+          [Chart
+           {:type "horizontalBar"
+            :data
+            {:labels labels
+             :datasets [{:data (if (empty? counts)
+                                 [0]
+                                 counts)
+                         :backgroundColor (if (empty? counts)
+                                            ["#000000"]
+                                            background-colors)}]}
+            :options
+            {:scales
+             {:xAxes
+              [{:display true
+                :scaleLabel {:fontColor "#990000"
+                             :display false
+                             :padding {:top 200
+                                       :bottom 200}}
+                :stacked false
+                :ticks {:suggestedMin 0
+                        :callback (fn [value idx values]
+                                    (if (or (= 0 (mod idx 5))
+                                            (= idx (dec (count values))))
+                                      value ""))}}]
+              ;; this is actually controlling the labels
+              :yAxes
+              [{:maxBarThickness 10}]}
+             :legend
+             {:labels
+              {:generateLabels (fn [chart]
+                                 (clj->js legend-labels))}
+              :onClick
+              (fn [e legend-item]
+                (let [current-legend-color
+                      (:fillStyle (js->clj legend-item
+                                           :keywordize-keys true))
+                      enabled? (not (filtered-color? current-legend-color))]
+                  (.preventDefault e)
+                  (if enabled?
+                    ;; filter out the associated data points
+                    (swap! color-filter #(conj % current-legend-color))
+                    ;; the associated data points should no longer be filtered out
+                    (swap! color-filter #(disj % current-legend-color)))))}}}
            "Member Label Counts"
-           {:height (label-count->chart-height (count labels))}
-           ])))))
+           {:height (label-count->chart-height (count labels))}])))))
 
-(defn LabelCounts
-  []
-  (let [project-id @(subscribe [:active-project-id])
-        public-labels (r/cursor app-db [:data :project project-id :public-labels])
-        label-definitions (r/cursor app-db [:data :project project-id :labels])
-        label-ids (subscribe [:project/label-ids])]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [LabelCountChart @label-definitions @label-ids
-         (process-label-counts @label-ids @label-definitions @public-labels)])
-      :component-did-mount
-      (fn [this] (dispatch [:fetch [:project/public-labels project-id]]))})))
+(defn LabelCounts []
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:project/public-labels project-id]] {}
+      (let [label-ids @(subscribe [:project/label-ids])
+            processed-label-counts (process-label-counts)]
+        [LabelCountChart label-ids processed-label-counts]))))
 
 (def-data :project/prediction-histograms
-  :loaded? (constantly false)
+  :loaded? project-histograms-loaded?
   :uri (fn [] "/api/prediction-histograms")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [] [[:identity]])
-  :process (fn [_ [project-id] response]
-             (reset! (r/cursor state [:prediction-histograms])
-                     (:prediction-histograms response))
-             {}))
+  :process
+  (fn [_ [project-id] {:keys [prediction-histograms]}]
+    {:dispatch [:project/load-prediction-histograms
+                project-id prediction-histograms]}))
 
-(defn PredictionHistogramChart
-  []
-  (fn [prediction-histograms]
-    (let [labels (-> prediction-histograms
-                     vals
-                     merge
-                     flatten
-                     (->> (sort-by :score)
-                          (mapv :score))
-                     set
-                     (->> (into [])))
-          process-histogram-fn (fn [histogram]
-                                 (let [score-count-map (zipmap (mapv :score histogram)
-                                                               (mapv :count histogram))]
-                                   (mapv #(if-let [label-count (get score-count-map %)]
-                                            label-count
-                                            0) labels)))
-          processed-reviewed-include-histogram (process-histogram-fn
-                                                (:reviewed-include-histogram prediction-histograms))
-          processed-reviewed-exclude-histogram (process-histogram-fn
-                                                (:reviewed-exclude-histogram prediction-histograms))
-          processed-unreviewed-histogram (process-histogram-fn
-                                          (:unreviewed-histogram prediction-histograms))
-          datasets (cond-> []
-                     (not (every? #(= 0 %) processed-reviewed-include-histogram))
-                     (merge {:label "Reviewed - Include"
-                             :data ;;(mapv (partial * 2) (into [] (range 1 (+ (count labels) 1))))
-                             processed-reviewed-include-histogram
-                             :backgroundColor (:green colors)})
-                     (not (every? #(= 0 %) processed-reviewed-exclude-histogram))
-                     (merge {:label "Reviewed - Exclude"
-                             :data processed-reviewed-exclude-histogram
-                             ;;(mapv (partial * 1) (into [] (range 1 (+ (count labels) 1))))
-                             :backgroundColor (:red colors)})
-                     (not (every? #(= 0 %) processed-unreviewed-histogram))
-                     (merge {:label "Unreviewed"
-                             :data processed-unreviewed-histogram
-                             ;;(mapv (partial * 3) (into [] (range 1 (+ (count labels) 1))))
-                             :backgroundColor (:orange colors)}))]
-      (when (not (empty? datasets))
-        [Chart {:type "bar"
-                :data {:labels labels
-                       :datasets datasets}
-                ;; :options {:scales {:xAxes
-                ;;                    [{:ticks {:max 1
-                ;;                              :min 0
-                ;;                              :stepSize 0.01}
-                ;;                      :type "linear"}
-                ;;                     ]}}
-                :options {:scales {:xAxes [{:stacked true}]
-                                   ;;:yAxes [{:stacked true}]
-                                   }}
-                }
-         "Prediction Histograms"]))))
+(defn PredictionHistogramChart []
+  (let [prediction-histograms
+        @(subscribe [:project/prediction-histograms])
+        labels
+        (-> prediction-histograms
+            vals
+            merge
+            flatten
+            (->> (sort-by :score)
+                 (mapv :score))
+            set
+            (->> (into [])))
+        process-histogram-fn
+        (fn [histogram]
+          (let [score-count-map (zipmap (mapv :score histogram)
+                                        (mapv :count histogram))]
+            (mapv #(if-let [label-count (get score-count-map %)]
+                     label-count
+                     0) labels)))
+        processed-reviewed-include-histogram
+        (process-histogram-fn
+         (:reviewed-include-histogram prediction-histograms))
+        processed-reviewed-exclude-histogram
+        (process-histogram-fn
+         (:reviewed-exclude-histogram prediction-histograms))
+        processed-unreviewed-histogram
+        (process-histogram-fn
+         (:unreviewed-histogram prediction-histograms))
+        datasets
+        (cond-> []
+          (not (every? #(= 0 %) processed-reviewed-include-histogram))
+          (merge {:label "Reviewed - Include"
+                  :data ;;(mapv (partial * 2) (into [] (range 1 (+ (count labels) 1))))
+                  processed-reviewed-include-histogram
+                  :backgroundColor (:green colors)})
+          (not (every? #(= 0 %) processed-reviewed-exclude-histogram))
+          (merge {:label "Reviewed - Exclude"
+                  :data processed-reviewed-exclude-histogram
+                  ;;(mapv (partial * 1) (into [] (range 1 (+ (count labels) 1))))
+                  :backgroundColor (:red colors)})
+          (not (every? #(= 0 %) processed-unreviewed-histogram))
+          (merge {:label "Unreviewed"
+                  :data processed-unreviewed-histogram
+                  ;;(mapv (partial * 3) (into [] (range 1 (+ (count labels) 1))))
+                  :backgroundColor (:orange colors)}))]
+    (when (not (empty? datasets))
+      [Chart {:type "bar"
+              :data {:labels labels
+                     :datasets datasets}
+              ;; :options {:scales {:xAxes
+              ;;                    [{:ticks {:max 1
+              ;;                              :min 0
+              ;;                              :stepSize 0.01}
+              ;;                      :type "linear"}
+              ;;                     ]}}
+              :options {:scales {:xAxes [{:stacked true}]
+                                 ;;:yAxes [{:stacked true}]
+                                 }}
+              }
+       "Prediction Histograms"])))
 
-(defn PredictionHistogram
-  []
-  (let [project-id @(subscribe [:active-project-id])
-        probability-histograms (r/cursor state [:prediction-histograms])]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [PredictionHistogramChart @probability-histograms])
-      :component-did-mount
-      (fn [this] (dispatch [:fetch [:project/prediction-histograms project-id]]))})))
+(defn PredictionHistogram []
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:project/prediction-histograms project-id]] {}
+      [PredictionHistogramChart])))
 
 (defn ProjectOverviewContent []
   [:div.project-content

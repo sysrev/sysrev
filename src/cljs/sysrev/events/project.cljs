@@ -93,3 +93,9 @@
  (fn [db [url-ids-map]]
    (update-in db [:data :project-url-ids]
               #(merge % url-ids-map))))
+
+(reg-event-db
+ :project/load-prediction-histograms
+ [trim-v]
+ (fn [db [project-id content]]
+   (assoc-in db [:data :project project-id :histograms] content)))

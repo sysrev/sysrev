@@ -117,6 +117,16 @@
    (from-label-local-id db project-id)))
 
 (reg-sub
+ :label/id-from-short-label
+ (fn [[_ short-label project-id]]
+   [(subscribe [::labels project-id])])
+ (fn [[labels] [_ short-label]]
+   (->> labels
+        (filter #(= (:short-label %) short-label))
+        first
+        :label-id)))
+
+(reg-sub
  :label/required?
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
