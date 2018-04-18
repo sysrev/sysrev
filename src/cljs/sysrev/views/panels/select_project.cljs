@@ -6,7 +6,8 @@
    [reagent.core :as r]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.panels.create-project :refer [CreateProject]]
-   [sysrev.util :refer [go-back]]))
+   [sysrev.util :refer [go-back]])
+  (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def panel [:select-project])
 
@@ -35,12 +36,13 @@
    [:div.ui.top.attached.header.segment
     [:h4 title]]
    [:div.ui.bottom.attached.segment
-    [:div.ui.middle.aligned.relaxed.list
-     (doall
-      (->> projects
-           (map (fn [{:keys [project-id] :as project}]
-                  ^{:key project-id}
-                  [ProjectListItem project]))))]]])
+    (with-loader [[:identity]] {:dimmer true}
+      [:div.ui.middle.aligned.relaxed.list
+       (doall
+        (->> projects
+             (map (fn [{:keys [project-id] :as project}]
+                    ^{:key project-id}
+                    [ProjectListItem project]))))])]])
 
 (defn SelectProject []
   (ensure-state)

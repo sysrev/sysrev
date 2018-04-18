@@ -199,7 +199,8 @@
 
 (sr-defroute
  select-project "/select-project" []
- (dispatch [:set-active-panel [:select-project]]))
+ (dispatch [:set-active-panel [:select-project]])
+ (dispatch [:reload [:identity]]))
 
 (sr-defroute
  pubmed-search "/pubmed-search" []

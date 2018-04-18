@@ -1,25 +1,26 @@
 (ns sysrev.db.users
-  (:require
-   [clojure.tools.logging :as log]
-   [clojure.spec.alpha :as s]
-   [sysrev.shared.spec.core :as sc]
-   [sysrev.shared.spec.users :as su]
-   [sysrev.db.core :refer
-    [do-query do-execute sql-now to-sql-array with-transaction to-jsonb]]
-   [sysrev.stripe :as stripe]
-   [sysrev.shared.util :refer [map-values in?]]
-   [sysrev.util :as util]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [honeysql-postgres.format :refer :all]
-   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-   [buddy.core.hash :as hash]
-   [buddy.core.codecs :as codecs]
-   buddy.hashers
-   crypto.random
-   [sysrev.db.core :as db]
-   [sysrev.db.queries :as q]
-   [sysrev.db.project :refer [add-project-member]])
+  (:require [clojure.tools.logging :as log]
+            [clojure.spec.alpha :as s]
+            [buddy.core.hash :as hash]
+            [buddy.core.codecs :as codecs]
+            buddy.hashers
+            crypto.random
+            [clj-time.core :as t]
+            [clj-time.coerce :as tc]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.db.core :as db
+             :refer [do-query do-execute with-transaction
+                     sql-now to-sql-array to-jsonb]]
+            [sysrev.db.queries :as q]
+            [sysrev.db.project :refer [add-project-member]]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.users :as su]
+            [sysrev.stripe :as stripe]
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [map-values in?]])
   (:import java.util.UUID))
 
 (defn all-users
@@ -257,7 +258,8 @@
                  (group-by :project-id)
                  (map-values #(mapv :url-id %))))
         projects
-        (-> (select :p.project-id :p.name :p.date-created :m.join-date
+        (-> (select :p.project-id :p.name :p.date-created
+                    :m.join-date :m.access-date
                     [:p.enabled :project-enabled]
                     [:m.enabled :member-enabled])
             (from [:project-member :m])
@@ -267,8 +269,15 @@
                     [:= :m.user-id user-id]
                     [:= :p.enabled true]
                     [:= :m.enabled true]])
-            (order-by :p.date-created)
+            (order-by [:m.access-date :desc :nulls :last]
+                      [:p.date-created])
             (->> do-query
+                 (sort-by
+                  (fn [{:keys [access-date date-created]}]
+                    [(if access-date
+                       (tc/to-epoch access-date) 0)
+                     (- (tc/to-epoch date-created))]))
+                 reverse
                  (mapv #(assoc % :member? true
                                :url-ids (get project-url-ids
                                              (:project-id %))))))
@@ -309,3 +318,17 @@
       (let [error-message (str "No customer id returned by stripe.com for email: " email " and uuid: " user-uuid)]
         (log/error (str "Error in " (util/current-function-name) ": " error-message))
         {:error error-message}))))
+
+(defn set-user-default-project [user-id project-id]
+  (-> (sqlh/update :web-user)
+      (sset {:default-project-id project-id})
+      (where [:= :user-id user-id])
+      do-execute))
+
+(defn update-member-access-time [user-id project-id]
+  (-> (sqlh/update :project-member)
+      (sset {:access-date (sql-now)})
+      (where [:and
+              [:= :user-id user-id]
+              [:= :project-id project-id]])
+      do-execute))

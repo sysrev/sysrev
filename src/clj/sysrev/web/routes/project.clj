@@ -47,6 +47,18 @@
     (clojure.java.io/copy (clojure.java.io/input-stream x) out)
     (.toByteArray out)))
 
+(defn update-user-default-project [request]
+  (let [user-id (current-user-id request)
+        project-id (active-project request)]
+    (when (and user-id project-id)
+      (future
+        (try
+          (users/set-user-default-project user-id project-id)
+          (users/update-member-access-time user-id project-id)
+          (catch Throwable e
+            (log/info "error updating default project")
+            nil))))))
+
 (defn prepare-article-response
   [{:keys [abstract primary-title secondary-title] :as article}]
   (let [keywords (project/project-keywords (:project-id article))]
@@ -111,6 +123,7 @@
   (GET "/api/project-info" request
        (wrap-permissions
         request [] ["member"]
+        (update-user-default-project request)
         (project-info (active-project request))))
 
   (POST "/api/join-project" request
@@ -178,6 +191,7 @@
   (GET "/api/label-task" request
        (wrap-permissions
         request [] ["member"]
+        (update-user-default-project request)
         (if-let [{:keys [article-id today-count] :as task}
                  (labels/get-user-label-task (active-project request)
                                              (current-user-id request))]
@@ -206,6 +220,7 @@
                 :as body} (-> request :body)]
            (assert (or change? resolve?
                        (not (labels/user-article-confirmed? user-id article-id))))
+           (update-user-default-project request)
            (labels/set-user-article-labels user-id article-id label-values
                                            :imported? false
                                            :confirm? confirm?
@@ -233,6 +248,7 @@
         request [] ["member"]
         (let [user-id (-> request :params :user-id Integer/parseInt)
               project-id (active-project request)]
+          (update-user-default-project request)
           {:result (sr-transit/encode-member-articles
                     (labels/query-member-articles project-id user-id))})))
 
@@ -248,6 +264,7 @@
                  (labels/article-user-labels-map project-id article-id)
                  (articles/article-user-notes-map project-id article-id))]
             (when (= (:project-id article) project-id)
+              (update-user-default-project request)
               {:article (prepare-article-response article)
                :labels user-labels
                :notes user-notes})))))
@@ -410,6 +427,7 @@
         (let [project-id (active-project request)
               exclude-hours (if (= :dev (:profile env))
                               nil nil)]
+          (update-user-default-project request)
           {:result
            (->> (labels/query-public-article-labels project-id)
                 (labels/filter-recent-public-articles project-id exclude-hours)
