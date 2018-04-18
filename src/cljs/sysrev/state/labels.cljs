@@ -1,9 +1,9 @@
-(ns sysrev.subs.labels
-  (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
+(ns sysrev.state.labels
+  (:require [clojure.string :as str]
             [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
-            [sysrev.subs.project :refer [get-project-raw active-project-id]]
+            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.shared.util :refer [in?]]))
 
 (reg-sub
@@ -167,16 +167,19 @@
  (fn [[_ label-id project-id]]
    [(subscribe [::label label-id project-id])])
  (fn [[label]] (:value-type label)))
+;;
 (reg-sub
  :label/boolean?
  (fn [[_ label-id project-id]]
    [(subscribe [:label/value-type label-id project-id])])
  (fn [[value-type]] (= value-type "boolean")))
+;;
 (reg-sub
  :label/categorical?
  (fn [[_ label-id project-id]]
    [(subscribe [:label/value-type label-id project-id])])
  (fn [[value-type]] (= value-type "categorical")))
+;;
 (reg-sub
  :label/string?
  (fn [[_ label-id project-id]]

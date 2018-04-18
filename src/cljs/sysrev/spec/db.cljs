@@ -3,7 +3,6 @@
             [sysrev.spec.core :as csc]
             [sysrev.spec.identity :as csi]))
 
-(s/def ::app-name string?)
 (s/def ::csrf-token string?)
 
 (s/def ::active-panel keyword?)
@@ -18,7 +17,6 @@
    :opt-un []))
 (s/def ::db
   (s/keys
-   :req-un [::app-name]
    :opt-un [::csrf-token
             ::state
             ::data

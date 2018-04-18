@@ -7,12 +7,12 @@
     [subscribe dispatch dispatch-sync reg-sub
      reg-event-db reg-event-fx reg-fx trim-v]]
    [sysrev.views.components :as ui]
-   [sysrev.subs.ui :refer [active-panel]]
-   [sysrev.subs.review :as review]
-   [sysrev.subs.labels :as labels]
-   [sysrev.subs.articles :as articles]
-   [sysrev.events.all]
-   [sysrev.routes :refer [nav nav-scroll-top project-uri]]
+   [sysrev.state.nav :refer [active-panel]]
+   [sysrev.state.review :as review]
+   [sysrev.state.labels :refer [get-label-raw]]
+   [sysrev.state.notes :as notes]
+   [sysrev.nav :refer [nav nav-scroll-top]]
+   [sysrev.state.nav :refer [project-uri]]
    [sysrev.util :refer [full-size? mobile? desktop-size? nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -87,7 +87,7 @@
  :review/trigger-enable-label-value
  [trim-v]
  (fn [{:keys [db]} [article-id label-id label-value]]
-   (let [{:keys [value-type]} (labels/get-label-raw db label-id)]
+   (let [{:keys [value-type]} (get-label-raw db label-id)]
      (condp = value-type
        "boolean"
        {:db (set-label-value db article-id label-id label-value)}
@@ -409,7 +409,7 @@
         review-task-id @(subscribe [:review/task-id])
         on-save
         (fn []
-          (sysrev.events.notes/sync-article-notes article-id)
+          (notes/sync-article-notes article-id)
           (dispatch
            [:review/send-labels
             {:project-id project-id
@@ -437,7 +437,7 @@
                         " "
                         (if resolving? "purple button" "primary button"))
         on-next #(when on-review-task?
-                   (sysrev.events.notes/sync-article-notes article-id)
+                   (notes/sync-article-notes article-id)
                    (dispatch [:review/send-labels
                               {:project-id project-id
                                :article-id article-id

@@ -1,8 +1,30 @@
-(ns sysrev.subs.users
+(ns sysrev.state.users
   (:require
-   [re-frame.core :as re-frame :refer [subscribe reg-sub]]
+   [re-frame.core :refer
+    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.shared.util :refer [in?]]
    [clojure.string :as str]))
+
+(defn- store-user-map [db umap]
+  (let [{:keys [user-id]} umap]
+    (assert (and umap user-id))
+    (assoc-in db [:data :users user-id] umap)))
+
+(reg-event-db
+ :user/store
+ [trim-v]
+ (fn [db [umap]]
+   (cond-> db
+     umap (store-user-map umap))))
+
+(reg-event-db
+ :user/store-multi
+ [trim-v]
+ (fn [db [umaps]]
+   ((->> umaps
+         (map (fn [umap] #(store-user-map % umap)))
+         (apply comp))
+    db)))
 
 (reg-sub
  ::users

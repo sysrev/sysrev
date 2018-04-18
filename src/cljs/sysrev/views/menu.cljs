@@ -4,7 +4,7 @@
              [subscribe dispatch]]
             [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.views.components :refer [dropdown-menu]]
-            [sysrev.routes :refer [nav nav-scroll-top]])
+            [sysrev.nav :refer [nav nav-scroll-top]])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []

@@ -1,7 +1,13 @@
-(ns sysrev.subs.articles
+(ns sysrev.state.articles
   (:require [re-frame.core :as re-frame :refer
-             [subscribe reg-sub reg-sub-raw]]
-            [sysrev.subs.auth :as auth]))
+             [subscribe reg-sub reg-sub-raw reg-event-db trim-v]]
+            [sysrev.state.identity :as self]))
+
+(reg-event-db
+ :article/load
+ [trim-v]
+ (fn [db [{:keys [article-id] :as article}]]
+   (assoc-in db [:data :articles article-id] article)))
 
 (reg-sub
  :articles/all
@@ -168,7 +174,7 @@
         :unconfirmed))
 
 (defn article-user-status [db article-id & [user-id]]
-  (let [user-id (or user-id (auth/current-user-id db))
+  (let [user-id (or user-id (self/current-user-id db))
         ulmap (article-labels db article-id user-id)]
     (article-user-status-impl user-id ulmap)))
 

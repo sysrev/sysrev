@@ -1,19 +1,17 @@
 (ns sysrev.data.definitions
-  (:require
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.data.core :refer [def-data]]
-   [sysrev.subs.auth :refer [have-identity?]]
-   [sysrev.subs.project :as project :refer
-    [active-project-id project-loaded? project-url-id-loaded?]]
-   [sysrev.subs.review :refer [task-id]]
-   [sysrev.subs.articles :refer [have-article?]]
-   [sysrev.subs.members :refer [have-member-articles?]]
-   [sysrev.subs.ui :refer [active-panel]]
-   [sysrev.shared.transit :as sr-transit]
-   [sysrev.shared.util :refer [in?]]
-   [sysrev.views.panels.login :refer [have-register-project?]]
-   [sysrev.views.panels.password-reset :refer [have-reset-code?]]))
+  (:require [re-frame.core :as re-frame :refer
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.state.identity :refer [have-identity?]]
+            [sysrev.state.project.data :as project-data]
+            [sysrev.state.review :refer [review-task-id]]
+            [sysrev.state.articles :refer [have-article?]]
+            [sysrev.state.nav :refer
+             [active-panel active-project-id project-url-id-loaded?]]
+            [sysrev.shared.transit :as sr-transit]
+            [sysrev.shared.util :refer [in?]]
+            [sysrev.views.panels.login :refer [have-register-project?]]
+            [sysrev.views.panels.password-reset :refer [have-reset-code?]]))
 
 ;;
 ;; Definitions for all data items fetched from server
@@ -50,7 +48,7 @@
       {:dispatch [:load-project-url-ids {url-id nil}]})))
 
 (def-data :project
-  :loaded? project-loaded?
+  :loaded? project-data/project-loaded?
   :uri (fn [project-id] "/api/project-info")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity]])
@@ -73,7 +71,7 @@
                                :error error}]}))
 
 (def-data :project/settings
-  :loaded? project-loaded?
+  :loaded? project-data/project-loaded?
   :uri (fn [project-id] "/api/project-settings")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity]])
@@ -82,7 +80,7 @@
     {:dispatch [:project/load-settings project-id settings]}))
 
 (def-data :project/files
-  :loaded? project-loaded?
+  :loaded? project-data/project-loaded?
   :uri (fn [project-id] "/api/files")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity]])
@@ -92,7 +90,7 @@
       {:dispatch [:project/load-files project-id result]})))
 
 (def-data :project/public-labels
-  :loaded? project/have-public-labels?
+  :loaded? project-data/have-public-labels?
   :uri (fn [project-id] "/api/public-labels")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity] [:project project-id]])
@@ -102,7 +100,7 @@
       {:dispatch [:project/load-public-labels project-id result-decoded]})))
 
 (def-data :project/sources
-  :loaded? project/project-sources-loaded?
+  :loaded? project-data/project-sources-loaded?
   :uri (fn [project-id] "/api/project-sources")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity] [:project project-id]])
@@ -112,7 +110,7 @@
      [:project/load-sources project-id sources]}))
 
 (def-data :project/important-terms
-  :loaded? project/project-important-terms-loaded?
+  :loaded? project-data/project-important-terms-loaded?
   :uri (fn [project-id] "/api/important-terms")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity] [:project project-id]])
@@ -121,8 +119,18 @@
     {:dispatch
      [:project/load-important-terms project-id result]}))
 
+(def-data :project/prediction-histograms
+  :loaded? project-data/project-histograms-loaded?
+  :uri (fn [] "/api/prediction-histograms")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [] [[:identity]])
+  :process
+  (fn [_ [project-id] {:keys [prediction-histograms]}]
+    {:dispatch [:project/load-prediction-histograms
+                project-id prediction-histograms]}))
+
 (def-data :member/articles
-  :loaded? have-member-articles?
+  :loaded? project-data/have-member-articles?
   :uri (fn [project-id user-id] (str "/api/member-articles/" user-id))
   :content (fn [project-id user-id] {:project-id project-id})
   :prereqs (fn [project-id user-id] [[:identity] [:project project-id]])
@@ -132,7 +140,7 @@
       {:dispatch [:member/load-articles user-id result-decoded]})))
 
 (def-data :review/task
-  :loaded? task-id
+  :loaded? review-task-id
   :uri (fn [project-id] "/api/label-task")
   :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :content (fn [project-id] {:project-id project-id})
@@ -218,7 +226,7 @@
   ;; e.g. (dispatch [:fetch [:pubmed-query "animals" 1]])
   ;;
   ;; The data can later be retrieved using a re-frame.core/subscribe call
-  ;; that is defined in in the subs/ dir in the sysrev.subs.search namespace
+  ;; that is defined in sysrev.state.pubmed
   ;; e.g. @(subscribe [:pubmed/search-term-result "animals"])
   (fn [search-term page-number] {:term search-term
                                  :page-number page-number})
@@ -227,8 +235,7 @@
   ;;  fn of the form: [re-frame-db query-parameters (:result response)]
   (fn [_ [search-term page-number] response]
     {:dispatch-n
-     ;; this defined in events/search.cljs dir in the
-     ;; sysrev.events.search namespace
+     ;; this is defined in sysrev.state.pubmed
      (list [:pubmed/save-search-term-results
             search-term page-number response])}))
 

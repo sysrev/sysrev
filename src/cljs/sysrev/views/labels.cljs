@@ -5,7 +5,7 @@
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [cljs-time.core :as t]
    [sysrev.views.components :refer [updated-time-label note-content-label]]
-   [sysrev.subs.labels :refer [real-answer?]]
+   [sysrev.state.labels :refer [real-answer?]]
    [sysrev.util :refer [time-from-epoch time-elapsed-string]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))

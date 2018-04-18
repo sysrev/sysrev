@@ -47,5 +47,4 @@
        (do (pushy/set-token! history "/")
            nil)))))
 
-(def default-db
-  {:app-name "sysrev"})
+(def default-db {})

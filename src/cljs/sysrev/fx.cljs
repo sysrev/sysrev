@@ -2,8 +2,8 @@
   (:require
    [re-frame.core :as re-frame :refer
     [reg-event-db reg-event-fx subscribe dispatch trim-v reg-fx]]
-   [sysrev.routes :refer [nav nav-scroll-top]]
-   [sysrev.subs.core :refer [get-build-id get-build-time]]
+   [sysrev.nav :refer [nav nav-scroll-top]]
+   [sysrev.state.core :refer [get-build-id get-build-time]]
    [sysrev.util :refer [scroll-top]]))
 
 (reg-fx

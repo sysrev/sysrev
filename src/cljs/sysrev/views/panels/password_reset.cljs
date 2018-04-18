@@ -3,7 +3,7 @@
    [re-frame.core :refer
     [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.subs.ui :refer [get-panel-field]]
+   [sysrev.state.ui :refer [get-panel-field]]
    [sysrev.util :refer [validate wrap-prevent-default]]))
 
 (def ^:private request-panel [:request-password-reset])

@@ -10,8 +10,8 @@
    [sysrev.views.review :refer [label-editor-view]]
    [sysrev.views.components :refer
     [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
-   [sysrev.subs.ui :refer [get-panel-field]]
-   [sysrev.routes :refer [nav]]
+   [sysrev.state.ui :refer [get-panel-field]]
+   [sysrev.nav :refer [nav]]
    [sysrev.shared.keywords :refer [canonical-keyword]]
    [sysrev.shared.article-list :refer
     [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]

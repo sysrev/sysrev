@@ -11,8 +11,9 @@
    [sysrev.views.article-list :as al]
    [sysrev.shared.article-list :refer
     [is-resolved? is-consistent? is-single? is-conflict?]]
-   [sysrev.subs.ui :refer [get-panel-field]]
-   [sysrev.routes :refer [nav nav-scroll-top project-uri]]
+   [sysrev.state.ui :refer [get-panel-field]]
+   [sysrev.nav :refer [nav nav-scroll-top]]
+   [sysrev.state.nav :refer [project-uri]]
    [sysrev.util :refer [nbsp full-size? number-to-word time-from-epoch]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))

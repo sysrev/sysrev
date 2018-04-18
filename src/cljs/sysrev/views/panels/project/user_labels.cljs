@@ -1,9 +1,11 @@
 (ns sysrev.views.panels.project.user-labels
   (:require
+   [clojure.string :as str]
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
    [reagent.ratom :refer [reaction]]
-   [sysrev.routes :refer [nav project-uri]]
+   [sysrev.nav :refer [nav]]
+   [sysrev.state.nav :refer [project-uri]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [note-content-label updated-time-label]]
    [sysrev.views.labels :as labels]
@@ -11,8 +13,7 @@
    [sysrev.views.article-list :as al]
    [sysrev.views.review :as review]
    [sysrev.util :refer [time-from-epoch]]
-   [sysrev.shared.util :refer [map-values]]
-   [clojure.string :as str])
+   [sysrev.shared.util :refer [map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :user :labels])

@@ -6,8 +6,7 @@
    [re-frame.db :refer [app-db]]
    [reagent.ratom :refer [reaction]]
    [sysrev.action.core :refer [any-action-running?]]
-   [sysrev.subs.core :refer [not-found-value try-get]]
-   [sysrev.events.ajax :refer
+   [sysrev.ajax :refer
     [reg-event-ajax reg-event-ajax-fx run-ajax]]
    [sysrev.util :refer [dissoc-in]]
    [sysrev.shared.util :refer [in?]]))

@@ -1,4 +1,4 @@
-(ns sysrev.events.ajax
+(ns sysrev.ajax
   (:require
    [clojure.spec.alpha :as s]
    [day8.re-frame.http-fx]
@@ -7,7 +7,7 @@
    [ajax.core :as ajax]
    [sysrev.shared.util :refer [in? to-uuid]]
    [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
-   [sysrev.subs.core :refer [get-csrf-token]]
+   [sysrev.state.core :refer [get-csrf-token]]
    [cognitect.transit :as transit]))
 
 (s/def ::method (and keyword? (in? [:get :post])))

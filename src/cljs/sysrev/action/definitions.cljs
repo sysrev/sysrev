@@ -3,9 +3,8 @@
    [re-frame.core :as re-frame :refer
     [dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.action.core :refer [def-action]]
-   [sysrev.subs.auth :refer [current-user-id]]
-   [sysrev.subs.project :refer [active-project-id]]
-   [sysrev.subs.review :as review]
+   [sysrev.state.identity :refer [current-user-id]]
+   [sysrev.state.nav :refer [active-project-id]]
    [sysrev.util :refer [dissoc-in]]))
 
 (def-action :auth/log-in

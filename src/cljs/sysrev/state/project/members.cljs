@@ -1,9 +1,8 @@
-(ns sysrev.subs.members
-  (:require
-   [re-frame.core :as re-frame :refer [subscribe reg-sub reg-sub-raw]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.shared.util :refer [in?]]
-   [sysrev.subs.project :as project]))
+(ns sysrev.state.project.members
+  (:require [re-frame.core :refer
+             [subscribe reg-sub reg-sub-raw]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.shared.util :refer [in?]]))
 
 (reg-sub
  ::members
@@ -58,11 +57,6 @@
    (or admin-user?
        (in? permissions "admin")
        (in? permissions "resolve"))))
-
-(defn have-member-articles? [db project-id user-id]
-  (let [project-id (or project-id (project/active-project-id db))
-        project (project/get-project-raw db project-id)]
-    (contains? (:member-articles project) user-id)))
 
 (reg-sub
  :member/articles

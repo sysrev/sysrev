@@ -4,8 +4,8 @@
     [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
    [reagent.ratom :refer [reaction]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.subs.ui :refer [get-panel-field]]
-   [sysrev.routes :refer [nav-scroll-top]]
+   [sysrev.state.ui :refer [get-panel-field]]
+   [sysrev.nav :refer [nav-scroll-top]]
    [sysrev.base :refer [active-route]]
    [sysrev.util :refer
     [full-size? mobile? validate wrap-prevent-default nbsp]]

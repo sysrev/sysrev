@@ -4,7 +4,7 @@
    [re-frame.core :refer
     [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.action.core :refer [def-action]]
-   [sysrev.subs.project :refer [active-project-id]]
+   [sysrev.state.nav :refer [active-project-id]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip]]
    [sysrev.shared.util :refer [parse-integer]]))

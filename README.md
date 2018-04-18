@@ -278,7 +278,7 @@ sysrev.user> (nav "/create-project")
        (list [:pubmed/save-search-term-results search-term search-term-result])})))
 ```
 
-1. Create a new event in events/<filename>.cljs for retrieving the data
+1. Create a new event in state/<filename>.cljs for retrieving the data
 
 ```clojurescript
 (reg-event-db
@@ -302,9 +302,9 @@ sysrev.user> @(subscribe [:loading? [:pubmed-query "foo bar"]])
 false
 ```
 
-1. In subs/ dir, find a relevant namespace or create a new one.
+1. In state/ dir, find a relevant namespace or create a new one.
 
-    If you create a new namespace, add it to sysrev.subs.all
+    If you create a new namespace, add it to sysrev.state.all
 
 ```clojurescript
 (reg-sub
@@ -373,7 +373,7 @@ false
 ```
 1. From the repl
 ---
-<!-- 1. Define data in 'subs/' -->
+<!-- 1. Define data in 'state/' -->
 
 <!-- 1. Define data retrieval and handling in 'data/definitions.cljs' -->
 
@@ -415,16 +415,14 @@ Subscriptions and events defined with ordinary globally-scoped keywords (`:get-s
 
 #### Organization of functionality
 
-General-use functionality for data access and event handling is kept under `subs/` and `events/`. For functionality specific to a single UI component, the subscriptions and events should be kept in `views/` inside the file that implements rendering the component.
+General-use functionality for data access and event handling is kept under `state/`. For functionality specific to a single UI component, the subscriptions and events should be kept in `views/` inside the file that implements rendering the component.
 
 #### File layout structure
 
 * `user.cljs`
     * Namespace for use in REPL. Imports symbols from all other namespaces for convenience.
-* `subs/`
-    * re-frame data subscriptions intended for general use.
-* `events/`
-    * re-frame events intended for general use.
+* `state/`
+    * re-frame subscriptions and events intended for general use.
 * `data/`
     * Defines data entries fetched via GET requests from server
     * `sysrev.data.core` implements a system for defining these.

@@ -4,8 +4,9 @@
             sysrev.util
             sysrev.routes
             sysrev.fx
-            sysrev.events.all
-            sysrev.subs.all
+            sysrev.ajax
+            sysrev.nav
+            sysrev.state.all
             sysrev.data.core
             sysrev.data.definitions
             sysrev.views.main
@@ -34,9 +35,8 @@
   (import-vars 'sysrev.util)
   (import-vars 'sysrev.routes)
   (import-vars 'sysrev.fx)
-  (import-vars 'sysrev.subs.core)
-  (import-vars 'sysrev.subs.ui)
-  (import-vars 'sysrev.events.ui)
+  (import-vars 'sysrev.state.core)
+  (import-vars 'sysrev.state.ui)
   (import-vars 'sysrev.data.core)
   (import-vars 'sysrev.views.base)
   (import-vars 'sysrev.views.main)

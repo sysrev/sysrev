@@ -1,9 +1,11 @@
-(ns sysrev.events.search
-  (:require
-   [re-frame.core :as re-frame :refer
-    [reg-event-db reg-event-fx trim-v]]
-   [sysrev.subs.project :as project]
-   [sysrev.subs.auth :as auth]))
+(ns sysrev.state.pubmed
+  (:require [re-frame.core :as re-frame :refer
+             [reg-sub reg-event-db reg-event-fx trim-v]]))
+
+(reg-sub
+ :pubmed/search-term-result
+ (fn [db [_ search-term]]
+   (-> db :data :pubmed-search (get-in [search-term]))))
 
 ;; A DB map representing a search term in :data :search-term <term>
 ;;

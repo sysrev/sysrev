@@ -13,9 +13,10 @@
                                 paul-tol-colors Chart label-count->chart-height]]
    [sysrev.views.panels.project.public-labels :as public-labels]
    [sysrev.views.upload :refer [upload-container basic-text-button]]
-   [sysrev.routes :as routes]
-   [sysrev.subs.project :refer
-    [active-project-id project-histograms-loaded?]]
+   [sysrev.nav :as nav]
+   [sysrev.state.project.data :refer
+    [project-histograms-loaded?]]
+   [sysrev.state.nav :refer [active-project-id project-uri]]
    [sysrev.util :refer [full-size? random-id continuous-update-until]]
    [cljs-time.core :as t]
    [cljs-time.coerce :refer [from-date]]
@@ -558,16 +559,6 @@
             processed-label-counts (process-label-counts)]
         [LabelCountChart label-ids processed-label-counts]))))
 
-(def-data :project/prediction-histograms
-  :loaded? project-histograms-loaded?
-  :uri (fn [] "/api/prediction-histograms")
-  :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [] [[:identity]])
-  :process
-  (fn [_ [project-id] {:keys [prediction-histograms]}]
-    {:dispatch [:project/load-prediction-histograms
-                project-id prediction-histograms]}))
-
 (defn PredictionHistogramChart []
   (let [prediction-histograms
         @(subscribe [:project/prediction-histograms])
@@ -647,15 +638,15 @@
       [user-summary-chart]
       [project-files-box]
       [KeyTerms]
-      [LabelCounts]]]]])
+      #_ [LabelCounts]]]]])
 
 (defn ProjectOverviewPanel [child]
   (let [project-id @(subscribe [:active-project-id])
         has-articles? @(subscribe [:project/has-articles?])]
     [:div.project-content
      (if (false? has-articles?)
-       (do (routes/nav-scroll-top
-            (routes/project-uri project-id "/add-articles"))
+       (do (nav/nav-scroll-top
+            (project-uri project-id "/add-articles"))
            [:div])
        [ProjectOverviewContent])
      child]))

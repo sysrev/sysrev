@@ -3,7 +3,7 @@
    [re-frame.core :as re-frame :refer
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx
      trim-v reg-fx]]
-   [sysrev.events.ajax :refer
+   [sysrev.ajax :refer
     [reg-event-ajax reg-event-ajax-fx run-ajax]]
    [sysrev.shared.util :refer [in?]]))
 

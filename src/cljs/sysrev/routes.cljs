@@ -1,32 +1,15 @@
 (ns sysrev.routes
   (:require
-   [pushy.core :as pushy]
-   [secretary.core :as secretary]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
    [re-frame.db :refer [app-db]]
    [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
    [sysrev.shared.util :refer [parse-integer]]
-   [sysrev.base :refer [history]]
-   [sysrev.events.ui :refer [set-subpanel-default-uri]]
-   [sysrev.macros]
-   [clojure.string :as str])
+   [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
+   [sysrev.nav :refer [nav nav-scroll-top]]
+   [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
                    [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
-
-(defn force-dispatch [uri]
-  (secretary/dispatch! uri))
-
-(defn nav
-  "Change the current route."
-  [route]
-  (pushy/set-token! history route))
-
-(defn nav-scroll-top
-  "Change the current route then scroll to top of page."
-  [route]
-  (pushy/set-token! history route)
-  (scroll-top))
 
 (defn- go-project-panel [project-id]
   (let [panel [:project :project :overview]
@@ -35,12 +18,6 @@
     (dispatch [:set-active-panel panel])
     (when diff-panel
       (dispatch [:reload [:project project-id]]))))
-
-(defn project-uri [project-id suburi]
-  (let [project-url-id @(subscribe [:project/active-url-id project-id])
-        url-id (if (string? project-url-id)
-                 project-url-id project-id)]
-    (str "/p/" url-id suburi)))
 
 (sr-defroute
  home "/" []
