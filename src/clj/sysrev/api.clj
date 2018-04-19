@@ -449,7 +449,16 @@
 (defn annotations
   "Given a string, return a vector of annotation maps"
   [string]
-  (annotations/get-annotations string))
+  {:result {:annotations (annotations/get-annotations string)}})
+
+(defn article-abstract-annotations
+  "Given an article-id, return a vector of annotation maps for that
+  articles abstract"
+  [article-id]
+  {:result {:annotations (-> article-id
+                             articles/query-article-by-id-full
+                             :abstract
+                             annotations/get-annotations)}})
 
 (defn test-response
   "Server Sanity Check"

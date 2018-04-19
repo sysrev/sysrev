@@ -444,8 +444,11 @@
          (api/prediction-histogram (parse-integer project-id))))
 
   (GET "/api/annotations" request
-        (let [{:keys [string]} (-> :params request)]
-          (api/annotations string)))
+       (let [{:keys [string]} (-> request :params)]
+         (api/annotations string)))
+
+  (GET "/api/annotations/:article-id" [article-id]
+       (api/article-abstract-annotations (parse-integer article-id)))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

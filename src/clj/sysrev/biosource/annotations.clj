@@ -5,7 +5,7 @@
 (def annotations-route "https://api.insilica.co/nlp/ner")
 
 (defn get-annotations
-  "Given a string of text, return a .... of annotations"
+  "Given a string of text, return a vector of annotation maps"
   [string]
   (-> (http/post annotations-route
                  {:content-type "application/json"
