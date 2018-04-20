@@ -17,8 +17,8 @@
 (def state (r/atom nil))
 
 (def-data :article/annotations
-  :loaded? (fn [_ _ _]
-             (constantly false))
+  :loaded? (fn [_ article-id _]
+             (not (nil? @(r/cursor state [:annotations article-id]))))
   :uri (fn [article-id] (str "/api/annotations/" article-id ))
   :prereqs (fn [] [[:identity]])
   :content (fn [article-id string] )
@@ -67,6 +67,13 @@
        {:class color}
        (str sstr)])))
 
+(defn slug-string->sentence-string
+  "Convert a slug string into a normal English sentence.
+  ex: gene_or_gene_product -> Gene or gene product"
+  [string]
+  (-> string
+      (clojure.string/replace #"_" " ")))
+
 (defn process-annotations
   [raw-annotations]
   (->> raw-annotations
@@ -77,10 +84,7 @@
        (mapv #(assoc %
                      :word (:name %)
                      :annotation
-                     (str "Ontology: "
-                          (:ontology %)
-                          " Semantic Class: "
-                          (:semantic_class %))))
+                     (str (slug-string->sentence-string (:semantic_class %)))))
        ;; remove duplicates
        (group-by #(clojure.string/lower-case (:word %)))
        vals
@@ -91,8 +95,8 @@
 
 (defn get-annotations
   "Get annotations with a delay of seconds, defaults to 30"
-  [article-id & [{:keys [delay]
-                  :or {delay 30}}]]
+  [article-id & {:keys [delay]
+                 :or {delay 30}}]
   (reset! last-annotation-call {:time (cljs-time.core/now)
                                 :article-id article-id})
   (continuous-update-until
@@ -114,22 +118,22 @@
 
 (defn Abstract
   [article-id]
-  (let []
+  (let [delay 5]
     (r/create-class
      {:reagent-render
       (fn [article-id]
         (let [abstract @(subscribe [:article/abstract article-id])
               annotations (r/cursor state [:annotations article-id])]
           (when-not (empty? abstract)
-            [AnnotatedText abstract (process-annotations
-                                     @annotations)])))
+            [AnnotatedText abstract
+             (process-annotations @annotations)])))
       :component-did-mount
       (fn [this]
-        (get-annotations article-id))
+        (get-annotations article-id :delay delay ))
       :component-will-update
       (fn [this [_ article-id]]
         (when (nil? @(r/cursor state [:annotations article-id]))
-          (get-annotations article-id)))})))
+          (get-annotations article-id :delay delay)))})))
 
 (defn article-info-main-content [article-id]
   (with-loader [[:article article-id]] {}

@@ -9,6 +9,33 @@
 
 (def state (r/atom nil))
 
+;; accessing state for testing:
+;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
+;; @(subscribe [:article/abstract 7978])
+
+;; ex: 7978
+;; multiple overlaps of ALK inhibitors with ALK
+
+;; ex: 14330
+;; liver is in deliver
+;; time is a cellline
+
+;; ex: 20467
+;; result is a simple chemical
+;; focus is a CellLine
+;; UK is  family
+
+;; ex: 22850
+;; Ltd is a family
+;; multiple overlaps
+;; glyco-engineered anti-CD20 IgG1 mAb
+;; Co
+;; CD2
+;; CD20
+
+;; ex: 27135
+;; at the end, ag in agents is annotated
+
 (defn within?
   "Given a coll of sorted numbers, determine if x is within (inclusive) the range of values"
   [x coll]
@@ -18,77 +45,14 @@
   "Given two vectors determine if they overlap"
   [vec1 vec2]
   (or (within? (first vec1) vec2)
-      (within? (last vec1) vec2)))
-
-(defn determine-overlaps
-  "Given a vector of annotation-indices, assoc the key :overlap true
-  to all overlapping indices. Assumes the index maps are in order   "
-  ([annotation-indices]
-   (if (empty? annotation-indices)
-     []
-     (let [annotations (->> annotation-indices
-                            (filter #(not= (:word %)
-                                           nil))
-                            (into []))]
-       (determine-overlaps [] annotations))))
-  ([current-vec rest-vec]
-   (cond (= 1 (count rest-vec))
-         ;; we're done
-         current-vec
-         ;; we still have more to compute
-         :else
-         (let [current-annotation-map (nth rest-vec 0)
-               next-annotation-map (nth rest-vec 1)]
-           (if (overlap? (:index current-annotation-map)
-                         (:index next-annotation-map))
-             ;; there is overlap, indicate it
-             (determine-overlaps
-              ;; the current annotation map overlaps
-              (conj current-vec (assoc current-annotation-map
-                                       :overlap true))
-              ;; the next annotation map overlaps with it
-              ;; so this overlap should be indicated
-              (into []
-                    (cons (assoc next-annotation-map
-                                 :overlap true)
-                          (nthrest rest-vec 2))))
-             ;; there isn't overlap
-             (determine-overlaps
-              (conj current-vec current-annotation-map)
-              (rest rest-vec)))))))
+      (within? (last vec1) vec2)
+      (within? (first vec2) vec1)
+      (within? (first vec2) vec1)))
 
 (defn index-length
   "Given an index vector, return its length"
   [index]
   (+ 1 (- (last index) (first index))))
-
-(defn longest-overlaps
-  "Given a coll of annotation overlaps, return a coll with the overlaps resolved by taking the largest range"
-  ([overlapping-indices]
-   (if (empty? overlapping-indices)
-     []
-     (longest-overlaps [] overlapping-indices {})))
-  ([current-vec rest-vec longest-index]
-   (let [current-annotation-map (nth rest-vec 0)
-         next-annotation-map  (nth rest-vec 1)
-         longest (apply max-key #(index-length (:index %))
-                        [longest-index current-annotation-map next-annotation-map])
-         new-rest-vec (rest rest-vec)]
-     (cond
-       (= 1 (count new-rest-vec))
-       ;; we're done
-       (conj current-vec longest)
-       ;; there is overlap
-       (overlap? (:index current-annotation-map)
-                 (:index next-annotation-map))
-       (longest-overlaps current-vec new-rest-vec longest)
-       ;; there is no overlap, put the longest annotation into current-vec
-       :else
-       (longest-overlaps (conj current-vec longest)
-                         new-rest-vec
-                         ;; taken advantage of nil-punning
-                         ;; nil = 0
-                         {})))))
 
 (defn word-indices
   "Given a string and word, return a map of indices of the form
@@ -105,37 +69,55 @@
   ([string word indices]
    (let [offset (or (apply max (flatten indices))
                     0)
-         begin-position (clojure.string/index-of (clojure.string/lower-case string) (clojure.string/lower-case word))
+         begin-position (clojure.string/index-of
+                         (clojure.string/lower-case string)
+                         (clojure.string/lower-case word))
          end-position (+ begin-position (count word))
-         remaining-string (subs string end-position)]
+         remaining-string (subs string end-position)
+         new-index [(+ begin-position offset)
+                    (+ end-position offset)]]
      (cond
        (clojure.string/blank? remaining-string)
-       {:word word :indices indices}
+       {:word word
+        ;; if we are at the end of the string and have a capture,
+        ;; put it in indices
+        :indices
+        (if (nil? begin-position)
+          indices
+          (conj indices new-index))}
        (nil? begin-position)
        {:word word :indices indices}
        :else
-       (word-indices remaining-string word (conj indices [(+ begin-position offset)
-                                                                (+ end-position offset)]))))))
+       (word-indices remaining-string word (conj indices new-index))))))
 
 (defn word-indices->word-indices-map
-  "Given a word-indices map returned by word-indices, create a vector of {:word <word> :index <index>} maps"
+  "Given a word-indices map returned by word-indices, create a vector of
+  {:word <word> :index <index>} maps"
   [word-indices]
   (mapv #(hash-map :word (:word word-indices)
                    :index %)
         (:indices word-indices)))
 
 (defn annotation-map->word-indices-maps
-  "Given a string and an annotation-map of the form
-  {:word <string> :annotation <string>}, return a vector of maps of the form
-  [{:word <string> :index [[<begin> <end>]..] :annotation <string>} ...] which are indexed to string"
+  "Given a string and an annotation-map of the form:
+  {:word <string> :annotation <string>}
+
+  return a vector of maps of the form:
+
+  [{:word <string> :index [[<begin> <end>]..] :annotation <string>} ...]
+  which are indexed to string"
   [string {:keys [word annotation]}]
   (mapv (partial merge {:annotation annotation})
         (word-indices->word-indices-map (word-indices string word))))
 
 (defn annotations->word-indices-maps
   "Given a string and a vector of annotations maps of the form
-  [{:word <string :annotation <string>}..], return a vector of maps for the form
-  [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...] which are indexed to string"
+  [{:word <string :annotation <string>}..]
+
+  return a vector of maps for the form
+  [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
+
+  which are indexed to string"
   [annotations string]
   (->> annotations
        (mapv (partial annotation-map->word-indices-maps string))
@@ -144,7 +126,10 @@
        (into [])))
 
 (defn annotations->no-annotations-indices-maps
-  "Given a string and vector of indexed annotations, return the indices for which there are no annotations in string"
+  "Given a string and vector of indexed annotations,
+  return the indices for which there are no annotations in string.
+  Returns a vector of the form
+  [{:word nil :index [[<begin> <end>] ..] :annotation <string>} ...]"
   [annotations string]
   (let [occupied-chars (sort (flatten (mapv :index 
                                             annotations)))
@@ -160,31 +145,49 @@
 (defn annotation-indices
   [annotations string]
   "Given a coll of annotations and a string, return a vector of the form
-   [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...] for annotations.
-  Text which is not to be annotated is denoted with the key-val pair :word nil"
+   [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
+  for annotations."
   (->> (annotations->word-indices-maps annotations string)
        flatten
        (sort-by #(first (:index %)))
        (into [])))
-;; this corresponds to 'Novel therapies in development for metastatic colorectal cancer'
-;; in 'Novel Dose Escalation Methods and Phase I Designs' project
-;;(def string @(subscribe [:article/abstract 12184]))
 
-(defn annotation-indices-no-overlap
+(defn remove-overlapping-indices
+  "Given a set of index-maps returned from annotation-indices, remove all but the longest overlapping annotation"
+  ([annotation-indices]
+   (if (empty? annotation-indices)
+     annotation-indices
+     (remove-overlapping-indices [] annotation-indices (first annotation-indices))))
+  ([current-maps rest-maps longest-map]
+   (if (empty? rest-maps)
+     ;; we're done
+     (conj current-maps longest-map)
+     ;; we have more work to do
+     (if (overlap? (:index longest-map)
+                   (:index (first rest-maps)))
+       ;; there is overlap
+       (remove-overlapping-indices current-maps
+                                   (rest rest-maps)
+                                   (max-key
+                                    #(index-length (:index %))
+                                    longest-map
+                                    (first rest-maps)))
+       ;; there is no overlap, insert longest-map
+       (remove-overlapping-indices (conj current-maps
+                                         longest-map)
+                                   (rest rest-maps)
+                                   ;; starting over
+                                   (first rest-maps))))))
+
+(defn process-annotations
+  "Given a set of annotations and a string, return a vector of the form
+  [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
+
+  non-annotated indices will have the value of nil for :word
+  overlapping maps will be resolved to the longest annotation"
   [annotations string]
   (let [annotation-indices (annotation-indices annotations string)
-        overlapping-indices (->> annotation-indices
-                                 determine-overlaps)
-        longest-overlapping-annotations (->> overlapping-indices
-                                             (filterv :overlap)
-                                             longest-overlaps
-                                             (mapv #(dissoc % :overlap)))
-        non-overlapping-annotations (filterv (comp not :overlap)
-                                             overlapping-indices)
-        final-annotations (->> (concat longest-overlapping-annotations
-                                       non-overlapping-annotations)
-                               (sort-by #(first (:index %)))
-                               (into []))
+        final-annotations (remove-overlapping-indices annotation-indices)
         no-annotations-indices (annotations->no-annotations-indices-maps
                                 final-annotations
                                 string)]
@@ -214,7 +217,7 @@
 
 (defn AnnotatedText
   [text annotations]
-  (let [annotations (annotation-indices-no-overlap annotations text)]
+  (let [annotations (process-annotations annotations text)]
     [:div
      (map (fn [{:keys [word index annotation]}]
             (let [key (str (gensym word))]
@@ -223,5 +226,6 @@
                 (apply (partial subs text) index)
                 ^{:key key}
                 [Annotation {:text (apply (partial subs text) index)
-                             :content annotation}])))
+                             :content annotation
+                             }])))
           annotations)]))
