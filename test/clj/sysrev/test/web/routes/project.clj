@@ -14,6 +14,8 @@
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
+(def test-project-name "Sysrev Browser Test")
+
 (deftest pubmed-search-test
   (let [handler (sysrev-handler)
         {:keys [email password]} test-login
@@ -54,7 +56,7 @@
     ;; Create a project
     (let [create-project-response
           (route-response :post "/api/create-project"
-                          {:project-name "Foo's Bar"})
+                          {:project-name test-project-name})
           new-project-id (get-in create-project-response [:result :project :project-id])
           search-query-result (pubmed/get-search-query-response search-term 1)
           meta (sources/import-pmids-search-term-meta search-term (count (:pmids search-query-result)))]
@@ -112,7 +114,7 @@
     ;; create a new project
     (let [create-response
           (route-response :post "/api/create-project"
-                          {:project-name "The taming of the foo"})]
+                          {:project-name test-project-name})]
       (is (true? (-> create-response :result :success))))
     (let [projects (->> (:projects (users/user-self-info user-id))
                         (filter :member?))]
@@ -141,7 +143,7 @@
     ;; Create a project
     (let [create-project-response
           (route-response :post "/api/create-project"
-                          {:project-name "The taming of the foo"})
+                          {:project-name test-project-name})
           project-id (get-in create-project-response [:result :project :project-id])]
       ;; confirm project is created for this user
       (is (get-in create-project-response [:result :success]))
@@ -222,7 +224,7 @@
         _ (route-response :post "/api/auth/login"
                           {:email email :password password})
         create-project-response (route-response :post "/api/create-project"
-                                                {:project-name "Foo's Bar"})
+                                                {:project-name test-project-name})
         project-id (get-in create-project-response [:result :project :project-id])
         ;; add articles to the project
         import-articles-response (route-response :post "/api/import-articles-from-search"

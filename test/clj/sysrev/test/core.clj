@@ -96,7 +96,7 @@
 ;; https://gist.github.com/kornysietsma/df45bbea3196adb5821b
 
 (def default-timeout (time/seconds 10))
-(def default-wait-delay-ms 10)
+(def default-wait-delay-ms 100)
 
 (defn wait-until*
   ([name pred] (wait-until* name pred default-timeout))

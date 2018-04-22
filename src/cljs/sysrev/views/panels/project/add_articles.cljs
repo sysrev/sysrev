@@ -320,12 +320,12 @@
 
 (defn ProjectSourcesList []
   (ensure-state)
-  (let [sources (subscribe [:project/sources])
+  (let [sources @(subscribe [:project/sources])
         article-count (:total @(subscribe [:project/article-counts]))]
     [:div#project-sources.ui.segment
      [:h4.ui.dividing.header
       "Article Sources"]
-     (if (empty? @sources)
+     (if (empty? sources)
        (if (and article-count (> article-count 0))
          [:h4 "No article sources added yet"]
          [:h4 "No articles imported yet"])
@@ -333,7 +333,7 @@
         (doall (map (fn [source]
                       ^{:key (:source-id source)}
                       [ArticleSource source])
-                    (reverse (sort-by :source-id @sources))))])]))
+                    (reverse (sort-by :source-id sources))))])]))
 
 (defn ImportArticlesView []
   (ensure-state)

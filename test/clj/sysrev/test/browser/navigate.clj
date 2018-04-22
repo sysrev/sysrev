@@ -6,9 +6,8 @@
    [clojure.tools.logging :as log]
    [clj-webdriver.taxi :as taxi]
    [sysrev.test.core :refer [default-fixture completes?]]
-   [sysrev.test.browser.core :refer
-    [webdriver-fixture-once webdriver-fixture-each go-route
-     test-login]]
+   [sysrev.test.browser.core :as browser :refer
+    [webdriver-fixture-once webdriver-fixture-each go-route test-login]]
    [clojure.string :as str]
    [sysrev.db.users :refer [delete-user create-user]]))
 
@@ -25,7 +24,8 @@
   (taxi/select "a[id='log-out-link']")
   (taxi/wait-until
    #(taxi/exists?
-     {:css "div[id='login-register-panel']"})))
+     {:css "div[id='login-register-panel']"})
+   5000 200))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))
@@ -39,6 +39,7 @@
 (defn open-first-project []
   (go-route "/select-project")
   (let [open-button {:xpath "//div[contains(@class,'projects-list')]/descendant::div[contains(@class,'button') and contains(text(),'Open')]"}]
-    (taxi/wait-until #(taxi/exists? open-button))
+    (taxi/wait-until #(taxi/exists? open-button)
+                     10000 200)
     (taxi/click open-button)
     (Thread/sleep 1000)))

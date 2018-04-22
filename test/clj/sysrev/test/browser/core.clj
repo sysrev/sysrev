@@ -34,6 +34,9 @@
 
 (defonce active-webdriver (atom nil))
 
+(defn db-connected? []
+  (not= "sysrev.us" (:host (get-selenium-config))))
+
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
     @active-webdriver
@@ -109,7 +112,7 @@
   (let [local? (boolean
                 (= (:host (get-selenium-config))
                    "localhost"))
-        wait-ms (or wait-ms (if local? 500 800))
+        wait-ms (or wait-ms (if local? 600 1000))
         full-url (str (:url (get-selenium-config))
                       (if (= (nth path 0) \/)
                         (subs path 1) path))]
@@ -132,21 +135,25 @@
 
 (defn wait-until-exists
   "Given a query q, wait until the element it represents exists"
-  [q]
-  (Thread/sleep 300)
-  (taxi/wait-until
-   #(taxi/exists? q)
-   10000))
+  [q & [timeout interval]]
+  (let [timeout (or timeout 10000)
+        interval (or interval 200)]
+    (Thread/sleep 350)
+    (taxi/wait-until
+     #(taxi/exists? q)
+     timeout interval)))
 
 (defn wait-until-displayed
   "Given a query q, wait until the element it represents exists
   and is displayed"
-  [q]
-  (Thread/sleep 300)
-  (taxi/wait-until
-   #(and (taxi/exists? q)
-         (taxi/displayed? q))
-   10000))
+  [q & [timeout interval]]
+  (let [timeout (or timeout 10000)
+        interval (or interval 200)]
+    (Thread/sleep 350)
+    (taxi/wait-until
+     #(and (taxi/exists? q)
+           (taxi/displayed? q))
+     timeout interval)))
 
 (defn panel-name
   [panel-keys]
@@ -159,13 +166,19 @@
 (defn panel-exists? [panel-keys]
   (taxi/exists? {:css (str "div[id='" (panel-name panel-keys) "']")}))
 
+;; TODO: "loader" class alone doesn't indicate loading
+;; needs class "active" along with "loader" to render loading animation
+;;
+;; this will hang if called while a non-active "loader" element is present
 (defn wait-until-loading-completes
-  []
-  (Thread/sleep 300)
-  (taxi/wait-until
-   #(not (taxi/exists?
-          {:xpath "//div[contains(@class,'loader')]"}))
-   10000))
+  [& [timeout interval]]
+  (let [timeout (or timeout 10000)
+        interval (or interval 200)]
+    (Thread/sleep 350)
+    (taxi/wait-until
+     #(not (taxi/exists?
+            {:xpath "//div[contains(@class,'loader')]"}))
+     timeout interval)))
 
 (defn current-project-id []
   (let [url (taxi/current-url)

@@ -24,7 +24,7 @@
   (taxi/wait-until
    #(or (panel-exists? [:project :project :overview])
         (panel-exists? [:project :project :add-articles]))
-   10000)
+   10000 200)
   (is (or (panel-rendered? [:project :project :overview])
           (panel-rendered? [:project :project :add-articles])))
   (is (not (panel-rendered? [:project :project :fake-panel])))
@@ -53,12 +53,14 @@
   (taxi/wait-until
    #(or (panel-exists? [:project :project :overview])
         (panel-exists? [:project :project :add-articles]))
-   10000)
+   10000 200)
   (is (or (panel-rendered? [:project :project :overview])
           (panel-rendered? [:project :project :add-articles])))
   (go-route "/user/settings")
   (wait-until-panel-exists [:user-settings])
   (is (panel-rendered? [:user-settings]))
-  (taxi/wait-until #(taxi/exists? (taxi/find-element {:css "a[id='log-out-link']"})))
+  (taxi/wait-until
+   #(taxi/exists? (taxi/find-element {:css "a[id='log-out-link']"}))
+   5000 200)
   (nav/log-out)
   (is (login-form-shown?)))

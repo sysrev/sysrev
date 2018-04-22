@@ -8,8 +8,7 @@
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
-  (let [ ;; ready? @(subscribe [:data/ready?])
-        project-id @(subscribe [:active-project-id])
+  (let [project-id @(subscribe [:active-project-id])
         loading?
         (and @(subscribe [:any-loading?])
              (not (and project-id
@@ -20,8 +19,10 @@
                          [:loading? [:project/important-terms project-id]]))))
         action? @(subscribe [:action/any-running?
                              nil [:sources/delete]])]
-    (when (or loading? action? #_ (not ready?))
-      [:div.ui.small.active.inline.loader])))
+    (if (or loading? action?)
+      [:div.item.loading-indicator
+       [:div.ui.small.active.inline.loader]]
+      [:div.item.loading-indicator-disabled])))
 
 (defn header-menu []
   (let [logged-in? @(subscribe [:self/logged-in?])
@@ -47,8 +48,7 @@
          {:on-click #(dispatch [:navigate [:select-project]])}
          "Select Project"])
       (when-not full? dev-menu)
-      [:div.item.loading-indicator
-       [loading-indicator]]
+      [loading-indicator]
       (if logged-in?
         [:div.right.menu
          (when full? dev-menu)
