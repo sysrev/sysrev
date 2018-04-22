@@ -35,7 +35,7 @@
 (defonce active-webdriver (atom nil))
 
 (defn db-connected? []
-  (not= "sysrev.us" (:host (get-selenium-config))))
+  (= "localhost" (:host (get-selenium-config))))
 
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
