@@ -11,6 +11,7 @@
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
+            [sysrev.biosource.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
@@ -444,6 +445,20 @@
         {:reviewed-include-histogram []
          :reviewed-exclude-histogram []
          :unreviewed-histogram []}}})))
+
+(defn annotations
+  "Given a string, return a vector of annotation maps"
+  [string]
+  {:result {:annotations (annotations/get-annotations string)}})
+
+(defn article-abstract-annotations
+  "Given an article-id, return a vector of annotation maps for that
+  articles abstract"
+  [article-id]
+  {:result {:annotations (-> article-id
+                             articles/query-article-by-id-full
+                             :abstract
+                             annotations/get-annotations)}})
 
 (defn test-response
   "Server Sanity Check"

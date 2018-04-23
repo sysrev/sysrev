@@ -1,14 +1,29 @@
 (ns sysrev.views.article
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer [subscribe dispatch]]
-   [sysrev.views.keywords :refer [render-keywords render-abstract]]
-   [sysrev.views.components :refer [out-link document-link]]
-   [sysrev.views.labels :refer
-    [label-values-component article-labels-view]]
-   [sysrev.util :refer [full-size? nbsp]])
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            goog.object
+            [reagent.core :as r]
+            [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.annotation :refer [AnnotatedText]]
+            [sysrev.views.keywords :refer [render-keywords render-abstract]]
+            [sysrev.views.components :refer [out-link document-link]]
+            [sysrev.views.labels :refer
+             [label-values-component article-labels-view]]
+            [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
+
+(def state (r/atom nil))
+
+(def-data :article/annotations
+  :loaded? (fn [_ article-id _]
+             (not (nil? @(r/cursor state [:annotations article-id]))))
+  :uri (fn [article-id] (str "/api/annotations/" article-id ))
+  :prereqs (fn [] [[:identity]])
+  :content (fn [article-id string] )
+  :process (fn [_ [article-id string] result]
+             (swap! state assoc-in [:annotations article-id] (:annotations result))
+             {}))
 
 (defn- author-names-text [nmax coll]
   (let [show-list (take nmax coll)
@@ -51,12 +66,79 @@
        {:class color}
        (str sstr)])))
 
+(defn slug-string->sentence-string
+  "Convert a slug string into a normal English sentence.
+  ex: gene_or_gene_product -> Gene or gene product"
+  [string]
+  (-> string
+      (clojure.string/replace #"_" " ")))
+
+(defn process-annotations
+  [raw-annotations]
+  (->> raw-annotations
+       ;; filter out everything but reach
+       (filterv #(= "reach"
+                    (:ontology %)))
+       ;; process into an overlay
+       (mapv #(assoc %
+                     :word (:name %)
+                     :annotation
+                     (str (slug-string->sentence-string (:semantic_class %)))))
+       ;; remove duplicates
+       (group-by #(clojure.string/lower-case (:word %)))
+       vals
+       (map first)))
+
+(def last-annotation-call (r/atom {:time (cljs-time.core/now)
+                                   :article-id nil}))
+
+(defn get-annotations
+  "Get annotations with a delay of seconds, defaults to 30"
+  [article-id & {:keys [delay]
+                 :or {delay 30}}]
+  (reset! last-annotation-call {:time (cljs-time.core/now)
+                                :article-id article-id})
+  (continuous-update-until
+   ;; throw away fn
+   (constantly true)
+   ;; predicate to check to see if 30 seconds has elapsed
+   #(cljs-time.core/after?
+     ;; current time
+     (cljs-time.core/now)
+     ;; time stored in last-annotation-call, plus 30 seconds
+     (cljs-time.core/plus (:time @last-annotation-call)
+                          (cljs-time.core/seconds delay)))
+   ;; on-success
+   ;; if the article-id is still the same, fetch the article
+   #(if (= article-id
+           (:article-id @last-annotation-call))
+      (dispatch [:fetch [:article/annotations article-id]]))
+   100))
+
+(defn Abstract
+  [article-id]
+  (let [delay 5]
+    (r/create-class
+     {:reagent-render
+      (fn [article-id]
+        (let [abstract @(subscribe [:article/abstract article-id])
+              annotations (r/cursor state [:annotations article-id])]
+          (when-not (empty? abstract)
+            [AnnotatedText abstract
+             (process-annotations @annotations)])))
+      :component-did-mount
+      (fn [this]
+        (get-annotations article-id :delay delay ))
+      :component-will-update
+      (fn [this [_ article-id]]
+        (when (nil? @(r/cursor state [:annotations article-id]))
+          (get-annotations article-id :delay delay)))})))
+
 (defn article-info-main-content [article-id]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
       (let [authors @(subscribe [:article/authors article-id])
             journal-name @(subscribe [:article/journal-name article-id])
-            abstract @(subscribe [:article/abstract article-id])
             title-render @(subscribe [:article/title-render article-id])
             journal-render @(subscribe [:article/journal-render article-id])
             urls @(subscribe [:article/urls article-id])
@@ -76,8 +158,8 @@
          (when-not (empty? authors)
            [:h5.header {:style {:margin-top "0px"}}
             (author-names-text 5 authors)])
-         (when-not (empty? abstract)
-           [render-abstract article-id])
+         ;; abstract, with annotations
+         [Abstract article-id]
          ;; article file links went here (article-docs-component)
          (when-not (empty? documents)
            [:div {:style {:padding-top "0.75em"}}
@@ -144,6 +226,7 @@
         (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}
-         [article-info-main-content article-id]]))
+         [article-info-main-content article-id]
+         ]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

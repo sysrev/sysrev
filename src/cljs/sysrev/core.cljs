@@ -11,6 +11,7 @@
             [sysrev.data.core :as data]
             [sysrev.action.core]
             [sysrev.routes :as routes]
+            [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]
             [sysrev.spec.core]
             [sysrev.spec.db]
