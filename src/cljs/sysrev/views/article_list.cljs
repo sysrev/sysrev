@@ -736,7 +736,8 @@
      [:div
       [article-info-view article-id
        :show-labels? true
-       :private-view? (private-article-view? panel)]
+       :private-view? (private-article-view? panel)
+       :context :article-list]
       (cond editing?
             [label-editor-view article-id]
 

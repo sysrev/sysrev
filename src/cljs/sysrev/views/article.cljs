@@ -89,62 +89,57 @@
        vals
        (map first)))
 
-(def last-annotation-call (r/atom {:time (cljs-time.core/now)
-                                   :article-id nil}))
-
 (defn get-annotations
   "Get annotations with a delay of seconds, defaults to 30"
   [article-id & {:keys [delay]
                  :or {delay 30}}]
-  (reset! last-annotation-call {:time (cljs-time.core/now)
-                                :article-id article-id})
-  (continuous-update-until
-   ;; throw away fn
-   (constantly true)
-   ;; predicate to check to see if 30 seconds has elapsed
-   #(cljs-time.core/after?
-     ;; current time
-     (cljs-time.core/now)
-     ;; time stored in last-annotation-call, plus 30 seconds
-     (cljs-time.core/plus (:time @last-annotation-call)
-                          (cljs-time.core/seconds delay)))
-   ;; on-success
-   ;; if the article-id is still the same, fetch the article
-   #(if (= article-id
-           (:article-id @last-annotation-call))
-      (dispatch [:fetch [:article/annotations article-id]]))
-   100))
+  (let [last-annotation-call (r/cursor state [:last-annotation-call])]
+    (reset! last-annotation-call {:time (cljs-time.core/now)
+                                  :article-id article-id})
+    (continuous-update-until
+     ;; throw away fn
+     (constantly true)
+     ;; predicate to check to see if 30 seconds has elapsed
+     #(cljs-time.core/after?
+       ;; current time
+       (cljs-time.core/now)
+       ;; time stored in last-annotation-call, plus 30 seconds
+       (cljs-time.core/plus (:time @last-annotation-call)
+                            (cljs-time.core/seconds delay)))
+     ;; on-success
+     ;; if the article-id is still the same, fetch the article
+     #(if (= article-id
+             (:article-id @last-annotation-call))
+        (dispatch [:fetch [:article/annotations article-id]]))
+     100)))
 
-(defn Abstract
-  [article-id]
-  (let [delay 5]
-    (r/create-class
-     {:reagent-render
-      (fn [article-id]
-        (let [abstract @(subscribe [:article/abstract article-id])
-              annotations (r/cursor state [:annotations article-id])]
-          (when-not (empty? abstract)
-            [AnnotatedText abstract
-             (process-annotations @annotations)])))
-      :component-did-mount
-      (fn [this]
-        (get-annotations article-id :delay delay ))
-      :component-will-update
-      (fn [this [_ article-id]]
-        (when (nil? @(r/cursor state [:annotations article-id]))
-          (get-annotations article-id :delay delay)))})))
-
-(defn article-info-main-content [article-id]
+(defn article-info-main-content [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
       (let [authors @(subscribe [:article/authors article-id])
             journal-name @(subscribe [:article/journal-name article-id])
             title-render @(subscribe [:article/title-render article-id])
             journal-render @(subscribe [:article/journal-render article-id])
+            abstract @(subscribe [:article/abstract article-id])
             urls @(subscribe [:article/urls article-id])
             documents @(subscribe [:article/documents article-id])
-            date @(subscribe [:article/date article-id])]
+            date @(subscribe [:article/date article-id])
+            color "fuchsia"
+            annotations (condp = context
+                          :article-list
+                          (process-annotations @(r/cursor state [:annotations article-id]))
+                          :review
+                          (->> @(subscribe [:project/keywords])
+                               vals
+                               (mapv :value)
+                               (mapv #(hash-map :color color
+                                                :word %))))
+            delay 5]
+        (when (= context
+                 :article-list)
+          (get-annotations article-id :delay delay))
         [:div
+         [:h3 (str "context is " context)]
          [:h3.header
           [render-keywords article-id title-render
            {:label-class "large"}]]
@@ -159,7 +154,8 @@
            [:h5.header {:style {:margin-top "0px"}}
             (author-names-text 5 authors)])
          ;; abstract, with annotations
-         [Abstract article-id]
+         (when-not (empty? abstract)
+           [AnnotatedText abstract annotations])
          ;; article file links went here (article-docs-component)
          (when-not (empty? documents)
            [:div {:style {:padding-top "0.75em"}}
@@ -202,7 +198,8 @@
         (doall entries)))))
 
 (defn article-info-view
-  [article-id & {:keys [show-labels? private-view? show-score?]
+  [article-id & {:keys [show-labels? private-view? show-score?
+                        context]
                  :or {show-score? true}}]
   (let [project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
@@ -226,7 +223,7 @@
         (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}
-         [article-info-main-content article-id]
-         ]))
+         [article-info-main-content article-id
+          :context context]]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

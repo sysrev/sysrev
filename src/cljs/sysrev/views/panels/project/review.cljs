@@ -18,7 +18,9 @@
           [:h4.header "No articles found needing review"]]]
         [:div.project-content
          (with-loader [[:review/task project-id]] {}
-           [article-info-view article-id :show-labels? false])
+           [article-info-view article-id
+            :show-labels? false
+            :context :review])
          (when article-id
            [label-editor-view article-id])
          child]))))

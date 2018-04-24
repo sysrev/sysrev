@@ -13,9 +13,11 @@
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])
 
+;; http://localhost:4061/p/1/articles/7978
 ;; ex: 7978
 ;; multiple overlaps of ALK inhibitors with ALK
 
+;;http://localhost:4061/p/1/articles/14330
 ;; ex: 14330
 ;; liver is in deliver
 ;; time is a cellline
@@ -25,7 +27,7 @@
 ;; focus is a CellLine
 ;; UK is  family
 
-;; ex: 22850
+;; http://localhost:4061/p/1/articles/22850
 ;; Ltd is a family
 ;; multiple overlaps
 ;; glyco-engineered anti-CD20 IgG1 mAb
@@ -33,7 +35,7 @@
 ;; CD2
 ;; CD20
 
-;; ex: 27135
+;; http://localhost:4061/p/1/articles/27135
 ;; at the end, ag in agents is annotated
 
 (defn within?
@@ -65,11 +67,9 @@
            (clojure.string/blank? word))
      nil
      ;; otherwise, start processing
-     (word-indices string word [])))
-  ([string word indices]
-   (let [offset (or (apply max (flatten indices))
-                    0)
-         begin-position (clojure.string/index-of
+     (word-indices string word [] 0)))
+  ([string word indices offset]
+   (let [begin-position (clojure.string/index-of
                          (clojure.string/lower-case string)
                          (clojure.string/lower-case word))
          end-position (+ begin-position (count word))
@@ -77,18 +77,39 @@
          new-index [(+ begin-position offset)
                     (+ end-position offset)]]
      (cond
+;;; we're done
        (clojure.string/blank? remaining-string)
        {:word word
-        ;; if we are at the end of the string and have a capture,
-        ;; put it in indices
+        ;; if we are at the end of the string and have a capture, put
+        ;; it in indices
         :indices
         (if (nil? begin-position)
           indices
           (conj indices new-index))}
        (nil? begin-position)
        {:word word :indices indices}
+;;; processing
+       ;; at the beginning of the string with a match
+       (and (= begin-position 0)
+            (re-matches #"\W" (subs string
+                                    end-position
+                                    (+ end-position 1))))
+       (word-indices remaining-string word (conj indices new-index)
+                     (+ end-position offset))
+       ;; not at the beginning or ending of the string
+       ;; and not in the middle of a word
+       (and (re-matches #"\W" (subs string
+                                    (+ begin-position -1)
+                                    begin-position))
+            (re-matches #"\W" (subs string
+                                    end-position
+                                    (+ end-position 1))))
+       (word-indices remaining-string word (conj indices new-index) (+ end-position offset))
        :else
-       (word-indices remaining-string word (conj indices new-index))))))
+       (word-indices remaining-string word
+                     indices
+                     (+ end-position offset)
+                     )))))
 
 (defn word-indices->word-indices-map
   "Given a word-indices map returned by word-indices, create a vector of
@@ -106,8 +127,9 @@
 
   [{:word <string> :index [[<begin> <end>]..] :annotation <string>} ...]
   which are indexed to string"
-  [string {:keys [word annotation]}]
-  (mapv (partial merge {:annotation annotation})
+  [string {:keys [word annotation color]}]
+  (mapv (partial merge {:annotation annotation
+                        :color color})
         (word-indices->word-indices-map (word-indices string word))))
 
 (defn annotations->word-indices-maps
@@ -219,7 +241,7 @@
   [text annotations]
   (let [annotations (process-annotations annotations text)]
     [:div
-     (map (fn [{:keys [word index annotation]}]
+     (map (fn [{:keys [word index annotation color]}]
             (let [key (str (gensym word))]
               (if (= word nil)
                 ^{:key key}
@@ -227,5 +249,6 @@
                 ^{:key key}
                 [Annotation {:text (apply (partial subs text) index)
                              :content annotation
+                             :color color
                              }])))
           annotations)]))
