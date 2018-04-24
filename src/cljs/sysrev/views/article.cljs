@@ -118,13 +118,12 @@
     (with-loader [[:article project-id article-id]] {}
       (let [authors @(subscribe [:article/authors article-id])
             journal-name @(subscribe [:article/journal-name article-id])
-            title-render @(subscribe [:article/title-render article-id])
+            title @(subscribe [:article/title article-id])
             journal-render @(subscribe [:article/journal-render article-id])
             abstract @(subscribe [:article/abstract article-id])
             urls @(subscribe [:article/urls article-id])
             documents @(subscribe [:article/documents article-id])
             date @(subscribe [:article/date article-id])
-            color "fuchsia"
             annotations (condp = context
                           :article-list
                           (process-annotations @(r/cursor state [:annotations article-id]))
@@ -132,17 +131,19 @@
                           (->> @(subscribe [:project/keywords])
                                vals
                                (mapv :value)
-                               (mapv #(hash-map :color color
-                                                :word %))))
+                               (mapv #(hash-map :word %))))
             delay 5]
         (when (= context
                  :article-list)
           (get-annotations article-id :delay delay))
         [:div
-         [:h3 (str "context is " context)]
          [:h3.header
-          [render-keywords article-id title-render
-           {:label-class "large"}]]
+          (when-not (empty? title)
+            [AnnotatedText title annotations
+             (if (= context
+                    :review)
+               "underline green"
+               "underline #909090")])]
          (when-not (empty? journal-name)
            [:h3.header {:style {:margin-top "0px"}}
             [render-keywords article-id journal-render
@@ -155,8 +156,10 @@
             (author-names-text 5 authors)])
          ;; abstract, with annotations
          (when-not (empty? abstract)
-           [AnnotatedText abstract annotations])
-         ;; article file links went here (article-docs-component)
+           [AnnotatedText abstract annotations
+            (if (= context
+                   :review)
+              "underline green")])
          (when-not (empty? documents)
            [:div {:style {:padding-top "0.75em"}}
             [:div.content.ui.horizontal.list

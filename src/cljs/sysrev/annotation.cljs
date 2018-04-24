@@ -221,11 +221,12 @@
      (into []))))
 
 (defn Annotation
-  [{:keys [text content color]
-    :or {color "#909090"}}]
+  [{:keys [text content text-decoration]
+    :or {text-decoration
+         "underline dotted #909090"}}]
   (let [highlight-text [:span
                         {:style
-                         {:text-decoration (str "underline dotted " color)
+                         {:text-decoration text-decoration
                           :cursor (if-not
                                       (clojure.string/blank? content)
                                     "pointer"
@@ -238,17 +239,18 @@
       highlight-text)))
 
 (defn AnnotatedText
-  [text annotations]
+  [text annotations & [text-decoration]]
   (let [annotations (process-annotations annotations text)]
     [:div
-     (map (fn [{:keys [word index annotation color]}]
+     (map (fn [{:keys [word index annotation]}]
             (let [key (str (gensym word))]
               (if (= word nil)
                 ^{:key key}
                 (apply (partial subs text) index)
                 ^{:key key}
-                [Annotation {:text (apply (partial subs text) index)
-                             :content annotation
-                             :color color
-                             }])))
+                [Annotation (cond->
+                                {:text (apply (partial subs text) index)
+                                 :content annotation}
+                                text-decoration
+                                (merge {:text-decoration text-decoration}))])))
           annotations)]))
