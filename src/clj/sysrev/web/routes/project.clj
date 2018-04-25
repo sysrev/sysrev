@@ -487,6 +487,9 @@
   (GET "/api/annotations/:article-id" [article-id]
        (api/article-abstract-annotations (parse-integer article-id)))
 
+  (GET "/api/charts/label-count-data" request
+       (api/label-count-data (-> request :params :project-id parse-integer)))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (api/test-response)))

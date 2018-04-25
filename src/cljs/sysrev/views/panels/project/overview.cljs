@@ -393,57 +393,6 @@
         {:entity :gene, :data gene, :loading? loading?}
         "Important Genes"]])))
 
-(defn label-answer-counts
-  "Extract the answer counts for labels for the current project"
-  []
-  (let [article-labels
-        (->> @(subscribe [:project/public-labels])
-             (mapv #(select-keys % [:labels :article-id])))
-        extract-labels-fn
-        (fn [{:keys [labels article-id]}]
-          (->> labels
-               (map
-                (fn [[label-id entry]]
-                  (let [short-label
-                        @(subscribe [:label/display label-id])
-                        value-type
-                        @(subscribe [:label/value-type label-id])]
-                    (map
-                     (partial merge
-                              {:article-id article-id
-                               :short-label short-label
-                               :value-type value-type
-                               :label-id label-id})
-                     entry))))
-               flatten))
-        label-values
-        (->> article-labels
-             (map extract-labels-fn)
-             flatten
-             ;; categorical data should be treated as sets, not vectors
-             (map #(if (= "categorical" (:value-type %))
-                     (assoc % :answer (set (:answer %)))
-                     %)))
-        label-counts-fn
-        (fn [[short-label entries]]
-          {:short-label short-label
-           :answer-counts (frequencies (map :answer entries))
-           :value-type (:value-type (first entries))
-           :label-id (:label-id (first entries))})]
-    (map label-counts-fn (group-by :short-label label-values))))
-
-(defn process-label-count
-  "Given a coll of public-labels, return a vector of value-count maps"
-  []
-  (->> (label-answer-counts)
-       (map (fn [{:keys [answer-counts] :as entry}]
-              (map (fn [[value value-count]]
-                     (merge entry {:value value
-                                   :count value-count}))
-                   answer-counts)))
-       flatten
-       (into [])))
-
 (defn short-labels-vector
   "Given a set of label-counts, get the set of short-labels"
   [processed-label-counts]
@@ -462,52 +411,35 @@
             {:short-label label :color palette})
           short-labels palette)))
 
-(defn add-color-processed-label-counts
-  "Given a processed-label-count, add color to each label"
-  [processed-label-counts]
-  (let [color-map (processed-label-color-map processed-label-counts)]
-    (mapv #(merge % {:color (:color (first (filter (fn [m]
-                                                     (= (:short-label %)
-                                                        (:short-label m))) color-map)))})
-          processed-label-counts)))
+(reg-sub
+ ::label-counts
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]] (:label-counts project)))
 
-(defn process-label-counts []
-  (let [label-ids @(subscribe [:project/label-ids])]
-    (->>
-     ;; get the counts of the label's values
-     (process-label-count)
-     ;; filter out labels of type string
-     (filterv #(not= (:value-type %) "string"))
-     ;; convert the categorical sets into string
-     (map #(if (= (:value-type %) "categorical")
-             (assoc % :value (clojure.string/join "," (sort (:value %))))
-             %))
-     ;; do initial sort by values
-     (sort-by #(str (:value %)))
-     ;; sort booleans such that true goes before false
-     ;; sort categorical alphabetically
-     ((fn [processed-public-labels]
-        (let [grouped-processed-public-labels
-              (group-by :value-type processed-public-labels)
-              boolean-labels
-              (get grouped-processed-public-labels "boolean")
-              categorical-labels
-              (get grouped-processed-public-labels "categorical")]
-          (concat (reverse (sort-by :value boolean-labels))
-                  (reverse (sort-by :count categorical-labels))))))
-     ;; https://clojuredocs.org/clojure.core/sort-by#example-542692cbc026201cdc326c2f
-     ;; use the order of the labels as they appear in review articles (label-ids)
-     (sort-by
-      #((into {} (map-indexed (fn [i e] [e i]) label-ids))
-        (:label-id %)))
-     ;; add color
-     add-color-processed-label-counts)))
+(def-data :project/label-counts
+  :loaded?
+  (fn [db project-id]
+    (contains? (get-in db [:data :project project-id]) :label-counts))
+  :uri (fn [] "/api/charts/label-count-data")
+  :content (fn [project-id] {:project-id project-id})
+  :prereqs (fn [] [[:identity]])
+  :process
+  (fn [{:keys [db]} [project-id] {:keys [data]}]
+    {:db
+     (assoc-in db [:data :project project-id :label-counts]
+               data)}))
 
 (defn LabelCountChart [label-ids processed-label-counts]
   (let [color-filter (r/atom #{})]
     (fn [label-ids processed-label-counts]
       (when (not (empty? processed-label-counts))
-        (let [filtered-color? #(contains? @color-filter %)
+        (let [processed-label-counts
+              (sort-by
+               #((into {} (map-indexed (fn [i e] [e i]) label-ids))
+                 (:label-id %))
+               processed-label-counts)
+              filtered-color? #(contains? @color-filter %)
               color-filter-fn
               (fn [items]
                 (filterv #(not (filtered-color? (:color %))) items))
@@ -579,9 +511,9 @@
 
 (defn LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
-    (with-loader [[:project/public-labels project-id]] {}
-      (let [label-ids @(subscribe [:project/label-ids])
-            processed-label-counts (process-label-counts)]
+    (with-loader [[:project/label-counts project-id]] {}
+      (let [label-ids @(subscribe  [:project/label-ids])
+            processed-label-counts @(subscribe [::label-counts])]
         [LabelCountChart label-ids processed-label-counts]))))
 
 (reg-sub
@@ -682,7 +614,7 @@
       [user-summary-chart]
       [project-files-box]
       [KeyTerms]
-      #_ [LabelCounts]]]]])
+      [LabelCounts]]]]])
 
 (defn ProjectOverviewPanel [child]
   (let [project-id @(subscribe [:active-project-id])

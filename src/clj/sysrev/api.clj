@@ -4,6 +4,7 @@
             [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [sysrev.charts :as charts]
             [sysrev.db.articles :as articles]
             [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
@@ -459,6 +460,10 @@
                              articles/query-article-by-id-full
                              :abstract
                              annotations/get-annotations)}})
+(defn label-count-data
+  "Given a project-id, return data for the label counts chart"
+  [project-id]
+  {:result {:data (charts/process-label-counts project-id)}})
 
 (defn test-response
   "Server Sanity Check"
