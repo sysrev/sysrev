@@ -49,8 +49,7 @@
 
 (def-data :project/files
   :loaded? project-loaded?
-  :uri (fn [project-id] "/api/files")
-  :content (fn [project-id] {:project-id project-id})
+  :uri (fn [project-id] (str "/api/files/" project-id))
   :prereqs (fn [project-id] [[:identity]])
   :process
   (fn [{:keys [db]} [project-id] files]

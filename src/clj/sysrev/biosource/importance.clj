@@ -111,12 +111,15 @@
                       do-execute)))))
           nil)))
     (catch Throwable e
-      (if (and (string? (.getMessage e))
-               (str/includes? (.getMessage e) "Connection is closed"))
-        (log/info "load-project-important-terms: DB connection closed")
-        (do (log/info "Exception in load-project-important-terms:")
-            (log/info (.getMessage e))
-            (.printStackTrace e)))
+      (let [msg (.getMessage e)]
+        (if (and (string? msg)
+                 (some #(str/includes? msg %)
+                       ["Connection is closed"
+                        "This statement has been closed"]))
+          (log/info "load-project-important-terms: DB connection closed")
+          (do (log/info "Exception in load-project-important-terms:")
+              (log/info msg)
+              (.printStackTrace e))))
       nil)
     (finally
       (record-importance-load-stop project-id)

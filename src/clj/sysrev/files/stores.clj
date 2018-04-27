@@ -1,10 +1,10 @@
 (ns sysrev.files.stores
-  (:require [sysrev.files.aws :as aws]
+  (:require [clojure.tools.logging :as log]
             [sysrev.config.core :refer [env]]
+            [sysrev.files.aws :as aws]
             [sysrev.files.store :as store]
             [sysrev.files.metadata :as metadata]
-            [clojure.tools.logging :as log]
-            [sysrev.config.core :refer [env]]))
+            [sysrev.db.core :refer [clear-project-cache]]))
 
 (defmulti get-store
   "Based on the settings available in env, get a FileStore"
@@ -27,19 +27,24 @@
   (log-stub "No filestore specified in configuration. Using metadata-only.")
   (metadata/->Metadata))
 
-
-(defn store-file [project-id user-id name file]
-  (-> (get-store)
-      (store/save-file project-id user-id name file)))
-
 (defn project-files [project-id]
   (-> (get-store)
       (store/list-files-for-project project-id)))
 
-(defn delete-file [project-id key]
-  (-> (get-store)
-      (store/delete-file project-id key)))
-
 (defn get-file [project-id key]
   (-> (get-store)
       (store/get-file-by-key project-id key)))
+
+(defn store-file [project-id user-id name file]
+  (try
+    (-> (get-store)
+        (store/save-file project-id user-id name file))
+    (finally
+      (clear-project-cache project-id))))
+
+(defn delete-file [project-id key]
+  (try
+    (-> (get-store)
+        (store/delete-file project-id key))
+    (finally
+      (clear-project-cache project-id))))

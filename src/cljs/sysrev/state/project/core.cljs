@@ -113,8 +113,7 @@
              {:db (assoc-in db [:data :project project-id :settings] settings)}))
 
 (def-action :project/delete-file
-  :uri (fn [project-id file-id] (str "/api/files/delete/" file-id))
-  :content (fn [project-id file-id] {:project-id project-id})
+  :uri (fn [project-id file-id] (str "/api/files/" project-id "/delete/" file-id))
   :process (fn [_ [project-id _] result]
              {:dispatch [:reload [:project/files project-id]]}))
 

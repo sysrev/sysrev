@@ -288,4 +288,5 @@
       (select-plan "Basic")
       (taxi/wait-until #(subscribed-to? "Basic")
                        10000 200)
-      (is (subscribed-to? "Basic")))))
+      (is (subscribed-to? "Basic"))
+      (navigate/log-out))))
