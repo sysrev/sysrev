@@ -1,5 +1,6 @@
 (ns sysrev.biosource.importance
-  (:require [clj-http.client :as http]
+  (:require [clojure.string :as str]
+            [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
@@ -55,7 +56,7 @@
   and stores results in local database."
   [project-id]
   (try
-    (do
+    (when (project/project-exists? project-id)
       (record-importance-load-start project-id)
       (clear-project-cache project-id)
       (let [max-count 100
@@ -100,18 +101,22 @@
                    (mapv #(assoc % :project-id project-id)))]
           (when (not-empty entries)
             (with-transaction
-              (-> (delete-from :project-entity)
-                  (where [:= :project-id project-id])
-                  do-execute)
-              (doseq [entries-group (partition-all 500 entries)]
-                (-> (insert-into :project-entity)
-                    (values entries-group)
-                    do-execute))))
+              (when (project/project-exists? project-id)
+                (-> (delete-from :project-entity)
+                    (where [:= :project-id project-id])
+                    do-execute)
+                (doseq [entries-group (partition-all 500 entries)]
+                  (-> (insert-into :project-entity)
+                      (values entries-group)
+                      do-execute)))))
           nil)))
     (catch Throwable e
-      (log/info "Exception in load-project-important-terms:")
-      (log/info (.getMessage e))
-      (.printStackTrace e)
+      (if (and (string? (.getMessage e))
+               (str/includes? (.getMessage e) "Connection is closed"))
+        (log/info "load-project-important-terms: DB connection closed")
+        (do (log/info "Exception in load-project-important-terms:")
+            (log/info (.getMessage e))
+            (.printStackTrace e)))
       nil)
     (finally
       (record-importance-load-stop project-id)
