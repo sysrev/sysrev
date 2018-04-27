@@ -311,4 +311,8 @@
 
 (defmethod panel-content [:register] []
   (fn [child]
-    [join-project-panel]))
+    (if (and (nil? @(subscribe [:register/project-id]))
+             (nil? @(subscribe [:register/register-hash])))
+      (do (nav-scroll-top "/")
+          [:div])
+      [join-project-panel])))
