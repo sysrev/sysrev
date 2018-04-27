@@ -61,7 +61,7 @@
 
 ;; @(subscribe [:label/value-type label-id])
 ;; this is (:value-type label)
-;; has the form 
+;; has the form
 ;; "boolean" - string
 ;;
 ;; @(subscribe [:project/label-ids])
