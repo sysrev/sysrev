@@ -74,6 +74,9 @@
                  ;;; environ
                  [environ "1.1.0"]
 
+                 ;;; caching
+                 [org.clojure/core.memoize "0.7.1"]
+
                  ;;;
                  ;;; ClojureScript libraries
                  ;;;
