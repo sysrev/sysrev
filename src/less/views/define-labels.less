@@ -24,3 +24,29 @@
 .define-labels .column.label-index {
     background-color: @background1;
 }
+
+@media only screen and (max-width: 767px) {
+    .define-labels div.segment.label-item > .row > .column,
+    .define-labels div.segment.label-item > .row > .column.vertical-column
+                   > .ui.grid > .row > .column {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+
+    .define-labels div.segment.label-item div.delete-label div.icon.button {
+        padding: 0.4em;
+    }
+}
+
+@media only screen and (max-width: 1159px) and (min-width: 768px) {
+    .define-labels div.segment.label-item > .row > .column,
+    .define-labels div.segment.label-item > .row > .column.vertical-column
+                   > .ui.grid > .row > .column {
+        padding-left: 0.7em;
+        padding-right: 0.7em;
+    }
+
+    .define-labels div.segment.label-item div.delete-label div.icon.button {
+        padding: 0.5em;
+    }
+}

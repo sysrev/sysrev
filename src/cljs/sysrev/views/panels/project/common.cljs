@@ -43,7 +43,7 @@
        :action (list [:project :project :add-articles] action-params)}
       {:tab-id :labels
        :content [:span #_ [:i.tags.icon] "Labels"]
-       :action (list [:project :project :labels] action-params)}
+       :action (list [:project :project :labels :edit] action-params)}
       {:tab-id :invite-link
        :content [:span #_ [:i.mail.outline.icon] "Invite Link"]
        :action (list [:project :project :invite-link] action-params)}
