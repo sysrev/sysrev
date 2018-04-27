@@ -16,7 +16,7 @@
             [sysrev.shared.article-list :as alist]
             [sysrev.config.core :as config]))
 
-(defonce insilica-api (agent nil))
+(defonce predict-api (agent nil))
 
 (def api-host "https://api.insilica.co/")
 
@@ -121,7 +121,7 @@
                      :reviewed)]
     (when (and reviewed (>= reviewed 10))
       (send
-       insilica-api
+       predict-api
        (fn [_]
          (try
            (with-transaction
@@ -133,8 +133,8 @@
              (log/info (.getMessage e))
              (.printStackTrace e)
              false))))
-      (await insilica-api)
-      (when (true? @insilica-api)
+      (await predict-api)
+      (when (true? @predict-api)
         (q/project-latest-predict-run-id project-id)))))
 
 (defn schedule-predict-update [project-id]

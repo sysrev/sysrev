@@ -15,6 +15,8 @@
             [sysrev.shared.util :refer [map-values parse-number]]
             [sysrev.config.core :as config]))
 
+(defonce importance-api (agent nil))
+
 (defonce importance-loading (atom {}))
 
 (defn record-importance-load-start [project-id]
@@ -105,13 +107,21 @@
                 (-> (insert-into :project-entity)
                     (values entries-group)
                     do-execute))))
-          (clear-project-cache project-id)
           nil)))
+    (catch Throwable e
+      (log/info "Exception in load-project-important-terms:")
+      (log/info (.getMessage e))
+      (.printStackTrace e)
+      nil)
     (finally
-      (record-importance-load-stop project-id))))
+      (record-importance-load-stop project-id)
+      (clear-project-cache project-id))))
 
 (defn schedule-important-terms-update [project-id]
-  (future (load-project-important-terms project-id)))
+  (send
+   importance-api
+   (fn [_]
+     (load-project-important-terms project-id))))
 
 (defn force-importance-update-all-projects []
   (let [project-ids (project/all-project-ids)]
