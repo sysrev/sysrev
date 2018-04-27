@@ -177,7 +177,7 @@
     (Thread/sleep 350)
     (taxi/wait-until
      #(not (taxi/exists?
-            {:xpath "//div[contains(@class,'loader')]"}))
+            {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
      timeout interval)))
 
 (defn current-project-id []

@@ -21,6 +21,8 @@
 (defn log-in [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
+    (go-route "/")
+    (browser/wait-until-loading-completes)
     (log-out)
     (go-route "/login")
     (taxi/input-text "input[name='email']" email)
@@ -31,6 +33,8 @@
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
+    (go-route "/")
+    (browser/wait-until-loading-completes)
     (log-out)
     (go-route "/register")
     (taxi/input-text "input[name='email']" email)
