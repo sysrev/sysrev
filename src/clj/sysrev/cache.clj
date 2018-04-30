@@ -1,75 +1,99 @@
 (ns sysrev.cache
   (:require [clojure.core.cache :as cache :refer [defcache
-                                                  CacheProtocol
-                                                  basic-cache-factory]]
+                                                  CacheProtocol]]
             [clojure.core.memoize :refer [build-memoizer]]
-            [clojure.java.jdbc :refer [query insert!]])
-  (:import [clojure.core.memoize PluggableMemoization]
-           [clojure.core.cache BasicCache]))
-
-(defn id
-  [n]
-  (do (Thread/sleep 5000) (identity n)))
+            [clojure.java.jdbc :refer [query insert!]]
+            [clojure.main :refer [demunge]])
+  (:import [clojure.core.memoize PluggableMemoization]))
 
 ;; from https://www.postgresql.org/docs/9.1/static/datatype-character.html
-;; tip: there is no performance difference among these three types, apart from increased storage space when using the blank-padded type, and a few extra cpu cycles to check the length when storing into a length-constrained column. while character(n) has performance advantages in some other database systems, there is no such advantage in postgresql; in fact character(n) is usually the slowest of the three because of its additional storage costs. in most situations text or character varying should be used instead.
+;; tip: there is no performance difference among (character types)
 ;;
-;; therefore because we need an unlimited string size, columns of type text are used
+;; minimum table structure (PostgreSQL):
+;;
+;; CREATE TABLE memo_cache (f text, params text, result text);
+;;
+;; text is the col type used in postgresql for unlimited length strings
+;;
+;;  Column | Type | Modifiers
+;; --------+------+-----------
+;;  f      | text |
+;;  params | text |
+;;  result | text |
+;;
+;; recommended table structure (PostgreSQL):
+;;
+;; CREATE TABLE memo_cache (f text, params text, result text, created timestamp with time zone not null default now());
+;;
+;; This is so that you can clear out the cache after a certain time
+;; interval
 
-(def cache-table :sysrev_cache)
+(def cache-table :memo_cache)
 
-;; This was based on code from
+(defn fn->string
+  "Given a fn, return a string representation of that function"
+  [f]
+  (-> (type f)
+      str
+      demunge
+      (clojure.string/replace #"class " "")))
+
+;; see also:
 ;; https://github.com/boxuk/groxy/blob/master/src/clojure/groxy/cache/db.clj
-;; but has been modified to work with clojure.core.memoize
 
-(defn find-row [db id]
-  (let [sql (format "select id, data from %s where id = ?"
+(defn find-results [db f params]
+  "Given a database definition,db, a string representing a function
+  name f (i.e. string returned by fn->string) and params, look up any
+  result associated with it in the db"
+  (let [sql (format "select params, result from %s where f = ? and params = ?;"
                     (name cache-table))]
-    (query db [sql (pr-str id)])))
+    (query db [sql (pr-str f) (pr-str params)])))
 
 (defn lookup
-  ([db id] (lookup db id nil))
-  ([db id not-found]
-   (let [res (find-row db id)]
+  "Lookup results when calling f by params"
+  ([db f params] (lookup db f params nil))
+  ([db f params not-found]
+   (let [res (find-results db f params)]
      (if-let [row (first res)]
-       (read-string (:data row))
+       (read-string (:result row))
        not-found))))
 
-(defn store [db id data]
+(defn store [db f params result]
   (insert! db cache-table
-           {:id (pr-str id)
-            :data (pr-str @data)}))
+           {:params (pr-str params)
+            :result (pr-str @result)
+            :f (pr-str f)}))
 
-(defn purge [db id])
+(defn purge [db params])
 
-(defcache DatabaseCache [cache db]
+(defcache SQLMemoCache [cache db f]
   CacheProtocol
   (lookup [_ item]
-          (delay (lookup db item)))
+          (delay (lookup db f item)))
   (lookup [_ item not-found]
-          (delay (lookup db item)))
+          (delay (lookup db f item)))
   (has? [_ item]
-        (not (nil? (lookup db item))))
+        (not (nil? (lookup db f item))))
   (hit [this item]
        this)
   (miss [this item ret]
-        (store db item ret)
+        (store db f item ret)
         this)
   (evict [_ item]
          (purge db item))
   (seed [_ base]
-        (DatabaseCache. base db))
+        (SQLMemoCache. base db f))
   Object
   (toString [_] (str cache)))
 
-(defn database-cache-factory
-  "A durable JDBC database backed cache."
-  [base db]
-  (DatabaseCache. base db))
+(defn sql-memo-cache-factory
+  "Return a durable SQL DB backed-cache for memoization of function f
+  given a db definition and base cache"
+  [base db f]
+  (SQLMemoCache. base db f))
 
-;; end code from https://github.com/boxuk/groxy/blob/master/src/clojure/groxy/cache/db.clj
-
-;; make-derefable and derefable-seed were private functions in clojure.core.memoize, brought in here
+;; make-derefable and derefable-seed were private functions in
+;; clojure.core.memoize, brought in here
 
 (defn- make-derefable
   "If a value is not already derefable, wrap it up.
@@ -87,24 +111,25 @@
   [seed]
   (into {} (for [[k v] seed] [k (make-derefable v)])))
 
-(defn dbmemo
-  "Based upon memo from clojure.core.memoize"
-  ([f] (dbmemo f {}))
+(defn db-memo
+  "Based upon memo from clojure.core.memoize, except it is back by a SQL
+  database. The table that stores the fn params does so per function
+  name. Define your functions with defn before db-memo'izing them.
+  Note that defining a db-memo'ized fn for an anonymous function e.g.
+  (db-memo (fn [x] (identity x)))
+  will result in a cache table with multiple caches for the same
+  function. It is recommended to use traditional memo for that use
+  case"
+  ([f] (db-memo f {}))
   ([f seed]
    (clojure.core.memoize/build-memoizer
-    #(PluggableMemoization. %1 (database-cache-factory %2 @sysrev.db.core/active-db))
+    #(PluggableMemoization. %1 (sql-memo-cache-factory %2 @sysrev.db.core/active-db (fn->string f)))
     f
     (derefable-seed seed))))
 
-(def db-id
-  (dbmemo id))
-
-;; TODO:
-
-;; clean up ns :require and :import declarations
-;; dbmemo should specify both db and table name
-;; check to see if memoize snapshot / lazy-snapshot / memoized? / memo-clear! / memo-swap! functions from clojure.core.memoize work
-
-;; look up how indexing works in postgresql when you do it by text
-;; is it already hashing the text internally to create indices?
-
+;; note: for functions memo'ized with db-memo, the
+;; clojure.core.memoize fn's snapshot and lazy-snapshot return an
+;; empty map memoized? correctly returns true memo-clear! and
+;; memo-swap! can be called, but have no effect on the actual results
+;; This is due to the fact that we are always calling from the DB and
+;; not the derefable associated with the cache
