@@ -48,6 +48,7 @@
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
     [:script {:src "https://js.stripe.com/v3/"}]
+    [:script {:src "//mozilla.github.io/pdf.js/build/pdf.js"}]
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")]

@@ -6,6 +6,7 @@
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.annotation :refer [AnnotatedText]]
+            [sysrev.pdf :refer [PDF]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.labels :refer
@@ -228,5 +229,6 @@
          {:key [:article-content]}
          [article-info-main-content article-id
           :context context]]))
+     [:div [PDF]]
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

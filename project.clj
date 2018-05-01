@@ -101,6 +101,7 @@
                  [cljsjs/dropzone "4.3.0-0"]
                  [cljsjs/clipboard "1.6.1-1"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]
+                 ;;[cljsjs/pdfjs "1.8.188-0"]
                  ;; validation library
                  [bouncer "1.0.1"]]
   :min-lein-version "2.6.1"
