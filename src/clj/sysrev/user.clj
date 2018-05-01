@@ -12,6 +12,7 @@
         sysrev.db.export
         sysrev.db.files
         sysrev.db.sources
+        sysrev.clone-project
         sysrev.files.stores
         sysrev.import.pubmed
         sysrev.import.endnote
@@ -33,12 +34,14 @@
         sysrev.custom.immuno
         sysrev.custom.facts
         sysrev.custom.ebtc
+        sysrev.custom.insilica
         sysrev.misc
         sysrev.init
         sysrev.resources
         sysrev.shared.util
         sysrev.shared.keywords
         sysrev.shared.transit
+        sysrev.shared.article-list
         sysrev.test.core
         sysrev.test.browser.core)
   (:require [clojure.spec.alpha :as s]

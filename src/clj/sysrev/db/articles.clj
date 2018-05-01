@@ -324,3 +324,12 @@
               (when (not include-disabled?)
                 [:= :a.enabled true])])
       do-query))
+
+(defn article-ids-to-uuids [article-ids]
+  (->> (partition-all 500 article-ids)
+       (mapv (fn [article-ids]
+               (-> (select :article-uuid)
+                   (from [:article :a])
+                   (where [:in :article-id article-ids])
+                   (->> do-query (map :article-uuid)))))
+       (apply concat)))

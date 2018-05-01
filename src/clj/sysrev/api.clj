@@ -37,12 +37,7 @@
   [project-name user-id]
   (let [{:keys [project-id] :as project}
         (project/create-project project-name)]
-    (labels/add-label-entry-boolean
-     project-id {:name "overall include"
-                 :question "Include this article?"
-                 :short-label "Include"
-                 :inclusion-value true
-                 :required true})
+    (labels/add-label-overall-include project-id)
     (project/add-project-note project-id {})
     (project/add-project-member project-id user-id
                                 :permissions ["member" "admin"])

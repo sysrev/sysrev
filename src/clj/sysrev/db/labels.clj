@@ -145,6 +145,14 @@
                   :inclusion-values inclusion-values
                   :multi? (boolean multi?)}})))
 
+(defn add-label-overall-include [project-id]
+  (add-label-entry-boolean
+   project-id {:name "overall include"
+               :question "Include this article?"
+               :short-label "Include"
+               :inclusion-value true
+               :required true}))
+
 (defn define-numeric-label-unit
   [name numeric-type & [{:keys [min-bound max-bound]}]]
   (let [[min-val min-inclusive?] min-bound
