@@ -66,23 +66,25 @@
 
 (defn purge [db params])
 
+;; the dereferencing of db as an atom is particular to the case
+;; where pooled connections are stored in an atom
 (defcache SQLMemoCache [cache db f]
   CacheProtocol
   (lookup [_ item]
-          (delay (lookup db f item)))
+          (delay (lookup @db f item)))
   (lookup [_ item not-found]
-          (delay (lookup db f item)))
+          (delay (lookup @db f item)))
   (has? [_ item]
-        (not (nil? (lookup db f item))))
+        (not (nil? (lookup @db f item))))
   (hit [this item]
        this)
   (miss [this item ret]
-        (store db f item ret)
+        (store @db f item ret)
         this)
   (evict [_ item]
-         (purge db item))
+         (purge @db item))
   (seed [_ base]
-        (SQLMemoCache. base db f))
+        (SQLMemoCache. base @db f))
   Object
   (toString [_] (str cache)))
 
@@ -120,10 +122,10 @@
   will result in a cache table with multiple caches for the same
   function. It is recommended to use traditional memo for that use
   case"
-  ([f] (db-memo f {}))
-  ([f seed]
+  ([db f] (db-memo db f {}))
+  ([db f seed]
    (clojure.core.memoize/build-memoizer
-    #(PluggableMemoization. %1 (sql-memo-cache-factory %2 @sysrev.db.core/active-db (fn->string f)))
+    #(PluggableMemoization. %1 (sql-memo-cache-factory %2 db (fn->string f)))
     f
     (derefable-seed seed))))
 

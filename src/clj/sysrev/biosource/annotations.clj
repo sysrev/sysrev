@@ -7,11 +7,13 @@
 (defn get-annotations
   "Given a string of text, return a vector of annotation maps"
   [string]
-  (-> (http/post annotations-route
-                 {:content-type "application/json"
-                  :body (json/write-str {:postData (-> string
-                                                       (clojure.string/replace "\n" ""))})})
-      :body
-      (json/read-str :key-fn keyword)
-      (->> (mapv #(assoc % :name (clojure.string/replace (:name %) #"\"" ""))))))
+  (if (clojure.string/blank? string)
+    nil
+    (-> (http/post annotations-route
+                   {:content-type "application/json"
+                    :body (json/write-str {:postData (-> string
+                                                         (clojure.string/replace "\n" ""))})})
+        :body
+        (json/read-str :key-fn keyword)
+        (->> (mapv #(assoc % :name (clojure.string/replace (:name %) #"\"" "")))))))
 

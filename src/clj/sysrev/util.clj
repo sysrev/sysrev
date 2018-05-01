@@ -12,7 +12,9 @@
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
            java.util.UUID
            (java.io ByteArrayOutputStream)
-           (java.io ByteArrayInputStream)))
+           (java.io ByteArrayInputStream)
+           java.security.MessageDigest
+           java.math.BigInteger))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
@@ -167,3 +169,9 @@
   [precision d]
   (let [factor (Math/pow 10 precision)]
     (/ (Math/round (* d factor)) factor)))
+
+;; see: https://gist.github.com/jizhang/4325757
+(defn md5 [^String s]
+  (let [algorithm (MessageDigest/getInstance "MD5")
+        raw (.digest algorithm (.getBytes s))]
+    (format "%032x" (BigInteger. 1 raw))))

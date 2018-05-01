@@ -480,12 +480,9 @@
        (let [{:keys [project-id]} (-> request :params)]
          (api/prediction-histogram (parse-integer project-id))))
 
-  (GET "/api/annotations" request
-       (let [{:keys [string]} (-> request :params)]
-         (api/annotations string)))
-
   (GET "/api/annotations/:article-id" [article-id]
-       (api/article-abstract-annotations (parse-integer article-id)))
+       (api/article-abstract-annotations
+        (parse-integer article-id)))
 
   (GET "/api/charts/label-count-data" request
        (api/label-count-data (-> request :params :project-id parse-integer)))

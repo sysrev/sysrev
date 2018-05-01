@@ -4,6 +4,7 @@
             [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [sysrev.cache :refer [db-memo]]
             [sysrev.charts :as charts]
             [sysrev.db.articles :as articles]
             [sysrev.db.core :as db]
@@ -447,10 +448,31 @@
          :reviewed-exclude-histogram []
          :unreviewed-histogram []}}})))
 
-(defn annotations
-  "Given a string, return a vector of annotation maps"
+(def annotations-atom (atom {}))
+
+(defn annotations-by-hash!
+  "Returns the annotations by hash (.hashCode <string>). Assumes
+  annotations-atom has already been set by a previous fn"
+  [hash]
+  (let [annotations (annotations/get-annotations
+                     (get @annotations-atom hash))]
+    ;; return the annotations
+    annotations))
+
+(def db-annotations-by-hash!
+  (db-memo db/active-db annotations-by-hash!))
+
+;; note: this could possibly have a thread safety issue
+(defn annotations-wrapper!
+  "Returns the annotations for string using a hash wrapper"
   [string]
-  {:result {:annotations (annotations/get-annotations string)}})
+  (let [hash (util/md5 (if (string? string)
+                         string
+                         (pr-str string)))
+        _ (swap! annotations-atom assoc hash string)
+        annotations (db-annotations-by-hash! hash)]
+    (swap! annotations-atom dissoc hash)
+    annotations))
 
 (defn article-abstract-annotations
   "Given an article-id, return a vector of annotation maps for that
@@ -459,7 +481,8 @@
   {:result {:annotations (-> article-id
                              articles/query-article-by-id-full
                              :abstract
-                             annotations/get-annotations)}})
+                             annotations-wrapper!)}})
+
 (defn label-count-data
   "Given a project-id, return data for the label counts chart"
   [project-id]
