@@ -66,6 +66,7 @@
       (is (= api/default-plan
              (:name (plans/get-current-plan (users/get-user-by-email email)))))
       ;; clean up
+      (navigate/log-out)
       (let [user (users/get-user-by-email email)]
         (users/delete-user (:user-id user))
         (is (:deleted (stripe/delete-customer! user)))
@@ -287,4 +288,5 @@
       (select-plan "Basic")
       (taxi/wait-until #(subscribed-to? "Basic")
                        10000 200)
-      (is (subscribed-to? "Basic")))))
+      (is (subscribed-to? "Basic"))
+      (navigate/log-out))))

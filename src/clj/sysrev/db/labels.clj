@@ -286,8 +286,8 @@
     project-id [:label-values :saved :unlabeled-articles predict-run-id]
     (->> (or articles (get-articles-with-label-users project-id predict-run-id))
          vals
-         (filter #(= 0 (count (:users %))))
-         (map #(dissoc % :users)))))
+         (filter #(= 0 (count (:users-confirmed %))))
+         (map #(dissoc % :users-confirmed)))))
 
 (defn single-labeled-articles [project-id self-id & [predict-run-id articles]]
   (with-project-cache
@@ -483,13 +483,13 @@
                   do-execute))))))
     true))
 
-(defn get-user-article-labels [user-id article-id]
+(defn get-user-article-labels [user-id article-id & [confirmed?]]
   (->>
    (-> (q/select-article-by-id
         article-id [:al.label-id :al.answer])
        (q/join-article-labels)
        (q/filter-label-user user-id)
-       (q/filter-valid-article-label nil)
+       (q/filter-valid-article-label confirmed?)
        do-query)
    (group-by :label-id)
    (map-values first)

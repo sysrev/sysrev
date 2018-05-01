@@ -152,8 +152,8 @@
 (defn- get-file-class [fname]
   (get file-types (-> fname (str/split #"\.") last) "text"))
 
-(defn- get-file-url [key name]
-  (str "/api/files/" key "/" name))
+(defn- get-file-url [project-id key name]
+  (str "/api/files/" project-id "/download/" key "/" name))
 
 (reg-sub
  ::editing-files
@@ -203,14 +203,17 @@
                    [:i.ui.middle.aligned.outline.blue.file.icon
                     {:class (get-file-class (:name file))}])
                  [:div.content.file-link
-                  [:a {:href (get-file-url (:file-id file) (:name file))
+                  [:a {:href (get-file-url project-id (:file-id file) (:name file))
                        :target "_blank"
                        :download (:name file)}
                    (:name file)]]])))
             (list [:div.item {:key "celled list filler"}])))
           [:div.upload-container
            [upload-container
-            basic-text-button "/api/files/upload" pull-files "Upload document"]
+            basic-text-button
+            (str "/api/files/" project-id "/upload")
+            pull-files
+            "Upload document"]
            [:div.ui.right.floated.small.basic.icon.button
             {:on-click toggle-editing
              :class (when @editing-files "red")}

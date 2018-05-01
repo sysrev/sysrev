@@ -1,5 +1,6 @@
 (ns sysrev.biosource.importance
-  (:require [clj-http.client :as http]
+  (:require [clojure.string :as str]
+            [clj-http.client :as http]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
@@ -14,6 +15,8 @@
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values parse-number]]
             [sysrev.config.core :as config]))
+
+(defonce importance-api (agent nil))
 
 (defonce importance-loading (atom {}))
 
@@ -53,7 +56,7 @@
   and stores results in local database."
   [project-id]
   (try
-    (do
+    (when (project/project-exists? project-id)
       (record-importance-load-start project-id)
       (clear-project-cache project-id)
       (let [max-count 100
@@ -98,20 +101,35 @@
                    (mapv #(assoc % :project-id project-id)))]
           (when (not-empty entries)
             (with-transaction
-              (-> (delete-from :project-entity)
-                  (where [:= :project-id project-id])
-                  do-execute)
-              (doseq [entries-group (partition-all 500 entries)]
-                (-> (insert-into :project-entity)
-                    (values entries-group)
-                    do-execute))))
-          (clear-project-cache project-id)
+              (when (project/project-exists? project-id)
+                (-> (delete-from :project-entity)
+                    (where [:= :project-id project-id])
+                    do-execute)
+                (doseq [entries-group (partition-all 500 entries)]
+                  (-> (insert-into :project-entity)
+                      (values entries-group)
+                      do-execute)))))
           nil)))
+    (catch Throwable e
+      (let [msg (.getMessage e)]
+        (if (and (string? msg)
+                 (some #(str/includes? msg %)
+                       ["Connection is closed"
+                        "This statement has been closed"]))
+          (log/info "load-project-important-terms: DB connection closed")
+          (do (log/info "Exception in load-project-important-terms:")
+              (log/info msg)
+              (.printStackTrace e))))
+      nil)
     (finally
-      (record-importance-load-stop project-id))))
+      (record-importance-load-stop project-id)
+      (clear-project-cache project-id))))
 
 (defn schedule-important-terms-update [project-id]
-  (future (load-project-important-terms project-id)))
+  (send
+   importance-api
+   (fn [_]
+     (load-project-important-terms project-id))))
 
 (defn force-importance-update-all-projects []
   (let [project-ids (project/all-project-ids)]

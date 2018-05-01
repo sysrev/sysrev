@@ -341,7 +341,23 @@
                user-id (current-user-id request)]
            (api/toggle-source! source-id enabled?))))
 
-  (POST "/api/files/upload" request
+  (GET "/api/files/:project-id" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [project-id (active-project request)
+              files (fstore/project-files project-id)]
+          {:result (vec files)})))
+
+  (GET "/api/files/:project-id/download/:key/:name" request
+       (wrap-permissions
+        request [] ["member"]
+        (let [project-id (active-project request)
+              uuid (-> request :params :key (UUID/fromString))
+              file-data (fstore/get-file project-id uuid)
+              data (slurp-bytes (:filestream file-data))]
+          (response/response (ByteArrayInputStream. data)))))
+
+  (POST "/api/files/:project-id/upload" request
         (wrap-permissions
          request [] ["member"]
          (let [project-id (active-project request)
@@ -352,21 +368,14 @@
            (fstore/store-file project-id user-id filename file)
            {:result 1})))
 
-  (GET "/api/files" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [project-id (active-project request)
-              files (fstore/project-files project-id)]
-          {:result (vec files)})))
-
-  (GET "/api/files/:key/:name" request
-       (wrap-permissions
-        request [] ["member"]
-        (let [project-id (active-project request)
-              uuid (-> request :params :key (UUID/fromString))
-              file-data (fstore/get-file project-id uuid)
-              data (slurp-bytes (:filestream file-data))]
-          (response/response (ByteArrayInputStream. data)))))
+  (POST "/api/files/:project-id/delete/:key" request
+        (wrap-permissions
+         ;; TODO: This should be file owner or admin?
+         request [] ["member"]
+         (let [project-id (active-project request)
+               key (-> request :params :key)
+               deletion (fstore/delete-file project-id (UUID/fromString key))]
+           {:result deletion})))
 
   ;; TODO: fix permissions without breaking download on Safari
   (GET "/api/export-project/:project-id/:filename" request
@@ -411,15 +420,6 @@
               "Content-Disposition"
               (format "attachment; filename=\"%s\""
                       filename)))))
-
-  (POST "/api/files/delete/:key" request
-        (wrap-permissions
-         ;; TODO: This should be file owner or admin?
-         request [] ["member"]
-         (let [project-id (active-project request)
-               key (-> request :params :key)
-               deletion (fstore/delete-file project-id (UUID/fromString key))]
-           {:result deletion})))
 
   (GET "/api/public-labels" request
        (wrap-permissions

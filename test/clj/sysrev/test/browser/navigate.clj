@@ -11,26 +11,34 @@
    [clojure.string :as str]
    [sysrev.db.users :refer [delete-user create-user]]))
 
+(defn log-out []
+  (let [q "a[id='log-out-link']"]
+    (Thread/sleep 500)
+    (when (taxi/exists? q)
+      (taxi/click q)
+      (Thread/sleep 1000))))
+
 (defn log-in [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
     (go-route "/login")
+    (Thread/sleep 2000)
+    (browser/wait-until-exists "input[name='email']")
     (taxi/input-text "input[name='email']" email)
     (taxi/input-text "input[name='password']" password)
     (taxi/click "button[name='submit']")
     (Thread/sleep 1000)))
 
-(defn log-out []
-  (taxi/select "a[id='log-out-link']")
-  (taxi/wait-until
-   #(taxi/exists?
-     {:css "div[id='login-register-panel']"})
-   5000 200))
-
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
+    (go-route "/")
+    (Thread/sleep 2000)
+    (browser/wait-until-loading-completes)
+    (log-out)
     (go-route "/register")
+    (Thread/sleep 2000)
+    (browser/wait-until-exists "input[name='email']")
     (taxi/input-text "input[name='email']" email)
     (taxi/input-text "input[name='password']" password)
     (taxi/click "button[name='submit']")

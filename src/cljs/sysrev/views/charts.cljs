@@ -208,7 +208,8 @@
     (r/create-class
      {:reagent-render
       (fn [{:keys [chart-options]} title]
-        [:div.ui.segment
+        [:div.ui.segment {:style {:margin-top "1em"
+                                  :margin-bottom "1em"}}
          [:h4.ui.dividing.header
           [:div.ui.two.column.middle.aligned.grid
            [:div.ui.left.aligned.column

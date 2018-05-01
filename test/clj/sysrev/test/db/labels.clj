@@ -46,7 +46,7 @@
                               "invalid result")))
                 (when result
                   (is (s/valid? ::sc/article-id article-id))
-                  (let [labels (l/get-user-article-labels user-id article-id)]
+                  (let [labels (l/get-user-article-labels user-id article-id true)]
                     (is (empty? labels)
                         (format "project=%s,user=%s,article=%s,status=%s : %s"
                                 project-id user-id article-id review-status
