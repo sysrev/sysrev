@@ -121,7 +121,11 @@
             "test-aws-prod-browser"
             ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
             "test-aws-dev-all"
-            ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
+            ["with-profile" "+test,+test-all,+test-aws-dev" "run"]
+            "browser-test"
+            ["do"
+             ["cljsbuild" "once" "production"]
+             ["test"]]}
   :plugins [[lein-cljsbuild "1.1.7"]]
   :clean-targets ^{:protect false}
   ["target"

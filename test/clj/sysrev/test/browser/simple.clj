@@ -6,61 +6,60 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :refer [default-fixture completes?]]
             [sysrev.test.browser.core :as browser :refer
-             [webdriver-fixture-once webdriver-fixture-each
-              login-form-shown? panel-rendered? element-rendered?
-              wait-until-panel-exists panel-exists?
-              go-route go-project-route]]
+             [webdriver-fixture-once webdriver-fixture-each]]
             [sysrev.test.browser.navigate :as nav]
             [clojure.string :as str]))
 
 (use-fixtures :once default-fixture webdriver-fixture-once)
 (use-fixtures :each webdriver-fixture-each)
 
+(defn root-panel-exists? []
+  (taxi/wait-until
+   #(or (browser/panel-exists? [:project :project :overview]
+                               :wait? false)
+        (browser/panel-exists? [:project :project :add-articles]
+                               :wait? false))
+   10000 100)
+  (or (browser/panel-exists? [:project :project :overview]
+                             :wait? false)
+      (browser/panel-exists? [:project :project :add-articles]
+                             :wait? false)))
+
 (deftest project-routes
   (nav/log-in)
   (nav/open-first-project)
-  (wait-until-panel-exists [:project])
-  (is (panel-rendered? [:project]))
-  (taxi/wait-until
-   #(or (panel-exists? [:project :project :overview])
-        (panel-exists? [:project :project :add-articles]))
-   10000 200)
-  (is (or (panel-rendered? [:project :project :overview])
-          (panel-rendered? [:project :project :add-articles])))
-  (is (not (panel-rendered? [:project :project :fake-panel])))
-  (go-project-route "/labels/edit")
-  (wait-until-panel-exists [:project :project :labels :edit])
-  (is (panel-rendered? [:project :project :labels :edit]))
-  (go-project-route "/settings")
-  (wait-until-panel-exists [:project :project :settings])
-  (is (panel-rendered? [:project :project :settings]))
-  (go-project-route "/invite-link")
-  (wait-until-panel-exists [:project :project :invite-link])
-  (is (panel-rendered? [:project :project :invite-link]))
-  (go-project-route "/export")
-  (wait-until-panel-exists [:project :project :export-data])
-  (is (panel-rendered? [:project :project :export-data]))
-  (go-project-route "/user")
-  (wait-until-panel-exists [:project :user :labels])
-  (is (panel-rendered? [:project :user :labels]))
-  (go-project-route "/review")
-  (wait-until-panel-exists [:project :review])
-  (is (panel-rendered? [:project :review]))
-  (go-project-route "/articles")
-  (wait-until-panel-exists [:project :project :articles])
-  (is (panel-rendered? [:project :project :articles]))
-  (go-project-route "")
-  (taxi/wait-until
-   #(or (panel-exists? [:project :project :overview])
-        (panel-exists? [:project :project :add-articles]))
-   10000 200)
-  (is (or (panel-rendered? [:project :project :overview])
-          (panel-rendered? [:project :project :add-articles])))
-  (go-route "/user/settings")
-  (wait-until-panel-exists [:user-settings])
-  (is (panel-rendered? [:user-settings]))
-  (taxi/wait-until
-   #(taxi/exists? (taxi/find-element {:css "a[id='log-out-link']"}))
-   5000 200)
+  (is (browser/panel-exists? [:project]))
+  (is (root-panel-exists?))
+  (is (not (browser/panel-exists? [:project :project :fake-panel]
+                                  :wait? false)))
+
+  (browser/go-project-route "/labels/edit")
+  (is (browser/panel-exists? [:project :project :labels :edit]))
+
+  (browser/go-project-route "/settings")
+  (is (browser/panel-exists? [:project :project :settings]))
+
+  (browser/go-project-route "/invite-link")
+  (is (browser/panel-exists? [:project :project :invite-link]))
+
+  (browser/go-project-route "/export")
+  (is (browser/panel-exists? [:project :project :export-data]))
+
+  (browser/go-project-route "/user")
+  (is (browser/panel-exists? [:project :user :labels]))
+
+  (browser/go-project-route "/review")
+  (is (browser/panel-exists? [:project :review]))
+
+  (browser/go-project-route "/articles")
+  (is (browser/panel-exists? [:project :project :articles]))
+
+  (browser/go-project-route "")
+  (is (root-panel-exists?))
+
+  (browser/go-route "/user/settings")
+  (is (browser/panel-exists? [:user-settings]))
+
+  (is (browser/exists? {:css "a#log-out-link"}))
   (nav/log-out)
-  (is (login-form-shown?)))
+  (is (browser/login-form-shown?)))
