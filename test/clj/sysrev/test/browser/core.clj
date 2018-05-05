@@ -130,7 +130,7 @@
         local? (boolean
                 (= (:host (get-selenium-config))
                    "localhost"))
-        wait-ms (or wait-ms 1200)
+        wait-ms (or wait-ms 500)
         full-url (str (:url (get-selenium-config))
                       (if (= (nth path 0) \/)
                         (subs path 1) path))]
@@ -140,7 +140,7 @@
     (wait-until-loading-completes)))
 
 (defn go-route [path & [wait-ms]]
-  (let [wait-ms (or wait-ms 500)
+  (let [wait-ms (or wait-ms 250)
         js-str (format "sysrev.nav.set_token(\"%s\");" path)]
     (log/info "navigating:" path)
     (taxi/execute-script js-str)
