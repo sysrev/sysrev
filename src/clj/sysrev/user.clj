@@ -48,6 +48,7 @@
             [clojure.spec.test.alpha :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
+            [clojure.tools.logging :as log]
             [cljs.env :as env]
             [clj-time.core :as time]
             [clj-time.coerce :as tc]
@@ -64,6 +65,8 @@
             [clojure.string :as str]
             [cognitect.transit :as transit]
             [clojure-csv.core :as csv]
+            [amazonica.core :as aws]
+            [amazonica.aws.s3 :as s3]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -93,4 +96,9 @@
     nil))
 
 (defonce started
-  (sysrev.init/start-app))
+  (try
+    (sysrev.init/start-app)
+    (catch Throwable e
+      (log/info "error in sysrev.init/start-app")
+      (log/info (.getMessage e))
+      (.printStackTrace e))))

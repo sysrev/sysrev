@@ -1,5 +1,5 @@
 (ns sysrev.custom.insilica
-  (:require [sysrev.db.core :refer [do-query]]
+  (:require [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.db.articles :as articles]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
@@ -89,3 +89,21 @@
      project-id
      (prostate-preclinical-article-uuids project-id)
      :labels? true :answers? true)))
+
+(defn pubmed-foreign-article-ids [project-id]
+  (-> (q/select-project-articles
+       project-id [:a.article-id :a.primary-title :a.public-id]
+       {:include-disabled-source? true})
+      (->> do-query
+           (filter
+            (fn [{:keys [public-id primary-title]}]
+              (and public-id
+                   (re-matches #"^ *\[.*\][ \.]*$" primary-title))))
+           (mapv :article-id))))
+
+(defn disable-pubmed-foreign-articles [project-id]
+  (let [article-ids (pubmed-foreign-article-ids project-id)]
+    (with-transaction
+      (doseq [article-id article-ids]
+        (articles/set-article-flag
+         article-id "pubmed foreign language" true)))))

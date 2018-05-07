@@ -19,7 +19,8 @@
             (assoc :data {}
                    :needed [])
             (dissoc-in [:state :review])
-            (dissoc-in [:state :panels]))
+            (dissoc-in [:state :panels])
+            (dissoc-in [:state :identity]))
     :dispatch [:require [:identity]]
     :fetch-missing true}))
 
