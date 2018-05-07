@@ -77,6 +77,14 @@
                  ;;; caching
                  [org.clojure/core.memoize "0.7.1"]
 
+                 ;;; validation library
+                 [bouncer "1.0.1"]
+
+                 ;;; html parser
+                 [hickory "0.7.1"]
+
+                 ;;; ftp client
+                 [com.velisco/clj-ftp "0.3.12"]
                  ;;;
                  ;;; ClojureScript libraries
                  ;;;
@@ -102,8 +110,7 @@
                  [cljsjs/clipboard "1.6.1-1"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]
                  ;;[cljsjs/pdfjs "1.8.188-0"]
-                 ;; validation library
-                 [bouncer "1.0.1"]]
+                 ]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-Xms800m"

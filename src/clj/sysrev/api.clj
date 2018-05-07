@@ -4,6 +4,7 @@
             [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [me.raynes.fs :as fs]
             [sysrev.cache :refer [db-memo]]
             [sysrev.charts :as charts]
             [sysrev.db.articles :as articles]
@@ -487,6 +488,19 @@
   "Given a project-id, return data for the label counts chart"
   [project-id]
   {:result {:data (charts/process-label-counts project-id)}})
+
+(defn pdf
+  []
+  (let [filename (pubmed/article-pdf "PMC5892952")
+        file (java.io.File. filename)
+        ary (byte-array (.length file))
+        is (java.io.FileInputStream. file)
+        ]
+    (.read is ary)
+    (.close is)
+    (fs/delete filename)
+    {:headers {"Content-Type" "application/pdf"}
+     :body (java.io.ByteArrayInputStream. ary)}))
 
 (defn test-response
   "Server Sanity Check"

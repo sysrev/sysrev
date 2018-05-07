@@ -9,10 +9,14 @@
             [sysrev.util :refer
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
             [sysrev.shared.util :refer [parse-integer]]
+            [hickory.core :as hickory]
+            [hickory.select :as s]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [me.raynes.fs :as fs]
+            [miner.ftp :as ftp]
             [clj-http.client :as http]
             [clojure-csv.core :as csv]
             [clojure.data.json :as json]
@@ -347,3 +351,59 @@
   file of PMIDs."
   [project-id path]
   (import-pmids-to-project (load-pmids-file path) project-id))
+
+(def oa-root-link "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi")
+
+(defn pdf-ftp-link
+  "Given a pmicd (PMC*), return the ftp link for the pdf, if it exists, nil otherwise"
+  [pmcid]
+  (let [parsed-html (-> (http/get oa-root-link
+                                  {:query-params {"id" pmcid}})
+                        :body
+                        hickory/parse
+                        hickory/as-hickory)]
+    (-> (s/select (s/child (s/attr :format #(= % "pdf")))
+                  parsed-html)
+        first
+        (get-in [:attrs :href]))))
+
+(defn article-pdf
+  "Given a pmicd (PMC*), the pdf for that id, if it exists, nil otherwise"
+  [pmcid]
+  (if-let [pdf-link (pdf-ftp-link pmcid)]
+    (let [remote-filename (fs/base-name pdf-link)
+          local-filename (str "pdf/" remote-filename)
+          client (-> pdf-link
+                     (clojure.string/replace #"ftp://" "ftp://anonymous:pwd@")
+                     (clojure.string/replace (re-pattern remote-filename) ""))]
+      (cond
+        ;; the file already exists, return the filename
+        (fs/exists? local-filename)
+        local-filename
+        ;; retrieve the file
+        (ftp/with-ftp [client client]
+          (do (if-not (fs/exists? "pdf")
+                (fs/mkdir "pdf"))
+              (ftp/client-get client remote-filename local-filename)))
+        local-filename
+        :else nil))
+    ;; there was no pmcid for that file
+    nil))
+
+
+;;(ftp/with-ftp [client "ftp://anonymous:pwd@ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/92/86"] (ftp/client-get client "dddt-12-721.PMC5892952.pdf"))
+
+;; when I use {:headers {"User-Agent" "Apache-HttpClient/4.5.5"}}
+;; I get a "Forbidden" with a message that contains the link
+;; https://www.ncbi.nlm.nih.gov/pmc/about/copyright/
+
+
+;; I can still retrieve the data
+;; when I use {:headers {"User-Agent" "curl/7.54.0"}}
+;; as well as {:headers {"User-Agent" "clj-http"}}
+
+
+;; (http/get "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id=PMC5892952")
+;; need to: parse the html
+;;          retrieve the file with ftp
+

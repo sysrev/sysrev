@@ -4,6 +4,24 @@
             [sysrev.util :refer [random-id]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
+;;https://www.nlm.nih.gov/pubs/factsheets/dif_med_pub.html
+;; 24 Million for NLM
+;; 27 Million for PubMed
+;; "PMC serves as a digital counterpart to the NLM extensive print journal collection"
+;; yet PMC returns more results for search terms then
+;; PMC results have PMIDs, but not vicea versa
+;; in our database, we have 137298 total articles
+;; of those, 37287 contains text like '%pmc%'. 27% of articles
+
+;; search by pmid with PMC database: <pmid>[pmid]
+
+;; search example for: (("prostatic neoplasms"[MeSH Terms] OR ("prostatic"[All Fields] AND "neoplasms"[All Fields]) OR "prostatic neoplasms"[All Fields] OR ("prostate"[All Fields] AND "cancer"[All Fields]) OR "prostate cancer"[All Fields]) AND ("lycopene"[Supplementary Concept] OR "lycopene"[All Fields])) AND ("2005/01/01"[PDAT] : "3000/12/31"[PDAT])
+;; first hit, sorted by data "Enhancement of the catalytic..."
+;; actually, PMC searches are overly greedy
+;;
+;;(def pdfurl "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5661393/pdf/ol-14-05-6129.pdf")
+(def pdfurl "http://localhost:4061/api/test-pdf")
+
 (def pdfData
   (js/atob
    (str
@@ -38,8 +56,9 @@
          [:canvas {:id canvas-id}]])
       :component-did-mount
       (fn [this]
-        (let [loadingTask ($ pdfjsLib getDocument (clj->js {:data
-                                                            pdfData}))]
+        (let [loadingTask ($ pdfjsLib getDocument #_(clj->js {:data
+                                                              pdfData})
+                             pdfurl)]
           ($ loadingTask then
              (fn [pdf]
                ($ js/console log "PDF Loaded")

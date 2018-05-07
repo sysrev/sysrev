@@ -324,3 +324,14 @@
               (when (not include-disabled?)
                 [:= :a.enabled true])])
       do-query))
+
+(defn article-pmcid
+  "Given an article id, return it's pmcid. Returns nil if it does not exist"
+  [article-id]
+  (-> (select :raw)
+      (from :article)
+      (where [:= :article_id article-id])
+      do-query
+      first
+      :raw
+      (->> (re-find #"PMC\d+"))))
