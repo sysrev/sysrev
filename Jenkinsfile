@@ -192,8 +192,7 @@ node {
             }
           }
           if (branch == 'production') {
-            sh './jenkins/build'
-            archiveArtifacts artifacts: 'target/*.jar,deploy/client.tgz', fingerprint: true
+            archiveArtifacts artifacts: 'sysrev-web-0.1.0-SNAPSHOT-standalone.jar,target/*.jar,deploy/client.tgz', fingerprint: true
             sshagent(['sysrev-admin']) {
               withEnv(["SYSREV_HOST=sysrev.us"]) {
                 sh './jenkins/migrate.prod'

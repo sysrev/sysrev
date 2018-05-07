@@ -9,8 +9,7 @@ rm -f ./resources/build-time
 date +"%s" > ./resources/build-time
 
 lein with-profile +prod uberjar
-lein cljsbuild once production
-./scripts/build-css
+mv ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar .
 
 commit=$(cat ./resources/git-commit)
 
