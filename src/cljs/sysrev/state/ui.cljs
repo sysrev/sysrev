@@ -101,3 +101,15 @@
      #_ (add-notify-entry entry)
      (when inactive?
        (schedule-notify-display entry)))))
+
+(reg-sub
+ :visible-article-id
+ (fn [_]
+   [(subscribe [:review/on-review-task?])
+    (subscribe [:review/task-id])
+    (subscribe [:public-labels/article-id])
+    (subscribe [:user-labels/article-id])])
+ (fn [[on-review? id-review id-public id-user]]
+   (or (and on-review? id-review)
+       id-public
+       id-user)))
