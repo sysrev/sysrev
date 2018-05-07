@@ -130,8 +130,8 @@
   :clean-targets ^{:protect false}
   ["target"
    "resources/public/out-dev"
-   "resources/public/out-production"
-   "resources/public/integration"]
+   "resources/public/integration"
+   #_ "resources/public/out-production"]
   :cljsbuild
   {:builds
    [{:id "dev"
