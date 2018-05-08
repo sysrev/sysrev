@@ -19,9 +19,8 @@
             (assoc :data {}
                    :needed [])
             (dissoc-in [:state :review])
-            (dissoc-in [:state :panels])
-            (dissoc-in [:state :identity]))
-    :dispatch [:require [:identity]]
+            (dissoc-in [:state :panels]))
+    :dispatch [:fetch [:identity]]
     :fetch-missing true}))
 
 (reg-fx

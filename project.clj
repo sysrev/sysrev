@@ -3,7 +3,7 @@
                  ;;; Clojure
                  ;;;
                  [org.clojure/clojure "1.9.0"]
-                 [org.clojure/clojurescript "1.9.946"]
+                 [org.clojure/clojurescript "1.10.238"]
 
                  ;;;
                  ;;; Force versions of indirect dependencies
@@ -29,7 +29,7 @@
                  [me.raynes/fs "1.4.6"]
                  ;;; Data formats
                  [org.clojure/data.json "0.2.6"]
-                 [com.cognitect/transit-clj "0.8.300"]
+                 [com.cognitect/transit-clj "0.8.309"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.2"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
@@ -48,7 +48,7 @@
                  [nilenso/honeysql-postgres "0.2.3"]
                  ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
-                 [http-kit "2.2.0"]
+                 [http-kit "2.3.0"]
                  [ring "1.6.3"]
                  [ring/ring-defaults "0.3.1"]
                  [ring-transit "0.1.6"]
@@ -80,13 +80,13 @@
                  ;;;
                  ;;; ClojureScript libraries
                  ;;;
-                 [com.cognitect/transit-cljs "0.8.243"]
+                 [com.cognitect/transit-cljs "0.8.256"]
                  [reagent "0.7.0"]
                  [re-frame "0.10.5"]
-                 [day8.re-frame/http-fx "0.1.5"]
+                 [day8.re-frame/http-fx "0.1.6"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.8"]
-                 [cljs-http "0.1.44"]
+                 [cljs-http "0.1.45"]
                  [cljsjs/jquery "3.2.1-0"]
                  ;; only provides ext.js for stripe.js
                  [cljsjs/stripe "2.0-0"]
@@ -146,7 +146,8 @@
                 :source-map true
                 :source-map-timestamp true
                 :preloads [devtools.preload]
-                :external-config {:devtools/config {:features-to-install :all}}}}
+                :external-config {:devtools/config {:features-to-install :all}}
+                :npm-deps false}}
     {:id "production"
      :source-paths ["src/cljs" "src/cljc"]
      :compiler {:main "sysrev.core"
@@ -157,7 +158,8 @@
                 :optimizations :advanced
                 :pretty-print false
                 :source-map "resources/public/out-production/sysrev.js.map"
-                :source-map-timestamp true}}]}
+                :source-map-timestamp true
+                :npm-deps false}}]}
   :figwheel {:nrepl-port 7888
              :server-port 3449
              ;; these should work with both Cider and Cursive
@@ -194,7 +196,7 @@
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[binaryage/devtools "0.9.9"]
+              :dependencies [[binaryage/devtools "0.9.10"]
                              [clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.8.1"]
                              [org.seleniumhq.selenium/selenium-support "3.8.1"]
@@ -214,13 +216,13 @@
              :dev-jvm
              {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.14"]
+             {:dependencies [[figwheel-sidecar "0.5.16"]
                              [org.clojure/tools.nrepl "0.2.13"]
                              [com.cemerick/piggieback "0.2.2"]
                              [acyclic/squiggly-clojure "0.1.8"
                               :exclusions [org.clojure/tools.reader]]]
-              :plugins [[lein-figwheel "0.5.14"]
-                        [cider/cider-nrepl "0.16.0"]
+              :plugins [[lein-figwheel "0.5.16"]
+                        [cider/cider-nrepl "0.17.0"]
                         [lein-environ "1.1.0"]]}
              :figwheel
              {:jvm-opts ["-Xms300m" "-Xmx600m"]}
