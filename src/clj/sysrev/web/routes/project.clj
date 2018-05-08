@@ -487,9 +487,13 @@
   (GET "/api/charts/label-count-data" request
        (api/label-count-data (-> request :params :project-id parse-integer)))
 
-  (GET "/api/test-pdf"
-       []
-       (api/pdf))
+  (GET "/api/open-access/:article-id/availability" [article-id]
+       (api/open-access-available? (parse-integer article-id)))
+
+  (GET "/api/open-access/:article-id/pdf"
+       [article-id]
+       (api/open-access-pdf (parse-integer article-id)))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (api/test-response)))

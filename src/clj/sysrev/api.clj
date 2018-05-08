@@ -489,18 +489,28 @@
   [project-id]
   {:result {:data (charts/process-label-counts project-id)}})
 
-(defn pdf
-  []
-  (let [filename (pubmed/article-pdf "PMC5892952")
-        file (java.io.File. filename)
-        ary (byte-array (.length file))
-        is (java.io.FileInputStream. file)
-        ]
-    (.read is ary)
-    (.close is)
-    (fs/delete filename)
+(defn open-access-pdf
+  [article-id]
+  (if-let [filename (-> article-id
+                        articles/article-pmcid
+                        pubmed/article-pdf)]
+    ;; there was a file
+    (let [file (java.io.File. filename)
+          ary (byte-array (.length file))
+          is (java.io.FileInputStream. file)]
+      (.read is ary)
+      (.close is)
+      (fs/delete filename)
+      {:headers {"Content-Type" "application/pdf"}
+       :body (java.io.ByteArrayInputStream. ary)})
     {:headers {"Content-Type" "application/pdf"}
-     :body (java.io.ByteArrayInputStream. ary)}))
+     :body nil}))
+
+(defn open-access-available?
+  [article-id]
+  {:result {:available? (not (nil? (-> article-id
+                                       articles/article-pmcid
+                                       pubmed/article-pdf)))}})
 
 (defn test-response
   "Server Sanity Check"

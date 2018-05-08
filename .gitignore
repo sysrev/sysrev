@@ -194,4 +194,6 @@ resources/public/semantic
 /resources/public/docs
 /README.html
 
+/pdf
+
 profiles.clj

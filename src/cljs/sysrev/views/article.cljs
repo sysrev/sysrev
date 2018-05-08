@@ -6,7 +6,7 @@
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.annotation :refer [AnnotatedText]]
-            [sysrev.pdf :refer [PDF]]
+            [sysrev.pdf :as pdf :refer [PDF OpenAccessAvailable]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.labels :refer
@@ -227,8 +227,11 @@
         (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}
-         [article-info-main-content article-id
-          :context context]]))
-     [:div [PDF]]
+         (if @(r/cursor state [:show-pdf? article-id])
+           [PDF article-id]
+           [article-info-main-content article-id
+            :context context])
+         [OpenAccessAvailable article-id #(do (swap! state assoc-in [:show-pdf? article-id] (not @(r/cursor state [:show-pdf? article-id])))
+                                              (.log js/console @(r/cursor state [:show-pdf? article-id])))]]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))
