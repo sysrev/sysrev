@@ -98,7 +98,7 @@
   [q & [timeout interval]]
   (let [timeout (or timeout 10000)
         interval (or interval 50)]
-    (Thread/sleep 10)
+    (Thread/sleep 25)
     (taxi/wait-until
      #(taxi/exists? q)
      timeout interval)))
@@ -109,7 +109,7 @@
   [q & [timeout interval]]
   (let [timeout (or timeout 10000)
         interval (or interval 50)]
-    (Thread/sleep 10)
+    (Thread/sleep 25)
     (taxi/wait-until
      #(and (taxi/exists? q)
            (taxi/displayed? q))
@@ -119,7 +119,7 @@
   [& [timeout interval]]
   (let [timeout (or timeout 10000)
         interval (or interval 50)]
-    (Thread/sleep 25)
+    (Thread/sleep 50)
     (taxi/wait-until
      #(not (taxi/exists?
             {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
@@ -140,8 +140,9 @@
     (wait-until-loading-completes)))
 
 (defn go-route [path & [wait-ms]]
-  (let [wait-ms (or wait-ms 250)
+  (let [wait-ms (or wait-ms 500)
         js-str (format "sysrev.nav.set_token(\"%s\");" path)]
+    (wait-until-loading-completes)
     (log/info "navigating:" path)
     (taxi/execute-script js-str)
     (Thread/sleep wait-ms)
@@ -163,7 +164,7 @@
       (stop-webdriver)
       (Thread/sleep 100)))
 
-(defn set-input-text [q text & {:keys [delay] :or {delay 25}}]
+(defn set-input-text [q text & {:keys [delay] :or {delay 50}}]
   (wait-until-exists q)
   (taxi/clear q)
   (Thread/sleep delay)
@@ -173,11 +174,14 @@
 (defn exists? [q & {:keys [wait?] :or {wait? true}}]
   (when wait?
     (wait-until-exists q))
-  (taxi/exists? q))
+  (let [result (taxi/exists? q)]
+    (when wait?
+      (wait-until-loading-completes))
+    result))
 
 (defn click [q & {:keys [if-not-exists delay displayed?]
                   :or {if-not-exists :wait
-                       delay 25
+                       delay 50
                        displayed? false}}]
   (when (= if-not-exists :wait)
     (if displayed?
@@ -187,7 +191,8 @@
            (not (taxi/exists? q)))
     nil
     (do (taxi/click q)
-        (Thread/sleep delay))))
+        (Thread/sleep delay)
+        (wait-until-loading-completes))))
 
 (defn panel-name [panel-keys]
   (str/join "_" (map name panel-keys)))
@@ -206,7 +211,7 @@
       (parse-integer id-str))))
 
 (defn go-project-route [suburi & [project-id]]
-  (wait-until-loading-completes)
+  (Thread/sleep 50)
   (let [project-id (or project-id (current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))

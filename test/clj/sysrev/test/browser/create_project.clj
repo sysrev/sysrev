@@ -188,7 +188,7 @@
   [search-term]
   (let [delete {:xpath (search-term-delete-xpath search-term)}]
     (log/info "deleting article source")
-    (browser/click delete :delay 100)))
+    (browser/click delete :delay 250)))
 
 (def project-title-xpath
   {:xpath "//span[contains(@class,'project-title')]"})
@@ -293,9 +293,9 @@
       ;; delete the search-term-first source
       (delete-search-term-source search-term-first)
       ;; total sources is zero
-      (taxi/wait-until #(= 0 (count (taxi/find-elements project-source-xpath)))
+      (taxi/wait-until #(not (taxi/exists? project-source-xpath))
                        10000 50)
-      (is (= 0 (count (taxi/find-elements project-source-xpath)))))
+      (is (not (taxi/exists? project-source-xpath))))
     (finally
 ;;; clean up
       (delete-current-project)
