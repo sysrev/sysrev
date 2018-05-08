@@ -216,7 +216,8 @@ node {
     }
   }
   stage('GitPublish') {
-    if (branch == 'staging') {
+    if (branch == 'staging' ||
+        branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
         try {
           sshagent(['sysrev-admin']) {
