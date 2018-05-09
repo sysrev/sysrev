@@ -467,7 +467,7 @@
 (defn annotations-wrapper!
   "Returns the annotations for string using a hash wrapper"
   [string]
-  (let [hash (util/md5 (if (string? string)
+  (let [hash (util/string->md5 (if (string? string)
                          string
                          (pr-str string)))
         _ (swap! annotations-atom assoc hash string)

@@ -170,8 +170,12 @@
   (let [factor (Math/pow 10 precision)]
     (/ (Math/round (* d factor)) factor)))
 
-;; see: https://gist.github.com/jizhang/4325757
-(defn md5 [^String s]
+(defn byte-array->md5 [bytes]
   (let [algorithm (MessageDigest/getInstance "MD5")
-        raw (.digest algorithm (.getBytes s))]
+        raw (.digest algorithm bytes)]
     (format "%032x" (BigInteger. 1 raw))))
+
+;; see: https://gist.github.com/jizhang/4325757
+(defn string->md5 [^String s]
+  (byte-array->md5 (.getBytes s)))
+
