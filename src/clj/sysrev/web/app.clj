@@ -147,18 +147,121 @@
        {:error {:status 403
                 :type :project
                 :message "No project selected"}}
-       
+
        (and (not (empty? ~mperms-required))
             (nil? member#))
        {:error {:status 403
                 :type :member
                 :message "Not authorized (project)"}}
-       
+
        (and (not (every? (in? mperms#) ~mperms-required))
             (not (in? uperms# "admin")))
        {:error {:status 403
                 :type :project
                 :message "Not authorized"}}
+
+       true
+       (body-fn#))))
+
+(defmacro wrap-authorize
+  "Wrap request handler body to check if user is authorized to perform the
+  request. If authorized then runs body and returns result; if not authorized,
+  returns an error without running body.
+
+  Set `logged-in` as true to fail unless logged in.
+
+  Set `developer` as true to fail unless logged in as admin (dev) user.
+
+  If `roles` is set, the value should be a vector of member permission strings,
+  and the user is required to (1) be a member of the project and (2) have at
+  least one of the listed member permissions for the project. When set, this
+  implies a value of `true` for `logged-in`.
+
+  Set `allow-public` as true to permit access always if the referenced project
+  is configured as public-readable. If the project is not public-readable, the
+  logic will be equivalent to
+  `{:roles [\"member\"] :logged-in true}`.
+  Because `roles` and `logged-in` conditions are encompassed by this setting,
+  an error will be thrown at compile time if either is passed in alongside
+  `allow-public`.
+
+  `authorize-fn` should be nil or a one-argument function which takes the Ring
+  request map and returns a boolean \"authorized\" value, and will be tested as
+  an additional custom condition after the other conditions."
+  [request
+   {:keys [logged-in developer roles allow-public authorize-fn]
+    :or {logged-in nil
+         developer false
+         allow-public false
+         roles nil
+         authorize-fn nil}
+    :as conditions}
+   & body]
+  (assert ((comp not empty?) body)
+          "wrap-authorize: missing body form")
+  (assert (not (and (contains? conditions :allow-public)
+                    (or (contains? conditions :logged-in)
+                        (contains? conditions :roles))))
+          (str "wrap-authorize: `logged-in` and `roles` are not"
+               " allowed when `allow-public` is set"))
+  `(let [ ;; macro parameter gensyms
+         request# ~request
+         logged-in# ~logged-in
+         developer# ~developer
+         allow-public# ~allow-public
+         roles# ~roles
+         authorize-fn# ~authorize-fn
+
+         ;; roles value implies user must be logged in
+         logged-in# (if (not-empty roles#) true logged-in#)
+         ;; when allow-public is enabled, treat
+         roles# (if allow-public# ["member"] roles#)
+
+         user-id# (current-user-id request#)
+         project-id# (active-project request#)
+         user# (and user-id# (get-user-by-id user-id#))
+         member# (and user-id#
+                      project-id#
+                      (project-member project-id# user-id#))
+         dev-user?# (in? (:permissions user#) "admin")
+         mperms# (:permissions member#)
+         body-fn# #(do ~@body)]
+     (cond
+       (and logged-in# (not (integer? user-id#)))
+       {:error {:status 401
+                :type :authentication
+                :message "Not logged in / Invalid API token"}}
+
+       (and developer# (not dev-user?#))
+       {:error {:status 403
+                :type :user
+                :message "Not authorized (developer function)"}}
+
+       (and allow-public# :project-is-public)
+       (body-fn#)
+
+       (and (not-empty roles#)
+            (not (integer? project-id#)))
+       {:error {:status 403
+                :type :project
+                :message "No project selected"}}
+
+       (and
+        ;; member role requirements are set
+        (not-empty roles#)
+        ;; current member does not have any of the permitted roles
+        (not (some (in? mperms#) roles#))
+        ;; allow dev users to ignore project role conditions
+        (not dev-user?#))
+       {:error {:status 403
+                :type :project
+                :message "Not authorized (project member)"}}
+
+       (and ((comp not nil?) authorize-fn)
+            (false? (authorize-fn request#)))
+       {:error {:status 403
+                :type :project
+                :message "Not authorized (authorize-fn)"}}
 
        true
        (body-fn#))))
