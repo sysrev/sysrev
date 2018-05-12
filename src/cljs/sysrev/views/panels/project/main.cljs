@@ -20,13 +20,27 @@
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]] {}
-      (let [project-name @(subscribe [:project/name])]
+      (let [project-name @(subscribe [:project/name])
+            public? @(subscribe [:project/public-access?])
+            access-label
+            (if public?
+              [:div.ui.label [:i.fitted.globe.icon] "Public"]
+              [:div.ui.label [:i.fitted.lock.icon] "Private"])]
         [:div
-         [:div.ui.top.attached.segment.project-header
-          [:div.ui.middle.aligned.grid
-           [:div.row
-            [:div.sixteen.wide.column.project-title
-             [:span.project-title [:i.grey.book.icon] nbsp project-name]]]]]
+         [:div.ui.top.attached.segment.project-header.mobile
+          [:h4.ui.header.title-header
+           [:i.grey.book.icon]
+           [:div.content
+            [:span.project-title project-name]
+            [:span.access-header access-label]]]]
+         [:div.ui.top.attached.grid.segment.project-header.desktop
+          [:div.row
+           [:div.fourteen.wide.column
+            [:h4.ui.header.title-header
+             [:i.grey.book.icon]
+             [:div.content
+              [:span.project-title project-name]]]]
+           [:div.two.wide.right.aligned.column access-label]]]
          (project-page-menu)
          child]))))
 

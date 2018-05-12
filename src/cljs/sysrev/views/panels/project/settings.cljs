@@ -7,6 +7,7 @@
    [sysrev.state.nav :refer [active-project-id]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip]]
+   [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
    [sysrev.shared.util :refer [parse-integer]]))
 
 (def ^:private panel-name [:project :project :settings])
@@ -281,10 +282,8 @@
                      @(subscribe [:user/admin?]))]
       (reset! state initial-state)
       [:div.project-content
-       (when (not admin?)
-         [:div.ui.message
-          [:div.header "Read-Only View"]
-          [:p "Changing settings is restricted to project administrators."]])
+       [ReadOnlyMessage
+        "Changing settings is restricted to project administrators."]
        [:div.ui.two.column.stackable.grid.project-settings
         [:div.ui.row
          [:div.ui.column

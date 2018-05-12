@@ -12,6 +12,7 @@
    [sysrev.views.base :refer [panel-content]]
    [sysrev.views.components :as ui]
    [sysrev.views.review :refer [label-help-popup inclusion-tag]]
+   [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
    [sysrev.shared.util :refer [in? parse-integer]]
    [sysrev.util :refer [desktop-size? random-id parse-to-number?]]))
 
@@ -773,13 +774,9 @@
       (when (empty? @labels)
         (sync-local-labels! (labels->local-labels (saved-labels))))
       [:div.define-labels
-       (when (and (not admin?)
-                  (not @read-only-message-closed?))
-         [:div.ui.message
-          [:i {:class "close icon"
-               :on-click #(do (reset! read-only-message-closed? true))}]
-          [:div.header "Read-Only View"]
-          [:p "Label editing is restricted to project administrators."]])
+       [ReadOnlyMessage
+        "Editing label definitions is restricted to project administrators."
+        read-only-message-closed?]
        (doall (map-indexed
                (fn [i label]
                  ^{:key i}

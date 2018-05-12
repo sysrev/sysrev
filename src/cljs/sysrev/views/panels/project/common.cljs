@@ -143,3 +143,16 @@
         (when manage?
           ^{:key [:project-manage-menu]}
           [project-submenu]))))))
+
+(defn ReadOnlyMessage [text & [message-closed-atom]]
+  (when (and (not (or @(subscribe [:member/admin?])
+                      @(subscribe [:user/admin?])))
+             (not (and message-closed-atom @message-closed-atom)))
+    [:div.ui.icon.message.read-only-message
+     [:i.lock.icon]
+     (when message-closed-atom
+       [:i {:class "close icon"
+            :on-click #(do (reset! message-closed-atom true))}])
+     [:div.content
+      [:div.header "Read-Only View"]
+      [:p text]]]))

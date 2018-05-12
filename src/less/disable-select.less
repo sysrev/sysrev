@@ -64,10 +64,6 @@ div.ui.secondary.pointing.menu > a.item.active {
     .noselect;
 }
 
-div.project-header .ui.grid .row .right.aligned.column {
-    .noselect;
-}
-
 div.label-edit-name {
     .noselect;
 }
@@ -78,18 +74,6 @@ div.label-editor-view .ui.top.attached.header {
 
 div.ui.label.activity-report {
     .noselect;
-}
-
-div#select-project .project-header {
-    .noselect;
-}
-
-div#project .project-header {
-    .noselect;
-}
-
-div#project .project-header div.project-title > span.project-title {
-    .select-auto;
 }
 
 .main-content.loading,
@@ -111,18 +95,10 @@ div#add-articles div#import-articles a.item {
     .noselect;
 }
 
-div#project-sources,
-div#project-sources h3,
-div#project-sources h4,
-div#project-sources h5,
-div#project-sources h6,
 div#project-sources .ui.header,
 div#project-sources .ui.label,
-div#project-sources .ui.button,
-div#project-sources div.reviewed-count,
-div#project-sources div.source-description,
-div#project-sources div.source-description div,
-div#project-sources div.source-description span {
+div#project-sources .ui.button
+{
     .noselect;
 }
 
@@ -132,12 +108,31 @@ div#project-sources div.import-label.ui.label {
 
 @media only screen and (max-width: 767px) {
     div#project .project-header,
-    div#project .project-header div.project-title,
-    div#project .project-header div.project-title > span.project-title {
+    div#project .project-header span.project-title {
         .noselect;
     }
 
     .article-filters .form .field .ui.input input {
+        .noselect;
+    }
+
+    div.ui.message.read-only-message {
+        .noselect;
+    }
+
+    div#project-sources,
+    div#project-sources h3,
+    div#project-sources h4,
+    div#project-sources h5,
+    div#project-sources h6,
+    div#project-sources .ui.header,
+    div#project-sources .ui.label,
+    div#project-sources .ui.button
+    div#project-sources div.reviewed-count,
+    div#project-sources div.source-description,
+    div#project-sources div.source-description div,
+    div#project-sources div.source-description span
+    {
         .noselect;
     }
 }
