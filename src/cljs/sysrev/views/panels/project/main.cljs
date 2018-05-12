@@ -27,12 +27,6 @@
               [:div.ui.label [:i.fitted.globe.icon] "Public"]
               [:div.ui.label [:i.fitted.lock.icon] "Private"])]
         [:div
-         [:div.ui.top.attached.segment.project-header.mobile
-          [:h4.ui.header.title-header
-           [:i.grey.book.icon]
-           [:div.content
-            [:span.project-title project-name]
-            [:span.access-header access-label]]]]
          [:div.ui.top.attached.grid.segment.project-header.desktop
           [:div.row
            [:div.fourteen.wide.column
@@ -41,6 +35,12 @@
              [:div.content
               [:span.project-title project-name]]]]
            [:div.two.wide.right.aligned.column access-label]]]
+         [:div.ui.top.attached.segment.project-header.mobile
+          [:h4.ui.header.title-header
+           [:i.grey.book.icon]
+           [:div.content
+            [:span.project-title project-name]
+            [:span.access-header access-label]]]]
          (project-page-menu)
          child]))))
 

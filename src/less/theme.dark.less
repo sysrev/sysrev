@@ -1,7 +1,7 @@
 @darkText: rgba(45, 45, 45, 0.925);
 @lightText: rgba(230, 230, 230, 0.925);
 
-@mutedDarkText : rgba(75, 75, 75, 0.85);
+@mutedDarkText : rgba(60, 60, 60, 0.85);
 @mutedLightText: rgba(200, 200, 200, 0.85);
 
 @text: @lightText;
@@ -13,10 +13,11 @@
 @green: rgba(33, 186, 69, 1);
 @blue: #2185d0;
 @mediumGrey: rgba(100, 100, 100, 1);
-@lightGrey: rgba(130, 130, 130, 0.75);
+@lightGrey: rgba(130, 130, 130, 0.7);
 
 @pageBackground : rgba(55, 55, 55, 1.0);
 @background: lighten(@pageBackground, 5);
+@menuBackground: lighten(@pageBackground, 2);
 @background1: lighten(@pageBackground, 12);
 @background2: lighten(@pageBackground, 20);
 @background01: lighten(@pageBackground, 8);
@@ -40,3 +41,10 @@
 @greyButtonBackground: rgba(118, 118, 118, 1.0);
 
 @internalBorderColor: rgba(34, 36, 38, 0.1);
+
+.ui.segment,
+.ui.segments,
+.ui.menu,
+.ui.message {
+    box-shadow: none !important;
+}

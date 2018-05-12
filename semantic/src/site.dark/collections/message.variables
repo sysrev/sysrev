@@ -1,0 +1,2 @@
+@background: @messageBackground;
+@invertedBackground: @lightBackground;

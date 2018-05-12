@@ -191,7 +191,7 @@
     (browser/click delete :delay 250)))
 
 (def project-title-xpath
-  {:xpath "//span[contains(@class,'project-title')]"})
+  {:xpath "//span[contains(@class,'project-title')]//ancestor::div[contains(@class,'project-header') and contains(@class,'desktop')]"})
 (def article-sources-list-xpath
   {:xpath "//h4[contains(text(),'Article Sources')]//ancestor::div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"})
 (def project-source-xpath
