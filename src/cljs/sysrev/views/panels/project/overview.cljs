@@ -176,7 +176,8 @@
 (defn project-files-box []
   (let [project-id @(subscribe [:active-project-id])
         [editing-files toggle-editing] (toggler ::editing-files)
-        files (subscribe [:project/files])]
+        files (subscribe [:project/files])
+        member? @(subscribe [:self/member? project-id])]
     (letfn [(show-date [file]
               (let [date (from-date (:upload-time file))
                     parts (mapv #(% date) [t/month t/day t/year])]
@@ -207,17 +208,20 @@
                        :target "_blank"
                        :download (:name file)}
                    (:name file)]]])))
-            (list [:div.item {:key "celled list filler"}])))
-          [:div.upload-container
-           [upload-container
-            basic-text-button
-            (str "/api/files/" project-id "/upload")
-            pull-files
-            "Upload document"]
-           [:div.ui.right.floated.small.basic.icon.button
-            {:on-click toggle-editing
-             :class (when @editing-files "red")}
-            [:i.ui.blue.pencil.icon]]]]]))))
+            (if member?
+              [[:div.item {:key "celled list filler"}]]
+              [])))
+          (when member?
+            [:div.upload-container
+             [upload-container
+              basic-text-button
+              (str "/api/files/" project-id "/upload")
+              pull-files
+              "Upload document"]
+             [:div.ui.right.floated.small.basic.icon.button
+              {:on-click toggle-editing
+               :class (when @editing-files "red")}
+              [:i.ui.blue.pencil.icon]]])]]))))
 
 (defn user-summary-chart []
   (let [project-id @(subscribe [:active-project-id])

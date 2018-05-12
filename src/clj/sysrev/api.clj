@@ -53,20 +53,14 @@
 (defn delete-project!
   "Delete a project with project-id by user-id. Checks to ensure the user is an admin of that project. If there are reviewed articles in the project, disables project instead of deleting it"
   [project-id user-id]
-  (cond (not (project/member-has-permission? project-id user-id "admin"))
-        {:error {:status forbidden
-                 :type :member
-                 :message "Not authorized (project)"}}
-
-        (project/project-has-labeled-articles? project-id)
-        (do (project/disable-project! project-id)
-            {:result {:success true
-                      :project-id project-id}})
-
-        (project/member-has-permission? project-id user-id "admin")
-        (do (project/delete-project project-id)
-            {:result {:success true
-                      :project-id project-id}})))
+  (assert (project/member-has-permission? project-id user-id "admin"))
+  (if (project/project-has-labeled-articles? project-id)
+    (do (project/disable-project! project-id)
+        {:result {:success true
+                  :project-id project-id}})
+    (do (project/delete-project project-id)
+        {:result {:success true
+                  :project-id project-id}})))
 
 (s/fdef delete-project!
         :args (s/cat :project-id int?

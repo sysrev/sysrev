@@ -8,7 +8,7 @@
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.web.index :as index]
             [sysrev.db.users :refer [get-user-by-id get-user-by-api-token]]
-            [sysrev.db.project :refer [project-member]]
+            [sysrev.db.project :as project]
             [sysrev.util]
             [sysrev.shared.util :refer [in? parse-integer]]
             [sysrev.resources :as res]))
@@ -123,7 +123,7 @@
          user# (and user-id# (get-user-by-id user-id#))
          member# (and user-id#
                       project-id#
-                      (project-member project-id# user-id#))
+                      (project/project-member project-id# user-id#))
          uperms# (:permissions user#)
          mperms# (:permissions member#)
          body-fn# #(do ~@body)]
@@ -211,23 +211,29 @@
          allow-public# ~allow-public
          roles# ~roles
          authorize-fn# ~authorize-fn
+         body-fn# #(do ~@body)
 
-         ;; roles value implies user must be logged in
-         logged-in# (if (not-empty roles#) true logged-in#)
+         ;; set implied values of logged-in option
+         logged-in# (if (or (not-empty roles#)
+                            (true? developer#))
+                      true logged-in#)
          ;; when allow-public is enabled, treat
          roles# (if allow-public# ["member"] roles#)
 
          user-id# (current-user-id request#)
          project-id# (active-project request#)
+         public-project# (and project-id#
+                              (-> (project/project-settings project-id#)
+                                  :public-access true?))
          user# (and user-id# (get-user-by-id user-id#))
          member# (and user-id#
                       project-id#
-                      (project-member project-id# user-id#))
+                      (project/project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
-         mperms# (:permissions member#)
-         body-fn# #(do ~@body)]
+         mperms# (:permissions member#)]
      (cond
-       (and logged-in# (not (integer? user-id#)))
+       (and (not (integer? user-id#))
+            (or logged-in# (and allow-public# (not public-project#))))
        {:error {:status 401
                 :type :authentication
                 :message "Not logged in / Invalid API token"}}
@@ -237,7 +243,8 @@
                 :type :user
                 :message "Not authorized (developer function)"}}
 
-       (and allow-public# :project-is-public)
+       ;; route definition and project settings both allow public access
+       (and allow-public# public-project#)
        (body-fn#)
 
        (and (not-empty roles#)
@@ -257,8 +264,8 @@
                 :type :project
                 :message "Not authorized (project member)"}}
 
-       (and ((comp not nil?) authorize-fn)
-            (false? (authorize-fn request#)))
+       (and ((comp not nil?) authorize-fn#)
+            (false? (authorize-fn# request#)))
        {:error {:status 403
                 :type :project
                 :message "Not authorized (authorize-fn)"}}

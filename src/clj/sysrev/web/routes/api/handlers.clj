@@ -15,8 +15,7 @@
             [sysrev.import.pubmed :as pubmed]
             [sysrev.custom.facts :as facts]
             [sysrev.web.app :refer
-             [wrap-permissions current-user-id active-project
-              make-error-response]]
+             [current-user-id active-project make-error-response]]
             [sysrev.util :refer
              [integerify-map-keys uuidify-map-keys]]
             [clojure.string :as str]
@@ -272,18 +271,18 @@
 
 ;; disabled for now because we don't to actually delete a project,
 ;; just mark it as inactive
-#_ (def-webapi
-     :delete-project :post
-     {:required [:project-id]
-      :project-role "admin"
-      :check-answers? true
-      :doc "Deletes project and all database entries belonging to it."}
-     (fn [request]
-       (let [{:keys [project-id api-token] :as body}
-             (-> request :body)
-             {:keys [user-id]}
-             (users/get-user-by-api-token api-token)]
-         (api/delete-project! project-id user-id))))
+(def-webapi
+  :delete-project :post
+  {:required [:project-id]
+   :project-role "admin"
+   :check-answers? true
+   :doc "Deletes project and all database entries belonging to it."}
+  (fn [request]
+    (let [{:keys [project-id api-token] :as body}
+          (-> request :body)
+          {:keys [user-id]}
+          (users/get-user-by-api-token api-token)]
+      (api/delete-project! project-id user-id))))
 
 (def-webapi
   :project-labels :get

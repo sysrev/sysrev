@@ -113,11 +113,13 @@
 
 (reg-sub
  :self/member?
+ :<- [:self/user-id]
  :<- [:self/projects false]
  :<- [:active-project-id]
- (fn [[projects active-id] [_ project-id]]
+ (fn [[user-id projects active-id] [_ project-id]]
    (let [project-id (or project-id active-id)]
-     (in? (map :project-id projects) project-id))))
+     (when (and user-id project-id)
+       (in? (map :project-id projects) project-id)))))
 
 (reg-sub
  :self/settings

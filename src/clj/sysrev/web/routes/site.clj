@@ -10,19 +10,15 @@
             [sysrev.db.project :as project]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [should-never-happen-exception]]
-            [sysrev.web.app :refer [wrap-permissions current-user-id]]))
+            [sysrev.web.app :refer [wrap-authorize current-user-id]]))
 
 ;; Functions defined after defroutes form
 (declare public-project-summaries)
 
 (defroutes site-routes
-  ;; Returns short public information on all projects
-  (GET "/api/all-projects" request
-       (public-project-summaries))
-
   (POST "/api/delete-user" request
-        (wrap-permissions
-         request ["admin"] []
+        (wrap-authorize
+         request {:developer true}
          (let [{{:keys [verify-user-id]
                  :as body} :body} request
                user-id (current-user-id request)
@@ -36,14 +32,14 @@
              {:session {}}))))
 
   (POST "/api/clear-query-cache" request
-        (wrap-permissions
-         request ["admin"] []
-         (do (clear-query-cache)
-             {:success true})))
+        (wrap-authorize
+         request {:developer true}
+         (clear-query-cache)
+         {:success true}))
 
   (POST "/api/change-user-settings" request
-        (wrap-permissions
-         request [] []
+        (wrap-authorize
+         request {:logged-in true}
          (let [user-id (current-user-id request)
                {:keys [changes]} (:body request)]
            (doseq [{:keys [setting value]} changes]

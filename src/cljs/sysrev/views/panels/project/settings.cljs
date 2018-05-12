@@ -282,10 +282,9 @@
       (reset! state initial-state)
       [:div.project-content
        (when (not admin?)
-         [:h3.ui.dividing.header
-          [:div.ui.large.fluid.label
-           {:style {:text-align "center"}}
-           "Read-only"]])
+         [:div.ui.message
+          [:div.header "Read-Only View"]
+          [:p "Changing settings is restricted to project administrators."]])
        [:div.ui.two.column.stackable.grid.project-settings
         [:div.ui.row
          [:div.ui.column

@@ -2,7 +2,7 @@
   (:require
    [sysrev.api :as api]
    [sysrev.web.app :refer
-    [wrap-permissions current-user-id active-project]]
+    [wrap-authorize current-user-id active-project]]
    [sysrev.db.core :refer
     [do-query do-execute with-project-cache]]
    [sysrev.db.queries :as q]
@@ -121,14 +121,14 @@
 (defroutes project-routes
   ;; Returns full information for active project
   (GET "/api/project-info" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (update-user-default-project request)
         (project-info (active-project request))))
 
   (POST "/api/join-project" request
-        (wrap-permissions
-         request [] []
+        (wrap-authorize
+         request {:logged-in true}
          (let [project-id (-> request :body :project-id)
                user-id (current-user-id request)
                session (assoc-in (:session request)
@@ -143,21 +143,23 @@
              {:session session}))))
 
   (POST "/api/create-project" request
-        (wrap-permissions
-         request [] []
+        (wrap-authorize
+         request {:logged-in true}
          (let [project-name (-> request :body :project-name)
                user-id (current-user-id request)]
            (assert (integer? user-id))
            (api/create-project-for-user! project-name user-id))))
 
   (POST "/api/delete-project" request
-        (let [project-id (-> request :body :project-id)
-              user-id (current-user-id request)]
-          (api/delete-project! project-id user-id)))
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (-> request :body :project-id)
+               user-id (current-user-id request)]
+           (api/delete-project! project-id user-id))))
 
   (POST "/api/import-articles-from-search" request
-        (wrap-permissions
-         request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
          (let [{:keys [search-term source]} (:body request)
                project-id (active-project request)]
            (api/import-articles-from-search
@@ -165,8 +167,8 @@
             :threads 3))))
 
   (POST "/api/import-articles-from-file" request
-        (wrap-permissions
-         request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
          (let [project-id (active-project request)
                file-data (get-in request [:params :file])
                file (:tempfile file-data)
@@ -177,8 +179,8 @@
             :threads 3))))
 
   (POST "/api/import-articles-from-endnote-file" request
-        (wrap-permissions
-         request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
          (let [project-id (active-project request)
                file-data (get-in request [:params :file])
                file (:tempfile file-data)
@@ -189,8 +191,8 @@
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:roles ["member"]}
         (update-user-default-project request)
         (if-let [{:keys [article-id today-count] :as task}
                  (labels/get-user-label-task (active-project request)
@@ -210,8 +212,8 @@
 
   ;; Sets and optionally confirms label values for an article
   (POST "/api/set-labels" request
-        (wrap-permissions
-         request [] ["member"]
+        (wrap-authorize
+         request {:roles ["member"]}
          (let [user-id (current-user-id request)
                project-id (active-project request)
                before-count (-> (labels/project-article-status-counts project-id)
@@ -235,8 +237,8 @@
            {:result body})))
 
   (POST "/api/set-article-note" request
-        (wrap-permissions
-         request [] ["member"]
+        (wrap-authorize
+         request {:roles ["member"]}
          (let [user-id (current-user-id request)
                {:keys [article-id name content]
                 :as body} (-> request :body)]
@@ -244,8 +246,8 @@
            {:result body})))
 
   (GET "/api/member-articles/:user-id" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [user-id (-> request :params :user-id Integer/parseInt)
               project-id (active-project request)]
           (update-user-default-project request)
@@ -254,8 +256,8 @@
 
   ;; Returns map with full information on an article
   (GET "/api/article-info/:article-id" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [project-id (active-project request)
               article-id (-> request :params :article-id Integer/parseInt)]
           (let [[article user-labels user-notes]
@@ -280,22 +282,23 @@
 
   ;; Return a vector of PMIDs associated with the given search term
   (GET "/api/pubmed/search" request
-       (wrap-permissions
-        request [] []
+       (wrap-authorize
+        request {}
         (let [{:keys [term page-number]} (-> :params request)]
           (pubmed/get-search-query-response term (Integer/parseInt page-number)))))
 
   ;; Return article summaries for a list of PMIDs
   (GET "/api/pubmed/summaries" request
-       (wrap-permissions
-        request [] []
+       (wrap-authorize
+        request {}
         (let [{:keys [pmids]} (-> :params request)]
           (pubmed/get-pmids-summary (mapv #(Integer/parseInt %)
                                           (clojure.string/split pmids #","))))))
 
   (POST "/api/delete-member-labels" request
-        (wrap-permissions
-         request ["admin"] ["member"]
+        (wrap-authorize
+         request {:roles ["member"]
+                  :developer true}
          (let [user-id (current-user-id request)
                project-id (active-project request)
                {:keys [verify-user-id]} (:body request)]
@@ -304,14 +307,14 @@
            {:result {:success true}})))
 
   (GET "/api/project-settings" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [project-id (active-project request)]
           {:result {:settings (project/project-settings project-id)}})))
 
   (POST "/api/change-project-settings" request
-        (wrap-permissions
-         request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
          (let [project-id (active-project request)
                {:keys [changes]} (:body request)]
            (doseq [{:keys [setting value]} changes]
@@ -322,35 +325,35 @@
              :settings (project/project-settings project-id)}})))
 
   (GET "/api/project-sources" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [project-id (active-project request)]
           (api/project-sources project-id))))
 
   (POST "/api/delete-source" request
-        (wrap-permissions
-         request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
          (let [source-id (-> request :body :source-id)
                user-id (current-user-id request)]
            (api/delete-source! source-id))))
 
   (POST "/api/toggle-source" request
-        (wrap-permissions
-         request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
          (let [{:keys [source-id enabled?]} (-> request :body)
                user-id (current-user-id request)]
            (api/toggle-source! source-id enabled?))))
 
   (GET "/api/files/:project-id" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [project-id (active-project request)
               files (fstore/project-files project-id)]
           {:result (vec files)})))
 
   (GET "/api/files/:project-id/download/:key/:name" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [project-id (active-project request)
               uuid (-> request :params :key (UUID/fromString))
               file-data (fstore/get-file project-id uuid)
@@ -358,8 +361,8 @@
           (response/response (ByteArrayInputStream. data)))))
 
   (POST "/api/files/:project-id/upload" request
-        (wrap-permissions
-         request [] ["member"]
+        (wrap-authorize
+         request {:roles ["member"]}
          (let [project-id (active-project request)
                file-data (get-in request [:params :file])
                file (:tempfile file-data)
@@ -369,9 +372,9 @@
            {:result 1})))
 
   (POST "/api/files/:project-id/delete/:key" request
-        (wrap-permissions
+        (wrap-authorize
          ;; TODO: This should be file owner or admin?
-         request [] ["member"]
+         request {:roles ["member"]}
          (let [project-id (active-project request)
                key (-> request :params :key)
                deletion (fstore/delete-file project-id (UUID/fromString key))]
@@ -379,51 +382,57 @@
 
   ;; TODO: fix permissions without breaking download on Safari
   (GET "/api/export-project/:project-id/:filename" request
-       (let [filename (-> request :params :filename)
-             project-id (-> request :params :project-id Integer/parseInt)
-             ;; project-id (active-project request)
-             data (json/write-str (export/export-project project-id))]
-         (-> (response/response data)
-             (response/header
-              "Content-Type"
-              "application/json; charset=utf-8")
-             (response/header
-              "Content-Disposition"
-              (format "attachment; filename=\"%s\""
-                      filename)))))
+       (wrap-authorize
+        request {:allow-public true}
+        (let [filename (-> request :params :filename)
+              project-id (-> request :params :project-id Integer/parseInt)
+              ;; project-id (active-project request)
+              data (json/write-str (export/export-project project-id))]
+          (-> (response/response data)
+              (response/header
+               "Content-Type"
+               "application/json; charset=utf-8")
+              (response/header
+               "Content-Disposition"
+               (format "attachment; filename=\"%s\""
+                       filename))))))
 
   ;; TODO: fix permissions without breaking download on Safari
   (GET "/api/export-answers-csv/:project-id/:filename" request
-       (let [filename (-> request :params :filename)
-             project-id (-> request :params :project-id Integer/parseInt)
-             ;; project-id (active-project request)
-             data (->> (export/export-project-answers project-id)
-                       (csv/write-csv))]
-         (-> (response/response data)
-             (response/header "Content-Type"
-                              "text/csv; charset=utf-8")
-             (response/header
-              "Content-Disposition"
-              (format "attachment; filename=\"%s\""
-                      filename)))))
+       (wrap-authorize
+        request {:allow-public true}
+        (let [filename (-> request :params :filename)
+              project-id (-> request :params :project-id Integer/parseInt)
+              ;; project-id (active-project request)
+              data (->> (export/export-project-answers project-id)
+                        (csv/write-csv))]
+          (-> (response/response data)
+              (response/header "Content-Type"
+                               "text/csv; charset=utf-8")
+              (response/header
+               "Content-Disposition"
+               (format "attachment; filename=\"%s\""
+                       filename))))))
 
   ;; TODO: fix permissions without breaking download on Safari
   (GET "/api/export-endnote-xml/:project-id/:filename" request
-       (let [filename (-> request :params :filename)
-             project-id (-> request :params :project-id Integer/parseInt)
-             ;; project-id (active-project request)
-             data (endnote-out/project-to-endnote-xml project-id)]
-         (-> (response/response data)
-             (response/header "Content-Type"
-                              "text/xml; charset=utf-8")
-             (response/header
-              "Content-Disposition"
-              (format "attachment; filename=\"%s\""
-                      filename)))))
+       (wrap-authorize
+        request {:allow-public true}
+        (let [filename (-> request :params :filename)
+              project-id (-> request :params :project-id Integer/parseInt)
+              ;; project-id (active-project request)
+              data (endnote-out/project-to-endnote-xml project-id)]
+          (-> (response/response data)
+              (response/header "Content-Type"
+                               "text/xml; charset=utf-8")
+              (response/header
+               "Content-Disposition"
+               (format "attachment; filename=\"%s\""
+                       filename))))))
 
   (GET "/api/public-labels" request
-       (wrap-permissions
-        request [] ["member"]
+       (wrap-authorize
+        request {:allow-public true}
         (let [project-id (active-project request)
               exclude-hours (if (= :dev (:profile env))
                               nil nil)]
@@ -434,59 +443,82 @@
                 (sr-transit/encode-public-labels))})))
 
   (POST "/api/sync-project-labels" request
-        (let [{:keys [project-id labels]} (:body request)]
-          (wrap-permissions
-           request [] ["admin"]
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [{:keys [project-id labels]} (:body request)]
            (api/sync-labels project-id labels))))
 
   (GET "/api/lookup-project-url" request
-       {:result
-        (when-let [url-id (-> request :params :url-id)]
-          (when-let [project-id
-                     (try
-                       (project/project-id-from-url-id url-id)
-                       (catch Throwable e
-                         nil))]
-            {:project-id project-id}))})
+       (wrap-authorize
+        request {}
+        {:result
+         (when-let [url-id (-> request :params :url-id)]
+           (when-let [project-id
+                      (try
+                        (project/project-id-from-url-id url-id)
+                        (catch Throwable e
+                          nil))]
+             {:project-id project-id}))}))
 
   (GET "/api/query-register-project" request
-       (let [register-hash (-> request :params :register-hash)
-             project-id (project/project-id-from-register-hash register-hash)]
-         (if (nil? project-id)
-           {:result {:project nil}}
-           (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-             {:result {:project {:project-id project-id :name name}}}))))
+       (wrap-authorize
+        request {}
+        (let [register-hash (-> request :params :register-hash)
+              project-id (project/project-id-from-register-hash register-hash)]
+          (if (nil? project-id)
+            {:result {:project nil}}
+            (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+              {:result {:project {:project-id project-id :name name}}})))))
 
   (POST "/api/payment-method" request
-        (let [{:keys [token]} (:body request)]
-          (api/add-payment-method (users/get-user-by-id (current-user-id request)) token)))
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [token]} (:body request)
+               user-id (current-user-id request)]
+           (api/add-payment-method (users/get-user-by-id user-id) token))))
 
   (GET "/api/plans" request
-       (api/plans))
+       (wrap-authorize
+        request {}
+        (api/plans)))
 
   (GET "/api/current-plan" request
-       (api/get-current-plan (users/get-user-by-id (current-user-id request))))
+       (wrap-authorize
+        request {:logged-in true}
+        (api/get-current-plan (users/get-user-by-id (current-user-id request)))))
 
   (POST "/api/subscribe-plan" request
-        (let [{:keys [plan-name]} (:body request)]
-          (api/subscribe-to-plan (users/get-user-by-id (current-user-id request))
-                                 plan-name)))
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [plan-name]} (:body request)]
+           (api/subscribe-to-plan (users/get-user-by-id (current-user-id request))
+                                  plan-name))))
 
   (GET "/api/important-terms" request
-       (let [{:keys [n]} (-> request :params)]
-         (api/important-terms (active-project request) (parse-integer n))))
+       (wrap-authorize
+        request {:allow-public true}
+        (let [{:keys [n]} (-> request :params)]
+          (api/important-terms (active-project request) (parse-integer n)))))
 
   (GET "/api/prediction-histograms" request
-       (let [{:keys [project-id]} (-> request :params)]
-         (api/prediction-histogram (parse-integer project-id))))
+       (wrap-authorize
+        request {:allow-public true}
+        (let [{:keys [project-id]} (-> request :params)]
+          (api/prediction-histogram (parse-integer project-id)))))
 
-  (GET "/api/annotations/:article-id" [article-id]
-       (api/article-abstract-annotations
-        (parse-integer article-id)))
+  (GET "/api/annotations/:article-id" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)]
+          (api/article-abstract-annotations article-id))))
 
   (GET "/api/charts/label-count-data" request
-       (api/label-count-data (-> request :params :project-id parse-integer)))
+       (wrap-authorize
+        request {:allow-public true}
+        (api/label-count-data (-> request :params :project-id parse-integer))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
-       (api/test-response)))
+       (wrap-authorize
+        request {}
+        (api/test-response))))
