@@ -110,59 +110,6 @@
         (make-error-response
          500 :unknown "Unexpected error processing request" e)))))
 
-(defmacro wrap-permissions
-  "Wrap request handler body to check if user is authorized to perform the
-  request. If authorized then runs body and returns result; if not authorized,
-  returns an error without running body."
-  [request uperms-required mperms-required & body]
-  (assert ((comp not empty?) body)
-          "wrap-permissions: missing body form")
-  `(let [request# ~request
-         user-id# (current-user-id request#)
-         project-id# (active-project request#)
-         user# (and user-id# (get-user-by-id user-id#))
-         member# (and user-id#
-                      project-id#
-                      (project/project-member project-id# user-id#))
-         uperms# (:permissions user#)
-         mperms# (:permissions member#)
-         body-fn# #(do ~@body)]
-     (cond
-       (not (integer? user-id#))
-       {:error {:status 401
-                :type :authentication
-                :message "Not logged in / Invalid API token"}}
-
-       (not (every? (in? uperms#) ~uperms-required))
-       {:error {:status 403
-                :type :user
-                :message "Not authorized"}}
-       
-       (and (empty? ~uperms-required)
-            (empty? ~mperms-required))
-       (body-fn#)
-       
-       (and (not (empty? ~mperms-required))
-            (not (integer? project-id#)))
-       {:error {:status 403
-                :type :project
-                :message "No project selected"}}
-
-       (and (not (empty? ~mperms-required))
-            (nil? member#))
-       {:error {:status 403
-                :type :member
-                :message "Not authorized (project)"}}
-
-       (and (not (every? (in? mperms#) ~mperms-required))
-            (not (in? uperms# "admin")))
-       {:error {:status 403
-                :type :project
-                :message "Not authorized"}}
-
-       true
-       (body-fn#))))
-
 (defmacro wrap-authorize
   "Wrap request handler body to check if user is authorized to perform the
   request. If authorized then runs body and returns result; if not authorized,
@@ -213,11 +160,10 @@
          authorize-fn# ~authorize-fn
          body-fn# #(do ~@body)
 
-         ;; set implied values of logged-in option
+         ;; set implied condition values
          logged-in# (if (or (not-empty roles#)
                             (true? developer#))
                       true logged-in#)
-         ;; when allow-public is enabled, treat
          roles# (if allow-public# ["member"] roles#)
 
          user-id# (current-user-id request#)
