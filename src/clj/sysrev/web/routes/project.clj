@@ -23,7 +23,7 @@
    [sysrev.shared.transit :as sr-transit]
    [sysrev.import.pubmed :as pubmed]
    [sysrev.config.core :refer [env]]
-   [sysrev.util]
+   [sysrev.util :refer :all]
    [sysrev.shared.util :refer [map-values in? parse-integer]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -38,14 +38,6 @@
            [java.io InputStream]
            [java.io ByteArrayInputStream]
            [org.apache.commons.io IOUtils]))
-
-(defn slurp-bytes
-  "Slurp the bytes from a slurpable thing.
-  Taken from http://stackoverflow.com/a/26372677"
-  [x]
-  (with-open [out (java.io.ByteArrayOutputStream.)]
-    (clojure.java.io/copy (clojure.java.io/input-stream x) out)
-    (.toByteArray out)))
 
 (defn update-user-default-project [request]
   (let [user-id (current-user-id request)
@@ -493,6 +485,17 @@
   (GET "/api/open-access/:article-id/pdf"
        [article-id]
        (api/open-access-pdf (parse-integer article-id)))
+
+  (POST "/api/project/:project-id/article/:article-id/upload-pdf"
+        request
+        (wrap-permissions
+         request [] ["member"]
+         (let [{:keys [article-id]} (:params request)]
+           (let [file-data (get-in request [:params :file])
+                 file (:tempfile file-data)
+                 filename (:filename file-data)
+                 user-id (current-user-id request)]
+             (api/save-article-pdf article-id file filename)))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

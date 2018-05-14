@@ -50,3 +50,57 @@
       (do-execute))
   (when project-id
     (clear-project-cache project-id)))
+
+;; CREATE TABLE s3store (id serial primary key,filename text, key text, created timestamp with time zone not null default now(),unique(key,filename));
+(defn insert-file-hash-s3-record
+  "Given a filename and key, insert a record for it in the db"
+  [filename key]
+  (-> (insert-into :s3store)
+      (values [{:filename filename
+                :key key}])
+      (do-execute)))
+
+(defn s3-has-key?
+  "Does the s3store have a file with key?"
+  [key]
+  (->
+   ;;the hash of a file is used as it's key
+   (select [:key])
+   (from :s3store)
+   (where [:= :key key])
+   first
+   (comp not nil?)))
+
+(defn id-for-s3-filename-key-pair
+  "Given a filename and key, return the id of the relation "
+  [filename key]
+  (->
+   (select :s3_id)
+   (from :s3store)
+   (where [:and
+           [:= :filename filename]
+           [:= :key key]])
+   do-query
+   first
+   :id))
+
+;; CREATE TABLE article_pdf (s3_id integer not null references s3store (id), article_id integer not null references article (article_id) on delete cascade, unique (s3_id, article_id));
+(defn associate-s3-with-article
+  "Associate a file/key pair with an article"
+  [s3-id article-id]
+  (-> (insert-into :article-pdf)
+      (values [{:article-id article-id
+                :s3-id s3-id}])
+      (do-execute)))
+
+(defn get-article-s3-association
+  "Given an s3-id and article-id, return the association"
+  [s3-id article-id]
+  (-> (select :s3_id)
+      (from :article_pdf)
+      (where [:and
+              [:= :s3-id s3-id]
+              [:= :article-id article-id]])
+      do-query
+      first
+      :s3-id))
