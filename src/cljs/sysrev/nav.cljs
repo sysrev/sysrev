@@ -52,3 +52,6 @@
      (if delay-ms
        (js/setTimeout #(reload-page) delay-ms)
        (reload-page)))))
+
+(defn ^:export set-token [path]
+  (pushy/set-token! history path))

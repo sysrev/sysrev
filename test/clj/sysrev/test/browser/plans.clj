@@ -103,12 +103,12 @@
 (defn select-plan
   "Click the 'Select Plan' button of plan with plan-name"
   [plan-name]
-  (taxi/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}))
+  (browser/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}))
 
 (defn subscribed-to?
   "Is the customer subscribed to plan-name?"
   [plan-name]
-  (taxi/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
+  (browser/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
 (deftest register-and-subscribe-to-paid-plans
   (when (browser/db-connected?)
@@ -139,32 +139,29 @@
       ;; select the 'Pro' plan
       (select-plan "Pro")
       ;; Click the subscribe button
-      (browser/wait-until-displayed subscribe-button)
-      (taxi/click subscribe-button)
+      (browser/click subscribe-button)
       ;; No valid payment method
-      (browser/wait-until-displayed (error-msg-xpath no-payment-method-error))
-      (is (taxi/exists? (error-msg-xpath no-payment-method-error)))
+      (is (browser/exists? (error-msg-xpath no-payment-method-error)))
 
 ;;; payment method
       ;; Let's update our payment method
-      (taxi/click update-payment-button)
+      (browser/click update-payment-button)
       ;; wait until a card number is available for input
       (browser/wait-until-exists (label-input "Card Number"))
       ;; just try to 'Use Card', do we have all the error messages we would expect?
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-exists (error-msg-xpath incomplete-card-number-error))
+      (browser/click use-card-button)
       ;; incomplete fields are shown
-      (is (and (taxi/exists? (error-msg-xpath incomplete-card-number-error))
-               (taxi/exists? (error-msg-xpath incomplete-expiration-date-error))
-               (taxi/exists? (error-msg-xpath incomplete-security-code-error))))
+      (is (and (browser/exists? (error-msg-xpath incomplete-card-number-error))
+               (browser/exists? (error-msg-xpath incomplete-expiration-date-error)
+                                :wait? false)
+               (browser/exists? (error-msg-xpath incomplete-security-code-error)
+                                :wait? false)))
       ;; basic failure with Luhn Check
       (taxi/input-text (label-input "Card Number") fail-luhn-check-cc)
-      (browser/wait-until-displayed (error-msg-xpath invalid-card-number-error))
       ;; error message displayed?
-      (is (taxi/exists? (error-msg-xpath invalid-card-number-error)))
+      (is (browser/exists? (error-msg-xpath invalid-card-number-error)))
       ;; 'Use Card' button disabled?
-      (is (taxi/exists? use-card-disabled-button))
+      (is (browser/exists? use-card-disabled-button))
 
       ;; cvc-check-fail-cc
       ;; why so many backspaces? the exact amount needed, 16,
@@ -174,42 +171,32 @@
       (taxi/input-text (label-input "Expiration date") "0120")
       (taxi/input-text (label-input "CVC") "123")
       (taxi/input-text (label-input "Postal code") "11111")
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-displayed (error-msg-xpath invalid-security-code-error))
-      (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
+      (browser/click use-card-button)
+      (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
 
       ;;  card-declined-cc
       (backspace-clear backspace-clear-length (label-input "Card Number"))
       (taxi/input-text (label-input "Card Number") card-declined-cc)
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-displayed (error-msg-xpath card-declined-error))
-      (is (taxi/exists? (error-msg-xpath card-declined-error)))
+      (browser/click use-card-button)
+      (is (browser/exists? (error-msg-xpath card-declined-error)))
 
       ;; incorrect-cvc-cc
       (backspace-clear backspace-clear-length (label-input "Card Number"))
       (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-displayed (error-msg-xpath invalid-security-code-error))
-      (is (taxi/exists? (error-msg-xpath invalid-security-code-error)))
+      (browser/click use-card-button)
+      (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
 
       ;; expired-card-cc
       (backspace-clear backspace-clear-length (label-input "Card Number"))
       (taxi/input-text (label-input "Card Number") expired-card-cc)
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-displayed (error-msg-xpath card-expired-error))
-      (is (taxi/exists? (error-msg-xpath card-expired-error)))
+      (browser/click use-card-button)
+      (is (browser/exists? (error-msg-xpath card-expired-error)))
 
       ;; processing-error-cc
       (backspace-clear backspace-clear-length (label-input "Card Number"))
       (taxi/input-text (label-input "Card Number") processing-error-cc)
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-displayed (error-msg-xpath card-processing-error))
-      (is (taxi/exists? (error-msg-xpath card-processing-error)))
+      (browser/click use-card-button)
+      (is (browser/exists? (error-msg-xpath card-processing-error)))
 
 ;;; attach-success-charge-fail-cc
       ;; in this case, the card is attached to the customer
@@ -217,46 +204,39 @@
       ;; through
       (backspace-clear backspace-clear-length (label-input "Card Number"))
       (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
-      (browser/wait-until-displayed subscribe-button)
-      (taxi/click subscribe-button)
+      (browser/click use-card-button)
+      (browser/click subscribe-button)
       ;; check for the declined card message
-      (browser/wait-until-displayed (error-msg-xpath card-declined-error))
-      (is (taxi/exists? (error-msg-xpath card-declined-error)))
+      (is (browser/exists? (error-msg-xpath card-declined-error)))
 
 ;;; let's update our payment information (again) with a fraudulent card
-      (taxi/click update-payment-button)
+      (browser/click update-payment-button)
       (browser/wait-until-displayed use-card-button)
       (taxi/input-text (label-input "Card Number") highest-risk-fraudulent-cc)
       (taxi/input-text (label-input "Expiration date") "0120")
       (taxi/input-text (label-input "CVC") "123")
       (taxi/input-text (label-input "Postal code") "11111")
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
+      (browser/click use-card-button)
       ;; try to subscribe again
-      (browser/wait-until-displayed subscribe-button)
-      (taxi/click subscribe-button)
+      (browser/click subscribe-button)
       ;; card was declined
       (browser/wait-until-displayed (error-msg-xpath card-declined-error))
       (is (taxi/exists? (error-msg-xpath card-declined-error)))
 ;;; finally, update with a valid cc number and see if we can subscribe
 ;;; to plans!
-      (taxi/click update-payment-button)
+      (browser/click update-payment-button)
       (browser/wait-until-displayed use-card-button)
       (taxi/input-text (label-input "Card Number") valid-visa-cc)
       (taxi/input-text (label-input "Expiration date") "0120")
       (taxi/input-text (label-input "CVC") "123")
       (taxi/input-text (label-input "Postal code") "11111")
-      (browser/wait-until-displayed use-card-button)
-      (taxi/click use-card-button)
+      (browser/click use-card-button)
       ;; try to subscribe again
-      (browser/wait-until-displayed subscribe-button)
-      (taxi/click subscribe-button)
+      (browser/click subscribe-button)
       ;; this time is goes through, confirm we are subscribed to the
       ;; pro plan now
       (browser/wait-until-displayed basic-plan-div)
-      (subscribed-to? "Pro")
+      (is (subscribed-to? "Pro"))
       ;; Let's check to see if our db thinks the customer is subscribed to the Pro plan
       (is (= "Pro"
              (:name (plans/get-current-plan (users/get-user-by-email email)))))
@@ -269,12 +249,11 @@
 
 ;;; Subscribe to the Premium plan
       (select-plan "Premium")
-      (Thread/sleep 2000)
+      (Thread/sleep 1000)
       ;; Click the subscribe button
-      (browser/wait-until-exists subscribe-button)
-      (taxi/click subscribe-button)
+      (browser/click subscribe-button)
       (browser/wait-until-displayed basic-plan-div)
-      (subscribed-to? "Premium")
+      (is (subscribed-to? "Premium"))
       ;; Let's check to see if our db thinks the customer is subscribed to the Premium plan
       (is (= "Premium"
              (:name (plans/get-current-plan (users/get-user-by-email email)))))
@@ -286,7 +265,5 @@
                  :subscriptions :data first :items :data first :plan :name)))
 ;;; Subscribe back down to the Basic Plan
       (select-plan "Basic")
-      (taxi/wait-until #(subscribed-to? "Basic")
-                       10000 200)
       (is (subscribed-to? "Basic"))
       (navigate/log-out))))

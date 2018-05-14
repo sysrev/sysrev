@@ -231,38 +231,3 @@
          (catch Throwable e
            (sources/fail-project-source-import! source-id)
            (throw (Exception. "Error in sysrev.import.endnote/import-endnote-library!: " (.getMessage e)))))))
-
-(defn clone-subproject-endnote
-  "Clones a project from the subset of articles in `parent-id` project that
-  are contained in Endnote XML export file `endnote-path`. Also imports
-  `document` entries using file `endnote-path` and directory `pdfs-path`,
-  and attaches `document-id` values to article entries.
-
-  The `endnote-path` file must be in the format created by
-  `filter-endnote-xml-includes` (has the original `article-uuid` values
-  attached to each Endnote article entry under field `:custom5`).
-
-  Copies most project definition entries over from the parent project
-  (eg. project members, label definitions, keywords).
-
-  The `project` and `article` entries will reference the parent project using
-  fields `parent-project-id` and `parent-article-uuid`."
-  [project-name parent-id endnote-path pdfs-path]
-  (let [article-doc-ids (load-endnote-doc-ids endnote-path)
-        article-uuids (keys article-doc-ids)
-        child-id
-        (:project-id (project/create-project
-                      project-name :parent-project-id parent-id))]
-    (project/add-project-note child-id {})
-    (println (format "created child project (#%d, '%s')"
-                     child-id project-name))
-    (project/populate-child-project-articles
-     parent-id child-id article-uuids)
-    (println (format "loaded %d articles"
-                     (project/project-article-count child-id)))
-    (docs/load-article-documents child-id pdfs-path)
-    (docs/load-project-document-ids child-id article-doc-ids)
-    (project/copy-project-label-defs parent-id child-id)
-    (project/copy-project-keywords parent-id child-id)
-    (project/copy-project-members parent-id child-id)
-    (println "clone-subproject-endnote done")))

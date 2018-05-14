@@ -6,6 +6,7 @@
 @lightBackground: rgba(200, 200, 200, 1.0);
 
 @segmentBackground: lighten(@pageBackground, 5);
+@messageBackground: lighten(@pageBackground, 10);
 @secondarySegmentBackground: lighten(@pageBackground, 10);
 @tertiarySegmentBackground: darken(@pageBackground, 3);
 
@@ -25,8 +26,8 @@
 @inputPlaceholderColor: rgba(50,50,50,1.0);
 @inputPlaceholderFocusColor: rgba(30,30,30,1.0);
 
-@borderColor: rgba(160, 160, 160, 0.5);
-@solidBorderColor: rgba(160, 160, 160, 0.85);
+@borderColor: rgba(130, 130, 130, 0.45);
+@solidBorderColor: rgba(130, 130, 130, 0.525);
 
 @grey: rgba(180, 180, 180, 0.925);
 

@@ -12,6 +12,7 @@
         sysrev.db.export
         sysrev.db.files
         sysrev.db.sources
+        sysrev.clone-project
         sysrev.files.stores
         sysrev.import.pubmed
         sysrev.import.endnote
@@ -33,28 +34,28 @@
         sysrev.custom.immuno
         sysrev.custom.facts
         sysrev.custom.ebtc
+        sysrev.custom.insilica
         sysrev.misc
         sysrev.init
         sysrev.resources
         sysrev.shared.util
         sysrev.shared.keywords
         sysrev.shared.transit
+        sysrev.shared.article-list
         sysrev.test.core
         sysrev.test.browser.core)
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
+            [clojure.tools.logging :as log]
+            [cljs.env :as env]
             [clj-time.core :as time]
             [clj-time.coerce :as tc]
             [clj-http.client :as http]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [clj-webdriver.taxi :as taxi]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
-            [sysrev.config.core :refer [env]]
             [me.raynes.fs :as fs]
             [clojure.test :refer :all]
             [clojure.test.junit :refer :all]
@@ -64,6 +65,13 @@
             [clojure.string :as str]
             [cognitect.transit :as transit]
             [clojure-csv.core :as csv]
+            [amazonica.core :as aws]
+            [amazonica.aws.s3 :as s3]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.config.core :refer [env]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.shared.spec.project :as sp]
@@ -73,8 +81,7 @@
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
             [sysrev.db.queries :as q]
-            [sysrev.api :as api]
-            [cljs.env :as env])
+            [sysrev.api :as api])
   (:import java.util.UUID))
 
 (try
@@ -89,4 +96,9 @@
     nil))
 
 (defonce started
-  (sysrev.init/start-app))
+  (try
+    (sysrev.init/start-app)
+    (catch Throwable e
+      (log/info "error in sysrev.init/start-app")
+      (log/info (.getMessage e))
+      (.printStackTrace e))))

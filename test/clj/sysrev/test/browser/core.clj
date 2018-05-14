@@ -93,9 +93,65 @@
   (delete-test-user :email email)
   (users/create-user email password :project-id project-id))
 
+(defn wait-until-exists
+  "Given a query q, wait until the element it represents exists"
+  [q & [timeout interval]]
+  (let [timeout (or timeout 10000)
+        interval (or interval 50)]
+    (Thread/sleep 25)
+    (taxi/wait-until
+     #(taxi/exists? q)
+     timeout interval)))
+
+(defn wait-until-displayed
+  "Given a query q, wait until the element it represents exists
+  and is displayed"
+  [q & [timeout interval]]
+  (let [timeout (or timeout 10000)
+        interval (or interval 50)]
+    (Thread/sleep 25)
+    (taxi/wait-until
+     #(and (taxi/exists? q)
+           (taxi/displayed? q))
+     timeout interval)))
+
+(defn wait-until-loading-completes
+  [& [timeout interval]]
+  (let [timeout (or timeout 10000)
+        interval (or interval 50)]
+    (Thread/sleep 50)
+    (taxi/wait-until
+     #(not (taxi/exists?
+            {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
+     timeout interval)))
+
+(defn init-route [& [path wait-ms]]
+  (let [path (or path "/")
+        local? (boolean
+                (= (:host (get-selenium-config))
+                   "localhost"))
+        wait-ms (or wait-ms 500)
+        full-url (str (:url (get-selenium-config))
+                      (if (= (nth path 0) \/)
+                        (subs path 1) path))]
+    (log/info "loading:" full-url)
+    (taxi/to full-url)
+    (Thread/sleep wait-ms)
+    (wait-until-loading-completes)))
+
+(defn go-route [path & [wait-ms]]
+  (let [wait-ms (or wait-ms 500)
+        js-str (format "sysrev.nav.set_token(\"%s\");" path)]
+    (wait-until-loading-completes)
+    (log/info "navigating:" path)
+    (taxi/execute-script js-str)
+    (Thread/sleep wait-ms)
+    (wait-until-loading-completes)))
+
 (defn webdriver-fixture-once
   [f]
-  (do (when (= "localhost" (:host (get-selenium-config)))
+  (do (when (and (= "localhost" (:host (get-selenium-config)))
+                 (not= :test (-> env :profile)))
         (build-cljs!))
       (f)))
 
@@ -106,79 +162,47 @@
       (start-webdriver)
       (f)
       (stop-webdriver)
-      (Thread/sleep 500)))
+      (Thread/sleep 100)))
 
-(defn go-route [path & [wait-ms]]
-  (let [local? (boolean
-                (= (:host (get-selenium-config))
-                   "localhost"))
-        wait-ms (or wait-ms (if local? 600 1000))
-        full-url (str (:url (get-selenium-config))
-                      (if (= (nth path 0) \/)
-                        (subs path 1) path))]
-    (log/info "loading " full-url)
-    (taxi/to full-url)
-    (Thread/sleep wait-ms)))
+(defn set-input-text [q text & {:keys [delay] :or {delay 50}}]
+  (wait-until-exists q)
+  (taxi/clear q)
+  (Thread/sleep delay)
+  (taxi/input-text q text)
+  (Thread/sleep delay))
 
-(defn element-rendered? [tag id]
-  (not (nil?
-        (try (taxi/find-element {:css (str (if tag tag "")
-                                           "#" id)})
-             (catch Throwable e
-               nil)))))
+(defn exists? [q & {:keys [wait?] :or {wait? true}}]
+  (when wait?
+    (wait-until-exists q))
+  (let [result (taxi/exists? q)]
+    (when wait?
+      (wait-until-loading-completes))
+    result))
 
-(defn panel-rendered? [panel]
-  (element-rendered? "div" (str/join "_" (map name panel))))
+(defn click [q & {:keys [if-not-exists delay displayed?]
+                  :or {if-not-exists :wait
+                       delay 50
+                       displayed? false}}]
+  (when (= if-not-exists :wait)
+    (if displayed?
+      (wait-until-displayed q)
+      (wait-until-exists q)))
+  (if (and (= if-not-exists :skip)
+           (not (taxi/exists? q)))
+    nil
+    (do (taxi/click q)
+        (Thread/sleep delay)
+        (wait-until-loading-completes))))
 
-(defn login-form-shown? []
-  (element-rendered? "div" "login-register-panel"))
-
-(defn wait-until-exists
-  "Given a query q, wait until the element it represents exists"
-  [q & [timeout interval]]
-  (let [timeout (or timeout 10000)
-        interval (or interval 200)]
-    (Thread/sleep 350)
-    (taxi/wait-until
-     #(taxi/exists? q)
-     timeout interval)))
-
-(defn wait-until-displayed
-  "Given a query q, wait until the element it represents exists
-  and is displayed"
-  [q & [timeout interval]]
-  (let [timeout (or timeout 10000)
-        interval (or interval 200)]
-    (Thread/sleep 350)
-    (taxi/wait-until
-     #(and (taxi/exists? q)
-           (taxi/displayed? q))
-     timeout interval)))
-
-(defn panel-name
-  [panel-keys]
+(defn panel-name [panel-keys]
   (str/join "_" (map name panel-keys)))
 
-(defn wait-until-panel-exists
-  [panel-keys]
-  (wait-until-exists {:css (str "div[id='" (panel-name panel-keys) "']")}))
+(defn panel-exists? [panel & {:keys [wait?] :or {wait? true}}]
+  (exists? {:css (str "div#" (panel-name panel))}
+           :wait? wait?))
 
-(defn panel-exists? [panel-keys]
-  (taxi/exists? {:css (str "div[id='" (panel-name panel-keys) "']")}))
-
-;; TODO: "loader" class alone doesn't indicate loading
-;; needs class "active" along with "loader" to render loading animation
-;;
-;; this will hang if called while a non-active "loader" element is present
-(defn wait-until-loading-completes
-  [& [timeout interval]]
-  (let [timeout (or timeout 10000)
-        interval (or interval 200)]
-    (Thread/sleep 350)
-    (taxi/wait-until
-     #(not (taxi/exists?
-            {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
-     timeout interval)))
+(defn login-form-shown? []
+  (exists? {:css "div#login-register-panel"}))
 
 (defn current-project-id []
   (let [url (taxi/current-url)
@@ -187,6 +211,7 @@
       (parse-integer id-str))))
 
 (defn go-project-route [suburi & [project-id]]
+  (Thread/sleep 50)
   (let [project-id (or project-id (current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))

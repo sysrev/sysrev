@@ -11,8 +11,7 @@
             [sysrev.db.project :as project]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.web.app :refer
-             [wrap-permissions current-user-id active-project
-              make-error-response]]
+             [current-user-id active-project make-error-response]]
             [sysrev.util :refer
              [integerify-map-keys uuidify-map-keys]]
             [clojure.string :as str]

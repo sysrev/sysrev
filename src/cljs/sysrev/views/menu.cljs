@@ -10,15 +10,14 @@
 (defn loading-indicator []
   (let [project-id @(subscribe [:active-project-id])
         loading?
-        (and @(subscribe [:any-loading?])
+        (and @(subscribe [:any-loading? nil [:article/annotations]])
              (not (and project-id
                        @(subscribe
                          [:loading? [:project/sources project-id]])))
              (not (and project-id
                        @(subscribe
                          [:loading? [:project/important-terms project-id]]))))
-        action? @(subscribe [:action/any-running?
-                             nil [:sources/delete]])]
+        action? @(subscribe [:action/any-running? nil [:sources/delete]])]
     (if (or loading? action?)
       [:div.item.loading-indicator
        [:div.ui.small.active.inline.loader]]

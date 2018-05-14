@@ -12,7 +12,7 @@
 
 (disable-warning
  {:linter :constant-test
-  :if-inside-macroexpansion-of #{'sysrev.web.app/wrap-permissions
+  :if-inside-macroexpansion-of #{'sysrev.web.app/wrap-authorize
                                  'sysrev.db.core/with-transaction}
   :within-depth 10
   :reason ""})

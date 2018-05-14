@@ -8,6 +8,7 @@
             [sysrev.util :refer [continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
+            [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.views.components :as ui]))
 
@@ -365,13 +366,9 @@
     [:div
      (when (admin?)
        [ImportArticlesView])
-     (when (and (not (admin?))
-                (not @read-only-message-closed?))
-       [:div.ui.message
-        [:i {:class "close icon"
-             :on-click #(do (reset! read-only-message-closed? true))}]
-        [:div.header "Read-Only View"]
-        [:p "Source editing is restricted to project administrators."]])
+     [ReadOnlyMessage
+      "Managing sources is restricted to project administrators."
+      read-only-message-closed?]
      [ProjectSourcesList]]))
 
 (defmethod panel-content panel []

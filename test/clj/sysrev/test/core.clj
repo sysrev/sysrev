@@ -46,7 +46,7 @@
           error (->> validators (remove validates) first first)]
       (assert (not error) error)
       (t/instrument)
-      (set-web-asset-path "/integration")
+      (set-web-asset-path "/out-production")
       (start-app nil nil true)
       (f)
       (close-active-db))

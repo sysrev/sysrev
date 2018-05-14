@@ -8,9 +8,9 @@
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
-        {:keys [total]}
-        @(subscribe [:project/article-counts])
-        action-params {:project-id project-id}]
+        {:keys [total]} @(subscribe [:project/article-counts])
+        action-params {:project-id project-id}
+        member? @(subscribe [:self/member? project-id])]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span [:i.list.icon] "Sources"]
@@ -18,9 +18,10 @@
       {:tab-id :labels
        :content [:span [:i.tags.icon] "Label Definitions"]
        :action (list [:project :project :labels :edit] action-params)}
-      {:tab-id :invite-link
-       :content [:span [:i.mail.outline.icon] "Invite Link"]
-       :action (list [:project :project :invite-link] action-params)}
+      (when member?
+        {:tab-id :invite-link
+         :content [:span [:i.mail.outline.icon] "Invite Link"]
+         :action (list [:project :project :invite-link] action-params)})
       (when (> total 0)
         {:tab-id :export-data
          :content [:span [:i.download.icon] "Export"]
@@ -36,7 +37,9 @@
 (defn project-submenu-mobile []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
-        action-params {:project-id project-id}]
+        {:keys [total]} @(subscribe [:project/article-counts])
+        action-params {:project-id project-id}
+        member? @(subscribe [:self/member? project-id])]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span #_ [:i.list.icon] "Sources"]
@@ -44,12 +47,14 @@
       {:tab-id :labels
        :content [:span #_ [:i.tags.icon] "Labels"]
        :action (list [:project :project :labels :edit] action-params)}
-      {:tab-id :invite-link
-       :content [:span #_ [:i.mail.outline.icon] "Invite Link"]
-       :action (list [:project :project :invite-link] action-params)}
-      {:tab-id :export-data
-       :content [:span #_ [:i.download.icon] "Export"]
-       :action (list [:project :project :export-data] action-params)}
+      (when member?
+        {:tab-id :invite-link
+         :content [:span #_ [:i.mail.outline.icon] "Invite Link"]
+         :action (list [:project :project :invite-link] action-params)})
+      (when (> total 0)
+        {:tab-id :export-data
+         :content [:span #_ [:i.download.icon] "Export"]
+         :action (list [:project :project :export-data] action-params)})
       {:tab-id :settings
        :content [:span #_ [:i.configure.icon] "Settings"]
        :action (list [:project :project :settings] action-params)}]
@@ -77,7 +82,8 @@
         {:keys [total]}
         @(subscribe [:project/article-counts])
         mobile? (mobile?)
-        action-params {:project-id project-id}]
+        action-params {:project-id project-id}
+        member? @(subscribe [:self/member? project-id])]
     (when total
       (remove
        nil?
@@ -99,7 +105,7 @@
                           " "])
                        "Articles"]
              :action (list [:project :project :articles] action-params)})
-          (when (> total 0)
+          (when (and member? (> total 0))
             {:tab-id [:user :labels]
              :content [:span
                        (when-not mobile?
@@ -115,7 +121,7 @@
             {:tab-id :predict
              :content "Prediction"
              :action (list [:project :project :predict] action-params)})
-          (when (> total 0)
+          (when (and member? (> total 0))
             {:tab-id [:review]
              :content [:span
                        (when-not mobile?
@@ -137,3 +143,16 @@
         (when manage?
           ^{:key [:project-manage-menu]}
           [project-submenu]))))))
+
+(defn ReadOnlyMessage [text & [message-closed-atom]]
+  (when (and (not (or @(subscribe [:member/admin?])
+                      @(subscribe [:user/admin?])))
+             (not (and message-closed-atom @message-closed-atom)))
+    [:div.ui.icon.message.read-only-message
+     [:i.lock.icon]
+     (when message-closed-atom
+       [:i {:class "close icon"
+            :on-click #(do (reset! message-closed-atom true))}])
+     [:div.content
+      [:div.header "Read-Only View"]
+      [:p text]]]))

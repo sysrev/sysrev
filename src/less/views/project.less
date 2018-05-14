@@ -1,3 +1,4 @@
+
 .ui.segment.project-segment {
     padding-top: 0;
     padding-left: 0;
@@ -27,27 +28,12 @@ div.project-content {
 }
 
 .ui.segment.project-header {
-    padding: 0.5em;
-}
-
-.ui.segment.project-header .ui.grid .row {
-    padding-left: 0.5em;
-    padding-top: 1em;
-    padding-bottom: 1em;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    margin-left: 0px;
-    margin-right: 0px;
-}
-
-.ui.segment.project-header > h5 .ui.basic.label {
-    margin: 0;
-    font-size: 0.925rem;
-}
-
-.ui.segment.project-header .ui.button {
     padding: 0.7em;
-    font-size: 13px;
+}
+
+.ui.segment.project-header .ui.header {
+    margin: 0;
+    line-height: 1.15em;
 }
 
 div.project-files > .ui.celled.list {
@@ -116,6 +102,10 @@ div.grid.export-data > .column > .ui.segment > h5 {
     margin-top: 1em;
 }
 
+div.message.read-only-message p {
+    font-size: 1.075rem;
+}
+
 @media only screen and (max-width: 767px) {
     .ui.column.stackable.grid.project-overview {
         margin-top: -0.5em;
@@ -134,21 +124,7 @@ div.grid.export-data > .column > .ui.segment > h5 {
 @media only screen and (max-width: 900px) {
     .ui.top.attached.segment.project-header {
         text-align: justify;
-        padding: 0.6em;
-        font-size: 12px;
-    }
-
-    .ui.top.attached.segment.project-header .ui.grid {
-        margin: -1em;
-    }
-
-    .ui.top.attached.segment.project-header .ui.grid > .row {
-        padding: 0.6em;
-    }
-
-    .ui.top.attached.segment.project-header .ui.grid > .row > .column {
-        padding-left: 0.5em;
-        padding-right: 0.5em;
+        padding: 0.5em;
     }
 
     .ui.segment.project-segment {
@@ -173,5 +149,44 @@ div.grid.export-data > .column > .ui.segment > h5 {
     div.projects-list .ui.list > .item > .ui.labeled.button > .ui.basic.label {
         padding: 0.75em;
         font-size: 13px !important;
+    }
+
+    div.ui.message.read-only-message > div.content > div.header {
+        font-size: 1.1em;
+    }
+    div.ui.message.read-only-message > div.content > p {
+        font-size: 1em;
+    }
+}
+
+@media only screen and (max-width: 900px) {
+    .ui.segment.project-header.mobile {
+        display: normal;
+    }
+    .ui.segment.project-header.desktop {
+        display: none;
+    }
+    .ui.segment.project-header .ui.label {
+        margin-left: 1em;
+        margin-top: 0.25em;
+        margin-bottom: 0.25em;
+        font-size: 11px;
+        padding-left: 6px;
+        padding-right: 6px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+}
+
+@media only screen and (min-width: 901px) {
+    .ui.segment.project-header.mobile {
+        display: none;
+    }
+    .ui.segment.project-header.desktop {
+        display: normal;
+    }
+    .ui.grid.segment.project-header > .row,
+    .ui.grid.segment.project-header > .row > .column {
+        padding: 0;
     }
 }

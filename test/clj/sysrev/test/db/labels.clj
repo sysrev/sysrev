@@ -18,13 +18,13 @@
 (use-fixtures :once default-fixture)
 
 (deftest user-label-task
-  (doseq [project-id (test-project-ids)]
+  (doseq [project-id (take 10 (test-project-ids))]
     (let [unlabeled (l/unlabeled-articles project-id)]
       (doseq [user-id (p/project-user-ids project-id)]
         (let [n-tests (if (-> (q/select-project-article-labels project-id nil [:%count.*])
                               (q/filter-label-user user-id)
                               (->> do-query first :count (= 0)))
-                        1 4)]
+                        1 2)]
           (let [single-labeled (l/single-labeled-articles project-id user-id)
                 fallback (l/fallback-articles project-id user-id)]
             (dotimes [i n-tests]

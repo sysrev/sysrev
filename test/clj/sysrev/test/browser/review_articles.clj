@@ -1,6 +1,6 @@
 (ns sysrev.test.browser.review-articles
   (:require [clj-webdriver.taxi :as taxi]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [clojure.test :refer :all]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
@@ -9,7 +9,8 @@
             [sysrev.test.core :refer [default-fixture wait-until]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
-            [sysrev.test.browser.create-project :as create-project]))
+            [sysrev.test.browser.create-project :as create-project]
+            [clojure.tools.logging :as log]))
 
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
@@ -59,25 +60,29 @@
   "Use boolean select? to set the value of label with name.
   select? being true corresponds to 'Yes', false corresponds to 'No'"
   [name select?]
-  (taxi/click
-   {:xpath (str (label-div-with-name name) "/descendant::div[contains(text(),'" (if select? "Yes" "No") "')]")}))
+  (browser/click
+   {:xpath (str (label-div-with-name name) "/descendant::div[contains(text(),'" (if select? "Yes" "No") "')]")}
+   :delay 50))
 
 (defn input-string-with-label-name
   "Input string into label with name"
   [name string]
-  (let [label-input {:xpath (str (label-div-with-name name) "/descendant::input[@type='text']")}]
-    (taxi/clear label-input)
-    (taxi/input-text label-input string)))
+  (browser/set-input-text
+   {:xpath (str (label-div-with-name name) "/descendant::input[@type='text']")}
+   string :delay 50))
 
 (defn select-with-text-label-name
   "select text from the dropdown for label with name"
   [name text]
   (let [label-div (label-div-with-name name)
-        label-text-div (str (label-div-with-name name) "/descendant::div[contains(text(),'" text "')]")]
-    (taxi/click {:xpath (str (label-div-with-name name) "/descendant::div[contains(@class,'dropdown')]")})
-    ;; wait for it to be available
-    (browser/wait-until-displayed {:xpath label-text-div})
-    (taxi/click {:xpath label-text-div})))
+        dropdown-div
+        {:xpath (str (label-div-with-name name)
+                     "/descendant::div[contains(@class,'dropdown')]")}
+        entry-div
+        {:xpath (str (label-div-with-name name)
+                     "/descendant::div[contains(text(),'" text "')]")}]
+    (browser/click dropdown-div :delay 500 :displayed? true)
+    (browser/click entry-div :delay 500 :displayed? true)))
 
 (defn article-title-div
   [title]
@@ -109,8 +114,8 @@
   [xpath value-type]
   (taxi/select-option
    {:xpath (str xpath "//select[contains(@class,'ui dropdown')]")}
-   {:value value-type}))
-
+   {:value value-type})
+  (Thread/sleep 25))
 
 ;;;; end element definitions
 
@@ -164,13 +169,18 @@
   [xpath]
   (let [div-id (taxi/attribute {:xpath xpath} :id)
         div-xpath (str "//div[@id='" div-id"']")]
-    (taxi/click {:xpath (str div-xpath "/descendant::i[contains(@class,'remove')]")})))
+    (browser/click
+     {:xpath (str div-xpath "/descendant::i[contains(@class,'remove')]")})))
 
 (defn click-edit
   "Click the Edit button on a label describe by a string xpath"
   [xpath]
-  (taxi/click {:xpath xpath})
-  (taxi/click {:xpath (str xpath "/descendant::i[contains(@class,'edit')]")}))
+  (browser/click {:xpath xpath})
+  (browser/click {:xpath (str xpath "/descendant::i[contains(@class,'edit')]")}))
+
+(defn save-labels []
+  (browser/click save-labels-button :delay 200)
+  (browser/wait-until-loading-completes))
 
 (defn label-text-input-xpath
   "Given an xpath, get the text input for label-name under xpath"
@@ -188,7 +198,7 @@
   [xpath selected?]
   (when-not (= (taxi/selected? {:xpath xpath})
                selected?)
-    (taxi/click {:xpath xpath})))
+    (browser/click {:xpath xpath})))
 
 (defn label-checkbox-input-xpath
   "Given an xpath, get the check box for label-name under xpath"
@@ -201,7 +211,7 @@
   [xpath selected?]
   (when-not (= (taxi/selected? {:xpath xpath})
                selected?)
-    (taxi/click {:xpath xpath})))
+    (browser/click {:xpath xpath})))
 
 (defn value-for-inclusion-checkbox
   [xpath inclusion-value]
@@ -221,10 +231,10 @@
                                                           "No"))})]
     (cond (and include?
                (taxi/selected? (checkbox (not include?))))
-          (taxi/click (checkbox include?))
+          (browser/click (checkbox include?))
           (and (not include?)
                (taxi/selected? (checkbox (not include?))))
-          (taxi/click (checkbox include?)))))
+          (browser/click (checkbox include?)))))
 
 (defn set-boolean-label-values
   [xpath label-map]
@@ -239,13 +249,11 @@
     ;; set the type
     (change-label-type xpath value-type)
     ;; Enter the display name
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Display Label")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Display Label")}
      short-label)
     ;; enter the question
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Question")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Question")}
      question)
     ;; required setting
@@ -267,8 +275,7 @@
     ;; set the type
     (change-label-type xpath value-type)
     ;; Enter the display name
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Display Label")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Display Label")}
      short-label)
     ;; required setting
@@ -276,20 +283,18 @@
     ;; allow multiple values?
     (set-checkbox-button (label-checkbox-input-xpath xpath "Allow Multiple Values?") multi?)
     ;; enter the question
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Question")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Question")}
      question)
     ;; enter the max length
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Max Length")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Max Length")}
      (str max-length))
     ;; Examples
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Examples (comma separated)")})
-    (taxi/input-text
-     {:xpath (label-text-input-xpath xpath  "Examples (comma separated)")}
-     (string/join "," examples))))
+    (browser/set-input-text
+     {:xpath (label-text-input-xpath xpath "Examples (comma separated)")}
+     (str/join "," examples)
+     :delay 50)))
 
 (defn set-categorical-label-values
   [xpath label-map]
@@ -305,28 +310,26 @@
     ;; set the type
     (change-label-type xpath value-type)
     ;; Enter the display name
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Display Label")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Display Label")}
      short-label)
     ;; required setting
     (set-checkbox-button (label-checkbox-input-xpath xpath "Must be answered?") required)
     ;; enter the question
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Question")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Question")}
      question)
     ;; enter the categories
-    (taxi/clear {:xpath (label-text-input-xpath xpath "Categories (comma separated options)")})
-    (taxi/input-text
+    (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Categories (comma separated options)")}
-     (string/join "," all-values))
+     (str/join "," all-values)
+     :delay 100)
     ;;  inclusion values
     (taxi/wait-until
      #(= (taxi/value {:xpath (label-text-input-xpath
                               xpath "Categories (comma separated options)")})
-         (string/join "," all-values))
-     5000 200)
+         (str/join "," all-values))
+     5000 50)
     ;; set the inclusion values
     (doall (mapv #(let [inclusion-checkbox {:xpath (value-for-inclusion-checkbox xpath %)}
                         included? (contains? (set inclusion-values)
@@ -337,7 +340,7 @@
                     (browser/wait-until-exists inclusion-checkbox)
                     (when (not= (taxi/selected? inclusion-checkbox)
                                 included?)
-                      (taxi/click inclusion-checkbox)))
+                      (browser/click inclusion-checkbox)))
                  all-values))))
 
 (defn set-label-values
@@ -349,8 +352,7 @@
     (condp = value-type
       "boolean"     (set-boolean-label-values xpath label-map)
       "string"      (set-string-label-values xpath label-map)
-      "categorical" (set-categorical-label-values xpath label-map)
-      )))
+      "categorical" (set-categorical-label-values xpath label-map))))
 
 (defn set-article-label
   "Set the labels for article using the values in the map
@@ -365,16 +367,16 @@
               value)
     "categorical" (select-with-text-label-name
                    short-label
-                   value)))
+                   value))
+  (Thread/sleep 50))
 
 (defn set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser."
   [label-settings]
-  (mapv #(set-article-label %)
-        label-settings)
-  ;; save the labeling
-  (browser/wait-until-displayed save-button)
-  (taxi/click save-button))
+  (mapv #(set-article-label %) label-settings)
+  (Thread/sleep 250)
+  (browser/click save-button :delay 250)
+  (browser/wait-until-loading-completes))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
@@ -399,168 +401,168 @@
 
       ;; create a project
       (browser/go-route "/select-project")
-      (browser/wait-until-loading-completes)
-      (taxi/input-text {:xpath "//input[@placeholder='Project Name']"} project-name)
-      (taxi/click {:xpath "//button[text()='Create']"})
+      (browser/set-input-text
+       {:xpath "//input[@placeholder='Project Name']"}
+       project-name)
+      (log/info "creating project")
+      (browser/click {:xpath "//button[text()='Create']"} :delay 200)
       (browser/wait-until-displayed create-project/project-title-xpath)
       (let [user-id (:user-id (users/get-user-by-email email))
             project-id (get-user-project-id user-id)]
-        ;; was the project actually created?
-        (is (.contains (taxi/text create-project/project-title-xpath) project-name))
-        (browser/go-project-route "/add-articles")
+        (try
+          (do
+            ;; was the project actually created?
+            (is (str/includes? (taxi/text create-project/project-title-xpath)
+                               project-name))
+            (browser/go-project-route "/add-articles")
 ;;; add sources
-        ;; create a new source
-        (create-project/add-articles-from-search-term search-term-first)
-        ;; check that there is one article source listed
-        (taxi/wait-until
-         #(= 1 (count (taxi/find-elements
-                       create-project/article-sources-list-xpath)))
-         10000 200)
+            ;; create a new source
+            (create-project/add-articles-from-search-term search-term-first)
+            ;; check that there is one article source listed
+            (taxi/wait-until
+             #(= 1 (count (taxi/find-elements
+                           create-project/article-sources-list-xpath)))
+             10000 50)
 
 ;;; create new labels
-        ;; for now, this is manually in the db, eventually this whole
-        ;; section will be replaced by what is in the label editor
-        (let [include-label-value true
-              boolean-label-value true
-              string-label-value "Baz"
-              categorical-label-value "Qux"]
-          (taxi/click label-definitions-tab)
-          (browser/wait-until-displayed add-boolean-label-button)
-          ;; create a new boolean label
-          (taxi/click add-boolean-label-button)
-          (taxi/click save-labels-button)
-          ;; there should be some errors
-          (taxi/wait-until #(= (set (get-all-error-messages))
-                               (set ["Label must have a name"
-                                     "Question can not be blank"]))
-                           5000 200)
-          (is (= (set (get-all-error-messages))
-                 (set ["Label must have a name"
-                       "Question can not be blank"])))
-          ;; change the type of the label to string, check error messages
-          (change-label-type label-item-div-with-errors "string")
-          (taxi/click save-labels-button)
-          (taxi/wait-until #(= (set (get-all-error-messages))
-                               (set ["Label must have a name"
-                                     "Question can not be blank"
-                                     "Max Length must be provided"]))
-                           5000 200)
-          (is (= (set (get-all-error-messages))
-                 (set ["Label must have a name"
-                       "Question can not be blank"
-                       "Max Length must be provided"])))
-          ;; change the type of the label to categorical, check error message
-          (change-label-type label-item-div-with-errors "categorical")
-          (taxi/click save-labels-button)
-          (taxi/wait-until #(= (set (get-all-error-messages))
-                               (set ["Label must have a name"
-                                     "Question can not be blank"
-                                     "A category must have defined options"]))
-                           5000 200)
-          (is (= (set (get-all-error-messages))
-                 (set ["Label must have a name"
-                       "Question can not be blank"
-                       "A category must have defined options"])))
-          ;; delete this label
-          (delete-label label-item-div-with-errors)
-          (taxi/wait-until
-           #(= 1 (count (taxi/find-elements
-                         {:xpath "//div[contains(@class,'label-item')]"})))
-           5000 200)
-          ;; create a boolean label
-          (taxi/click add-boolean-label-button)
-          (set-label-values "//div[contains(@id,'new-label-')]" boolean-label-definition)
-          (taxi/click save-labels-button)
-          ;; there is a new boolean label
-          (browser/wait-until-displayed {:xpath (str "//span[text()='" (:short-label boolean-label-definition) "']")})
-          (is (taxi/exists? {:xpath (str "//span[text()='" (:short-label boolean-label-definition) "']")}))
-          ;; create a string label
-          (taxi/click add-string-label-button)
-          (set-label-values "//div[contains(@id,'new-label-')]" string-label-definition)
-          (taxi/click save-labels-button)
-          ;; there is a new string label
-          (browser/wait-until-displayed {:xpath (str "//span[text()='" (:short-label string-label-definition) "']")})
-          (is (taxi/exists? {:xpath (str "//span[text()='" (:short-label string-label-definition) "']")}))
-          ;; create a categorical label
-          (taxi/click add-categorical-label-button)
-          (set-label-values "//div[contains(@id,'new-label-')]" categorical-label-definition)
-          (taxi/click save-labels-button)
-          ;; there is a new categorical label
-          (browser/wait-until-displayed {:xpath (str "//span[text()='" (:short-label categorical-label-definition) "']")})
-          (is (taxi/exists? {:xpath (str "//span[text()='" (:short-label categorical-label-definition) "']")}))
+            ;; for now, this is manually in the db, eventually this whole
+            ;; section will be replaced by what is in the label editor
+            (let [include-label-value true
+                  boolean-label-value true
+                  string-label-value "Baz"
+                  categorical-label-value "Qux"]
+              (browser/click label-definitions-tab)
+              ;; create a new boolean label
+              (browser/click add-boolean-label-button)
+              (save-labels)
+              ;; there should be some errors
+              (taxi/wait-until #(= (set (get-all-error-messages))
+                                   (set ["Label must have a name"
+                                         "Question can not be blank"]))
+                               5000 50)
+              (is (= (set (get-all-error-messages))
+                     (set ["Label must have a name"
+                           "Question can not be blank"])))
+              ;; change the type of the label to string, check error messages
+              (change-label-type label-item-div-with-errors "string")
+              (save-labels)
+              (taxi/wait-until #(= (set (get-all-error-messages))
+                                   (set ["Label must have a name"
+                                         "Question can not be blank"
+                                         "Max Length must be provided"]))
+                               5000 50)
+              (is (= (set (get-all-error-messages))
+                     (set ["Label must have a name"
+                           "Question can not be blank"
+                           "Max Length must be provided"])))
+              ;; change the type of the label to categorical, check error message
+              (change-label-type label-item-div-with-errors "categorical")
+              (Thread/sleep 25)
+              (save-labels)
+              (taxi/wait-until #(= (set (get-all-error-messages))
+                                   (set ["Label must have a name"
+                                         "Question can not be blank"
+                                         "A category must have defined options"]))
+                               5000 50)
+              (is (= (set (get-all-error-messages))
+                     (set ["Label must have a name"
+                           "Question can not be blank"
+                           "A category must have defined options"])))
+              ;; delete this label
+              (delete-label label-item-div-with-errors)
+              (taxi/wait-until
+               #(= 1 (count (taxi/find-elements
+                             {:xpath "//div[contains(@class,'label-item')]"})))
+               5000 50)
+              ;; create a boolean label
+              (browser/click add-boolean-label-button)
+              (set-label-values "//div[contains(@id,'new-label-')]" boolean-label-definition)
+              (save-labels)
+              ;; there is a new boolean label
+              (is (browser/exists? {:xpath (str "//span[text()='" (:short-label boolean-label-definition) "']")}))
+              ;; create a string label
+              (browser/click add-string-label-button)
+              (set-label-values "//div[contains(@id,'new-label-')]" string-label-definition)
+              (save-labels)
+              ;; there is a new string label
+              (is (browser/exists? {:xpath (str "//span[text()='" (:short-label string-label-definition) "']")}))
+              ;; create a categorical label
+              (browser/click add-categorical-label-button)
+              (set-label-values "//div[contains(@id,'new-label-')]" categorical-label-definition)
+              (save-labels)
+              ;; there is a new categorical label
+              (is (browser/exists? {:xpath (str "//span[text()='" (:short-label categorical-label-definition) "']")}))
 ;;;; review an article
-          (browser/wait-until-loading-completes)
-          (browser/go-project-route "")
-          (Thread/sleep 500)
-          (browser/go-project-route "")
-          (browser/wait-until-displayed review-articles-button)
-          (taxi/click review-articles-button)
-          (browser/wait-until-displayed {:xpath (label-div-with-name (:short-label include-label-definition))})
-          ;; We shouldn't have any labels for this project
-          (is (empty? (labels/query-public-article-labels project-id)))
-          ;; set the labels
-          (set-article-labels [(merge include-label-definition
-                                      {:value include-label-value})
-                               (merge boolean-label-definition
-                                      {:value boolean-label-value})
-                               (merge string-label-definition
-                                      {:value string-label-value})
-                               (merge categorical-label-definition
-                                      {:value categorical-label-value})])
-          ;;verify we are on the next article
-          (browser/wait-until-displayed disabled-save-button)
-          (is (taxi/exists? disabled-save-button))
+              (browser/go-project-route "")
+              (browser/click review-articles-button :delay 50)
+              (browser/wait-until-displayed {:xpath (label-div-with-name (:short-label include-label-definition))})
+              ;; We shouldn't have any labels for this project
+              (is (empty? (labels/query-public-article-labels project-id)))
+              ;; set the labels
+              (set-article-labels [(merge include-label-definition
+                                          {:value include-label-value})
+                                   (merge boolean-label-definition
+                                          {:value boolean-label-value})
+                                   (merge string-label-definition
+                                          {:value string-label-value})
+                                   (merge categorical-label-definition
+                                          {:value categorical-label-value})])
+              ;;verify we are on the next article
+              (is (browser/exists? disabled-save-button))
 ;;;; check in the database for the labels
-          ;; we have labels for just one article
-          (is (= 1
-                 (count (labels/query-public-article-labels project-id))))
-          (let [ ;; this is not yet generalized
-                article-id (-> (labels/query-public-article-labels
-                                project-id) keys first)
-                article-title (-> (labels/query-public-article-labels
-                                   project-id) vals first :title)]
-            ;; these are just checks in the database
-            (is (= include-label-value
-                   (short-label-answer project-id article-id user-id (:short-label include-label-definition))))
-            (is (= boolean-label-value
-                   (short-label-answer project-id article-id user-id (:short-label boolean-label-definition))))
-            (is (= string-label-value
-                   (-> (short-label-answer project-id article-id user-id (:short-label string-label-definition))
-                       first)))
-            (is (= categorical-label-value
-                   (-> (short-label-answer project-id article-id user-id (:short-label categorical-label-definition))
-                       first)))
+              ;; we have labels for just one article
+              (is (= 1 (count (labels/query-public-article-labels project-id))))
+              (let [ ;; this is not yet generalized
+                    article-id (-> (labels/query-public-article-labels
+                                    project-id) keys first)
+                    article-title (-> (labels/query-public-article-labels
+                                       project-id) vals first :title)]
+                ;; these are just checks in the database
+                (is (= include-label-value
+                       (short-label-answer project-id article-id user-id
+                                           (:short-label include-label-definition))))
+                (is (= boolean-label-value
+                       (short-label-answer project-id article-id user-id
+                                           (:short-label boolean-label-definition))))
+                (is (= string-label-value
+                       (-> (short-label-answer project-id article-id user-id
+                                               (:short-label string-label-definition))
+                           first)))
+                (is (= categorical-label-value
+                       (-> (short-label-answer project-id article-id user-id
+                                               (:short-label categorical-label-definition))
+                           first)))
 ;;;; Let's check the actual UI for this
-            (taxi/click articles-button)
-            (browser/wait-until-displayed {:xpath (article-title-div article-title)})
-            (taxi/click {:xpath (article-title-div article-title)})
-            (browser/wait-until-displayed {:xpath "//div[contains(@class,'button') and contains(text(),'Change Labels')]"})
-            ;; check overall include
-            ;; note: booleans value name have ? appended to them
-            (is (= include-label-value
-                   (-> (label-button-value (str (:short-label include-label-definition) "?"))
-                       read-string
-                       boolean)))
-            ;; check a boolean value
-            (is (= boolean-label-value
-                   (-> (label-button-value (str (:short-label boolean-label-definition) "?"))
-                       read-string
-                       boolean)))
-            ;; check a string value
-            (is (= string-label-value
-                   (label-button-value (:short-label string-label-definition))))
-            ;; check a categorical value
-            (is (= categorical-label-value
-                   (label-button-value (:short-label categorical-label-definition)))))
-          ;; cleanup
-          (navigate/log-out)
-          ;; delete the project in the database
-          (project/delete-project project-id))))))
+                (browser/click articles-button)
+                (browser/click {:xpath (article-title-div article-title)})
+                (browser/wait-until-displayed
+                 {:xpath "//div[contains(@class,'button') and contains(text(),'Change Labels')]"})
+                ;; check overall include
+                ;; note: booleans value name have ? appended to them
+                (is (= include-label-value
+                       (-> (label-button-value (str (:short-label include-label-definition) "?"))
+                           read-string
+                           boolean)))
+                ;; check a boolean value
+                (is (= boolean-label-value
+                       (-> (label-button-value (str (:short-label boolean-label-definition) "?"))
+                           read-string
+                           boolean)))
+                ;; check a string value
+                (is (= string-label-value
+                       (label-button-value (:short-label string-label-definition))))
+                ;; check a categorical value
+                (is (= categorical-label-value
+                       (label-button-value (:short-label categorical-label-definition)))))))
+          (finally
+            (navigate/log-out)
+            (when project-id
+              (project/delete-project project-id))))))))
 
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"
   []
-  (taxi/click review-articles-button)
+  (browser/click review-articles-button)
   (browser/wait-until-exists {:xpath "//div[@id='project_review']"})
   (while (not (taxi/exists? no-articles-need-review))
     (do (randomly-set-article-labels
@@ -577,7 +579,7 @@
 (defn randomly-review-n-articles
   "Randomly sets labels for n articles using a vector of label-definitions"
   [n label-definitions]
-  (taxi/click review-articles-button)
+  (browser/click review-articles-button)
   (browser/wait-until-exists {:xpath "//div[@id='project_review']"})
   (dotimes [i n]
     (do

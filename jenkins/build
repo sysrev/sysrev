@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eux
 
-lein clean
+rm -rf ./target
 
 rm -f ./resources/git-commit
 git rev-parse HEAD > ./resources/git-commit
@@ -9,8 +9,7 @@ rm -f ./resources/build-time
 date +"%s" > ./resources/build-time
 
 lein with-profile +prod uberjar
-lein cljsbuild once production
-./scripts/build-css
+mv ./target/sysrev-web-0.1.0-SNAPSHOT-standalone.jar .
 
 commit=$(cat ./resources/git-commit)
 

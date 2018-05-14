@@ -20,7 +20,7 @@
                    :needed [])
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels]))
-    :dispatch [:require [:identity]]
+    :dispatch [:fetch [:identity]]
     :fetch-missing true}))
 
 (reg-fx

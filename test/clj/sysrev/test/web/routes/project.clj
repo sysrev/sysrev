@@ -79,13 +79,13 @@
                                :password non-member-password)]
         (route-response :post "/api/auth/login"
                         {:email non-member-email :password non-member-password})
-        (is (= "Not authorized (project)"
+        (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/delete-project"
                                        {:project-id new-project-id})
                        [:error :message])))
         ;; deletion can't happen for a user who isn't an admin of the project
         (project/add-project-member new-project-id user-id)
-        (is (= "Not authorized (project)"
+        (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/delete-project"
                                        {:project-id new-project-id})
                        [:error :message])))
@@ -171,7 +171,7 @@
                                        {:project-id project-id})
                        [:result :project-id])))
         ;; that member can't add articles to a project
-        (is (= "Not authorized"
+        (is (= "Not authorized (project member)"
                (get-in (route-response :post "/api/import-articles-from-search"
                                        {:project-id project-id
                                         :search-term search-term :source "PubMed"})

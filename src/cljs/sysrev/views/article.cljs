@@ -3,7 +3,8 @@
             [clojure.string :as str]
             goog.object
             [reagent.core :as r]
-            [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [re-frame.core :as re-frame :refer
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.annotation :refer [AnnotatedText]]
             [sysrev.pdf :as pdf :refer [PDF OpenAccessAvailable]]
@@ -14,17 +15,26 @@
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def state (r/atom nil))
+(reg-sub
+ ::article-annotations
+ (fn [[_ article-id project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ article-id project-id]]
+   (get-in project [:annotations article-id])))
 
 (def-data :article/annotations
-  :loaded? (fn [_ article-id _]
-             (not (nil? @(r/cursor state [:annotations article-id]))))
-  :uri (fn [article-id] (str "/api/annotations/" article-id ))
-  :prereqs (fn [] [[:identity]])
-  :content (fn [article-id string] )
-  :process (fn [_ [article-id string] result]
-             (swap! state assoc-in [:annotations article-id] (:annotations result))
-             {}))
+  :loaded?
+  (fn [db project-id article-id _]
+    (-> (get-in db [:data :project project-id :annotations])
+        (contains? article-id)))
+  :uri (fn [project-id article-id _]
+         (str "/api/annotations/" article-id))
+  :prereqs (fn [_ _ _] [[:identity]])
+  :content (fn [project-id _ _] {:project-id project-id})
+  :process
+  (fn [{:keys [db]} [project-id article-id _] {:keys [annotations] :as result}]
+    {:db (assoc-in db [:data :project project-id :annotations article-id]
+                   (or annotations []))}))
 
 (defn- author-names-text [nmax coll]
   (let [show-list (take nmax coll)
@@ -94,25 +104,13 @@
   "Get annotations with a delay of seconds, defaults to 30"
   [article-id & {:keys [delay]
                  :or {delay 30}}]
-  (let [last-annotation-call (r/cursor state [:last-annotation-call])]
-    (reset! last-annotation-call {:time (cljs-time.core/now)
-                                  :article-id article-id})
-    (continuous-update-until
-     ;; throw away fn
-     (constantly true)
-     ;; predicate to check to see if 30 seconds has elapsed
-     #(cljs-time.core/after?
-       ;; current time
-       (cljs-time.core/now)
-       ;; time stored in last-annotation-call, plus 30 seconds
-       (cljs-time.core/plus (:time @last-annotation-call)
-                            (cljs-time.core/seconds delay)))
-     ;; on-success
-     ;; if the article-id is still the same, fetch the article
-     #(if (= article-id
-             (:article-id @last-annotation-call))
-        (dispatch [:fetch [:article/annotations article-id]]))
-     100)))
+  (let [project-id @(subscribe [:active-project-id])
+        article-id-state (subscribe [:visible-article-id])]
+    (js/setTimeout
+     (fn [_]
+       (when (= article-id @article-id-state)
+         (dispatch [:require [:article/annotations project-id article-id]])))
+     (* delay 1000))))
 
 (defn article-info-main-content [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -125,17 +123,17 @@
             urls @(subscribe [:article/urls article-id])
             documents @(subscribe [:article/documents article-id])
             date @(subscribe [:article/date article-id])
+            annotations-raw @(subscribe [::article-annotations article-id])
             annotations (condp = context
                           :article-list
-                          (process-annotations @(r/cursor state [:annotations article-id]))
+                          (process-annotations annotations-raw)
                           :review
                           (->> @(subscribe [:project/keywords])
                                vals
                                (mapv :value)
                                (mapv #(hash-map :word %))))
             delay 5]
-        (when (= context
-                 :article-list)
+        (when (= context :article-list)
           (get-annotations article-id :delay delay))
         [:div
          [:h3.header

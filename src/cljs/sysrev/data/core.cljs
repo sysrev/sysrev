@@ -199,16 +199,28 @@
      (get-returned-count db item)))
 (reg-sub :loading? (fn [db [_ item]] (item-loading? db item)))
 
+(defn- any-loading-impl
+  [counts & [filter-item-name ignore-item-names]]
+  (boolean
+   (->> (keys (get-in counts [:sent]))
+        (filter #(or (nil? filter-item-name)
+                     (= (first %) filter-item-name)))
+        (filter #(not (in? ignore-item-names (first %))))
+        (some #(> (get-in counts [:sent %] 0)
+                  (get-in counts [:returned %] 0))))))
+
+(defn any-loading?
+  [db & [filter-item-name ignore-item-names]]
+  (let [counts (get-in db [:ajax :data])]
+    (any-loading-impl counts filter-item-name ignore-item-names)))
+
 ;; Tests if any AJAX data request is currently pending
+;; If filter-item-name is passed, only test for entries which have that name
 (reg-sub
  :any-loading?
  :<- [::ajax-data-counts]
- (fn [counts]
-   (boolean
-    (some (fn [item]
-            (> (get-in counts [:sent item] 0)
-               (get-in counts [:returned item] 0)))
-          (keys (get-in counts [:sent]))))))
+ (fn [counts [_ filter-item-name ignore-item-names]]
+   (any-loading-impl counts filter-item-name ignore-item-names)))
 
 ;; TODO: replace this with a queue for items to fetch in @app-db
 (defonce

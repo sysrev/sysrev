@@ -126,10 +126,11 @@
       (clear-project-cache project-id))))
 
 (defn schedule-important-terms-update [project-id]
-  (send
-   importance-api
-   (fn [_]
-     (load-project-important-terms project-id))))
+  (when (not= :test (-> config/env :profile))
+    (send
+     importance-api
+     (fn [_]
+       (load-project-important-terms project-id)))))
 
 (defn force-importance-update-all-projects []
   (let [project-ids (project/all-project-ids)]

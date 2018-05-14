@@ -3,16 +3,18 @@
             [sysrev.shared.util :refer [in?]]
             [sysrev.shared.spec.core :as sc]))
 
-(def all-project-settings
-  [:second-review-prob])
-
 (s/def ::project-id ::sc/sql-serial-id)
 (s/def ::name string?)
 (s/def ::enabled boolean?)
 (s/def ::project-uuid ::sc/uuid)
 (s/def ::date-created inst?)
-(s/def ::setting (s/and keyword? (in? all-project-settings)))
-(s/def ::settings (s/nilable (s/map-of ::setting any?)))
+
+;; project settings
+(s/def ::second-review-prob (s/nilable number?))
+(s/def ::public-access (s/nilable boolean?))
+(s/def ::settings
+  (s/keys :opt-un [::second-review-prob ::public-access]))
+
 ;; map with all columns of `project` table required
 (s/def ::project
   (s/keys :req-un
