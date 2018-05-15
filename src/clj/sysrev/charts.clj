@@ -1,5 +1,6 @@
 (ns sysrev.charts
-  (:require [sysrev.db.project :as project]
+  (:require [sysrev.db.core :refer [with-project-cache]]
+            [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.shared.transit :as sr-transit]))
 
@@ -70,7 +71,7 @@
 ;; ... ]
 ;; should be relatively small, the count of the labels
 ;;
-(defn label-answer-counts
+(defn label-value-counts
   "Extract the answer counts for labels for the current project"
   [article-labels project-labels]
   (let [article-labels
@@ -98,13 +99,17 @@
              (map extract-labels-fn)
              flatten
              ;; categorical data should be treated as sets, not vectors
-             (map #(if (= "categorical" (:value-type %))
-                     (assoc % :answer (set (:answer %)))
-                     %)))
+             (map (fn [{:keys [answer] :as entry}]
+                    (if (sequential? answer)
+                      (update entry :answer #(vec %))
+                      (update entry :answer #(vector %))))))
         label-counts-fn
         (fn [[short-label entries]]
           {:short-label short-label
-           :answer-counts (frequencies (map :answer entries))
+           :value-counts (->> entries
+                              (map :answer)
+                              (flatten)
+                              (frequencies))
            :value-type (:value-type (first entries))
            :label-id (:label-id (first entries))})]
     (map label-counts-fn (group-by :short-label label-values))))
@@ -112,12 +117,12 @@
 (defn process-label-count
   "Given a coll of public-labels, return a vector of value-count maps"
   [article-labels labels]
-  (->> (label-answer-counts article-labels labels)
-       (map (fn [{:keys [answer-counts] :as entry}]
+  (->> (label-value-counts article-labels labels)
+       (map (fn [{:keys [value-counts] :as entry}]
               (map (fn [[value value-count]]
                      (merge entry {:value value
                                    :count value-count}))
-                   answer-counts)))
+                   value-counts)))
        flatten
        (into [])))
 
@@ -149,35 +154,32 @@
           processed-label-counts)))
 
 (defn process-label-counts [project-id]
-  (let [article-labels (->> (labels/query-public-article-labels project-id)
-                            (labels/filter-recent-public-articles project-id nil)
-                            vals)
-        labels (project/project-labels project-id)
-        label-ids (->> labels
-                       keys
-                       (into []))]
-    (->>
-     ;; get the counts of the label's values
-     (process-label-count article-labels labels)
-     ;; filter out labels of type string
-     (filterv #(not= (:value-type %) "string"))
-     ;; convert the categorical sets into string
-     (map #(if (= (:value-type %) "categorical")
-             (assoc % :value (clojure.string/join "," (sort (:value %))))
-             %))
-     ;; do initial sort by values
-     (sort-by #(str (:value %)))
-     ;; sort booleans such that true goes before false
-     ;; sort categorical alphabetically
-     ((fn [processed-public-labels]
-        (let [grouped-processed-public-labels
-              (group-by :value-type processed-public-labels)
-              boolean-labels
-              (get grouped-processed-public-labels "boolean")
-              categorical-labels
-              (get grouped-processed-public-labels "categorical")]
-          (concat (reverse (sort-by :value boolean-labels))
-                  (reverse (sort-by :count categorical-labels))))))
-     ;; add color
-     add-color-processed-label-counts
-     )))
+  (with-project-cache
+    project-id [:member-label-counts]
+    (let [article-labels (->> (labels/query-public-article-labels project-id)
+                              (labels/filter-recent-public-articles project-id nil)
+                              vals)
+          labels (project/project-labels project-id)
+          label-ids (->> labels
+                         keys
+                         (into []))]
+      (->>
+       ;; get the counts of the label's values
+       (process-label-count article-labels labels)
+       ;; filter out labels of type string
+       (filterv #(not= (:value-type %) "string"))
+       ;; do initial sort by values
+       (sort-by #(str (:value %)))
+       ;; sort booleans such that true goes before false
+       ;; sort categorical alphabetically
+       ((fn [processed-public-labels]
+          (let [grouped-processed-public-labels
+                (group-by :value-type processed-public-labels)
+                boolean-labels
+                (get grouped-processed-public-labels "boolean")
+                categorical-labels
+                (get grouped-processed-public-labels "categorical")]
+            (concat (reverse (sort-by :value boolean-labels))
+                    (reverse (sort-by :count categorical-labels))))))
+       ;; add color
+       add-color-processed-label-counts))))

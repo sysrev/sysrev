@@ -360,8 +360,7 @@
             counts (mapv :instance-count entries)]
         [charts/bar-chart height labels ["count"] [counts]
          ["rgba(33,186,69,0.55)"]
-         (charts/wrap-disable-animation
-          {:legend {:display false}})]))))
+         {:legend {:display false}}]))))
 
 (defn KeyTerms []
   (let [active-tab (or @important-terms-tab :mesh)
@@ -529,7 +528,7 @@
 (defn LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project/label-counts project-id]] {}
-      (let [label-ids @(subscribe  [:project/label-ids])
+      (let [label-ids @(subscribe [:project/label-ids])
             processed-label-counts @(subscribe [::label-counts])]
         [LabelCountChart label-ids processed-label-counts]))))
 

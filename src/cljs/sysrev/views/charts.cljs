@@ -122,4 +122,4 @@
 (defn label-count->chart-height
   "Given a label count n, return the chart height in px"
   [n]
-  (+ 35 (* 15 n)))
+  (+ 50 (* 12 n)))
