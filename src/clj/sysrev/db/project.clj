@@ -229,12 +229,13 @@
         :args (s/cat :project-id ::sc/project-id)
         :ret (s/and integer? nat-int?))
 
-(defn project-labels [project-id]
+(defn project-labels [project-id & [include-disabled?]]
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
       project-id [:labels :all]
       (->>
-       (-> (q/select-label-where project-id true [:*])
+       (-> (q/select-label-where
+            project-id true [:*] {:include-disabled? (boolean include-disabled?)})
            do-query)
        (group-by :label-id)
        (map-values first)))))

@@ -45,7 +45,7 @@
 
 (defn wrap-no-cache [handler]
   #(some-> (handler %)
-           (r/header "Cache-Control" "no-cache, no-store")))
+           (r/header "Cache-Control" "no-cache, must-revalidate")))
 
 (defn wrap-add-anti-forgery-token
   "Attach csrf token value to response if request did not contain it."
