@@ -66,12 +66,14 @@
         (mapv (partial zipmap [:backgroundColor :label :data]))))
   ([ynames yss] (get-datasets ynames yss series-colors)))
 
+(defn graph-text-color []
+  (if (= "Dark" (:ui-theme @(subscribe [:self/settings])))
+    "#dddddd" "#282828"))
+
 (defn bar-chart
   [height xlabels ynames yss & [colors options]]
   (let [datasets (get-datasets ynames yss colors)
-        font-color (if (= (:ui-theme @(subscribe [:self/settings]))
-                          "Dark")
-                     "#dddddd" "#222222")
+        font-color (graph-text-color)
         data {:labels xlabels
               :datasets (->> datasets (map #(merge % {:borderWidth 1})))}
         options (merge-with

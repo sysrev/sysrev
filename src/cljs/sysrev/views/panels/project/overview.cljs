@@ -446,7 +446,8 @@
   (let [color-filter (r/atom #{})]
     (fn [label-ids processed-label-counts]
       (when (not (empty? processed-label-counts))
-        (let [processed-label-counts
+        (let [font-color (charts/graph-text-color)
+              processed-label-counts
               (sort-by
                #((into {} (map-indexed (fn [i e] [e i]) label-ids))
                  (:label-id %))
@@ -486,37 +487,41 @@
                        {:scales
                         {:xAxes
                          [{:display true
-                           :scaleLabel {:fontColor "#990000"
+                           :scaleLabel {:fontColor font-color
                                         :display false
                                         :padding {:top 200
                                                   :bottom 200}}
                            :stacked false
-                           :ticks {:suggestedMin 0
+                           :ticks {:fontColor font-color
+                                   :suggestedMin 0
                                    :callback (fn [value idx values]
                                                (if (or (= 0 (mod idx 5))
                                                        (= idx (dec (count values))))
                                                  value ""))}}]
                          ;; this is actually controlling the labels
                          :yAxes
-                         [{:maxBarThickness 10}]}
+                         [{:maxBarThickness 10
+                           :scaleLabel {:fontColor font-color}
+                           :ticks {:fontColor font-color}}]}
                         :legend
                         {:labels
                          {:generateLabels (fn [chart]
-                                            (clj->js legend-labels))}
+                                            (clj->js legend-labels))
+                          :fontColor font-color}
                          :onClick nil
                          #_ (fn [e legend-item]
-                           (-> js/console (.log e))
-                           (-> js/console (.log legend-item))
-                           (let [current-legend-color
-                                 (:fillStyle (js->clj legend-item
-                                                      :keywordize-keys true))
-                                 enabled? (not (filtered-color? current-legend-color))]
-                             #_ (.preventDefault e)
-                             (if enabled?
-                               ;; filter out the associated data points
-                               (swap! color-filter #(conj % current-legend-color))
-                               ;; the associated data points should no longer be filtered out
-                               (swap! color-filter #(disj % current-legend-color)))))}})
+                              (-> js/console (.log e))
+                              (-> js/console (.log legend-item))
+                              (let [current-legend-color
+                                    (:fillStyle (js->clj legend-item
+                                                         :keywordize-keys true))
+                                    enabled? (not (filtered-color? current-legend-color))]
+                                #_ (.preventDefault e)
+                                (if enabled?
+                                  ;; filter out the associated data points
+                                  (swap! color-filter #(conj % current-legend-color))
+                                  ;; the associated data points should no longer be filtered out
+                                  (swap! color-filter #(disj % current-legend-color)))))}})
               height (charts/label-count->chart-height (count labels))]
           [:div.ui.segment
            [:h4.ui.dividing.header "Member Label Counts"]
@@ -552,7 +557,8 @@
                prediction-histograms)}))
 
 (defn PredictionHistogramChart []
-  (let [prediction-histograms
+  (let [font-color (charts/graph-text-color)
+        prediction-histograms
         @(subscribe [::prediction-histograms])
         labels
         (-> prediction-histograms
@@ -601,7 +607,13 @@
      [chartjs/bar
       {:data {:labels labels
               :datasets datasets}
-       :options {:scales {:xAxes [{:stacked true}]}}}]]))
+       :options {:scales
+                 {:xAxes [{:stacked true
+                           :ticks {:fontColor font-color}
+                           :scaleLabel {:fontColor font-color}}]
+                  :yAxes [{:ticks {:fontColor font-color}
+                           :scaleLabel {:fontColor font-color}}]}
+                 :legend {:labels {:fontColor font-color}}}}]]))
 
 (defn PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]
