@@ -13,7 +13,7 @@
                     :updating-card? false
                     :error-message nil})
 
-(def state (r/atom default-state))
+(defonce state (r/atom default-state))
 
 (reg-event-fx
  :plans/set-need-card?

@@ -7,8 +7,6 @@
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
 
-(def state (r/atom nil))
-
 ;; accessing state for testing:
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])

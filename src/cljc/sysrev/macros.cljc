@@ -42,28 +42,32 @@
      (when require#
        (doseq [item# reqs#]
          (dispatch [:require item#])))
-     [:div {:style (when (and (not have-data#) min-height#)
-                     {:min-height min-height#})
-            :class (cond class# class#
+     (if (and (empty? options#) have-data# (not dimmer-active#))
+       (if (seq? content-form#)
+         [:div (doall content-form#)]
+         content-form#)
+       [:div {:style (when (and (not have-data#) min-height#)
+                       {:min-height min-height#})
+              :class (cond class# class#
 
-                         (and (not have-data#) dimmer#)
-                         "ui segment dimmer-segment")}
-      (when (or dimmer-active# (= dimmer# :fixed))
-        [:div.ui.inverted.dimmer
-         {:class (when dimmer-active# "active")}
-         [:div.ui.loader]])
-      (cond (and dimmer-active# have-data#)
-            [:div {:style {:visibility "hidden"}}
-             (if (seq? content-form#)
-               (doall content-form#)
-               content-form#)]
+                           (and (not have-data#) dimmer#)
+                           "ui segment dimmer-segment")}
+        (when (or dimmer-active# (= dimmer# :fixed))
+          [:div.ui.inverted.dimmer
+           {:class (when dimmer-active# "active")}
+           [:div.ui.loader]])
+        (cond (and dimmer-active# have-data#)
+              [:div {:style {:visibility "hidden"}}
+               (if (seq? content-form#)
+                 (doall content-form#)
+                 content-form#)]
 
-            have-data#
-            (if (seq? content-form#)
-              (doall content-form#)
-              content-form#)
+              have-data#
+              (if (seq? content-form#)
+                (doall content-form#)
+                content-form#)
 
-            :else [:div])]))
+              :else [:div])])))
 
 (defn go-route-sync-data [route-fn]
   (if-let [article-id @(subscribe [:review/editing-id])]

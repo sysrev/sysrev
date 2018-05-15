@@ -81,23 +81,19 @@
                  ;;; ClojureScript libraries
                  ;;;
                  [com.cognitect/transit-cljs "0.8.256"]
-                 [reagent "0.7.0"]
+                 [reagent "0.8.0"]
                  [re-frame "0.10.5"]
                  [day8.re-frame/http-fx "0.1.6"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.8"]
                  [cljs-http "0.1.45"]
-                 [cljsjs/jquery "3.2.1-0"]
                  ;; only provides ext.js for stripe.js
                  [cljsjs/stripe "2.0-0"]
                  ;; stripe provided form components
                  [cljsjs/react-stripe-elements "1.4.1-1"]
-                 #_ [cljsjs/semantic-ui "2.2.4-0"]
-                 ;; custom build of cljsjs/semantic-ui to use latest version
-                 ;; built from ./cljsjs/semantic-ui
-                 [org.clojars.jeffwk/semantic-ui "2.2.13-0"]
+                 [cljsjs/semantic-ui "2.2.13-0"]
                  [cljsjs/semantic-ui-react "0.78.2-0"]
-                 [cljsjs/chartjs "2.6.0-0"]
+                 [cljsjs/chartjs "2.7.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [cljsjs/clipboard "1.6.1-1"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]

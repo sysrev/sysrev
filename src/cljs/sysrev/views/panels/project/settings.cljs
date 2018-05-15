@@ -13,7 +13,7 @@
 (def ^:private panel-name [:project :project :settings])
 
 (def initial-state {:confirming? false})
-(def state (r/atom initial-state))
+(defonce state (r/atom initial-state))
 
 (defn- parse-input [skey input]
   (case skey

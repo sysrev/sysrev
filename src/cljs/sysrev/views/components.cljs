@@ -396,3 +396,14 @@
   [:div {:class (str class " vertical-column")}
    [:div.ui.middle.aligned.grid>div.row>div.middle.aligned.column
     [:div.vertical-column-content content]]])
+
+(defn TopAlignedColumn
+  "Renders a grid column that will take up the full height of its row and
+  vertically align its content to the top of the element.
+
+  This is done by wrapping the column content in a nested grid with CSS styles
+  applied to several components."
+  [content class]
+  [:div {:class (str class " vertical-column")}
+   [:div.ui.top.aligned.grid>div.row>div.top.aligned.column
+    [:div.vertical-column-content.top content]]])
