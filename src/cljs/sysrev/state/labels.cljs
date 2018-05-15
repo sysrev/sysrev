@@ -121,7 +121,7 @@
  (fn [[_ short-label project-id]]
    [(subscribe [::labels project-id])])
  (fn [[labels] [_ short-label]]
-   (->> labels
+   (->> (vals labels)
         (filter #(= (:short-label %) short-label))
         first
         :label-id)))

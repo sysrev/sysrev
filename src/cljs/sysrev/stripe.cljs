@@ -9,7 +9,7 @@
 
 (def default-state {:error-message nil})
 
-(def state (r/atom default-state))
+(defonce state (r/atom default-state))
 
 (def stripe-public-key
   (-> (.getElementById js/document "stripe-public-key")
