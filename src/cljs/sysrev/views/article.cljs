@@ -12,9 +12,11 @@
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.labels :refer
              [label-values-component article-labels-view]]
+            [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
+(def state (r/atom nil))
 (reg-sub
  ::article-annotations
  (fn [[_ article-id project-id]]
@@ -229,7 +231,12 @@
            [PDF article-id]
            [article-info-main-content article-id
             :context context])
+         [upload-container basic-text-button
+          (str "/api/files/article/" article-id "/upload-pdf")
+          #(.log js/console "success!")
+          "Upload PDF"]
          [OpenAccessAvailable article-id #(do (swap! state assoc-in [:show-pdf? article-id] (not @(r/cursor state [:show-pdf? article-id])))
-                                              (.log js/console @(r/cursor state [:show-pdf? article-id])))]]))
+                                              (.log js/console @(r/cursor state [:show-pdf? article-id])))]
+         ]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

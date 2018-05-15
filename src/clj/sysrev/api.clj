@@ -511,19 +511,18 @@
                                 article-id)]
     (cond
       ;; there is a file and it is already associated with this article
-      (not nil? article-s3-association)
+      (not (nil? article-s3-association))
       {:result {:success true
                 :key hash}}
       ;; there is a file, but it is not associated with this article
-      (not nil? s3-id)
-      (try (files/associate-s3-with-article s3-id
-                                            article-id)
+      (not (nil? s3-id))
+      (try (do (files/associate-s3-with-article s3-id
+                                                article-id)
+               {:result {:success true
+                         :key hash}})
            (catch Throwable e
              {:error {:status internal-server-error
-                      :message (.getMessage e)}})
-           (finally
-             {:result {:success true
-                       :key hash}}))
+                      :message (.getMessage e)}}))
       ;; there is a file. but not with this filename
       (and (nil? s3-id)
            (files/s3-has-key? hash))
@@ -534,13 +533,12 @@
               ;; get the new association's id
               s3-id (files/id-for-s3-filename-key-pair filename hash)]
           (files/associate-s3-with-article s3-id
-                                           article-id))
+                                           article-id)
+          {:result {:success true
+                    :key hash}})
         (catch Throwable e
           {:error {:status internal-server-error
-                   :message (.getMessage e)}})
-        (finally
-          {:result {:success true
-                    :key hash}}))
+                   :message (.getMessage e)}}))
       ;; the file does not exist in our s3 store
       (and (nil? s3-id)
            (nil? (files/s3-has-key? hash)))
@@ -552,7 +550,9 @@
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
               s3-id (files/id-for-s3-filename-key-pair filename hash)]
-          (files/associate-s3-with-article s3-id article-id))
+          (files/associate-s3-with-article s3-id article-id)
+          {:result {:success true
+                    :key hash}})
         (catch Throwable e
           {:error {:status internal-server-error
                    :message (.getMessage e)}}))

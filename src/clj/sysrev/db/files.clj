@@ -75,7 +75,7 @@
   "Given a filename and key, return the id of the relation "
   [filename key]
   (->
-   (select :s3_id)
+   (select :id)
    (from :s3store)
    (where [:and
            [:= :filename filename]
@@ -84,7 +84,7 @@
    first
    :id))
 
-;; CREATE TABLE article_pdf (s3_id integer not null references s3store (id), article_id integer not null references article (article_id) on delete cascade, unique (s3_id, article_id));
+;; CREATE TABLE article_pdf (s3_id integer not null references s3store (id) on delete cascade, article_id integer not null references article (article_id) on delete cascade, unique (s3_id, article_id));
 (defn associate-s3-with-article
   "Associate a file/key pair with an article"
   [s3-id article-id]

@@ -516,16 +516,19 @@
        [article-id]
        (api/open-access-pdf (parse-integer article-id)))
 
-  (POST "/api/project/:project-id/article/:article-id/upload-pdf"
+  (POST "/api/files/article/:article-id/upload-pdf"
         request
-        (wrap-permissions
-         request [] ["member"]
+        (wrap-authorize
+         ;; hack needed so that active-project
+         (assoc-in request [:params :project-id]
+                   (-> request :session :identity :default-project-id))
+         {:roles ["member"]}
          (let [{:keys [article-id]} (:params request)]
            (let [file-data (get-in request [:params :file])
                  file (:tempfile file-data)
                  filename (:filename file-data)
                  user-id (current-user-id request)]
-             (api/save-article-pdf article-id file filename)))))
+             (api/save-article-pdf (parse-integer article-id) file filename)))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
