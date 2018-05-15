@@ -234,7 +234,8 @@
     (with-project-cache
       project-id [:labels :all]
       (->>
-       (-> (q/select-label-where project-id true [:*])
+       (-> (q/select-label-where project-id true [:*]
+                                 {:include-disabled? true})
            do-query)
        (group-by :label-id)
        (map-values first)))))

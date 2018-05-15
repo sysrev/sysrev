@@ -170,7 +170,7 @@
   (let [div-id (taxi/attribute {:xpath xpath} :id)
         div-xpath (str "//div[@id='" div-id"']")]
     (browser/click
-     {:xpath (str div-xpath "/descendant::i[contains(@class,'remove')]")})))
+     {:xpath (str div-xpath "/descendant::div[contains(@class,'remove')]")})))
 
 (defn click-edit
   "Click the Edit button on a label describe by a string xpath"

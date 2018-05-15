@@ -159,10 +159,11 @@
              [:data :project (active-project-id @app-db) :labels])
    labels))
 
-(defn DeleteLabelButton
+(defn DisableEnableLabelButton
   [label]
-  (let [label-id (r/cursor label [:label-id])]
-    [:div.ui.small.icon.button
+  (let [label-id (r/cursor label [:label-id])
+        enabled? @(r/cursor label [:enabled])]
+    [:div.ui.small.icon.button.remove
      {:on-click #(if (string? @label-id)
                    ;; this is just an ephemeral label that hasn't been saved
                    (swap! (r/cursor state [:labels]) dissoc @label-id)
@@ -173,13 +174,17 @@
                      ;; just delete a label, even with errors in it
                      (reset! label (get (saved-labels) @label-id))
                      ;; set the label to disabled
-                     (reset! (r/cursor label [:enabled]) false)
+                     (swap! (r/cursor label [:enabled]) not)
                      ;; save the labels
                      (dispatch [:action [:labels/sync-project-labels
                                          (active-project-id @app-db)
                                          (local-labels->global-labels (get-local-labels))]])))}
-     [:i.remove.icon]
-     "Delete"]))
+     (cond (string? @label-id)
+           "Delete"
+           enabled?
+           "Disable"
+           (not enabled?)
+           "Enable")]))
 
 (defn SaveLabelButton
   [label]
@@ -562,7 +567,7 @@
      [:div.ui
       [:br]
       [SaveLabelButton label]
-      [DeleteLabelButton label]]]))
+      [DisableEnableLabelButton label]]]))
 
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "string" ...)
@@ -739,14 +744,22 @@
           name (r/cursor label [:name])
           label-id (r/cursor label [:label-id])
           admin? (or @(subscribe [:member/admin?])
-                     @(subscribe [:user/admin?]))]
+                     @(subscribe [:user/admin?]))
+          enabled? @(r/cursor label [:enabled])]
       [:div.ui.middle.aligned.grid.segment.label-item
        {:id (str @label-id)
         :on-mouse-enter #(reset! hovering? true)
         :on-mouse-leave #(reset! hovering? false)}
        [:div.row
         [ui/TopAlignedColumn
-         [:div.ui.blue.label {:style {:margin-top "2em"}}
+         [:div {:style {:margin-top "2em"}
+                :class (str (cond->
+                                "ui "
+                                enabled?
+                                (str " blue ")
+                                (not enabled?)
+                                (str " gray "))
+                            " label")}
           (str (inc i))]
          "one wide center aligned column label-index"]
         [:div.fourteen.wide.column.define-label-item
@@ -775,10 +788,17 @@
         read-only-message-closed?]
        (doall (map-indexed
                (fn [i label]
-                 ^{:key i}
+                 ^{:key (gensym i)}
                  ;; let's pass a cursor to the state
                  [LabelItem i (r/cursor state [:labels (:label-id label)])])
                (sort-by :project-ordering (filter :enabled (vals @labels)))))
+       [:h1 "Disabled Labels"]
+       (doall (map-indexed
+               (fn [i label]
+                 ^{:key (gensym i)}
+                 ;; let's pass a cursor to the state
+                 [LabelItem i (r/cursor state [:labels (:label-id label)])])
+               (sort-by :project-ordering (filter #(not (:enabled %)) (vals @labels)))))    
        (when admin?
          [:div
           [AddLabelButton "boolean"]
