@@ -22,7 +22,8 @@
             sysrev.web.routes.api.handlers
             [sysrev.web.app :refer
              [wrap-no-cache wrap-add-anti-forgery-token
-              wrap-sysrev-response not-found-response]]))
+              wrap-sysrev-response not-found-response]]
+            [sysrev.config.core :refer [env]]))
 
 (declare app-routes)
 
@@ -97,14 +98,18 @@
 (defn sysrev-handler
   "Root handler for web server"
   [& [reloadable?]]
-  (routes
-   (ANY "/web-api/*" []
-        (wrap-routes (api-routes) wrap-sysrev-api reloadable?))
-   (ANY "/api/*" []
-        (wrap-routes app-routes wrap-sysrev-app reloadable?))
-   (compojure.route/resources "/")
-   (GET "*" []
-        (wrap-routes html-routes wrap-sysrev-html reloadable?))))
+  (->>
+   (routes
+    (ANY "/web-api/*" []
+         (wrap-routes (api-routes) wrap-sysrev-api reloadable?))
+    (ANY "/api/*" []
+         (wrap-routes app-routes wrap-sysrev-app reloadable?))
+    (compojure.route/resources "/")
+    (GET "*" []
+         (wrap-routes html-routes wrap-sysrev-html reloadable?)))
+   (#(if (= :dev (-> env :profile))
+       (wrap-no-cache %)
+       %))))
 
 (defonce web-server (atom nil))
 (defonce web-port (atom nil))

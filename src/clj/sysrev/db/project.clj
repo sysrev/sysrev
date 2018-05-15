@@ -229,7 +229,7 @@
         :args (s/cat :project-id ::sc/project-id)
         :ret (s/and integer? nat-int?))
 
-(defn project-labels [project-id]
+(defn project-labels [project-id & [include-disabled?]]
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
       project-id [:labels :all]
