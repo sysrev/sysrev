@@ -519,16 +519,29 @@
   (POST "/api/files/article/:article-id/upload-pdf"
         request
         (wrap-authorize
-         ;; hack needed so that active-project
-         (assoc-in request [:params :project-id]
-                   (-> request :session :identity :default-project-id))
+         request
          {:roles ["member"]}
          (let [{:keys [article-id]} (:params request)]
            (let [file-data (get-in request [:params :file])
                  file (:tempfile file-data)
-                 filename (:filename file-data)
-                 user-id (current-user-id request)]
+                 filename (:filename file-data)]
              (api/save-article-pdf (parse-integer article-id) file filename)))))
+
+  (GET "/api/files/article/:article-id/article-pdfs"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [article-id]} (:params request)]
+          (api/article-pdfs (parse-integer article-id)))))
+
+  (GET "/api/files/article/:article-id/:key/:filename"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [key]} (:params request)]
+          (api/get-file key))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

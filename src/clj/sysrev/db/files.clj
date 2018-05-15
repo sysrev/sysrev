@@ -68,8 +68,10 @@
    (select [:key])
    (from :s3store)
    (where [:= :key key])
+   do-query
    first
-   (comp not nil?)))
+   nil?
+   not))
 
 (defn id-for-s3-filename-key-pair
   "Given a filename and key, return the id of the relation "
@@ -104,3 +106,13 @@
       do-query
       first
       :s3-id))
+
+(defn get-article-file-maps
+  "Given an article-id, return a coll of file maps that correspond to that article"
+  [article-id]
+  (-> (select :filename :key)
+      (from :s3store)
+      (where [:in :s3store.id (-> (select :s3_id)
+                                  (from :article_pdf)
+                                  (where [:= :article_id article-id]))])
+      do-query))

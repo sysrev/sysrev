@@ -7,7 +7,7 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.annotation :refer [AnnotatedText]]
-            [sysrev.pdf :as pdf :refer [PDF OpenAccessAvailable]]
+            [sysrev.pdf :as pdf :refer [PDF PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.labels :refer
@@ -231,12 +231,7 @@
            [PDF article-id]
            [article-info-main-content article-id
             :context context])
-         [upload-container basic-text-button
-          (str "/api/files/article/" article-id "/upload-pdf")
-          #(.log js/console "success!")
-          "Upload PDF"]
-         [OpenAccessAvailable article-id #(do (swap! state assoc-in [:show-pdf? article-id] (not @(r/cursor state [:show-pdf? article-id])))
-                                              (.log js/console @(r/cursor state [:show-pdf? article-id])))]
          ]))
+     [PDFs article-id]
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

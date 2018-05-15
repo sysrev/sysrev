@@ -5,6 +5,7 @@
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [me.raynes.fs :as fs]
+            [ring.util.response :as response]
             [sysrev.biosource.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.cache :refer [db-memo]]
@@ -25,7 +26,8 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values]]
-            [sysrev.biosource.predict :as predict-api]))
+            [sysrev.biosource.predict :as predict-api])
+  (:import [java.io ByteArrayInputStream]))
 
 (def default-plan "Basic")
 ;; Error code used
@@ -543,7 +545,7 @@
                    :message (.getMessage e)}}))
       ;; the file does not exist in our s3 store
       (and (nil? s3-id)
-           (nil? (files/s3-has-key? hash)))
+           (not (files/s3-has-key? hash)))
       (try
         (let [ ;; create a new file on the s3 store
               _ (s3store/save-file file)
@@ -561,26 +563,16 @@
       :else {:error {:status internal-server-error
                      :message "Unknown Processing Error Occurred."}})))
 
-;; A few issues:
-;; when a project is deleted, we never delete associated files. This is probably ok
-;; we will never delete a PDF file
-;; in sysrev.db.files, still need to write the functions.
+(defn article-pdfs
+  "Given an article-id, return a vector of maps that correspond to the files associated with article-id"
+  [article-id]
+  {:result {:success true
+            :files (files/get-article-file-maps article-id)}})
 
-;; (how can we enforce file / hash pair uniqueness in sql?)
-
-;; the s3store file will never be deleted. Before saving a file, check
-;; 1.  check if the file / hash exists, if it does we will use its index for the article-pdf entry for
-;;    a. does there already exist an entry in article-pdf for this filename/hash pair?
-;;       i. if yes, reuse it
-;;       ii. if no, create it
-;; 2. check if the hash exists, but not the filename
-;;    a. does the 
-;; if it does, we won't actually save the file to s3, we will just make a new
-;; entry for that hash / filename pair in s3store (files/insert-file-hash-s3-record)
-;; after this process, we will use the s3store index in article-pdf
-
-
-
+(defn get-file
+  "Given a key, return a file response"
+  [key]
+  (response/response (ByteArrayInputStream. (s3store/get-file key))))
 
 (defn test-response
   "Server Sanity Check"

@@ -23,7 +23,8 @@
     (when (get-user-by-api-token api-token)
       (-> request :body :project-id))
     (let [project-id (or (-> request :params :project-id)
-                         (-> request :body :project-id))]
+                         (-> request :body :project-id)
+                         (-> request :session :identity :default-project-id))]
       (cond
         (integer? project-id) project-id
         (string? project-id)  (parse-integer project-id)
