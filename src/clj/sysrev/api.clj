@@ -569,6 +569,15 @@
   {:result {:success true
             :files (files/get-article-file-maps article-id)}})
 
+(defn dissociate-pdf-article
+  "Given an article-id, file key and filename remove the association between it and this article"
+  [article-id key filename]
+  (try (do (files/dissociate-file-from-article article-id key filename)
+           {:result {:success true}})
+       (catch Throwable e
+         {:error internal-server-error
+          :message (.getMessage e)})))
+
 (defn get-file
   "Given a key, return a file response"
   [key]

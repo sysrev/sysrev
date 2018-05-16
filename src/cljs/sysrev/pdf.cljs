@@ -31,6 +31,15 @@
                     (:files result))
              {}))
 
+(def-data :pdf/delete-pdf
+  :loaded? (fn [_ [article-id _ _] _]
+             (constantly false))
+  :uri (fn [article-id key filename]
+         (str "/api/files/article/delete/" article-id "/" key "/" filename))
+  :prereqs (fn [] [[:identity]])
+  :content (fn [article-id key filename])
+  :process (fn [_ [article-id key filename] result]
+             {:dispatch [:fetch [:pdf/article-pdfs article-id]]}))
 ;; https://www.nlm.nih.gov/pubs/factsheets/dif_med_pub.html
 ;; 24 Million for NLM
 ;; 27 Million for PubMed
@@ -58,46 +67,71 @@
       ($! :GlobalWorkerOptions
           (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
 
+#_ (defn PDF
+     [article-id]
+     (let [canvas-id (random-id)
+           pdf-url (str "http://localhost:4061/api/open-access/" article-id
+                        "/pdf")]
+       (r/create-class
+        {:reagent-render
+         (fn []
+           [:div
+            [:h1 "PDF"]
+            [:canvas {:id canvas-id}]])
+         :component-did-mount
+         (fn [this]
+           (let [loadingTask ($ pdfjsLib getDocument #_(clj->js {:data
+                                                                 pdfData})
+                                pdf-url)]
+             ($ loadingTask then
+                (fn [pdf]
+                  ($ js/console log "PDF Loaded")
+                  (let [pageNumber 1]
+                    ($ ($ pdf getPage pageNumber)
+                       then
+                       (fn [page]
+                         ($ js/console log "page loaded")
+                         (let [scale 1.5
+                               viewport ($ page getViewport scale)
+                               canvas ($ js/document getElementById
+                                         canvas-id)
+                               context ($ canvas getContext "2d")
+                               _ ($! canvas :height ($ viewport :height))
+                               _ ($! canvas :width ($ viewport :width))
+                               renderContext (clj->js {:canvasContext
+                                                       context
+                                                       :viewport viewport})
+                               renderTask ($ page render renderContext)]
+                           ($ renderTask then
+                              (fn []
+                                ($ js/console log "Page Rendered")))))
+                       (fn [reason]
+                         ($ js/console error reason))))))))})))
+
 (defn PDF
-  [article-id]
-  (let [canvas-id (random-id)
-        pdf-url (str "http://localhost:4061/api/open-access/" article-id
-                     "/pdf")]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [:div
-         [:h1 "PDF"]
-         [:canvas {:id canvas-id}]])
-      :component-did-mount
-      (fn [this]
-        (let [loadingTask ($ pdfjsLib getDocument #_(clj->js {:data
-                                                              pdfData})
-                             pdf-url)]
-          ($ loadingTask then
-             (fn [pdf]
-               ($ js/console log "PDF Loaded")
-               (let [pageNumber 1]
-                 ($ ($ pdf getPage pageNumber)
-                    then
-                    (fn [page]
-                      ($ js/console log "page loaded")
-                      (let [scale 1.5
-                            viewport ($ page getViewport scale)
-                            canvas ($ js/document getElementById
-                                      canvas-id)
-                            context ($ canvas getContext "2d")
-                            _ ($! canvas :height ($ viewport :height))
-                            _ ($! canvas :width ($ viewport :width))
-                            renderContext (clj->js {:canvasContext
-                                                    context
-                                                    :viewport viewport})
-                            renderTask ($ page render renderContext)]
-                        ($ renderTask then
-                           (fn []
-                             ($ js/console log "Page Rendered")))))
-                    (fn [reason]
-                      ($ js/console error reason))))))))})))
+  [{:keys [article-id key filename]}]
+  (let [confirming? (r/atom false)]
+    (fn [{:keys [article-id key filename]}]
+      [:div
+       (when-not @confirming?
+         [:div.ui.right.labeled.icon.button
+          [:i {:class "remove icon"
+               :on-click #(reset! confirming? true)}]
+          [:div {:class "content file-link "}
+           [:a {:href (str "/api/files/article/" article-id "/" key "/" filename)
+                :target "_blank"
+                :download filename}
+            filename]]])
+       (when @confirming?
+         [:div.ui.negative.message
+          [:div.header
+           (str "Are you sure you want to delete " filename "?")]
+          [:br]
+          [:div.ui.button {:on-click #(do (reset! confirming? false)
+                                          (dispatch [:fetch [:pdf/delete-pdf article-id key filename]]))}
+           "Yes"]
+          [:div.ui.blue.button {:on-click #(reset! confirming? false)}
+           "No"]])])))
 
 (defn ArticlePDFs
   [article-id]
@@ -107,11 +141,9 @@
     (map-indexed
      (fn [i file-map]
        ^{:key (gensym i)}
-       [:div {:class "content file-link "}
-        [:a {:href (str "/api/files/article/" article-id "/" (:key file-map) "/" (:filename file-map))
-             :target "_blank"
-             :download (:filename file-map)}
-         (:filename file-map)]])
+       [PDF {:article-id article-id
+             :key (:key file-map)
+             :filename (:filename file-map)}])
      @(r/cursor state [article-id :article-pdfs])))])
 
 (defn PDFs
@@ -120,10 +152,17 @@
          :class "ui segment"}
    [:h4 {:class "ui dividing header"}
     "Article PDFs"]
-   [OpenAccessAvailable article-id #(do (swap! state assoc-in [:show-pdf? article-id] (not @(r/cursor state [:show-pdf? article-id])))
-                                        (.log js/console @(r/cursor state [:show-pdf? article-id])))]
-   [ArticlePDFs article-id]
-   [upload-container basic-text-button
-    (str "/api/files/article/" article-id "/upload-pdf")
-    #(dispatch [:fetch [:pdf/article-pdfs article-id]])
-    "Upload PDF"]])
+   [:div.ui.small.form
+    [:div.field
+     [:div.fields
+      [OpenAccessAvailable article-id #(do (swap! state assoc-in [:show-pdf? article-id] (not @(r/cursor state [:show-pdf? article-id])))
+                                           (.log js/console @(r/cursor state [:show-pdf? article-id])))]]]
+    [:div.field
+     [:div.fields
+      [ArticlePDFs article-id]]]
+    [:div.field
+     [:div.fields
+      [upload-container basic-text-button
+       (str "/api/files/article/" article-id "/upload-pdf")
+       #(dispatch [:fetch [:pdf/article-pdfs article-id]])
+       "Upload PDF"]]]]])

@@ -116,3 +116,14 @@
                                   (from :article_pdf)
                                   (where [:= :article_id article-id]))])
       do-query))
+
+(defn dissociate-file-from-article
+  "Given an article-id and key, dissociate file from article-id"
+  [article-id key filename]
+  (-> (delete-from :article_pdf)
+      (where [:= :s3_id (-> (select :id)
+                            (from :s3store)
+                            (where [:and
+                                    [:= :filename filename]
+                                    [:= :key key]]))])
+      do-execute))

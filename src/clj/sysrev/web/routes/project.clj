@@ -543,6 +543,14 @@
         (let [{:keys [key]} (:params request)]
           (api/get-file key))))
 
+  (GET "/api/files/article/delete/:article-id/:key/:filename"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [article-id key filename]} (:params request)]
+          (api/dissociate-pdf-article article-id key filename))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize
