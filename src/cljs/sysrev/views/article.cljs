@@ -7,7 +7,7 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.annotation :refer [AnnotatedText]]
-            [sysrev.pdf :as pdf :refer [PDF PDFs]]
+            [sysrev.pdf :as pdf :refer [PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.labels :refer
@@ -227,11 +227,8 @@
         (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}
-         (if @(r/cursor state [:show-pdf? article-id])
-           [PDF article-id]
-           [article-info-main-content article-id
-            :context context])
-         ]))
+         [article-info-main-content article-id
+          :context context]]))
      [PDFs article-id]
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

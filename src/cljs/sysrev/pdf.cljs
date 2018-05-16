@@ -1,11 +1,32 @@
 (ns sysrev.pdf
   (:require ;;[cljsjs.pdfjs]
+   [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer [dispatch]]
    [sysrev.data.core :refer [def-data]]
    [sysrev.util :refer [random-id]]
    [sysrev.views.upload :refer [upload-container basic-text-button]])
   (:require-macros [reagent.interop :refer [$ $!]]))
+
+(def semantic-ui js/semanticUIReact)
+(def Button (r/adapt-react-class (goog.object/get semantic-ui "Button")))
+(def Header (r/adapt-react-class (goog.object/get semantic-ui "Header")))
+(def ModalHeader (r/adapt-react-class
+                  ($ (goog.object/get semantic-ui "Modal")
+                     :Header)))
+(def ModalContent (r/adapt-react-class
+                   ($ (goog.object/get semantic-ui "Modal")
+                      :Content)))
+(def ModalDescription (r/adapt-react-class
+                       ($ (goog.object/get semantic-ui "Modal")
+                          :Description)))
+
+(def Modal (r/adapt-react-class (goog.object/get semantic-ui "Modal")))
+
+(defn PDFModal
+  [{:keys [trigger]} child]
+  [Modal {:trigger (r/as-element trigger)}
+   [ModalContent child]])
 
 (def state (r/atom nil))
 
@@ -35,7 +56,7 @@
   :loaded? (fn [_ [article-id _ _] _]
              (constantly false))
   :uri (fn [article-id key filename]
-         (str "/api/files/article/delete/" article-id "/" key "/" filename))
+         (str "/api/files/article/" article-id "/delete/" key "/" filename))
   :prereqs (fn [] [[:identity]])
   :content (fn [article-id key filename])
   :process (fn [_ [article-id key filename] result]
@@ -51,27 +72,16 @@
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
 
-(defn OpenAccessAvailable
-  [article-id on-click]
-  (let [available? @(r/cursor state [:open-access-available? article-id])]
-    (when (nil? available?)
-      (dispatch [:fetch [:pdf/open-access-available? article-id]]))
-    (if available?
-      [:div.ui.basic.button {:on-click on-click} "Open Access PDF"]
-      [:span {:class "empty"
-              :style {:display "none"}}])))
-
 (def pdfjsLib
   (doto
       (goog.object/get js/window "pdfjs-dist/build/pdf")
       ($! :GlobalWorkerOptions
           (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
 
-#_ (defn PDF
-     [article-id]
-     (let [canvas-id (random-id)
-           pdf-url (str "http://localhost:4061/api/open-access/" article-id
-                        "/pdf")]
+(defn ViewPDF
+  "Given a PDF URL, view it"
+     [pdf-url]
+     (let [canvas-id (random-id)]
        (r/create-class
         {:reagent-render
          (fn []
@@ -80,9 +90,7 @@
             [:canvas {:id canvas-id}]])
          :component-did-mount
          (fn [this]
-           (let [loadingTask ($ pdfjsLib getDocument #_(clj->js {:data
-                                                                 pdfData})
-                                pdf-url)]
+           (let [loadingTask ($ pdfjsLib getDocument pdf-url)]
              ($ loadingTask then
                 (fn [pdf]
                   ($ js/console log "PDF Loaded")
@@ -108,20 +116,47 @@
                        (fn [reason]
                          ($ js/console error reason))))))))})))
 
-(defn PDF
+(defn view-open-access-pdf-url
+  [article-id]
+  (str "/api/open-access/" article-id "/view"))
+
+(defn OpenAccessPDF
+  [article-id on-click]
+  (let [available? @(r/cursor state [article-id :open-access-available?])]
+    (when (nil? available?)
+      (dispatch [:fetch [:pdf/open-access-available? article-id]]))
+    (if available?
+      [:button.ui.button
+       [PDFModal {:trigger [:a {:on-click #(.preventDefault %)} "Open Access PDF"]}
+        [ViewPDF (view-open-access-pdf-url article-id)]]]
+      [:span {:class "empty"
+              :style {:display "none"}}])))
+
+
+(defn view-s3-pdf-url
+  [article-id key filename]
+  (str "/api/files/article/" article-id  "/view/" key "/" filename))
+
+(defn S3PDF
   [{:keys [article-id key filename]}]
   (let [confirming? (r/atom false)]
     (fn [{:keys [article-id key filename]}]
-      [:div
+      [:div {:style {:margin-top "1em"}}
        (when-not @confirming?
-         [:div.ui.right.labeled.icon.button
-          [:i {:class "remove icon"
-               :on-click #(reset! confirming? true)}]
-          [:div {:class "content file-link "}
-           [:a {:href (str "/api/files/article/" article-id "/" key "/" filename)
-                :target "_blank"
-                :download filename}
-            filename]]])
+         [:div.ui.buttons
+          [:button.ui.button
+           [PDFModal {:trigger [:a {:on-click #(.preventDefault %)}
+                                    filename]}
+            [ViewPDF (view-s3-pdf-url article-id key filename)]]]
+          [:button.ui.button
+           [:i {:class "remove icon"
+                :on-click #(reset! confirming? true)}]]
+
+          #_[:div {:class "content file-link "}
+             [:a {:href (str "/api/files/article/" article-id "/" key "/" filename)
+                  :target "_blank"
+                  :download filename}
+              filename]]])
        (when @confirming?
          [:div.ui.negative.message
           [:div.header
@@ -141,7 +176,7 @@
     (map-indexed
      (fn [i file-map]
        ^{:key (gensym i)}
-       [PDF {:article-id article-id
+       [S3PDF {:article-id article-id
              :key (:key file-map)
              :filename (:filename file-map)}])
      @(r/cursor state [article-id :article-pdfs])))])
@@ -155,8 +190,7 @@
    [:div.ui.small.form
     [:div.field
      [:div.fields
-      [OpenAccessAvailable article-id #(do (swap! state assoc-in [:show-pdf? article-id] (not @(r/cursor state [:show-pdf? article-id])))
-                                           (.log js/console @(r/cursor state [:show-pdf? article-id])))]]]
+      [OpenAccessPDF article-id]]]
     [:div.field
      [:div.fields
       [ArticlePDFs article-id]]]

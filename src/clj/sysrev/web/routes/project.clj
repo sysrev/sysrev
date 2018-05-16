@@ -512,7 +512,7 @@
   (GET "/api/open-access/:article-id/availability" [article-id]
        (api/open-access-available? (parse-integer article-id)))
 
-  (GET "/api/open-access/:article-id/pdf"
+  (GET "/api/open-access/:article-id/view"
        [article-id]
        (api/open-access-pdf (parse-integer article-id)))
 
@@ -535,15 +535,23 @@
         (let [{:keys [article-id]} (:params request)]
           (api/article-pdfs (parse-integer article-id)))))
 
-  (GET "/api/files/article/:article-id/:key/:filename"
+  (GET "/api/files/article/:article-id/download/:key/:filename"
        request
        (wrap-authorize
         request
         {:roles ["member"]}
         (let [{:keys [key]} (:params request)]
-          (api/get-file key))))
+          (api/get-s3-file key))))
 
-  (GET "/api/files/article/delete/:article-id/:key/:filename"
+  (GET "/api/files/article/:article-id/view/:key/:filename"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [key]} (:params request)]
+          (api/view-s3-pdf key))))
+
+  (GET "/api/files/article/:article-id/delete/:key/:filename"
        request
        (wrap-authorize
         request

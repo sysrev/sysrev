@@ -578,10 +578,23 @@
          {:error internal-server-error
           :message (.getMessage e)})))
 
-(defn get-file
+(defn get-s3-file
   "Given a key, return a file response"
   [key]
-  (response/response (ByteArrayInputStream. (s3store/get-file key))))
+  (try
+    (response/response (ByteArrayInputStream. (s3store/get-file key)))
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
+
+(defn view-s3-pdf
+  [key]
+  (try
+    {:headers {"Content-Type" "application/pdf"}
+     :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
 (defn test-response
   "Server Sanity Check"
