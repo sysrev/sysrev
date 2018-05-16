@@ -750,6 +750,7 @@
                (where [:and
                        [:= :a.project-id project-id]
                        [:= :a.enabled true]
+                       [:= :l.enabled true]
                        [:!= :al.confirm-time nil]
                        [:!= :al.answer nil]])
                (->> (do-query)

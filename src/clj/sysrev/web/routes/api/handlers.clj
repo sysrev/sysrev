@@ -292,7 +292,7 @@
   (fn [request]
     (let [{:keys [project-id] :as body}
           (-> request :body)]
-      {:result (project/project-labels project-id)})))
+      {:result (project/project-labels project-id true)})))
 
 (def-webapi
   :delete-label :post

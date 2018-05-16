@@ -332,7 +332,7 @@
     ;; labels must be valid
     (if (all-labels-valid? client-labels)
       ;; labels are valid
-      (let [server-labels (set (vals (project/project-labels project-id)))
+      (let [server-labels (set (vals (project/project-labels project-id true)))
             ;; new labels are given a randomly generated string id on
             ;; the client, so labels that are non-existent on the server
             ;; will have string as opposed to UUID label-ids
@@ -360,7 +360,7 @@
                                                  (:label-id %) %)
                       modified-client-labels)))
         {:result {:valid? true
-                  :labels (project/project-labels project-id)}})
+                  :labels (project/project-labels project-id true)}})
       ;; labels are invalid
       {:result {:valid? false
                 :labels

@@ -107,7 +107,7 @@
                          :status-counts status-counts
                          :predict predict
                          :progress progress}
-                 :labels (project/project-labels project-id)
+                 :labels (project/project-labels project-id true)
                  :keywords keywords
                  :notes notes
                  :settings (:settings fields)

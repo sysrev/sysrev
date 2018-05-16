@@ -235,13 +235,14 @@
       project-id [:labels :all]
       (->>
        (-> (q/select-label-where project-id true [:*]
-                                 {:include-disabled? true})
+                                 {:include-disabled? include-disabled?})
            do-query)
        (group-by :label-id)
        (map-values first)))))
 ;;
 (s/fdef project-labels
-        :args (s/cat :project-id ::sc/project-id)
+        :args (s/cat :project-id ::sc/project-id
+                     :include-disabled? (s/? (s/nilable boolean?)))
         :ret (s/map-of ::sc/label-id ::sl/label))
 
 (defn project-overall-label-id [project-id]
