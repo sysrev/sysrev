@@ -397,8 +397,9 @@
   [project-id]
   (db/with-project-cache
     project-id [:prediction-histogram]
-    (let [prediction-scores (->> (articles/project-prediction-scores project-id)
-                                 (mapv #(assoc % :rounded-score (util/round 2 (:val %)))))
+    (let [all-score-vals (->> (range 0 1 0.02) (mapv #(util/truncate-to 0.02 2 %)))
+          prediction-scores (->> (articles/project-prediction-scores project-id)
+                                 (mapv #(assoc % :rounded-score (->> (:val %) (util/truncate-to 0.02 2)))))
           predictions-map (zipmap (mapv :article-id prediction-scores)
                                   (mapv :rounded-score prediction-scores))
           project-article-statuses (labels/project-article-statuses project-id)
@@ -421,18 +422,30 @@
                                                       (get-rounded-score-fn %))
                                            unreviewed-articles)
           histogram-fn (fn [scores]
-                         (->> scores
-                              (group-by :rounded-score)
-                              (mapv #(hash-map :score (first %)
-                                               :count (count (second %))))))]
+                         (let [score-counts (->> scores
+                                                 (group-by :rounded-score)
+                                                 (map-values count))]
+                           (->> all-score-vals
+                                (mapv (fn [score]
+                                        {:score score
+                                         :count (get score-counts score 0)}))
+                                ;; trim empty sequences at start and end
+                                (drop-while #(= 0 (:count %)))
+                                reverse
+                                (drop-while #(= 0 (:count %)))
+                                reverse
+                                vec)))]
       (if-not (empty? prediction-scores)
         {:result
          {:prediction-histograms
-          {:reviewed-include-histogram (histogram-fn (filterv #(= (:answer %)
-                                                                  true) reviewed-articles-scores))
-           :reviewed-exclude-histogram (histogram-fn (filterv #(= (:answer %)
-                                                                  false) reviewed-articles-scores))
-           :unreviewed-histogram (histogram-fn unreviewed-articles-scores)}}}
+          {:reviewed-include-histogram
+           (histogram-fn (filterv #(true? (:answer %))
+                                  reviewed-articles-scores))
+           :reviewed-exclude-histogram
+           (histogram-fn (filterv #(false? (:answer %))
+                                  reviewed-articles-scores))
+           :unreviewed-histogram
+           (histogram-fn unreviewed-articles-scores)}}}
         {:result
          {:prediction-histograms
           {:reviewed-include-histogram []

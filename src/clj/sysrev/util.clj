@@ -170,6 +170,27 @@
   (let [factor (Math/pow 10 precision)]
     (/ (Math/round (* d factor)) factor)))
 
+(defn round-to
+  "Round a double to the closest multiple of `interval`, then round to
+  `precision` (number of significant digits)."
+  [interval precision d]
+  (->> (* interval (Math/round (* d (/ 1 interval))))
+       (round precision)))
+
+(defn truncate-to
+  "Truncate a double to the closest multiple of `interval`, then round to
+  `precision` (number of significant digits)."
+  [interval precision d]
+  (->> (* interval (Math/floor (/ d interval)))
+       (round precision)))
+
+(defn ceil-to
+  "Ceil a double to the closest multiple of `interval`, then round to
+  `precision` (number of significant digits)."
+  [interval precision d]
+  (->> (* interval (Math/ceil (/ d interval)))
+       (round precision)))
+
 ;; see: https://gist.github.com/jizhang/4325757
 (defn md5 [^String s]
   (let [algorithm (MessageDigest/getInstance "MD5")
