@@ -16,9 +16,13 @@
 (defn- user-theme [request]
   (let [{{{:keys [user-id] :as identity} :identity
           :as session} :session} request]
-    (or (some-> user-id (users/get-user-by-id) :settings :ui-theme
-                str/lower-case)
-        "default")))
+    (if user-id
+      (or (some-> user-id (users/get-user-by-id) :settings :ui-theme
+                  str/lower-case)
+          "default")
+      (or (some-> session :settings :ui-theme
+                  str/lower-case)
+          "default"))))
 
 (defn css-paths [& {:keys [theme] :or {theme "default"}}]
   [(format "/semantic/%s/semantic.min.css" theme)
