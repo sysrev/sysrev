@@ -611,7 +611,8 @@
                            :scaleLabel {:fontColor font-color}}]
                   :yAxes [{:ticks {:fontColor font-color}
                            :scaleLabel {:fontColor font-color}}]}
-                 :legend {:labels {:fontColor font-color}}}}]]))
+                 :legend {:labels {:fontColor font-color}}}
+       :height 170}]]))
 
 (defn PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]
