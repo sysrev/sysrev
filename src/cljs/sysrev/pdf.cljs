@@ -92,13 +92,16 @@
       ($! :GlobalWorkerOptions
           (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
 
-;; based on various examples provided by the authors of  pdf.js
+;; based on various examples provided by the authors of pdf.js
 ;; see: http://mozilla.github.io/pdf.js/examples/index.html#interactive-examples
 ;;      https://github.com/mozilla/pdf.js/tree/master/examples/components
 ;;      https://github.com/mozilla/pdf.js/blob/master/examples/components/simpleviewer.js
 ;;      https://github.com/mozilla/pdf.js/blob/master/examples/components/pageviewer.js
 ;; see also:
 ;;      https://github.com/vivin/pdfjs-text-selection-demo/blob/master/js/minimal.js
+
+;; this was ultimately based off of
+;; https://github.com/mozilla/pdf.js/blob/master/examples/components/pageviewer.js
 (defn render-page
   "Render page num"
   [num]
