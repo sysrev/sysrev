@@ -47,7 +47,9 @@
           :size "large"
           :on-close (fn []
                       (reset! (r/cursor state [:pdf-view]) initial-pdf-view-state))}
-   [ModalContent child]])
+   ;;[ModalContent child]
+   child
+   ])
 
 (def-data :pdf/open-access-available?
   :loaded? (fn [_ article-id _]
@@ -97,49 +99,13 @@
       ($! :GlobalWorkerOptions
           (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
 
-#_(defn ViewPDF
-    "Given a PDF URL, view it"
-    [pdf-url]
-    (let [canvas-id (random-id)
-          current-page (r/cursor state [:current-page])]
-      (r/create-class
-       {:reagent-render
-        (fn []
-          [:div
-           [:button.ui.button
-            {:on-click #(swap! current-page dec)}
-            "Previous Page"]
-           [:button.ui.button
-            {:on-click #(swap! current-page inc)} "Next Page"]
-           [:canvas {:id canvas-id}]])
-        :component-did-mount
-        (fn [this]
-          (let [loadingTask ($ pdfjsLib getDocument pdf-url)]
-            ($ loadingTask then
-               (fn [pdf]
-                 ($ js/console log "PDF Loaded")
-                 (let [pageNumber @current-page]
-                   ($ ($ pdf getPage pageNumber)
-                      then
-                      (fn [page]
-                        ($ js/console log "page loaded")
-                        (let [scale 1.5
-                              viewport ($ page getViewport scale)
-                              canvas ($ js/document getElementById
-                                        canvas-id)
-                              context ($ canvas getContext "2d")
-                              _ ($! canvas :height ($ viewport :height))
-                              _ ($! canvas :width ($ viewport :width))
-                              renderContext (clj->js {:canvasContext
-                                                      context
-                                                      :viewport viewport})
-                              renderTask ($ page render renderContext)]
-                          ($ renderTask then
-                             (fn []
-                               ($ js/console log "Page Rendered")))))
-                      (fn [reason]
-                        ($ js/console error reason))))))))})))
-
+;; based on various examples provided by the authors of  pdf.js
+;; see: http://mozilla.github.io/pdf.js/examples/index.html#interactive-examples
+;;      https://github.com/mozilla/pdf.js/tree/master/examples/components
+;;      https://github.com/mozilla/pdf.js/blob/master/examples/components/simpleviewer.js
+;;      https://github.com/mozilla/pdf.js/blob/master/examples/components/pageviewer.js
+;; see also:
+;;      https://github.com/vivin/pdfjs-text-selection-demo/blob/master/js/minimal.js
 (defn render-page
   "Get page info, resize canvas accordingly, and render page"
   [num]
@@ -154,19 +120,28 @@
                   (let [scale (r/cursor state [:pdf-view :scale])
                         viewport ($ page getViewport @scale)
                         canvas ($ js/document getElementById @(r/cursor state [:pdf-view :canvas-id]))
-                        context ($ canvas getContext "2d")]
+                        #_#_ context ($ canvas getContext "2d")]
                     ;; set the canvas dimensions
-                    ($! canvas :height ($ viewport :height))
-                    ($! canvas :width ($ viewport :width))
-                    (let [render-task ($ page render (clj->js {:canvasContext context
-                                                               :viewport viewport}))]
-                      (-> ($ render-task :promise)
-                          ($ then
-                             (fn []
-                               (reset! page-rendering false)
-                               (if (not (nil? @page-num-pending))
-                                 (render-page @page-num-pending)
-                                 (reset! page-num-pending nil))))))))))))
+                    #_ ($! canvas :height ($ viewport :height))
+                    #_ ($! canvas :width ($ viewport :width))
+                    #_(let [render-task ($ page render (clj->js {:canvasContext context
+                                                                 :viewport viewport}))]
+                        (-> ($ render-task :promise)
+                            ($ then
+                               (fn []
+                                 (reset! page-rendering false)
+                                 (if (not (nil? @page-num-pending))
+                                   (render-page @page-num-pending)
+                                   (reset! page-num-pending nil))))))
+                    (let [pdf-page-view (js/pdfjsViewer.PDFPageView.
+                                         (clj->js {:container canvas
+                                                   :id num
+                                                   :scale @scale
+                                                   :defaultViewport ($ page getViewport @scale)
+                                                   :textLayerFactory (js/pdfjsViewer.DefaultTextLayerFactory.)
+                                                   :annotationLayerFactory (js/pdfjsViewer.DefaultAnnotationLayerFactory.)}))]
+                      ($ pdf-page-view setPdfPage page)
+                      ($ pdf-page-view draw))))))))
 
 (defn queue-render-page
   "If another page rendering is in progress, waits until the rendering is finished. Otherwise, execute rendering immediately"
@@ -202,7 +177,8 @@
                            (queue-render-page @page-num)))} "Next Page"]
           (when-not (nil? @page-count)
             [:p (str "Page " @page-num " / " @page-count)])]
-         [:canvas {:id canvas-id}]])
+         [:div {:style {:position "relative"}}
+          [:div {:id canvas-id}]]])
       :component-did-mount
       (fn [this]
         (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])
