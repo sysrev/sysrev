@@ -34,14 +34,20 @@
 
 (def Modal (r/adapt-react-class (goog.object/get semantic-ui "Modal")))
 
+;; this in lieu of an externs file
+(def pdfjsViewer js/pdfjsViewer)
+(def PDFPageView ($ pdfjsViewer :PDFPageView))
+(def DefaultTextLayerFactory ($ pdfjsViewer :DefaultTextLayerFactory))
+(def DefaultAnnotationLayerFactory ($ pdfjsViewer :DefaultAnnotationLayerFactory))
+
 (defn PDFModal
   [{:keys [trigger]} child]
   [Modal {:trigger (r/as-element trigger)
-          :size "large"
+          :size "fullscreen"
           :on-close (fn []
                       (reset! (r/cursor state [:pdf-view]) initial-pdf-view-state))}
-   ;;[ModalContent child]
-   child
+   [ModalContent child]
+   ;;child
    ])
 
 (def-data :pdf/open-access-available?
@@ -124,13 +130,16 @@
 
                     ;; remove previous divs that were in place
                     (dom/removeChildren container)
-                    (let [pdf-page-view (js/pdfjsViewer.PDFPageView.
-                                         (clj->js {:container container
-                                                   :id num
-                                                   :scale @scale
-                                                   :defaultViewport ($ page getViewport @scale)
-                                                   :textLayerFactory (js/pdfjsViewer.DefaultTextLayerFactory.)
-                                                   :annotationLayerFactory (js/pdfjsViewer.DefaultAnnotationLayerFactory.)}))]
+                    (let [pdf-page-view
+                          (PDFPageView.
+                           (clj->js {:container container
+                                     :id num
+                                     :scale @scale
+                                     :defaultViewport ($ page getViewport @scale)
+                                     :textLayerFactory
+                                     (DefaultTextLayerFactory.)
+                                     :annotationLayerFactory
+                                     (DefaultAnnotationLayerFactory.)}))]
                       ($ pdf-page-view setPdfPage page)
                       ($ pdf-page-view draw)
                       (reset! page-rendering false)
