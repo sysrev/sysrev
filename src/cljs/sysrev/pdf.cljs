@@ -1,6 +1,7 @@
 (ns sysrev.pdf
   (:require ;;[cljsjs.pdfjs]
    [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+   [goog.dom :as dom]
    [reagent.core :as r]
    [re-frame.core :as re-frame :refer [dispatch]]
    [sysrev.data.core :refer [def-data]]
@@ -14,7 +15,7 @@
                              :page-rendering false
                              :page-num-pending nil
                              :scale 1.5
-                             :canvas-id nil})
+                             :container-id nil})
 
 (def state (r/atom {:pdf-view initial-pdf-view-state}))
 
@@ -32,14 +33,6 @@
                           :Description)))
 
 (def Modal (r/adapt-react-class (goog.object/get semantic-ui "Modal")))
-
-;; this should be changed
-;; (def PdfLoader (r/adapt-react-class js/PdfLoader))
-;; (def PdfAnnotator (r/adapt-react-class js/PdfAnnotator))
-;; (def Tip (r/adapt-react-class js/Tip))
-;; (def Highlight (r/adapt-react-class js/Highlight))
-;; (def Popup (r/adapt-react-class js/Popup))
-;; (def AreaHighlight (r/adapt-react-class js/AreaHighlight))
 
 (defn PDFModal
   [{:keys [trigger]} child]
@@ -107,7 +100,7 @@
 ;; see also:
 ;;      https://github.com/vivin/pdfjs-text-selection-demo/blob/master/js/minimal.js
 (defn render-page
-  "Get page info, resize canvas accordingly, and render page"
+  "Render page num"
   [num]
   ;; this should probably be more function, render-page should take a pdf object
   (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])
@@ -116,32 +109,29 @@
     (reset! page-rendering true)
     (-> ($ @pdf-doc getPage num)
         ($ then (fn [page]
-                  ;; this could could be more functional by including canvas as the parameter in render page
+                  ;; this could could be more functional by including container as the parameter in render page
                   (let [scale (r/cursor state [:pdf-view :scale])
-                        viewport ($ page getViewport @scale)
-                        canvas ($ js/document getElementById @(r/cursor state [:pdf-view :canvas-id]))
-                        #_#_ context ($ canvas getContext "2d")]
-                    ;; set the canvas dimensions
-                    #_ ($! canvas :height ($ viewport :height))
-                    #_ ($! canvas :width ($ viewport :width))
-                    #_(let [render-task ($ page render (clj->js {:canvasContext context
-                                                                 :viewport viewport}))]
-                        (-> ($ render-task :promise)
-                            ($ then
-                               (fn []
-                                 (reset! page-rendering false)
-                                 (if (not (nil? @page-num-pending))
-                                   (render-page @page-num-pending)
-                                   (reset! page-num-pending nil))))))
+                        ;;viewport ($ page getViewport @scale)
+                        container ($ js/document getElementById @(r/cursor state [:pdf-view :container-id]))
+                        ;; context ($ container getContext "2d")
+                        ]
+                    ;; set the container dimensions
+                    #_ ($! container :height ($ viewport :height))
+                    #_ ($! container :width ($ viewport :width))
+
+                    ;; remove previous divs that were in place
+                    (dom/removeChildren container)
                     (let [pdf-page-view (js/pdfjsViewer.PDFPageView.
-                                         (clj->js {:container canvas
+                                         (clj->js {:container container
                                                    :id num
                                                    :scale @scale
                                                    :defaultViewport ($ page getViewport @scale)
                                                    :textLayerFactory (js/pdfjsViewer.DefaultTextLayerFactory.)
                                                    :annotationLayerFactory (js/pdfjsViewer.DefaultAnnotationLayerFactory.)}))]
                       ($ pdf-page-view setPdfPage page)
-                      ($ pdf-page-view draw))))))))
+                      ($ pdf-page-view draw)
+                      (reset! page-rendering false)
+                      (reset! page-num-pending nil))))))))
 
 (defn queue-render-page
   "If another page rendering is in progress, waits until the rendering is finished. Otherwise, execute rendering immediately"
@@ -155,8 +145,8 @@
 (defn ViewPDF
   "Given a PDF URL, view it"
   [pdf-url]
-  (let [canvas-id (random-id)
-        _ (reset! (r/cursor state [:pdf-view :canvas-id]) canvas-id)
+  (let [container-id (random-id)
+        _ (reset! (r/cursor state [:pdf-view :container-id]) container-id)
         page-num (r/cursor state [:pdf-view :page-num])
         page-count (r/cursor state [:pdf-view :page-count])]
     (r/create-class
@@ -178,7 +168,7 @@
           (when-not (nil? @page-count)
             [:p (str "Page " @page-num " / " @page-count)])]
          [:div {:style {:position "relative"}}
-          [:div {:id canvas-id}]]])
+          [:div {:id container-id}]]])
       :component-did-mount
       (fn [this]
         (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])
@@ -222,10 +212,9 @@
          [:div.ui.buttons
           [:button.ui.button
            filename]
-          [:button.ui.button
-           [PDFModal {:trigger [:a {:on-click #(.preventDefault %)}
-                                "View"]}
-            [ViewPDF (view-s3-pdf-url article-id key filename)]]]
+          [PDFModal {:trigger [:button.ui.button {:on-click #(.preventDefault %)}
+                               "View"]}
+           [ViewPDF (view-s3-pdf-url article-id key filename)]]
           [:button.ui.button
            [:a {:href (str "/api/files/article/" article-id "/download/" key "/" filename)
                 :target "_blank"
