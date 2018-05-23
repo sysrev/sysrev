@@ -1,5 +1,5 @@
 (ns sysrev.pdf
-  (:require ;;[cljsjs.pdfjs]
+  (:require
    [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
    [goog.dom :as dom]
    [reagent.core :as r]
@@ -46,9 +46,7 @@
           :size "fullscreen"
           :on-close (fn []
                       (reset! (r/cursor state [:pdf-view]) initial-pdf-view-state))}
-   [ModalContent child]
-   ;;child
-   ])
+   [ModalContent child]])
 
 (def-data :pdf/open-access-available?
   :loaded? (fn [_ article-id _]
@@ -92,11 +90,11 @@
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
 
-(def pdfjsLib
-  (doto
-      (goog.object/get js/window "pdfjs-dist/build/pdf")
-      ($! :GlobalWorkerOptions
-          (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
+#_(def pdfjsLib
+    (doto
+        (goog.object/get js/window "pdfjs-dist/build/pdf")
+        ($! :GlobalWorkerOptions
+            (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
 
 ;; based on various examples provided by the authors of pdf.js
 ;; see: http://mozilla.github.io/pdf.js/examples/index.html#interactive-examples
@@ -185,7 +183,10 @@
       (fn [this]
         (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])
               page-count (r/cursor state [:pdf-view :page-count])
-              loadingTask (-> ($ pdfjsLib getDocument pdf-url)
+              loadingTask (-> (doto ($ js/pdfjsLib getDocument pdf-url)
+                                ($! :GlobalWorkerOptions
+                                    (clj->js ;;{:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}
+                                     {:workerSrc "/out/cljsjs/pdfjs-cljs/development/pdf.worker.inc.js"})))
                               ($ then
                                  (fn [pdf]
                                    (reset! pdf-doc
