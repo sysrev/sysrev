@@ -6,7 +6,7 @@
    [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
    [sysrev.shared.util :refer [parse-integer]]
    [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
-   [sysrev.nav :refer [nav nav-scroll-top]]
+   [sysrev.nav :refer [nav nav-scroll-top nav-redirect]]
    [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
                    [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
@@ -28,9 +28,11 @@
                    (let [project-id (or @recent-project-id
                                         @default-project-id)]
                      (if (integer? project-id)
-                       (nav-scroll-top (project-uri project-id ""))
-                       (nav-scroll-top "/select-project")))
-                   (nav-scroll-top "/login"))]
+                       (nav-redirect (project-uri project-id "")
+                                     :scroll-top? true)
+                       (nav-redirect "/select-project"
+                                     :scroll-top? true)))
+                   (nav-redirect "/login" :scroll-top? true))]
    (if @(subscribe [:have? [:identity]])
      (on-ready)
      (dispatch

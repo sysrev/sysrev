@@ -5,7 +5,7 @@
             [reagent.ratom :refer [reaction]]
             [sysrev.base :refer [active-route]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.nav :refer [nav-scroll-top nav-redirect]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.util :refer
@@ -306,13 +306,13 @@
 
 (defmethod panel-content [:login] []
   (fn [child]
-    (nav-scroll-top "/")
+    (nav-redirect "/" :scroll-top? true)
     [:div]))
 
 (defmethod panel-content [:register] []
   (fn [child]
     (if (and (nil? @(subscribe [:register/project-id]))
              (nil? @(subscribe [:register/register-hash])))
-      (do (nav-scroll-top "/")
+      (do (nav-redirect "/" :scroll-top? true)
           [:div])
       [join-project-panel])))

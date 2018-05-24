@@ -13,6 +13,13 @@
   [route]
   (pushy/set-token! history route))
 
+(defn nav-redirect
+  "Change the current route and remove from HTML5 history stack."
+  [route & {:keys [scroll-top?]}]
+  (pushy/replace-token! history route)
+  (when scroll-top?
+    (scroll-top)))
+
 (defn nav-scroll-top
   "Change the current route then scroll to top of page."
   [route]

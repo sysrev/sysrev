@@ -639,8 +639,9 @@
         has-articles? @(subscribe [:project/has-articles?])]
     [:div.project-content
      (if (false? has-articles?)
-       (do (nav/nav-scroll-top
-            (project-uri project-id "/add-articles"))
+       (do (nav/nav-redirect
+            (project-uri project-id "/add-articles")
+            :scroll-top? true)
            [:div])
        [ProjectOverviewContent])
      child]))
