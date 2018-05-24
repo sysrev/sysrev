@@ -3,6 +3,7 @@
    [cljsjs.jquery]
    [cljsjs.semantic-ui]
    [reagent.core :as r]
+   [sysrev.pdf]
    [sysrev.views.article]
    [sysrev.views.base :refer
     [panel-content logged-out-content render-panel-tree]]

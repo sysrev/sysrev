@@ -192,7 +192,48 @@
        (round precision)))
 
 ;; see: https://gist.github.com/jizhang/4325757
-(defn md5 [^String s]
+(defn byte-array->md5-hash
+  "Convert a byte-array into an md5 hash"
+  [^"[B" bytes]
   (let [algorithm (MessageDigest/getInstance "MD5")
-        raw (.digest algorithm (.getBytes s))]
+        raw (.digest algorithm bytes)]
     (format "%032x" (BigInteger. 1 raw))))
+
+(defn string->md5-hash
+  "Convert a string into an md5 hash"
+  [^String s]
+  (byte-array->md5-hash (.getBytes s)))
+
+(defn byte-array->sha-1-hash
+  "Convert a byte-array into an md5 hash"
+  [^"[B" bytes]
+  (let [algorithm (MessageDigest/getInstance "SHA-1")
+        raw (.digest algorithm bytes)]
+    (format "%x" (BigInteger. 1 raw))))
+
+(defn string->sha-1-hash
+  "Convert a string into a sha-1 hash"
+  [^String s]
+  (byte-array->sha-1-hash (.getBytes s)))
+
+(defn file->byte-array
+  "Convert a file into a byte-array"
+  [^java.io.File file]
+  (let [ary (byte-array (.length file))
+        is (java.io.FileInputStream. file)]
+    (.read is ary) (.close is) ary))
+
+(defn file->sha-1-hash
+  "Convert a file into a sha-1 hash"
+  [^java.io.File file]
+  (-> file
+      file->byte-array
+      byte-array->sha-1-hash))
+
+(defn slurp-bytes
+  "Slurp the bytes from a slurpable thing.
+  Taken from http://stackoverflow.com/a/26372677"
+  [x]
+  (with-open [out (java.io.ByteArrayOutputStream.)]
+    (clojure.java.io/copy (clojure.java.io/input-stream x) out)
+    (.toByteArray out)))

@@ -50,3 +50,78 @@
       (do-execute))
   (when project-id
     (clear-project-cache project-id)))
+
+(defn insert-file-hash-s3-record
+  "Given a filename and key, insert a record for it in the db"
+  [filename key]
+  (-> (insert-into :s3store)
+      (values [{:filename filename
+                :key key}])
+      (do-execute)))
+
+(defn s3-has-key?
+  "Does the s3store have a file with key?"
+  [key]
+  (->
+   ;;the hash of a file is used as it's key
+   (select [:key])
+   (from :s3store)
+   (where [:= :key key])
+   do-query
+   first
+   nil?
+   not))
+
+(defn id-for-s3-filename-key-pair
+  "Given a filename and key, return the id of the relation "
+  [filename key]
+  (->
+   (select :id)
+   (from :s3store)
+   (where [:and
+           [:= :filename filename]
+           [:= :key key]])
+   do-query
+   first
+   :id))
+
+(defn associate-s3-with-article
+  "Associate a file/key pair with an article"
+  [s3-id article-id]
+  (-> (insert-into :article-pdf)
+      (values [{:article-id article-id
+                :s3-id s3-id}])
+      (do-execute)))
+
+(defn get-article-s3-association
+  "Given an s3-id and article-id, return the association"
+  [s3-id article-id]
+  (-> (select :s3_id)
+      (from :article_pdf)
+      (where [:and
+              [:= :s3-id s3-id]
+              [:= :article-id article-id]])
+      do-query
+      first
+      :s3-id))
+
+(defn get-article-file-maps
+  "Given an article-id, return a coll of file maps that correspond to that article"
+  [article-id]
+  (-> (select :filename :key)
+      (from :s3store)
+      (where [:in :s3store.id (-> (select :s3_id)
+                                  (from :article_pdf)
+                                  (where [:= :article_id article-id]))])
+      do-query))
+
+(defn dissociate-file-from-article
+  "Given an article-id and key, dissociate file from article-id"
+  [article-id key filename]
+  (-> (delete-from :article_pdf)
+      (where [:= :s3_id (-> (select :id)
+                            (from :s3store)
+                            (where [:and
+                                    [:= :filename filename]
+                                    [:= :key key]]))])
+      do-execute))

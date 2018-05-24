@@ -23,7 +23,7 @@
    [sysrev.shared.transit :as sr-transit]
    [sysrev.import.pubmed :as pubmed]
    [sysrev.config.core :refer [env]]
-   [sysrev.util]
+   [sysrev.util :refer :all]
    [sysrev.shared.util :refer [map-values in? parse-integer]]
    [honeysql.core :as sql]
    [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -38,14 +38,6 @@
            [java.io InputStream]
            [java.io ByteArrayInputStream]
            [org.apache.commons.io IOUtils]))
-
-(defn slurp-bytes
-  "Slurp the bytes from a slurpable thing.
-  Taken from http://stackoverflow.com/a/26372677"
-  [x]
-  (with-open [out (java.io.ByteArrayOutputStream.)]
-    (clojure.java.io/copy (clojure.java.io/input-stream x) out)
-    (.toByteArray out)))
 
 (defn update-user-default-project [request]
   (let [user-id (current-user-id request)
@@ -516,6 +508,56 @@
        (wrap-authorize
         request {:allow-public true}
         (api/label-count-data (-> request :params :project-id parse-integer))))
+
+  (GET "/api/open-access/:article-id/availability" [article-id]
+       (api/open-access-available? (parse-integer article-id)))
+
+  (GET "/api/open-access/:article-id/view"
+       [article-id]
+       (api/open-access-pdf (parse-integer article-id)))
+
+  (POST "/api/files/article/:article-id/upload-pdf"
+        request
+        (wrap-authorize
+         request
+         {:roles ["member"]}
+         (let [{:keys [article-id]} (:params request)]
+           (let [file-data (get-in request [:params :file])
+                 file (:tempfile file-data)
+                 filename (:filename file-data)]
+             (api/save-article-pdf (parse-integer article-id) file filename)))))
+
+  (GET "/api/files/article/:article-id/article-pdfs"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [article-id]} (:params request)]
+          (api/article-pdfs (parse-integer article-id)))))
+
+  (GET "/api/files/article/:article-id/download/:key/:filename"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [key]} (:params request)]
+          (api/get-s3-file key))))
+
+  (GET "/api/files/article/:article-id/view/:key/:filename"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [key]} (:params request)]
+          (api/view-s3-pdf key))))
+
+  (GET "/api/files/article/:article-id/delete/:key/:filename"
+       request
+       (wrap-authorize
+        request
+        {:roles ["member"]}
+        (let [{:keys [article-id key filename]} (:params request)]
+          (api/dissociate-pdf-article article-id key filename))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

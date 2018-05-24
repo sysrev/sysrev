@@ -4,17 +4,21 @@
             [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [me.raynes.fs :as fs]
+            [ring.util.response :as response]
+            [sysrev.biosource.annotations :as annotations]
+            [sysrev.biosource.importance :as importance]
             [sysrev.cache :refer [db-memo]]
             [sysrev.charts :as charts]
             [sysrev.db.articles :as articles]
             [sysrev.db.core :as db]
+            [sysrev.db.files :as files]
             [sysrev.db.labels :as labels]
             [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
-            [sysrev.biosource.annotations :as annotations]
-            [sysrev.biosource.importance :as importance]
+            [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.stripe :as stripe]
@@ -22,7 +26,8 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values]]
-            [sysrev.biosource.predict :as predict-api]))
+            [sysrev.biosource.predict :as predict-api])
+  (:import [java.io ByteArrayInputStream]))
 
 (def default-plan "Basic")
 ;; Error code used
@@ -470,7 +475,7 @@
 (defn annotations-wrapper!
   "Returns the annotations for string using a hash wrapper"
   [string]
-  (let [hash (util/md5 (if (string? string)
+  (let [hash (util/string->md5-hash (if (string? string)
                          string
                          (pr-str string)))
         _ (swap! annotations-atom assoc hash string)
@@ -491,6 +496,118 @@
   "Given a project-id, return data for the label counts chart"
   [project-id]
   {:result {:data (charts/process-label-counts project-id)}})
+
+(defn open-access-pdf
+  [article-id]
+  (if-let [filename (-> article-id
+                        articles/article-pmcid
+                        pubmed/article-pdf)]
+    ;; there was a file
+    (let [file (java.io.File. filename)
+          bytes (util/slurp-bytes file)]
+      (fs/delete filename)
+      {:headers {"Content-Type" "application/pdf"}
+       :body (java.io.ByteArrayInputStream. bytes)})
+    {:headers {"Content-Type" "application/pdf"}
+     :body nil}))
+
+(defn open-access-available?
+  [article-id]
+  {:result {:available? (not (nil? (-> article-id
+                                       articles/article-pmcid
+                                       pubmed/article-pdf)))}})
+
+(defn save-article-pdf
+  "Handle saving a file on S3 and the associated accounting with it"
+  [article-id file filename]
+  (let [hash (util/file->sha-1-hash file)
+        s3-id (files/id-for-s3-filename-key-pair
+               filename hash)
+        article-s3-association (files/get-article-s3-association
+                                s3-id
+                                article-id)]
+    (cond
+      ;; there is a file and it is already associated with this article
+      (not (nil? article-s3-association))
+      {:result {:success true
+                :key hash}}
+      ;; there is a file, but it is not associated with this article
+      (not (nil? s3-id))
+      (try (do (files/associate-s3-with-article s3-id
+                                                article-id)
+               {:result {:success true
+                         :key hash}})
+           (catch Throwable e
+             {:error {:status internal-server-error
+                      :message (.getMessage e)}}))
+      ;; there is a file. but not with this filename
+      (and (nil? s3-id)
+           (files/s3-has-key? hash))
+      (try
+        (let [ ;; create the association between this file name and
+              ;; the hash
+              _ (files/insert-file-hash-s3-record filename hash)
+              ;; get the new association's id
+              s3-id (files/id-for-s3-filename-key-pair filename hash)]
+          (files/associate-s3-with-article s3-id
+                                           article-id)
+          {:result {:success true
+                    :key hash}})
+        (catch Throwable e
+          {:error {:status internal-server-error
+                   :message (.getMessage e)}}))
+      ;; the file does not exist in our s3 store
+      (and (nil? s3-id)
+           (not (files/s3-has-key? hash)))
+      (try
+        (let [ ;; create a new file on the s3 store
+              _ (s3store/save-file file)
+              ;; create a new association between this file name
+              ;; and the hash
+              _ (files/insert-file-hash-s3-record filename hash)
+              ;; get the new association's id
+              s3-id (files/id-for-s3-filename-key-pair filename hash)]
+          (files/associate-s3-with-article s3-id article-id)
+          {:result {:success true
+                    :key hash}})
+        (catch Throwable e
+          {:error {:status internal-server-error
+                   :message (.getMessage e)}}))
+      :else {:error {:status internal-server-error
+                     :message "Unknown Processing Error Occurred."}})))
+
+(defn article-pdfs
+  "Given an article-id, return a vector of maps that correspond to the files associated with article-id"
+  [article-id]
+  {:result {:success true
+            :files (files/get-article-file-maps article-id)}})
+
+(defn dissociate-pdf-article
+  "Given an article-id, file key and filename remove the association between it and this article"
+  [article-id key filename]
+  (try (do (files/dissociate-file-from-article article-id key filename)
+           {:result {:success true}})
+       (catch Throwable e
+         {:error internal-server-error
+          :message (.getMessage e)})))
+
+(defn get-s3-file
+  "Given a key, return a file response"
+  [key]
+  (try
+    (response/response (ByteArrayInputStream. (s3store/get-file key)))
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
+
+(defn view-s3-pdf
+  [key]
+  (try
+    {:headers {"Content-Type" "application/pdf"}
+     :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
 (defn test-response
   "Server Sanity Check"

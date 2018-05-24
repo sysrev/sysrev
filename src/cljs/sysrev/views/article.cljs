@@ -7,13 +7,16 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.annotation :refer [AnnotatedText]]
+            [sysrev.pdf :as pdf :refer [PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.labels :refer
              [label-values-component article-labels-view]]
+            [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
+(def state (r/atom nil))
 (reg-sub
  ::article-annotations
  (fn [[_ article-id project-id]]
@@ -226,5 +229,6 @@
          {:key [:article-content]}
          [article-info-main-content article-id
           :context context]]))
+     [PDFs article-id]
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))
