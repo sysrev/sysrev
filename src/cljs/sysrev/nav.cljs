@@ -55,3 +55,11 @@
 
 (defn ^:export set-token [path]
   (pushy/set-token! history path))
+
+(reg-fx
+ :set-page-title
+ (fn [title]
+   (set! (-> js/document .-title)
+         (if (string? title)
+           (str "SysRev - " title)
+           "SysRev"))))

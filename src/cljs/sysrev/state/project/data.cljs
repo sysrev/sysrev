@@ -28,11 +28,14 @@
                (map (fn [{:keys [url-id]}]
                       [url-id project-id]))
                (apply concat)
-               (apply hash-map))]
-      {:db (-> db
-               (load-project (merge project {:error nil}))
-               (store-user-maps (vals users)))
-       :dispatch [:load-project-url-ids url-ids-map]}))
+               (apply hash-map))
+          active? (= project-id (active-project-id db))]
+      (cond->
+          {:db (-> db
+                   (load-project (merge project {:error nil}))
+                   (store-user-maps (vals users)))
+           :dispatch [:load-project-url-ids url-ids-map]}
+        active? (merge {:set-page-title (:name project)}))))
   :on-error
   (fn [{:keys [db error]} [project-id] _]
     {:db (-> db (load-project {:project-id project-id

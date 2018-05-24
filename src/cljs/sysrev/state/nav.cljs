@@ -5,6 +5,7 @@
             [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.util :refer [dissoc-in]]
             [sysrev.shared.util :refer
              [in? parse-integer integer-project-id?]]))
@@ -149,7 +150,13 @@
        (merge {:reset-data true})
 
        (and url-id (nil? literal-id))
-       (merge {:dispatch [:require [:project-url-id url-id]]})))))
+       (merge {:dispatch [:require [:project-url-id url-id]]})
+
+       (nil? new-active)
+       (merge {:set-page-title nil})
+
+       new-active
+       (merge {:set-page-title (:name (get-project-raw new-db new-active))})))))
 
 (defn project-uri [project-id suburi]
   (let [project-url-id @(subscribe [:project/active-url-id project-id])
