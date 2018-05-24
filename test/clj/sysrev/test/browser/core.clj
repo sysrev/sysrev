@@ -137,7 +137,8 @@
     (log/info "loading:" full-url)
     (taxi/to full-url)
     (Thread/sleep wait-ms)
-    (wait-until-loading-completes)))
+    (wait-until-loading-completes)
+    (taxi/execute-script "sysrev.base.toggle_analytics(false);")))
 
 (defn go-route [path & [wait-ms]]
   (let [wait-ms (or wait-ms 500)

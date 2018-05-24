@@ -4,7 +4,8 @@
             [goog.events :as events]
             [goog.history.EventType :as EventType]
             [re-frame.core :as re-frame :refer
-             [subscribe dispatch]])
+             [subscribe dispatch reg-event-db trim-v]]
+            [re-frame.db :refer [app-db]])
   (:require-macros [secretary.core :refer [defroute]]))
 
 (defonce sysrev-hostname "sysrev.com")
@@ -12,13 +13,26 @@
 (def debug?
   ^boolean js/goog.DEBUG)
 
+(reg-event-db
+ :toggle-analytics
+ [trim-v]
+ (fn [db [enable?]]
+   (assoc db :disable-analytics (not enable?))))
+
+(defn ^:export toggle-analytics [enable?]
+  (dispatch [:toggle-analytics enable?]))
+
+(defn run-analytics? []
+  (and js/ga
+       (= js/window.location.host sysrev-hostname)
+       (not (:disable-analytics @app-db))))
+
 (defn ga
   "google analytics (function loaded from ga.js)"
   [& more]
-  (when js/ga
-    (when (= js/window.location.host sysrev-hostname)
-      (.. (aget js/window "ga")
-          (apply nil (clj->js more))))))
+  (when (run-analytics?)
+    (.. (aget js/window "ga")
+        (apply nil (clj->js more)))))
 
 (defn ga-event
   "Send a Google Analytics event."
@@ -44,7 +58,7 @@
                (ga "send" "pageview")))
            (reset! active-route x)
            x)
-       (do (pushy/set-token! history "/")
+       (do (pushy/replace-token! history "/")
            nil)))))
 
 (def default-db {})
