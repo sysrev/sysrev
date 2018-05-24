@@ -198,7 +198,7 @@
                  (from :web-user)
                  (where [:= :user-id user-id])
                  do-query first :reset-code)]
-    (format "https://sysrev.us/reset-password/%s" reset-code)))
+    (format "https://sysrev.com/reset-password/%s" reset-code)))
 
 (defn user-settings [user-id]
   (into {}

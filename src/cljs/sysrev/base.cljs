@@ -7,7 +7,7 @@
              [subscribe dispatch]])
   (:require-macros [secretary.core :refer [defroute]]))
 
-(defonce sysrev-hostname "sysrev.us")
+(defonce sysrev-hostname "sysrev.com")
 
 (def debug?
   ^boolean js/goog.DEBUG)

@@ -28,7 +28,7 @@
     (let [{:keys [protocol host port]} config]
       (assoc config
              :url (str protocol "://" host (if port (str ":" port) "") "/")
-             :safe (not= host "sysrev.us")))))
+             :safe (not= host "sysrev.com")))))
 
 (defn default-fixture
   "Validates configuration, tries to ensure we're running
@@ -55,7 +55,7 @@
             dbname :dbname} :postgres
            {selenium-host :host
             protocol :protocol} :selenium} env]
-      (when (or (= selenium-host "sysrev.us")
+      (when (or (= selenium-host "sysrev.com")
                 (= postgres-port 5470))
         (assert (clojure.string/includes? dbname "_test")
                 "Connecting to 'sysrev' db on production server is not allowed"))

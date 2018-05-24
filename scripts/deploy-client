@@ -28,7 +28,7 @@ cp ./ga.js ./tmp/ga.js
 cp -R ./css/ ./tmp/
 cp -R ./semantic ./tmp
 
-# favicon files
+# favicon and image files
 cp ./favicon.ico ./tmp
 cp ./*.png ./tmp
 cp ./manifest.json ./tmp

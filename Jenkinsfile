@@ -147,7 +147,7 @@ node {
         echo 'Running full tests against dev instance...'
         try {
           sshagent(['sysrev-admin']) {
-            withEnv(["SYSREV_HOST=staging.sysrev.us"]) {
+            withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
               sh './jenkins/migrate.dev'
               sh './jenkins/deploy'
             }
@@ -185,7 +185,7 @@ node {
         try {
           if (branch == 'staging') {
             sshagent(['sysrev-admin']) {
-              withEnv(["SYSREV_HOST=staging.sysrev.us"]) {
+              withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
                 sh './jenkins/migrate.dev'
                 sh './jenkins/deploy'
               }
@@ -194,7 +194,7 @@ node {
           if (branch == 'production') {
             archiveArtifacts artifacts: 'sysrev-web-0.1.0-SNAPSHOT-standalone.jar,target/*.jar,deploy/client.tgz', fingerprint: true
             sshagent(['sysrev-admin']) {
-              withEnv(["SYSREV_HOST=sysrev.us"]) {
+              withEnv(["SYSREV_HOST=sysrev.com"]) {
                 sh './jenkins/migrate.prod'
                 sh './jenkins/deploy'
               }

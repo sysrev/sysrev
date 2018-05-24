@@ -13,7 +13,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values parse-number]]
+            [sysrev.shared.util :refer [map-values parse-number in?]]
             [sysrev.config.core :as config]))
 
 (defonce importance-api (agent nil))
@@ -126,7 +126,7 @@
       (clear-project-cache project-id))))
 
 (defn schedule-important-terms-update [project-id]
-  (when (not= :test (-> config/env :profile))
+  (when-not (in? [:test :remote-test] (-> config/env :profile))
     (send
      importance-api
      (fn [_]

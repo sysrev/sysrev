@@ -71,10 +71,10 @@
             "Switch Theme"]))]
     [:div.ui.menu.site-menu
      [:div.ui.container
-      [:a.header.item
-       {:href "/"}
-       [:h3.ui.blue.header
-        "sysrev.us"]]
+      [:a.header.item {:href "/"}
+       [:img.ui.middle.aligned.image
+        {:src "/SysRev_header.png"
+         :alt "SysRev"}]]
       (when logged-in?
         [:a.item
          {:on-click #(dispatch [:navigate [:select-project]])}

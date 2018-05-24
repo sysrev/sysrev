@@ -8,6 +8,6 @@
  {:port 4132}
  :selenium
  {:protocol "https"
-  :host "staging.sysrev.us"}
+  :host "staging.sysrev.com"}
  :profile :remote-test
  :private-config "config.local.edn"}

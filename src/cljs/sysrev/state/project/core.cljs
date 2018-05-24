@@ -38,7 +38,7 @@
  (fn [[_ project-id]]
    [(subscribe [:project/hash project-id])])
  (fn [[project-hash]]
-   (str "https://sysrev.us/register/" project-hash)))
+   (str "https://sysrev.com/register/" project-hash)))
 
 (reg-sub
  :project/active-url-id
