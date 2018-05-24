@@ -3,7 +3,8 @@
             [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.shared.util :refer [in?]]
             [sysrev.views.components :refer
-             [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]))
+             [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]
+            [sysrev.state.nav :refer [project-uri]]))
 
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
@@ -14,21 +15,26 @@
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span [:i.list.icon] "Sources"]
-       :action (list [:project :project :add-articles] action-params)}
+       :action (project-uri project-id "/add-articles")
+       #_ (list [:project :project :add-articles] action-params)}
       {:tab-id :labels
        :content [:span [:i.tags.icon] "Label Definitions"]
-       :action (list [:project :project :labels :edit] action-params)}
+       :action (project-uri project-id "/labels/edit")
+       #_ (list [:project :project :labels :edit] action-params)}
       (when member?
         {:tab-id :invite-link
          :content [:span [:i.mail.outline.icon] "Invite Link"]
-         :action (list [:project :project :invite-link] action-params)})
+         :action (project-uri project-id "/invite-link")
+         #_ (list [:project :project :invite-link] action-params)})
       (when (> total 0)
         {:tab-id :export-data
          :content [:span [:i.download.icon] "Export"]
-         :action (list [:project :project :export-data] action-params)})
+         :action (project-uri project-id "/export")
+         #_ (list [:project :project :export-data] action-params)})
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
-       :action (list [:project :project :settings] action-params)}]
+       :action (project-uri project-id "/settings")
+       #_ (list [:project :project :settings] action-params)}]
      []
      active-tab
      "bottom attached project-menu-2"
@@ -93,7 +99,8 @@
          [(when (> total 0)
             {:tab-id [:project :overview]
              :content [:span "Overview"]
-             :action (list [:project :project :overview] action-params)})
+             :action (project-uri project-id "")
+             #_ (list [:project :project :overview] action-params)})
           (when (> total 0)
             {:tab-id [:project :articles]
              :content [:span
@@ -104,7 +111,8 @@
                            [:i.corner.tag.icon]]
                           " "])
                        "Articles"]
-             :action (list [:project :project :articles] action-params)})
+             :action (project-uri project-id "/articles")
+             #_ (list [:project :project :articles] action-params)})
           (when (and member? (> total 0))
             {:tab-id [:user :labels]
              :content [:span
@@ -116,11 +124,8 @@
                           " "])
                        (if mobile?
                          "Answers" "Saved Answers")]
-             :action (list [:project :user :labels] action-params)})
-          (when false
-            {:tab-id :predict
-             :content "Prediction"
-             :action (list [:project :project :predict] action-params)})
+             :action (project-uri project-id "/user")
+             #_ (list [:project :user :labels] action-params)})
           (when (and member? (> total 0))
             {:tab-id [:review]
              :content [:span
@@ -128,13 +133,15 @@
                          [:span
                           [:i.write.square.icon]])
                        "Review Articles"]
-             :action (list [:project :review] action-params)
+             :action (project-uri project-id "/review")
+             #_ (list [:project :review] action-params)
              :class "review-articles"})]
          [{:tab-id :manage
            :content (if mobile?
                       [:span [:i.settings.icon]]
                       [:span [:i.settings.icon] "Manage"])
-           :action (list [:project :project :add-articles] action-params)}]
+           :action (project-uri project-id "/manage")
+           #_ (list [:project :project :add-articles] action-params)}]
          active-tab
          (if manage?
            "attached project-menu"

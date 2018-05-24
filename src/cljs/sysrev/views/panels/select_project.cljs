@@ -4,6 +4,7 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [re-frame.db :refer [app-db]]
    [reagent.core :as r]
+   [sysrev.state.nav :refer [project-uri]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.panels.create-project :refer [CreateProject]]
    [sysrev.util :refer [go-back]])
@@ -20,10 +21,10 @@
 (defn ProjectListItem [{:keys [project-id name member?]}]
   [:div.item
    {:style {:width "100%"}}
-   [:div.ui.fluid.labeled.button
-    {:on-click (if member?
-                 #(dispatch [:project/navigate project-id])
-                 #(dispatch [:action [:join-project project-id]]))}
+   [:a.ui.fluid.labeled.button
+    (if member?
+      {:href (project-uri project-id "")}
+      {:on-click #(dispatch [:action [:join-project project-id]])})
     (if member?
       [:div.ui.button "Open"]
       [:div.ui.blue.button "Join"])

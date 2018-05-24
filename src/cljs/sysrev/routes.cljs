@@ -149,6 +149,11 @@
      (dispatch [:require [:review/task project-id]]))))
 
 (sr-defroute-project
+ manage-project "/manage" [project-id]
+ (let [project-id @(subscribe [:active-project-id])]
+   (nav-redirect (project-uri project-id "/add-articles"))))
+
+(sr-defroute-project
  add-articles "/add-articles" [project-id]
  (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:reload [:project/sources project-id]])
@@ -235,6 +240,9 @@
 
         [[:project :project :articles]
          #(project-uri (:project-id %) "/articles")]
+
+        [[:project :project :manage]
+         #(project-uri (:project-id %) "/manage")]
 
         [[:project :project :add-articles]
          #(project-uri (:project-id %) "/add-articles")]

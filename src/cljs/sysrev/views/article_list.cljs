@@ -647,12 +647,13 @@
           (let [active? (= article-id active-aid)
                 classes (if active? "active" "")
                 loading? @(subscribe [:loading? [:article project-id article-id]])]
-            [:div.ui.middle.aligned.attached.grid.segment.article-list-article
+            [:a.ui.middle.aligned.attached.grid.segment.article-list-article
              {:key article-id
               :class (str (if active? "active" "")
                           " "
                           (if loading? "article-loading" ""))
-              :on-click #(show-article article-id)}
+              ;; :on-click #(show-article article-id)
+              :href (article-uri panel project-id article-id)}
              (when loading?
                [:div.ui.active.inverted.dimmer
                 [:div.ui.loader]])

@@ -76,8 +76,8 @@
         {:src "/SysRev_header.png"
          :alt "SysRev"}]]
       (when logged-in?
-        [:a.item
-         {:on-click #(dispatch [:navigate [:select-project]])}
+        [:a.item { ;; :on-click #(dispatch [:navigate [:select-project]])
+                  :href "/select-project"}
          "Select Project"])
       (when-not full? dev-menu)
       [loading-indicator]
@@ -86,7 +86,8 @@
          (when full? dev-menu)
          (toggle-theme-button)
          [:a.item {:id "user-name-link"
-                   :on-click #(dispatch [:navigate [:user-settings]])}
+                   ;; :on-click #(dispatch [:navigate [:user-settings]])
+                   :href "/user/settings"}
           [:span.blue-text [:i.user.icon] user-display]]
          [:a.item {:id "log-out-link"
                    :on-click #(dispatch [:action [:auth/log-out]])}

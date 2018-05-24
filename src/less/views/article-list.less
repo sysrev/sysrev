@@ -6,33 +6,39 @@
     padding-right: 12px;
 }
 
-.ui.segments > div.ui.attached.grid.segment.article-list-article {
+.ui.segments > .ui.attached.grid.segment.article-list-article {
     margin: 0;
     border-bottom-width: 1px;
     border-bottom-color: @lightGrey;
 }
 
-.ui.segments > div.ui.attached.grid.segment.article-list-article:last-child {
+.ui.segments > .ui.attached.grid.segment.article-list-article:last-child {
     border-bottom-width: 0px;
 }
 
-div.article-list-article {
-    cursor: pointer;
+a.article-list-article {
+    color: @text;
 }
 
-div.article-list-article.article-loading .ui.row {
+.article-list-article {
+    cursor: pointer;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.article-list-article.article-loading .ui.row {
     visibility: hidden;
 }
 
-div.article-list-article.active {
+.article-list-article.active {
     background-color: mix(@background, @text, 94);
 }
 
-div.article-list-article.active:hover {
+.article-list-article.active:hover {
     background-color: mix(@background, @text, 91);
 }
 
-div.article-list-article:hover {
+.article-list-article:hover {
     background-color: mix(@background, @text, 96);
 }
 
@@ -40,12 +46,7 @@ div.article-list-article:hover {
     .medium-weight;
 }
 
-div.article-list-article {
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-div.article-list-article div.ui.row {
+.article-list-article div.ui.row {
     padding-top: 0px;
     padding-bottom: 0px;
 }
@@ -101,7 +102,7 @@ div.article-filters > .ui.form {
     margin-bottom: -1em;
 }
 
-div.article-list-article > div.ui.row i.right.chevron.icon {
+.article-list-article > div.ui.row i.right.chevron.icon {
     color: @text;
 }
 

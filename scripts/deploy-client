@@ -33,6 +33,10 @@ cp ./favicon.ico ./tmp
 cp ./*.png ./tmp
 cp ./manifest.json ./tmp
 
+# crawler config files
+cp ./robots.txt.* ./tmp
+cp ./sitemap.* ./tmp
+
 cd tmp
 tar -czf $dir/deploy/client.tgz *
 cd ..
