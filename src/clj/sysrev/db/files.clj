@@ -51,7 +51,6 @@
   (when project-id
     (clear-project-cache project-id)))
 
-;; CREATE TABLE s3store (id serial primary key,filename text, key text, created timestamp with time zone not null default now(),unique(key,filename));
 (defn insert-file-hash-s3-record
   "Given a filename and key, insert a record for it in the db"
   [filename key]
@@ -86,7 +85,6 @@
    first
    :id))
 
-;; CREATE TABLE article_pdf (s3_id integer not null references s3store (id) on delete cascade, article_id integer not null references article (article_id) on delete cascade, unique (s3_id, article_id));
 (defn associate-s3-with-article
   "Associate a file/key pair with an article"
   [s3-id article-id]

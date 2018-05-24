@@ -79,22 +79,8 @@
   :content (fn [article-id key filename])
   :process (fn [_ [article-id key filename] result]
              {:dispatch [:fetch [:pdf/article-pdfs article-id]]}))
-;; https://www.nlm.nih.gov/pubs/factsheets/dif_med_pub.html
-;; 24 Million for NLM
-;; 27 Million for PubMed
-;; "PMC serves as a digital counterpart to the NLM extensive print journal collection"
-;; yet PMC returns more results for search terms then
-;; PMC results have PMIDs, but not vicea versa
-;; in our database, we have 137298 total articles
-;; of those, 37287 contains text like '%pmc%'. 27% of articles
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
-
-#_(def pdfjsLib
-    (doto
-        (goog.object/get js/window "pdfjs-dist/build/pdf")
-        ($! :GlobalWorkerOptions
-            (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}))))
 
 ;; based on various examples provided by the authors of pdf.js
 ;; see: http://mozilla.github.io/pdf.js/examples/index.html#interactive-examples
@@ -106,6 +92,7 @@
 
 ;; this was ultimately based off of
 ;; https://github.com/mozilla/pdf.js/blob/master/examples/components/pageviewer.js
+
 (defn render-page
   "Render page num"
   [num]
@@ -185,8 +172,7 @@
               page-count (r/cursor state [:pdf-view :page-count])
               loadingTask (-> (doto ($ js/pdfjsLib getDocument pdf-url)
                                 ($! :GlobalWorkerOptions
-                                    (clj->js ;;{:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"}
-                                     {:workerSrc "/out/cljsjs/pdfjs-cljs/development/pdf.worker.inc.js"})))
+                                    (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"})))
                               ($ then
                                  (fn [pdf]
                                    (reset! pdf-doc
