@@ -234,7 +234,7 @@
 (defmacro with-query-cache [field-path form]
   (let [field-path (if (keyword? field-path)
                      [field-path] field-path)]
-    `(if (not @query-cache-enabled)
+    `(if (or (not @query-cache-enabled) *conn*)
        (do ~form)
        (let [field-path# ~field-path
              cache-val# (get-in @query-cache field-path# :not-found)]

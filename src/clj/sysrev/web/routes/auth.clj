@@ -20,7 +20,11 @@
                         (users/valid-password? email password))
               user (when valid (users/get-user-by-email email))
               {verified :verified :or {verified false}} user
-              success (boolean (and valid verified))]
+              success (boolean (and valid verified))
+              session-identity (select-keys user [:user-id
+                                                  :user-uuid
+                                                  :email
+                                                  :default-project-id])]
           (cond->
               {:success success
                :valid valid
@@ -32,16 +36,15 @@
               success
               (with-meta
                 {:session
-                 (assoc session
-                        :identity (select-keys
-                                   user [:user-id :user-uuid :email :default-project-id]))}))))
+                 (assoc session :identity session-identity)}))))
 
   (POST "/api/auth/logout" request
         (let [{{identity :identity :as session} :session} request
+              {:keys [settings]} (users/get-user-by-email (:email identity))
               success ((comp not nil?) identity)]
           (with-meta
             {:success success}
-            {:session {}})))
+            {:session {:settings (select-keys settings [:ui-theme])}})))
   
   (POST "/api/auth/register" request
         (let [{{:keys [email password project-id]
@@ -56,7 +59,16 @@
            (merge
             {:identity (users/user-identity-info user-id true)}
             (users/user-self-info user-id))
-           {:identity nil})))
+           {:identity {:settings (:settings session)}})))
+
+  (POST "/api/auth/change-session-settings" request
+        (let [{:keys [body session]} request
+              {:keys [settings]} body]
+          (assert (or (nil? settings) (map? settings)))
+          (with-meta
+            {:success true
+             :settings settings}
+            {:session (merge session {:settings settings})})))
 
   (GET "/api/auth/lookup-reset-code" request
        (let [{{:keys [reset-code] :as params}

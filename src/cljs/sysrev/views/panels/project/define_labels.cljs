@@ -792,13 +792,16 @@
                  ;; let's pass a cursor to the state
                  [LabelItem i (r/cursor state [:labels (:label-id label)])])
                (sort-by :project-ordering (filter :enabled (vals @labels)))))
-       [:h1 "Disabled Labels"]
-       (doall (map-indexed
-               (fn [i label]
-                 ^{:key (gensym i)}
-                 ;; let's pass a cursor to the state
-                 [LabelItem i (r/cursor state [:labels (:label-id label)])])
-               (sort-by :project-ordering (filter #(not (:enabled %)) (vals @labels)))))    
+       (when (> (count (filter #(not (:enabled %)) (vals @labels)))
+                0)
+         [:div
+          [:h1 "Disabled Labels"]
+          (doall (map-indexed
+                  (fn [i label]
+                    ^{:key (gensym i)}
+                    ;; let's pass a cursor to the state
+                    [LabelItem i (r/cursor state [:labels (:label-id label)])])
+                  (sort-by :project-ordering (filter #(not (:enabled %)) (vals @labels)))))])
        (when admin?
          [:div
           [AddLabelButton "boolean"]

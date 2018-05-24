@@ -18,7 +18,8 @@
   :uri (fn [] "/api/auth/identity")
   :process
   (fn [{:keys [db]} _ {:keys [identity projects]}]
-    (let [identity (some-> identity (update :user-uuid to-uuid))
+    (let [have-user? (contains? identity :user-id)
+          identity (some-> identity (update :user-uuid to-uuid))
           url-ids-map (->> projects
                            (map (fn [{:keys [project-id url-ids]}]
                                   (map (fn [u] [u project-id])
@@ -29,7 +30,7 @@
       {:db (cond-> (-> db
                        (assoc-in [:state :identity] identity)
                        (assoc-in [:state :self :projects] projects))
-             identity (store-user-map identity))
+             have-user? (store-user-map identity))
        :dispatch-n (list [:load-project-url-ids url-ids-map])})))
 
 (def-action :auth/log-in
@@ -131,11 +132,23 @@
   :content (fn [changes] {:changes changes})
   :process (fn [{:keys [db]} _ {:keys [settings]}]
              (let [old-settings (get-in db [:state :identity :settings])]
-               (cond-> {:db (assoc-in db [:state :identity :settings]
-                                      settings)}
-                 (not= (:ui-theme settings)
-                       (:ui-theme old-settings))
-                 (merge {:reload-page [true]})))))
+               (if (not= (:ui-theme settings)
+                         (:ui-theme old-settings))
+                 {:reload-page [true]}
+                 {:db (assoc-in db [:state :identity :settings]
+                                settings)}))))
+
+(def-action :session/change-settings
+  :uri (fn [_] "/api/auth/change-session-settings")
+  :content (fn [settings] {:settings settings})
+  :process (fn [{:keys [db]} _ {:keys [settings]}]
+             (when (nil? (current-user-id db))
+               (let [old-settings (get-in db [:state :identity :settings])]
+                 (if (not= (:ui-theme settings)
+                           (:ui-theme old-settings))
+                   {:reload-page [true]}
+                   {:db (assoc-in db [:state :identity :settings]
+                                  settings)})))))
 
 (def-action :user/delete-account
   :uri (fn [_] "/api/delete-user")

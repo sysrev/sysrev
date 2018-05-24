@@ -170,12 +170,26 @@
   (let [factor (Math/pow 10 precision)]
     (/ (Math/round (* d factor)) factor)))
 
-(defn byte-array->sha-1-hash
-  "Convert a byte-array into an md5 hash"
-  [^"[B" bytes]
-  (let [algorithm (MessageDigest/getInstance "SHA-1")
-        raw (.digest algorithm bytes)]
-    (format "%x" (BigInteger. 1 raw))))
+(defn round-to
+  "Round a double to the closest multiple of `interval`, then round to
+  `precision` (number of significant digits)."
+  [interval precision d]
+  (->> (* interval (Math/round (* d (/ 1 interval))))
+       (round precision)))
+
+(defn truncate-to
+  "Truncate a double to the closest multiple of `interval`, then round to
+  `precision` (number of significant digits)."
+  [interval precision d]
+  (->> (* interval (Math/floor (/ d interval)))
+       (round precision)))
+
+(defn ceil-to
+  "Ceil a double to the closest multiple of `interval`, then round to
+  `precision` (number of significant digits)."
+  [interval precision d]
+  (->> (* interval (Math/ceil (/ d interval)))
+       (round precision)))
 
 ;; see: https://gist.github.com/jizhang/4325757
 (defn byte-array->md5-hash
@@ -189,6 +203,13 @@
   "Convert a string into an md5 hash"
   [^String s]
   (byte-array->md5-hash (.getBytes s)))
+
+(defn byte-array->sha-1-hash
+  "Convert a byte-array into an md5 hash"
+  [^"[B" bytes]
+  (let [algorithm (MessageDigest/getInstance "SHA-1")
+        raw (.digest algorithm bytes)]
+    (format "%x" (BigInteger. 1 raw))))
 
 (defn string->sha-1-hash
   "Convert a string into a sha-1 hash"

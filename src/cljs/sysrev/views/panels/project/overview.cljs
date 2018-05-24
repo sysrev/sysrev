@@ -508,20 +508,18 @@
                          {:generateLabels (fn [chart]
                                             (clj->js legend-labels))
                           :fontColor font-color}
-                         :onClick nil
-                         #_ (fn [e legend-item]
-                              (-> js/console (.log e))
-                              (-> js/console (.log legend-item))
-                              (let [current-legend-color
-                                    (:fillStyle (js->clj legend-item
-                                                         :keywordize-keys true))
-                                    enabled? (not (filtered-color? current-legend-color))]
-                                #_ (.preventDefault e)
-                                (if enabled?
-                                  ;; filter out the associated data points
-                                  (swap! color-filter #(conj % current-legend-color))
-                                  ;; the associated data points should no longer be filtered out
-                                  (swap! color-filter #(disj % current-legend-color)))))}})
+                         :onClick
+                         (fn [e legend-item]
+                           (let [current-legend-color
+                                 (:fillStyle (js->clj legend-item
+                                                      :keywordize-keys true))
+                                 enabled? (not (filtered-color? current-legend-color))]
+                             #_ (.preventDefault e)
+                             (if enabled?
+                               ;; filter out the associated data points
+                               (swap! color-filter #(conj % current-legend-color))
+                               ;; the associated data points should no longer be filtered out
+                               (swap! color-filter #(disj % current-legend-color)))))}})
               height (charts/label-count->chart-height (count labels))]
           [:div.ui.segment
            [:h4.ui.dividing.header "Member Label Counts"]
@@ -613,7 +611,8 @@
                            :scaleLabel {:fontColor font-color}}]
                   :yAxes [{:ticks {:fontColor font-color}
                            :scaleLabel {:fontColor font-color}}]}
-                 :legend {:labels {:fontColor font-color}}}}]]))
+                 :legend {:labels {:fontColor font-color}}}
+       :height 170}]]))
 
 (defn PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]

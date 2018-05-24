@@ -324,14 +324,15 @@
   [:i.ui.grey.circle.question.mark.icon {:class (str size " " (or class ""))
                                          :style style}])
 
-(defn with-ui-help-tooltip [element & {:keys [help-content help-element]}]
+(defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
   (list
    ^{:key :tooltip-content}
    [with-tooltip
     element
-    {:delay {:show 300
-             :hide 0}
-     :hoverable false}]
+    (merge {:delay {:show 300
+                    :hide 0}
+            :hoverable false}
+           popup-options)]
    ^{:key :tooltip-help}
    [:div.ui.popup.transition.hidden.tooltip
     (cond help-content
