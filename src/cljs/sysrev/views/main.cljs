@@ -26,6 +26,7 @@
    [sysrev.views.panels.project.export-data]
    [sysrev.views.panels.project.user-labels]
    [sysrev.views.panels.project.review]
+   [sysrev.views.panels.project.support]
    [sysrev.views.menu :refer [header-menu]]
    [re-frame.core :as re-frame :refer
     [subscribe dispatch reg-sub reg-event-db]]

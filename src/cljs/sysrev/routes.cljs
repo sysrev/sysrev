@@ -224,6 +224,11 @@
  payment "/payment" []
  (dispatch [:set-active-panel [:payment]]))
 
+(sr-defroute-project
+ support "/support" [project-id]
+ (let [project-id @(subscribe [:active-project-id])]
+   (dispatch [:set-active-panel [:project :project :support]])))
+
 (sr-defroute
  user-settings "/user/settings" []
  (dispatch [:set-active-panel [:user-settings]]))
@@ -285,7 +290,10 @@
 
         [[:payment]
          "/payment"]
-        
+
+        [[:project :project :support]
+         #(project-uri (:project-id %) "/support")]
+
         [[:user-settings]
          "/user/settings"]]
        (reduce (fn [db [prefix uri]]
