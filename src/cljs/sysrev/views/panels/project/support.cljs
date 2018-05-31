@@ -2,7 +2,9 @@
   (:require [cljsjs.accounting]
             [cljsjs.semantic-ui-react]
             [reagent.core :as r]
+            [re-frame.core :refer [dispatch]]
             [re-frame.db :refer [app-db]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.views.base :refer [panel-content]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
@@ -25,6 +27,16 @@
 (def Label (r/adapt-react-class
             (goog.object/get semantic-ui "Label")))
 
+(def-action :payments/support-plan
+  :uri (fn [] "/api/support-project")
+  :content (fn [amount]
+             {:amount amount})
+  :process
+  (fn [{:keys [db]} _ {:keys [success] :as result}]
+    (.log js/console (clj->js result))
+    {}
+    ))
+;; functions around accounting.js
 (defn unformat
   "Converts a string to a currency amount (default is in dollar)"
   [string]
@@ -65,9 +77,12 @@
                                :user-defined)
                             (> cents
                                0))
-                       (.log js/console "[Supported at " cents "]")
-                       :else (.log js/console "[Supported at " @support-level "]")))
-               )}
+                       (do
+                         (dispatch [:action [:payments/support-plan cents]])
+                         (.log js/console "[Supported at " cents "]"))
+                       :else
+                       (do (dispatch [:action [:payments/support-plan cents]])
+                           (.log js/console "[Supported at " @support-level "]")))))}
        [FormGroup
         [FormRadio {:label "$5 per month"
                     :checked (= @support-level
@@ -111,6 +126,7 @@
                        :on-click #(reset! support-level :user-defined)}]) " per month"]]
        [FormButton "Continue"]
        ]]]))
+
 (defmethod panel-content panel []
   (fn [child]
     (reset! (r/cursor state [:user-support-level]) "$1.00")

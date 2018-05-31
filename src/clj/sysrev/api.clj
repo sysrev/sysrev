@@ -287,7 +287,7 @@
          (users/get-user-by-email email))
         ;; subscribe the customer to the basic plan, by default
         (stripe/subscribe-customer! (users/get-user-by-email email)
-                                      default-plan)
+                                    default-plan)
         {:result
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
@@ -308,6 +308,7 @@
   {:result {:success true
             :plans (->> (stripe/get-plans)
                         :data
+                        (filter #(not= (:name %) "ProjectSupport"))
                         (mapv #(select-keys % [:name :amount :product])))}})
 
 (defn get-current-plan
@@ -326,6 +327,14 @@
              (merge (:error stripe-response)
                     {:status not-found}))
       stripe-response)))
+
+(defn support-project
+  "User supports project"
+  [user-id project-id amount]
+  {:result {:success true
+            :user-id user-id
+            :project-id project-id
+            :amount amount}})
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."

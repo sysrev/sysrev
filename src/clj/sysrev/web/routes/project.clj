@@ -479,6 +479,13 @@
         request {:logged-in true}
         (api/get-current-plan (users/get-user-by-id (current-user-id request)))))
 
+  (POST "/api/support-project" request
+        (wrap-authorize
+         request {:logged-in true}
+         (api/support-project (users/get-user-by-id (current-user-id request))
+                              (active-project request)
+                              (get-in request [:body :amount]))))
+
   (POST "/api/subscribe-plan" request
         (wrap-authorize
          request {:logged-in true}

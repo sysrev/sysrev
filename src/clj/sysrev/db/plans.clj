@@ -36,3 +36,49 @@
         do-query
         first)))
 
+(defn get-support-project-plan
+  "Return the information for the support project plan used to subscribe users to a monthly support"
+  []
+  (-> (select :*)
+      (from :stripe-plan)
+      (where [:= :name "ProjectSupport"])
+      do-query
+      first))
+
+(defn user-support-subscriptions
+  "Return all support subscriptions for user"
+  [user]
+  (-> (select :*)
+      (from :project_support_subscriptions)
+      (where [:= :user-id (:user-id user)])
+      do-query))
+
+(defn support-subscription
+  "Return the subscription info for id"
+  [id]
+  (-> (select :*)
+      (from :project_support_subscriptions)
+      (where [:= :id id])
+      do-query
+      first))
+
+(defn user-current-project-support
+  "Given a project-id and a user, return the corresponding active subscription"
+  [user project-id]
+  (-> (select :*)
+      (from :project_support_subscriptions)
+      (where [:and
+              [:= :user-id (:user-id user)]
+              [:= :project-id project-id]
+              [:= :status "active"]])
+      do-query
+      first))
+
+(defn upsert-support!
+  "Add a support entry for amount by user supporting project. Can also be used to change the status of the subscription"
+  [{:keys [id project-id user-id stripe-id quantity status created] :as support-object}]
+  (-> (insert-into :project_support_subscriptions)
+      (values [support-object])
+      (upsert (-> (on-conflict :id)
+                  (do-update-set :status)))
+      do-execute))

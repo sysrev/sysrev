@@ -1,10 +1,12 @@
 (ns sysrev.stripe
-  (:require [clj-stripe.cards :as cards]
+  (:require [clj-http.client :as http]
+            [clj-stripe.cards :as cards]
             [clj-stripe.charges :as charges]
             [clj-stripe.common :as common]
             [clj-stripe.customers :as customers]
             [clj-stripe.plans :as plans]
             [clj-stripe.subscriptions :as subscriptions]
+            [clojure.data.json :as json]
             [environ.core :refer [env]]
             [sysrev.db.plans :as db-plans]))
 
@@ -13,6 +15,8 @@
 
 (def stripe-public-key (or (System/getProperty "STRIPE_PUBLIC_KEY")
                            (env :stripe-public-key)))
+
+(def stripe-url "https://api.stripe.com/v1")
 
 (defn execute-action
   [action]
@@ -58,8 +62,8 @@
 ;; a production stripe-secret-key in your profiles.clj, which you should
 ;; absolutely NEVER DO IN THE FIRST PLACE!!!!
 ;;
-;; Because of the sensitive nature of this fn, it is hardcoded to only use the
-;; test key.
+;; Because of the sensitive nature of this fn, it is hardcoded to only use a 
+;; key extracted from profiles.clj
 ;;
 ;; !!! WARNING !!!
 (defn- delete-all-customers!
@@ -114,3 +118,70 @@
   ;; need to remove the user from plan_user table!!!
   (execute-action (subscriptions/unsubscribe-customer
                    (common/customer (:stripe-id user)))))
+;; https://stripe.com/docs/billing/subscriptions/quantities#setting-quantities
+
+(defn support-project!
+  "User supports a project-id for amount (integer cents). Does not handle overhead of increasing / decreasing already support projects"
+  [user project-id amount]
+  (let [stripe-response
+        (http/post (str stripe-url "/subscriptions")
+                   {:basic-auth stripe-secret-key
+                    :throw-exceptions false
+                    :form-params
+                    {"customer" (:stripe-id user)
+                     "items[0][plan]" (:id
+                                       (db-plans/get-support-project-plan))
+                     "items[0][quantity]" amount
+                     "metadata[project-id]" (str project-id)}})]
+    (cond ;; there was some kind of error
+      (= (:status stripe-response)
+         400)
+      (-> stripe-response
+          :body
+          (json/read-str :key-fn keyword)
+          :error)
+      :else
+      ;; everything seems to be fine, let's update our records
+      (let [{:keys [id created customer quantity status]}
+            (-> stripe-response
+                :body
+                (json/read-str :key-fn keyword))]
+        (db-plans/upsert-support!
+         {:id id
+          :project-id project-id
+          :user-id (:user-id user)
+          :stripe-id customer
+          :quantity quantity
+          :status status
+          :created created})))))
+
+(defn cancel-subscription!
+  "Cancels subscription id"
+  [subscription-id]
+  (let [{:keys [project-id user-id]}
+        (db-plans/support-subscription subscription-id)
+
+        stripe-response
+        (http/delete (str stripe-url "/subscriptions/" subscription-id)
+                     {:basic-auth stripe-secret-key
+                      :throw-exceptions false})]
+    (cond ;; there is an error, report it
+      (= (:status stripe-response) 404)
+      (-> stripe-response
+          :body
+          (json/read-str :key-fn keyword)
+          :error)
+      ;; everything is ok, cancel this subscription
+      (= (:status stripe-response) 200)
+      (let [{:keys [id created customer quantity status]}
+            (-> stripe-response
+                :body
+                (json/read-str :key-fn keyword))]
+        (db-plans/upsert-support!
+         {:id id
+          :project-id project-id
+          :user-id user-id
+          :stripe-id customer
+          :quantity quantity
+          :status status
+          :created created})))))
