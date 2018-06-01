@@ -40,9 +40,6 @@
            [:i.grey.book.icon]
            [:div.content
             [:span.project-title project-name]
-            [:span.support [:div.ui.label {:on-click #(dispatch [:navigate [:project :project :support]
-                                                                 {:project-id project-id}])
-                                           :style {:cursor "pointer"}} "Support"]]
             [:span.access-header access-label]]]]
          (project-page-menu)
          child]))))

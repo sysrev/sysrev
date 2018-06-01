@@ -482,9 +482,10 @@
   (POST "/api/support-project" request
         (wrap-authorize
          request {:logged-in true}
-         (api/support-project (users/get-user-by-id (current-user-id request))
-                              (active-project request)
-                              (get-in request [:body :amount]))))
+         (let [{:keys [project-id amount]} (:body request)]
+           (api/support-project (users/get-user-by-id (current-user-id request))
+                                project-id
+                                amount))))
 
   (POST "/api/subscribe-plan" request
         (wrap-authorize

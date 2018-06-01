@@ -3,37 +3,18 @@
             [re-frame.core :refer [dispatch subscribe reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.base :refer [panel-content]]))
 
 (def default-state {:plans nil
                     :current-plan nil
                     :selected-plan nil
                     :changing-plan? false
-                    :need-card? false
-                    :updating-card? false
+                    ;;:need-card? false
+                    ;;:updating-card? false
                     :error-message nil})
 
 (defonce state (r/atom default-state))
-
-(reg-event-fx
- :plans/set-need-card?
- [trim-v]
- (fn [_ [need-card?] _]
-   (reset! (r/cursor state [:need-card?]) need-card?)
-   {}))
-
-(reg-event-fx
- :plans/set-updating-card?
- [trim-v]
- (fn [_ [updating-card?] _]
-   (reset! (r/cursor state [:updating-card?]) updating-card?)
-   {}))
-
-(reg-event-fx
- :plans/clear-error-message!
- [trim-v]
- (fn [_ _ _]
-   (reset! (r/cursor state [:error-message]) nil)))
 
 (def-data :plans
   :loaded? (nil? (:plans @state))
@@ -71,7 +52,7 @@
       :else
       (reset! (r/cursor state [:error-message])
               (-> error :message)))
-    (reset! (r/cursor state [:need-card?]) true)
+    (reset! (r/cursor stripe/state [:need-card?]) true)
     {:db db}))
 
 (defn cents->dollars
@@ -168,7 +149,7 @@
     (let [selected-plan (r/cursor state [:selected-plan])
           changing-plan? (r/cursor state [:changing-plan?])
           error-message (r/cursor state [:error-message])
-          need-card? (r/cursor state [:need-card?])]
+          need-card? (r/cursor stripe/state [:need-card?])]
       [:div [:h1 (str "You will be charged "
                       "$" (cents->dollars (:amount @selected-plan))
                       " per month and subscribed to the "
@@ -201,9 +182,11 @@
   (fn [child]
     (let [changing-plan? (r/cursor state [:changing-plan?])
           updating-card? (r/cursor state [:updating-card?])
-          need-card? (r/cursor state [:need-card?])]
+          need-card? (r/cursor stripe/state [:need-card?])
+          error-message (r/cursor state [:error-message])]
       (dispatch [:fetch [:plans]])
       (dispatch [:fetch [:current-plan]])
+      (reset! error-message false)
       [:div.ui.segment
        (when-not @changing-plan?
          [UpdatePaymentButton])

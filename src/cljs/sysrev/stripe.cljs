@@ -1,13 +1,15 @@
 (ns sysrev.stripe
   (:require [cljsjs.react-stripe-elements]
             [reagent.core :as r]
-            [re-frame.core :refer [dispatch reg-event-fx reg-event-db trim-v]]
+            [re-frame.core :refer [dispatch reg-event-fx reg-event-db trim-v reg-sub subscribe]]
             [sysrev.action.core :refer [def-action]]))
 
 ;; based on: https://github.com/stripe/react-stripe-elements
 ;;           https://jsfiddle.net/g9rm5qkt/
 
-(def default-state {:error-message nil})
+(def default-state {:error-message nil
+                    :need-card? false
+                    :updating-card? false})
 
 (defonce state (r/atom default-state))
 
@@ -47,11 +49,13 @@
           ;; this is just in case it wasn't set
           ;; e.g. user went directly to /payment route
           calling-route (or (get-in db [:state :stripe :calling-route])
-                            [:payment])]
+                            [:payment])
+          need-card? (r/cursor state [:need-card?])]
       ;; don't need to ask for a card anymore
-      (dispatch [:plans/set-need-card? false])
+      ;;(dispatch [:stripe/set-need-card? false])
+      (reset! need-card? false)
       ;; clear any error message that was present in plans
-      (dispatch [:plans/clear-error-message!])
+      ;;(dispatch [:plans/clear-error-message!])
       ;; go back to where this panel was called from
       (dispatch [:navigate calling-route])
       ;; empty map, just interested in causing side effects

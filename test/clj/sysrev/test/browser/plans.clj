@@ -2,6 +2,7 @@
   (:require [clj-stripe.customers :as customers]
             [clj-webdriver.taxi :as taxi]
             [clojure.test :refer :all]
+            [clojure.tools.logging :as log]
             [sysrev.api :as api]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
@@ -44,6 +45,7 @@
 (def card-declined-error "Your card was declined")
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
+(def no-payment-method "You must provide a valid payment method")
 
 (deftest register-and-check-basic-plan-subscription
   (when (browser/db-connected?)
@@ -79,6 +81,8 @@
 (def update-payment-button {:xpath "//div[contains(@class,'button') and contains(text(),'Update Payment Information')]"})
 (def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card') and not(contains(@class,'disabled'))]"})
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
+(def support-button {:xpath "//a[contains(@class,'item')]/span[contains(text(),'Support')]"})
+(def support-submit-button {:xpath "//button[contains(text(),'Continue')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (def backspace-clear-length 30)
@@ -267,3 +271,43 @@
       (select-plan "Basic")
       (is (subscribed-to? "Basic"))
       (navigate/log-out))))
+
+#_ (deftest register-and-support-projects
+     (when (browser/db-connected?)
+       (let [{:keys [email password]} browser/test-login
+             project-name "SysRev Support Project Test"]
+         (browser/delete-test-user)
+         (navigate/register-user email password)
+         (browser/wait-until-loading-completes)
+         (assert stripe/stripe-secret-key)
+         (assert stripe/stripe-public-key)
+         ;; after registering, does the stripe customer exist?
+         (is (= email
+                (:email (stripe/execute-action
+                         (customers/get-customer
+                          (:stripe-id (users/get-user-by-email email)))))))
+         ;; does stripe think the customer is registered to a basic plan?
+         (is (= api/default-plan
+                (-> (stripe/execute-action
+                     (customers/get-customer
+                      (:stripe-id (users/get-user-by-email email))))
+                    :subscriptions :data first :items :data first :plan :name)))
+;;; go to root project and support it
+         (browser/go-route "/p/100")
+         (browser/click support-button)
+         (browser/wait-until-displayed support-submit-button)
+         (browser/click support-submit-button)
+         (browser/wait-until-displayed update-payment-button)
+         (is (browser/exists? (error-msg-xpath no-payment-method)))
+;;; update with a valid cc number and see if we can support a project
+         (browser/click update-payment-button)
+         (browser/wait-until-displayed use-card-button)
+         (taxi/input-text (label-input "Card Number") valid-visa-cc)
+         (taxi/input-text (label-input "Expiration date") "0120")
+         (taxi/input-text (label-input "CVC") "123")
+         (taxi/input-text (label-input "Postal code") "11111")
+         (browser/click use-card-button)
+         ;; support the project at $10 per month
+         (browser/wait-until-displayed support-submit-button)
+         (taxi/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
+         (browser/click support-submit-button))))

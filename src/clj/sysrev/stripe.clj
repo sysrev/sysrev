@@ -121,7 +121,7 @@
 ;; https://stripe.com/docs/billing/subscriptions/quantities#setting-quantities
 
 (defn support-project!
-  "User supports a project-id for amount (integer cents). Does not handle overhead of increasing / decreasing already support projects"
+  "User supports a project-id for amount (integer cents). Does not handle overhead of increasing / decreasing already supported projects"
   [user project-id amount]
   (let [stripe-response
         (http/post (str stripe-url "/subscriptions")
@@ -136,13 +136,13 @@
     (cond ;; there was some kind of error
       (= (:status stripe-response)
          400)
-      (-> stripe-response
-          :body
-          (json/read-str :key-fn keyword)
-          :error)
+      {:status 400
+       :body (-> stripe-response
+                 :body
+                 (json/read-str :key-fn keyword))}
       :else
       ;; everything seems to be fine, let's update our records
-      (let [{:keys [id created customer quantity status]}
+      (let [{:keys [id created customer quantity status] :as body}
             (-> stripe-response
                 :body
                 (json/read-str :key-fn keyword))]
@@ -153,7 +153,8 @@
           :stripe-id customer
           :quantity quantity
           :status status
-          :created created})))))
+          :created created})
+        body))))
 
 (defn cancel-subscription!
   "Cancels subscription id"

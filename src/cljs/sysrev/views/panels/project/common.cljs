@@ -136,7 +136,12 @@
              :action (project-uri project-id "/review")
              #_ (list [:project :review] action-params)
              :class "review-articles"})]
-         [{:tab-id :manage
+         [{:tab-id :support
+           :content (if mobile?
+                      [:span ]
+                      [:span "Support"])
+           :action (project-uri project-id "/support")}
+          {:tab-id :manage
            :content (if mobile?
                       [:span [:i.settings.icon]]
                       [:span [:i.settings.icon] "Manage"])

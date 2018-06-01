@@ -330,11 +330,15 @@
 
 (defn support-project
   "User supports project"
-  [user-id project-id amount]
-  {:result {:success true
-            :user-id user-id
-            :project-id project-id
-            :amount amount}})
+  [user project-id amount]
+  (let [ ;;current-user-support (plans/user-current-project-support user project-id)
+        ]
+    ;; need to still cover the case:
+    ;; 1. when a user changes their amount of support
+    ;;    can we just reuse old subscriptions and update the amount
+    ;;    without changing the date?
+    (stripe/support-project! user project-id amount)
+    ))
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
