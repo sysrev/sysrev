@@ -73,8 +73,8 @@
      [:div.ui.container
       [:a.header.item {:href "/"}
        [:img.ui.middle.aligned.image
-        {:src "/SysRev_header.png"
-         :alt "SysRev"}]]
+        {:src "/SysRev_header.png" :alt "SysRev"
+         :width "65" :height "20"}]]
       (when logged-in?
         [:a.item { ;; :on-click #(dispatch [:navigate [:select-project]])
                   :href "/select-project"}
