@@ -308,7 +308,8 @@
   {:result {:success true
             :plans (->> (stripe/get-plans)
                         :data
-                        (mapv #(select-keys % [:name :amount :product])))}})
+                        (mapv #(select-keys % [:name :amount :product]))
+                        (filterv #(not= (:name %) "ProjectSupport")))}})
 
 (defn get-current-plan
   "Get the plan for user-id"
