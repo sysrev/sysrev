@@ -6,6 +6,7 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :refer [AnnotatedText]]
             [sysrev.pdf :as pdf :refer [PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
@@ -201,6 +202,26 @@
          (doall entries)]
         (doall entries)))))
 
+(defn article-disabled-label []
+  [:div.ui.basic.label.review-status.orange
+   "Disabled"])
+
+(defn article-duplicates-segment [article-id]
+  (let [duplicates @(subscribe [:article/duplicates article-id])
+        project-id @(subscribe [:active-project-id])]
+    (when duplicates
+      [:div.ui.attached.segment
+       {:key [:article-duplicates]}
+       [:h5
+        "Duplicate articles:"
+        (doall
+         (for [article-id (:article-ids duplicates)]
+           [:span {:key article-id}
+            nbsp nbsp
+            [:a {:href (project-uri
+                        project-id (str "/articles/" article-id))}
+             (str "#" article-id)]]))]])))
+
 (defn article-info-view
   [article-id & {:keys [show-labels? private-view? show-score?
                         context]
@@ -208,7 +229,8 @@
   (let [project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
         full-size? (full-size?)
-        score @(subscribe [:article/score article-id])]
+        score @(subscribe [:article/score article-id])
+        duplicates @(subscribe [:article/duplicates article-id])]
     [:div
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
@@ -220,10 +242,13 @@
            (when full-size? (article-flags-view article-id nil))]]
          (when (or status private-view?)
            [:div {:style {:float "right"}}
+            (when (:disabled? duplicates)
+              [article-disabled-label])
             (when (and score show-score? (not= status :single))
               [article-score-label score])
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
+        (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}

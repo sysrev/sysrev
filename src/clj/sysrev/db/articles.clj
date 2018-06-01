@@ -163,7 +163,7 @@
 (defn query-article-by-id-full
   "Queries for an article ID with data from other tables included."
   [article-id & [{:keys [predict-run-id include-disabled?]
-                  :or {include-disabled? false}}]]
+                  :or {include-disabled? true}}]]
   (let [[article score locations review-status flags]
         (pvalues
          (-> (q/select-article-by-id

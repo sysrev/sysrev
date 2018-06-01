@@ -14,11 +14,10 @@
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
             [sysrev.shared.article-list :as alist]
-            [sysrev.config.core :as config]))
+            [sysrev.config.core :as config]
+            [sysrev.biosource.core :refer [api-host]]))
 
 (defonce predict-api (agent nil))
-
-(def api-host "https://api.insilica.co/")
 
 ;; (do (create-predict-model 100) (store-model-predictions 100))
 

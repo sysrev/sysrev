@@ -21,6 +21,8 @@
         sysrev.predict.report
         sysrev.biosource.predict
         sysrev.biosource.importance
+        sysrev.biosource.annotations
+        sysrev.biosource.duplicates
         sysrev.web.core
         sysrev.web.session
         sysrev.web.index

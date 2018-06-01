@@ -317,7 +317,7 @@
                       ;; #'ensure-label-inclusion-values
                       ;; #'ensure-no-null-authors
                       #'update-stripe-plans-table
-                      ;; #'ensure-project-sources-exist
+                      #'ensure-project-sources-exist
                       ;; #'ensure-article-flag-disable-entries
                       ]]
     (log/info "Running " (str migrate-fn))

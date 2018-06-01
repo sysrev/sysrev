@@ -122,6 +122,15 @@
  (fn [[article]]
    (:score article)))
 
+(reg-sub
+ :article/duplicates
+ (fn [[_ article-id]]
+   [(subscribe [:article/flags article-id])])
+ (fn [[flags] [_ article-id]]
+   (when-let [flag (get flags "auto-duplicate")]
+     {:article-ids (->> flag :meta :duplicate-of (remove #(= % article-id)))
+      :disabled? (:disable flag)})))
+
 (defn- article-location-urls [locations]
   (let [sources [:pubmed :doi :pii :nct]]
     (->>

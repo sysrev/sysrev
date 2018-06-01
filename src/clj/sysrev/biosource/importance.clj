@@ -14,7 +14,8 @@
             [sysrev.db.project :as project]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values parse-number in?]]
-            [sysrev.config.core :as config]))
+            [sysrev.config.core :as config]
+            [sysrev.biosource.core :refer [api-host]]))
 
 (defonce importance-api (agent nil))
 
@@ -45,7 +46,7 @@
 (defn fetch-important-terms
   "Given a coll of pmids, return a map of important term counts from biosource"
   [pmids]
-  (-> (http/post "https://api.insilica.co/sysrev/importance"
+  (-> (http/post (str api-host "sysrev/importance")
                  {:content-type "application/json"
                   :body (json/write-str pmids)})
       :body
