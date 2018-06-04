@@ -1,9 +1,11 @@
 (ns sysrev.views.panels.project.support
-  (:require [cljsjs.accounting]
+  (:require [ajax.core :refer [GET]]
+            [cljsjs.accounting]
             [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe]]
             [re-frame.db :refer [app-db]]
+            [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.stripe :as stripe])
@@ -51,7 +53,7 @@
   [number]
   ($ js/accounting formatMoney (/ number 100)))
 
-(def-action :payments/support-plan
+(def-action :support/support-plan
   :uri (fn [] "/api/support-project")
   :content (fn [amount]
              {:amount amount
@@ -82,16 +84,46 @@
                    " per month"))
       {})))
 
+(defn get-current-support
+  "Get the current support level"
+  []
+  (GET (str "/api/current-support")
+       {:params {:project-id @(subscribe [:active-project-id])}
+        :handler (fn [response]
+                   (let [{:keys [quantity]} (:result response)
+                         current-support-level (r/cursor state [:current-support-level])
+                         support-level (r/cursor state [:support-level])
+                         user-support-level (r/cursor state [:user-support-level])]
+                     (reset! current-support-level quantity)
+                     (cond
+                       (some #(= @current-support-level
+                                 %) [500 1000 5000])
+                       (reset! support-level quantity)
+                       ;; quantity is nil, but default something for support-level
+                       (= @current-support-level
+                          nil)
+                       (do (reset! support-level 500))
+                       :else (do
+                               (reset! support-level :user-defined)
+                               (reset! user-support-level quantity)))
+                     (when-not (nil? @current-support-level)
+                       (reset! (r/cursor state [:current-support-message])
+                               (str "You are currently supporting this project at " (cents->string @current-support-level) " per month")))))}))
+
 (defn SupportForm
   [state]
   (let [support-level (r/cursor state [:support-level])
         user-support-level (r/cursor state [:user-support-level])
         error-message (r/cursor state [:error-message])
         confirm-message (r/cursor state [:confirm-message])
-        need-card? (r/cursor stripe/state [:need-card?])]
+        need-card? (r/cursor stripe/state [:need-card?])
+        current-support-message (r/cursor state [:current-support-message])]
+    (get-current-support)
     [:div.ui.segment [:h1 "Support This Project"]
      (when @confirm-message
        [:div.ui.green.header @confirm-message])
+     (when @current-support-message
+       [:h3 @current-support-message])
      [Form {:on-submit
             (fn []
               (let [cents (string->cents @user-support-level)]
@@ -105,11 +137,11 @@
                            (> cents
                               0))
                       (do
-                        (dispatch [:action [:payments/support-plan cents]])
+                        (dispatch [:action [:support/support-plan cents]])
                         ;;(.log js/console "[Supported at " cents "]")
                         )
                       :else
-                      (do (dispatch [:action [:payments/support-plan @support-level]])
+                      (do (dispatch [:action [:support/support-plan @support-level]])
                           ;;(.log js/console "[Supported at " @support-level "]")
                           ))))}
       [FormGroup
@@ -181,7 +213,7 @@
 (defmethod panel-content panel []
   (fn [child]
     (reset! (r/cursor state [:user-support-level]) "$1.00")
-    (reset! (r/cursor state [:support-level]) 500)
+    ;;(reset! (r/cursor state [:support-level]) 500)
     (reset! (r/cursor state [:error-message]) "")
     (reset! (r/cursor state [:confirm-message]) "")
     [Support]))

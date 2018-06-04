@@ -46,6 +46,15 @@
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 (def no-payment-method "You must provide a valid payment method")
+(defn now-supporting-at-string
+  [amount]
+  (str "You are now supporting this project at " amount " per month"))
+
+(defn green-msg-xpath
+  [string]
+  {:xpath (str "//div[contains(@class,'green') and contains(text(),\""
+               string
+               "\")]")})
 
 (deftest register-and-check-basic-plan-subscription
   (when (browser/db-connected?)
@@ -272,7 +281,7 @@
       (is (subscribed-to? "Basic"))
       (navigate/log-out))))
 
-#_ (deftest register-and-support-projects
+#_(deftest register-and-support-projects
      (when (browser/db-connected?)
        (let [{:keys [email password]} browser/test-login
              project-name "SysRev Support Project Test"]
@@ -310,4 +319,7 @@
          ;; support the project at $10 per month
          (browser/wait-until-displayed support-submit-button)
          (taxi/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
-         (browser/click support-submit-button))))
+         (browser/click support-submit-button)
+         ;; check that the confirmation message exists
+         (browser/wait-until-displayed (green-msg-xpath (now-supporting-at-string "$10.00")))
+         (is (browser/exists? (green-msg-xpath (now-supporting-at-string "$10.00")))))))

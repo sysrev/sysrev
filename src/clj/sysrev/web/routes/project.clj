@@ -487,6 +487,14 @@
                                 project-id
                                 amount))))
 
+  (GET "/api/current-support" request
+       (wrap-authorize
+        request {:logged-in true}
+        (let [{:keys [project-id]} (-> request :params)]
+          (api/current-project-support-level
+           (users/get-user-by-id (current-user-id request))
+           (parse-integer project-id)))))
+
   (POST "/api/subscribe-plan" request
         (wrap-authorize
          request {:logged-in true}

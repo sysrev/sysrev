@@ -337,8 +337,12 @@
     ;; 1. when a user changes their amount of support
     ;;    can we just reuse old subscriptions and update the amount
     ;;    without changing the date?
-    (stripe/support-project! user project-id amount)
-    ))
+    (stripe/support-project! user project-id amount)))
+
+(defn current-project-support-level
+  "What is the current level of support of this user for project-id?"
+  [user project-id]
+  {:result (plans/user-current-project-support user project-id)})
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
