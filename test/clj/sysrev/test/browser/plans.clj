@@ -46,6 +46,7 @@
 (def card-expired-error "Your card has expired")
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 (def no-payment-method "You must provide a valid payment method")
+
 (defn now-supporting-at-string
   [amount]
   (str "You are currently supporting this project at " amount " per month"))
@@ -364,6 +365,14 @@
                   (-> user-subscriptions
                       first
                       :quantity))))
+         ;; is there a minimum support level?
+         (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
+         (taxi/clear {:xpath "//input[@type='text']"})
+         (Thread/sleep 500)
+         (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
+         (browser/click support-submit-button)
+         (is (browser/exists? (error-msg-xpath "Minimum support level is $1.00 per month")))
          ;; unsubscribe from all plans
          (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-         (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))))
+         (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email))))
+         )))

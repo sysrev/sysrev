@@ -331,17 +331,22 @@
 (defn support-project
   "User supports project"
   [user project-id amount]
-  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
+  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)
+        minimum-support-level 100]
     (cond
+      (and (not (nil? amount))
+           (< amount minimum-support-level))
+      {:error {:status forbidden
+               :type "amount_too_low"
+               :message {:minimum minimum-support-level}}}
       ;; user is not supporting this project
       (nil? quantity)
       (stripe/support-project! user project-id amount)
       ;; user is already supporting at this amount, do nothing
       (= quantity amount)
-      {:status forbidden
-       :type "already_supported_at_amount"
-       :message "User is already currently supporting at this amount"
-       :amount amount}
+      {:error {:status forbidden
+               :type "already_supported_at_amount"
+               :message {:amount amount}}}
       ;; the user is supporting this project,
       ;; but not at this amount
       (not (nil? quantity))

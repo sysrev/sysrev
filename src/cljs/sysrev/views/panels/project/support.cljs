@@ -101,7 +101,12 @@
                 (= (-> error :type) "already_supported_at_amount")
                 (reset! (r/cursor state [:error-message])
                         (str "You are already supporting at "
-                             (cents->string (-> error :amount))))
+                             (cents->string (-> error :message :amount))))
+                (= (-> error :type) "amount_too_low")
+                (reset! (r/cursor state [:error-message])
+                        (str "Minimum support level is "
+                             (cents->string (-> error :message :minimum))
+                             " per month"))
                 :else
                 (reset! (r/cursor state [:error-message]) (-> error :message)))
               (reset! (r/cursor state [:support-loading?]) false)
@@ -203,7 +208,8 @@
 
 (defmethod panel-content panel []
   (fn [child]
-    (reset! (r/cursor state [:user-support-level]) "$1.00")
+    (when (nil? (r/cursor state [:user-support-level]))
+      (reset! (r/cursor state [:user-support-level]) "$1.00"))
     (reset! (r/cursor state [:error-message]) "")
     (reset! (r/cursor state [:confirm-message]) "")
     (reset! (r/cursor state [:support-loading?]) false)
