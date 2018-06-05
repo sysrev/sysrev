@@ -46,11 +46,13 @@
       first))
 
 (defn user-support-subscriptions
-  "Return all support subscriptions for user"
+  "Return all support subscriptions for user which are active"
   [user]
   (-> (select :*)
       (from :project_support_subscriptions)
-      (where [:= :user-id (:user-id user)])
+      (where [:and
+              [:= :user-id (:user-id user)]
+              [:= :status "active"]])
       do-query))
 
 (defn support-subscription

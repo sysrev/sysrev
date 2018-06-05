@@ -172,6 +172,14 @@
   (taxi/input-text q text)
   (Thread/sleep delay))
 
+(defn set-input-text-per-char
+  [q text & {:keys [delay] :or {delay 50}}]
+  (taxi/clear q)
+  (Thread/sleep delay)
+  (doall (map (fn [c]
+                (Thread/sleep delay)
+                (taxi/input-text q (str c))) text)))
+
 (defn exists? [q & {:keys [wait?] :or {wait? true}}]
   (when wait?
     (wait-until-exists q))

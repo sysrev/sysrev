@@ -48,11 +48,11 @@
 (def no-payment-method "You must provide a valid payment method")
 (defn now-supporting-at-string
   [amount]
-  (str "You are now supporting this project at " amount " per month"))
+  (str "You are currently supporting this project at " amount " per month"))
 
-(defn green-msg-xpath
+(defn support-message-xpath
   [string]
-  {:xpath (str "//div[contains(@class,'green') and contains(text(),\""
+  {:xpath (str "//h3[contains(@class,'support-message') and contains(text(),\""
                string
                "\")]")})
 
@@ -281,10 +281,22 @@
       (is (subscribed-to? "Basic"))
       (navigate/log-out))))
 
-#_(deftest register-and-support-projects
+(defn unsubscribe-user-from-all-support-plans
+  [user]
+  (let [user-subscriptions (plans/user-support-subscriptions user)
+        subscriptions (map :id user-subscriptions)]
+    (when-not (empty? subscriptions)
+      (doall
+       (map #(stripe/cancel-subscription! %) subscriptions)))))
+
+;; if you need need to unsubscribe all plans between tests:
+;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email browser/test-login)))
+(deftest register-and-support-projects
      (when (browser/db-connected?)
        (let [{:keys [email password]} browser/test-login
              project-name "SysRev Support Project Test"]
+         ;; cancel any previouly create subscriptions
+         (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
          (browser/delete-test-user)
          (navigate/register-user email password)
          (browser/wait-until-loading-completes)
@@ -321,5 +333,37 @@
          (taxi/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
          (browser/click support-submit-button)
          ;; check that the confirmation message exists
-         (browser/wait-until-displayed (green-msg-xpath (now-supporting-at-string "$10.00")))
-         (is (browser/exists? (green-msg-xpath (now-supporting-at-string "$10.00")))))))
+         (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$10.00")))
+         (is (browser/exists? (support-message-xpath (now-supporting-at-string "$10.00"))))
+         ;; change support to $50 month
+         (taxi/click {:xpath "//label[contains(text(),'$50')]/parent::div"})
+         (browser/click support-submit-button)
+         (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$50.00")))
+         (is (browser/exists? (support-message-xpath (now-supporting-at-string "$50.00"))))
+         ;; is this all the user is paying for?
+         (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
+           (is (= 1
+                  (count user-subscriptions)))
+           (is (= 5000
+                  (-> user-subscriptions
+                      first
+                      :quantity))))
+         ;; subscribe at a custom amount of $200
+         (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
+         (taxi/clear {:xpath "//input[@type='text']"})
+         (Thread/sleep 500)
+         (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
+         (browser/click support-submit-button)
+         (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$200.00")))
+         (is (browser/exists? (support-message-xpath (now-supporting-at-string "$200.00"))))
+         ;; is this all the user is paying for?
+         (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
+           (is (= 1
+                  (count user-subscriptions)))
+           (is (= 20000
+                  (-> user-subscriptions
+                      first
+                      :quantity))))
+         ;; unsubscribe from all plans
+         (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
+         (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))))

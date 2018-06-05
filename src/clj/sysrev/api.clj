@@ -331,13 +331,25 @@
 (defn support-project
   "User supports project"
   [user project-id amount]
-  (let [ ;;current-user-support (plans/user-current-project-support user project-id)
-        ]
-    ;; need to still cover the case:
-    ;; 1. when a user changes their amount of support
-    ;;    can we just reuse old subscriptions and update the amount
-    ;;    without changing the date?
-    (stripe/support-project! user project-id amount)))
+  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
+    (cond
+      ;; user is not supporting this project
+      (nil? quantity)
+      (stripe/support-project! user project-id amount)
+      ;; user is already supporting at this amount, do nothing
+      (= quantity amount)
+      {:status forbidden
+       :type "already_supported_at_amount"
+       :message "User is already currently supporting at this amount"
+       :amount amount}
+      ;; the user is supporting this project,
+      ;; but not at this amount
+      (not (nil? quantity))
+      (do (stripe/cancel-subscription! id)
+          (support-project user project-id amount))
+      ;; something we hadn't planned for happened
+      :else {:status internal-server-error
+             :message "Unexpected outcome"})))
 
 (defn current-project-support-level
   "What is the current level of support of this user for project-id?"

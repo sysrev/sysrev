@@ -53,37 +53,6 @@
   [number]
   ($ js/accounting formatMoney (/ number 100)))
 
-(def-action :support/support-plan
-  :uri (fn [] "/api/support-project")
-  :content (fn [amount]
-             {:amount amount
-              :project-id @(subscribe [:active-project-id])})
-  :on-error (fn [{:keys [db error]} _ _]
-              (cond
-                (= (-> error :type) "invalid_request_error")
-                (do
-                  ;;(reset! (r/cursor state [:needs-payment-method?]) true)
-                  (reset! (r/cursor state [:error-message])
-                          "You must provide a valid payment method")
-                  (reset! (r/cursor stripe/state [:need-card?]) true))
-                :else
-                (reset! (r/cursor state [:error-message]) (-> error :message)))
-              {})
-  :process
-  (fn [{:keys [db]} _ {:keys [success] :as result}]
-    ;;(.log js/console "I am also processing?!")
-    (let [support-level (r/cursor state [:support-level])
-          user-support-level (r/cursor state [:user-support-level])]
-      (reset! (r/cursor state [:error-message]) nil)
-      (reset! (r/cursor state [:confirm-message])
-              (str "You are now supporting this project at "
-                   (if (= @support-level :user-defined)
-                     @user-support-level
-                     (cents->string
-                      @support-level))
-                   " per month"))
-      {})))
-
 (defn get-current-support
   "Get the current support level"
   []
@@ -96,34 +65,67 @@
                          user-support-level (r/cursor state [:user-support-level])]
                      (reset! current-support-level quantity)
                      (cond
+                       ;; the support level is at a fixed amount
                        (some #(= @current-support-level
                                  %) [500 1000 5000])
-                       (reset! support-level quantity)
+                       (do
+                         (reset! support-level quantity)
+                         (reset! user-support-level (cents->string 100)))
+
+                       ;; the support level is at variable amount
+                       (not (nil? @current-support-level))
+                       (do
+                         (reset! support-level :user-defined)
+                         (reset! user-support-level (cents->string quantity)))
                        ;; quantity is nil, but default something for support-level
-                       (= @current-support-level
-                          nil)
-                       (do (reset! support-level 500))
-                       :else (do
-                               (reset! support-level :user-defined)
-                               (reset! user-support-level quantity)))
+                       ;; but only if the support-level is currently nil
+                       (and (nil? @current-support-level)
+                            (nil? @support-level))
+                       (do (reset! support-level 500)))
                      (when-not (nil? @current-support-level)
                        (reset! (r/cursor state [:current-support-message])
                                (str "You are currently supporting this project at " (cents->string @current-support-level) " per month")))))}))
+
+(def-action :support/support-plan
+  :uri (fn [] "/api/support-project")
+  :content (fn [amount]
+             {:amount amount
+              :project-id @(subscribe [:active-project-id])})
+  :on-error (fn [{:keys [db error]} _ _]
+              (cond
+                (= (-> error :type) "invalid_request_error")
+                (do
+                  (reset! (r/cursor state [:error-message])
+                          "You must provide a valid payment method")
+                  (reset! (r/cursor stripe/state [:need-card?]) true))
+                (= (-> error :type) "already_supported_at_amount")
+                (reset! (r/cursor state [:error-message])
+                        (str "You are already supporting at "
+                             (cents->string (-> error :amount))))
+                :else
+                (reset! (r/cursor state [:error-message]) (-> error :message)))
+              (reset! (r/cursor state [:support-loading?]) false)
+              {})
+  :process
+  (fn [{:keys [db]} _ {:keys [success] :as result}]
+    (let [support-level (r/cursor state [:support-level])
+          user-support-level (r/cursor state [:user-support-level])]
+      (reset! (r/cursor state [:support-loading?]) false)
+      (reset! (r/cursor state [:error-message]) nil)
+      (get-current-support)
+      {})))
 
 (defn SupportForm
   [state]
   (let [support-level (r/cursor state [:support-level])
         user-support-level (r/cursor state [:user-support-level])
         error-message (r/cursor state [:error-message])
-        confirm-message (r/cursor state [:confirm-message])
         need-card? (r/cursor stripe/state [:need-card?])
+        support-loading? (r/cursor state [:support-loading?])
         current-support-message (r/cursor state [:current-support-message])]
-    (get-current-support)
     [:div.ui.segment [:h1 "Support This Project"]
-     (when @confirm-message
-       [:div.ui.green.header @confirm-message])
      (when @current-support-message
-       [:h3 @current-support-message])
+       [:h3.support-message @current-support-message])
      [Form {:on-submit
             (fn []
               (let [cents (string->cents @user-support-level)]
@@ -137,34 +139,27 @@
                            (> cents
                               0))
                       (do
-                        (dispatch [:action [:support/support-plan cents]])
-                        ;;(.log js/console "[Supported at " cents "]")
-                        )
+                        (reset! support-loading? true)
+                        (dispatch [:action [:support/support-plan cents]]))
                       :else
-                      (do (dispatch [:action [:support/support-plan @support-level]])
-                          ;;(.log js/console "[Supported at " @support-level "]")
-                          ))))}
+                      (do
+                        (reset! support-loading? true)
+                        (dispatch [:action [:support/support-plan @support-level]])))))}
       [FormGroup
        [FormRadio {:label "$5 per month"
                    :checked (= @support-level
                                500)
-                   :on-change #(reset! support-level 500)}]
-       ;;[:p ""]
-       ]
+                   :on-change #(reset! support-level 500)}]]
       [FormGroup
        [FormRadio {:label "$10 per month"
                    :checked (= @support-level
                                1000)
-                   :on-change #(reset! support-level 1000)}]
-       ;;[:p "Support this project at $10 per month"]
-       ]
+                   :on-change #(reset! support-level 1000)}]]
       [FormGroup
        [FormRadio {:label "$50 per month"
                    :checked (= @support-level
                                5000)
-                   :on-change #(reset! support-level 5000)}]
-       ;;[:p "Support this project at $50 per month"]
-       ]
+                   :on-change #(reset! support-level 5000)}]]
       [FormGroup
        [FormRadio {:checked (= @support-level
                                :user-defined)
@@ -185,7 +180,10 @@
                       :on-change on-change
                       :on-click #(reset! support-level :user-defined)}]) " per month"]]
       (when-not @need-card?
-        [FormButton "Continue"])
+        [:div.field [:button {:class (str "ui button primary "
+                                          (when @support-loading?
+                                            " disabled"))}
+                     "Continue"]])
       (when @need-card?
         [:div {:class "ui button primary"
                :on-click (fn [e]
@@ -196,24 +194,17 @@
       (when @error-message
         [:div.ui.red.header @error-message])]]))
 
-#_(defn RequestPaymentSource
-    [state]
-    [:div {:class "ui two columns stackable grid"}
-     [:div {:class "column"}
-      [:div {:class "ui segment secondary"}
-       [:h1 "Please Provide a Payment Source"]
-       [StripeCardInfo]]]])
-
 (defn Support
   []
   (let [need-card? (r/cursor stripe/state [:need-card?])]
+    (get-current-support)
     [:div.panel
      [SupportForm state]]))
 
 (defmethod panel-content panel []
   (fn [child]
     (reset! (r/cursor state [:user-support-level]) "$1.00")
-    ;;(reset! (r/cursor state [:support-level]) 500)
     (reset! (r/cursor state [:error-message]) "")
     (reset! (r/cursor state [:confirm-message]) "")
+    (reset! (r/cursor state [:support-loading?]) false)
     [Support]))
