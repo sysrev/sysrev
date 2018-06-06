@@ -4,6 +4,7 @@
             [clojure.test :refer :all]
             [clojure.tools.logging :as log]
             [sysrev.api :as api]
+            [sysrev.config.core :refer [env]]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
             [sysrev.test.core :refer [default-fixture wait-until]]
@@ -58,7 +59,7 @@
                "\")]")})
 
 (deftest register-and-check-basic-plan-subscription
-  (when (browser/db-connected?)
+  (when (not= :remote-test (-> env :profile))
     (let [{:keys [email password]} browser/test-login]
       (browser/delete-test-user)
       (navigate/register-user email password)
@@ -127,7 +128,7 @@
   (browser/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
 (deftest register-and-subscribe-to-paid-plans
-  (when (browser/db-connected?)
+  (when (not= :remote-test (-> env :profile))
     (let [{:keys [email password]} browser/test-login]
       (browser/delete-test-user)
       (navigate/register-user email password)
@@ -295,7 +296,7 @@
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email browser/test-login)))
 (deftest register-and-support-projects
-     (when (browser/db-connected?)
+     (when (not= :remote-test (-> env :profile))
        (let [{:keys [email password]} browser/test-login
              project-name "SysRev Support Project Test"]
          ;; cancel any previouly create subscriptions
