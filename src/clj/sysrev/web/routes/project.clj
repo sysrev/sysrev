@@ -487,6 +487,12 @@
                                 project-id
                                 amount))))
 
+  (GET "/api/user-support-subscriptions" request
+       (wrap-authorize
+        request {:logged-in true}
+        (api/user-support-subscriptions
+         (users/get-user-by-id (current-user-id request)))))
+
   (GET "/api/current-support" request
        (wrap-authorize
         request {:logged-in true}

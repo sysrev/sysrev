@@ -1,5 +1,5 @@
 (ns sysrev.db.plans
-  (:require [honeysql.helpers :refer [values from select where insert-into]]
+  (:require [honeysql.helpers :refer [values from select where insert-into join]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.db.core :refer [do-query do-execute]]))
 
@@ -50,6 +50,7 @@
   [user]
   (-> (select :*)
       (from :project_support_subscriptions)
+      (join :project [:= :project.project_id :project_support_subscriptions.project_id])
       (where [:and
               [:= :user-id (:user-id user)]
               [:= :status "active"]])

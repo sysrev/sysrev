@@ -53,6 +53,14 @@
   [number]
   ($ js/accounting formatMoney (/ number 100)))
 
+(defn get-user-support-subscriptions
+  "Get the current support subscriptions for user"
+  []
+  (GET "/api/user-support-subscriptions"
+       {:handler (fn [response]
+                   (reset! (r/cursor state [:user-support-subscriptions])
+                           (:result response)))}))
+
 (defn get-current-support
   "Get the current support level"
   []
@@ -250,9 +258,31 @@
     [:div.panel
      [SupportForm state]]))
 
+(defn UserSupportSubscriptions
+  []
+  (let [user-support-subscriptions (r/cursor state [:user-support-subscriptions])]
+    (get-user-support-subscriptions)
+    (.log js/console (clj->js @user-support-subscriptions))
+    (when @user-support-subscriptions
+      [:div.ui.segment
+       [:h3 "Thank You For Supporting These Projects"]
+       [:table.ui.striped.table
+        [:thead
+         [:tr [:th "Project Name"] [:th "Amount"] [:th]]]
+        [:tbody
+         (doall (map
+                 (fn [subscription]
+                   ^{:key (:id subscription)}
+                   [:tr
+                    [:td (:name subscription)]
+                    [:td (cents->string (:quantity subscription))]
+                    [:td [:a {:href (str "/p/" (:project-id subscription) "/support")}
+                          "Change Your Level of Support"]]])
+                 @user-support-subscriptions))]]])))
+
 (defmethod panel-content panel []
   (fn [child]
-    (when (nil? (r/cursor state [:user-support-level]))
+    (when (nil? @(r/cursor state [:user-support-level]))
       (reset! (r/cursor state [:user-support-level]) "$1.00"))
     (reset! (r/cursor state [:error-message]) "")
     (reset! (r/cursor state [:confirm-message]) "")

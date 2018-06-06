@@ -357,9 +357,15 @@
              :message "Unexpected outcome"})))
 
 (defn current-project-support-level
-  "What is the current level of support of this user for project-id?"
+  "The current level of support of this user for project-id"
   [user project-id]
   {:result (plans/user-current-project-support user project-id)})
+
+(defn user-support-subscriptions
+  "The current support subscriptions for user"
+  [user]
+  {:result (mapv #(select-keys % [:name :project-id :quantity])
+                 (plans/user-support-subscriptions user))})
 
 (defn cancel-project-support
   "Cancel support for project-id by user"

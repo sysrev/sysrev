@@ -318,7 +318,7 @@
                     :subscriptions :data first :items :data first :plan :name)))
 ;;; go to root project and support it
          (browser/go-route "/p/100")
-         (browser/click support-button)
+         (browser/go-project-route "/support")
          (browser/wait-until-displayed support-submit-button)
          (browser/click support-submit-button)
          (browser/wait-until-displayed update-payment-button)
