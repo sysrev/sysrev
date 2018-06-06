@@ -359,7 +359,7 @@
 (defn current-project-support-level
   "The current level of support of this user for project-id"
   [user project-id]
-  {:result (plans/user-current-project-support user project-id)})
+  {:result (select-keys (plans/user-current-project-support user project-id) [:name :project-id :quantity])})
 
 (defn user-support-subscriptions
   "The current support subscriptions for user"

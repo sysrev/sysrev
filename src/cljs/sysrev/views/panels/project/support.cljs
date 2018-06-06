@@ -268,7 +268,7 @@
        [:h3 "Thank You For Supporting These Projects"]
        [:table.ui.striped.table
         [:thead
-         [:tr [:th "Project Name"] [:th "Amount"] [:th]]]
+         [:tr [:th "Project"] [:th "Amount"] [:th]]]
         [:tbody
          (doall (map
                  (fn [subscription]
