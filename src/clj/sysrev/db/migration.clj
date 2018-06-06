@@ -265,11 +265,11 @@
   []
   (let [plans (->> (stripe/get-plans)
                    :data
-                   (mapv #(select-keys % [:name :amount :product :created])))]
+                   (mapv #(select-keys % [:name :amount :product :created :id])))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :product)
-                    (do-update-set :name :amount)))
+                    (do-update-set :name :amount :id :created)))
         do-execute)))
 
 (defn update-dates-from-article-raw

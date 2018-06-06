@@ -287,7 +287,7 @@
          (users/get-user-by-email email))
         ;; subscribe the customer to the basic plan, by default
         (stripe/subscribe-customer! (users/get-user-by-email email)
-                                      default-plan)
+                                    default-plan)
         {:result
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
@@ -308,8 +308,8 @@
   {:result {:success true
             :plans (->> (stripe/get-plans)
                         :data
-                        (mapv #(select-keys % [:name :amount :product]))
-                        (filterv #(not= (:name %) "ProjectSupport")))}})
+                        (filter #(not= (:name %) "ProjectSupport"))
+                        (mapv #(select-keys % [:name :amount :product])))}})
 
 (defn get-current-plan
   "Get the plan for user-id"
@@ -327,6 +327,52 @@
              (merge (:error stripe-response)
                     {:status not-found}))
       stripe-response)))
+
+(defn support-project
+  "User supports project"
+  [user project-id amount]
+  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)
+        minimum-support-level 100]
+    (cond
+      (and (not (nil? amount))
+           (< amount minimum-support-level))
+      {:error {:status forbidden
+               :type "amount_too_low"
+               :message {:minimum minimum-support-level}}}
+      ;; user is not supporting this project
+      (nil? quantity)
+      (stripe/support-project! user project-id amount)
+      ;; user is already supporting at this amount, do nothing
+      (= quantity amount)
+      {:error {:status forbidden
+               :type "already_supported_at_amount"
+               :message {:amount amount}}}
+      ;; the user is supporting this project,
+      ;; but not at this amount
+      (not (nil? quantity))
+      (do (stripe/cancel-subscription! id)
+          (support-project user project-id amount))
+      ;; something we hadn't planned for happened
+      :else {:status internal-server-error
+             :message "Unexpected outcome"})))
+
+(defn current-project-support-level
+  "The current level of support of this user for project-id"
+  [user project-id]
+  {:result (select-keys (plans/user-current-project-support user project-id) [:name :project-id :quantity])})
+
+(defn user-support-subscriptions
+  "The current support subscriptions for user"
+  [user]
+  {:result (mapv #(select-keys % [:name :project-id :quantity])
+                 (plans/user-support-subscriptions user))})
+
+(defn cancel-project-support
+  "Cancel support for project-id by user"
+  [user project-id]
+  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
+    (stripe/cancel-subscription! id)
+    {:result {:success true}}))
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."

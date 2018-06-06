@@ -4,6 +4,7 @@
     [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
    [sysrev.views.components :refer [with-tooltip selection-dropdown]]
+   [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
    [sysrev.nav :refer [nav-scroll-top]]
    [sysrev.util :refer [full-size?]]))
 
@@ -170,4 +171,5 @@
       [:h4 "User Settings"]]
      [:div.ui.two.column.stackable.grid
       [:div.column [user-options-box]]
-      [:div.column [user-dev-tools-box]]]]))
+      [:div.column [user-dev-tools-box]]]
+     [UserSupportSubscriptions]]))

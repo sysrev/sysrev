@@ -16,4 +16,5 @@
     [:div {:class "ui two columns stackable grid"}
      [:div {:class "column"}
       [:div {:class "ui segment secondary"}
+       [:h1 "Enter your Payment Method"]
        [StripeCardInfo]]]]))

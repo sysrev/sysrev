@@ -479,6 +479,36 @@
         request {:logged-in true}
         (api/get-current-plan (users/get-user-by-id (current-user-id request)))))
 
+  (POST "/api/support-project" request
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [project-id amount]} (:body request)]
+           (api/support-project (users/get-user-by-id (current-user-id request))
+                                project-id
+                                amount))))
+
+  (GET "/api/user-support-subscriptions" request
+       (wrap-authorize
+        request {:logged-in true}
+        (api/user-support-subscriptions
+         (users/get-user-by-id (current-user-id request)))))
+
+  (GET "/api/current-support" request
+       (wrap-authorize
+        request {:logged-in true}
+        (let [{:keys [project-id]} (-> request :params)]
+          (api/current-project-support-level
+           (users/get-user-by-id (current-user-id request))
+           (parse-integer project-id)))))
+
+  (POST "/api/cancel-project-support" request
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [project-id]} (:body request)]
+           (api/cancel-project-support
+            (users/get-user-by-id (current-user-id request))
+            project-id))))
+
   (POST "/api/subscribe-plan" request
         (wrap-authorize
          request {:logged-in true}
