@@ -495,6 +495,14 @@
            (users/get-user-by-id (current-user-id request))
            (parse-integer project-id)))))
 
+  (POST "/api/cancel-project-support" request
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [project-id]} (:body request)]
+           (api/cancel-project-support
+            (users/get-user-by-id (current-user-id request))
+            project-id))))
+
   (POST "/api/subscribe-plan" request
         (wrap-authorize
          request {:logged-in true}

@@ -361,6 +361,13 @@
   [user project-id]
   {:result (plans/user-current-project-support user project-id)})
 
+(defn cancel-project-support
+  "Cancel support for project-id by user"
+  [user project-id]
+  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
+    (stripe/cancel-subscription! id)
+    {:result {:success true}}))
+
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
   [project-id labels-map]

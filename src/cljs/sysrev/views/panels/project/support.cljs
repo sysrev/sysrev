@@ -81,10 +81,7 @@
                        ;; but only if the support-level is currently nil
                        (and (nil? @current-support-level)
                             (nil? @support-level))
-                       (do (reset! support-level 500)))
-                     (when-not (nil? @current-support-level)
-                       (reset! (r/cursor state [:current-support-message])
-                               (str "You are currently supporting this project at " (cents->string @current-support-level) " per month")))))}))
+                       (do (reset! support-level 500)))))}))
 
 (def-action :support/support-plan
   :uri (fn [] "/api/support-project")
@@ -109,16 +106,28 @@
                              " per month"))
                 :else
                 (reset! (r/cursor state [:error-message]) (-> error :message)))
-              (reset! (r/cursor state [:support-loading?]) false)
+              (reset! (r/cursor state [:loading?]) false)
               {})
   :process
   (fn [{:keys [db]} _ {:keys [success] :as result}]
     (let [support-level (r/cursor state [:support-level])
           user-support-level (r/cursor state [:user-support-level])]
-      (reset! (r/cursor state [:support-loading?]) false)
+      (reset! (r/cursor state [:loading?]) false)
       (reset! (r/cursor state [:error-message]) nil)
       (get-current-support)
       {})))
+
+(def-action :support/cancel
+  :uri (fn [] "/api/cancel-project-support")
+  :content (fn []
+             {:project-id @(subscribe [:active-project-id])})
+  :process (fn [{:keys [db]} _ {:keys [success] :as result}]
+             (let [confirming-cancel? (r/cursor state [:confirming-cancel?])
+                   loading? (r/cursor state [:loading?])]
+               (get-current-support)
+               (reset! confirming-cancel? false)
+               (reset! loading? false)
+               {})))
 
 (defn SupportForm
   [state]
@@ -126,11 +135,15 @@
         user-support-level (r/cursor state [:user-support-level])
         error-message (r/cursor state [:error-message])
         need-card? (r/cursor stripe/state [:need-card?])
-        support-loading? (r/cursor state [:support-loading?])
-        current-support-message (r/cursor state [:current-support-message])]
-    [:div.ui.segment [:h1 "Support This Project"]
-     (when @current-support-message
-       [:h3.support-message @current-support-message])
+        loading? (r/cursor state [:loading?])
+        current-support-level (r/cursor state [:current-support-level])
+        confirming-cancel? (r/cursor state [:confirming-cancel?])]
+    [:div.ui.segment
+     (if @current-support-level
+       [:h1 "Change Your Level of Support"]
+       [:h1 "Support This Project"])
+     (when @current-support-level
+       [:h3.support-message (str "You are currently supporting this project at " (cents->string @current-support-level) " per month") ])
      [Form {:on-submit
             (fn []
               (let [cents (string->cents @user-support-level)]
@@ -144,11 +157,11 @@
                            (> cents
                               0))
                       (do
-                        (reset! support-loading? true)
+                        (reset! loading? true)
                         (dispatch [:action [:support/support-plan cents]]))
                       :else
                       (do
-                        (reset! support-loading? true)
+                        (reset! loading? true)
                         (dispatch [:action [:support/support-plan @support-level]])))))}
       [FormGroup
        [FormRadio {:label "$5 per month"
@@ -184,18 +197,49 @@
           [FormInput {:value @user-support-level
                       :on-change on-change
                       :on-click #(reset! support-level :user-defined)}]) " per month"]]
-      (when-not @need-card?
-        [:div.field [:button {:class (str "ui button primary "
-                                          (when @support-loading?
-                                            " disabled"))}
-                     "Continue"]])
-      (when @need-card?
-        [:div {:class "ui button primary"
-               :on-click (fn [e]
-                           (.preventDefault e)
-                           (dispatch [:payment/set-calling-route! (str "/p/" @(subscribe [:active-project-id]) "/support")])
-                           (dispatch [:navigate [:payment]]))}
-         "Update Payment Information"])
+      (when-not @confirming-cancel?
+        [:div.field
+         (when-not @need-card?
+           [:button {:class (str "ui button primary "
+                                 (when @loading?
+                                   " disabled"))}
+            "Continue"])
+         (when @need-card?
+           [:div {:class "ui button primary"
+                  :on-click (fn [e]
+                              (.preventDefault e)
+                              (dispatch [:payment/set-calling-route! (str "/p/" @(subscribe [:active-project-id]) "/support")])
+                              (dispatch [:navigate [:payment]]))}
+            "Update Payment Information"])
+         (when-not (nil? @current-support-level)
+           [:button {:class (str "ui button "
+                                 (when @loading?
+                                   " disabled"))
+                     :on-click (fn [e]
+                                 (reset! error-message nil)
+                                 (.preventDefault e)
+                                 (reset! confirming-cancel? true))}
+            "Cancel Support"])])
+      (when @confirming-cancel?
+        [:div
+         [:h3.ui.red.header
+          "Are you sure want to end your support for this project?"]
+         [:div.field
+          [:button {:class (str "ui button green"
+                                (when @loading?
+                                  " disabled"))
+                    :on-click (fn [e]
+                                (.preventDefault e)
+                                (reset! confirming-cancel? false))}
+           "Continue to Support"]
+          [:button {:class (str "ui button red"
+                                (when @loading?
+                                  " disabled"))
+                    :on-click (fn [e]
+                                (.preventDefault e)
+                                (reset! loading? true)
+                                (dispatch [:action [:support/cancel]]))}
+           "Stop Support"]]])
       (when @error-message
         [:div.ui.red.header @error-message])]]))
 
@@ -212,5 +256,6 @@
       (reset! (r/cursor state [:user-support-level]) "$1.00"))
     (reset! (r/cursor state [:error-message]) "")
     (reset! (r/cursor state [:confirm-message]) "")
-    (reset! (r/cursor state [:support-loading?]) false)
+    (reset! (r/cursor state [:loading?]) false)
+    (reset! (r/cursor state [:confirming-cancel?]) false)
     [Support]))

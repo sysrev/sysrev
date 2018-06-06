@@ -93,6 +93,8 @@
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
 (def support-button {:xpath "//a[contains(@class,'item')]/span[contains(text(),'Support')]"})
 (def support-submit-button {:xpath "//button[contains(text(),'Continue')]"})
+(def cancel-support-button {:xpath "//button[contains(text(),'Cancel Support')]"})
+(def stop-support-button {:xpath "//button[contains(text(),'Stop Support')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (def backspace-clear-length 30)
@@ -372,7 +374,12 @@
          (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
          (browser/click support-submit-button)
          (is (browser/exists? (error-msg-xpath "Minimum support level is $1.00 per month")))
-         ;; unsubscribe from all plans
-         (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
+         ;; cancel support
+         (browser/click cancel-support-button)
+         (browser/wait-until-displayed stop-support-button)
+         (browser/click stop-support-button)
+         (browser/wait-until-displayed {:xpath "//h1[text()='Support This Project']"})
+         (is (browser/exists? {:xpath "//h1[text()='Support This Project']"}))
+         ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
          (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email))))
          )))
