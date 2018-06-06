@@ -262,8 +262,7 @@
   []
   (let [user-support-subscriptions (r/cursor state [:user-support-subscriptions])]
     (get-user-support-subscriptions)
-    (.log js/console (clj->js @user-support-subscriptions))
-    (when @user-support-subscriptions
+    (when-not (empty? @user-support-subscriptions)
       [:div.ui.segment
        [:h3 "Thank You For Supporting These Projects"]
        [:table.ui.striped.table
@@ -272,7 +271,7 @@
         [:tbody
          (doall (map
                  (fn [subscription]
-                   ^{:key (:id subscription)}
+                   ^{:key (:project-id subscription)}
                    [:tr
                     [:td (:name subscription)]
                     [:td (cents->string (:quantity subscription))]
