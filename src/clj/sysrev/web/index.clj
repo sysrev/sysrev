@@ -9,6 +9,8 @@
 
 (defonce web-asset-path (atom "/out"))
 
+(defonce lucky-orange-enabled (atom (= (:profile env) :prod)))
+
 (defn set-web-asset-path [& [path]]
   (let [path (or path "/out")]
     (reset! web-asset-path path)))
@@ -56,7 +58,9 @@
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
-    (page/include-js "/ga.js")]
+    (page/include-js "/ga.js")
+    (when @lucky-orange-enabled
+      (page/include-js "/lo.js"))]
    [:body
     [:div {:style "display: none;"
            :id "stripe-public-key"
