@@ -14,6 +14,7 @@
    [sysrev.db.labels :as labels]
    [sysrev.db.sources :as sources]
    [sysrev.db.files :as files]
+   [sysrev.db.article_list :as alist]
    [sysrev.biosource.importance :as importance]
    [sysrev.export.endnote :as endnote-out]
    [sysrev.files.stores :as fstore]
@@ -433,6 +434,22 @@
            (->> (labels/query-public-article-labels project-id)
                 (labels/filter-recent-public-articles project-id exclude-hours)
                 (sr-transit/encode-public-labels))})))
+
+  (GET "/api/project-articles" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [project-id (active-project request)
+              exclude-hours (if (= :dev (:profile env))
+                              nil nil)
+              args (-> request :query-params)
+              n-count (some-> (get args "n-count") parse-integer)
+              n-offset (some-> (get args "n-offset") parse-integer)]
+          (update-user-default-project request)
+          {:result
+           (alist/query-project-article-list
+            project-id (cond-> {}
+                         n-count (merge {:n-count n-count})
+                         n-offset (merge {:n-offset n-offset})))})))
 
   (POST "/api/sync-project-labels" request
         (wrap-authorize

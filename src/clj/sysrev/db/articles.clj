@@ -1,6 +1,5 @@
 (ns sysrev.db.articles
   (:require [clojure.spec.alpha :as s]
-            [clojure.java.jdbc :as j]
             [clojure.tools.logging :as log]
             [sysrev.shared.util :as u]
             [sysrev.shared.spec.core :as sc]

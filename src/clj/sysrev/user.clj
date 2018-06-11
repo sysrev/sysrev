@@ -12,6 +12,7 @@
         sysrev.db.export
         sysrev.db.files
         sysrev.db.sources
+        sysrev.db.article_list
         sysrev.clone-project
         sysrev.files.stores
         sysrev.import.pubmed

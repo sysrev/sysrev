@@ -71,6 +71,20 @@
     {:db (assoc-in db [:data :project project-id :public-labels]
                    (sr-transit/decode-public-labels result))}))
 
+(def-data :project/article-list
+  :loaded? (fn [db project-id args]
+             (-> (get-in db [:data :project project-id :article-list])
+                 (contains? args)))
+  :uri (fn [project-id] "/api/project-articles")
+  :content (fn [project-id args]
+             (merge {:project-id project-id}
+                    args))
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :process
+  (fn [{:keys [db]} [project-id args] result]
+    {:db (assoc-in db [:data :project project-id :article-list args]
+                   result)}))
+
 (def-data :project/sources
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])
