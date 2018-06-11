@@ -10,4 +10,5 @@
  {:protocol "https"
   :host "sysrev.com"}
  :profile :remote-test
+ :max-import-articles 100000
  :private-config "config.local.edn"}

@@ -6,6 +6,7 @@
             [sysrev.db.sources :as sources]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
+            [sysrev.config.core :refer [env]]
             [sysrev.util :refer
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
             [sysrev.shared.util :refer [parse-integer]]
@@ -162,11 +163,12 @@
                                           (keyword item))))
       :result))
 
+
 (defn get-all-pmids-for-query
   "Given a search query, return all PMIDs as a vector of integers"
   [query]
   (let [total-pmids (:count (get-search-query-response query 1))
-        retmax 50000
+        retmax (:max-import-articles env)
         max-pages (int (Math/ceil (/ total-pmids retmax)))]
     (->> (range 0 max-pages)
          (mapv

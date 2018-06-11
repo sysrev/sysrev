@@ -6,5 +6,6 @@
   :port 5432}
  :server
  {:port 4061}
+ :max-import-articles 100000
  :profile :dev
  :private-config "config.local.edn"}

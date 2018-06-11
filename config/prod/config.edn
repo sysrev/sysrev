@@ -7,4 +7,5 @@
  :server
  {:port 4041}
  :profile :prod
+ :max-import-articles 100000
  :private-config "config.local.edn"}

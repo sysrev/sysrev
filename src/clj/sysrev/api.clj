@@ -10,6 +10,7 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.cache :refer [db-memo]]
             [sysrev.charts :as charts]
+            [sysrev.config.core :refer [env]]
             [sysrev.db.articles :as articles]
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
@@ -35,7 +36,7 @@
 (def not-found 404)
 (def internal-server-error 500)
 
-(def max-import-articles 100000)
+(def max-import-articles (:max-import-articles env))
 
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
