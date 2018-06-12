@@ -8,4 +8,5 @@
  {:port 4131}
  :profile :test
  :max-import-articles 100000
+ :e-util-api-key "***REMOVED***"
  :private-config "config.local.edn"}

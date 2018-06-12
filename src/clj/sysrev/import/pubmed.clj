@@ -27,6 +27,8 @@
             [clojure.string :as str]
             [clojure.data.xml :as dxml]))
 
+(def e-util-api-key (:e-util-api-key env))
+
 (defn parse-pubmed-author-names [authors]
   (when-not (empty? authors)
     (->> authors
@@ -108,11 +110,13 @@
      }))
 
 (defn fetch-pmids-xml [pmids]
-  (-> (str "https://eutils.ncbi.nlm.nih.gov"
-           "/entrez/eutils/efetch.fcgi"
-           (format "?db=pubmed&id=%s&retmode=xml"
-                   (str/join "," pmids)))
-      http/get
+  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+                {:query-params {"db" "pubmed"
+                                "id" (str/join "," pmids)
+                                "retmode" "xml"
+                                "api_key" e-util-api-key}})
+      #_(format "?db=pubmed&id=%s&retmode=xml"
+                      (str/join "," pmids))
       :body))
 
 (defn fetch-pmid-entries [pmids]
@@ -132,7 +136,8 @@
                                 "term" query
                                 "retmode" "json"
                                 "retmax" retmax
-                                "retstart" retstart}})
+                                "retstart" retstart
+                                "api_key" e-util-api-key}})
       :body
       (json/read-str :key-fn keyword)))
 
@@ -156,7 +161,8 @@
   (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
                 {:query-params {"db" "pubmed"
                                 "retmode" "json"
-                                "id" (clojure.string/join "," pmids)}})
+                                "id" (clojure.string/join "," pmids)
+                                "api_key" e-util-api-key}})
       :body
       (json/read-str :key-fn (fn [item] (if (int? (read-string item))
                                           (read-string item)
