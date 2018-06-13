@@ -181,6 +181,18 @@
            (api/import-articles-from-endnote-file
             project-id file filename))))
 
+  (POST "/api/import-articles-from-pdf-zip-file" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (active-project request)
+               file-data (get-in request [:params :file])
+               file (:tempfile file-data)
+               filename (:filename file-data)
+               user-id (current-user-id request)]
+           (api/import-articles-from-pdf-zip-file
+            file filename project-id
+            :threads 3))))
+
   ;; Returns an article for user to label
   (GET "/api/label-task" request
        (wrap-authorize

@@ -61,6 +61,11 @@
                      :search-count int?)
         :ret map?)
 
+(defn import-articles-from-zip-file-meta
+  [filename]
+  {:source "PDF Zip file"
+   :filename filename})
+
 (def import-facts-meta
   {:source "facts"})
 
