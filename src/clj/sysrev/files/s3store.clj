@@ -24,6 +24,17 @@
                    :file file)
     sha-1-hash))
 
+(defn save-byte-array
+  [byte-array & {:keys [bucket-name]
+                   :or {bucket-name pdf-bucket}}]
+  (let [sha-1-hash (util/byte-array->sha-1-hash byte-array)
+        byte-array-input-stream (java.io.ByteArrayInputStream. byte-array)]
+    (s3/put-object (get-credentials)
+                   :bucket-name bucket-name
+                   :key sha-1-hash
+                   :input-stream byte-array-input-stream
+                   :metadata {:content-length (count byte-array)})
+    sha-1-hash))
 ;; list the files
 ;;(s3/list-objects-v2 (get-credentials) {:bucket-name pdf-bucket})
 
