@@ -1,36 +1,44 @@
 (ns sysrev.views.panels.plans
   (:require [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe reg-event-fx trim-v]]
+            [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.base :refer [panel-content]]))
+            [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.panels.login :refer [LoginRegisterPanel]]
+            [sysrev.nav :refer [nav]])
+  (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def default-state {:plans nil
-                    :current-plan nil
-                    :selected-plan nil
+(def ^:private panel [:plans])
+
+(def initial-state {:selected-plan nil
                     :changing-plan? false
                     ;;:need-card? false
                     ;;:updating-card? false
                     :error-message nil})
-
-(defonce state (r/atom default-state))
+(defonce state (r/cursor app-db [:state :panels panel]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
 
 (def-data :plans
-  :loaded? (nil? (:plans @state))
+  :loaded? (fn [db] (contains? @state :plans))
   :uri (fn [] "/api/plans")
   :prereqs (fn [] [[:identity]])
-  :process (fn [{:keys [db]} _ result]
+  :process (fn [_ _ result]
+             (ensure-state)
              (reset! (r/cursor state [:plans]) (:plans result))
-             {:db db}))
+             {}))
 
 (def-data :current-plan
-  :loaded? (nil? (:current-plan @state))
+  :loaded? (fn [db] (contains? @state :current-plan))
   :uri (fn [] "/api/current-plan")
   :prereqs (fn [] [[:identity]])
-  :process (fn [{:keys [db]} _ result]
+  :process (fn [_ _ result]
+             (ensure-state)
              (reset! (r/cursor state [:current-plan]) (:plan result))
-             {:db db}))
+             {}))
 
 (def-action :subscribe-plan
   :uri (fn [] "/api/subscribe-plan")
@@ -53,7 +61,7 @@
       (reset! (r/cursor state [:error-message])
               (-> error :message)))
     (reset! (r/cursor stripe/state [:need-card?]) true)
-    {:db db}))
+    {}))
 
 (defn cents->dollars
   "Converts an integer value of cents to dollars"
@@ -116,83 +124,81 @@
            [:div
             [:i {:class "cart icon"}]  "Select Plan"])]]])))
 
-(defn Plans
-  []
-  (fn [state]
-    (let [color-vector ["teal" "blue" "violet"]
-          plans (r/cursor state [:plans])]
-      [:div {:class "ui three columns stackable grid"}
-       (when (nil? @plans)
-         {:key :loader}
-         [:div.ui.small.active.loader])
-       (when-not (nil? @plans)
-         (doall (map-indexed
-                 (fn [index plan]
-                   ^{:key (:product plan)}
-                   [Plan (merge plan
-                                {:color (nth color-vector index)})])
-                 (sort-by :amount @plans))))])))
+(defn Plans []
+  (let [color-vector ["teal" "blue" "violet"]
+        plans (r/cursor state [:plans])]
+    [:div {:class "ui three columns stackable grid"}
+     (when (nil? @plans)
+       {:key :loader}
+       [:div.ui.small.active.loader])
+     (when-not (nil? @plans)
+       (doall (map-indexed
+               (fn [index plan]
+                 ^{:key (:product plan)}
+                 [Plan (merge plan
+                              {:color (nth color-vector index)})])
+               (sort-by :amount @plans))))]))
 
-(defn UpdatePaymentButton
-  []
-  (fn []
-    [:div {:class "ui button primary"
-           :on-click (fn [e]
-                       (.preventDefault e)
-                       (dispatch [:payment/set-calling-route! [:plans]])
-                       (dispatch [:navigate [:payment]]))}
-     "Update Payment Information"]))
+(defn UpdatePaymentButton []
+  [:div {:class "ui button primary"
+         :on-click (fn [e]
+                     (.preventDefault e)
+                     (dispatch [:payment/set-calling-route! [:plans]])
+                     (dispatch [:navigate [:payment]]))}
+   "Update Payment Information"])
 
-(defn ChangePlan
-  []
-  (fn [state]
-    (let [selected-plan (r/cursor state [:selected-plan])
-          changing-plan? (r/cursor state [:changing-plan?])
-          error-message (r/cursor state [:error-message])
-          need-card? (r/cursor stripe/state [:need-card?])]
-      [:div [:h1 (str "You will be charged "
-                      "$" (cents->dollars (:amount @selected-plan))
-                      " per month and subscribed to the "
-                      (:name @selected-plan) " plan.")]
-       [:div {:class (str "ui button primary "
-                          (when @need-card?
-                            " disabled"))
-              :on-click (fn [e]
-                          (.preventDefault e)
-                          (dispatch [:action [:subscribe-plan (:name @selected-plan)]])
-                          (dispatch [:stripe/reset-error-message!]))}
-        "Subscribe"]
-       [:div {:class "ui button"
-              :on-click
-              (fn [e]
-                (.preventDefault e)
-                (reset! selected-plan nil)
-                (reset! changing-plan? false)
-                (reset! error-message nil)
-                (reset! need-card? false)
-                )} "Cancel"]
-       (when @error-message
-         [:div.ui.red.header @error-message])
-       [:br]
-       [:br]
-       (when @need-card?
-         [UpdatePaymentButton])])))
+(defn ChangePlan []
+  (let [selected-plan (r/cursor state [:selected-plan])
+        changing-plan? (r/cursor state [:changing-plan?])
+        error-message (r/cursor state [:error-message])
+        need-card? (r/cursor stripe/state [:need-card?])]
+    [:div [:h1 (str "You will be charged "
+                    "$" (cents->dollars (:amount @selected-plan))
+                    " per month and subscribed to the "
+                    (:name @selected-plan) " plan.")]
+     [:div {:class (str "ui button primary "
+                        (when @need-card?
+                          " disabled"))
+            :on-click (fn [e]
+                        (.preventDefault e)
+                        (dispatch [:action [:subscribe-plan (:name @selected-plan)]])
+                        (dispatch [:stripe/reset-error-message!]))}
+      "Subscribe"]
+     [:div {:class "ui button"
+            :on-click
+            (fn [e]
+              (.preventDefault e)
+              (reset! selected-plan nil)
+              (reset! changing-plan? false)
+              (reset! error-message nil)
+              (reset! need-card? false))}
+      "Cancel"]
+     (when @error-message
+       [:div.ui.red.header @error-message])
+     [:br]
+     [:br]
+     (when @need-card?
+       [UpdatePaymentButton])]))
 
 (defmethod panel-content [:plans] []
   (fn [child]
-    (let [changing-plan? (r/cursor state [:changing-plan?])
-          updating-card? (r/cursor state [:updating-card?])
-          need-card? (r/cursor stripe/state [:need-card?])
-          error-message (r/cursor state [:error-message])]
-      (dispatch [:fetch [:plans]])
-      (dispatch [:fetch [:current-plan]])
-      (reset! error-message false)
-      [:div.ui.segment
-       (when-not @changing-plan?
-         [UpdatePaymentButton])
-       [:br]
-       [:br]
-       (when @changing-plan?
-         [ChangePlan state])
-       (when-not @changing-plan?
-         [Plans state])])))
+    (ensure-state)
+    (stripe/ensure-state)
+    (with-loader [[:identity]
+                  [:plans]
+                  [:current-plan]] {}
+      (if (not @(subscribe [:self/logged-in?]))
+        [LoginRegisterPanel]
+        (let [changing-plan? (r/cursor state [:changing-plan?])
+              updating-card? (r/cursor state [:updating-card?])
+              need-card? (r/cursor stripe/state [:need-card?])
+              error-message (r/cursor state [:error-message])]
+          [:div.ui.segment
+           (when-not @changing-plan?
+             [UpdatePaymentButton])
+           [:br]
+           [:br]
+           (when @changing-plan?
+             [ChangePlan])
+           (when-not @changing-plan?
+             [Plans])])))))

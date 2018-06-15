@@ -218,6 +218,8 @@
 
 (sr-defroute
  plans "/plans" []
+ (dispatch [:reload [:plans]])
+ (dispatch [:reload [:current-plan]])
  (dispatch [:set-active-panel [:plans]]))
 
 (sr-defroute

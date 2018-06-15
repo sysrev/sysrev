@@ -50,7 +50,7 @@
 (defn max-pages
   "Return max number of pages"
   []
-  (let [pages-query {:xpath "//form/div[contains(text(),'Page')]"}]
+  (let [pages-query {:xpath "//form[contains(@class,'page-number')]/div"}]
     (browser/wait-until-exists pages-query)
     (->> (taxi/text (taxi/find-element pages-query))
          (re-matches #"(.|\s)*of (\d*)")

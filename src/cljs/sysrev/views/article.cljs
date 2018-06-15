@@ -17,7 +17,6 @@
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def state (r/atom nil))
 (reg-sub
  ::article-annotations
  (fn [[_ article-id project-id]]
