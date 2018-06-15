@@ -249,9 +249,19 @@ node {
           currentBuild.result = 'UNSTABLE'
           sendFlowdockMsg ('PostDeployTest failed')
           sendSlackMsg ('PostDeployTest failed')
-          sh 'cat target/junit-browser.xml'
+          if (branch == 'staging') {
+            sh 'cat target/junit-all.xml'
+          }
+          if (branch == 'production') {
+            sh 'cat target/junit-browser.xml'
+          }
         } finally {
-          junit 'target/junit-browser.xml'
+          if (branch == 'staging') {
+            junit 'target/junit-all.xml'
+          }
+          if (branch == 'production') {
+            junit 'target/junit-browser.xml'
+          }
         }
       }
     }
