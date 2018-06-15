@@ -9,7 +9,8 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components :as ui]
-            [sysrev.util :refer [wrap-prevent-default]]))
+            [sysrev.util :refer [wrap-prevent-default]]
+            [sysrev.shared.util :as util]))
 
 (def panel [:pubmed-search])
 
@@ -231,11 +232,8 @@
               {:on-submit
                (wrap-prevent-default
                 (fn []
-                  (let [value (cljs.reader/read-string @current-page-input)]
-                    (cond (= value @current-page)
-                          true
-
-                          (not= (type value) (type 1))
+                  (let [value (util/parse-integer @current-page-input)]
+                    (cond (not= (type value) (type 1))
                           (reset! current-page-input nil)
 
                           (not (<= 1 value total-pages))
