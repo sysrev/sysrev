@@ -238,7 +238,7 @@ node {
         echo 'Running tests against deploy host...'
         try {
           if (branch == 'staging') {
-            sh './jenkins/test-aws-dev-browser'
+            sh './jenkins/test-aws-dev-all'
           }
           if (branch == 'production') {
             sh './jenkins/test-aws-prod-browser'
