@@ -588,7 +588,7 @@
              :on-click
              (fn [ev]
                (reset! value [""]))}
-            [:i.fitted.remove.icon]]])
+            [:i.fitted.times.icon]]])
         [:input
          {:type "text"
           :name (str label-id)

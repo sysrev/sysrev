@@ -5,7 +5,7 @@
             [re-frame.core :refer [subscribe dispatch]]))
 
 (defn basic-text-button [id & args]
-  [:div.ui.basic.button {:id id :style {:cursor "pointer"}}
+  [:div.ui.button {:id id :style {:cursor "pointer"}}
    [:i.green.add.circle.icon]
    (first args)])
 

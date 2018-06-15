@@ -317,7 +317,7 @@
   (let [show-results? (r/cursor state [:show-results?])]
     [:div.ui.tiny.icon.button.search.results
      {:on-click #(reset! show-results? false)}
-     "Close " [:i.remove.icon]]))
+     "Close " [:i.times.icon]]))
 
 (defn SearchItemsCount
   "Display the total amount of items for a search term as well as the current range being viewed"

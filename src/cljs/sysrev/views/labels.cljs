@@ -35,7 +35,7 @@
       (str display-label " ")]
      [:div.ui.basic.label
       (if (empty? values)
-        [:i.grey.help.circle.icon
+        [:i.grey.question.circle.icon
          {:style {:margin-right "0"}
           :aria-hidden true}]
         (str/join ", " values))]]))

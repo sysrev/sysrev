@@ -100,7 +100,7 @@
                  (js/setTimeout
                   #(dispatch [:fetch [:project/sources project-id]])
                   100)))}
-     "Delete " [:i.circle.remove.icon]]))
+     "Delete " [:i.times.circle.icon]]))
 
 (defn ToggleArticleSource
   [source-id enabled?]

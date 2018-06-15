@@ -252,7 +252,8 @@
         [:div.ui.attached.segment
          {:key [:article-content]}
          [article-info-main-content article-id
-          :context context]]))
-     [PDFs article-id]
+          :context context]]
+        ^{:key :article-pdfs}
+        [PDFs article-id]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

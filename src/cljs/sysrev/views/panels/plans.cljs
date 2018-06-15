@@ -92,12 +92,12 @@
           (if (= 0 amount)
             "Free"
             (str "$" (cents->dollars amount))) ]]
-        [:div {:class "ui  attached secondary segment feature"}
-         [:i {:class "icon red remove"}] "Item 1" ]
-        [:div {:class "ui  attached segment feature"}
-         [:i {:class "icon red remove"}] "Item 2" ]
-        [:div {:class "ui  attached secondary segment feature"}
-         [:i {:class "icon red remove"}] "Item 3" ]
+        [:div {:class "ui attached secondary segment feature"}
+         [:i.red.times.icon] "Item 1" ]
+        [:div {:class "ui attached segment feature"}
+         [:i.red.times.icon] "Item 2" ]
+        [:div {:class "ui attached secondary segment feature"}
+         [:i.red.times.icon] "Item 3" ]
         [:div {:class (str "ui bottom attached button btn-plan "
                            color
                            (when subscribed?

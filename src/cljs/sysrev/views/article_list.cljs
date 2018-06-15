@@ -346,8 +346,8 @@
      [three-state-selection-icons
       #(dispatch [:article-list/set-filter-value :confirm-status % panel])
       active-status
-      :icons {false [:i.remove.circle.outline.icon]
-              nil   [:i.help.circle.outline.icon]
+      :icons {false [:i.times.circle.outline.icon]
+              nil   [:i.question.circle.outline.icon]
               true  [:i.check.circle.outline.icon]}]]))
 ;;;
 (defn- label-selector [panel]
@@ -500,7 +500,7 @@
           (if (allow-null-label? panel)
             #(dispatch [::reset-filters [] panel])
             #(dispatch [::reset-filters [] panel]))}
-         [:i.remove.icon]
+         [:i.times.icon]
          "Reset Filters"]]
     [:div.ui.secondary.segment.article-filters
      {:style {:padding "10px"}}
