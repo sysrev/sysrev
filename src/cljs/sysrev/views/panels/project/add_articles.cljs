@@ -152,7 +152,7 @@
       ["Legacy Import" nil]
 
       "PDF Zip file"
-      ["PDF Zip File" nil]
+      ["PDF Zip File" (:filename meta)]
 
       ["Unknown Source" nil])))
 
