@@ -220,7 +220,6 @@
             ;; there is no import going on for this filename
             (and (empty? filename-sources))
             (do
-              (println "I am importing from a zip file!")
               (future (zip/import-pdfs-from-zip-file!
                        file
                        filename
