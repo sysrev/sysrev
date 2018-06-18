@@ -1,111 +1,95 @@
 (ns sysrev.views.panels.user-settings
-  (:require
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer [with-tooltip selection-dropdown]]
-   [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
-   [sysrev.nav :refer [nav-scroll-top]]
-   [sysrev.util :refer [full-size?]]))
+  (:require [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.db :refer [app-db]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.components :refer [with-tooltip selection-dropdown]]
+            [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
+            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.util :refer [full-size?]]))
 
-(def ^:private panel-name [:user-settings])
+(def ^:private panel [:user-settings])
+
+(def initial-state {})
+(defonce state (r/cursor app-db [:state :panels panel]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
 
 (defn- parse-input [skey input]
   (case skey
     :ui-theme input
     nil))
 
+(defn editing? []
+  (= panel @(subscribe [:active-panel])))
+
+(defn saved-values [& [skey]]
+  (cond-> @(subscribe [:self/settings])
+    skey (get skey)))
+
+(defn active-values [& [skey]]
+  (cond-> (:active-values @state)
+    skey (get skey)))
+
+(defn current-values [& [skey]]
+  (let [active (active-values)]
+    (cond-> (saved-values)
+      (editing?) (merge active)
+      skey (get skey))))
+
+(defn active-inputs [& [skey]]
+  (cond-> (:active-inputs @state)
+    skey (get skey)))
+
+(defn reset-fields []
+  (let [values (r/cursor state [:active-values])
+        inputs (r/cursor state [:active-inputs])]
+    (reset! values {})
+    (reset! inputs {})))
+
+(defn valid-input? [& [skey]]
+  (let [inputs (active-inputs)
+        values (current-values)]
+    (letfn [(valid? [skey]
+              (if-let [input (get inputs skey)]
+                (= (parse-input skey input)
+                   (get values skey))
+                true))]
+      (if skey
+        (valid? skey)
+        (every? valid? (keys inputs))))))
+
+(defn edit-setting [skey input]
+  (let [inputs (r/cursor state [:active-inputs])
+        values (r/cursor state [:active-values])
+        value (parse-input skey input)]
+    (swap! inputs assoc skey input)
+    (when value
+      (swap! values assoc skey value))))
+
+(defn modified? []
+  (not= (saved-values) (current-values)))
+
+(defn save-changes []
+  (let [values (current-values)
+        saved (saved-values)
+        changed-keys (filter #(not= (get values %)
+                                    (get saved %))
+                             (keys values))
+        changes (mapv (fn [skey]
+                        {:setting skey
+                         :value (get values skey)})
+                      changed-keys)]
+    (dispatch [:action [:user/change-settings changes]])))
+
 (defn- render-setting [skey]
-  (if-let [input @(subscribe [::active-inputs skey])]
+  (if-let [input (active-inputs skey)]
     input
-    (let [value @(subscribe [::values skey])]
+    (let [value (current-values skey)]
       (case skey
         :ui-theme (if (nil? value) "Default" value)
         nil))))
-
-(reg-sub
- ::editing?
- :<- [:active-panel]
- (fn [panel]
-   (= panel panel-name)))
-
-(reg-sub
- ::saved
- :<- [:self/settings]
- (fn [settings [_ skey]]
-   (cond-> (into {} settings)
-     skey (get skey))))
-
-(reg-sub
- ::active
- (fn [db [_ skey]]
-   (cond-> (get-in db [:state :user-settings :active-values])
-     skey (get skey))))
-
-(reg-sub
- ::values
- :<- [::editing?]
- :<- [::saved]
- :<- [::active]
- (fn [[editing? saved active] [_ skey]]
-   (cond-> saved
-     editing? (merge active)
-     skey (get skey))))
-
-(reg-sub
- ::active-inputs
- (fn [db [_ skey]]
-   (cond-> (get-in db [:state :user-settings :active-inputs])
-     skey (get skey))))
-
-(reg-event-db
- ::reset-fields
- (fn [db]
-   (-> db
-       (assoc-in [:state :user-settings :active-values] {})
-       (assoc-in [:state :user-settings :active-inputs] {}))))
-
-(reg-sub
- ::valid-input?
- :<- [::active-inputs]
- :<- [::values]
- (fn [[inputs values] [_ skey]]
-   (letfn [(valid? [skey]
-             (if-let [input (get inputs skey)]
-               (= (parse-input skey input)
-                  (get values skey))
-               true))]
-     (if skey
-       (valid? skey)
-       (every? valid? (keys inputs))))))
-
-(reg-event-db
- ::edit-setting
- [trim-v]
- (fn [db [skey input]]
-   (let [value (parse-input skey input)]
-     (cond-> (assoc-in db [:state :user-settings :active-inputs skey] input)
-       value (assoc-in [:state :user-settings :active-values skey] value)))))
-
-(reg-sub
- ::modified?
- :<- [::saved]
- :<- [::values]
- (fn [[saved values]]
-   (not= saved values)))
-
-(reg-event-fx
- ::save-changes
- [trim-v]
- (fn [_ [values saved]]
-   (let [changed-keys (filter #(not= (get values %)
-                                     (get saved %))
-                              (keys values))
-         changes  (mapv (fn [skey]
-                          {:setting skey
-                           :value (get values skey)})
-                        changed-keys)]
-     (dispatch [:action [:user/change-settings changes]]))))
 
 (defn- theme-selector []
   (let [active-theme (render-setting :ui-theme)]
@@ -116,18 +100,17 @@
            (fn [theme-name]
              [:div.item
               (into {:key theme-name
-                     :on-click #(dispatch [::edit-setting :ui-theme theme-name])}
+                     :on-click #(edit-setting :ui-theme theme-name)}
                     (when (= theme-name active-theme)
                       {:class "active selected"}))
               theme-name])))]))
 
 (defn- user-options-box []
-  (let [values @(subscribe [::values])
-        saved @(subscribe [::saved])
-        modified? @(subscribe [::modified?])
-        valid? @(subscribe [::valid-input?])
-        field-class #(if @(subscribe [::valid-input? %])
-                       "" "error")]
+  (let [values (current-values)
+        saved (saved-values)
+        modified? (modified?)
+        valid? (valid-input?)
+        field-class #(if (valid-input? %) "" "error")]
     [:div.ui.segment.user-options
      [:h4.ui.dividing.header "Options"]
      [:div.ui.unstackable.form {:class (if valid? "" "warning")}
@@ -141,11 +124,11 @@
       [:div
        [:button.ui.primary.button
         {:class (if (and valid? modified?) "" "disabled")
-         :on-click #(dispatch [::save-changes values saved])}
+         :on-click #(save-changes)}
         "Save changes"]
        [:button.ui.button
         {:class (if modified? "" "disabled")
-         :on-click #(dispatch [::reset-fields])}
+         :on-click #(reset-fields)}
         "Reset"]]]]))
 
 (defn- user-dev-tools-box []
@@ -154,6 +137,7 @@
       [:div.ui.segment
        [:h4.ui.dividing.header "Dev Tools"]
        [:div
+        ;; TODO: add method for deleting dev user labels
         #_ [:button.ui.yellow.button
             {:on-click
              #(do (dispatch [:action [:user/delete-member-labels user-id]])

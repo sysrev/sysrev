@@ -272,7 +272,7 @@
 (defn three-state-selection-icons
   [on-change curval &
    {:keys [icons] :or {icons {false [:i.minus.circle.icon]
-                              nil   [:i.help.circle.outline.icon]
+                              nil   [:i.question.circle.outline.icon]
                               true  [:i.plus.circle.icon]}}}]
   ;; nil for unset, true, false
   (let [size (if (full-size?) "large" "small")
@@ -309,7 +309,7 @@
         iclass (case value
                  true "add circle icon"
                  false "minus circle icon"
-                 "help circle icon")]
+                 "question circle icon")]
     [:div.ui.label
      {:class (str vclass " " size)
       :style style}

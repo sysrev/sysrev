@@ -17,7 +17,6 @@
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def state (r/atom nil))
 (reg-sub
  ::article-annotations
  (fn [[_ article-id project-id]]
@@ -253,7 +252,8 @@
         [:div.ui.attached.segment
          {:key [:article-content]}
          [article-info-main-content article-id
-          :context context]]))
-     [PDFs article-id]
+          :context context]]
+        ^{:key :article-pdfs}
+        [PDFs article-id]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

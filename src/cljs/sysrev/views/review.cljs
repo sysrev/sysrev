@@ -230,7 +230,7 @@
                       (fn [ev]
                         (dispatch [::remove-string-value
                                    article-id label-id i]))}
-                     [:i.fitted.remove.icon]]])
+                     [:i.fitted.times.icon]]])
                  [:input
                   {:type "text"
                    :name (str label-id "__" i)

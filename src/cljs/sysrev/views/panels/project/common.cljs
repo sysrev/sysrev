@@ -143,7 +143,7 @@
          [{:tab-id :manage
            :content (if mobile?
                       [:span [:i.settings.icon]]
-                      [:span [:i.settings.icon] "Manage"])
+                      [:span [:i.settings.icon] " Manage"])
            :action (project-uri project-id "/manage")
            #_ (list [:project :project :add-articles] action-params)}]
          active-tab
