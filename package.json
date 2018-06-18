@@ -4,8 +4,9 @@
   "description": "FIXME: Write a one-line description of your library/project.",
   "main": "index.js",
   "dependencies": {
+    "gulp": "^3.9.1",
     "jquery": "2.2.2",
-    "semantic-ui": "2.3.1"
+    "semantic-ui": "^2.3.2"
   },
   "devDependencies": {},
   "scripts": {
