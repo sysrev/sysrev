@@ -1,8 +1,10 @@
 (ns sysrev.annotation
-  (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+  (:require [cljsjs.rangy-core :as rangy]
+            [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [reagent.core :as r]
-            [sysrev.data.core :refer [def-data]]))
+            [sysrev.data.core :refer [def-data]])
+  (:require-macros [reagent.interop :refer [$]]))
 
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
@@ -252,3 +254,40 @@
                                 text-decoration
                                 (merge {:text-decoration text-decoration}))])))
           annotations)]))
+
+(defn TipContainer
+  [{:keys [top left]}]
+  [:div {:style {:top (str (- top 100) "px")
+                 :left (str left "px")
+                 :position "fixed"
+                 :z-index "100"
+                 :background "black"}
+         :on-click (fn [e]
+                     ($ e stopPropagation)
+                     ($ e preventDefault)
+                     (.log js/console "clicked"))
+         :on-mouse-up (fn [e]
+                        ($ e preventDefault)
+                        ($ e stopPropagation))
+         :on-mouse-down (fn [e]
+                          ($ e preventDefault)
+                          ($ e stopPropagation))}
+   [:h1 "Annotate Selection"]])
+
+(defn AnnotationCapture
+  [child]
+  (let [state (r/atom {})
+        selection (r/cursor state [:selection])
+        client-x (r/cursor state [:client-x])
+        client-y (r/cursor state [:client-y])]
+    (fn [child]
+      [:div
+       [:div {:on-mouse-up (fn [e]
+                             (reset! selection (-> ($ js/rangy getSelection)
+                                                   ($ toString)))
+                             (reset! client-x ($ e :clientX))
+                             (reset! client-y ($ e :clientY)))}
+        (when-not (empty? @selection)
+          [TipContainer {:top @client-y
+                         :left @client-x}])
+        child]])))

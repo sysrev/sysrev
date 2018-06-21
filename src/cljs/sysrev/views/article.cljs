@@ -7,7 +7,7 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.annotation :refer [AnnotatedText]]
+            [sysrev.annotation :refer [AnnotatedText AnnotationCapture]]
             [sysrev.pdf :as pdf :refer [PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
@@ -137,44 +137,46 @@
             delay 5]
         (when (= context :article-list)
           (get-annotations article-id :delay delay))
-        [:div
-         [:h3.header
-          (when-not (empty? title)
-            [AnnotatedText title annotations
+        [AnnotationCapture
+         [:div
+          [:h3.header
+           (when-not (empty? title)
+             [AnnotatedText title annotations
+              (if (= context
+                     :review)
+                "underline green"
+                "underline #909090")])]
+          (when-not (empty? journal-name)
+            [:h3.header {:style {:margin-top "0px"}}
+             [render-keywords article-id journal-render
+              {:label-class "large"}]])
+          (when-not (empty? date)
+            [:h5.header {:style {:margin-top "0px"}}
+             date])
+          (when-not (empty? authors)
+            [:h5.header {:style {:margin-top "0px"}}
+             (author-names-text 5 authors)])
+          ;; abstract, with annotations
+
+          (when-not (empty? abstract)
+            [AnnotatedText abstract annotations
              (if (= context
                     :review)
-               "underline green"
-               "underline #909090")])]
-         (when-not (empty? journal-name)
-           [:h3.header {:style {:margin-top "0px"}}
-            [render-keywords article-id journal-render
-             {:label-class "large"}]])
-         (when-not (empty? date)
-           [:h5.header {:style {:margin-top "0px"}}
-            date])
-         (when-not (empty? authors)
-           [:h5.header {:style {:margin-top "0px"}}
-            (author-names-text 5 authors)])
-         ;; abstract, with annotations
-         (when-not (empty? abstract)
-           [AnnotatedText abstract annotations
-            (if (= context
-                   :review)
-              "underline green")])
-         (when-not (empty? documents)
-           [:div {:style {:padding-top "0.75em"}}
-            [:div.content.ui.horizontal.list
-             (doall
-              (map-indexed (fn [idx {:keys [fs-path url]}]
-                             ^{:key [idx]} [document-link url fs-path])
-                           documents))]])
-         (when-not (empty? urls)
-           [:div {:style {:padding-top "0.75em"}}
-            [:div.content.ui.horizontal.list
-             (doall
-              (map-indexed (fn [idx url]
-                             ^{:key [idx]} [out-link url])
-                           urls))]])]))))
+               "underline green")])
+          (when-not (empty? documents)
+            [:div {:style {:padding-top "0.75em"}}
+             [:div.content.ui.horizontal.list
+              (doall
+               (map-indexed (fn [idx {:keys [fs-path url]}]
+                              ^{:key [idx]} [document-link url fs-path])
+                            documents))]])
+          (when-not (empty? urls)
+            [:div {:style {:padding-top "0.75em"}}
+             [:div.content.ui.horizontal.list
+              (doall
+               (map-indexed (fn [idx url]
+                              ^{:key [idx]} [out-link url])
+                            urls))]])]]))))
 
 (defn- article-flag-label [description]
   [:div.ui.left.labeled.button.article-flag
