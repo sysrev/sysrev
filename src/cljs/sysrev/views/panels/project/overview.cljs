@@ -197,7 +197,7 @@
                  [:div.right.floated.content
                   [:div.ui.small.label (show-date file)]]
                  (if @editing-files
-                   [:i.ui.middle.aligned.large.red.circle.remove.icon
+                   [:i.ui.middle.aligned.red.times.circle.outline.icon
                     {:on-click #(delete-file (:file-id file))
                      :style {:cursor "pointer"}}]
                    [:i.ui.middle.aligned.outline.blue.file.icon
@@ -217,9 +217,10 @@
               (str "/api/files/" project-id "/upload")
               pull-files
               "Upload document"]
-             [:div.ui.right.floated.small.basic.icon.button
+             [:div.ui.right.floated.small.icon.button
               {:on-click toggle-editing
-               :class (when @editing-files "red")}
+               :style (when @editing-files {:border "1px solid red"
+                                            :margin "-1px"})}
               [:i.ui.blue.pencil.icon]]])]]))))
 
 (defn MemberActivityChart []

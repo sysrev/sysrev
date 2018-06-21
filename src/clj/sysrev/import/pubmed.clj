@@ -6,6 +6,7 @@
             [sysrev.db.sources :as sources]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
+            [sysrev.config.core :refer [env]]
             [sysrev.util :refer
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
             [sysrev.shared.util :refer [parse-integer]]
@@ -25,6 +26,8 @@
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [clojure.data.xml :as dxml]))
+
+(def e-util-api-key (:e-util-api-key env))
 
 (defn parse-pubmed-author-names [authors]
   (when-not (empty? authors)
@@ -107,11 +110,13 @@
      }))
 
 (defn fetch-pmids-xml [pmids]
-  (-> (str "https://eutils.ncbi.nlm.nih.gov"
-           "/entrez/eutils/efetch.fcgi"
-           (format "?db=pubmed&id=%s&retmode=xml"
-                   (str/join "," pmids)))
-      http/get
+  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+                {:query-params {"db" "pubmed"
+                                "id" (str/join "," pmids)
+                                "retmode" "xml"
+                                "api_key" e-util-api-key}})
+      #_(format "?db=pubmed&id=%s&retmode=xml"
+                      (str/join "," pmids))
       :body))
 
 (defn fetch-pmid-entries [pmids]
@@ -131,7 +136,8 @@
                                 "term" query
                                 "retmode" "json"
                                 "retmax" retmax
-                                "retstart" retstart}})
+                                "retstart" retstart
+                                "api_key" e-util-api-key}})
       :body
       (json/read-str :key-fn keyword)))
 
@@ -155,18 +161,20 @@
   (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
                 {:query-params {"db" "pubmed"
                                 "retmode" "json"
-                                "id" (clojure.string/join "," pmids)}})
+                                "id" (clojure.string/join "," pmids)
+                                "api_key" e-util-api-key}})
       :body
       (json/read-str :key-fn (fn [item] (if (int? (read-string item))
                                           (read-string item)
                                           (keyword item))))
       :result))
 
+
 (defn get-all-pmids-for-query
   "Given a search query, return all PMIDs as a vector of integers"
   [query]
   (let [total-pmids (:count (get-search-query-response query 1))
-        retmax 50000
+        retmax (:max-import-articles env)
         max-pages (int (Math/ceil (/ total-pmids retmax)))]
     (->> (range 0 max-pages)
          (mapv

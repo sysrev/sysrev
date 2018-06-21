@@ -89,7 +89,9 @@
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
    (dispatch [:require item])
-   (dispatch [:reload item])))
+   (dispatch [:reload item])
+   (dispatch [:require [:pdf/article-pdfs article-id]])
+   (dispatch [:reload [:pdf/article-pdfs article-id]])))
 
 (sr-defroute-project
  project-user "/user" [project-id]
@@ -124,7 +126,9 @@
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
    (dispatch [:require item])
-   (dispatch [:reload item])))
+   (dispatch [:reload item])
+   (dispatch [:require [:pdf/article-pdfs article-id]])
+   (dispatch [:reload [:pdf/article-pdfs article-id]])))
 
 (sr-defroute-project
  project-labels-edit "/labels/edit" [project-id]
@@ -218,6 +222,8 @@
 
 (sr-defroute
  plans "/plans" []
+ (dispatch [:reload [:plans]])
+ (dispatch [:reload [:current-plan]])
  (dispatch [:set-active-panel [:plans]]))
 
 (sr-defroute

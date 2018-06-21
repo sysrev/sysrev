@@ -1,13 +1,13 @@
 (ns sysrev.pdf
-  (:require
-   [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
-   [goog.dom :as dom]
-   [reagent.core :as r]
-   [re-frame.core :as re-frame :refer [dispatch]]
-   [sysrev.data.core :refer [def-data]]
-   [sysrev.util :refer [random-id]]
-   [sysrev.views.upload :refer [upload-container basic-text-button]])
-  (:require-macros [reagent.interop :refer [$ $!]]))
+  (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+            [goog.dom :as dom]
+            [reagent.core :as r]
+            [re-frame.core :as re-frame :refer [dispatch]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.util :refer [random-id full-size?]]
+            [sysrev.views.upload :refer [upload-container basic-text-button]])
+  (:require-macros [reagent.interop :refer [$ $!]]
+                   [sysrev.macros :refer [with-loader]]))
 
 (def initial-pdf-view-state {:pdf-doc nil
                              :page-count nil
@@ -17,7 +17,7 @@
                              :scale 1.5
                              :container-id nil})
 
-(def state (r/atom {:pdf-view initial-pdf-view-state}))
+(defonce state (r/atom {:pdf-view initial-pdf-view-state}))
 
 (def semantic-ui js/semanticUIReact)
 (def Button (r/adapt-react-class (goog.object/get semantic-ui "Button")))
@@ -60,8 +60,8 @@
              {}))
 
 (def-data :pdf/article-pdfs
-  :loaded? (fn [_ article-id _]
-             (constantly false))
+  :loaded? (fn [db article-id]
+             (contains? (get-in @state [article-id]) :article-pdfs))
   :uri (fn [article-id] (str "/api/files/article/" article-id "/article-pdfs"))
   :prereqs (fn [] [[:identity]])
   :content (fn [article-id])
@@ -78,7 +78,7 @@
   :prereqs (fn [] [[:identity]])
   :content (fn [article-id key filename])
   :process (fn [_ [article-id key filename] result]
-             {:dispatch [:fetch [:pdf/article-pdfs article-id]]}))
+             {:dispatch [:reload [:pdf/article-pdfs article-id]]}))
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
 
@@ -175,10 +175,8 @@
                                     (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"})))
                               ($ then
                                  (fn [pdf]
-                                   (reset! pdf-doc
-                                           pdf)
-                                   (reset! page-count
-                                           ($ pdf :numPages))
+                                   (reset! pdf-doc pdf)
+                                   (reset! page-count ($ pdf :numPages))
                                    (render-page @page-num))))]))})))
 
 (defn view-open-access-pdf-url
@@ -188,15 +186,17 @@
 (defn OpenAccessPDF
   [article-id on-click]
   (let [available? @(r/cursor state [article-id :open-access-available?])]
-    (when (nil? available?)
-      (dispatch [:fetch [:pdf/open-access-available? article-id]]))
-    (if available?
-      [:button.ui.button
-       [PDFModal {:trigger [:a {:on-click #(.preventDefault %)} "Open Access PDF"]}
-        [ViewPDF (view-open-access-pdf-url article-id)]]]
-      [:span {:class "empty"
-              :style {:display "none"}}])))
-
+    (when available?
+      [:div.field>div.fields
+       [:div.ui.buttons
+        [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
+                             [:i.expand.icon] "Open Access PDF"]}
+         [ViewPDF (view-open-access-pdf-url article-id)]]
+        [:a.ui.button
+         {:href (view-open-access-pdf-url article-id)
+          :target "_blank"
+          :download (str article-id ".pdf")}
+         "Download"]]])))
 
 (defn view-s3-pdf-url
   [article-id key filename]
@@ -206,62 +206,71 @@
   [{:keys [article-id key filename]}]
   (let [confirming? (r/atom false)]
     (fn [{:keys [article-id key filename]}]
-      [:div {:style {:margin-top "1em"}}
+      [:div
        (when-not @confirming?
          [:div.ui.buttons
-          [:button.ui.button
-           filename]
-          [PDFModal {:trigger [:button.ui.button {:on-click #(.preventDefault %)}
-                               "View"]}
+          [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
+                               [:i.expand.icon] filename]}
            [ViewPDF (view-s3-pdf-url article-id key filename)]]
-          [:button.ui.button
-           [:a {:href (str "/api/files/article/" article-id "/download/" key "/" filename)
-                :target "_blank"
-                :download filename}
-            "Download"]]
-          [:button.ui.button
-           [:i {:class "remove icon"
-                :on-click #(reset! confirming? true)}]]])
+          [:a.ui.button
+           {:href (str "/api/files/article/" article-id
+                       "/download/" key "/" filename)
+            :target "_blank"
+            :download filename}
+           "Download"]
+          [:a.ui.icon.button
+           {:on-click #(reset! confirming? true)}
+           [:i.times.icon]]])
        (when @confirming?
          [:div.ui.negative.message
           [:div.header
            (str "Are you sure you want to delete " filename "?")]
           [:br]
-          [:div.ui.button {:on-click #(do (reset! confirming? false)
-                                          (dispatch [:fetch [:pdf/delete-pdf article-id key filename]]))}
+          [:div.ui.button
+           {:on-click
+            #(do (reset! confirming? false)
+                 (dispatch [:fetch [:pdf/delete-pdf article-id key filename]]))}
            "Yes"]
           [:div.ui.blue.button {:on-click #(reset! confirming? false)}
            "No"]])])))
 
-(defn ArticlePDFs
-  [article-id]
-  (dispatch [:fetch [:pdf/article-pdfs article-id]])
-  [:div {:class "ui basic"}
-   (doall
-    (map-indexed
-     (fn [i file-map]
-       ^{:key (gensym i)}
-       [S3PDF {:article-id article-id
-             :key (:key file-map)
-             :filename (:filename file-map)}])
-     @(r/cursor state [article-id :article-pdfs])))])
+(defn ArticlePDFs [article-id]
+  (let [article-pdfs (r/cursor state [article-id :article-pdfs])]
+    (when (not-empty @article-pdfs)
+      [:div
+       (doall
+        (map-indexed
+         (fn [i file-map]
+           ^{:key (gensym i)}
+           [:div.field>div.fields>div
+            [S3PDF {:article-id article-id
+                    :key (:key file-map)
+                    :filename (:filename file-map)}]])
+         @article-pdfs))])))
 
-(defn PDFs
-  [article-id]
-  [:div {:id "article-pdfs"
-         :class "ui segment"}
-   [:h4 {:class "ui dividing header"}
-    "Article PDFs"]
-   [:div.ui.small.form
-    [:div.field
-     [:div.fields
-      [OpenAccessPDF article-id]]]
-    [:div.field
-     [:div.fields
-      [ArticlePDFs article-id]]]
-    [:div.field
-     [:div.fields
-      [upload-container basic-text-button
-       (str "/api/files/article/" article-id "/upload-pdf")
-       #(dispatch [:fetch [:pdf/article-pdfs article-id]])
-       "Upload PDF"]]]]])
+(defn PDFs [article-id]
+  (when article-id
+    [:div#article-pdfs.ui.attached.segment
+     {:style {:min-height "60px"}}
+     (with-loader [[:pdf/article-pdfs article-id]
+                   [:pdf/open-access-available? article-id]]
+       {:dimmer :fixed :class ""}
+       (let [upload-form (fn []
+                           [:div.field>div.fields
+                            [upload-container basic-text-button
+                             (str "/api/files/article/" article-id "/upload-pdf")
+                             #(dispatch [:reload [:pdf/article-pdfs article-id]])
+                             "Upload PDF"]])]
+         (if (full-size?)
+           [:div.ui.grid
+            [:div.row
+             [:div.twelve.wide.left.aligned.column
+              [:div.ui.small.form
+               [OpenAccessPDF article-id]
+               [ArticlePDFs article-id]]]
+             [:div.four.wide.right.aligned.column
+              [upload-form]]]]
+           [:div.ui.small.form
+            [OpenAccessPDF article-id]
+            [ArticlePDFs article-id]
+            [upload-form]])))]))

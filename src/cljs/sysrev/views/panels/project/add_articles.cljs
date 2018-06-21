@@ -83,6 +83,18 @@
        #(do (dispatch [:reload [:project/sources project-id]]))
        "Upload File..."]]]))
 
+(defn ImportPDFZipsView []
+  (let [project-id @(subscribe [:active-project-id])]
+    [:div
+     [:h4.ui.dividing.header "Import PDFs from a zip file"]
+     [:div.upload-container
+      [:h4 "Upload a zip file containing PDFs. Each PDF will have its own article entry"]
+      [upload-container
+       basic-text-button
+       "/api/import-articles-from-pdf-zip-file"
+       #(do (dispatch [:reload [:project/sources project-id]]))
+       "Upload File..."]]]))
+
 (defn ImportPubMedView []
   (pubmed/ensure-state)
   (let [current-search-term (r/cursor pubmed/state [:current-search-term])]
@@ -100,7 +112,7 @@
                  (js/setTimeout
                   #(dispatch [:fetch [:project/sources project-id]])
                   100)))}
-     "Delete " [:i.circle.remove.icon]]))
+     "Delete " [:i.times.circle.icon]]))
 
 (defn ToggleArticleSource
   [source-id enabled?]
@@ -138,6 +150,9 @@
 
       "legacy"
       ["Legacy Import" nil]
+
+      "PDF Zip file"
+      ["PDF Zip File" (:filename meta)]
 
       ["Unknown Source" nil])))
 
@@ -352,13 +367,17 @@
         :action #(reset! import-tab :pmid)}
        {:tab-id :endnote
         :content "EndNote XML"
-        :action #(reset! import-tab :endnote)}]
+        :action #(reset! import-tab :endnote)}
+       {:tab-id :zip-file
+        :content "Zip File"
+        :action #(reset! import-tab :zip-file)}]
       active-tab
       "import-source-tabs"]
      (case active-tab
        :pubmed   [ImportPubMedView]
        :pmid     [ImportPMIDsView]
-       :endnote  [ImportEndNoteView])]))
+       :endnote  [ImportEndNoteView]
+       :zip-file [ImportPDFZipsView])]))
 
 (defn ProjectSourcesPanel []
   (ensure-state)

@@ -56,7 +56,7 @@
             [:a.item.toggle-theme
              {:on-click #(toggle-ui-theme logged-in? settings)}
              [:span {:style {:font-size "22px"}}
-              [:i.fitted.lightbulb.icon]]]
+              [:i.fitted.lightbulb.outline.icon]]]
             {:delay {:show 600
                      :hide 0}
              :hoverable false

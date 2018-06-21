@@ -17,11 +17,11 @@
       [:div {:class "ui  attached segment feature"}
        [:div {:class "amount"} "R$ 40,50"]]
       [:div {:class "ui  attached secondary segment feature"}
-       [:i {:class "icon red remove"}]"  \n                Item 2"]
+       [:i.red.times.icon] "  \n                Item 2"]
       [:div {:class "ui  attached segment feature"}
-       [:i {:class "icon red remove"}]"Item 3"]
+       [:i.red.times.icon] "Item 3"]
       [:div {:class "ui bottom attached violet button btn-plan"}
-       [:i {:class "cart icon"}]"Selecionar Pacote"]]]))
+       [:i.cart.icon] "Selecionar Pacote"]]]))
 
 (defn Plans
   []

@@ -10,6 +10,7 @@
             [sysrev.biosource.importance :as importance]
             [sysrev.cache :refer [db-memo]]
             [sysrev.charts :as charts]
+            [sysrev.config.core :refer [env]]
             [sysrev.db.articles :as articles]
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
@@ -21,6 +22,7 @@
             [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
+            [sysrev.import.zip :as zip]
             [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
@@ -35,7 +37,7 @@
 (def not-found 404)
 (def internal-server-error 500)
 
-(def max-import-articles 100000)
+(def max-import-articles (:max-import-articles env))
 
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
@@ -191,6 +193,34 @@
             (and (empty? filename-sources))
             (do
               (future (endnote/import-endnote-library!
+                       file
+                       filename
+                       project-id
+                       :use-future? true
+                       :threads 3))
+              {:result {:success true}})
+            (not (empty? filename-sources))
+            {:result {:success true}}
+            :else
+            {:error {:status internal-server-error
+                     :message "Unknown event occurred"}})
+      (catch Throwable e
+        {:error {:status internal-server-error
+                 :message (.getMessage e)}}))))
+
+(defn import-articles-from-pdf-zip-file
+  "Import PDFs from pdf zip file. A pdf zip file is a file which contains pdfs. Each pdf will create its own article entry with the simply the name of the pdf as a title."
+  [file filename project-id & {:keys [threads] :or {threads 1}}]
+  (let [project-sources (sources/project-sources project-id)
+        filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
+    (try
+      (cond (not (project/project-exists? project-id))
+            {:error {:status not-found
+                     :message "Project does not exist"}}
+            ;; there is no import going on for this filename
+            (and (empty? filename-sources))
+            (do
+              (future (zip/import-pdfs-from-zip-file!
                        file
                        filename
                        project-id
@@ -591,7 +621,7 @@
       (and (nil? s3-id)
            (files/s3-has-key? hash))
       (try
-        (let [ ;; create the association between this file name and
+        (let [;; create the association between this file name and
               ;; the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id

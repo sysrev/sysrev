@@ -100,12 +100,12 @@
                                  (or (-> % :instance-count integer?)
                                      (-> % :instance-score number?))))
                    (mapv #(assoc % :project-id project-id)))]
-          (when (not-empty entries)
-            (with-transaction
-              (when (project/project-exists? project-id)
-                (-> (delete-from :project-entity)
-                    (where [:= :project-id project-id])
-                    do-execute)
+          (with-transaction
+            (when (project/project-exists? project-id)
+              (-> (delete-from :project-entity)
+                  (where [:= :project-id project-id])
+                  do-execute)
+              (when (not-empty entries)
                 (doseq [entries-group (partition-all 500 entries)]
                   (-> (insert-into :project-entity)
                       (values entries-group)

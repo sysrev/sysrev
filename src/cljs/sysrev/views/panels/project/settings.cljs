@@ -1,19 +1,22 @@
 (ns sysrev.views.panels.project.settings
-  (:require
-   [reagent.core :as r]
-   [re-frame.core :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.action.core :refer [def-action]]
-   [sysrev.state.nav :refer [active-project-id]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer [with-tooltip]]
-   [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-   [sysrev.shared.util :refer [parse-integer]]))
+  (:require [reagent.core :as r]
+            [re-frame.core :refer
+             [subscribe dispatch reg-sub]]
+            [re-frame.db :refer [app-db]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.components :refer [with-tooltip]]
+            [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
+            [sysrev.shared.util :refer [parse-integer]]))
 
-(def ^:private panel-name [:project :project :settings])
+(def ^:private panel [:project :project :settings])
 
 (def initial-state {:confirming? false})
-(defonce state (r/atom initial-state))
+(defonce state (r/cursor app-db [:state :panels panel]))
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state)))
 
 (defn- parse-input [skey input]
   (case skey
@@ -23,103 +26,82 @@
         (* n 0.01)))
     nil))
 
+(defn admin? []
+  (or @(subscribe [:member/admin?])
+      @(subscribe [:user/admin?])))
+
+(defn editing? []
+  (and (admin?) (= panel @(subscribe [:active-panel]))))
+
+(defn saved-values [& [skey]]
+  (cond-> @(subscribe [:project/settings])
+    skey (get skey)))
+
+(defn active-values [& [skey]]
+  (cond-> (:active-values @state)
+    skey (get skey)))
+
+(defn current-values [& [skey]]
+  (let [active (active-values)]
+    (cond-> (saved-values)
+      (editing?) (merge active)
+      skey (get skey))))
+
+(defn active-inputs [& [skey]]
+  (cond-> (:active-inputs @state)
+    skey (get skey)))
+
+(defn reset-fields []
+  (let [values (r/cursor state [:active-values])
+        inputs (r/cursor state [:active-inputs])]
+    (reset! values {})
+    (reset! inputs {})))
+
+(defn valid-input? [& [skey]]
+  (let [inputs (active-inputs)
+        values (current-values)]
+    (letfn [(valid? [skey]
+              (if-let [input (get inputs skey)]
+                (= (parse-input skey input)
+                   (get values skey))
+                true))]
+      (if skey
+        (valid? skey)
+        (every? valid? (keys inputs))))))
+
+(defn edit-setting [skey input]
+  (let [inputs (r/cursor state [:active-inputs])
+        values (r/cursor state [:active-values])
+        value (parse-input skey input)]
+    (swap! inputs assoc skey input)
+    (when value
+      (swap! values assoc skey value))))
+
+(defn modified? []
+  (not= (saved-values) (current-values)))
+
+(defn save-changes []
+  (let [values (current-values)
+        saved (saved-values)
+        changed-keys (filter #(not= (get values %)
+                                    (get saved %))
+                             (keys values))
+        changes (mapv (fn [skey]
+                        {:setting skey
+                         :value (get values skey)})
+                      changed-keys)
+        project-id @(subscribe [:active-project-id])]
+    (dispatch [:action [:project/change-settings project-id changes]])))
+
 (defn- render-setting [skey]
-  (if-let [input @(subscribe [::active-inputs skey])]
+  (if-let [input (active-inputs skey)]
     input
-    (when-let [value @(subscribe [::values skey])]
+    (when-let [value (current-values skey)]
       (case skey
         :second-review-prob
         (when (float? value)
           (str (int (+ 0.5 (* value 100)))))
         nil))))
-
-(reg-sub
- ::editing?
- :<- [:active-panel]
- :<- [:member/admin?]
- :<- [:user/admin?]
- (fn [[panel admin? site-admin?]]
-   (and (= panel panel-name)
-        (or admin? site-admin?))))
-
-(reg-sub
- ::saved
- :<- [:project/settings]
- (fn [settings [_ skey]]
-   (cond-> settings
-     skey (get skey))))
-
-(reg-sub
- ::active
- (fn [db [_ skey]]
-   (cond-> (get-in db [:state :project-settings :active-values])
-     skey (get skey))))
-
-(reg-sub
- ::values
- :<- [::editing?]
- :<- [::saved]
- :<- [::active]
- (fn [[editing? saved active] [_ skey]]
-   (cond-> saved
-     editing? (merge active)
-     skey (get skey))))
-
-(reg-sub
- ::active-inputs
- (fn [db [_ skey]]
-   (cond-> (get-in db [:state :project-settings :active-inputs])
-     skey (get skey))))
-
-(reg-event-db
- ::reset-fields
- (fn [db]
-   (-> db
-       (assoc-in [:state :project-settings :active-values] {})
-       (assoc-in [:state :project-settings :active-inputs] {}))))
-
-(reg-sub
- ::valid-input?
- :<- [::active-inputs]
- :<- [::values]
- (fn [[inputs values] [_ skey]]
-   (letfn [(valid? [skey]
-             (if-let [input (get inputs skey)]
-               (= (parse-input skey input)
-                  (get values skey))
-               true))]
-     (if skey
-       (valid? skey)
-       (every? valid? (keys inputs))))))
-
-(reg-event-db
- ::edit-setting
- [trim-v]
- (fn [db [skey input]]
-   (let [value (parse-input skey input)]
-     (cond-> (assoc-in db [:state :project-settings :active-inputs skey] input)
-       value (assoc-in [:state :project-settings :active-values skey] value)))))
-
-(reg-sub
- ::modified?
- :<- [::saved]
- :<- [::values]
- (fn [[saved values]]
-   (not= saved values)))
-
-(reg-event-fx
- ::save-changes
- [trim-v]
- (fn [{:keys [db]} [values saved]]
-   (let [changed-keys (filter #(not= (get values %)
-                                     (get saved %))
-                              (keys values))
-         changes (mapv (fn [skey]
-                         {:setting skey
-                          :value (get values skey)})
-                       changed-keys)
-         project-id (active-project-id db)]
-     (dispatch [:action [:project/change-settings project-id changes]]))))
 
 (def-action :project/delete
   :uri (fn [] "/api/delete-project")
@@ -131,53 +113,58 @@
      :dispatch-n (list [:navigate [:select-project]]
                        [:fetch [:identity]])}))
 
+(defn input-field-class [skey]
+  (if (valid-input? skey) "" "error"))
+
+(defn DoubleReviewPriorityField []
+  (let [skey :second-review-prob]
+    [:div.field {:class (input-field-class skey)}
+     [with-tooltip
+      [:label "Double-review priority "
+       [:i.ui.large.grey.circle.question.mark.icon]]
+      {:delay {:show 200
+               :hide 0}
+       :hoverable false}]
+     [:div.ui.popup.transition.hidden.tooltip
+      [:p "Controls proportion of articles assigned for second review in Classify task."]
+      [:p "0% will assign unreviewed articles whenever possible."]
+      [:p "100% will assign for second review whenever possible."]]
+     [:div.ui.right.labeled.input
+      [:input
+       {:type "text"
+        :name (str skey)
+        :value (render-setting skey)
+        :on-change
+        #(let [input (-> % .-target .-value)]
+           (edit-setting skey input))
+        :readOnly (if admin? false true)
+        :autoComplete "off"}]
+      [:div.ui.basic.label "%"]]]))
+
 (defn- project-options-box []
-  (let [admin? (or @(subscribe [:member/admin?])
-                   @(subscribe [:user/admin?]))
-        values @(subscribe [::values])
-        saved @(subscribe [::saved])
-        modified? @(subscribe [::modified?])
-        valid? @(subscribe [::valid-input?])
-        field-class #(if @(subscribe [::valid-input? %])
-                       "" "error")]
+  (let [admin? (admin?)
+        values (current-values)
+        saved (saved-values)
+        modified? (modified?)
+        valid? (valid-input?)
+        field-class #(if (valid-input? %) "" "error")]
     [:div.ui.segment
      [:h4.ui.dividing.header "Configuration options"]
      [:div.ui.form {:class (if valid? "" "warning")}
-      (let [skey :second-review-prob]
-        [:div.fields
-         [:div.field {:class (field-class skey)}
-          [with-tooltip
-           [:label "Double-review priority "
-            [:i.ui.large.grey.circle.question.mark.icon]]
-           {:delay {:show 200
-                    :hide 0}
-            :hoverable false}]
-          [:div.ui.popup.transition.hidden.tooltip
-           [:p "Controls proportion of articles assigned for second review in Classify task."]
-           [:p "0% will assign unreviewed articles whenever possible."]
-           [:p "100% will assign for second review whenever possible."]]
-          [:div.ui.right.labeled.input
-           [:input
-            {:type "text"
-             :name (str skey)
-             :value (render-setting skey)
-             :on-change
-             #(let [input (-> % .-target .-value)]
-                (dispatch-sync [::edit-setting skey input]))
-             :readOnly (if admin? false true)
-             :autoComplete "off"}]
-           [:div.ui.basic.label "%"]]]])]
+      [:div.fields
+       ^{:key :double-review}
+       [DoubleReviewPriorityField]]]
      (when admin?
        [:div
         [:div.ui.divider]
         [:div
          [:button.ui.primary.button
           {:class (if (and valid? modified?) "" "disabled")
-           :on-click #(dispatch [::save-changes values saved])}
+           :on-click #(save-changes)}
           "Save changes"]
          [:button.ui.button
           {:class (if modified? "" "disabled")
-           :on-click #(dispatch [::reset-fields])}
+           :on-click #(reset-fields)}
           "Reset"]]])]))
 
 (defn- project-permissions-box []
@@ -249,6 +236,8 @@
                 :on-click cancel-on-click}
        "No"]]]))
 
+;; TODO: do not render this unless project can be deleted (i.e. no labels);
+;; currently allows clicking this and then fails server-side
 (defn DeleteProject
   "Delete a project"
   []
@@ -258,17 +247,18 @@
      [:h4.ui.dividing.header "Delete Project"]
      [:div.ui.relaxed.divided.list
       (when @confirming?
-        [ConfirmationAlert {:cancel-on-click #(reset! confirming? false)
-                            :confirm-on-click
-                            (fn []
-                              (reset! confirming? false)
-                              (dispatch [:action [:project/delete @active-project-id]]))
-                            :confirmation-message
-                            (fn []
-                              [:div.ui.red.header
-                               [:h3 "Warning: All sources and labeling will be lost!"
-                                [:br]
-                                " Are you sure you want to delete this project?"]])}])
+        [ConfirmationAlert
+         {:cancel-on-click #(reset! confirming? false)
+          :confirm-on-click
+          (fn []
+            (reset! confirming? false)
+            (dispatch [:action [:project/delete @active-project-id]]))
+          :confirmation-message
+          (fn []
+            [:div.ui.red.header
+             [:h3 "Warning: All sources and labeling will be lost!"
+              [:br]
+              " Are you sure you want to delete this project?"]])}])
       (when-not @confirming?
         [:button.ui.button
          {:on-click
@@ -277,10 +267,9 @@
 
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
+    (ensure-state)
     (let [user-id @(subscribe [:self/user-id])
-          admin? (or @(subscribe [:member/admin?])
-                     @(subscribe [:user/admin?]))]
-      (reset! state initial-state)
+          admin? (admin?)]
       [:div.project-content
        [ReadOnlyMessage
         "Changing settings is restricted to project administrators."]
