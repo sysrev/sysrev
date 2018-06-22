@@ -51,7 +51,8 @@
  articles "/articles" [project-id]
  (let [project-id @(subscribe [:active-project-id])
        panel [:project :project :articles]
-       item [:project/public-labels project-id]
+       args @(subscribe [:article-list/query-args panel])
+       item [:project/article-list project-id args]
        set-panel [:set-active-panel [:project :project :articles]]
        ensure-visible #(ensure-dom-elt-visible-soon
                         ".article-list-view div.ui.segment.article-nav")
@@ -97,8 +98,10 @@
  project-user "/user" [project-id]
  (let [project-id @(subscribe [:active-project-id])
        user-id @(subscribe [:self/user-id])
-       item [:member/articles project-id user-id]
-       set-panel [:set-active-panel [:project :user :labels]]]
+       panel [:project :user :labels]
+       args @(subscribe [:article-list/query-args panel])
+       item [:project/article-list project-id args]
+       set-panel [:set-active-panel panel]]
    (if user-id
      (do (dispatch
           [:data/after-load item :user-articles-route
@@ -114,8 +117,9 @@
  project-user-article "/user/article/:article-id" [project-id article-id]
  (let [project-id @(subscribe [:active-project-id])
        article-id (parse-integer article-id)
+       panel [:project :user :labels]
        item [:article project-id article-id]
-       set-panel [:set-active-panel [:project :user :labels]]
+       set-panel [:set-active-panel panel]
        have-project? @(subscribe [:have? [:project project-id]])]
    (when (not have-project?)
      (dispatch set-panel))

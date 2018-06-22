@@ -1,19 +1,18 @@
 (ns sysrev.views.panels.project.user-labels
-  (:require
-   [clojure.string :as str]
-   [re-frame.core :refer
-    [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.nav :refer [nav]]
-   [sysrev.state.nav :refer [project-uri]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer [note-content-label updated-time-label]]
-   [sysrev.views.labels :as labels]
-   [sysrev.views.article :as article]
-   [sysrev.views.article-list :as al]
-   [sysrev.views.review :as review]
-   [sysrev.util :refer [time-from-epoch]]
-   [sysrev.shared.util :refer [map-values]])
+  (:require [clojure.string :as str]
+            [re-frame.core :refer
+             [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.nav :refer [nav]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.components :refer [note-content-label updated-time-label]]
+            [sysrev.views.labels :as labels]
+            [sysrev.views.article :as article]
+            [sysrev.views.article-list :as al]
+            [sysrev.views.review :as review]
+            [sysrev.util :refer [time-from-epoch]]
+            [sysrev.shared.util :refer [map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :user :labels])
@@ -25,13 +24,12 @@
 (defmethod al/article-uri panel [_ project-id article-id]
   (project-uri project-id (str "/user/article/" article-id)))
 
-(defmethod al/all-articles-sub panel []
-  [:member/articles])
-
 (reg-sub
  ::default-filters
  (fn []
-   {:label-id nil}))
+   [(subscribe [:self/user-id])])
+ (fn [[user-id] []]
+   {:label-user user-id}))
 
 (defmethod al/default-filters-sub panel []
   [::default-filters])
@@ -42,22 +40,27 @@
 (defmethod al/private-article-view? panel []
   true)
 
-(defmethod al/loading-articles? panel [_ project-id user-id]
-  @(subscribe [:loading? [:member/articles project-id user-id]]))
+(defmethod al/loading-articles? panel [_ project-id args]
+  @(subscribe [:any-loading? :project/article-list]))
 
-(defmethod al/reload-articles panel [_ project-id user-id]
-  (dispatch [:reload [:member/articles project-id user-id]]))
+(defmethod al/reload-articles panel [_ project-id args]
+  (dispatch [:reload [:project/article-list project-id args]]))
 
 (defmethod al/auto-refresh? panel []
   true)
 
 (defmethod al/render-article-entry panel
   [_ article full-size?]
-  (let [{:keys [article-id title labels notes updated-time confirmed]} article
+  (let [{:keys [article-id primary-title labels
+                notes updated-time confirmed]} article
         user-id @(subscribe [:self/user-id])
         have-notes? (some #(and (string? %)
                                 (not-empty (str/trim %)))
-                          (vals notes))]
+                          (vals notes))
+        user-labels (->> labels
+                         (filter #(= (:user-id %) user-id))
+                         (group-by :label-id)
+                         (map-values first))]
     (if full-size?
       ;; non-mobile view
       [:div.ui.row
@@ -68,7 +71,7 @@
        [:div.ui.fifteen.wide.column.article-title
         [:div.ui.middle.aligned.grid
          [:div.row
-          [:div.twelve.wide.column>span.article-title title]
+          [:div.twelve.wide.column>span.article-title primary-title]
           [:div.four.wide.right.aligned.column
            (when (false? confirmed)
              [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
@@ -78,14 +81,7 @@
         [:div.ui.middle.aligned.grid
          [:div.row
           [:div.sixteen.wide.column
-           (let [user-labels
-                 (->> labels (map-values
-                              #(->> %
-                                    (filter
-                                     (fn [label]
-                                       (= (:user-id label) user-id)))
-                                    first)))]
-             [labels/label-values-component user-labels])]]]
+           [labels/label-values-component user-labels]]]]
         (when have-notes?
           [:div
            [:div.ui.fitted.divider]
@@ -98,7 +94,7 @@
        [:div.ui.sixteen.wide.column
         [:div.ui.middle.aligned.grid
          [:div.row
-          [:div.twelve.wide.column>span.article-title title]
+          [:div.twelve.wide.column>span.article-title primary-title]
           [:div.four.wide.right.aligned.column
            (when (false? confirmed)
              [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
@@ -108,14 +104,7 @@
         [:div.ui.middle.aligned.grid
          [:div.row
           [:div.sixteen.wide.column.label-values
-           (let [user-labels
-                 (->> labels (map-values
-                              #(->> %
-                                    (filter
-                                     (fn [label]
-                                       (= (:user-id label) user-id)))
-                                    first)))]
-             [labels/label-values-component user-labels])]]]
+           [labels/label-values-component user-labels]]]]
         (when have-notes?
           [:div.ui.fitted.divider])
         (when have-notes?
@@ -165,5 +154,5 @@
           project-id @(subscribe [:active-project-id])]
       (when (and user-id project-id)
         [:div.project-content
-         [al/article-list-view panel [[:member/articles project-id user-id]]]
+         [al/article-list-view panel]
          child]))))

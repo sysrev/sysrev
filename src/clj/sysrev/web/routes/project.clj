@@ -1,40 +1,40 @@
 (ns sysrev.web.routes.project
-  (:require
-   [sysrev.api :as api]
-   [sysrev.web.app :refer
-    [wrap-authorize current-user-id active-project]]
-   [sysrev.db.core :refer
-    [do-query do-execute with-project-cache]]
-   [sysrev.db.queries :as q]
-   [sysrev.db.users :as users]
-   [sysrev.db.project :as project]
-   [sysrev.db.export :as export]
-   [sysrev.db.articles :as articles]
-   [sysrev.db.documents :as docs]
-   [sysrev.db.labels :as labels]
-   [sysrev.db.sources :as sources]
-   [sysrev.db.files :as files]
-   [sysrev.db.article_list :as alist]
-   [sysrev.biosource.importance :as importance]
-   [sysrev.export.endnote :as endnote-out]
-   [sysrev.files.stores :as fstore]
-   [sysrev.biosource.predict :as predict-api]
-   [sysrev.predict.report :as predict-report]
-   [sysrev.shared.keywords :as keywords]
-   [sysrev.shared.transit :as sr-transit]
-   [sysrev.import.pubmed :as pubmed]
-   [sysrev.config.core :refer [env]]
-   [sysrev.util :refer :all]
-   [sysrev.shared.util :refer [map-values in? parse-integer]]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [honeysql-postgres.format :refer :all]
-   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-   [compojure.core :refer :all]
-   [ring.util.response :as response]
-   [clojure.data.json :as json]
-   [clojure-csv.core :as csv]
-   [clojure.tools.logging :as log])
+  (:require [sysrev.api :as api]
+            [sysrev.web.app :refer
+             [wrap-authorize current-user-id active-project]]
+            [sysrev.db.core :refer
+             [do-query do-execute with-project-cache]]
+            [sysrev.db.queries :as q]
+            [sysrev.db.users :as users]
+            [sysrev.db.project :as project]
+            [sysrev.db.export :as export]
+            [sysrev.db.articles :as articles]
+            [sysrev.db.documents :as docs]
+            [sysrev.db.labels :as labels]
+            [sysrev.db.sources :as sources]
+            [sysrev.db.files :as files]
+            [sysrev.db.article_list :as alist]
+            [sysrev.biosource.importance :as importance]
+            [sysrev.export.endnote :as endnote-out]
+            [sysrev.files.stores :as fstore]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.predict.report :as predict-report]
+            [sysrev.shared.keywords :as keywords]
+            [sysrev.shared.transit :as sr-transit]
+            [sysrev.import.pubmed :as pubmed]
+            [sysrev.config.core :refer [env]]
+            [sysrev.util :refer :all]
+            [sysrev.shared.util :refer [map-values in? parse-integer to-uuid]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [compojure.core :refer :all]
+            [ring.util.response :as response]
+            [clojure.string :as str]
+            [clojure.data.json :as json]
+            [clojure-csv.core :as csv]
+            [clojure.tools.logging :as log])
   (:import [java.util UUID]
            [java.io InputStream]
            [java.io ByteArrayInputStream]
@@ -455,13 +455,34 @@
                               nil nil)
               args (-> request :query-params)
               n-count (some-> (get args "n-count") parse-integer)
-              n-offset (some-> (get args "n-offset") parse-integer)]
+              n-offset (some-> (get args "n-offset") parse-integer)
+              label-users
+              (when-let [label-user (get args "label-user")]
+                (->> (str/split label-user #",")
+                     (map parse-integer)
+                     (remove nil?)))
+              label-ids
+              (when-let [label-id (get args "label-id")]
+                (->> (str/split label-id #",")
+                     (map #(try (to-uuid %)
+                                (catch Throwable e
+                                  nil)))
+                     (remove nil?)))
+              filters
+              (->> [(map #(alist/filter-has-user-labels %)
+                         label-users)
+                    (map #(alist/filter-has-label-id %)
+                         label-ids)]
+                   (apply concat)
+                   (remove nil?)
+                   vec)]
           (update-user-default-project request)
           {:result
            (alist/query-project-article-list
             project-id (cond-> {}
                          n-count (merge {:n-count n-count})
-                         n-offset (merge {:n-offset n-offset})))})))
+                         n-offset (merge {:n-offset n-offset})
+                         (not-empty filters) (merge {:filters filters})))})))
 
   (POST "/api/sync-project-labels" request
         (wrap-authorize

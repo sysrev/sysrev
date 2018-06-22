@@ -2,17 +2,20 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [sysrev.shared.util :as u]
-            [sysrev.shared.spec.core :as sc]
-            [sysrev.shared.spec.article :as sa]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute to-sql-array sql-now with-project-cache
-              clear-project-cache to-jsonb]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.queries :as q]))
+            [clj-time.core :as t]
+            [clj-time.coerce :as tc]
+            [clj-time.format :as tf]
+            [sysrev.db.core :as db :refer
+             [do-query do-execute to-sql-array sql-now with-project-cache
+              clear-project-cache to-jsonb]]
+            [sysrev.db.queries :as q]
+            [sysrev.shared.util :as u]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]))
 
 (defn project-full-article-list [project-id]
   (with-project-cache
@@ -31,10 +34,23 @@
                            :al.answer :al.inclusion :al.updated-time
                            :al.confirm-time :al.resolve])
               (q/join-article-labels)
+              (q/filter-valid-article-label nil)
               (->> do-query
+                   (map #(-> %
+                             (update :updated-time tc/to-epoch)
+                             (update :confirm-time tc/to-epoch)))
                    (group-by :article-id)
                    (u/map-values #(do {:labels %}))))
-          amap (merge-with merge articles alabels)]
+          amap
+          (->> (merge-with merge articles alabels)
+               (u/map-values
+                (fn [article]
+                  (let [updated-time
+                        (->> (:labels article)
+                             (map :updated-time)
+                             (apply max 0))]
+                    (merge article
+                           {:updated-time updated-time})))))]
       amap)))
 
 (def sort-article-id #(sort-by :article-id < %))
@@ -44,7 +60,12 @@
 (def filter-has-confirmed-labels
   #(->> % :labels (filter :confirm-time) not-empty))
 
-(def filter-has-user-labels)
+(defn filter-has-user-labels [user-id]
+  (fn [article]
+    (->> article
+         :labels
+         (filter #(= (:user-id %) user-id))
+         not-empty)))
 
 ;; TODO: include user notes in search
 (defn filter-free-text-search [text]
@@ -59,16 +80,17 @@
       (every? #(str/includes? all-article-text %) tokens))))
 
 (defn filter-has-label-id
-  [article label-id &
+  [label-id &
    {:keys [require-confirmed?]
     :or {require-confirmed? false}}]
-  (->> article
-       :labels
-       (#(if require-confirmed?
-           (filter :confirm-time)
-           (constantly true)))
-       (filter #(= (:label-id %) label-id))
-       not-empty))
+  (fn [article]
+    (->> article
+         :labels
+         (filter #(if require-confirmed?
+                    (:confirm-time %)
+                    true))
+         (filter #(= (:label-id %) label-id))
+         not-empty)))
 
 (defn query-project-article-list
   [project-id {:keys [filters sort-fn n-offset n-count]

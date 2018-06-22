@@ -1,28 +1,30 @@
 (ns sysrev.views.article-list
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-     reg-event-db reg-event-fx reg-fx trim-v]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.views.article :refer [article-info-view]]
-   [sysrev.views.review :refer [label-editor-view]]
-   [sysrev.views.components :refer
-    [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
-   [sysrev.state.ui :refer [get-panel-field]]
-   [sysrev.nav :refer [nav]]
-   [sysrev.shared.keywords :refer [canonical-keyword]]
-   [sysrev.shared.article-list :refer
-    [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
-   [sysrev.util :refer [full-size? mobile? nbsp]]
-   [sysrev.shared.util :refer [in? map-values]])
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [cljs-time.core :as t]
+            [cljs-time.coerce :as tc]
+            [cljs-time.format :as tformat]
+            [re-frame.core :as re-frame :refer
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+              reg-event-db reg-event-fx reg-fx trim-v]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.views.article :refer [article-info-view]]
+            [sysrev.views.review :refer [label-editor-view]]
+            [sysrev.views.components :refer
+             [with-ui-help-tooltip ui-help-icon selection-dropdown
+              three-state-selection-icons]]
+            [sysrev.state.ui :refer [get-panel-field]]
+            [sysrev.nav :refer [nav]]
+            [sysrev.shared.keywords :refer [canonical-keyword]]
+            [sysrev.shared.article-list :refer
+             [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
+            [sysrev.util :refer [full-size? mobile? nbsp]]
+            [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
 (defmulti panel-base-uri (fn [panel project-id] panel))
 (defmulti article-uri (fn [panel project-id article-id] panel))
-(defmulti all-articles-sub (fn [panel project-id] panel))
 (defmulti allow-null-label? (fn [panel] panel))
 (defmulti list-header-tooltip (fn [panel] panel))
 (defmulti render-article-entry (fn [panel article full-size?] panel))
@@ -91,13 +93,59 @@
                          distinct)]
         (in? answers value)))))
 
+(defn- label-user-filter [label-user]
+  (if (nil? label-user)
+    (constantly true)
+    (fn [labels]
+      (->> labels
+           (filter #(= (:user-id %) label-user))
+           not-empty))))
+
+(reg-sub-raw
+ :article-list/query-args
+ (fn [db [_ panel]]
+   (reaction
+    (let [default-filters @(subscribe (default-filters-sub panel))
+          filters (->> @(subscribe [:panel-field [:filters] panel])
+                       vec
+                       (remove
+                        (fn [[k v]]
+                          (nil? v)))
+                       (apply concat)
+                       (apply hash-map))
+          n-offset @(subscribe [::display-offset])]
+      (merge default-filters
+             filters
+             {:n-offset n-offset
+              :n-count (display-count)})))))
+
+(reg-sub-raw
+ ::article-list-response
+ (fn [db [_ panel]]
+   (reaction
+    (let [args @(subscribe [:article-list/query-args panel])]
+      @(subscribe [:project/article-list nil args])))))
+
 (reg-sub
  ::articles
  (fn [[_ panel]]
-   [(subscribe (all-articles-sub panel))])
+   [(subscribe [::article-list-response panel])])
+ (fn [[response]] (->> response :entries)))
+
+(reg-sub
+ ::articles-count
+ (fn [[_ panel]]
+   [(subscribe [::article-list-response panel])])
+ (fn [[response]] (->> response :total-count)))
+
+(reg-sub
+ :article-list/filtered
+ (fn [[_ panel]]
+   [(subscribe [::articles panel])])
  (fn [[articles]] articles))
 
 ;; Gets full list of article entries to display based on selected filters
+#_
 (reg-sub
  :article-list/filtered
  (fn [[_ panel]]
@@ -108,13 +156,22 @@
     (subscribe [:article-list/filter-value :label-id panel])
     (subscribe [:article-list/filter-value :group-status panel])
     (subscribe [:article-list/filter-value :answer-value panel])
-    (subscribe [:article-list/filter-value :inclusion-status panel])])
- (fn [[overall-id articles search-text confirm-status
-       label-id group-status answer-value inclusion-status]]
+    (subscribe [:article-list/filter-value :inclusion-status panel])
+    (subscribe [:article-list/filter-value :label-user panel])])
+ (fn [[overall-id articles
+       search-text confirm-status label-id group-status
+       answer-value inclusion-status label-user]]
    (let [not-nil? (complement nil?)
 
-         get-labels #(get-in % [:labels label-id])
-         get-overall #(get-in % [:labels overall-id])
+         all-labels #(:labels %)
+
+         get-labels
+         (fn [article]
+           (->> article :labels (filter #(= (:label-id %) label-id))))
+
+         get-overall
+         (fn [article]
+           (->> article :labels (filter #(= (:label-id %) overall-id))))
 
          search-text-test
          (when (not-empty search-text)
@@ -137,7 +194,12 @@
          answer-value-test
          (when (and label-id (not-nil? answer-value))
            (comp (answer-value-filter answer-value group-status)
-                 get-labels))]
+                 get-labels))
+
+         label-user-test
+         (when label-user
+           (comp (label-user-filter label-user)
+                 all-labels))]
      (cond->> articles
        label-id
        (filterv (comp not-empty get-labels))
@@ -155,7 +217,10 @@
        (filterv group-status-test)
 
        (not-nil? answer-value-test)
-       (filterv answer-value-test)))))
+       (filterv answer-value-test)
+
+       (not-nil? label-user-test)
+       (filterv label-user-test)))))
 
 ;; Gets active value of a filter option from user selection or defaults
 (reg-sub
@@ -538,15 +603,15 @@
  ::article-list-header-text
  (fn [[_ panel]]
    [(subscribe [:article-list/filtered panel])
-    (subscribe [::display-offset panel])])
- (fn [[filtered display-offset]]
-   (let [total-count (count filtered)]
-     (if (zero? total-count)
-       "No matching articles found"
-       (str "Showing " (+ display-offset 1)
-            "-" (min total-count (+ display-offset (display-count)))
-            " of "
-            total-count " matching articles ")))))
+    (subscribe [::display-offset panel])
+    (subscribe [::articles-count panel])])
+ (fn [[filtered display-offset total-count]]
+   (if (zero? total-count)
+     "No matching articles found"
+     (str "Showing " (+ display-offset 1)
+          "-" (+ display-offset (count filtered))
+          " of "
+          total-count " matching articles "))))
 
 (defn- article-list-header-message [panel]
   (let [text @(subscribe [::article-list-header-text panel])
@@ -749,12 +814,14 @@
               (if resolving-allowed? "Resolve Labels" "Change Labels")]])]]))
 
 ;; Top-level component for article list interface
-(defn article-list-view [panel & [loader-items]]
+(defn article-list-view [panel]
   (let [project-id @(subscribe [:active-project-id])
-        article-id @(subscribe [:article-list/article-id panel])]
+        article-id @(subscribe [:article-list/article-id panel])
+        args @(subscribe [:article-list/query-args panel])]
     [:div
      [article-list-filter-form panel]
-     (with-loader (concat [[:project project-id]] loader-items) {}
+     (with-loader [[:project project-id]
+                   [:project/article-list project-id args]] {}
        (if article-id
          [article-list-article-view article-id panel]
          [article-list-list-view panel]))]))

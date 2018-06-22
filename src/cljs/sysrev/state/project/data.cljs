@@ -85,6 +85,13 @@
     {:db (assoc-in db [:data :project project-id :article-list args]
                    result)}))
 
+(reg-sub
+ :project/article-list
+ (fn [[_ project-id args]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ project-id args]]
+   (get-in project [:article-list args])))
+
 (def-data :project/sources
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])

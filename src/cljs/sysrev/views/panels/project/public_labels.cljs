@@ -1,21 +1,21 @@
 (ns sysrev.views.panels.project.public-labels
-  (:require
-   [clojure.string :as str]
-   [re-frame.core :refer
-    [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer
-    [selection-dropdown with-ui-help-tooltip ui-help-icon updated-time-label]]
-   [sysrev.views.article :refer [article-info-view]]
-   [sysrev.views.article-list :as al]
-   [sysrev.shared.article-list :refer
-    [is-resolved? is-consistent? is-single? is-conflict?]]
-   [sysrev.state.ui :refer [get-panel-field]]
-   [sysrev.nav :refer [nav nav-scroll-top]]
-   [sysrev.state.nav :refer [project-uri]]
-   [sysrev.util :refer [nbsp full-size? number-to-word time-from-epoch]]
-   [sysrev.shared.util :refer [in?]])
+  (:require [clojure.string :as str]
+            [cljs-time.coerce :as tc]
+            [re-frame.core :refer
+             [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.components :refer
+             [selection-dropdown with-ui-help-tooltip ui-help-icon updated-time-label]]
+            [sysrev.views.article :refer [article-info-view]]
+            [sysrev.views.article-list :as al]
+            [sysrev.shared.article-list :refer
+             [is-resolved? is-consistent? is-single? is-conflict?]]
+            [sysrev.state.ui :refer [get-panel-field]]
+            [sysrev.nav :refer [nav nav-scroll-top]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.util :refer [nbsp full-size? number-to-word time-from-epoch]]
+            [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :project :articles])
@@ -28,13 +28,11 @@
   [_ project-id article-id]
   (project-uri project-id (str "/articles/" article-id)))
 
-(defmethod al/all-articles-sub panel []
-  [:project/public-labels])
-
 (reg-sub
  ::default-filters
  (fn [] [(subscribe [:project/overall-label-id])])
  (fn [[overall-id]] {:label-id overall-id}))
+
 (defmethod al/default-filters-sub panel []
   [::default-filters])
 
@@ -42,18 +40,16 @@
   false)
 
 (defmethod al/list-header-tooltip panel []
-  ["Public listing of labeled articles"
-   #_ [:div.ui.divider]
-   #_ "Articles are hidden for 4 hours after any edit to labels"])
+  ["List of all project articles"])
 
 (defmethod al/private-article-view? panel []
   false)
 
-(defmethod al/loading-articles? panel [_ project-id]
-  @(subscribe [:loading? [:project/public-labels project-id]]))
+(defmethod al/loading-articles? panel [_ project-id args]
+  @(subscribe [:any-loading? :project/article-list]))
 
-(defmethod al/reload-articles panel [_ project-id]
-  (dispatch [:reload [:project/public-labels project-id]]))
+(defmethod al/reload-articles panel [_ project-id args]
+  (dispatch [:reload [:project/article-list project-id args]]))
 
 (defmethod al/auto-refresh? panel []
   false)
@@ -79,11 +75,11 @@
 
 (defmethod al/render-article-entry panel
   [_ article full-size?]
-  (let [;; label-id @(subscribe [:article-list/filter-value :label-id panel])
+  (let [ ;; label-id @(subscribe [:article-list/filter-value :label-id panel])
         overall-id @(subscribe [:project/overall-label-id])
-        {:keys [article-id title labels updated-time]} article
+        {:keys [article-id primary-title labels updated-time]} article
         ;; active-labels (get labels label-id)
-        overall-labels (get labels overall-id)
+        overall-labels (->> labels (filter #(= (:label-id %) overall-id)))
         answer-class
         (cond
           (is-resolved? overall-labels) "resolved"
@@ -100,7 +96,7 @@
            [:div.ui.fluid.labeled.center.aligned.button
             [:i.ui.right.chevron.center.aligned.icon
              {:style {:width "100%"}}]]]
-          [:div.thirteen.wide.column>span.article-title title]
+          [:div.thirteen.wide.column>span.article-title primary-title]
           [:div.two.wide.center.aligned.column.article-updated-time
            (when-let [updated-time (some-> updated-time (time-from-epoch))]
              [updated-time-label updated-time])]]]]
@@ -111,7 +107,7 @@
       ;; mobile view
       [:div.ui.row
        [:div.ui.ten.wide.column.article-title
-        [:span.article-title title]
+        [:span.article-title primary-title]
         (when-let [updated-time (some-> updated-time (time-from-epoch))]
           [updated-time-label updated-time])]
        [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
@@ -177,5 +173,5 @@
   (fn [child]
     (when-let [project-id @(subscribe [:active-project-id])]
       [:div.project-content
-       [al/article-list-view panel [[:project/public-labels project-id]]]
+       [al/article-list-view panel]
        child])))
