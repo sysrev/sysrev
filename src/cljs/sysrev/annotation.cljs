@@ -1,9 +1,12 @@
 (ns sysrev.annotation
-  (:require [cljsjs.rangy-core :as rangy]
+  (:require [cljsjs.react-burger-menu]
+            [cljsjs.rangy-core :as rangy]
             [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [reagent.core :as r]
-            [sysrev.data.core :refer [def-data]])
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.util :refer [get-input-value]]
+            [sysrev.views.components :refer [TextInput]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def semantic-ui js/semanticUIReact)
@@ -251,43 +254,94 @@
                 [Annotation (cond->
                                 {:text (apply (partial subs text) index)
                                  :content annotation}
-                                text-decoration
-                                (merge {:text-decoration text-decoration}))])))
+                              text-decoration
+                              (merge {:text-decoration text-decoration}))])))
           annotations)]))
 
-(defn TipContainer
-  [{:keys [top left]}]
-  [:div {:style {:top (str (- top 100) "px")
-                 :left (str left "px")
-                 :position "fixed"
-                 :z-index "100"
-                 :background "black"}
-         :on-click (fn [e]
-                     ($ e stopPropagation)
-                     ($ e preventDefault)
-                     (.log js/console "clicked"))
-         :on-mouse-up (fn [e]
-                        ($ e preventDefault)
-                        ($ e stopPropagation))
-         :on-mouse-down (fn [e]
+(defn AnnotationEditor
+  [{:keys [annotation-atom user-annotations]}]
+  (let [{:keys [selection rank]} @annotation-atom]
+    [:div
+     [:div
+      [:div [:div {:style {:cursor "pointer"}
+                   :on-click (fn [event]
+                               (swap! user-annotations dissoc rank))}
+             [:i.times.icon]] [:h3 selection]]
+      [TextInput {:value (r/cursor annotation-atom [:annotation])
+                  :on-change (fn [event]
+                               (reset! (r/cursor annotation-atom [:annotation])
+                                       (get-input-value event)))
+                  :label "Annotation"}]
+      [:br]]]))
+
+(defn AddAnnotation
+  [{:keys [top left state selection]}]
+  (let [user-annotations (r/cursor state [:user-annotations])
+        last-rank (if-let [max-rank (->> (vals @user-annotations)
+                                         (map :rank)
+                                         (apply max))]
+                    (inc max-rank)
+                    1)]
+    [:div {:style {:top (str (- top 100) "px")
+                   :left (str left "px")
+                   :position "fixed"
+                   :z-index "100"
+                   :background "black"}
+           :on-click (fn [e]
+                       ($ e stopPropagation)
+                       ($ e preventDefault)
+                       (swap! user-annotations merge {last-rank {:selection @selection
+                                                                 :annotation ""
+                                                                 :rank last-rank}}))
+           :on-mouse-up (fn [e]
+                          (.log js/console "on mouse up")
                           ($ e preventDefault)
-                          ($ e stopPropagation))}
-   [:h1 "Annotate Selection"]])
+                          ($ e stopPropagation))
+           :on-mouse-down (fn [e]
+                            (.log js/console "on mouse down")
+                            ($ e preventDefault)
+                            ($ e stopPropagation))}
+     [:h1 "Annotate Selection"]]))
+
+(defn AnnotationMenu
+  [state]
+  (let [user-annotations (r/cursor state [:user-annotations])]
+    (fn [state]
+      [:div
+       {:style {:top "0px"
+                :left "0px"
+                :height "100%"
+                :width "10%"
+                :z-index "100"
+                :position "fixed"}}
+       [:h1 "Annotations"]
+       (when-not (empty? (vals @user-annotations))
+         (map
+          (fn [{:keys [rank]}]
+            ^{:key (str "rank-" rank)}
+            [AnnotationEditor {:annotation-atom (r/cursor user-annotations [rank])
+                               :user-annotations user-annotations}])
+          (sort-by :rank (vals @user-annotations))))])))
+
+(def state (r/atom {}))
 
 (defn AnnotationCapture
   [child]
-  (let [state (r/atom {})
-        selection (r/cursor state [:selection])
+  (let [selection (r/cursor state [:selection])
         client-x (r/cursor state [:client-x])
         client-y (r/cursor state [:client-y])]
     (fn [child]
       [:div
+       [AnnotationMenu state]
        [:div {:on-mouse-up (fn [e]
+                             (.log js/console "capture mouse up")
                              (reset! selection (-> ($ js/rangy getSelection)
                                                    ($ toString)))
                              (reset! client-x ($ e :clientX))
                              (reset! client-y ($ e :clientY)))}
         (when-not (empty? @selection)
-          [TipContainer {:top @client-y
-                         :left @client-x}])
+          [AddAnnotation {:top @client-y
+                          :left @client-x
+                          :selection selection
+                          :state state}])
         child]])))

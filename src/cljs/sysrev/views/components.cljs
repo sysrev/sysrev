@@ -408,3 +408,29 @@
   [:div {:class (str class " vertical-column")}
    [:div.ui.top.aligned.grid>div.row>div.top.aligned.column
     [:div.vertical-column-content.top content]]])
+
+(defn TextInput
+  "Props:
+  {:error         <string>       ; error message, optional
+   :value         <reagent atom> ; value, optional
+   :on-change     <fn>           ; a fn of event
+   :placeholder   <string>       ; optional
+   :default-value <string>       ; optional
+   :label         <string>       ; label value
+  }"
+  [{:keys [error value on-change placeholder default-value label]}]
+  [:div {:class (cond-> "field "
+                  error (str "error"))}
+   [:label {:style {:display "block"
+                    :margin-top "0.5em"
+                    :margin-bottom "0.5em"}} label]
+   [:div.ui.form
+    [:input (cond-> {:type "text"
+                     :on-change on-change}
+              (not (nil? default-value)) (merge {:default-value default-value})
+              (and (nil? default-value)
+                   (not (nil? value))) (merge {:value @value})
+              (not (nil? placeholder)) (merge {:placeholder placeholder}))]]
+   (when error
+     [:div {:class "ui red message"}
+      error])])

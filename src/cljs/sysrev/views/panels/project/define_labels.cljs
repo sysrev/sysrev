@@ -10,7 +10,7 @@
    [sysrev.state.nav :refer [active-project-id]]
    [sysrev.util :refer [mobile?]]
    [sysrev.views.base :refer [panel-content]]
-   [sysrev.views.components :as ui]
+   [sysrev.views.components :as ui :refer [TextInput]]
    [sysrev.views.review :refer [label-help-popup inclusion-tag]]
    [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
    [sysrev.shared.util :refer [in? parse-integer]]
@@ -328,32 +328,6 @@
         [:i.left.floated.fitted {:class "grey content icon"
                                  :style {} #_ (when-not boolean-label?
                                                 {:visibility "hidden"})}]))))
-
-(defn TextInput
-  "Props:
-  {:error         <string>       ; error message, optional
-   :value         <reagent atom> ; value, optional
-   :on-change     <fn>           ; a fn of event
-   :placeholder   <string>       ; optional
-   :default-value <string>       ; optional
-   :label         <string>       ; label value
-  }"
-  [{:keys [error value on-change placeholder default-value label]}]
-  [:div {:class (cond-> "field "
-                  error (str "error"))}
-   [:label {:style {:display "block"
-                    :margin-top "0.5em"
-                    :margin-bottom "0.5em"}} label]
-   [:div.ui.form
-    [:input (cond-> {:type "text"
-                     :on-change on-change}
-              (not (nil? default-value)) (merge {:default-value default-value})
-              (and (nil? default-value)
-                   (not (nil? value))) (merge {:value @value})
-              (not (nil? placeholder)) (merge {:placeholder placeholder}))]]
-   (when error
-     [:div {:class "ui red message"}
-      error])])
 
 (defn InclusionCheckbox
   "Props:
