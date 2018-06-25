@@ -1,6 +1,5 @@
 (ns sysrev.annotation
-  (:require [cljsjs.react-burger-menu]
-            [cljsjs.rangy-core :as rangy]
+  (:require [cljsjs.rangy-core :as rangy]
             [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [reagent.core :as r]
