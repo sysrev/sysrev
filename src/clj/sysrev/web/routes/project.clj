@@ -601,6 +601,12 @@
         (let [{:keys [article-id key filename]} (:params request)]
           (api/dissociate-pdf-article article-id key filename))))
 
+  (POST "/api/annotation" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [{:keys [article-id selection annotation]} (-> request :body)]
+           (api/save-article-annotation article-id selection annotation))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

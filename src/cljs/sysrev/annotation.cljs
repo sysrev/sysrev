@@ -4,6 +4,7 @@
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
             [sysrev.util :refer [get-input-value]]
             [sysrev.views.components :refer [TextInput]])
   (:require-macros [reagent.interop :refer [$]]))
@@ -15,30 +16,13 @@
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])
 
-;; http://localhost:4061/p/1/articles/7978
-;; ex: 7978
-;; multiple overlaps of ALK inhibitors with ALK
-
-;;http://localhost:4061/p/1/articles/14330
-;; ex: 14330
-;; liver is in deliver
-;; time is a cellline
-
-;; ex: 20467
-;; result is a simple chemical
-;; focus is a CellLine
-;; UK is  family
-
-;; http://localhost:4061/p/1/articles/22850
-;; Ltd is a family
-;; multiple overlaps
-;; glyco-engineered anti-CD20 IgG1 mAb
-;; Co
-;; CD2
-;; CD20
-
-;; http://localhost:4061/p/1/articles/27135
-;; at the end, ag in agents is annotated
+(def-action :annotations/create-annotation
+  :uri (fn [] "/api/annotation")
+  :content (fn [annotation-map]
+             annotation-map)
+  :process (fn [_ _ result]
+             (.log js/console "[[create-annotation saved on server]]")
+             {}))
 
 (defn within?
   "Given a coll of sorted numbers, determine if x is within (inclusive) the range of values"
@@ -306,6 +290,10 @@
          (if @editing?
            (let [on-save (fn []
                            (swap! user-annotations merge {last-rank @new-annotation-map})
+                           (dispatch [:action [:annotations/create-annotation
+                                               {:selection @selection
+                                                :annotation @annotation
+                                                :article-id @(subscribe [:visible-article-id])}]])
                            (reset! editing? false)
                            (reset! selection ""))]
              [:div

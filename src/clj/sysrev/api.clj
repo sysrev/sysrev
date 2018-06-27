@@ -12,6 +12,7 @@
             [sysrev.charts :as charts]
             [sysrev.config.core :refer [env]]
             [sysrev.db.articles :as articles]
+            [sysrev.db.annotations :as db-annotations]
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
             [sysrev.db.labels :as labels]
@@ -686,7 +687,15 @@
       {:error internal-server-error
        :message (.getMessage e)})))
 
+(defn save-article-annotation
+  [article-id selection annotation]
+  (let [annotation-id (db-annotations/create-annotation selection annotation)]
+    (db-annotations/associate-annotation-article annotation-id article-id)
+    {:result {:success true
+              :annotation-id annotation-id}}))
+
 (defn test-response
   "Server Sanity Check"
   []
   {:test "passing"})
+
