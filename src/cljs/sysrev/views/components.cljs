@@ -414,11 +414,14 @@
   {:error         <string>       ; error message, optional
    :value         <reagent atom> ; value, optional
    :on-change     <fn>           ; a fn of event
+   :on-mouse-up   <fn>           ; a fn of event, optional
+   :on-mouse-down <fn>           ; a fn of event, optional
    :placeholder   <string>       ; optional
    :default-value <string>       ; optional
    :label         <string>       ; label value
+   :autofocus     <boolean>      ; should this start focused?
   }"
-  [{:keys [error value on-change placeholder default-value label]}]
+  [{:keys [error value on-mouse-up on-mouse-down on-change placeholder default-value label autofocus]}]
   [:div {:class (cond-> "field "
                   error (str "error"))}
    [:label {:style {:display "block"
@@ -430,7 +433,10 @@
               (not (nil? default-value)) (merge {:default-value default-value})
               (and (nil? default-value)
                    (not (nil? value))) (merge {:value @value})
-              (not (nil? placeholder)) (merge {:placeholder placeholder}))]]
+              (not (nil? placeholder)) (merge {:placeholder placeholder})
+              (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
+              (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
+              (not (nil? autofocus)) (merge {:autoFocus true}))]]
    (when error
      [:div {:class "ui red message"}
       error])])

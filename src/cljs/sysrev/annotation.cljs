@@ -1,5 +1,5 @@
 (ns sysrev.annotation
-  (:require [cljsjs.rangy-core :as rangy]
+  (:require [cljsjs.rangy-selectionsaverestore]
             [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [reagent.core :as r]
@@ -274,33 +274,71 @@
       [:br]]]))
 
 (defn AddAnnotation
-  [{:keys [top left state selection]}]
+  [state]
   (let [user-annotations (r/cursor state [:user-annotations])
         last-rank (if-let [max-rank (->> (vals @user-annotations)
                                          (map :rank)
                                          (apply max))]
                     (inc max-rank)
-                    1)]
-    [:div {:style {:top (str (- top 100) "px")
-                   :left (str left "px")
-                   :position "fixed"
-                   :z-index "100"
-                   :background "black"}
-           :on-click (fn [e]
-                       ($ e stopPropagation)
-                       ($ e preventDefault)
-                       (swap! user-annotations merge {last-rank {:selection @selection
-                                                                 :annotation ""
-                                                                 :rank last-rank}}))
-           :on-mouse-up (fn [e]
-                          (.log js/console "on mouse up")
-                          ($ e preventDefault)
-                          ($ e stopPropagation))
-           :on-mouse-down (fn [e]
-                            (.log js/console "on mouse down")
-                            ($ e preventDefault)
-                            ($ e stopPropagation))}
-     [:h1 "Annotate Selection"]]))
+                    1)
+        editing? (r/cursor state [:editing?])
+        new-annotation-map (r/cursor state [:new-annotation-map])
+        selection (r/atom state [:selection])
+        annotation (r/cursor new-annotation-map [:annotation])
+        current-selection (r/atom "")]
+    (fn [state]
+      (let [left (r/cursor state [:client-x])
+            top (r/cursor state [:client-y])
+            selection (r/cursor state [:selection])]
+        [:div {:style {:top (str (- @top 100) "px")
+                       :left (str @left "px")
+                       :position "fixed"
+                       :z-index "100"
+                       :background "black"}
+               :on-click (fn [e]
+                           ($ e stopPropagation)
+                           ($ e preventDefault))
+               :on-mouse-up (fn [e]
+                              ($ e preventDefault)
+                              ($ e stopPropagation))
+               :on-mouse-down (fn [e]
+                                (reset! current-selection (-> ($ js/rangy saveSelection))))}
+         (if @editing?
+           (let [on-save (fn []
+                           (swap! user-annotations merge {last-rank @new-annotation-map})
+                           (reset! editing? false)
+                           (reset! selection ""))]
+             [:div
+              [:div
+               [:label "Selection"]
+               [:p @selection]]
+              [:form {:on-submit (fn [e]
+                                   ($ e preventDefault)
+                                   ($ e stopPropagation)
+                                   (on-save))}
+               [TextInput {:value annotation
+                           :on-change (fn [event]
+                                        (reset! annotation (get-input-value event)))
+                           :autofocus true
+                           :label "Annotation"}]
+               [:div.ui.fluid.button
+                {:on-click (fn [e]
+                             (on-save))}
+                "Save"]
+               [:div.ui.fluid.button
+                {:on-click (fn [e]
+                             (reset! editing? false)
+                             (-> ($ js/rangy getSelection)
+                                 ($ removeAllRanges))
+                             (reset! selection ""))}
+                "Dismiss"]]])
+           [:h1 {:on-click (fn [e]
+                             ($ e stopPropagation)
+                             ($ e preventDefault)
+                             (reset! editing? true)
+                             (reset! new-annotation-map {:selection @selection
+                                                         :annotation ""
+                                                         :rank last-rank}))} "Annotate Selection"])]))))
 
 (defn AnnotationMenu
   [state]
@@ -328,19 +366,17 @@
   [child]
   (let [selection (r/cursor state [:selection])
         client-x (r/cursor state [:client-x])
-        client-y (r/cursor state [:client-y])]
+        client-y (r/cursor state [:client-y])
+        editing? (r/cursor state [:editing?])]
     (fn [child]
       [:div
        [AnnotationMenu state]
        [:div {:on-mouse-up (fn [e]
-                             (.log js/console "capture mouse up")
                              (reset! selection (-> ($ js/rangy getSelection)
                                                    ($ toString)))
                              (reset! client-x ($ e :clientX))
-                             (reset! client-y ($ e :clientY)))}
+                             (reset! client-y ($ e :clientY))
+                             (reset! editing? false))}
         (when-not (empty? @selection)
-          [AddAnnotation {:top @client-y
-                          :left @client-x
-                          :selection selection
-                          :state state}])
+          [AddAnnotation state])
         child]])))
