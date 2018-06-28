@@ -1,6 +1,6 @@
 (ns sysrev.db.annotations
   (:require [sysrev.db.core :refer [do-query do-execute]]
-            [honeysql.helpers :refer [insert-into values where select from]]
+            [honeysql.helpers :refer [insert-into values where select from delete-from]]
             [honeysql-postgres.helpers :refer [returning]]))
 
 (defn create-annotation [selection annotation]
@@ -30,3 +30,9 @@
         (from :annotation)
         (where [:in :id annotations-articles])
         do-query)))
+
+(defn delete-annotation!
+  [annotation-id]
+  (-> (delete-from :annotation)
+      (where [:= :id annotation-id])
+      do-execute))

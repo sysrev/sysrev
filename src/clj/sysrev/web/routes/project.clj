@@ -613,6 +613,12 @@
         (let [article-id (-> request :params :article-id parse-integer)]
           (api/article-abstract-annotations article-id))))
 
+  (POST "/api/annotations/delete/:annotation-id" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [annotation-id (-> request :params :annotation-id parse-integer)]
+           (api/delete-annotation! annotation-id))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

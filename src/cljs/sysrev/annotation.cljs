@@ -26,6 +26,15 @@
              (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
              {}))
 
+(def-action :annotation/delete-annotation
+  :uri (fn [annotation-id] (str "/api/annotations/delete/"
+                                annotation-id))
+  :content (fn [annotation-id]
+             annotation-id)
+  :process (fn [_ _ result]
+             (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
+             {}))
+
 (def-data :annotation/user-defined-annotations
   :loaded? (fn [_ _ _]
              (constantly false))
@@ -259,12 +268,13 @@
 
 (defn AnnotationEditor
   [{:keys [annotation-atom user-annotations]}]
-  (let [{:keys [selection rank]} @annotation-atom]
+  (let [{:keys [selection id]} @annotation-atom]
     [:div
      [:div
       [:div [:div {:style {:cursor "pointer"}
                    :on-click (fn [event]
-                               (swap! user-annotations dissoc rank))}
+                               (swap! user-annotations dissoc id)
+                               (dispatch [:action [:annotation/delete-annotation id]]))}
              [:i.times.icon]] [:h3 selection]]
       [TextInput {:value (r/cursor annotation-atom [:annotation])
                   :on-change (fn [event]

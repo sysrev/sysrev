@@ -689,15 +689,35 @@
 
 (defn save-article-annotation
   [article-id selection annotation]
-  (let [annotation-id (db-annotations/create-annotation selection annotation)]
-    (db-annotations/associate-annotation-article annotation-id article-id)
-    {:result {:success true
-              :annotation-id annotation-id}}))
+  (try
+    (let [annotation-id (db-annotations/create-annotation selection annotation)]
+      (db-annotations/associate-annotation-article annotation-id article-id)
+      {:result {:success true
+                :annotation-id annotation-id}})
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
 (defn user-defined-annotations
   [article-id]
-  {:result {:success true
-            :annotations (db-annotations/user-defined-article-annotations article-id)}})
+  (try
+    (let [annotations (db-annotations/user-defined-article-annotations article-id)]
+      {:result {:success true
+                :annotations annotations}})
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
+
+(defn delete-annotation!
+  [annotation-id]
+  (try
+    (do
+      (db-annotations/delete-annotation! annotation-id)
+      {:result {:success true
+                :annotation-id annotation-id}})
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
 (defn test-response
   "Server Sanity Check"
