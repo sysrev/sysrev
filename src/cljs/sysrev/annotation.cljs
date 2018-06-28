@@ -26,6 +26,13 @@
              (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
              {}))
 
+(def-action :annotation/update-annotation
+  :uri (fn [annotation-id] (str "/api/annotation/update/" annotation-id))
+  :content (fn [annotation-id annotation]
+             {:annotation annotation})
+  :process (fn [_ _ result]
+             {}))
+
 (def-action :annotation/delete-annotation
   :uri (fn [annotation-id] (str "/api/annotations/delete/"
                                 annotation-id))
@@ -268,20 +275,56 @@
 
 (defn AnnotationEditor
   [{:keys [annotation-atom user-annotations]}]
-  (let [{:keys [selection id]} @annotation-atom]
-    [:div
-     [:div
-      [:div [:div {:style {:cursor "pointer"}
-                   :on-click (fn [event]
-                               (swap! user-annotations dissoc id)
-                               (dispatch [:action [:annotation/delete-annotation id]]))}
-             [:i.times.icon]] [:h3 selection]]
-      [TextInput {:value (r/cursor annotation-atom [:annotation])
-                  :on-change (fn [event]
-                               (reset! (r/cursor annotation-atom [:annotation])
-                                       (get-input-value event)))
-                  :label "Annotation"}]
-      [:br]]]))
+  (let [editing? (r/atom false)
+        edited-annotation (r/atom "")]
+    (fn [{:keys [annotation-atom user-annotations]}]
+      (let [{:keys [selection id]} @annotation-atom
+            original-annotation (-> @annotation-atom
+                                    :annotation)
+            annotation (r/cursor annotation-atom [:annotation])
+            on-save (fn []
+                      (reset! editing? false)
+                      (reset! annotation @edited-annotation)
+                      (dispatch [:action [:annotation/update-annotation id @edited-annotation]]))]
+        [:div
+         [:div
+          [:div [:div {:style {:cursor "pointer"}
+                       :on-click (fn [event]
+                                   (swap! user-annotations dissoc id)
+                                   (dispatch [:action [:annotation/delete-annotation id]]))}
+                 [:i.times.icon]]
+           [:h3 selection]]
+          (if @editing?
+            [:form {:on-submit (fn [e]
+                                 ($ e preventDefault)
+                                 ($ e stopPropagation)
+                                 (on-save))}
+             [:div
+              [TextInput {:value edited-annotation
+                          :on-change (fn [event]
+                                       (reset! edited-annotation
+                                               (get-input-value event)))
+                          :label "Annotation"}]
+              [:div.ui.fluid.button
+               {:on-click (fn [e]
+                            (on-save))}
+               "Save"]
+              [:div.ui.fluid.button
+               {:on-click (fn [e]
+                            (reset! editing? false)
+                            (reset! edited-annotation ""))}
+               "Dismiss"]]]
+            [:div
+             [:label "Annotation"
+              [:h3 @annotation]]
+             [:div.ui.fluid.button
+              {:on-click (fn [e]
+                           (reset! editing? true)
+                           (reset! edited-annotation original-annotation))}
+              "Edit"]])
+          
+
+          [:br]]]))))
 
 (defn AddAnnotation
   [state]
@@ -310,7 +353,6 @@
                                 (reset! current-selection (-> ($ js/rangy saveSelection))))}
          (if @editing?
            (let [on-save (fn []
-                           (.log js/console "on-save called")
                            (dispatch [:action [:annotation/create-annotation
                                                {:selection @selection
                                                 :annotation @annotation

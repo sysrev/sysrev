@@ -602,6 +602,13 @@
                user-id (current-user-id request)]
            (api/save-article-annotation article-id user-id selection annotation))))
 
+  (POST "/api/annotation/update/:annotation-id" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [annotation-id (-> request :params :annotation-id parse-integer)
+               {:keys [annotation]} (-> request :body)]
+           (api/update-annotation! annotation-id annotation))))
+
   (GET "/api/annotations/user-defined/:article-id" request
        (wrap-authorize
         request {:allow-public true}

@@ -720,6 +720,18 @@
       {:error internal-server-error
        :message (.getMessage e)})))
 
+(defn update-annotation!
+  [annotation-id annotation]
+  (try
+    (do
+      (db-annotations/update-annotation! annotation-id annotation)
+      {:result {:success true
+                :annotation-id annotation-id
+                :annotation annotation}})
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
+
 (defn test-response
   "Server Sanity Check"
   []
