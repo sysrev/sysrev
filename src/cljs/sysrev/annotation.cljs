@@ -5,9 +5,11 @@
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :refer [get-input-value]]
+            [sysrev.util :refer [get-input-value vector->hash-map]]
             [sysrev.views.components :refer [TextInput]])
   (:require-macros [reagent.interop :refer [$]]))
+
+(def state (r/atom {}))
 
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
@@ -16,12 +18,26 @@
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])
 
-(def-action :annotations/create-annotation
+(def-action :annotation/create-annotation
   :uri (fn [] "/api/annotation")
   :content (fn [annotation-map]
              annotation-map)
   :process (fn [_ _ result]
-             (.log js/console "[[create-annotation saved on server]]")
+             (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
+             {}))
+
+(def-data :annotation/user-defined-annotations
+  :loaded? (fn [_ _ _]
+             (constantly false))
+  :uri (fn [article-id] (str "/api/annotations/user-defined/"
+                             article-id))
+  :prereqs (fn [] [[:identity]])
+  :content (fn [article-id])
+  :process (fn [_ [article-id] result]
+             (let [annotations (:annotations result)]
+               (when-not (nil? annotations)
+                 (reset! (r/cursor state [:user-annotations])
+                         (vector->hash-map annotations :id))))
              {}))
 
 (defn within?
@@ -260,11 +276,6 @@
 (defn AddAnnotation
   [state]
   (let [user-annotations (r/cursor state [:user-annotations])
-        last-rank (if-let [max-rank (->> (vals @user-annotations)
-                                         (map :rank)
-                                         (apply max))]
-                    (inc max-rank)
-                    1)
         editing? (r/cursor state [:editing?])
         new-annotation-map (r/cursor state [:new-annotation-map])
         selection (r/atom state [:selection])
@@ -289,8 +300,8 @@
                                 (reset! current-selection (-> ($ js/rangy saveSelection))))}
          (if @editing?
            (let [on-save (fn []
-                           (swap! user-annotations merge {last-rank @new-annotation-map})
-                           (dispatch [:action [:annotations/create-annotation
+                           (.log js/console "on-save called")
+                           (dispatch [:action [:annotation/create-annotation
                                                {:selection @selection
                                                 :annotation @annotation
                                                 :article-id @(subscribe [:visible-article-id])}]])
@@ -326,7 +337,7 @@
                              (reset! editing? true)
                              (reset! new-annotation-map {:selection @selection
                                                          :annotation ""
-                                                         :rank last-rank}))} "Annotate Selection"])]))))
+                                                         }))} "Annotate Selection"])]))))
 
 (defn AnnotationMenu
   [state]
@@ -342,13 +353,11 @@
        [:h1 "Annotations"]
        (when-not (empty? (vals @user-annotations))
          (map
-          (fn [{:keys [rank]}]
-            ^{:key (str "rank-" rank)}
-            [AnnotationEditor {:annotation-atom (r/cursor user-annotations [rank])
+          (fn [{:keys [id]}]
+            ^{:key (str "id-" id)}
+            [AnnotationEditor {:annotation-atom (r/cursor user-annotations [id])
                                :user-annotations user-annotations}])
-          (sort-by :rank (vals @user-annotations))))])))
-
-(def state (r/atom {}))
+          (sort-by :id (vals @user-annotations))))])))
 
 (defn AnnotationCapture
   [child]
@@ -356,6 +365,7 @@
         client-x (r/cursor state [:client-x])
         client-y (r/cursor state [:client-y])
         editing? (r/cursor state [:editing?])]
+    (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
     (fn [child]
       [:div
        [AnnotationMenu state]

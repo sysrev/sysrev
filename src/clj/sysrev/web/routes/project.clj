@@ -540,12 +540,6 @@
         (let [{:keys [project-id]} (-> request :params)]
           (api/prediction-histogram (parse-integer project-id)))))
 
-  (GET "/api/annotations/:article-id" request
-       (wrap-authorize
-        request {:allow-public true}
-        (let [article-id (-> request :params :article-id parse-integer)]
-          (api/article-abstract-annotations article-id))))
-
   (GET "/api/charts/label-count-data" request
        (wrap-authorize
         request {:allow-public true}
@@ -606,6 +600,18 @@
          request {:roles ["member"]}
          (let [{:keys [article-id selection annotation]} (-> request :body)]
            (api/save-article-annotation article-id selection annotation))))
+
+  (GET "/api/annotations/user-defined/:article-id" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)]
+          (api/user-defined-annotations article-id))))
+
+  (GET "/api/annotations/:article-id" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)]
+          (api/article-abstract-annotations article-id))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

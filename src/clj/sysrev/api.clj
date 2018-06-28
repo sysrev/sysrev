@@ -694,6 +694,11 @@
     {:result {:success true
               :annotation-id annotation-id}}))
 
+(defn user-defined-annotations
+  [article-id]
+  {:result {:success true
+            :annotations (db-annotations/user-defined-article-annotations article-id)}})
+
 (defn test-response
   "Server Sanity Check"
   []

@@ -1,6 +1,6 @@
 (ns sysrev.db.annotations
   (:require [sysrev.db.core :refer [do-query do-execute]]
-            [honeysql.helpers :refer [insert-into values]]
+            [honeysql.helpers :refer [insert-into values where select from]]
             [honeysql-postgres.helpers :refer [returning]]))
 
 (defn create-annotation [selection annotation]
@@ -17,3 +17,16 @@
       (values [{:annotation_id annotation-id
                 :article_id article-id}])
       do-execute))
+
+(defn user-defined-article-annotations [article-id]
+  (let [annotations-articles (-> (select :*)
+                                 (from :annotation_article)
+                                 (where [:= :article-id
+                                         article-id])
+                                 do-query
+                                 (->> (mapv :annotation-id))
+                                 )]
+    (-> (select :*)
+        (from :annotation)
+        (where [:in :id annotations-articles])
+        do-query)))
