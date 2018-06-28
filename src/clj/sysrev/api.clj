@@ -688,10 +688,11 @@
        :message (.getMessage e)})))
 
 (defn save-article-annotation
-  [article-id selection annotation]
+  [article-id user-id selection annotation]
   (try
     (let [annotation-id (db-annotations/create-annotation selection annotation)]
       (db-annotations/associate-annotation-article annotation-id article-id)
+      (db-annotations/associate-annotation-user annotation-id user-id)
       {:result {:success true
                 :annotation-id annotation-id}})
     (catch Throwable e

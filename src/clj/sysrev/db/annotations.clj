@@ -18,18 +18,25 @@
                 :article_id article-id}])
       do-execute))
 
+(defn associate-annotation-user [annotation-id user-id]
+  (-> (insert-into :annotation_web_user)
+      (values [{:annotation_id annotation-id
+                :user_id user-id}])
+      do-execute))
+
 (defn user-defined-article-annotations [article-id]
   (let [annotations-articles (-> (select :*)
                                  (from :annotation_article)
                                  (where [:= :article-id
                                          article-id])
                                  do-query
-                                 (->> (mapv :annotation-id))
-                                 )]
-    (-> (select :*)
-        (from :annotation)
-        (where [:in :id annotations-articles])
-        do-query)))
+                                 (->> (mapv :annotation-id)))]
+    (if-not (empty? annotations-articles)
+      (-> (select :*)
+          (from :annotation)
+          (where [:in :id annotations-articles])
+          do-query)
+      [])))
 
 (defn delete-annotation!
   [annotation-id]

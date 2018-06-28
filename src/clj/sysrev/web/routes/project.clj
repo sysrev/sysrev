@@ -598,8 +598,9 @@
   (POST "/api/annotation" request
         (wrap-authorize
          request {:roles ["member"]}
-         (let [{:keys [article-id selection annotation]} (-> request :body)]
-           (api/save-article-annotation article-id selection annotation))))
+         (let [{:keys [article-id selection annotation]} (-> request :body)
+               user-id (current-user-id request)]
+           (api/save-article-annotation article-id user-id selection annotation))))
 
   (GET "/api/annotations/user-defined/:article-id" request
        (wrap-authorize
