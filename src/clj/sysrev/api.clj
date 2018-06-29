@@ -590,9 +590,11 @@
 
 (defn open-access-available?
   [article-id]
-  {:result {:available? (not (nil? (-> article-id
-                                       articles/article-pmcid
-                                       pubmed/article-pdf)))}})
+  {:result
+   {:available? ((comp not nil?)
+                 (some-> article-id
+                         articles/article-pmcid
+                         pubmed/pdf-ftp-link))}})
 
 (defn save-article-pdf
   "Handle saving a file on S3 and the associated accounting with it"

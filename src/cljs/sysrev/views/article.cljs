@@ -135,6 +135,7 @@
                                (mapv :value)
                                (mapv #(hash-map :word %))))
             delay 5]
+        #_
         (when (= context :article-list)
           (get-annotations article-id :delay delay))
         [:div

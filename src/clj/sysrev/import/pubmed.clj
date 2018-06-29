@@ -365,20 +365,21 @@
 (defn pdf-ftp-link
   "Given a pmicd (PMC*), return the ftp link for the pdf, if it exists, nil otherwise"
   [pmcid]
-  (let [parsed-html (-> (http/get oa-root-link
-                                  {:query-params {"id" pmcid}})
-                        :body
-                        hickory/parse
-                        hickory/as-hickory)]
-    (-> (s/select (s/child (s/attr :format #(= % "pdf")))
-                  parsed-html)
-        first
-        (get-in [:attrs :href]))))
+  (when pmcid
+    (let [parsed-html (-> (http/get oa-root-link
+                                    {:query-params {"id" pmcid}})
+                          :body
+                          hickory/parse
+                          hickory/as-hickory)]
+      (-> (s/select (s/child (s/attr :format #(= % "pdf")))
+                    parsed-html)
+          first
+          (get-in [:attrs :href])))))
 
 (defn article-pdf
   "Given a pmicd (PMC*), the pdf for that id, if it exists, nil otherwise"
   [pmcid]
-  (if-let [pdf-link (pdf-ftp-link pmcid)]
+  (when-let [pdf-link (pdf-ftp-link pmcid)]
     (let [remote-filename (fs/base-name pdf-link)
           local-filename (str "pdf/" remote-filename)
           client (-> pdf-link
@@ -394,10 +395,7 @@
                 (fs/mkdir "pdf"))
               (ftp/client-get client remote-filename local-filename)))
         local-filename
-        :else nil))
-    ;; there was no pmcid for that file
-    nil))
-
+        :else nil))))
 
 ;;(ftp/with-ftp [client "ftp://anonymous:pwd@ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/92/86"] (ftp/client-get client "dddt-12-721.PMC5892952.pdf"))
 

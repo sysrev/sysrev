@@ -346,4 +346,4 @@
           :raw
           (->> (re-find #"PMC\d+")))
       (catch Throwable e
-        false)))
+        nil)))
