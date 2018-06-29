@@ -26,21 +26,28 @@
      [:div.ui.label label-attrs label-text]
      input-elt]))
 
-(defn wrap-dropdown [elt]
+(defn wrap-dropdown [elt & [{:keys [onChange] :as options}]]
   (r/create-class
    {:component-did-mount
     #(-> (js/$ (r/dom-node %))
-         (.dropdown))
+         (.dropdown
+          (clj->js
+           (cond-> {}
+             onChange (merge {:onChange onChange})))))
     :reagent-render
     (fn [elt]
       elt)}))
 
-(defn selection-dropdown [selected-item items]
+(defn selection-dropdown [selected-item items &
+                          [{:keys [id class onChange]
+                            :or {class "ui selection dropdown"}
+                            :as options}]]
   [wrap-dropdown
-   [:div.ui.selection.dropdown
+   [:div {:id id :class class}
     [:i.dropdown.icon]
     selected-item
-    (into [:div.menu] items)]])
+    (into [:div.menu] items)]
+   options])
 
 (defn dropdown-menu [entries & {:keys [icon-class dropdown-class label style]
                                 :or {icon-class "small down chevron"
@@ -334,7 +341,7 @@
             :hoverable false}
            popup-options)]
    ^{:key :tooltip-help}
-   [:div.ui.popup.transition.hidden.tooltip
+   [:div.ui.flowing.popup.transition.hidden.tooltip
     (cond help-content
           (doall (map-indexed #(if (string? %2)
                                  ^{:key %1}

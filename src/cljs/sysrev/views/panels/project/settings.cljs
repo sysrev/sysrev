@@ -6,9 +6,10 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.components :refer [with-tooltip]]
+            [sysrev.views.components :refer
+             [with-tooltip wrap-dropdown selection-dropdown]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.shared.util :refer [parse-integer]]))
+            [sysrev.shared.util :refer [parse-integer in?]]))
 
 (def ^:private panel [:project :project :settings])
 
@@ -24,6 +25,9 @@
     (let [n (parse-integer input)]
       (when (and (int? n) (>= n 0) (<= n 100))
         (* n 0.01)))
+
+    :public-access input
+
     nil))
 
 (defn admin? []
@@ -74,7 +78,7 @@
         values (r/cursor state [:active-values])
         value (parse-input skey input)]
     (swap! inputs assoc skey input)
-    (when value
+    (when-not (nil? value)
       (swap! values assoc skey value))))
 
 (defn modified? []
@@ -101,6 +105,9 @@
         :second-review-prob
         (when (float? value)
           (str (int (+ 0.5 (* value 100)))))
+
+        :public-access value
+
         nil))))
 
 (def-action :project/delete
@@ -116,30 +123,95 @@
 (defn input-field-class [skey]
   (if (valid-input? skey) "" "error"))
 
+(def review-priority-buttons
+  [{:key :single
+    :label "Single"
+    :value 0
+    :tooltip "Prioritize single-user review of articles"}
+   {:key :balanced
+    :label "Balanced"
+    :value 50
+    :tooltip "Assign mix of unreviewed and partially-reviewed articles"}
+   {:key :full
+    :label "Full"
+    :value 100
+    :tooltip "Prioritize fully reviewed articles"}])
+
+(defn ReviewPriorityButtonTooltip [{:keys [key tooltip]}]
+  (let [tooltip-key (str "review-priority--" (name key))]
+    [:div.ui.flowing.popup.transition.hidden.tooltip
+     {:id tooltip-key}
+     [:p tooltip]]))
+
+(defn ReviewPriorityButton [{:keys [key label value tooltip]}]
+  (let [skey :second-review-prob
+        active-value (int (render-setting skey))
+        active? (= value active-value)
+        tooltip-key (str "review-priority--" (name key))]
+    [with-tooltip
+     [:button.ui.button
+      {:class (if active? "active" "")
+       :on-click #(edit-setting skey value)}
+      label]
+     {:inline false
+      :popup (str "#" tooltip-key)}]))
+
 (defn DoubleReviewPriorityField []
   (let [skey :second-review-prob]
     [:div.field {:class (input-field-class skey)}
-     [with-tooltip
-      [:label "Double-review priority "
-       [:i.ui.large.grey.circle.question.mark.icon]]
-      {:delay {:show 200
-               :hide 0}
-       :hoverable false}]
-     [:div.ui.popup.transition.hidden.tooltip
-      [:p "Controls proportion of articles assigned for second review in Classify task."]
-      [:p "0% will assign unreviewed articles whenever possible."]
-      [:p "100% will assign for second review whenever possible."]]
-     [:div.ui.right.labeled.input
-      [:input
-       {:type "text"
-        :name (str skey)
-        :value (render-setting skey)
-        :on-change
-        #(let [input (-> % .-target .-value)]
-           (edit-setting skey input))
-        :readOnly (if admin? false true)
-        :autoComplete "off"}]
-      [:div.ui.basic.label "%"]]]))
+     [:label "Article Review Priority"]
+     [:div.ui.buttons
+      (doall
+       (for [entry review-priority-buttons]
+         ^{:key (:key entry)}
+         [ReviewPriorityButton entry]))]
+     (doall
+      (for [entry review-priority-buttons]
+        ^{:key [:tooltip (:key entry)]}
+        [ReviewPriorityButtonTooltip entry]))]))
+
+(def public-access-buttons
+  [{:key :public
+    :label [:span #_ [:i.globe.icon] "Public"]
+    :value true
+    :tooltip "Allow anyone to view project"}
+   {:key :private
+    :label [:span #_ [:i.lock.icon] "Private"]
+    :value false
+    :tooltip "Allow access only for project members"}])
+
+(defn PublicAccessButtonTooltip [{:keys [key tooltip]}]
+  (let [tooltip-key (str "public-access--" (name key))]
+    [:div.ui.flowing.popup.transition.hidden.tooltip
+     {:id tooltip-key}
+     [:p tooltip]]))
+
+(defn PublicAccessButton [{:keys [key label value tooltip]}]
+  (let [skey :public-access
+        active-value (or (current-values skey) false)
+        active? (= value active-value)
+        tooltip-key (str "public-access--" (name key))]
+    [with-tooltip
+     [:button.ui.button
+      {:class (if active? "active" "")
+       :on-click #(edit-setting skey value)}
+      label]
+     {:inline false
+      :popup (str "#" tooltip-key)}]))
+
+(defn PublicAccessField []
+  (let [skey :public-access]
+    [:div.field {:class (input-field-class skey)}
+     [:label "Project Visibility"]
+     [:div.ui.buttons
+      (doall
+       (for [entry public-access-buttons]
+         ^{:key (:key entry)}
+         [PublicAccessButton entry]))]
+     (doall
+      (for [entry public-access-buttons]
+        ^{:key [:tooltip (:key entry)]}
+        [PublicAccessButtonTooltip entry]))]))
 
 (defn- project-options-box []
   (let [admin? (admin?)
@@ -151,29 +223,32 @@
     [:div.ui.segment
      [:h4.ui.dividing.header "Configuration options"]
      [:div.ui.form {:class (if valid? "" "warning")}
-      [:div.fields
-       ^{:key :double-review}
-       [DoubleReviewPriorityField]]]
+      [PublicAccessField]
+      [DoubleReviewPriorityField]]
      (when admin?
        [:div
         [:div.ui.divider]
         [:div
-         [:button.ui.primary.button
-          {:class (if (and valid? modified?) "" "disabled")
-           :on-click #(save-changes)}
-          "Save changes"]
-         [:button.ui.button
+         (let [enabled? (and valid? modified?)]
+           [:button.ui.right.labeled.positive.icon.button
+            {:class (if enabled? "" "disabled")
+             :on-click #(when enabled? (save-changes))}
+            "Save Changes"
+            [:i.check.circle.outline.icon]])
+         [:button.ui.right.labeled.icon.button
           {:class (if modified? "" "disabled")
-           :on-click #(reset-fields)}
-          "Reset"]]])]))
+           :on-click #(when modified? (reset-fields))}
+          "Reset"
+          [:i.cancel.icon]]]])]))
 
-(defn- project-permissions-box []
-  (let [;; TODO: implement "owner" permission
-        owner? false
+(defonce members-state (r/cursor state [:members]))
+
+(defn- ProjectMembersList []
+  (let [owner? false
         all-perms (if owner? ["admin" "resolve"] ["resolve"])
         user-ids @(subscribe [:project/member-user-ids nil true])]
-    [:div.ui.segment
-     [:h4.ui.dividing.header "Users"]
+    [:div
+     [:h4.ui.dividing.header "Members"]
      [:div.ui.relaxed.divided.list
       (doall
        (for [user-id user-ids]
@@ -182,33 +257,84 @@
            (let [permissions @(subscribe [:member/permissions user-id])]
              (doall
               (for [perm permissions]
-                [:div.ui.tiny.label {:key perm} perm])))]
+                [:div.ui.small.label {:key perm} perm])))]
           [:div.content
            {:style {:padding-top "4px"
                     :padding-bottom "4px"}}
            [:i.user.icon]
-           @(subscribe [:user/display user-id])]]))]
-     ;; TODO: finish permissions editor interface
-     #_
-     (when false
-       [:div
-        [:div.ui.divider]
-        [:form.ui.form
-         [:div.fields
-          [project-members-dropdown :add-permission-user
-           #(reset-field :add-permission-perm)]
-          [permissions-dropdown :add-permission-perm all-perms]
-          [:div.field
-           [:label nbsp]
-           [:div.ui.fluid.icon.button [:i.plus.icon]]]]]
-        [:form.ui.form
-         [:div.fields
-          [project-members-dropdown :remove-permission-user
-           #(reset-field :remove-permission-perm)]
-          [permissions-dropdown :remove-permission-perm all-perms]
-          [:div.field
-           [:label nbsp]
-           [:div.ui.fluid.icon.button [:i.minus.icon]]]]]])]))
+           @(subscribe [:user/display user-id])]]))]]))
+
+(defn- UserSelectDropdown []
+  (let [{:keys [selected-user]} @members-state
+        user-ids @(subscribe [:project/member-user-ids nil true])]
+    [selection-dropdown
+     [:div.default.text "User"]
+     (->> user-ids
+          (mapv
+           (fn [user-id]
+             [:div.item
+              (into {:key (or user-id "none")
+                     :data-value (if user-id (str user-id) "none")}
+                    (when (= user-id selected-user)
+                      {:class "active selected"}))
+              [:span [:i.user.icon] @(subscribe [:user/display user-id])]])))
+     {:class "ui fluid search selection dropdown"
+      :onChange
+      (fn [value text item]
+        (let [user-id (parse-integer value)]
+          (swap! members-state
+                 assoc :selected-user user-id)))}]))
+
+(def permission-values ["admin"])
+
+(defn- MemberPermissionDropdown []
+  (let [{:keys [selected-user selected-permission]} @members-state]
+    [selection-dropdown
+     [:div.default.text "Permission"]
+     (->> permission-values
+          (mapv
+           (fn [perm]
+             [:div.item
+              (into {:key (or perm "none")
+                     :data-value (if perm perm "none")}
+                    (when (= perm selected-permission)
+                      {:class "active selected"}))
+              [:span [:i.key.icon] perm]])))
+     {:class "ui fluid search selection dropdown"
+      :onChange
+      (fn [value text item]
+        (let [perm (if (in? ["" "none"] value) nil value)]
+          (swap! members-state
+                 assoc :selected-permission perm)))}]))
+
+(defn- ProjectPermissionsForm []
+  (when (admin?)
+    [:div
+     [:h4.ui.dividing.header {:style {:margin-top "1em"}}
+      "Manage Permissions"]
+     [:div.ui.form.project-permissions
+      [:div.fields
+       [:div.four.wide.field.user-select
+        [UserSelectDropdown]]
+       [:div.four.wide.field.permission-select
+        [MemberPermissionDropdown]]
+       [:div.three.wide.field
+        [:div.ui.fluid.buttons
+         [:button.ui.icon.button.disabled [:i.plus.circle.icon]]
+         [:button.ui.icon.button.disabled [:i.minus.circle.icon]]]]
+       [:div.one.wide.field]
+       [:div.four.wide.field
+        {:style {:text-align "right"}}
+        [:button.ui.icon.button
+         {:on-click
+          #(-> (js/$ ".project-settings .ui.selection.dropdown")
+               (.dropdown "clear"))}
+         [:i.cancel.icon]]]]]]))
+
+(defn- ProjectMembersBox []
+  [:div.ui.segment
+   [ProjectMembersList]
+   #_ [ProjectPermissionsForm]])
 
 (defn ConfirmationAlert
   "An alert for confirming or cancelling an action.
@@ -278,6 +404,6 @@
          [:div.ui.column
           [project-options-box]]
          [:div.ui.column
-          [project-permissions-box]
+          [ProjectMembersBox]
           (when @(subscribe [:member/admin?])
             [DeleteProject])]]]])))

@@ -34,11 +34,10 @@
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
        :action (project-uri project-id "/settings")
-       #_ (list [:project :project :settings] action-params)}
-      {:tab-id :support
+       #_ (list [:project :project :settings] action-params)}]
+     [{:tab-id :support
        :content [:span [:i.dollar.sign.icon] "Support"]
        :action (project-uri project-id "/support")}]
-     []
      active-tab
      "bottom attached project-menu-2"
      false]))
