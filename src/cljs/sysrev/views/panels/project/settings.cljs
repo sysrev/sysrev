@@ -239,7 +239,7 @@
           {:class (if modified? "" "disabled")
            :on-click #(when modified? (reset-fields))}
           "Reset"
-          [:i.cancel.icon]]]])]))
+          [:i.eraser.icon]]]])]))
 
 (defonce members-state (r/cursor state [:members]))
 
@@ -329,7 +329,7 @@
          {:on-click
           #(-> (js/$ ".project-settings .ui.selection.dropdown")
                (.dropdown "clear"))}
-         [:i.cancel.icon]]]]]]))
+         [:i.eraser.icon]]]]]]))
 
 (defn- ProjectMembersBox []
   [:div.ui.segment
