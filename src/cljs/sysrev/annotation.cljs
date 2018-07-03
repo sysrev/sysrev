@@ -2,18 +2,22 @@
   (:require [cljsjs.rangy-selectionsaverestore]
             [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.state.nav :refer [active-project-id]]
             [sysrev.util :refer [get-input-value vector->hash-map]]
             [sysrev.views.components :refer [TextInput]])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def state (r/atom {}))
+(def default-state {:annotation-retrieving? false
+                    :annotator-enabled? true})
+
+(def state (r/atom default-state))
 
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
-
 ;; accessing state for testing:
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])
@@ -24,12 +28,14 @@
              annotation-map)
   :process (fn [_ _ result]
              (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
+             (reset! (r/cursor state [:annotation-retrieving?]) false)
              {}))
 
 (def-action :annotation/update-annotation
   :uri (fn [annotation-id] (str "/api/annotation/update/" annotation-id))
-  :content (fn [annotation-id annotation]
-             {:annotation annotation})
+  :content (fn [annotation-id annotation semantic-class]
+             {:annotation annotation
+              :semantic-class semantic-class})
   :process (fn [_ _ result]
              {}))
 
@@ -39,7 +45,6 @@
   :content (fn [annotation-id]
              annotation-id)
   :process (fn [_ _ result]
-             (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
              {}))
 
 (def-data :annotation/user-defined-annotations
@@ -275,25 +280,37 @@
 
 (defn AnnotationEditor
   [{:keys [annotation-atom user-annotations]}]
-  (let [editing? (r/atom false)
-        edited-annotation (r/atom "")]
+  (let [editing? (r/cursor annotation-atom [:editing?])
+        edited-annotation (r/atom "")
+        edited-semantic-class (r/atom "")
+        labels (->> (get-in @app-db [:data :project (active-project-id @app-db) :labels])
+                    vals
+                    (filter :enabled))]
     (fn [{:keys [annotation-atom user-annotations]}]
       (let [{:keys [selection id]} @annotation-atom
             original-annotation (-> @annotation-atom
                                     :annotation)
+            original-semantic-class (-> @annotation-atom
+                                        :semantic-class)
             annotation (r/cursor annotation-atom [:annotation])
+            semantic-class (r/cursor annotation-atom [:semantic-class])
             on-save (fn []
                       (reset! editing? false)
                       (reset! annotation @edited-annotation)
-                      (dispatch [:action [:annotation/update-annotation id @edited-annotation]]))]
+                      (reset! semantic-class @edited-semantic-class)
+                      (dispatch [:action [:annotation/update-annotation id @edited-annotation @semantic-class]]))]
         [:div
          [:div
-          [:div [:div {:style {:cursor "pointer"}
+          [:div [:div {:style {:cursor "pointer"
+                               :float "right"}
                        :on-click (fn [event]
                                    (swap! user-annotations dissoc id)
                                    (dispatch [:action [:annotation/delete-annotation id]]))}
                  [:i.times.icon]]
+           [:br]
            [:h3 selection]]
+          (when (empty? @annotation)
+            (reset! editing? true))
           (if @editing?
             [:form {:on-submit (fn [e]
                                  ($ e preventDefault)
@@ -305,31 +322,44 @@
                                        (reset! edited-annotation
                                                (get-input-value event)))
                           :label "Annotation"}]
-              [:div.ui.fluid.button
+              [:br]
+              [TextInput {:value edited-semantic-class
+                          :on-change (fn [e]
+                                       (reset! edited-semantic-class
+                                               (get-input-value e)))
+                          :label "Annotation Label"}]
+              [:br]
+              [:div.ui.small.button
                {:on-click (fn [e]
                             (on-save))}
                "Save"]
-              [:div.ui.fluid.button
-               {:on-click (fn [e]
-                            (reset! editing? false)
-                            (reset! edited-annotation ""))}
-               "Dismiss"]]]
+              (when-not (empty? @annotation)
+                [:div.ui.small.button
+                 {:on-click (fn [e]
+                              (reset! editing? false)
+                              (reset! edited-annotation "")
+                              (reset! edited-semantic-class ""))}
+                 "Dismiss"])]]
             [:div
+             [:br]
              [:label "Annotation"
               [:h3 @annotation]]
-             [:div.ui.fluid.button
+             [:br]
+             (when-not (empty? @semantic-class)
+               [:label "Annotation Label"
+                [:h3 @semantic-class]
+                [:br]])
+             [:div.ui.small.button
               {:on-click (fn [e]
                            (reset! editing? true)
-                           (reset! edited-annotation original-annotation))}
+                           (reset! edited-annotation original-annotation)
+                           (reset! edited-semantic-class original-semantic-class))}
               "Edit"]])
-          
-
           [:br]]]))))
 
 (defn AddAnnotation
   [state]
   (let [user-annotations (r/cursor state [:user-annotations])
-        editing? (r/cursor state [:editing?])
         new-annotation-map (r/cursor state [:new-annotation-map])
         selection (r/atom state [:selection])
         annotation (r/cursor new-annotation-map [:annotation])
@@ -337,7 +367,12 @@
     (fn [state]
       (let [left (r/cursor state [:client-x])
             top (r/cursor state [:client-y])
-            selection (r/cursor state [:selection])]
+            selection (r/cursor state [:selection])
+            on-save (fn []
+                      (dispatch [:action [:annotation/create-annotation
+                                          {:selection @selection
+                                           :annotation @annotation
+                                           :article-id @(subscribe [:visible-article-id])}]]))]
         [:div {:style {:top (str (- @top 100) "px")
                        :left (str @left "px")
                        :position "fixed"
@@ -351,82 +386,71 @@
                               ($ e stopPropagation))
                :on-mouse-down (fn [e]
                                 (reset! current-selection (-> ($ js/rangy saveSelection))))}
-         (if @editing?
-           (let [on-save (fn []
-                           (dispatch [:action [:annotation/create-annotation
-                                               {:selection @selection
-                                                :annotation @annotation
-                                                :article-id @(subscribe [:visible-article-id])}]])
-                           (reset! editing? false)
-                           (reset! selection ""))]
-             [:div
-              [:div
-               [:label "Selection"]
-               [:p @selection]]
-              [:form {:on-submit (fn [e]
-                                   ($ e preventDefault)
-                                   ($ e stopPropagation)
-                                   (on-save))}
-               [TextInput {:value annotation
-                           :on-change (fn [event]
-                                        (reset! annotation (get-input-value event)))
-                           :autofocus true
-                           :label "Annotation"}]
-               [:div.ui.fluid.button
-                {:on-click (fn [e]
-                             (on-save))}
-                "Save"]
-               [:div.ui.fluid.button
-                {:on-click (fn [e]
-                             (reset! editing? false)
-                             (-> ($ js/rangy getSelection)
-                                 ($ removeAllRanges))
-                             (reset! selection ""))}
-                "Dismiss"]]])
-           [:h1 {:on-click (fn [e]
-                             ($ e stopPropagation)
-                             ($ e preventDefault)
-                             (reset! editing? true)
-                             (reset! new-annotation-map {:selection @selection
-                                                         :annotation ""
-                                                         }))} "Annotate Selection"])]))))
+         [:h1 {:on-click (fn [e]
+                           ($ e stopPropagation)
+                           ($ e preventDefault)
+                           (reset! (r/cursor state [:annotation-retrieving?]) true)
+                           (reset! new-annotation-map {:selection @selection
+                                                       :annotation ""})
+                           (on-save)
+                           (-> ($ js/rangy getSelection)
+                               ($ removeAllRanges))
+                           (reset! selection ""))} "Annotate Selection"]]))))
 
 (defn AnnotationMenu
   [state]
-  (let [user-annotations (r/cursor state [:user-annotations])]
+  (let [user-annotations (r/cursor state [:user-annotations])
+        retrieving? (r/cursor state [:annotation-retrieving?])]
     (fn [state]
-      [:div
+      [:div.ui.segment
        {:style {:top "0px"
                 :left "0px"
                 :height "100%"
                 :width "10%"
                 :z-index "100"
-                :position "fixed"}}
+                :position "fixed"
+                :overflow-y "auto"}}
        [:h1 "Annotations"]
+       (when @retrieving?
+         [:div.item.loading.indicator
+          [:div.ui.small.active.inline.loader]])
        (when-not (empty? (vals @user-annotations))
          (map
           (fn [{:keys [id]}]
             ^{:key (str "id-" id)}
             [AnnotationEditor {:annotation-atom (r/cursor user-annotations [id])
                                :user-annotations user-annotations}])
-          (sort-by :id (vals @user-annotations))))])))
+          (reverse (sort-by :id (vals @user-annotations)))))])))
 
 (defn AnnotationCapture
   [child]
   (let [selection (r/cursor state [:selection])
         client-x (r/cursor state [:client-x])
         client-y (r/cursor state [:client-y])
-        editing? (r/cursor state [:editing?])]
+        editing? (r/cursor state [:editing?])
+        annotator-enabled? (r/cursor state [:annotator-enabled?])]
     (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
     (fn [child]
-      [:div
-       [AnnotationMenu state]
-       [:div {:on-mouse-up (fn [e]
-                             (reset! selection (-> ($ js/rangy getSelection)
-                                                   ($ toString)))
-                             (reset! client-x ($ e :clientX))
-                             (reset! client-y ($ e :clientY))
-                             (reset! editing? false))}
-        (when-not (empty? @selection)
-          [AddAnnotation state])
-        child]])))
+      (if @annotator-enabled?
+        [:div
+         [AnnotationMenu state]
+         [:div {:on-mouse-up (fn [e]
+                               (reset! selection (-> ($ js/rangy getSelection)
+                                                     ($ toString)))
+                               (reset! client-x ($ e :clientX))
+                               (reset! client-y ($ e :clientY))
+                               (reset! editing? false))}
+          (when-not (empty? @selection)
+            [AddAnnotation state])
+          child]]
+        child))))
+
+(defn AnnotationToggleButton
+  []
+  (let [annotator-enabled? (r/cursor state [:annotator-enabled?])]
+    [:div.ui.tiny.button
+     {:on-click (fn [e]
+                  (swap! annotator-enabled? not))}
+     (if @annotator-enabled?
+       "Disable Annotator"
+       "Enable Annotator")]))

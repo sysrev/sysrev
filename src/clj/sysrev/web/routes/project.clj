@@ -606,8 +606,8 @@
         (wrap-authorize
          request {:roles ["member"]}
          (let [annotation-id (-> request :params :annotation-id parse-integer)
-               {:keys [annotation]} (-> request :body)]
-           (api/update-annotation! annotation-id annotation))))
+               {:keys [annotation semantic-class]} (-> request :body)]
+           (api/update-annotation! annotation-id annotation semantic-class))))
 
   (GET "/api/annotations/user-defined/:article-id" request
        (wrap-authorize

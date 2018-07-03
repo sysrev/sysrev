@@ -690,9 +690,9 @@
 (defn save-article-annotation
   [article-id user-id selection annotation]
   (try
-    (let [annotation-id (db-annotations/create-annotation selection annotation)]
-      (db-annotations/associate-annotation-article annotation-id article-id)
-      (db-annotations/associate-annotation-user annotation-id user-id)
+    (let [annotation-id (db-annotations/create-annotation! selection annotation)]
+      (db-annotations/associate-annotation-article! annotation-id article-id)
+      (db-annotations/associate-annotation-user! annotation-id user-id)
       {:result {:success true
                 :annotation-id annotation-id}})
     (catch Throwable e
@@ -721,10 +721,10 @@
        :message (.getMessage e)})))
 
 (defn update-annotation!
-  [annotation-id annotation]
+  [annotation-id annotation semantic-class]
   (try
     (do
-      (db-annotations/update-annotation! annotation-id annotation)
+      (db-annotations/update-annotation! annotation-id annotation semantic-class)
       {:result {:success true
                 :annotation-id annotation-id
                 :annotation annotation}})

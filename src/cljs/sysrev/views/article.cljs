@@ -7,7 +7,7 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.annotation :refer [AnnotatedText AnnotationCapture]]
+            [sysrev.annotation :refer [AnnotatedText AnnotationCapture AnnotationToggleButton]]
             [sysrev.pdf :as pdf :refer [PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
@@ -247,6 +247,7 @@
               [article-disabled-label])
             (when (and score show-score? (not= status :single))
               [article-score-label score])
+            [AnnotationToggleButton]
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         (article-duplicates-segment article-id)
