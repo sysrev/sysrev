@@ -105,7 +105,7 @@
 (defn get-annotations
   "Get annotations with a delay of seconds, defaults to 30"
   [article-id & {:keys [delay]
-                 :or {delay 30}}]
+                 :or {delay 3}}]
   (let [project-id @(subscribe [:active-project-id])
         article-id-state (subscribe [:visible-article-id])]
     (js/setTimeout
@@ -135,7 +135,6 @@
                                (mapv :value)
                                (mapv #(hash-map :word %))))
             delay 5]
-        #_
         (when (= context :article-list)
           (get-annotations article-id :delay delay))
         [:div

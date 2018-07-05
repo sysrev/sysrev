@@ -3,7 +3,7 @@
             [clojure.data.json :as json]
             [sysrev.biosource.core :refer [api-host]]))
 
-(def annotations-route (str api-host "npl/ner"))
+(def annotations-route (str api-host "nlp/ner"))
 
 (defn get-annotations
   "Given a string of text, return a vector of annotation maps"
