@@ -7,7 +7,7 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.annotation :refer [AnnotatedText AnnotationCapture AnnotationToggleButton]]
+            [sysrev.annotation :as annotation :refer [AnnotatedText AnnotationCapture AnnotationToggleButton AnnotationMenu]]
             [sysrev.pdf :as pdf :refer [PDFs]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
@@ -138,6 +138,7 @@
         (when (= context :article-list)
           (get-annotations article-id :delay delay))
         [AnnotationCapture
+         annotation/abstract-annotator-state
          [:div
           [:h3.header
            (when-not (empty? title)
@@ -247,13 +248,22 @@
               [article-disabled-label])
             (when (and score show-score? (not= status :single))
               [article-score-label score])
-            [AnnotationToggleButton]
+            [AnnotationToggleButton annotation/abstract-annotator-state]
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui attached segment"))
         [:div.ui.attached.segment
          {:key [:article-content]}
+         [:div {:style {:top "0px"
+                        :left "0px"
+                        :height "100%"
+                        :width "10%"
+                        :z-index "100"
+                        :position "fixed"
+                        ;;:overflow-y "auto"
+                        }}
+          [AnnotationMenu annotation/abstract-annotator-state]]
          [article-info-main-content article-id
           :context context]]
         ^{:key :article-pdfs}

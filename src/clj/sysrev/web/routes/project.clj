@@ -598,9 +598,17 @@
   (POST "/api/annotation" request
         (wrap-authorize
          request {:roles ["member"]}
-         (let [{:keys [article-id selection annotation]} (-> request :body)
+         (let [body (-> request :body)
+               {:keys [article-id selection annotation]} (:annotation-map body)
+               annotation-class (get-in body [:context :class])
+               pdf-key (get-in body [:context :pdf-key])
                user-id (current-user-id request)]
-           (api/save-article-annotation article-id user-id selection annotation))))
+           (condp = annotation-class
+             "abstract"
+             (api/save-article-annotation article-id user-id selection annotation)
+             "pdf"
+             (api/save-article-annotation article-id user-id selection annotation :pdf-key pdf-key)
+             ))))
 
   (POST "/api/annotation/update/:annotation-id" request
         (wrap-authorize
@@ -614,6 +622,13 @@
         request {:allow-public true}
         (let [article-id (-> request :params :article-id parse-integer)]
           (api/user-defined-annotations article-id))))
+
+  (GET "/api/annotations/user-defined/:article-id/pdf/:pdf-key" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)
+              pdf-key (-> request :params :pdf-key)]
+          (api/user-defined-pdf-annotations article-id pdf-key))))
 
   (GET "/api/annotations/:article-id" request
        (wrap-authorize

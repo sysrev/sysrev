@@ -1,5 +1,6 @@
 (ns sysrev.db.annotations
-  (:require [honeysql.helpers :as sqlh :refer [insert-into values where select from delete-from sset join]]
+  (:require [honeysql.helpers :as sqlh :refer [insert-into values where select from delete-from sset
+                                               join left-join]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb]]))
 
@@ -64,6 +65,7 @@
                 :user_id user-id}])
       do-execute))
 
+;; extremely useful graph: https://stackoverflow.com/questions/20602826/sql-server-need-join-but-where-not-equal-to
 (defn user-defined-article-annotations [article-id]
   (let [annotations-articles (-> (select :*)
                                  (from :annotation_article)
@@ -73,12 +75,41 @@
                                  (->> (mapv :annotation-id)))]
     (if-not (empty? annotations-articles)
       (let [annotations (-> (select :*)
-                            (from :annotation)
-                            (where [:in :id annotations-articles])
+                            (from [:annotation :a])
+                            (left-join [:annotation_s3store :as3 ] [:= :a.id :as3.annotation_id])
+                            (where [:and
+                                    [:in :id annotations-articles]
+                                    [:= :as3.annotation_id nil]])
                             do-query)]
         (map #(assoc % :semantic-class (annotation-semantic-class (:id %)))
              annotations))
       [])))
+
+(defn associate-annotation-s3store! [annotation-id s3store-id]
+  (-> (insert-into :annotation_s3store)
+      (values [{:annotation-id annotation-id
+                :s3store-id s3store-id}])
+      do-execute))
+
+(defn user-defined-article-pdf-annotations [article-id s3store-id]
+  (let [annotations-articles (-> (select :*)
+                                 (from :annotation_article)
+                                 (where [:= :article-id
+                                         article-id])
+                                 do-query
+                                 (->> (mapv :annotation-id)))]
+    (if-not (empty? annotations-articles)
+      (let [annotations (-> (select :*)
+                            (from [:annotation :a])
+                            (join [:annotation_s3store :b] [:= :a.id :b.annotation_id])
+                            (where [:and
+                                    [:in :id annotations-articles]
+                                    [:= :b.s3store-id s3store-id]])
+                            do-query)]
+        (map #(assoc % :semantic-class (annotation-semantic-class (:id %)))
+             annotations))
+      [])))
+
 
 (defn delete-annotation!
   [annotation-id]

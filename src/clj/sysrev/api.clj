@@ -688,11 +688,14 @@
        :message (.getMessage e)})))
 
 (defn save-article-annotation
-  [article-id user-id selection annotation]
+  [article-id user-id selection annotation & {:keys [pdf-key]}]
   (try
     (let [annotation-id (db-annotations/create-annotation! selection annotation)]
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
+      (when pdf-key
+        (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)]
+          (db-annotations/associate-annotation-s3store! annotation-id s3store-id)))
       {:result {:success true
                 :annotation-id annotation-id}})
     (catch Throwable e
@@ -708,6 +711,17 @@
     (catch Throwable e
       {:error internal-server-error
        :message (.getMessage e)})))
+
+(defn user-defined-pdf-annotations
+  [article-id pdf-key]
+  (try (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)
+             annotations (db-annotations/user-defined-article-pdf-annotations article-id
+                                                                              s3store-id)]
+         {:result {:success true
+                   :annotations annotations}})
+       (catch Throwable e
+         {:error internal-server-error
+          :message (.getMessage e)})))
 
 (defn delete-annotation!
   [annotation-id]

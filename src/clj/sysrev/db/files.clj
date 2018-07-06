@@ -85,6 +85,17 @@
    first
    :id))
 
+(defn id-for-s3-article-id-s3-key-pair
+  "Given an article and key, return the id of the s3store"
+  [article-id key]
+  (-> (select :s3store.id)
+      (from :s3store)
+      (join [:article_pdf :apdf] [:= :apdf.article-id article-id])
+      (where [:= :s3store.key key])
+      do-query
+      first
+      :id))
+
 (defn associate-s3-with-article
   "Associate a file/key pair with an article"
   [s3-id article-id]

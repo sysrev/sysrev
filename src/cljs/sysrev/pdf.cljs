@@ -4,6 +4,7 @@
             [reagent.core :as r]
             [re-frame.core :as re-frame :refer [dispatch]]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.annotation :as annotation :refer [AnnotationCapture AnnotationToggleButton AnnotationMenu]]
             [sysrev.util :refer [random-id full-size?]]
             [sysrev.views.upload :refer [upload-container basic-text-button]])
   (:require-macros [reagent.interop :refer [$ $!]]
@@ -139,13 +140,46 @@
       (reset! page-num-pending num)
       (render-page num))))
 
+(defn pdf-url->key
+  "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
+  [pdf-url]
+  (nth (re-find #"/api/files/article/(\d+)/view/(.*)/.*" pdf-url) 2))
+
+(defn pdf-url-open-access?
+  "Given a pdf-url, is it an open access pdf?"
+  [pdf-url]
+  (boolean (re-matches #"/api/open-access/(\d+)/view"
+                       pdf-url)))
+
+(defn pdf-url->article-id
+  "Given a pdf-url, return the article-id"
+  [pdf-url]
+  (if (pdf-url-open-access? pdf-url)
+    (second (re-find #"/api/open-access/(\d+)/view"
+                     pdf-url))
+    (second (re-find #"/api/files/article/(\d+)/view"
+                     pdf-url))))
+
+(def annotator-state (r/atom {}))
+
 (defn ViewPDF
   "Given a PDF URL, view it"
   [pdf-url]
   (let [container-id (random-id)
         _ (reset! (r/cursor state [:pdf-view :container-id]) container-id)
         page-num (r/cursor state [:pdf-view :page-num])
-        page-count (r/cursor state [:pdf-view :page-count])]
+        page-count (r/cursor state [:pdf-view :page-count])
+        _ (reset! annotator-state
+                                (if (pdf-url-open-access? pdf-url)
+                                  ;; it is open access
+                                  (assoc annotation/default-annotator-state
+                                         :context {:class "open access pdf"
+                                                   :article-id (pdf-url->article-id pdf-url)})
+                                  ;; it is not open access, assume user uploaded pdf file
+                                  (assoc annotation/default-annotator-state
+                                         :context {:class "pdf"
+                                                   :article-id (pdf-url->article-id pdf-url)
+                                                   :pdf-key (pdf-url->key pdf-url)})))]
     (r/create-class
      {:reagent-render
       (fn []
@@ -162,10 +196,15 @@
                          (do
                            (swap! page-num inc)
                            (queue-render-page @page-num)))} "Next Page"]
+          [AnnotationToggleButton annotator-state]
           (when-not (nil? @page-count)
             [:p (str "Page " @page-num " / " @page-count)])]
-         [:div {:style {:position "relative"}}
-          [:div {:id container-id}]]])
+         [:div.ui.grid
+          [:div.four.wide.column
+           [AnnotationMenu annotator-state]]
+          [:div.twelve.wide.column
+           [AnnotationCapture annotator-state
+            [:div {:id container-id}]]]]])
       :component-did-mount
       (fn [this]
         (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])

@@ -1,7 +1,7 @@
 (ns sysrev.annotation
   (:require [cljsjs.rangy-selectionsaverestore]
             [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
-            [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [re-frame.core :as re-frame :refer [subscribe dispatch reg-event-fx]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
@@ -11,10 +11,14 @@
             [sysrev.views.components :refer [TextInput]])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def default-state {:annotation-retrieving? false
-                    :annotator-enabled? true})
+(def default-annotator-state {:annotation-retrieving? false
+                              :annotator-enabled? true})
 
-(def state (r/atom default-state))
+(def abstract-annotator-state (r/atom (assoc default-annotator-state
+                                             :context {:class "abstract"})))
+
+(def s3pdf-annotator-state (r/atom (assoc default-annotator-state
+                                          :context "pdf")))
 
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
@@ -23,13 +27,19 @@
 ;; @(subscribe [:article/abstract 7978])
 
 (def-action :annotation/create-annotation
-  :uri (fn [] "/api/annotation")
-  :content (fn [annotation-map]
-             annotation-map)
-  :process (fn [_ _ result]
-             (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
+  :uri (fn []
+         "/api/annotation")
+  :content (fn [annotation-map state]
+             {:annotation-map
+              annotation-map
+              :context @(r/cursor state [:context])})
+  :process (fn [_ [annotation-map state] result]
+             (dispatch [:reload [:annotation/user-defined-annotations
+                                 @(subscribe [:visible-article-id])
+                                 state]])
              (reset! (r/cursor state [:annotation-retrieving?]) false)
              {}))
+
 
 (def-action :annotation/update-annotation
   :uri (fn [annotation-id] (str "/api/annotation/update/" annotation-id))
@@ -50,11 +60,17 @@
 (def-data :annotation/user-defined-annotations
   :loaded? (fn [_ _ _]
              (constantly false))
-  :uri (fn [article-id] (str "/api/annotations/user-defined/"
-                             article-id))
+  :uri (fn [article-id state]
+         (condp = @(r/cursor state [:context :class])
+           "abstract"
+           (str "/api/annotations/user-defined/"
+                article-id)
+           "pdf"
+           (str "/api/annotations/user-defined/"
+                article-id "/pdf/" @(r/cursor state [:context :pdf-key]))))
   :prereqs (fn [] [[:identity]])
-  :content (fn [article-id])
-  :process (fn [_ [article-id] result]
+  :content (fn [article-id state])
+  :process (fn [_ [article-id state] result]
              (let [annotations (:annotations result)]
                (when-not (nil? annotations)
                  (reset! (r/cursor state [:user-annotations])
@@ -358,6 +374,7 @@
           [:br]]]))))
 
 (defn AddAnnotation
+  "Create an AddAnnotation using state"
   [state]
   (let [user-annotations (r/cursor state [:user-annotations])
         new-annotation-map (r/cursor state [:new-annotation-map])
@@ -372,7 +389,8 @@
                       (dispatch [:action [:annotation/create-annotation
                                           {:selection @selection
                                            :annotation @annotation
-                                           :article-id @(subscribe [:visible-article-id])}]]))]
+                                           :article-id @(subscribe [:visible-article-id])}
+                                          state]]))]
         [:div {:style {:top (str (- @top 100) "px")
                        :left (str @left "px")
                        :position "fixed"
@@ -398,57 +416,63 @@
                            (reset! selection ""))} "Annotate Selection"]]))))
 
 (defn AnnotationMenu
+  "Create an annotation menu using state."
   [state]
   (let [user-annotations (r/cursor state [:user-annotations])
-        retrieving? (r/cursor state [:annotation-retrieving?])]
+        retrieving? (r/cursor state [:annotation-retrieving?])
+        annotator-enabled? (r/cursor state [:annotator-enabled?])]
     (fn [state]
-      [:div.ui.segment
-       {:style {:top "0px"
-                :left "0px"
-                :height "100%"
-                :width "10%"
-                :z-index "100"
-                :position "fixed"
-                :overflow-y "auto"}}
-       [:h1 "Annotations"]
-       (when @retrieving?
-         [:div.item.loading.indicator
-          [:div.ui.small.active.inline.loader]])
-       (when-not (empty? (vals @user-annotations))
-         (map
-          (fn [{:keys [id]}]
-            ^{:key (str "id-" id)}
-            [AnnotationEditor {:annotation-atom (r/cursor user-annotations [id])
-                               :user-annotations user-annotations}])
-          (reverse (sort-by :id (vals @user-annotations)))))])))
+      (when @annotator-enabled?
+        [:div.ui.segment
+         {:style {;; :top "0px"
+                  ;; :left "0px"
+                  :height "100%"
+                  ;;:width "10%"
+                  ;; :z-index "100"
+                  ;; :position "fixed"
+                  :overflow-y "auto"}}
+         [:h1 "Annotations"]
+         (when @retrieving?
+           [:div.item.loading.indicator
+            [:div.ui.small.active.inline.loader]])
+         (when-not (empty? (vals @user-annotations))
+           (map
+            (fn [{:keys [id]}]
+              ^{:key (str "id-" id)}
+              [AnnotationEditor {:annotation-atom (r/cursor user-annotations [id])
+                                 :user-annotations user-annotations}])
+            (reverse (sort-by :id (vals @user-annotations)))))]))))
 
 (defn AnnotationCapture
-  [child]
+  "Create an Annotator using state. A child is a single element which has text
+  to be captured"
+  [state child]
   (let [selection (r/cursor state [:selection])
         client-x (r/cursor state [:client-x])
         client-y (r/cursor state [:client-y])
         editing? (r/cursor state [:editing?])
         annotator-enabled? (r/cursor state [:annotator-enabled?])]
-    (dispatch [:reload [:annotation/user-defined-annotations @(subscribe [:visible-article-id])]])
-    (fn [child]
+    (dispatch [:reload [:annotation/user-defined-annotations
+                        @(subscribe [:visible-article-id])
+                        state]])
+    (fn [state child]
       (if @annotator-enabled?
-        [:div
-         [AnnotationMenu state]
-         [:div {:on-mouse-up (fn [e]
-                               (reset! selection (-> ($ js/rangy getSelection)
-                                                     ($ toString)))
-                               (reset! client-x ($ e :clientX))
-                               (reset! client-y ($ e :clientY))
-                               (reset! editing? false))}
-          (when-not (empty? @selection)
-            [AddAnnotation state])
-          child]]
+        [:div.annotation-capture
+         {:on-mouse-up (fn [e]
+                         (reset! selection (-> ($ js/rangy getSelection)
+                                               ($ toString)))
+                         (reset! client-x ($ e :clientX))
+                         (reset! client-y ($ e :clientY))
+                         (reset! editing? false))}
+         (when-not (empty? @selection)
+           [AddAnnotation state])
+         child]
         child))))
 
 (defn AnnotationToggleButton
-  []
+  [state]
   (let [annotator-enabled? (r/cursor state [:annotator-enabled?])]
-    [:div.ui.tiny.button
+    [:div.ui.label.tiny.button
      {:on-click (fn [e]
                   (swap! annotator-enabled? not))}
      (if @annotator-enabled?
