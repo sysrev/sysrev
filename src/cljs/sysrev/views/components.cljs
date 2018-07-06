@@ -415,3 +415,48 @@
   [:div {:class (str class " vertical-column")}
    [:div.ui.top.aligned.grid>div.row>div.top.aligned.column
     [:div.vertical-column-content.top content]]])
+
+(defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
+  [:div
+   [:button.ui.right.labeled.positive.icon.button
+    {:class (str (if can-save? "" "disabled")
+                 " "
+                 (if saving? "loading" ""))
+     :on-click #(when (and can-save? on-save (not saving?)) (on-save))}
+    "Save Changes"
+    [:i.check.circle.outline.icon]]
+   [:button.ui.right.labeled.icon.button
+    {:class (if can-reset? "" "disabled")
+     :on-click #(when (and can-reset? on-reset) (on-reset))}
+    "Reset"
+    [:i.eraser.icon]]])
+
+(defn ConfirmationDialog
+  "A confirmation dialog for confirming or cancelling an action.
+  Arguments:
+  {
+  :on-cancel            fn  ; user clicks cancel, same fn used for dismissing
+                            ; alert
+  :on-confirm           fn  ; user clicks confirm
+  :title            string  ; title text for message box
+  :message          string  ; content text for message box (optional)
+  :action-color     string  ; css color class to represent confirm action
+  }"
+  [{:keys [on-cancel on-confirm title message action-color]
+    :or {action-color "orange"}}]
+  [:div
+   [:div.ui.icon.warning.message.confirm-warning
+    [:i.warning.icon {:class action-color}]
+    [:div.content
+     [:div.header title]
+     (when message
+       [:p {:style {:font-size "16px"
+                    :font-weight "bold"}}
+        message])]]
+   [:div
+    [:button.ui.button
+     {:on-click on-confirm :class action-color}
+     "Confirm"]
+    [:button.ui.button
+     {:on-click on-cancel}
+     "Cancel"]]])

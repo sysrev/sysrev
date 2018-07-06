@@ -28,8 +28,12 @@
    [clojure.string :as str])
   (:import java.util.UUID))
 
+(s/def ::include-disabled? (s/nilable boolean?))
+
 (def default-project-settings
   {:second-review-prob 0.5})
+
+(def valid-permissions ["member" "admin" "owner" "resolve"])
 
 (defn all-project-ids []
   (-> (select :project-id)
@@ -53,6 +57,23 @@
 (s/fdef all-projects
         :args (s/cat)
         :ret (s/coll-of map?))
+
+(defn project-member [project-id user-id]
+  (let [project-id (q/to-project-id project-id)
+        user-id (q/to-user-id user-id)]
+    (with-project-cache
+      project-id [:users user-id :member]
+      (-> (select :*)
+          (from :project-member)
+          (where [:and
+                  [:= :project-id project-id]
+                  [:= :user-id user-id]])
+          do-query first))))
+;;
+(s/fdef project-member
+        :args (s/cat :project-id ::sc/project-id
+                     :user-id ::sc/user-id)
+        :ret (s/nilable ::sp/project-member))
 
 (defn add-project-member
   "Add a user to the list of members of a project."
@@ -102,7 +123,14 @@
   "Change the permissions for a project member."
   [project-id user-id permissions]
   (let [project-id (q/to-project-id project-id)
-        user-id (q/to-user-id user-id)]
+        user-id (q/to-user-id user-id)
+        current-perms (:permissions (project-member project-id user-id))]
+    (assert (not-empty permissions))
+    (assert (every? (in? valid-permissions) permissions))
+    (assert (if (in? current-perms "owner")
+              (and (in? permissions "owner")
+                   (in? permissions "admin"))
+              true))
     (try
       (-> (sqlh/update :project-member)
           (sset {:permissions (to-sql-array "text" permissions)})
@@ -156,6 +184,22 @@
         :args (s/cat :project-id ::sc/project-id)
         :ret integer?)
 
+(defn enable-project!
+  "Set the enabled flag for project-id to false"
+  [project-id]
+  (try
+    (-> (sqlh/update :project)
+        (sset {:enabled true})
+        (where [:= :project-id project-id])
+        do-execute
+        first)
+    (finally
+      (clear-query-cache))))
+;;
+(s/fdef enable-project!
+  :args (s/cat :project-id int?)
+  :ret int?)
+
 (defn disable-project!
   "Set the enabled flag for project-id to false"
   [project-id]
@@ -167,10 +211,10 @@
         first)
     (finally
       (clear-query-cache))))
-
+;;
 (s/fdef disable-project!
-        :args (s/cat :project-id int?)
-        :ret int?)
+  :args (s/cat :project-id int?)
+  :ret int?)
 
 (defn change-project-setting [project-id setting new-value]
   (let [project-id (q/to-project-id project-id)
@@ -255,24 +299,6 @@
 (s/fdef project-overall-label-id
         :args (s/cat :project-id ::sc/project-id)
         :ret ::sl/label-id)
-
-(defn project-member [project-id user-id]
-  (let [project-id (q/to-project-id project-id)
-        user-id (q/to-user-id user-id)]
-    (with-project-cache
-      project-id [:users user-id :member]
-      (-> (select :*)
-          (from :project-member)
-          (where [:and
-                  [:= :project-id project-id]
-                  [:= :user-id user-id]])
-          do-query first))))
-;;
-(s/fdef project-member
-        :args (s/cat :project-id ::sc/project-id
-                     :user-id ::sc/user-id)
-        :ret (s/nilable ::sp/project-member))
-;;
 
 (defn member-has-permission?
   "Does the user-id have the permission for project-id?"
@@ -598,17 +624,23 @@
 
 (defn project-exists?
   "Does a project with project-id exist?"
-  [project-id]
+  [project-id & {:keys [include-disabled?]
+                 :or {include-disabled? true}}]
   (= project-id
      (-> (select :project_id)
          (from [:project :p])
-         (where [:= :p.project_id project-id])
+         (where [:and
+                 [:= :p.project_id project-id]
+                 (if include-disabled?
+                   true
+                   [:= :p.enabled true])])
          do-query
          first
          :project-id)))
 ;;
 (s/fdef project-exists?
-        :args (s/cat :project-id int?)
+  :args (s/cat :project-id int?
+               :keys (s/keys* :opt-un [::include-disabled?]))
         :ret boolean?)
 
 (defn project-has-labeled-articles?

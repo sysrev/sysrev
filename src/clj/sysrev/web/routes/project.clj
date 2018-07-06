@@ -127,8 +127,17 @@
   (GET "/api/project-info" request
        (wrap-authorize
         request {:allow-public true}
-        (update-user-default-project request)
-        (project-info (active-project request))))
+        (let [project-id (active-project request)
+              valid-project
+              (and (integer? project-id)
+                   (project/project-exists? project-id :include-disabled? false))]
+          (assert (integer? project-id))
+          (if (not valid-project)
+            {:error {:status 404
+                     :type :not-found
+                     :message (format "Project (%s) not found" project-id)}}
+            (do (update-user-default-project request)
+                (project-info project-id))))))
 
   (POST "/api/join-project" request
         (wrap-authorize
@@ -590,6 +599,13 @@
          request {:roles ["member"]}
          (let [{:keys [article-id key filename]} (:params request)]
            (api/dissociate-pdf-article article-id key filename))))
+
+  (POST "/api/change-project-permissions" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (active-project request)
+               {:keys [users-map]} (:body request)]
+           (api/change-project-permissions project-id users-map))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

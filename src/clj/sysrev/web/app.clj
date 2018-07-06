@@ -169,18 +169,26 @@
 
          user-id# (current-user-id request#)
          project-id# (active-project request#)
-         public-project# (and project-id#
+         valid-project# (and (integer? project-id#)
+                             (project/project-exists? project-id#))
+         public-project# (and valid-project#
                               (-> (project/project-settings project-id#)
                                   :public-access true?))
          user# (and user-id# (get-user-by-id user-id#))
          member# (and user-id#
-                      project-id#
+                      valid-project#
                       (project/project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
          mperms# (:permissions member#)]
      (cond
+       (and project-id# (not valid-project#))
+       {:error {:status 404
+                :type :not-found
+                :message (format "Project (%s) not found" project-id#)}}
+
        (and (not (integer? user-id#))
-            (or logged-in# (and allow-public# (not public-project#))))
+            (or logged-in#
+                (and allow-public# valid-project# (not public-project#))))
        {:error {:status 401
                 :type :authentication
                 :message "Not logged in / Invalid API token"}}
@@ -191,7 +199,7 @@
                 :message "Not authorized (developer function)"}}
 
        ;; route definition and project settings both allow public access
-       (and allow-public# public-project#)
+       (and allow-public# valid-project# public-project#)
        (body-fn#)
 
        (and (not-empty roles#)

@@ -27,7 +27,7 @@
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values]]
+            [sysrev.shared.util :refer [map-values in?]]
             [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]))
 
@@ -60,7 +60,8 @@
 (defn delete-project!
   "Delete a project with project-id by user-id. Checks to ensure the user is an admin of that project. If there are reviewed articles in the project, disables project instead of deleting it"
   [project-id user-id]
-  (assert (project/member-has-permission? project-id user-id "admin"))
+  (assert (or (project/member-has-permission? project-id user-id "admin")
+              (in? (:permissions (users/get-user-by-id user-id)) "admin")))
   (if (project/project-has-labeled-articles? project-id)
     (do (project/disable-project! project-id)
         {:result {:success true
@@ -92,7 +93,7 @@
 
           (not (project/project-exists? project-id))
           {:error {:status not-found
-                   :message "Project does not exist"}}
+                   :message "Project not found"}}
 
           ;; there is no import going on for this search-term
           ;; execute it
@@ -151,7 +152,7 @@
 
               (not (project/project-exists? project-id))
               {:error {:status not-found
-                       :message "Project does not exist"}}
+                       :message "Project not found"}}
 
               ;; there is no import going on for this filename
               (and (empty? filename-sources))
@@ -188,7 +189,7 @@
     (try
       (cond (not (project/project-exists? project-id))
             {:error {:status not-found
-                     :message "Project does not exist"}}
+                     :message "Project not found"}}
             ;; there is no import going on for this filename
             (and (empty? filename-sources))
             (do
@@ -216,7 +217,7 @@
     (try
       (cond (not (project/project-exists? project-id))
             {:error {:status not-found
-                     :message "Project does not exist"}}
+                     :message "Project not found"}}
             ;; there is no import going on for this filename
             (and (empty? filename-sources))
             (do
@@ -243,7 +244,7 @@
     {:result {:success true
               :sources (sources/project-sources project-id)}}
     {:error {:status not-found
-             :mesaage (str "project-id " project-id  " does not exist")}}))
+             :mesaage (str "project-id " project-id  " not found")}}))
 
 (s/fdef project-sources
         :args (s/cat :project-id int?)
@@ -684,6 +685,17 @@
   (try
     {:headers {"Content-Type" "application/pdf"}
      :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
+
+(defn change-project-permissions [project-id users-map]
+  (try
+    (assert project-id)
+    (db/with-transaction
+      (doseq [[user-id perms] (vec users-map)]
+        (project/set-member-permissions project-id user-id perms))
+      {:result {:success true}})
     (catch Throwable e
       {:error internal-server-error
        :message (.getMessage e)})))
