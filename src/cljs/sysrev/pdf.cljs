@@ -160,8 +160,6 @@
     (second (re-find #"/api/files/article/(\d+)/view"
                      pdf-url))))
 
-(def annotator-state (r/atom {}))
-
 (defn ViewPDF
   "Given a PDF URL, view it"
   [pdf-url]
@@ -169,17 +167,21 @@
         _ (reset! (r/cursor state [:pdf-view :container-id]) container-id)
         page-num (r/cursor state [:pdf-view :page-num])
         page-count (r/cursor state [:pdf-view :page-count])
-        _ (reset! annotator-state
-                                (if (pdf-url-open-access? pdf-url)
-                                  ;; it is open access
-                                  (assoc annotation/default-annotator-state
-                                         :context {:class "open access pdf"
-                                                   :article-id (pdf-url->article-id pdf-url)})
-                                  ;; it is not open access, assume user uploaded pdf file
-                                  (assoc annotation/default-annotator-state
-                                         :context {:class "pdf"
-                                                   :article-id (pdf-url->article-id pdf-url)
-                                                   :pdf-key (pdf-url->key pdf-url)})))]
+        annotator-state (r/atom
+                         (if (pdf-url-open-access? pdf-url)
+                           ;; it is open access
+                           (assoc annotation/default-annotator-state
+                                  :context {:class "open access pdf"
+                                            :article-id (pdf-url->article-id pdf-url)})
+                           ;; it is not open access, assume user uploaded pdf file
+                           (assoc annotation/default-annotator-state
+                                  :context {:class "pdf"
+                                            :article-id (pdf-url->article-id pdf-url)
+                                            :pdf-key (pdf-url->key pdf-url)})))
+        ;; also, disable annotations for now if it is an open access pdf
+        _ (reset! (r/cursor annotator-state [:annotator-enabled?])
+                  false)
+        annotator-enabled? (r/cursor annotator-state [:annotator-enabled?])]
     (r/create-class
      {:reagent-render
       (fn []
@@ -196,7 +198,9 @@
                          (do
                            (swap! page-num inc)
                            (queue-render-page @page-num)))} "Next Page"]
-          [AnnotationToggleButton annotator-state]
+          (when-not (= @(r/cursor annotator-state [:context :class])
+                       "open access pdf")
+            [AnnotationToggleButton annotator-state])
           (when-not (nil? @page-count)
             [:p (str "Page " @page-num " / " @page-count)])]
          [:div.ui.grid
@@ -204,7 +208,8 @@
            [AnnotationMenu annotator-state]]
           [:div.twelve.wide.column
            [AnnotationCapture annotator-state
-            [:div {:id container-id}]]]]])
+            [:div {:id container-id
+                   :style {:position "relative"}}]]]]])
       :component-did-mount
       (fn [this]
         (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])

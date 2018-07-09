@@ -12,7 +12,7 @@
   (:require-macros [reagent.interop :refer [$]]))
 
 (def default-annotator-state {:annotation-retrieving? false
-                              :annotator-enabled? true})
+                              :annotator-enabled? false})
 
 (def abstract-annotator-state (r/atom (assoc default-annotator-state
                                              :context {:class "abstract"})))
@@ -451,23 +451,25 @@
         client-x (r/cursor state [:client-x])
         client-y (r/cursor state [:client-y])
         editing? (r/cursor state [:editing?])
-        annotator-enabled? (r/cursor state [:annotator-enabled?])]
-    (dispatch [:reload [:annotation/user-defined-annotations
-                        @(subscribe [:visible-article-id])
-                        state]])
+        annotator-enabled? (r/cursor state [:annotator-enabled?])
+        annotation-context-class (r/cursor state [:context :class])]
+    (when-not (= @annotation-context-class
+                 "open access pdf")
+      (dispatch [:reload [:annotation/user-defined-annotations
+                          @(subscribe [:visible-article-id])
+                          state]]))
     (fn [state child]
-      (if @annotator-enabled?
-        [:div.annotation-capture
-         {:on-mouse-up (fn [e]
+      [:div.annotation-capture
+       {:on-mouse-up (fn [e]
+                       (when @annotator-enabled?
                          (reset! selection (-> ($ js/rangy getSelection)
                                                ($ toString)))
                          (reset! client-x ($ e :clientX))
                          (reset! client-y ($ e :clientY))
-                         (reset! editing? false))}
-         (when-not (empty? @selection)
-           [AddAnnotation state])
-         child]
-        child))))
+                         (reset! editing? false)))}
+       (when-not (empty? @selection)
+         [AddAnnotation state])
+       child])))
 
 (defn AnnotationToggleButton
   [state]
