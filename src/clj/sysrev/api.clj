@@ -744,7 +744,7 @@
       (db-annotations/update-annotation! annotation-id annotation semantic-class)
       {:result {:success true
                 :annotation-id annotation-id
-                :annotation annotation}})
+                :annotation annotation}})))
 
 (defn change-project-permissions [project-id users-map]
   (try
