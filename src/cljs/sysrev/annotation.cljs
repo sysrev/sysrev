@@ -17,11 +17,9 @@
 (def abstract-annotator-state (r/atom (assoc default-annotator-state
                                              :context {:class "abstract"})))
 
-(def s3pdf-annotator-state (r/atom (assoc default-annotator-state
-                                          :context "pdf")))
-
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
+(def Dropdown (r/adapt-react-class (goog.object/get semantic-ui "Dropdown")))
 ;; accessing state for testing:
 ;; @(r/cursor sysrev.views.article/state [:annotations 7978]))
 ;; @(subscribe [:article/abstract 7978])
@@ -314,7 +312,15 @@
                       (reset! editing? false)
                       (reset! annotation @edited-annotation)
                       (reset! semantic-class @edited-semantic-class)
-                      (dispatch [:action [:annotation/update-annotation id @edited-annotation @semantic-class]]))]
+                      (dispatch [:action [:annotation/update-annotation id @edited-annotation @semantic-class]]))
+            last-semantic-class (->> (vals @user-annotations)
+                                     (filter #(not (nil? (:semantic-class %))))
+                                     (sort-by :id)
+                                     reverse
+                                     first
+                                     :semantic-class)]
+        (when (empty? @semantic-class)
+          (reset! edited-semantic-class last-semantic-class))
         [:div
          [:div
           [:div [:div {:style {:cursor "pointer"
@@ -324,7 +330,7 @@
                                    (dispatch [:action [:annotation/delete-annotation id]]))}
                  [:i.times.icon]]
            [:br]
-           [:h3 selection]]
+           [:h3 (str "\"" selection "\"")]]
           (when (empty? @annotation)
             (reset! editing? true))
           (if @editing?
@@ -333,17 +339,16 @@
                                  ($ e stopPropagation)
                                  (on-save))}
              [:div
-              [TextInput {:value edited-annotation
-                          :on-change (fn [event]
-                                       (reset! edited-annotation
-                                               (get-input-value event)))
-                          :label "Annotation"}]
-              [:br]
               [TextInput {:value edited-semantic-class
                           :on-change (fn [e]
                                        (reset! edited-semantic-class
                                                (get-input-value e)))
-                          :label "Annotation Label"}]
+                          :label "Semantic Class"}]
+              [TextInput {:value edited-annotation
+                          :on-change (fn [event]
+                                       (reset! edited-annotation
+                                               (get-input-value event)))
+                          :label "Value"}]
               [:br]
               [:div.ui.small.button
                {:on-click (fn [e]
@@ -357,14 +362,12 @@
                               (reset! edited-semantic-class ""))}
                  "Dismiss"])]]
             [:div
-             [:br]
-             [:label "Annotation"
+             (when-not (empty? @semantic-class)
+               [:label "Semantic Class"
+                [:h3 @semantic-class]])
+             [:label "Value"
               [:h3 @annotation]]
              [:br]
-             (when-not (empty? @semantic-class)
-               [:label "Annotation Label"
-                [:h3 @semantic-class]
-                [:br]])
              [:div.ui.small.button
               {:on-click (fn [e]
                            (reset! editing? true)
