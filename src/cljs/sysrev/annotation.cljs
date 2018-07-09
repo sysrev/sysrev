@@ -330,8 +330,9 @@
                                    (dispatch [:action [:annotation/delete-annotation id]]))}
                  [:i.times.icon]]
            [:br]
-           [:h3 (str "\"" selection "\"")]]
-          (when (empty? @annotation)
+           [:h3 {:class "ui grey header"} (str "\"" selection "\"")]]
+          [:br]
+          (when (empty? @semantic-class)
             (reset! editing? true))
           (if @editing?
             [:form {:on-submit (fn [e]
@@ -365,8 +366,9 @@
              (when-not (empty? @semantic-class)
                [:label "Semantic Class"
                 [:h3 @semantic-class]])
-             [:label "Value"
-              [:h3 @annotation]]
+             (when-not (empty? @annotation)
+               [:label "Value"
+                [:h3 @annotation]])
              [:br]
              [:div.ui.small.button
               {:on-click (fn [e]
@@ -398,7 +400,8 @@
                        :left (str @left "px")
                        :position "fixed"
                        :z-index "100"
-                       :background "black"}
+                       :background "black"
+                       :cursor "pointer"}
                :on-click (fn [e]
                            ($ e stopPropagation)
                            ($ e preventDefault))
@@ -407,7 +410,8 @@
                               ($ e stopPropagation))
                :on-mouse-down (fn [e]
                                 (reset! current-selection (-> ($ js/rangy saveSelection))))}
-         [:h1 {:on-click (fn [e]
+         [:h1 {:class "ui grey header"
+               :on-click (fn [e]
                            ($ e stopPropagation)
                            ($ e preventDefault)
                            (reset! (r/cursor state [:annotation-retrieving?]) true)
