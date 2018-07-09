@@ -119,8 +119,8 @@
   []
   (log/info "deleting current project")
   (browser/go-project-route "/settings")
-  (browser/click {:xpath "//button[contains(text(),'Delete this Project')]"})
-  (browser/click {:xpath "//button[text()='Yes']"})
+  (browser/click {:xpath "//button[contains(text(),'Project...')]"})
+  (browser/click {:xpath "//button[text()='Confirm']"})
   (browser/wait-until-exists {:xpath "//h3[contains(text(),'Create a New Project')]"}))
 
 (defn search-term-source-div-xpath

@@ -7,13 +7,14 @@
     [subscribe dispatch dispatch-sync reg-sub
      reg-event-db reg-event-fx reg-fx trim-v]]
    [sysrev.views.components :as ui]
-   [sysrev.state.nav :refer [active-panel]]
+   [sysrev.state.nav :refer [active-panel project-uri]]
    [sysrev.state.review :as review]
    [sysrev.state.labels :refer [get-label-raw]]
    [sysrev.state.notes :as notes]
    [sysrev.nav :refer [nav nav-scroll-top]]
    [sysrev.state.nav :refer [project-uri]]
-   [sysrev.util :refer [full-size? mobile? desktop-size? nbsp]]
+   [sysrev.util :refer
+    [full-size? mobile? desktop-size? nbsp wrap-prevent-default nbsp]]
    [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -538,11 +539,19 @@
                           [^{:key {:label-row-end (last row)}}
                            [:div.column]])))])))]
             [:div.ui.segments.label-editor-view
-             [:div.ui.top.attached.header
+             [:div.ui.top.attached.segment
               [:div.ui.two.column.middle.aligned.grid
                [:div.ui.left.aligned.column
                 [:h3 (if resolving? "Resolve Labels" "Set Labels")]]
                [:div.ui.right.aligned.column
+                [:a.ui.tiny.right.labeled.icon.button
+                 {:href (project-uri project-id "/labels/edit")
+                  :on-click
+                  (wrap-prevent-default
+                   (fn [_]
+                     (nav-scroll-top (project-uri project-id "/labels/edit"))))}
+                 [:i.sliders.horizontal.icon]
+                 "Definitions"]
                 (when change-set?
                   [:div.ui.tiny.button
                    {:on-click #(dispatch [:review/disable-change-labels article-id])}

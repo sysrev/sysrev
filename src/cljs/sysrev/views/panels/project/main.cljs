@@ -50,7 +50,9 @@
      [:div.ui.large.icon.message
       [:i.warning.icon]
       [:div.content message]
-      (when @(subscribe [:user/admin?])
+      (when (and @(subscribe [:user/admin?])
+                 project-id
+                 (not @(subscribe [:project/not-found?])))
         [:button.ui.purple.button
          {:on-click #(dispatch [:action [:join-project project-id]])}
          "Join [admin]"])]
@@ -61,7 +63,8 @@
   (ensure-state)
   (when @(subscribe [:have? [:identity]])
     (let [project-id @(subscribe [:active-project-id])]
-      (cond (nil? project-id)
+      (cond (or (nil? project-id)
+                @(subscribe [:project/not-found? project-id]))
             [:div
              [ProjectErrorNotice
               "Project not found"]

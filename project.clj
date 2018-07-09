@@ -3,7 +3,7 @@
                  ;;; Clojure
                  ;;;
                  [org.clojure/clojure "1.9.0"]
-                 [org.clojure/clojurescript "1.10.238"]
+                 [org.clojure/clojurescript "1.10.339"]
 
                  ;;;
                  ;;; Force versions of indirect dependencies
@@ -16,7 +16,7 @@
                  ;;;
                  ;;; Logging
                  ;;;
-                 [org.clojure/tools.logging "0.4.0"]
+                 [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.2.3"]
                  [org.slf4j/jul-to-slf4j "1.7.25"]
 
@@ -35,34 +35,34 @@
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
                  ;;; Database
-                 [org.clojure/java.jdbc "0.7.5"]
+                 [org.clojure/java.jdbc "0.7.7"]
                  [org.postgresql/postgresql "42.2.2"]
-                 [joda-time "2.9.9"]
-                 [clj-time "0.14.2" :exclusions [joda-time]]
+                 [joda-time "2.10"]
+                 [clj-time "0.14.4" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
                  [hikari-cp "2.0.1"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
                  [honeysql "0.9.2"]
-                 [nilenso/honeysql-postgres "0.2.3"]
+                 [nilenso/honeysql-postgres "0.2.4"]
                  ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
                  [http-kit "2.3.0"]
                  [ring "1.6.3"]
-                 [ring/ring-defaults "0.3.1"]
+                 [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.3.2" :exclusions [cheshire]]
-                 [compojure "1.6.0"]
+                 [compojure "1.6.1"]
                  ;;; Encryption / Authentication
                  [buddy "2.0.0"]
                  ;;; Web client
-                 [clj-http "3.8.0"]
+                 [clj-http "3.9.0"]
                  ;;; Email
                  [com.draines/postal "2.0.2"]
                  ;;; Amazon
-                 [amazonica "0.3.121"
+                 [amazonica "0.3.128"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
@@ -100,8 +100,8 @@
                  ;; stripe provided form components
                  [cljsjs/react-stripe-elements "1.4.1-1"]
                  #_ [cljsjs/semantic-ui "2.2.13-0"]
-                 [org.clojars.jeffwk/semantic-ui "2.3.1-0"]
-                 [cljsjs/semantic-ui-react "0.80.0-0"]
+                 [org.clojars.jeffwk/semantic-ui "2.3.2-0"]
+                 [cljsjs/semantic-ui-react "0.81.1-0"]
                  [cljsjs/chartjs "2.7.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [cljsjs/clipboard "1.6.1-1"]

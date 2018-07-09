@@ -2,10 +2,13 @@
   (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [goog.dom :as dom]
             [reagent.core :as r]
-            [re-frame.core :as re-frame :refer [dispatch]]
+            [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.util :refer [random-id full-size?]]
-            [sysrev.views.upload :refer [upload-container basic-text-button]])
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.state.articles :as articles]
+            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.views.upload :refer [upload-container basic-text-button]]
+            [sysrev.util :refer [random-id full-size?]])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -49,36 +52,33 @@
    [ModalContent child]])
 
 (def-data :pdf/open-access-available?
-  :loaded? (fn [_ article-id _]
-             (not (nil? @(r/cursor state [article-id :open-access-available?]))))
-  :uri (fn [article-id] (str "/api/open-access/" article-id "/availability"))
-  :prereqs (fn [] [[:identity]])
-  :content (fn [article-id])
-  :process (fn [_ [article-id] result]
-             (swap! state assoc-in [article-id :open-access-available?]
-                    (:available? result))
-             {}))
+  :loaded? (fn [db project-id article-id]
+             (contains? (articles/get-article db article-id)
+                        :open-access-available?))
+  :uri (fn [_ article-id] (str "/api/open-access/" article-id "/availability"))
+  :prereqs (fn [project-id article-id]
+             [[:identity] [:article project-id article-id]])
+  :process (fn [{:keys [db]} [_ article-id] {:keys [available?]}]
+             {:db (articles/update-article
+                   db article-id {:open-access-available? available?})}))
 
 (def-data :pdf/article-pdfs
-  :loaded? (fn [db article-id]
-             (contains? (get-in @state [article-id]) :article-pdfs))
-  :uri (fn [article-id] (str "/api/files/article/" article-id "/article-pdfs"))
-  :prereqs (fn [] [[:identity]])
-  :content (fn [article-id])
-  :process (fn [_ [article-id] result]
-             (swap! state assoc-in [article-id :article-pdfs]
-                    (:files result))
-             {}))
+  :loaded? (fn [db project-id article-id]
+             (-> (articles/get-article db article-id)
+                 (contains? :pdfs)))
+  :uri (fn [_ article-id] (str "/api/files/article/" article-id "/article-pdfs"))
+  :prereqs (fn [project-id article-id]
+             [[:identity] [:article project-id article-id]])
+  :process (fn [{:keys [db]} [_ article-id] {:keys [files]}]
+             {:db (articles/update-article
+                   db article-id {:pdfs files})}))
 
-(def-data :pdf/delete-pdf
-  :loaded? (fn [_ [article-id _ _] _]
-             (constantly false))
+(def-action :pdf/delete-pdf
   :uri (fn [article-id key filename]
          (str "/api/files/article/" article-id "/delete/" key "/" filename))
-  :prereqs (fn [] [[:identity]])
-  :content (fn [article-id key filename])
-  :process (fn [_ [article-id key filename] result]
-             {:dispatch [:reload [:pdf/article-pdfs article-id]]}))
+  :process (fn [{:keys [db]} [article-id key filename] result]
+             (let [project-id (active-project-id db)]
+               {:dispatch [:reload [:pdf/article-pdfs project-id article-id]]})))
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
 
@@ -185,18 +185,17 @@
 
 (defn OpenAccessPDF
   [article-id on-click]
-  (let [available? @(r/cursor state [article-id :open-access-available?])]
-    (when available?
-      [:div.field>div.fields
-       [:div.ui.buttons
-        [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
-                             [:i.expand.icon] "Open Access PDF"]}
-         [ViewPDF (view-open-access-pdf-url article-id)]]
-        [:a.ui.button
-         {:href (view-open-access-pdf-url article-id)
-          :target "_blank"
-          :download (str article-id ".pdf")}
-         "Download"]]])))
+  (when @(subscribe [:article/open-access-available? article-id])
+    [:div.field>div.fields
+     [:div.ui.buttons
+      [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
+                           [:i.expand.icon] "Open Access PDF"]}
+       [ViewPDF (view-open-access-pdf-url article-id)]]
+      [:a.ui.button
+       {:href (view-open-access-pdf-url article-id)
+        :target "_blank"
+        :download (str article-id ".pdf")}
+       "Download"]]]))
 
 (defn view-s3-pdf-url
   [article-id key filename]
@@ -229,14 +228,14 @@
           [:div.ui.button
            {:on-click
             #(do (reset! confirming? false)
-                 (dispatch [:fetch [:pdf/delete-pdf article-id key filename]]))}
+                 (dispatch [:action [:pdf/delete-pdf article-id key filename]]))}
            "Yes"]
           [:div.ui.blue.button {:on-click #(reset! confirming? false)}
            "No"]])])))
 
 (defn ArticlePDFs [article-id]
-  (let [article-pdfs (r/cursor state [article-id :article-pdfs])]
-    (when (not-empty @article-pdfs)
+  (let [article-pdfs @(subscribe [:article/pdfs article-id])]
+    (when (not-empty article-pdfs)
       [:div
        (doall
         (map-indexed
@@ -246,31 +245,46 @@
             [S3PDF {:article-id article-id
                     :key (:key file-map)
                     :filename (:filename file-map)}]])
-         @article-pdfs))])))
+         article-pdfs))])))
 
 (defn PDFs [article-id]
   (when article-id
-    [:div#article-pdfs.ui.attached.segment
-     {:style {:min-height "60px"}}
-     (with-loader [[:pdf/article-pdfs article-id]
-                   [:pdf/open-access-available? article-id]]
-       {:dimmer :fixed :class ""}
-       (let [upload-form (fn []
-                           [:div.field>div.fields
-                            [upload-container basic-text-button
-                             (str "/api/files/article/" article-id "/upload-pdf")
-                             #(dispatch [:reload [:pdf/article-pdfs article-id]])
-                             "Upload PDF"]])]
-         (if (full-size?)
-           [:div.ui.grid
-            [:div.row
-             [:div.twelve.wide.left.aligned.column
-              [:div.ui.small.form
-               [OpenAccessPDF article-id]
-               [ArticlePDFs article-id]]]
-             [:div.four.wide.right.aligned.column
-              [upload-form]]]]
-           [:div.ui.small.form
-            [OpenAccessPDF article-id]
-            [ArticlePDFs article-id]
-            [upload-form]])))]))
+    (when-let [project-id @(subscribe [:active-project-id])]
+      [:div#article-pdfs.ui.attached.segment
+       {:style {:min-height "60px"}}
+       (with-loader [[:article project-id article-id]
+                     [:pdf/article-pdfs project-id article-id]]
+         {:dimmer :fixed :class ""}
+         (let [full-size? (full-size?)
+               inline-loader
+               (fn []
+                 (when @(subscribe [:any-loading? :pdf/open-access-available?])
+                   [:div.ui.small.active.inline.loader
+                    {:style {:margin-right "1em"
+                             :margin-left "1em"}}]))
+               upload-form
+               (fn []
+                 [:div.field>div.fields
+                  (when full-size?
+                    (inline-loader))
+                  [upload-container basic-text-button
+                   (str "/api/files/article/" article-id "/upload-pdf")
+                   #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
+                   "Upload PDF"]
+                  (when (not full-size?)
+                    (inline-loader))])]
+           (dispatch [:require [:pdf/open-access-available?
+                                project-id article-id]])
+           (if full-size?
+             [:div.ui.grid
+              [:div.row
+               [:div.twelve.wide.left.aligned.column
+                [:div.ui.small.form
+                 [OpenAccessPDF article-id]
+                 [ArticlePDFs article-id]]]
+               [:div.four.wide.right.aligned.column
+                [upload-form]]]]
+             [:div.ui.small.form
+              [OpenAccessPDF article-id]
+              [ArticlePDFs article-id]
+              [upload-form]])))])))

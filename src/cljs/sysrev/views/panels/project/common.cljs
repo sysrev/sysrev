@@ -34,11 +34,10 @@
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
        :action (project-uri project-id "/settings")
-       #_ (list [:project :project :settings] action-params)}
-      {:tab-id :support
+       #_ (list [:project :project :settings] action-params)}]
+     [{:tab-id :support
        :content [:span [:i.dollar.sign.icon] "Support"]
        :action (project-uri project-id "/support")}]
-     []
      active-tab
      "bottom attached project-menu-2"
      false]))
@@ -110,6 +109,8 @@
              :content [:span
                        (when-not mobile?
                          [:span
+                          [:i.file.alternate.icon]
+                          #_
                           [:i.icons
                            [:i.text.file.outline.icon]
                            [:i.corner.tag.icon]]
@@ -122,6 +123,8 @@
              :content [:span
                        (when-not mobile?
                          [:span
+                          [:i.user.icon]
+                          #_
                           [:i.icons
                            [:i.user.icon]
                            [:i.corner.tag.icon]]
@@ -135,15 +138,16 @@
              :content [:span
                        (when-not mobile?
                          [:span
-                          [:i.write.square.icon]])
+                          #_ [:i.pen.square.icon]
+                          [:i.pencil.alternate.icon]])
                        "Review Articles"]
              :action (project-uri project-id "/review")
              #_ (list [:project :review] action-params)
              :class "review-articles"})]
          [{:tab-id :manage
            :content (if mobile?
-                      [:span [:i.settings.icon]]
-                      [:span [:i.settings.icon] " Manage"])
+                      [:span [:i.cog.icon]]
+                      [:span [:i.cog.icon] " Manage"])
            :action (project-uri project-id "/manage")
            #_ (list [:project :project :add-articles] action-params)}]
          active-tab

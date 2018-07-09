@@ -111,13 +111,6 @@
                     [:fetch [:project id]]
                     [:project/navigate id])}))
 
-(def-action :project/change-settings
-  :uri (fn [project-id changes] "/api/change-project-settings")
-  :content (fn [project-id changes]
-             {:project-id project-id :changes changes})
-  :process (fn [{:keys [db]} [project-id _] {:keys [settings]}]
-             {:db (assoc-in db [:data :project project-id :settings] settings)}))
-
 (def-action :project/delete-file
   :uri (fn [project-id file-id] (str "/api/files/" project-id "/delete/" file-id))
   :process (fn [_ [project-id _] result]

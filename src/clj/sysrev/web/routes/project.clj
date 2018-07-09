@@ -67,6 +67,18 @@
       (assoc :journal-render
              (keywords/process-keywords secondary-title keywords)))))
 
+(defn article-info-full [project-id article-id]
+  (let [[article user-labels user-notes article-pdfs]
+        (pvalues
+         (articles/query-article-by-id-full article-id)
+         (labels/article-user-labels-map project-id article-id)
+         (articles/article-user-notes-map project-id article-id)
+         (api/article-pdfs article-id))]
+    {:article (merge (prepare-article-response article)
+                     {:pdfs (-> article-pdfs :result :files)})
+     :labels user-labels
+     :notes user-notes}))
+
 (defn project-info [project-id]
   (with-project-cache
     project-id [:project-info]
@@ -116,8 +128,17 @@
   (GET "/api/project-info" request
        (wrap-authorize
         request {:allow-public true}
-        (update-user-default-project request)
-        (project-info (active-project request))))
+        (let [project-id (active-project request)
+              valid-project
+              (and (integer? project-id)
+                   (project/project-exists? project-id :include-disabled? false))]
+          (assert (integer? project-id))
+          (if (not valid-project)
+            {:error {:status 404
+                     :type :not-found
+                     :message (format "Project (%s) not found" project-id)}}
+            (do (update-user-default-project request)
+                (project-info project-id))))))
 
   (POST "/api/join-project" request
         (wrap-authorize
@@ -204,15 +225,9 @@
                                              (current-user-id request))]
           {:result
            (let [project-id (active-project request)
-                 [article user-labels user-notes]
-                 (pvalues
-                  (articles/query-article-by-id-full article-id)
-                  (labels/article-user-labels-map project-id article-id)
-                  (articles/article-user-notes-map project-id article-id))]
-             {:article (prepare-article-response article)
-              :labels user-labels
-              :notes user-notes
-              :today-count today-count})}
+                 result (article-info-full project-id article-id)]
+             (merge result
+                    {:today-count today-count}))}
           {:result :none})))
 
   ;; Sets and optionally confirms label values for an article
@@ -265,16 +280,11 @@
         request {:allow-public true}
         (let [project-id (active-project request)
               article-id (-> request :params :article-id Integer/parseInt)]
-          (let [[article user-labels user-notes]
-                (pvalues
-                 (articles/query-article-by-id-full article-id)
-                 (labels/article-user-labels-map project-id article-id)
-                 (articles/article-user-notes-map project-id article-id))]
+          (let [{:keys [article] :as result}
+                (article-info-full project-id article-id)]
             (when (= (:project-id article) project-id)
               (update-user-default-project request)
-              {:article (prepare-article-response article)
-               :labels user-labels
-               :notes user-notes})))))
+              result)))))
 
   ;; Note that transit-clj is not used with query params.
   ;; Therefore, the string request parameter 'page-number' is converted to an integer
@@ -592,52 +602,48 @@
   (GET "/api/open-access/:article-id/availability" [article-id]
        (api/open-access-available? (parse-integer article-id)))
 
-  (GET "/api/open-access/:article-id/view"
-       [article-id]
+  (GET "/api/open-access/:article-id/view" [article-id]
        (api/open-access-pdf (parse-integer article-id)))
 
-  (POST "/api/files/article/:article-id/upload-pdf"
-        request
+  (POST "/api/files/article/:article-id/upload-pdf" request
         (wrap-authorize
-         request
-         {:roles ["member"]}
+         request {:roles ["member"]}
          (let [{:keys [article-id]} (:params request)]
            (let [file-data (get-in request [:params :file])
                  file (:tempfile file-data)
                  filename (:filename file-data)]
              (api/save-article-pdf (parse-integer article-id) file filename)))))
 
-  (GET "/api/files/article/:article-id/article-pdfs"
-       request
+  (GET "/api/files/article/:article-id/article-pdfs" request
        (wrap-authorize
-        request
-        {:roles ["member"]}
+        request {:roles ["member"]}
         (let [{:keys [article-id]} (:params request)]
           (api/article-pdfs (parse-integer article-id)))))
 
-  (GET "/api/files/article/:article-id/download/:key/:filename"
-       request
+  (GET "/api/files/article/:article-id/download/:key/:filename" request
        (wrap-authorize
-        request
-        {:roles ["member"]}
+        request {:roles ["member"]}
         (let [{:keys [key]} (:params request)]
           (api/get-s3-file key))))
 
-  (GET "/api/files/article/:article-id/view/:key/:filename"
-       request
+  (GET "/api/files/article/:article-id/view/:key/:filename" request
        (wrap-authorize
-        request
-        {:roles ["member"]}
+        request {:roles ["member"]}
         (let [{:keys [key]} (:params request)]
           (api/view-s3-pdf key))))
 
-  (GET "/api/files/article/:article-id/delete/:key/:filename"
-       request
-       (wrap-authorize
-        request
-        {:roles ["member"]}
-        (let [{:keys [article-id key filename]} (:params request)]
-          (api/dissociate-pdf-article article-id key filename))))
+  (POST "/api/files/article/:article-id/delete/:key/:filename" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [{:keys [article-id key filename]} (:params request)]
+           (api/dissociate-pdf-article article-id key filename))))
+
+  (POST "/api/change-project-permissions" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (active-project request)
+               {:keys [users-map]} (:body request)]
+           (api/change-project-permissions project-id users-map))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
