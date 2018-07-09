@@ -10,7 +10,10 @@
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
+            [sysrev.db.migration :as migrate]
             [sysrev.import.endnote :as endnote]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.biosource.importance :as importance-api]
             [sysrev.shared.util :refer [in?]]))
 
 (defn copy-project-members [src-project-id dest-project-id &
@@ -89,7 +92,6 @@
                    (mapv (fn [{:keys [article-id name] :as entry}]
                            (-> entry
                                (assoc :article-id (convert-article-id article-id)
-                                      :confirm-time nil
                                       :label-id (get label-ids-map name))
                                (dissoc :article-label-local-id
                                        :article-label-id
@@ -213,8 +215,12 @@
       (when labels?
         (copy-project-keywords src-id dest-id))
       (when (and labels? answers?)
-        (copy-project-article-labels src-id dest-id))))
-  (println "clone-project done"))
+        (copy-project-article-labels src-id dest-id))
+      (println "clone-project done")
+      (migrate/ensure-project-sources-exist)
+      (predict-api/schedule-predict-update dest-id)
+      (importance-api/schedule-important-terms-update dest-id)))
+  nil)
 
 (defn clone-subproject-articles
   "Creates a copy of a project with a subset of the articles from a parent project.

@@ -57,7 +57,7 @@
   and stores results in local database."
   [project-id]
   (try
-    (when (project/project-exists? project-id)
+    (when (project/project-exists? project-id :include-disabled? true)
       (record-importance-load-start project-id)
       (clear-project-cache project-id)
       (let [max-count 100
@@ -101,7 +101,7 @@
                                      (-> % :instance-score number?))))
                    (mapv #(assoc % :project-id project-id)))]
           (with-transaction
-            (when (project/project-exists? project-id)
+            (when (project/project-exists? project-id :include-disabled? true)
               (-> (delete-from :project-entity)
                   (where [:= :project-id project-id])
                   do-execute)

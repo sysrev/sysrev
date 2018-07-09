@@ -28,6 +28,14 @@
      ((comp not nil?) error))))
 
 (reg-sub
+ :project/not-found?
+ (fn [[_ project-id]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project]]
+   (let [error-type (-> project :error :type)]
+     (in? [:not-found] error-type))))
+
+(reg-sub
  :project/unauthorized?
  (fn [[_ project-id]]
    [(subscribe [:project/raw project-id])])

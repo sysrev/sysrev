@@ -89,9 +89,7 @@
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
    (dispatch [:require item])
-   (dispatch [:reload item])
-   (dispatch [:require [:pdf/article-pdfs article-id]])
-   (dispatch [:reload [:pdf/article-pdfs article-id]])))
+   (dispatch [:reload item])))
 
 (sr-defroute-project
  project-user "/user" [project-id]
@@ -126,9 +124,7 @@
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
    (dispatch [:require item])
-   (dispatch [:reload item])
-   (dispatch [:require [:pdf/article-pdfs article-id]])
-   (dispatch [:reload [:pdf/article-pdfs article-id]])))
+   (dispatch [:reload item])))
 
 (sr-defroute-project
  project-labels-edit "/labels/edit" [project-id]

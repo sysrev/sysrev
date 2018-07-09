@@ -4,8 +4,19 @@
             [sysrev.state.identity :as self]
             [sysrev.data.core :refer [def-data]]))
 
+(defn get-article [db article-id]
+  (let [article (get-in db [:data :articles article-id])]
+    (when (and (map? article) (not-empty article))
+      article)))
+
 (defn load-article [db {:keys [article-id] :as article}]
   (assoc-in db [:data :articles article-id] article))
+
+(defn update-article [db article-id changes]
+  (if-let [article (get-article db article-id)]
+    (update-in db [:data :articles article-id]
+               #(merge % changes))
+    db))
 
 (def-data :article
   :loaded? (fn [db project-id article-id]
@@ -234,3 +245,15 @@
                     :url (article-document-url project-id doc-id fs-path)})))))
         (apply concat)
         vec)))
+
+(reg-sub
+ :article/pdfs
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article]] (-> article :pdfs)))
+
+(reg-sub
+ :article/open-access-available?
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article]] (-> article :open-access-available?)))

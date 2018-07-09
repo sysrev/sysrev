@@ -47,13 +47,14 @@
 
 (defn SelectProject []
   (ensure-state)
-  (let [all-projects @(subscribe [:self/projects true])
-        member-projects (->> all-projects (filter :member?))
-        available-projects (->> all-projects (remove :member?))]
-    [:div
-     [CreateProject state]
-     [ProjectsListSegment "Your Projects" member-projects]
-     [ProjectsListSegment "Available Projects" available-projects]]))
+  (when @(subscribe [:self/logged-in?])
+    (let [all-projects @(subscribe [:self/projects true])
+          member-projects (->> all-projects (filter :member?))
+          available-projects (->> all-projects (remove :member?))]
+      [:div
+       [CreateProject state]
+       [ProjectsListSegment "Your Projects" member-projects]
+       [ProjectsListSegment "Available Projects" available-projects]])))
 
 (defmethod panel-content panel []
   (fn [child]

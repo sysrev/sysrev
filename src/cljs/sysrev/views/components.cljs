@@ -26,21 +26,28 @@
      [:div.ui.label label-attrs label-text]
      input-elt]))
 
-(defn wrap-dropdown [elt]
+(defn wrap-dropdown [elt & [{:keys [onChange] :as options}]]
   (r/create-class
    {:component-did-mount
     #(-> (js/$ (r/dom-node %))
-         (.dropdown))
+         (.dropdown
+          (clj->js
+           (cond-> {}
+             onChange (merge {:onChange onChange})))))
     :reagent-render
     (fn [elt]
       elt)}))
 
-(defn selection-dropdown [selected-item items]
+(defn selection-dropdown [selected-item items &
+                          [{:keys [id class onChange]
+                            :or {class "ui selection dropdown"}
+                            :as options}]]
   [wrap-dropdown
-   [:div.ui.selection.dropdown
+   [:div {:id id :class class}
     [:i.dropdown.icon]
     selected-item
-    (into [:div.menu] items)]])
+    (into [:div.menu] items)]
+   options])
 
 (defn dropdown-menu [entries & {:keys [icon-class dropdown-class label style]
                                 :or {icon-class "small down chevron"
@@ -334,7 +341,7 @@
             :hoverable false}
            popup-options)]
    ^{:key :tooltip-help}
-   [:div.ui.popup.transition.hidden.tooltip
+   [:div.ui.flowing.popup.transition.hidden.tooltip
     (cond help-content
           (doall (map-indexed #(if (string? %2)
                                  ^{:key %1}
@@ -440,3 +447,49 @@
    (when error
      [:div {:class "ui red message"}
       error])])
+
+(defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
+  [:div
+   [:button.ui.right.labeled.positive.icon.button
+    {:class (str (if can-save? "" "disabled")
+                 " "
+                 (if saving? "loading" ""))
+     :on-click #(when (and can-save? on-save (not saving?)) (on-save))}
+    "Save Changes"
+    [:i.check.circle.outline.icon]]
+   [:button.ui.right.labeled.icon.button
+    {:class (if can-reset? "" "disabled")
+     :on-click #(when (and can-reset? on-reset) (on-reset))}
+    "Reset"
+    [:i.eraser.icon]]])
+
+(defn ConfirmationDialog
+  "A confirmation dialog for confirming or cancelling an action.
+  Arguments:
+  {
+  :on-cancel            fn  ; user clicks cancel, same fn used for dismissing
+                            ; alert
+  :on-confirm           fn  ; user clicks confirm
+  :title            string  ; title text for message box
+  :message          string  ; content text for message box (optional)
+  :action-color     string  ; css color class to represent confirm action
+  }"
+  [{:keys [on-cancel on-confirm title message action-color]
+    :or {action-color "orange"}}]
+  [:div
+   [:div.ui.icon.warning.message.confirm-warning
+    [:i.warning.icon {:class action-color}]
+    [:div.content
+     [:div.header title]
+     (when message
+       [:p {:style {:font-size "16px"
+                    :font-weight "bold"}}
+        message])]]
+   [:div
+    [:button.ui.button
+     {:on-click on-confirm :class action-color}
+     "Confirm"]
+    [:button.ui.button
+     {:on-click on-cancel}
+     "Cancel"]]])
+
