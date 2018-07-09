@@ -66,6 +66,7 @@
    [(subscribe [:project/settings project-id])])
  (fn [[settings]] (:public-access settings)))
 
+#_
 (reg-sub
  :project/public-labels
  (fn [[_ project-id]]

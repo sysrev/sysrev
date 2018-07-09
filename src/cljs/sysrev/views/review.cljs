@@ -425,6 +425,7 @@
                           [:fetch [:article project-id article-id]])
                         (when (not on-review-task?)
                           [:review/disable-change-labels article-id])
+                        #_
                         (when @(subscribe [:user-labels/article-id])
                           ;; Use setTimeout here to avoid immediately triggering
                           ;; the :review/send-labels logic in sr-defroute before

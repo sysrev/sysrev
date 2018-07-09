@@ -107,9 +107,7 @@
  (fn [_]
    [(subscribe [:review/on-review-task?])
     (subscribe [:review/task-id])
-    (subscribe [:public-labels/article-id])
-    (subscribe [:user-labels/article-id])])
- (fn [[on-review? id-review id-public id-user]]
+    (subscribe [:project-articles/article-id])])
+ (fn [[on-review? id-review id-project]]
    (or (and on-review? id-review)
-       id-public
-       id-user)))
+       id-project)))

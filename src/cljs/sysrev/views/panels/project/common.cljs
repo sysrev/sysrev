@@ -119,28 +119,13 @@
              :action (project-uri project-id "/articles")
              #_ (list [:project :project :articles] action-params)})
           (when (and member? (> total 0))
-            {:tab-id [:user :labels]
-             :content [:span
-                       (when-not mobile?
-                         [:span
-                          [:i.user.icon]
-                          #_
-                          [:i.icons
-                           [:i.user.icon]
-                           [:i.corner.tag.icon]]
-                          " "])
-                       (if mobile?
-                         "Answers" "Saved Answers")]
-             :action (project-uri project-id "/user")
-             #_ (list [:project :user :labels] action-params)})
-          (when (and member? (> total 0))
             {:tab-id [:review]
              :content [:span
                        (when-not mobile?
                          [:span
                           #_ [:i.pen.square.icon]
                           [:i.pencil.alternate.icon]])
-                       "Review Articles"]
+                       "Review"]
              :action (project-uri project-id "/review")
              #_ (list [:project :review] action-params)
              :class "review-articles"})]

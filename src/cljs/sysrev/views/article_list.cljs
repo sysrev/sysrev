@@ -12,26 +12,29 @@
             [sysrev.views.review :refer [label-editor-view]]
             [sysrev.views.components :refer
              [with-ui-help-tooltip ui-help-icon selection-dropdown
-              three-state-selection-icons]]
+              three-state-selection-icons updated-time-label]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.nav :refer [nav]]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.shared.article-list :refer
              [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
-            [sysrev.util :refer [full-size? mobile? nbsp]]
+            [sysrev.util :refer [full-size? mobile? nbsp number-to-word time-from-epoch]]
             [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
 (defmulti panel-base-uri (fn [panel project-id] panel))
 (defmulti article-uri (fn [panel project-id article-id] panel))
-(defmulti allow-null-label? (fn [panel] panel))
 (defmulti list-header-tooltip (fn [panel] panel))
-(defmulti render-article-entry (fn [panel article full-size?] panel))
 (defmulti private-article-view? (fn [panel] panel))
-(defmulti loading-articles? (fn [panel project-id user-id] panel))
 (defmulti reload-articles (fn [panel project-id user-id] panel))
 (defmulti auto-refresh? (fn [panel] panel))
+
+(defn allow-null-label? [panel]
+  true)
+
+(defn loading-articles? []
+  @(subscribe [:any-loading? :project/article-list]))
 
 (defmethod list-header-tooltip :default [] nil)
 
@@ -551,12 +554,12 @@
            ["Filter by matching keywords in article title"]])
 
         refresh-button
-        [:div.ui.right.labeled.icon.button.refresh-button
-         {:class (if (loading-articles? panel project-id user-id) "loading" "")
+        [:button.ui.right.labeled.icon.button.refresh-button
+         {:class (if (loading-articles?) "loading" "")
           :style {:width "100%"}
           :on-click #(reload-articles panel project-id user-id)}
          [:i.repeat.icon]
-         (if (full-size?) "Refresh Articles" "Refresh")]
+         (if (full-size?) "Refresh" "Refresh")]
 
         reset-button
         [:div.ui.right.labeled.icon.button.reset-button
@@ -567,37 +570,89 @@
             #(dispatch [::reset-filters [] panel]))}
          [:i.times.icon]
          "Reset Filters"]]
-    [:div.ui.secondary.segment.article-filters
-     {:style {:padding "10px"}}
-     (if (not (mobile?))
-       ;; non-mobile view
-       [:div.ui.small.form
-        [:div.field
-         [:div.fields
-          (when select-inclusion?    [inclusion-status-field "three"])
-          (when select-group-status? [group-status-field "three"])
-          (when select-confirmed?    [confirmed-field "three"])
-          [search-field "six"]
-          [:div.four.wide.field [:label nbsp] reset-button]]]
-        [:div.field
-         [:div.fields
-          [label-field "three"]
-          [answer-value-field "three" (not select-answer?)]
-          [:div.six.wide.field]
-          [:div.four.wide.field [:label nbsp] refresh-button]]]]
-       ;; mobile view
-       [:div.ui.small.form
-        [:div.two.fields.mobile-group
-         (when select-inclusion?    [inclusion-status-field nil])
-         (when select-group-status? [group-status-field nil])
-         (when select-confirmed?    [confirmed-field nil])]
-        [:div.two.fields.mobile-group
-         [label-field nil]
-         [answer-value-field nil (not select-answer?)]]
-        [search-field nil]
-        [:div.two.fields.mobile-group
-         [:div.field refresh-button]
-         [:div.field reset-button]]])]))
+    [:div.article-filters
+     [:div.ui.secondary.top.attached.segment
+      {:style {:padding "10px"}}
+      [:div.ui.two.column.grid
+       [:div.middle.aligned.row
+        {:style {:padding-top "9px"
+                 :padding-bottom "9px"}}
+        [:div.left.aligned.column
+         [:h4 "Filters"]]
+        [:div.right.aligned.column
+         [:button.ui.tiny.right.labeled.icon.button
+          [:i.erase.icon]
+          "Reset"]]]]]
+     [:div.ui.secondary.attached.segment.filters-content
+      {:style {:padding "10px"}}
+      (if (not (mobile?))
+        ;; non-mobile view
+        [:div.ui.small.form
+         [:div.field
+          #_
+          [:div.fields
+           (when select-inclusion?    [inclusion-status-field "three"])
+           (when select-group-status? [group-status-field "three"])
+           (when select-confirmed?    [confirmed-field "three"])
+           [search-field "six"]
+           [:div.four.wide.field [:label nbsp] reset-button]]
+          [:div.fields
+           [:div.four.wide.field
+            [:label "Keyword search"]
+            [:div.ui.fluid.icon.input
+             [:input {:type "text"
+                      :placeholder "Search..."}]
+             [:i.search.icon]]]
+           [:div.five.wide.field
+            [:label "View Mode"]
+            [:div {:style { ;; :text-align "center"
+                           :width "100%"}}
+             [:button.ui.labeled.icon.button
+              [:i.green.circle.icon]
+              "Self"]
+             [:button.ui.labeled.icon.button
+              [:i.grey.circle.icon]
+              "Consensus"]]]
+           [:div.five.wide.field
+            [:label "View Options"]
+            [:div {:style { ;; :text-align "center"
+                           :width "100%"}}
+             [:button.ui.labeled.icon.button
+              [:i.green.circle.icon]
+              "Labels"]
+             [:button.ui.labeled.icon.button
+              [:i.green.circle.icon]
+              "Notes"]]]
+           [:div.two.wide.field [:label nbsp] refresh-button]]]
+         [:div.field
+          [:button.ui.icon.button [:i.plus.icon]]
+          #_
+          [:div.fields
+           [label-field "three"]
+           [answer-value-field "three" (not select-answer?)]
+           [:div.six.wide.field]
+           [:div.four.wide.field [:label nbsp] refresh-button]]]]
+        ;; mobile view
+        [:div.ui.small.form
+         [:div.two.fields.mobile-group
+          (when select-inclusion?    [inclusion-status-field nil])
+          (when select-group-status? [group-status-field nil])
+          (when select-confirmed?    [confirmed-field nil])]
+         [:div.two.fields.mobile-group
+          [label-field nil]
+          [answer-value-field nil (not select-answer?)]]
+         [search-field nil]
+         [:div.two.fields.mobile-group
+          [:div.field refresh-button]
+          [:div.field reset-button]]])]
+     [:div.ui.secondary.bottom.attached.segment
+      {:style {:padding "0px"}}
+      [:button.ui.tiny.fluid.icon.button
+       {:style {:border-top-left-radius "0"
+                :border-top-right-radius "0"
+                :padding-top "7px"
+                :padding-bottom "7px"}}
+       [:i.chevron.up.icon]]]]))
 
 (reg-sub
  ::article-list-header-text
@@ -698,6 +753,134 @@
         (drop display-offset)
         (take (display-count)))))
 
+(defmulti answer-cell-icon identity)
+(defmethod answer-cell-icon true [] [:i.ui.green.circle.plus.icon])
+(defmethod answer-cell-icon false [] [:i.ui.orange.circle.minus.icon])
+(defmethod answer-cell-icon :default [] [:i.ui.grey.question.mark.icon])
+
+(defn- answer-cell [article-id labels answer-class]
+  [:div.ui.divided.list
+   (->> labels
+        (map (fn [entry]
+               (let [user-id (:user-id entry)
+                     inclusion (:inclusion entry)]
+                 (when (or (not= answer-class "resolved")
+                           (:resolve entry))
+                   [:div.item {:key [:answer article-id user-id]}
+                    (answer-cell-icon inclusion)
+                    [:div.content>div.header
+                     @(subscribe [:user/display user-id])]]))))
+        (doall))])
+
+(defn render-article-entry [_ article full-size?]
+  (let [ ;; label-id @(subscribe [:article-list/filter-value :label-id panel])
+        overall-id @(subscribe [:project/overall-label-id])
+        {:keys [article-id primary-title labels updated-time]} article
+        ;; active-labels (get labels label-id)
+        overall-labels (->> labels (filter #(= (:label-id %) overall-id)))
+        answer-class
+        (cond
+          (is-resolved? overall-labels) "resolved"
+          (is-consistent? overall-labels) "consistent"
+          (is-single? overall-labels) "single"
+          :else "conflict")]
+    (if full-size?
+      ;; non-mobile view
+      [:div.ui.row
+       [:div.ui.thirteen.wide.column.article-title
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.ui.one.wide.center.aligned.column
+           [:div.ui.fluid.labeled.center.aligned.button
+            [:i.ui.right.chevron.center.aligned.icon
+             {:style {:width "100%"}}]]]
+          [:div.thirteen.wide.column>span.article-title primary-title]
+          [:div.two.wide.center.aligned.column.article-updated-time
+           (when-let [updated-time (some-> updated-time (time-from-epoch))]
+             [updated-time-label updated-time])]]]]
+       [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
+        {:class answer-class}
+        [:div.ui.middle.aligned.grid>div.row>div.column
+         [answer-cell article-id overall-labels answer-class]]]]
+      ;; mobile view
+      [:div.ui.row
+       [:div.ui.ten.wide.column.article-title
+        [:span.article-title primary-title]
+        (when-let [updated-time (some-> updated-time (time-from-epoch))]
+          [updated-time-label updated-time])]
+       [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
+        {:class answer-class}
+        [:div.ui.middle.aligned.grid>div.row>div.column
+         [answer-cell article-id overall-labels answer-class]]]])))
+
+;; user self labels interface
+#_
+(defn render-article-entry [_ article full-size?]
+  (let [{:keys [article-id primary-title labels
+                notes updated-time confirmed]} article
+        user-id @(subscribe [:self/user-id])
+        have-notes? (some #(and (string? %)
+                                (not-empty (str/trim %)))
+                          (vals notes))
+        user-labels (->> labels
+                         (filter #(= (:user-id %) user-id))
+                         (group-by :label-id)
+                         (map-values first))]
+    (if full-size?
+      ;; non-mobile view
+      [:div.ui.row
+       [:div.ui.one.wide.center.aligned.column
+        [:div.ui.fluid.labeled.center.aligned.button
+         [:i.ui.right.chevron.center.aligned.icon
+          {:style {:width "100%"}}]]]
+       [:div.ui.fifteen.wide.column.article-title
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.twelve.wide.column>span.article-title primary-title]
+          [:div.four.wide.right.aligned.column
+           (when (false? confirmed)
+             [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
+           (when-let [updated-time (some-> updated-time (time-from-epoch))]
+             [updated-time-label updated-time])]]]
+        [:div.ui.fitted.divider]
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.sixteen.wide.column
+           [labels/label-values-component user-labels]]]]
+        (when have-notes?
+          [:div
+           [:div.ui.fitted.divider]
+           (doall
+            (for [note-name (keys notes)]
+              ^{:key [note-name]}
+              [note-content-label note-name (get notes note-name)]))])]]
+      ;; mobile view
+      [:div.ui.row.user-article
+       [:div.ui.sixteen.wide.column
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.twelve.wide.column>span.article-title primary-title]
+          [:div.four.wide.right.aligned.column
+           (when (false? confirmed)
+             [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
+           (when-let [updated-time (some-> updated-time (time-from-epoch))]
+             [updated-time-label updated-time])]]]
+        [:div.ui.fitted.divider]
+        [:div.ui.middle.aligned.grid
+         [:div.row
+          [:div.sixteen.wide.column.label-values
+           [labels/label-values-component user-labels]]]]
+        (when have-notes?
+          [:div.ui.fitted.divider])
+        (when have-notes?
+          [:div.ui.middle.aligned.grid
+           [:div.row
+            [:div.sixteen.wide.column.label-values
+             (doall
+              (for [note-name (keys notes)]
+                ^{:key [note-name]}
+                [note-content-label note-name (get notes note-name)]))]]])]])))
+
 (defn- article-list-view-articles [panel]
   (let [project-id @(subscribe [:active-project-id])
         active-aid @(subscribe [::selected-article-id panel])
@@ -760,7 +943,7 @@
         prev-id @(subscribe [::prev-article-id panel])
         next-loading? (when next-id @(subscribe [:loading? [:article project-id next-id]]))
         prev-loading? (when prev-id @(subscribe [:loading? [:article project-id prev-id]]))
-        back-loading? (loading-articles? panel project-id user-id)
+        back-loading? (loading-articles?)
         prev-class (str (if (nil? prev-id) "disabled" "")
                         " " (if prev-loading? "loading" ""))
         next-class (str (if (nil? next-id) "disabled" "")

@@ -57,19 +57,19 @@
        ensure-visible #(ensure-dom-elt-visible-soon
                         ".article-list-view div.ui.segment.article-nav")
        on-article? (and (= @(subscribe [:active-panel]) panel)
-                        @(subscribe [:public-labels/article-id]))
+                        @(subscribe [:project-articles/article-id]))
        data-loaded? @(subscribe [:have? item])
        have-project? @(subscribe [:have? [:project project-id]])]
    (when (not have-project?)
      (dispatch set-panel))
    (if (and on-article? data-loaded?)
      (do (dispatch set-panel)
-         (dispatch [:public-labels/hide-article])
+         (dispatch [:project-articles/hide-article])
          (ensure-visible))
      (do (dispatch
           [:data/after-load item :project-articles-route
            (list set-panel
-                 [:public-labels/hide-article]
+                 [:project-articles/hide-article]
                  ensure-visible)])
          (dispatch [:require item])
          (dispatch [:reload item])))))
@@ -86,45 +86,7 @@
    (dispatch
     [:data/after-load item :project-articles-route
      (list set-panel
-           [:public-labels/show-article article-id]
-           #(ensure-dom-elt-visible-soon
-             ".article-view div.ui.segment.article-nav"))])
-   (dispatch [:require item])
-   (dispatch [:reload item])))
-
-(sr-defroute-project
- project-user "/user" [project-id]
- (let [project-id @(subscribe [:active-project-id])
-       user-id @(subscribe [:self/user-id])
-       panel [:project :user :labels]
-       args @(subscribe [:article-list/query-args panel])
-       item [:project/article-list project-id args]
-       set-panel [:set-active-panel panel]]
-   (if user-id
-     (do (dispatch
-          [:data/after-load item :user-articles-route
-           (list set-panel
-                 [:user-labels/hide-article]
-                 #(ensure-dom-elt-visible-soon
-                   ".article-list-view div.ui.segment.article-nav"))])
-         (dispatch [:require item])
-         (dispatch [:reload item]))
-     (dispatch set-panel))))
-
-(sr-defroute-project
- project-user-article "/user/article/:article-id" [project-id article-id]
- (let [project-id @(subscribe [:active-project-id])
-       article-id (parse-integer article-id)
-       panel [:project :user :labels]
-       item [:article project-id article-id]
-       set-panel [:set-active-panel panel]
-       have-project? @(subscribe [:have? [:project project-id]])]
-   (when (not have-project?)
-     (dispatch set-panel))
-   (dispatch
-    [:data/after-load item :user-articles-route
-     (list set-panel
-           [:user-labels/show-article article-id]
+           [:project-articles/show-article article-id]
            #(ensure-dom-elt-visible-soon
              ".article-view div.ui.segment.article-nav"))])
    (dispatch [:require item])

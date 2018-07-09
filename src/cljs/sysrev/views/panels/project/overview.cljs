@@ -12,7 +12,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]
-            [sysrev.views.panels.project.public-labels :as public-labels]
+            [sysrev.views.panels.project.articles]
             [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [active-project-id project-uri]]
@@ -44,9 +44,9 @@
   (when-let [project-id @(subscribe [:active-project-id])]
     (dispatch [:navigate [:project :project :articles]
                {:project-id project-id}])
-    (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
-    (dispatch [:public-labels/set-group-status group-status])
-    (dispatch [:public-labels/set-inclusion-status inclusion])))
+    (dispatch [:project-articles/reset-filters [:group-status :inclusion-status]])
+    (dispatch [:project-articles/set-group-status group-status])
+    (dispatch [:project-articles/set-inclusion-status inclusion])))
 
 (defn- label-status-help-column [colors]
   (let [scounts @(subscribe [:project/status-counts])

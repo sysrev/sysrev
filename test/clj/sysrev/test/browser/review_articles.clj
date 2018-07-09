@@ -32,7 +32,7 @@
 ;; (def article-id (-> (labels/query-public-article-labels project-id) keys first))
 
 ;;;; begin dom element definitions
-(def review-articles-button  {:xpath "//span[text()='Review Articles']"})
+(def review-articles-button  {:xpath "//span[text()='Review']"})
 (def articles-button  {:xpath "//span[text()='Articles']"})
 (def save-button {:xpath "//div[contains(text(),'Save')]"})
 (def disabled-save-button {:xpath "//div[contains(text(),'Save') and contains(@class,'disabled')]"})

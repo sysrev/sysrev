@@ -45,8 +45,8 @@
   (browser/go-project-route "/export")
   (is (browser/panel-exists? [:project :project :export-data]))
 
-  (browser/go-project-route "/user")
-  (is (browser/panel-exists? [:project :user :labels]))
+  #_ (browser/go-project-route "/user")
+  #_ (is (browser/panel-exists? [:project :user :labels]))
 
   (browser/go-project-route "/review")
   (is (browser/panel-exists? [:project :review]))

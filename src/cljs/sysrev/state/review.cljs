@@ -73,10 +73,8 @@
  :review/editing-id
  :<- [:review/on-review-task?]
  :<- [:review/task-id]
- :<- [:public-labels/editing?]
- :<- [:public-labels/article-id]
- :<- [:user-labels/editing?]
- :<- [:user-labels/article-id]
+ :<- [:project-articles/editing?]
+ :<- [:project-articles/article-id]
  (fn [[on-review-task? task-aid public-editing? public-aid user-editing? user-aid]]
    (cond (and on-review-task?
               (integer? task-aid))  task-aid
@@ -91,8 +89,8 @@
 
 (reg-sub
  :review/resolving?
- :<- [:public-labels/article-id]
- :<- [:public-labels/resolving?]
+ :<- [:project-articles/article-id]
+ :<- [:project-articles/resolving?]
  (fn [[public-aid public-resolving?]]
    (boolean
     (and public-aid public-resolving?))))
