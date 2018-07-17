@@ -376,25 +376,22 @@
           first
           (get-in [:attrs :href])))))
 
-(defn article-pdf
-  "Given a pmicd (PMC*), the pdf for that id, if it exists, nil otherwise"
+(defn article-pmcid-pdf-filename
+  "Given a pmcid (PMC*), return the filename of the pdf returned for that pmcid, if it exists, nil otherwise"
   [pmcid]
   (when-let [pdf-link (pdf-ftp-link pmcid)]
-    (let [remote-filename (fs/base-name pdf-link)
-          local-filename (str "pdf/" remote-filename)
+    (let [filename (fs/base-name pdf-link)
           client (-> pdf-link
                      (clojure.string/replace #"ftp://" "ftp://anonymous:pwd@")
-                     (clojure.string/replace (re-pattern remote-filename) ""))]
+                     (clojure.string/replace (re-pattern filename) ""))]
       (cond
         ;; the file already exists, return the filename
-        (fs/exists? local-filename)
-        local-filename
+        (fs/exists? filename)
+        filename
         ;; retrieve the file
         (ftp/with-ftp [client client]
-          (do (if-not (fs/exists? "pdf")
-                (fs/mkdir "pdf"))
-              (ftp/client-get client remote-filename local-filename)))
-        local-filename
+          (ftp/client-get client filename filename))
+        filename
         :else nil))))
 
 ;;(ftp/with-ftp [client "ftp://anonymous:pwd@ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/92/86"] (ftp/client-get client "dddt-12-721.PMC5892952.pdf"))

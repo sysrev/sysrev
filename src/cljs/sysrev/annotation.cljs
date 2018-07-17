@@ -460,11 +460,11 @@
         editing? (r/cursor state [:editing?])
         annotator-enabled? (r/cursor state [:annotator-enabled?])
         annotation-context-class (r/cursor state [:context :class])]
-    (when-not (= @annotation-context-class
-                 "open access pdf")
-      (dispatch [:reload [:annotation/user-defined-annotations
-                          @(subscribe [:visible-article-id])
-                          state]]))
+    #_(when-not (= @annotation-context-class
+                 "open access pdf"))
+    (dispatch [:reload [:annotation/user-defined-annotations
+                        @(subscribe [:visible-article-id])
+                        state]])
     (fn [state child]
       [:div.annotation-capture
        {:on-mouse-up (fn [e]

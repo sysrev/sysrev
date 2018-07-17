@@ -558,8 +558,8 @@
   (GET "/api/open-access/:article-id/availability" [article-id]
        (api/open-access-available? (parse-integer article-id)))
 
-  (GET "/api/open-access/:article-id/view" [article-id]
-       (api/open-access-pdf (parse-integer article-id)))
+  (GET "/api/open-access/:article-id/view/:key" [article-id key]
+       (api/open-access-pdf (parse-integer article-id) key))
 
   (POST "/api/files/article/:article-id/upload-pdf" request
         (wrap-authorize

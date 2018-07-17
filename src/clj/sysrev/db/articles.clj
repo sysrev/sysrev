@@ -347,3 +347,33 @@
           (->> (re-find #"PMC\d+")))
       (catch Throwable e
         nil)))
+
+(defn pmcid-in-s3store?
+  "Given a pmcid, do we have a file associated with it in the s3store?"
+  [pmcid]
+  (boolean (try (-> (select :pmcid)
+                    (from :pmcid_s3store)
+                    (where [:= :pmcid pmcid])
+                    do-query
+                    first)
+                (catch Throwable e
+                  nil))))
+
+(defn pmcid->s3store-id
+  "Given a PMCID, return a s3store-id associated with it, if any"
+  [pmcid]
+  (-> (select :s3_id)
+      (from :pmcid_s3store)
+      (where [:= :pmcid pmcid])
+      do-query
+      first
+      :s3-id))
+
+(defn associate-pmcid-s3store
+  "Given a pmcid and an s3store-id, associate the two"
+  [pmcid s3store-id]
+  (-> (insert-into :pmcid_s3store)
+      (values [{:pmcid pmcid
+                :s3_id s3store-id}])
+      do-query
+      first))

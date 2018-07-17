@@ -257,3 +257,9 @@
  (fn [[_ article-id]]
    [(subscribe [:article/raw article-id])])
  (fn [[article]] (-> article :open-access-available?)))
+
+(reg-sub
+ :article/key
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article]] (-> article :key)))

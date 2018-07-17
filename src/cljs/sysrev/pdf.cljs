@@ -61,9 +61,10 @@
   :uri (fn [_ article-id] (str "/api/open-access/" article-id "/availability"))
   :prereqs (fn [project-id article-id]
              [[:identity] [:article project-id article-id]])
-  :process (fn [{:keys [db]} [_ article-id] {:keys [available?]}]
+  :process (fn [{:keys [db]} [_ article-id] {:keys [available? key]}]
              {:db (articles/update-article
-                   db article-id {:open-access-available? available?})}))
+                   db article-id {:open-access-available? available?
+                                  :key key})}))
 
 (def-data :pdf/article-pdfs
   :loaded? (fn [db project-id article-id]
@@ -142,15 +143,10 @@
       (reset! page-num-pending num)
       (render-page num))))
 
-(defn pdf-url->key
-  "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
-  [pdf-url]
-  (nth (re-find #"/api/files/article/(\d+)/view/(.*)/.*" pdf-url) 2))
-
 (defn pdf-url-open-access?
   "Given a pdf-url, is it an open access pdf?"
   [pdf-url]
-  (boolean (re-matches #"/api/open-access/(\d+)/view"
+  (boolean (re-matches #"/api/open-access/(\d+)/view/.*"
                        pdf-url)))
 
 (defn pdf-url->article-id
@@ -161,6 +157,13 @@
                      pdf-url))
     (second (re-find #"/api/files/article/(\d+)/view"
                      pdf-url))))
+
+(defn pdf-url->key
+  "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
+  [pdf-url]
+  (if (pdf-url-open-access? pdf-url)
+    (nth (re-find #"/api/open-access/(\d+)/view/(.*)" pdf-url) 2)
+    (nth (re-find #"/api/files/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
 
 (defn ViewPDF
   "Given a PDF URL, view it"
@@ -173,8 +176,9 @@
                          (if (pdf-url-open-access? pdf-url)
                            ;; it is open access
                            (assoc annotation/default-annotator-state
-                                  :context {:class "open access pdf"
-                                            :article-id (pdf-url->article-id pdf-url)})
+                                  :context {:class "pdf"
+                                            :article-id (pdf-url->article-id pdf-url)
+                                            :pdf-key (pdf-url->key pdf-url)})
                            ;; it is not open access, assume user uploaded pdf file
                            (assoc annotation/default-annotator-state
                                   :context {:class "pdf"
@@ -200,9 +204,9 @@
                          (do
                            (swap! page-num inc)
                            (queue-render-page @page-num)))} "Next Page"]
-          (when-not (= @(r/cursor annotator-state [:context :class])
-                       "open access pdf")
-            [AnnotationToggleButton annotator-state])
+          #_(when-not (= @(r/cursor annotator-state [:context :class])
+                       "open access pdf"))
+          [AnnotationToggleButton annotator-state]
           (when-not (nil? @page-count)
             [:p (str "Page " @page-num " / " @page-count)])]
          [:div.ui.grid
@@ -226,8 +230,8 @@
                                    (render-page @page-num))))]))})))
 
 (defn view-open-access-pdf-url
-  [article-id]
-  (str "/api/open-access/" article-id "/view"))
+  [article-id key]
+  (str "/api/open-access/" article-id "/view/" key))
 
 (defn OpenAccessPDF
   [article-id on-click]
@@ -236,9 +240,9 @@
      [:div.ui.buttons
       [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
                            [:i.expand.icon] "Open Access PDF"]}
-       [ViewPDF (view-open-access-pdf-url article-id)]]
+       [ViewPDF (view-open-access-pdf-url article-id @(subscribe [:article/key article-id]))]]
       [:a.ui.button
-       {:href (view-open-access-pdf-url article-id)
+       {:href (view-open-access-pdf-url article-id @(subscribe [:article/key article-id]))
         :target "_blank"
         :download (str article-id ".pdf")}
        "Download"]]]))
@@ -275,7 +279,7 @@
            {:on-click
             #(do (reset! confirming? false)
                  (dispatch [:action [:pdf/delete-pdf article-id key filename]]))}
-           "Yes"]
+0           "Yes"]
           [:div.ui.blue.button {:on-click #(reset! confirming? false)}
            "No"]])])))
 
@@ -291,7 +295,7 @@
             [S3PDF {:article-id article-id
                     :key (:key file-map)
                     :filename (:filename file-map)}]])
-         article-pdfs))])))
+         (filter :open-access article-pdfs)))])))
 
 (defn PDFs [article-id]
   (when article-id

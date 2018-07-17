@@ -576,27 +576,23 @@
   [project-id]
   {:result {:data (charts/process-label-counts project-id)}})
 
-(defn open-access-pdf
-  [article-id]
-  (if-let [filename (-> article-id
-                        articles/article-pmcid
-                        pubmed/article-pdf)]
-    ;; there was a file
-    (let [file (java.io.File. filename)
-          bytes (util/slurp-bytes file)]
-      (fs/delete filename)
-      {:headers {"Content-Type" "application/pdf"}
-       :body (java.io.ByteArrayInputStream. bytes)})
-    {:headers {"Content-Type" "application/pdf"}
-     :body nil}))
+(defn get-s3-file
+  "Given a key, return a file response"
+  [key]
+  (try
+    (response/response (ByteArrayInputStream. (s3store/get-file key)))
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
-(defn open-access-available?
-  [article-id]
-  {:result
-   {:available? ((comp not nil?)
-                 (some-> article-id
-                         articles/article-pmcid
-                         pubmed/pdf-ftp-link))}})
+(defn view-s3-pdf
+  [key]
+  (try
+    {:headers {"Content-Type" "application/pdf"}
+     :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
 (defn save-article-pdf
   "Handle saving a file on S3 and the associated accounting with it"
@@ -657,11 +653,63 @@
       :else {:error {:status internal-server-error
                      :message "Unknown Processing Error Occurred."}})))
 
+(defn open-access-pdf
+  [article-id key]
+  (view-s3-pdf key))
+
+(defn open-access-available?
+  [article-id]
+  (let [pmcid (-> article-id
+                  articles/article-pmcid)]
+    (cond
+      ;; the pdf exists in the store already
+      (articles/pmcid-in-s3store? pmcid)
+      {:result
+       {:available? true
+        :key (-> pmcid
+                 (articles/pmcid->s3store-id)
+                 (files/s3store-id->key))}}
+            ;; there is an open access pdf filename, but we don't have it yet
+      (open-access-available? article-id)
+      (let [filename (-> article-id
+                         articles/article-pmcid
+                         pubmed/article-pmcid-pdf-filename)
+            file (java.io.File. filename)
+            bytes (util/slurp-bytes file)
+            save-article-result (save-article-pdf
+                                 article-id file filename)
+            key (get-in save-article-result [:result :key])
+            s3store-id (files/id-for-s3-filename-key-pair
+                        filename key)]
+        ;; delete the temporary file
+        (fs/delete filename)
+        ;; associate the pmcid with the s3store item
+        (articles/associate-pmcid-s3store
+         pmcid s3store-id)
+        ;; finally, return the pdf from our own archive
+        {:result
+         {:available? true
+          :key (-> pmcid
+                   (articles/pmcid->s3store-id)
+                   (files/s3store-id->key))}})
+      ;; there was nothing available
+      :else
+      {:result
+       {:available? false}})))
+
 (defn article-pdfs
   "Given an article-id, return a vector of maps that correspond to the files associated with article-id"
   [article-id]
-  {:result {:success true
-            :files (files/get-article-file-maps article-id)}})
+  (let [pmcid (-> article-id
+                  articles/article-pmcid)
+        pmcid-s3store-id (articles/pmcid->s3store-id pmcid)]
+    {:result {:success true
+              :files (->> (files/get-article-file-maps article-id)
+                          (mapv #(assoc % :open-access?
+                                        (if (= (:id %)
+                                               pmcid-s3store-id)
+                                          true
+                                          false))))}}))
 
 (defn dissociate-pdf-article
   "Given an article-id, file key and filename remove the association between it and this article"
@@ -671,24 +719,6 @@
        (catch Throwable e
          {:error internal-server-error
           :message (.getMessage e)})))
-
-(defn get-s3-file
-  "Given a key, return a file response"
-  [key]
-  (try
-    (response/response (ByteArrayInputStream. (s3store/get-file key)))
-    (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
-
-(defn view-s3-pdf
-  [key]
-  (try
-    {:headers {"Content-Type" "application/pdf"}
-     :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
-    (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
 
 (defn save-article-annotation
   [article-id user-id selection annotation & {:keys [pdf-key]}]

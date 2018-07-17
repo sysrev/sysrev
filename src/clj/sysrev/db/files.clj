@@ -73,7 +73,7 @@
    not))
 
 (defn id-for-s3-filename-key-pair
-  "Given a filename and key, return the id of the relation "
+  "Given a filename and key pair, return the s3store-id associated with the pair"
   [filename key]
   (->
    (select :id)
@@ -117,9 +117,9 @@
       :s3-id))
 
 (defn get-article-file-maps
-  "Given an article-id, return a coll of file maps that correspond to that article"
+  "Given an article-id, return a coll of file maps that correspond to that article."
   [article-id]
-  (-> (select :filename :key)
+  (-> (select :filename :key :id)
       (from :s3store)
       (where [:in :s3store.id (-> (select :s3_id)
                                   (from :article_pdf)
@@ -136,3 +136,13 @@
                                     [:= :filename filename]
                                     [:= :key key]]))])
       do-execute))
+
+(defn s3store-id->key
+  "Given an s3store-id, return the key"
+  [s3store-id]
+  (-> (select :key)
+      (from :s3store)
+      (where [:= :id s3store-id])
+      do-query
+      first
+      :key))
