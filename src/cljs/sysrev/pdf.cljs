@@ -285,6 +285,7 @@
 
 (defn ArticlePDFs [article-id]
   (let [article-pdfs @(subscribe [:article/pdfs article-id])]
+    (.log js/console "ArticlePDFs" (clj->js article-pdfs))
     (when (not-empty article-pdfs)
       [:div
        (doall
@@ -295,7 +296,7 @@
             [S3PDF {:article-id article-id
                     :key (:key file-map)
                     :filename (:filename file-map)}]])
-         (filter :open-access article-pdfs)))])))
+         (filter #(not (:open-access? %)) article-pdfs)))])))
 
 (defn PDFs [article-id]
   (when article-id

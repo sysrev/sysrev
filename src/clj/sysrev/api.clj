@@ -669,8 +669,8 @@
         :key (-> pmcid
                  (articles/pmcid->s3store-id)
                  (files/s3store-id->key))}}
-            ;; there is an open access pdf filename, but we don't have it yet
-      (open-access-available? article-id)
+      ;; there is an open access pdf filename, but we don't have it yet
+      (pubmed/pdf-ftp-link pmcid)
       (let [filename (-> article-id
                          articles/article-pmcid
                          pubmed/article-pmcid-pdf-filename)
@@ -768,13 +768,21 @@
        :message (.getMessage e)})))
 
 (defn update-annotation!
-  [annotation-id annotation semantic-class]
+  "Update the annotation for user-id. Only users can edit their own annotations"
+  [annotation-id annotation semantic-class user-id]
   (try
-    (do
-      (db-annotations/update-annotation! annotation-id annotation semantic-class)
-      {:result {:success true
+    (if (= user-id (db-annotations/annotation-id->user-id annotation-id))
+      (do
+        (db-annotations/update-annotation! annotation-id annotation semantic-class)
+        {:result {:success true
+                  :annotation-id annotation-id
+                  :annotation annotation}})
+      {:result {:success false
                 :annotation-id annotation-id
-                :annotation annotation}})))
+                :annotation annotation}})
+    (catch Throwable e
+      {:error internal-server-error
+       :message (.getMessage e)})))
 
 (defn change-project-permissions [project-id users-map]
   (try

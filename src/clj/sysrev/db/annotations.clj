@@ -65,6 +65,17 @@
                 :user_id user-id}])
       do-execute))
 
+(defn annotation-id->user-id
+  "Given an annotation-id, return its owner's id"
+  [annotation-id]
+  (-> (select :user-id)
+      (from :annotation_web_user)
+      (where [:= :annotation_id
+              annotation-id])
+      do-query
+      first
+      :user-id))
+
 ;; extremely useful graph: https://stackoverflow.com/questions/20602826/sql-server-need-join-but-where-not-equal-to
 (defn user-defined-article-annotations [article-id]
   (let [annotations-articles (-> (select :*)
@@ -81,7 +92,11 @@
                                     [:in :id annotations-articles]
                                     [:= :as3.annotation_id nil]])
                             do-query)]
-        (map #(assoc % :semantic-class (annotation-semantic-class (:id %)))
+        (map #(assoc %
+                     :semantic-class
+                     (annotation-semantic-class (:id %))
+                     :user-id
+                     (annotation-id->user-id (:id %)))
              annotations))
       [])))
 
@@ -106,7 +121,9 @@
                                     [:in :id annotations-articles]
                                     [:= :b.s3store-id s3store-id]])
                             do-query)]
-        (map #(assoc % :semantic-class (annotation-semantic-class (:id %)))
+        (map #(assoc %
+                     :semantic-class (annotation-semantic-class (:id %))
+                     :user-id (annotation-id->user-id (:id %)))
              annotations))
       [])))
 

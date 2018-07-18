@@ -318,17 +318,23 @@
                                      (sort-by :id)
                                      reverse
                                      first
-                                     :semantic-class)]
+                                     :semantic-class)
+            annotation-user-id (:user-id @annotation-atom)
+            current-user @(subscribe [:self/user-id])]
         (when (empty? @semantic-class)
           (reset! edited-semantic-class last-semantic-class))
         [:div
          [:div
-          [:div [:div {:style {:cursor "pointer"
-                               :float "right"}
-                       :on-click (fn [event]
-                                   (swap! user-annotations dissoc id)
-                                   (dispatch [:action [:annotation/delete-annotation id]]))}
-                 [:i.times.icon]]
+          [:div
+           ;; only allow the original owner to edit annotations
+           (when (= annotation-user-id
+                    current-user)
+             [:div {:style {:cursor "pointer"
+                            :float "right"}
+                    :on-click (fn [event]
+                                (swap! user-annotations dissoc id)
+                                (dispatch [:action [:annotation/delete-annotation id]]))}
+              [:i.times.icon]])
            [:br]
            [:h3 {:class "ui grey header"} (str "\"" selection "\"")]]
           [:br]
@@ -370,12 +376,14 @@
                [:label "Value"
                 [:h3 @annotation]])
              [:br]
-             [:div.ui.small.button
-              {:on-click (fn [e]
-                           (reset! editing? true)
-                           (reset! edited-annotation original-annotation)
-                           (reset! edited-semantic-class original-semantic-class))}
-              "Edit"]])
+             (when (= annotation-user-id
+                      current-user)
+               [:div.ui.small.button
+                {:on-click (fn [e]
+                             (reset! editing? true)
+                             (reset! edited-annotation original-annotation)
+                             (reset! edited-semantic-class original-semantic-class))}
+                "Edit"])])
           [:br]]]))))
 
 (defn AddAnnotation
