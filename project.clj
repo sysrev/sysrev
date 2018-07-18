@@ -106,7 +106,6 @@
                  [cljsjs/dropzone "4.3.0-0"]
                  [cljsjs/clipboard "1.6.1-1"]
                  [cljsjs/accounting "0.4.1-1"]
-                 [cljsjs/rangy-selectionsaverestore "1.3.0-1"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"

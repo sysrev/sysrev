@@ -285,7 +285,6 @@
 
 (defn ArticlePDFs [article-id]
   (let [article-pdfs @(subscribe [:article/pdfs article-id])]
-    (.log js/console "ArticlePDFs" (clj->js article-pdfs))
     (when (not-empty article-pdfs)
       [:div
        (doall

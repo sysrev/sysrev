@@ -1,6 +1,5 @@
 (ns sysrev.annotation
-  (:require [cljsjs.rangy-selectionsaverestore]
-            [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+  (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [re-frame.core :as re-frame :refer [subscribe dispatch reg-event-fx]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
@@ -278,7 +277,7 @@
 (defn AnnotatedText
   [text annotations & [text-decoration]]
   (let [annotations (process-annotations annotations text)]
-    [:div
+    [:div.annotated-text
      (map (fn [{:keys [word index annotation]}]
             (let [key (str (gensym word))]
               (if (= word nil)
@@ -416,8 +415,7 @@
                :on-mouse-up (fn [e]
                               ($ e preventDefault)
                               ($ e stopPropagation))
-               :on-mouse-down (fn [e]
-                                (reset! current-selection (-> ($ js/rangy saveSelection))))}
+               :on-mouse-down (fn [e])}
          [:h1 {:class "ui grey header"
                :on-click (fn [e]
                            ($ e stopPropagation)
@@ -426,8 +424,7 @@
                            (reset! new-annotation-map {:selection @selection
                                                        :annotation ""})
                            (on-save)
-                           (-> ($ js/rangy getSelection)
-                               ($ removeAllRanges))
+
                            (reset! selection ""))} "Annotate Selection"]]))))
 
 (defn AnnotationMenu
@@ -468,8 +465,6 @@
         editing? (r/cursor state [:editing?])
         annotator-enabled? (r/cursor state [:annotator-enabled?])
         annotation-context-class (r/cursor state [:context :class])]
-    #_(when-not (= @annotation-context-class
-                 "open access pdf"))
     (dispatch [:reload [:annotation/user-defined-annotations
                         @(subscribe [:visible-article-id])
                         state]])
@@ -477,7 +472,7 @@
       [:div.annotation-capture
        {:on-mouse-up (fn [e]
                        (when @annotator-enabled?
-                         (reset! selection (-> ($ js/rangy getSelection)
+                         (reset! selection (-> ($ js/window getSelection)
                                                ($ toString)))
                          (reset! client-x ($ e :clientX))
                          (reset! client-y ($ e :clientY))
