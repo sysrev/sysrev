@@ -588,12 +588,6 @@
         (let [{:keys [project-id]} (-> request :params)]
           (api/prediction-histogram (parse-integer project-id)))))
 
-  (GET "/api/annotations/:article-id" request
-       (wrap-authorize
-        request {:allow-public true}
-        (let [article-id (-> request :params :article-id parse-integer)]
-          (api/article-abstract-annotations article-id))))
-
   (GET "/api/charts/label-count-data" request
        (wrap-authorize
         request {:allow-public true}
@@ -602,8 +596,8 @@
   (GET "/api/open-access/:article-id/availability" [article-id]
        (api/open-access-available? (parse-integer article-id)))
 
-  (GET "/api/open-access/:article-id/view" [article-id]
-       (api/open-access-pdf (parse-integer article-id)))
+  (GET "/api/open-access/:article-id/view/:key" [article-id key]
+       (api/open-access-pdf (parse-integer article-id) key))
 
   (POST "/api/files/article/:article-id/upload-pdf" request
         (wrap-authorize
@@ -644,6 +638,54 @@
          (let [project-id (active-project request)
                {:keys [users-map]} (:body request)]
            (api/change-project-permissions project-id users-map))))
+
+  (POST "/api/annotation" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [body (-> request :body)
+               {:keys [article-id selection annotation]} (:annotation-map body)
+               annotation-class (get-in body [:context :class])
+               pdf-key (get-in body [:context :pdf-key])
+               user-id (current-user-id request)]
+           (condp = annotation-class
+             "abstract"
+             (api/save-article-annotation article-id user-id selection annotation)
+             "pdf"
+             (api/save-article-annotation article-id user-id selection annotation :pdf-key pdf-key)
+             ))))
+
+  (POST "/api/annotation/update/:annotation-id" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [annotation-id (-> request :params :annotation-id parse-integer)
+               {:keys [annotation semantic-class]} (-> request :body)
+               user-id (current-user-id request)]
+           (api/update-annotation! annotation-id annotation semantic-class (parse-integer user-id)))))
+
+  (GET "/api/annotations/user-defined/:article-id" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)]
+          (api/user-defined-annotations article-id))))
+
+  (GET "/api/annotations/user-defined/:article-id/pdf/:pdf-key" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)
+              pdf-key (-> request :params :pdf-key)]
+          (api/user-defined-pdf-annotations article-id pdf-key))))
+
+  (GET "/api/annotations/:article-id" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [article-id (-> request :params :article-id parse-integer)]
+          (api/article-abstract-annotations article-id))))
+
+  (POST "/api/annotations/delete/:annotation-id" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [annotation-id (-> request :params :annotation-id parse-integer)]
+           (api/delete-annotation! annotation-id))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

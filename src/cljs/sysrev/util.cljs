@@ -8,7 +8,8 @@
    [cljs-time.coerce :as tc]
    [cljs-time.format :as tformat]
    [cljsjs.jquery]
-   [sysrev.shared.util :refer [parse-integer]]))
+   [sysrev.shared.util :refer [parse-integer]])
+  (:require-macros [reagent.interop :refer [$]]))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed 
@@ -232,3 +233,17 @@
         js/Number
         js/isNaN
         not)))
+
+(defn get-input-value
+  [event]
+  (-> event
+      ($ :target)
+      ($ :value)))
+
+(defn vector->hash-map
+  "Convert a vector into a hash-map with keys that correspond to the val of kw in each element"
+  [v kw]
+  (->> v
+       (map #(hash-map (kw %)
+                       %))
+       (apply merge)))
