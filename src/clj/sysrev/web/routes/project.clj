@@ -466,6 +466,8 @@
               args (-> request :query-params)
               n-count (some-> (get args "n-count") parse-integer)
               n-offset (some-> (get args "n-offset") parse-integer)
+              lookup-count (let [value (get args "lookup-count")]
+                             (boolean (or (true? value) (= value "true"))))
               label-users
               (when-let [label-user (get args "label-user")]
                 (->> (str/split label-user #",")
@@ -485,14 +487,18 @@
                          label-ids)]
                    (apply concat)
                    (remove nil?)
-                   vec)]
+                   vec)
+              query-result
+              (alist/query-project-article-list
+               project-id (cond-> {}
+                            n-count (merge {:n-count n-count})
+                            n-offset (merge {:n-offset n-offset})
+                            (not-empty filters) (merge {:filters filters})))]
           (update-user-default-project request)
           {:result
-           (alist/query-project-article-list
-            project-id (cond-> {}
-                         n-count (merge {:n-count n-count})
-                         n-offset (merge {:n-offset n-offset})
-                         (not-empty filters) (merge {:filters filters})))})))
+           (if lookup-count
+             (:total-count query-result)
+             (:entries query-result))})))
 
   (POST "/api/sync-project-labels" request
         (wrap-authorize

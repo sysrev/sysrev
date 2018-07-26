@@ -1,13 +1,14 @@
 (ns sysrev.routes
-  (:require
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
-   [re-frame.db :refer [app-db]]
-   [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
-   [sysrev.shared.util :refer [parse-integer]]
-   [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
-   [sysrev.nav :refer [nav nav-scroll-top nav-redirect]]
-   [sysrev.macros])
+  (:require [re-frame.core :as re-frame :refer
+             [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
+            [re-frame.db :refer [app-db]]
+            [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
+            [sysrev.shared.util :refer [parse-integer]]
+            [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
+            [sysrev.nav :refer [nav nav-scroll-top nav-redirect]]
+            [sysrev.views.article-list :as article-list]
+            [sysrev.views.panels.project.articles :as project-articles]
+            [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
                    [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
 
@@ -51,7 +52,7 @@
  articles "/articles" [project-id]
  (let [project-id @(subscribe [:active-project-id])
        panel [:project :project :articles]
-       args @(subscribe [:article-list/query-args panel])
+       args (article-list/query-args (project-articles/current-state))
        item [:project/article-list project-id args]
        set-panel [:set-active-panel [:project :project :articles]]
        ensure-visible #(ensure-dom-elt-visible-soon
@@ -64,13 +65,15 @@
      (dispatch set-panel))
    (if (and on-article? data-loaded?)
      (do (dispatch set-panel)
-         (dispatch [:project-articles/hide-article])
-         (ensure-visible))
+         (project-articles/hide-article)
+         ;; (ensure-visible)
+         )
      (do (dispatch
           [:data/after-load item :project-articles-route
            (list set-panel
-                 [:project-articles/hide-article]
-                 ensure-visible)])
+                 project-articles/hide-article
+                 ;; ensure-visible
+                 )])
          (dispatch [:require item])
          (dispatch [:reload item])))))
 
@@ -86,9 +89,9 @@
    (dispatch
     [:data/after-load item :project-articles-route
      (list set-panel
-           [:project-articles/show-article article-id]
-           #(ensure-dom-elt-visible-soon
-             ".article-view div.ui.segment.article-nav"))])
+           (project-articles/show-article article-id)
+           #_ #(ensure-dom-elt-visible-soon
+                ".article-view div.ui.segment.article-nav"))])
    (dispatch [:require item])
    (dispatch [:reload item])))
 

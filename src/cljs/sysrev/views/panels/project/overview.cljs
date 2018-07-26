@@ -8,7 +8,6 @@
              [subscribe dispatch reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.views.article-list :refer [group-statuses]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]

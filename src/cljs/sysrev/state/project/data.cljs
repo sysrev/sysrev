@@ -72,15 +72,34 @@
     {:db (assoc-in db [:data :project project-id :public-labels]
                    (sr-transit/decode-public-labels result))}))
 
+(def-data :project/article-list-count
+  :loaded? (fn [db project-id args]
+             (-> (get-in db [:data :project project-id :article-list-count])
+                 (contains? args)))
+  :uri (fn [project-id] "/api/project-articles")
+  :content (fn [project-id args]
+             (merge {:project-id project-id} args
+                    {:lookup-count true}))
+  :prereqs (fn [project-id]
+             [[:identity]
+              [:project project-id]])
+  :process
+  (fn [{:keys [db]} [project-id args] result]
+    {:db (assoc-in db [:data :project project-id :article-list-count args]
+                   result)}))
+
 (def-data :project/article-list
   :loaded? (fn [db project-id args]
              (-> (get-in db [:data :project project-id :article-list])
                  (contains? args)))
   :uri (fn [project-id] "/api/project-articles")
   :content (fn [project-id args]
-             (merge {:project-id project-id}
-                    args))
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+             (merge {:project-id project-id} args))
+  :prereqs (fn [project-id args]
+             [[:identity]
+              [:project project-id]
+              [:project/article-list-count
+               project-id (dissoc args :n-count :n-offset)]])
   :process
   (fn [{:keys [db]} [project-id args] result]
     {:db (assoc-in db [:data :project project-id :article-list args]
@@ -92,6 +111,13 @@
    [(subscribe [:project/raw project-id])])
  (fn [[project] [_ project-id args]]
    (get-in project [:article-list args])))
+
+(reg-sub
+ :project/article-list-count
+ (fn [[_ project-id args]]
+   [(subscribe [:project/raw project-id])])
+ (fn [[project] [_ project-id args]]
+   (get-in project [:article-list-count args])))
 
 (def-data :project/sources
   :loaded? (fn [db project-id]

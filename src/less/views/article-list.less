@@ -12,6 +12,25 @@
     border-bottom-color: @lightGrey;
 }
 
+.ui.segments > .ui.attached.grid.segment.article-list-full-article {
+    margin: 0;
+    padding-top: 1.5em;
+    padding-bottom: 1.5em;
+    padding-left: 1em;
+    padding-right: 1em;
+    min-height: 60px;
+}
+
+.ui.segments > .ui.attached.grid.segment.article-list-full-article,
+.ui.segments > .ui.attached.grid.segment.article-list-full-article
+             .ui.active.inverted.dimmer {
+    background-color: @partialSegmentBackground;
+}
+
+.ui.segments > .ui.attached.grid.segment.article-list-full-article > div {
+    padding: 0;
+}
+
 .ui.segments > .ui.attached.grid.segment.article-list-article:last-child {
     border-bottom-width: 0px;
 }
@@ -106,7 +125,7 @@ div.article-filters .ui.bottom.attached.segment {
     margin-bottom: 1em !important;
 }
 
-.article-list-article > div.ui.row i.right.chevron.icon {
+.article-list-article > div.ui.row i.chevron.icon {
     color: @text;
 }
 
