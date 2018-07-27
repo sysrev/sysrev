@@ -5,7 +5,8 @@
             [goog.history.EventType :as EventType]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-event-db trim-v]]
-            [re-frame.db :refer [app-db]])
+            [re-frame.db :refer [app-db]]
+            [clojure.string :as str])
   (:require-macros [secretary.core :refer [defroute]]))
 
 (defonce sysrev-hostname "sysrev.com")
@@ -48,17 +49,18 @@
 (defonce history
   (pushy/pushy
    secretary/dispatch!
-   (fn [x]
-     (if (secretary/locate-route x)
-       (do (when (not= x @active-route)
-             (when-let [user-uuid (subscribe [:user/uuid])]
-               (ga "set" "location" (str js/window.location.origin))
-               (ga "set" "page" (str x))
-               (ga "set" "userId" (str @user-uuid))
-               (ga "send" "pageview")))
-           (reset! active-route x)
-           x)
-       (do (pushy/replace-token! history "/")
-           nil)))))
+   (fn [url]
+     (let [route (first (str/split url #"\?"))]
+       (if (secretary/locate-route route)
+         (do (when (not= url @active-route)
+               (when-let [user-uuid (subscribe [:user/uuid])]
+                 (ga "set" "location" (str js/window.location.origin))
+                 (ga "set" "page" (str route))
+                 (ga "set" "userId" (str @user-uuid))
+                 (ga "send" "pageview")))
+             (reset! active-route url)
+             url)
+         (do (pushy/replace-token! history "/")
+             nil))))))
 
 (def default-db {})

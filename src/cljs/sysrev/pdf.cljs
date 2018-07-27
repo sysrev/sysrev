@@ -303,8 +303,7 @@
       [:div#article-pdfs.ui.attached.segment
        {:style {:min-height "60px"}}
        (with-loader [[:article project-id article-id]
-                     [:pdf/article-pdfs project-id article-id]]
-         {:dimmer :fixed :class ""}
+                     [:pdf/article-pdfs project-id article-id]] {}
          (let [full-size? (full-size?)
                inline-loader
                (fn []

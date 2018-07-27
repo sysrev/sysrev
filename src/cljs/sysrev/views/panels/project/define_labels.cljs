@@ -31,7 +31,50 @@
 (def initial-state {:server-syncing? false
                     :read-only-message-closed? false})
 
-(def state (r/cursor app-db [:state :panels :project :define-labels]))
+(defonce state (r/cursor app-db [:state :panels panel]))
+
+(defn- saved-labels
+  "Get the label values for project from the app-db"
+  []
+  (let [db @app-db]
+    (get-in @app-db [:data :project (active-project-id @app-db) :labels])))
+
+(defn map-labels
+  "Apply f to each label in labels"
+  [f labels]
+  (->> labels vals
+       (map f)
+       (map #(hash-map (:label-id %) %))
+       (apply merge)))
+
+(defn labels->local-labels
+  "Add default answers to each label"
+  [labels]
+  (let [insert-answer-fn (fn [label-value]
+                           (condp = (:value-type label-value)
+                             "boolean"
+                             (assoc label-value :answer nil)
+                             (assoc label-value :answer [])))
+        add-local-keys (fn [label-value]
+                         (-> label-value
+                             (assoc :editing? false)
+                             (assoc :hovering? false)))]
+    (map-labels (comp insert-answer-fn add-local-keys)
+                labels)))
+
+(defn sync-local-labels!
+  "Sync the local state labels with labels map. Labels should already have the proper local keys added to them via labels->local-labels"
+  [labels]
+  (swap! state
+         assoc-in [:labels]
+         labels))
+
+(defn ensure-state []
+  (when (nil? @state)
+    (reset! state initial-state))
+  (let [labels (r/cursor state [:labels])]
+    (when (empty? @labels)
+      (sync-local-labels! (labels->local-labels (saved-labels))))))
 
 (reg-event-fx
  :define-labels/reset-state!
@@ -94,41 +137,7 @@
   [label]
   (swap! state assoc-in [:labels (:label-id label)] label))
 
-(defn- saved-labels
-  "Get the label values for project from the app-db"
-  []
-  (let [db @app-db]
-    (get-in @app-db [:data :project (active-project-id @app-db) :labels])))
 
-(defn map-labels
-  "Apply f to each label in labels"
-  [f labels]
-  (->> labels vals
-       (map f)
-       (map #(hash-map (:label-id %) %))
-       (apply merge)))
-
-(defn labels->local-labels
-  "Add default answers to each label"
-  [labels]
-  (let [insert-answer-fn (fn [label-value]
-                           (condp = (:value-type label-value)
-                             "boolean"
-                             (assoc label-value :answer nil)
-                             (assoc label-value :answer [])))
-        add-local-keys (fn [label-value]
-                         (-> label-value
-                             (assoc :editing? false)
-                             (assoc :hovering? false)))]
-    (map-labels (comp insert-answer-fn add-local-keys)
-                labels)))
-
-(defn sync-local-labels!
-  "Sync the local state labels with labels map. Labels should already have the proper local keys added to them via labels->local-labels"
-  [labels]
-  (swap! state
-         assoc-in [:labels]
-         labels))
 
 (defn errors-in-labels?
   "Are there errors in the labels?"
@@ -752,10 +761,7 @@
                      @(subscribe [:user/admin?]))
           labels (r/cursor state [:labels])
           read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
-      (when (empty? @state)
-        (reset! state initial-state))
-      (when (empty? @labels)
-        (sync-local-labels! (labels->local-labels (saved-labels))))
+      (ensure-state)
       [:div.define-labels
        [ReadOnlyMessage
         "Editing label definitions is restricted to project administrators."

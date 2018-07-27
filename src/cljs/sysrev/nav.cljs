@@ -2,28 +2,36 @@
   (:require [secretary.core :as secretary]
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-fx]]
+            [cljs-http.client :as hc]
             [sysrev.base :refer [history]]
-            [sysrev.util :refer [scroll-top]]))
+            [sysrev.util :refer [scroll-top]]
+            [clojure.string :as str]))
 
 (defn force-dispatch [uri]
   (secretary/dispatch! uri))
 
+(defn make-url [route & [params]]
+  (let [hash (hc/generate-query-string params)]
+    (if (empty? hash)
+      route
+      (str route "?" hash))))
+
 (defn nav
   "Change the current route."
-  [route]
-  (pushy/set-token! history route))
+  [route & {:keys [params]}]
+  (pushy/set-token! history (make-url route params)))
 
 (defn nav-redirect
   "Change the current route and remove from HTML5 history stack."
-  [route & {:keys [scroll-top?]}]
-  (pushy/replace-token! history route)
+  [route & {:keys [params scroll-top?]}]
+  (pushy/replace-token! history (make-url route params))
   (when scroll-top?
     (scroll-top)))
 
 (defn nav-scroll-top
   "Change the current route then scroll to top of page."
-  [route]
-  (pushy/set-token! history route)
+  [route & {:keys [params]}]
+  (pushy/set-token! history (make-url route params))
   (scroll-top))
 
 (reg-event-db
@@ -62,6 +70,14 @@
 
 (defn ^:export set-token [path]
   (pushy/set-token! history path))
+
+(defn get-url-params []
+  (let [s js/window.location.search
+        query (if (and (string? s)
+                       (str/starts-with? s "?"))
+                (subs s 1)
+                s)]
+    (hc/parse-query-params query)))
 
 (reg-fx
  :set-page-title

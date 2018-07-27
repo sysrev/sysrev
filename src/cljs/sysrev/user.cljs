@@ -24,7 +24,8 @@
             [cljs-time.core :as t]
             [clojure.spec.alpha :as s]
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
-            [re-frame.db :refer [app-db]])
+            [re-frame.db :refer [app-db]]
+            [cognitect.transit :as transit])
   (:require-macros [sysrev.macros :refer [import-vars]]))
 
 (defn populate-user-ns []
@@ -41,6 +42,7 @@
   (import-vars 'sysrev.shared.keywords)
   (import-vars 'sysrev.shared.spec.core)
   (import-vars 'sysrev.shared.spec.article)
+  (import-vars 'sysrev.nav)
   true)
 
 (populate-user-ns)

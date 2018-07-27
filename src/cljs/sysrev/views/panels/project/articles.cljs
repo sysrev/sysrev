@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.articles
-  (:require [clojure.string :as str]
-            [reagent.core :as r]
+  (:require [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
@@ -24,7 +23,7 @@
     (reset! state initial-state)))
 
 (defn current-state []
-  (al/current-state al-state (al/panel-defaults panel)))
+  (al/current-state @al-state (al/panel-defaults panel)))
 
 (reg-sub
  :project-articles/article-id
@@ -55,13 +54,13 @@
   false)
 
 (defn show-article [article-id]
-  (al/set-active-article al-state article-id))
+  [:article-list/set-active-article panel article-id])
 
-(defn hide-article []
-  (al/set-active-article al-state nil))
+(def hide-article
+  [:article-list/set-active-article panel nil])
 
 (defn reset-filters []
-  (al/reset-filters al-state))
+  (al/reset-filters al-state (current-state)))
 
 (defn set-group-status []
   ;; TODO: function
@@ -75,5 +74,5 @@
   (fn [child]
     (when-let [project-id @(subscribe [:active-project-id])]
       [:div.project-content
-       [al/ArticleListPanel al-state {}]
+       [al/ArticleListPanel al-state (al/panel-defaults panel)]
        child])))
