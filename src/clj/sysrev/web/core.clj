@@ -131,7 +131,7 @@
           (reset! web-server-config config)
           (stop-web-server)
           (reset! web-server
-                  (run-server (sysrev-handler (if prod? false true))
+                  (run-server (sysrev-handler false #_ (if prod? false true))
                               {:port port
                                :join? (if prod? true false)
                                :max-body 209715200}))
