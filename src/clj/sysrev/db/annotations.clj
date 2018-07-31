@@ -213,3 +213,34 @@
     (if-not (nil? current-semantic-class)
       (dissociate-semantic-class! annotation-id (:id current-semantic-class)))))
 
+
+(defn project-annotations
+  "Retrieve all annotations for project-id"
+  [project-id]
+  (-> (select :an.selection :an.annotation :a.public_id
+              :a.article_id
+              :sc.definition :s3.key :s3.filename)
+      (from [:annotation :an])
+      (join
+       ;; annotation article
+       [:annotation_article :aa]
+       [:= :aa.annotation_id :an.id]
+       ;; article
+       [:article :a]
+       [:= :a.article_id :aa.article_id]
+       ;; annotation semantic class
+       [:annotation_semantic_class :asc]
+       [:= :an.id :asc.annotation_id]
+       ;; semantic class
+       [:semantic_class :sc]
+       [:= :sc.id :asc.semantic_class_id])
+      (left-join
+       ;; annotation_s3store
+       [:annotation_s3store :as3]
+       [:= :an.id :as3.annotation_id]
+       ;; s3store
+       [:s3store :s3]
+       [:= :s3.id :as3.s3store_id])
+      (where [:= :a.project_id project-id])
+      ;;(sql/format)
+      do-query))
