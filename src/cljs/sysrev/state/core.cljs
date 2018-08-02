@@ -27,6 +27,29 @@
  :reset-data
  (fn [reset?] (when reset? (dispatch [:reset-data]))))
 
+(reg-event-fx
+ :reset-ui
+ (fn [{:keys [db]}]
+   {:db (-> db
+            (dissoc-in [:state :review])
+            (dissoc-in [:state :panels]))
+    :fetch-missing true}))
+
+(reg-fx
+ :reset-ui
+ (fn [reset?] (when reset? (dispatch [:reset-ui]))))
+
+(reg-event-fx
+ :reset-needed
+ (fn [{:keys [db]}]
+   {:db (-> db (assoc :needed []))
+    :dispatch [:require [:identity]]
+    :fetch-missing true}))
+
+(reg-fx
+ :reset-needed
+ (fn [reset?] (when reset? (dispatch [:reset-needed]))))
+
 (reg-sub
  :initialized?
  :<- [:have-identity?]

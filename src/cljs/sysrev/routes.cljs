@@ -23,8 +23,7 @@
  (let [logged-in? (subscribe [:self/logged-in?])
        recent-project-id (subscribe [:recent-active-project])
        default-project-id (subscribe [:self/default-project-id])]
-   (dispatch [:data/after-load [:identity] :default-route
-              [:set-active-panel [:root]]])
+   (dispatch [:set-active-panel [:root]])
    (dispatch [:require [:identity]])
    (dispatch [:reload [:identity]])))
 

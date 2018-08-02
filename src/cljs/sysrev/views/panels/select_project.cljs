@@ -39,9 +39,12 @@
 
 (defn ProjectsListSegment [title projects member?]
   (with-loader [[:identity]] {}
-    (when (not-empty projects)
+    (when (or (not-empty projects) (true? member?))
       [:div.ui.segments.projects-list
        {:class (if member? "member" "non-member")}
+       (when @(subscribe [:loading? [:identity]])
+         [:div.ui.active.inverted.dimmer
+          [:div.ui.loader]])
        [:div.ui.segment
         [:h5.ui.header title]]
        (doall
