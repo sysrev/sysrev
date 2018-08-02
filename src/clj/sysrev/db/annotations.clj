@@ -219,8 +219,10 @@
   "Retrieve all annotations for project-id"
   [project-id]
   (-> (select :an.selection :an.annotation :a.public_id
-              :a.article_id
-              :sc.definition :s3.key :s3.filename)
+              ;; some of these fields are needed to match 'text-context-article-field-match'
+              :a.article_id :a.primary_title :a.secondary_title :a.abstract
+              :sc.definition :s3.key :s3.filename
+              :an.context)
       (from [:annotation :an])
       (join
        ;; annotation article

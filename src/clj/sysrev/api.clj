@@ -819,7 +819,13 @@
                                         (:key %)))
                   %))
          (mapv #(rename-keys % {:definition :semantic-class}))
-         (mapv #(select-keys % [:selection :annotation :semantic-class :pmid :article-id :pdf-source])))))
+         (mapv (fn [result]
+                 (let [text-context (get-in result [:context :text-context])
+                       field (:field text-context)]
+                   (if (map? text-context)
+                     (assoc-in result [:context :text-context] (get result (keyword field)))
+                     (assoc-in result [:context :text-context] text-context)))))
+         (mapv #(select-keys % [:selection :annotation :semantic-class :pmid :article-id :pdf-source :context])))))
 
 (defn change-project-permissions [project-id users-map]
   (try
