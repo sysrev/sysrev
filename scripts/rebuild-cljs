@@ -1,0 +1,5 @@
+#!/bin/bash
+set -eux
+
+rm -r resources/public/out-production 2> /dev/null || true
+lein cljsbuild once production
