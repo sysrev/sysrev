@@ -476,9 +476,6 @@
         annotator-enabled? (r/cursor state [:annotator-enabled?])
         annotation-context-class (r/cursor state [:context :class])
         context (r/cursor state [:context])]
-    (dispatch [:reload [:annotation/user-defined-annotations
-                        @(subscribe [:visible-article-id])
-                        state]])
     (fn [state child]
       [:div.annotation-capture
        {:on-mouse-up (fn [e]

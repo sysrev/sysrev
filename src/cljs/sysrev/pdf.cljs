@@ -191,6 +191,10 @@
     (r/create-class
      {:reagent-render
       (fn []
+        ;; get the user defined annotations
+        (dispatch [:reload [:annotation/user-defined-annotations
+                            @(subscribe [:visible-article-id])
+                            annotator-state]])
         [:div
          [:div
           [:button.ui.button

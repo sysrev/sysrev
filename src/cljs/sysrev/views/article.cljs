@@ -239,6 +239,10 @@
         full-size? (full-size?)
         score @(subscribe [:article/score article-id])
         duplicates @(subscribe [:article/duplicates article-id])]
+    ;; get the user-defined annotations
+    (dispatch [:reload [:annotation/user-defined-annotations
+                        @(subscribe [:visible-article-id])
+                        annotation/abstract-annotator-state]])
     [:div
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
