@@ -49,6 +49,9 @@
 
 @internalBorderColor: rgba(34, 36, 38, 0.1);
 
+@subtleButtonColor: rgba(90, 90, 90, 1.0);
+@subtleButtonHoverColor: lighten(@subtleButtonColor, 2);
+
 .ui.segment,
 .ui.segments,
 .ui.menu,
@@ -58,4 +61,26 @@
 
 .ui.buttons .ui.active.button {
     background-color: #a8a9aa;
+}
+
+.ui.segments > .ui.no-padding.segment > .ui.button,
+.ui.segments > .ui.no-padding.segment > .ui.buttons > .ui.button,
+.ui.attached.no-padding.segment > .ui.button,
+.ui.attached.no-padding.segment > .ui.buttons > .ui.button {
+    color: @text;
+    background-color: @subtleButtonColor;
+}
+
+.ui.segments > .ui.no-padding.segment > .ui.button:hover,
+.ui.segments > .ui.no-padding.segment > .ui.buttons > .ui.button:hover,
+.ui.attached.no-padding.segment > .ui.button:hover,
+.ui.attached.no-padding.segment > .ui.buttons > .ui.button:hover {
+    background-color: @subtleButtonHoverColor;
+}
+
+.ui.segments > .ui.no-padding.segment > .ui.button:active,
+.ui.segments > .ui.no-padding.segment > .ui.buttons > .ui.button:active,
+.ui.attached.no-padding.segment > .ui.button:active,
+.ui.attached.no-padding.segment > .ui.buttons > .ui.button:active {
+    background-color: @subtleButtonHoverColor;
 }

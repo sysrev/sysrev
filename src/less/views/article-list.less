@@ -1,18 +1,15 @@
-.article-list-view > .ui.segment.article-nav,
-.article-view > .ui.segment.article-nav {
-    padding-top: 9px;
-    padding-bottom: 9px;
-    padding-left: 12px;
-    padding-right: 12px;
+.ui.segment.article-nav {
+    padding: 0.9em;
+    padding-right: 0.7em;
 }
 
-.ui.segments > .ui.attached.grid.segment.article-list-article {
+.ui.segments > .ui.grid.segment.article-list-article {
     margin: 0;
     border-bottom-width: 1px;
     border-bottom-color: @lightGrey;
 }
 
-.ui.segments > .ui.attached.grid.segment.article-list-full-article {
+.ui.segments > .ui.grid.segment.article-list-full-article {
     margin: 0;
     padding-top: 1.5em;
     padding-bottom: 1.5em;
@@ -21,17 +18,21 @@
     min-height: 60px;
 }
 
-.ui.segments > .ui.attached.grid.segment.article-list-full-article,
-.ui.segments > .ui.attached.grid.segment.article-list-full-article
+.ui.segments > .ui.grid.segment.article-list-full-article,
+.ui.segments > .ui.grid.segment.article-list-full-article
              .ui.active.inverted.dimmer {
     background-color: @partialSegmentBackground;
 }
 
-.ui.segments > .ui.attached.grid.segment.article-list-full-article > div {
+.ui.segments > .ui.grid.segment.article-list-full-article > div {
     padding: 0;
 }
 
-.ui.segments > .ui.attached.grid.segment.article-list-article:last-child {
+.ui.segments > .ui.segment.article-list-article-nav > .ui.buttons > .ui.button {
+    border-radius: 0;
+}
+
+.ui.segments > .ui.grid.segment.article-list-article:last-child {
     border-bottom-width: 0px;
 }
 
@@ -83,10 +84,6 @@ div.ui.segments.article-list-segments {
     margin-bottom: 10px;
 }
 
-div.ui.segments.article-list-segments > div.ui.attached.segment {
-    border-left: 0;
-}
-
 div.column.article-answers {
     height: 100%;
 }
@@ -125,6 +122,24 @@ div.article-filters .ui.bottom.attached.segment {
     margin-bottom: 1em !important;
 }
 
+div.article-filters .ui.segment.filters-content {
+    padding: 0.7em;
+    padding-top: 0.4em;
+    padding-bottom: 0.1em;
+}
+
+div.article-filters .ui.segment.filters-minimal > .row {
+    padding-top: 0.6em;
+    padding-bottom: 0.6em;
+}
+
+div.article-filters .ui.segment.filters-minimal > .row > .column.filters-summary {
+    padding-left: 0.7em;
+}
+div.article-filters .ui.segment.filters-minimal > .row > .column.control-buttons {
+    padding-right: 0.2em;
+}
+
 .article-list-article > div.ui.row i.chevron.icon {
     color: @text;
 }
@@ -139,6 +154,13 @@ div.article-filters .ui.buttons.three-state-icon .ui.button {
 
 div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
     font-size: 17px;
+}
+
+div.article-filters .ui.form .field.control-buttons {
+    padding-right: 0;
+}
+
+div.article-filters .ui.form .field.control-buttons .ui.button {
 }
 
 .article-list-article .ui.list>.item .header {
@@ -169,28 +191,24 @@ div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
         padding-left: 3px;
     }
 
-    .article-list-view > .ui.segment.article-nav,
-    .article-view > .ui.segment.article-nav {
+    .ui.segment.article-nav {
         padding: 0.3em;
     }
 
-    .article-view > .ui.segment.article-nav > .ui.grid > .column,
-    .article-list-view > .ui.segment.article-nav > .ui.grid > .column {
+    .ui.segment.article-nav > .ui.grid > .column {
         padding: 0.75em;
     }
 
-    .article-list-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column {
+    .ui.segment.article-nav > .ui.grid > .right.aligned.column {
         padding-left: 0;
         padding-right: 0.5em;
     }
 
-    .article-view > .ui.segment.article-nav > .ui.grid > .left.aligned.column h5,
-    .article-list-view > .ui.segment.article-nav > .ui.grid > .left.aligned.column h5 {
+    .ui.segment.article-nav > .ui.grid > .left.aligned.column h5 {
         font-size: 12px;
     }
 
-    .article-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button,
-    .article-list-view > .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button {
+    .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button {
         font-size: 10px;
         padding: 0.75em;
     }

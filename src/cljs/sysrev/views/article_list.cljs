@@ -33,7 +33,12 @@
      {:label-id overall-id}
      :offset 0
      :base-uri (fn [project-id]
-                 (project-uri project-id "/articles"))}))
+                 (project-uri project-id "/articles"))
+     :display
+     {:expand-filters false
+      :show-inclusion true
+      :show-labels false
+      :show-notes false}}))
 
 (defn panel-state-path [panel]
   [:state :panels panel :article-list])
@@ -227,6 +232,13 @@
    (let [path (panel-state-path panel)]
      (assoc-in db (concat path [:recent-nav-action]) action))))
 
+(reg-event-db
+ :article-list/toggle-display-option
+ [trim-v]
+ (fn [db [panel key value]]
+   (let [path (panel-state-path panel)]
+     (assoc-in db (concat path [:display key]) value))))
+
 (defn set-display-offset [state cstate offset]
   (nav-list cstate :params {:offset offset}))
 
@@ -316,73 +328,79 @@
                    #(let [later-value @input]
                       (when (= value later-value)
                         (reset! filter-cursor value)))
-                   500)))}]
+                   750)))}]
      [:i.search.icon]]))
 
 (defn- ArticleListFilters [state defaults]
   (let [cstate (current-state @state defaults)
-        {:keys [recent-nav-action]} cstate
+        {:keys [recent-nav-action panel display]} cstate
+        {:keys [expand-filters show-inclusion
+                show-labels show-notes]} display
         project-id @(subscribe [:active-project-id])
         loading? @(subscribe [:any-loading? :project/article-list])
-
-        refresh-button
-        [:button.ui.right.labeled.icon.button.refresh-button
-         {:class (if (and loading? (= recent-nav-action :refresh))
-                   "loading" "")
-          :style {:width "100%"}
-          :on-click #(reload-list cstate)}
-         [:i.repeat.icon]
-         (if (full-size?) "Refresh" "Refresh")]]
+        view-button
+        (fn [option-key label]
+          (let [status (get display option-key)]
+            [:button.ui.small.labeled.icon.button
+             {:on-click
+              #(dispatch [:article-list/toggle-display-option
+                          panel option-key (not status)])}
+             (if status
+               [:i.green.circle.icon]
+               [:i.grey.circle.icon])
+             label]))]
     [:div.article-filters
-     [:div.ui.secondary.top.attached.segment
-      {:style {:padding "10px"}}
-      [:div.ui.two.column.grid
-       [:div.middle.aligned.row
-        {:style {:padding-top "9px"
-                 :padding-bottom "9px"}}
-        [:div.left.aligned.column
-         [:h4 "Filters"]]
-        [:div.right.aligned.column
-         [:button.ui.tiny.right.labeled.icon.button
-          [:i.erase.icon]
-          "Reset"]]]]]
-     [:div.ui.secondary.attached.segment.filters-content
-      {:style {:padding "10px"}}
-      [:div.ui.small.form
-       [:div.field
-        [:div.fields
-         [:div.four.wide.field
-          [:label "Text search"]
-          [TextSearchInput state defaults]]
-         [:div.five.wide.field
-          [:label "View Mode"]
-          [:div {:style { ;; :text-align "center"
-                         :width "100%"}}
-           [:button.ui.labeled.icon.button
-            [:i.green.circle.icon]
-            "Self"]
-           [:button.ui.labeled.icon.button
-            [:i.grey.circle.icon]
-            "Consensus"]]]
-         [:div.five.wide.field
-          [:label "View Options"]
-          [:div {:style { ;; :text-align "center"
-                         :width "100%"}}
-           [:button.ui.labeled.icon.button
-            [:i.green.circle.icon]
-            "Labels"]
-           [:button.ui.labeled.icon.button
-            [:i.green.circle.icon]
-            "Notes"]]]
-         [:div.two.wide.field [:label nbsp] refresh-button]]]]]
-     [:div.ui.secondary.bottom.attached.segment
-      {:style {:padding "0px"}}
+     (if expand-filters
+       [:div.ui.secondary.top.attached.segment.filters-content
+        [:div.ui.small.form
+         [:div.field
+          [:div.fields
+           [:div.four.wide.field
+            [:label "Text search"]
+            [TextSearchInput state defaults]]
+           [:div.six.wide.field
+            [:label "View Options"]
+            [view-button :show-inclusion "Inclusion"]
+            [view-button :show-labels "Labels"]
+            [view-button :show-notes "Notes"]]
+           [:div.two.wide.field]
+           [:div.four.wide.right.aligned.field.control-buttons
+            [:label nbsp]
+            [:div {:style {:width "100%"
+                           :text-align "right"}}
+             [:button.ui.right.labeled.small.icon.button.refresh-button
+              {:class (if (and loading? (= recent-nav-action :refresh))
+                        "loading" "")
+               :on-click #(reload-list cstate)}
+              [:i.repeat.icon]
+              (if (full-size?) "Refresh" "Refresh")]
+             [:button.ui.small.right.labeled.icon.button
+              [:i.erase.icon]
+              "Reset"]]]]]]]
+       [:div.ui.secondary.top.attached.middle.aligned.grid.segment.filters-minimal
+        [:div.row
+         [:div.ten.wide.column.filters-summary
+          [:span {:style {:font-size "15px"}}
+           "Filters: "
+           [:span {:style {:font-style "italic"}}
+            "all articles"]]]
+         [:div.six.wide.column.right.aligned.control-buttons
+          [:button.ui.small.icon.button
+           {:class (if (and loading? (= recent-nav-action :refresh))
+                     "loading" "")
+            :on-click #(reload-list cstate)}
+           [:i.repeat.icon]]
+          [:button.ui.small.icon.button
+           [:i.erase.icon]]]]])
+     [:div.ui.secondary.bottom.attached.segment.no-padding
       [:button.ui.tiny.fluid.icon.button
        {:style {:border-top-left-radius "0"
-                :border-top-right-radius "0"
-                :padding-top "7px"
-                :padding-bottom "7px"}}
-       [:i.chevron.up.icon]]]]))
+                :border-top-right-radius "0"}
+        :on-click #(dispatch [:article-list/toggle-display-option
+                              panel :expand-filters (not expand-filters)])}
+       (if expand-filters
+         [:i.chevron.up.icon]
+         [:i.chevron.down.icon])]]]))
 
 (defn- ArticleListNavMessage [cstate]
   (let [{:keys [offset options]} cstate
@@ -601,36 +619,57 @@
         full-size? (full-size?)]
     [:div.ui.segments.article-list-segments
      (doall
-      (->>
-       articles
-       (map
-        (fn [{:keys [article-id] :as article}]
-          (let [recent? (= article-id recent-article)
-                active? (= article-id active-article)
-                have? @(subscribe [:have? [:article project-id article-id]])
-                classes (if (or active? recent?) "active" "")
-                loading? @(subscribe [:loading? [:article project-id article-id]])]
-            (doall
-             (list
-              [:a.ui.middle.aligned.attached.grid.segment.article-list-article
-               {:key [:list-row article-id]
-                :class (str (if recent? "active" ""))
-                :href (if active?
-                        (nav/make-url (panel-base-uri cstate)
-                                      (make-url-params cstate))
-                        (nav/make-url (article-uri cstate article-id)
-                                      (make-url-params cstate)))}
-               [ArticleListEntry state defaults article full-size?]]
-              (when (= article-id active-article)
-                [:div.ui.middle.aligned.attached.grid.segment.article-list-full-article
-                 {:key [:article-row article-id]
-                  :class (str (if recent? "active" "")
-                              " "
-                              (if loading? "article-loading" ""))}
-                 (when (and loading? (not have?))
-                   [:div.ui.active.inverted.dimmer
-                    [:div.ui.loader]])
-                 [ArticleContent state defaults article-id]]))))))))]))
+      (concat
+       (list
+        ^{:key :article-nav-header}
+        [ArticleListNavHeader state defaults])
+       (->>
+        articles
+        (map
+         (fn [{:keys [article-id] :as article}]
+           (let [recent? (= article-id recent-article)
+                 active? (= article-id active-article)
+                 have? @(subscribe [:have? [:article project-id article-id]])
+                 classes (if (or active? recent?) "active" "")
+                 loading? @(subscribe [:loading? [:article project-id article-id]])
+                 next-id (next-article-id cstate)
+                 prev-id (prev-article-id cstate)
+                 next-url (when next-id (article-uri cstate next-id))
+                 prev-url (when prev-id (article-uri cstate prev-id))]
+             (doall
+              (list
+               [:a.ui.middle.aligned.grid.segment.article-list-article
+                {:key [:list-row article-id]
+                 :class (str (if recent? "active" ""))
+                 :href (if active?
+                         (nav/make-url (panel-base-uri cstate)
+                                       (make-url-params cstate))
+                         (nav/make-url (article-uri cstate article-id)
+                                       (make-url-params cstate)))}
+                [ArticleListEntry state defaults article full-size?]]
+               (when (= article-id active-article)
+                 (doall
+                  (list
+                   [:div.ui.middle.aligned.segment.no-padding.article-list-article-nav
+                    {:key [:article-nav article-id]}
+                    [:div.ui.fluid.buttons
+                     [:a.ui.center.aligned.icon.button
+                      {:href prev-url
+                       :class (if prev-url nil "disabled")}
+                      [:i.left.chevron.icon]]
+                     [:a.ui.center.aligned.icon.button
+                      {:href next-url
+                       :class (if next-url nil "disabled")}
+                      [:i.right.chevron.icon]]]]
+                   [:div.ui.middle.aligned.grid.segment.article-list-full-article
+                    {:key [:article-row article-id]
+                     :class (str (if recent? "active" "")
+                                 " "
+                                 (if loading? "article-loading" ""))}
+                    (when (and loading? (not have?))
+                      [:div.ui.active.inverted.dimmer
+                       [:div.ui.loader]])
+                    [ArticleContent state defaults article-id]])))))))))))]))
 
 (defn ArticleListExpandedEntry [state defaults cstate article]
   (let [{:keys [article-id]} article
@@ -644,7 +683,7 @@
         loading? @(subscribe [:loading? [:article project-id article-id]])]
     (doall
      (list
-      [:a.ui.middle.aligned.attached.grid.segment.article-list-article
+      [:a.ui.middle.aligned.grid.segment.article-list-article
        {:key [:list-row article-id]
         :class (str (if recent? "active" ""))
         :href (if active?
@@ -652,7 +691,7 @@
                 (article-uri cstate article-id))}
        [ArticleListEntry state defaults article full-size?]]
       (when (= article-id active-article)
-        [:div.ui.middle.aligned.attached.grid.segment.article-list-full-article
+        [:div.ui.middle.aligned.grid.segment.article-list-full-article
          {:key [:article-row article-id]
           :class (str (if recent? "active" "")
                       " "
@@ -681,7 +720,6 @@
     [:div
      [ArticleListFilters state defaults]
      [:div.article-list-view
-      [ArticleListNavHeader state defaults]
       (with-loader [(list-data-query cstate)] {}
         (when (not-empty articles)
           [ArticleListContent state defaults]))]]))

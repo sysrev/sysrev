@@ -484,7 +484,7 @@
 (defn AnnotationToggleButton
   [state]
   (let [annotator-enabled? (r/cursor state [:annotator-enabled?])]
-    [:div.ui.label.tiny.button
+    [:div.ui.label.button
      {:on-click (fn [e]
                   (swap! annotator-enabled? not))}
      (if @annotator-enabled?

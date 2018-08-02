@@ -480,11 +480,17 @@
                                 (catch Throwable e
                                   nil)))
                      (remove nil?)))
+              text-search
+              (when-let [text-search (get args "text-search")]
+                (when (not-empty text-search)
+                  text-search))
               filters
               (->> [(map #(alist/filter-has-user-labels %)
                          label-users)
                     (map #(alist/filter-has-label-id %)
-                         label-ids)]
+                         label-ids)
+                    (when text-search
+                      [(alist/filter-free-text-search text-search)])]
                    (apply concat)
                    (remove nil?)
                    vec)
