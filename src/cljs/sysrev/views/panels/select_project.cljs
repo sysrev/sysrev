@@ -19,31 +19,36 @@
     (reset! state initial-state)))
 
 (defn ProjectListItem [{:keys [project-id name member?]}]
-  [:div.item
-   {:style {:width "100%"}}
-   [:a.ui.fluid.labeled.button
-    (if member?
-      {:href (project-uri project-id "")}
-      {:on-click #(dispatch [:action [:join-project project-id]])})
-    (if member?
-      [:div.ui.button "Open"]
-      [:div.ui.blue.button "Join"])
-    [:div.ui.fluid.basic.label
-     {:style {:text-align "left"}}
-     name]]])
+  (if member?
+    [:a.ui.middle.aligned.grid.segment.project-list-project
+     {:href (project-uri project-id "")}
+     [:div.row>div.sixteen.wide.column
+      [:h4.ui.header.blue-text
+       [:i.grey.list.alternate.outline.icon]
+       [:div.content
+        [:span.project-title name]]]]]
+    [:div.ui.middle.aligned.grid.segment.project-list-project.non-member
+     [:div.row>div.sixteen.wide.column
+      [:h4.ui.header
+       [:div.content
+        [:div.ui.small.blue.button
+         {:style {:margin-right "1em"}
+          :on-click #(dispatch [:action [:join-project project-id]])}
+         "Join"]
+        [:span.project-title name]]]]]))
 
-(defn ProjectsListSegment [title projects]
-  [:div.projects-list
-   [:div.ui.top.attached.header.segment
-    [:h4 title]]
-   [:div.ui.bottom.attached.segment
-    (with-loader [[:identity]] {:dimmer true}
-      [:div.ui.middle.aligned.relaxed.list
+(defn ProjectsListSegment [title projects member?]
+  (with-loader [[:identity]] {}
+    (when (not-empty projects)
+      [:div.ui.segments.projects-list
+       {:class (if member? "member" "non-member")}
+       [:div.ui.segment
+        [:h5.ui.header title]]
        (doall
         (->> projects
              (map (fn [{:keys [project-id] :as project}]
-                    ^{:key project-id}
-                    [ProjectListItem project]))))])]])
+                    ^{:key [:projects-list title project-id]}
+                    [ProjectListItem project]))))])))
 
 (defn SelectProject []
   (ensure-state)
@@ -53,8 +58,8 @@
           available-projects (->> all-projects (remove :member?))]
       [:div
        [CreateProject state]
-       [ProjectsListSegment "Your Projects" member-projects]
-       [ProjectsListSegment "Available Projects" available-projects]])))
+       [ProjectsListSegment "Your Projects" member-projects true]
+       [ProjectsListSegment "Available Projects" available-projects false]])))
 
 (defmethod panel-content panel []
   (fn [child]

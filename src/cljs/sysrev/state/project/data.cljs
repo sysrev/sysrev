@@ -7,7 +7,8 @@
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.shared.transit :as sr-transit]
-            [sysrev.util :refer [dissoc-in]]))
+            [sysrev.util :refer [dissoc-in]]
+            [sysrev.shared.util :as util]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
@@ -15,6 +16,19 @@
 (defn- load-project [db {:keys [project-id] :as project}]
   (update-in db [:data :project project-id]
              #(merge % project)))
+
+(def-data :public-projects
+  :loaded? (fn [db]
+             (-> (get-in db [:data])
+                 (contains? :public-projects)))
+  :uri (fn [] "/api/public-projects")
+  :prereqs (fn [] [[:identity]])
+  :process
+  (fn [{:keys [db]} [] {:keys [projects]}]
+    (let [projects-map (->> projects
+                            (group-by :project-id)
+                            (util/map-values first))]
+      {:db (-> db (assoc-in [:data :public-projects] projects-map))})))
 
 (def-data :project
   :loaded? project-loaded?
@@ -108,3 +122,17 @@
    [(subscribe [:project/article-counts project-id])])
  (fn [[{:keys [total]}]]
    (when total (> total 0))))
+
+(reg-sub
+ :public-projects
+ (fn [db [_]]
+   (get-in db [:data :public-projects])))
+
+(reg-sub
+ :public-project-ids
+ (fn [[]]
+   [(subscribe [:public-projects])])
+ (fn [[projects]]
+   (->> (vals projects)
+        (sort-by :project-id <)
+        (map :project-id))))

@@ -710,3 +710,11 @@
           do-execute))
     (finally
       (clear-project-cache project-id))))
+
+(defn all-public-projects []
+  (-> (select :project-id :name :settings)
+      (from :project)
+      (where [:= :enabled true])
+      (->> do-query
+           (filter #(-> % :settings :public-access true?))
+           (mapv #(select-keys % [:project-id :name])))))

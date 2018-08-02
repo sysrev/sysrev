@@ -821,6 +821,9 @@
       {:error internal-server-error
        :message (.getMessage e)})))
 
+(defn public-projects []
+  {:result {:projects (project/all-public-projects)}})
+
 (defn test-response
   "Server Sanity Check"
   []

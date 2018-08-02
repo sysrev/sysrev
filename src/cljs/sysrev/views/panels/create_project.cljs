@@ -25,7 +25,7 @@
 
 (defn CreateProject [state]
   [:div.panel
-   [:div.ui.segment.top
-    [:h3.ui.dividing.header
+   [:div.ui.secondary.segment
+    [:h4.ui.dividing.header
      "Create a New Project"]
     [CreateProjectForm state]]])

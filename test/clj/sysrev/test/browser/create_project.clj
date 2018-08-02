@@ -121,7 +121,7 @@
   (browser/go-project-route "/settings")
   (browser/click {:xpath "//button[contains(text(),'Project...')]"})
   (browser/click {:xpath "//button[text()='Confirm']"})
-  (browser/wait-until-exists {:xpath "//h3[contains(text(),'Create a New Project')]"}))
+  (browser/wait-until-exists {:xpath "//h4[contains(text(),'Create a New Project')]"}))
 
 (defn search-term-source-div-xpath
   "Given a search term, return a string of the xpath corresponding to the
