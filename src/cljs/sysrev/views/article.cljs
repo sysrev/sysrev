@@ -134,7 +134,9 @@
                                vals
                                (mapv :value)
                                (mapv #(hash-map :word %))))
-            delay 5]
+            delay 5
+            annotator-enabled? (r/cursor annotation/abstract-annotator-state
+                                         [:annotator-enabled?])]
         (when (= context :article-list)
           (get-annotations article-id :delay delay))
         [AnnotationCapture
@@ -142,11 +144,13 @@
          [:div
           [:h3.header
            (when-not (empty? title)
-             [AnnotatedText title annotations
-              (if (= context
-                     :review)
-                "underline green"
-                "underline #909090")])]
+             (if @annotator-enabled?
+               title
+               [AnnotatedText title annotations
+                (if (= context
+                       :review)
+                  "underline green"
+                  "underline #909090")]))]
           (when-not (empty? journal-name)
             [:h3.header {:style {:margin-top "0px"}}
              [render-keywords article-id journal-render
@@ -160,10 +164,12 @@
           ;; abstract, with annotations
 
           (when-not (empty? abstract)
-            [AnnotatedText abstract annotations
-             (if (= context
-                    :review)
-               "underline green")])
+            (if @annotator-enabled?
+              [:div abstract]
+              [AnnotatedText abstract annotations
+               (if (= context
+                      :review)
+                 "underline green")]))
           (when-not (empty? documents)
             [:div {:style {:padding-top "0.75em"}}
              [:div.content.ui.horizontal.list
@@ -233,6 +239,10 @@
         full-size? (full-size?)
         score @(subscribe [:article/score article-id])
         duplicates @(subscribe [:article/duplicates article-id])]
+    ;; get the user-defined annotations
+    (dispatch [:reload [:annotation/user-defined-annotations
+                        @(subscribe [:visible-article-id])
+                        annotation/abstract-annotator-state]])
     [:div
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}

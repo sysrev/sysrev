@@ -608,12 +608,13 @@
                {:keys [article-id selection annotation]} (:annotation-map body)
                annotation-class (get-in body [:context :class])
                pdf-key (get-in body [:context :pdf-key])
+               context (:context body)
                user-id (current-user-id request)]
            (condp = annotation-class
              "abstract"
-             (api/save-article-annotation article-id user-id selection annotation)
+             (api/save-article-annotation article-id user-id selection annotation :context context)
              "pdf"
-             (api/save-article-annotation article-id user-id selection annotation :pdf-key pdf-key)
+             (api/save-article-annotation article-id user-id selection annotation :pdf-key pdf-key :context context)
              ))))
 
   (POST "/api/annotation/update/:annotation-id" request
