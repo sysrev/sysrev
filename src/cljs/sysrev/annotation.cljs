@@ -455,6 +455,16 @@
                                  :user-annotations user-annotations}])
             (reverse (sort-by :id (vals @user-annotations)))))]))))
 
+(defn get-selection
+  "Get the current selection, with context, in the dom"
+  []
+  (let [current-selection ($ js/window getSelection)
+        range ($ current-selection getRangeAt 0)]
+    {:text-selection ($ current-selection toString)
+     :text-context (-> ($ range :commonAncestorContainer))
+     :start-offset ($ range :startOffset)
+     :end-offset ($ range :endOffset)}))
+
 (defn AnnotationCapture
   "Create an Annotator using state. A child is a single element which has text
   to be captured"
@@ -464,7 +474,8 @@
         client-y (r/cursor state [:client-y])
         editing? (r/cursor state [:editing?])
         annotator-enabled? (r/cursor state [:annotator-enabled?])
-        annotation-context-class (r/cursor state [:context :class])]
+        annotation-context-class (r/cursor state [:context :class])
+        context (r/cursor state [:context])]
     (dispatch [:reload [:annotation/user-defined-annotations
                         @(subscribe [:visible-article-id])
                         state]])
@@ -472,11 +483,15 @@
       [:div.annotation-capture
        {:on-mouse-up (fn [e]
                        (when @annotator-enabled?
-                         (reset! selection (-> ($ js/window getSelection)
-                                               ($ toString)))
-                         (reset! client-x ($ e :clientX))
-                         (reset! client-y ($ e :clientY))
-                         (reset! editing? false)))}
+                         (let [{:keys [text-selection text-context start-offset end-offset]} (get-selection)]
+                           (reset! selection text-selection)
+                           (swap! context assoc
+                                  :text-context ($ text-context :data)
+                                  :start-offset start-offset
+                                  :end-offset end-offset)
+                           (reset! client-x ($ e :clientX))
+                           (reset! client-y ($ e :clientY))
+                           (reset! editing? false))))}
        (when-not (empty? @selection)
          [AddAnnotation state])
        child])))

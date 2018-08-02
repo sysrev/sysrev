@@ -21,10 +21,11 @@
       do-execute
       first))
 
-(defn create-annotation! [selection annotation]
+(defn create-annotation! [selection annotation context]
   (-> (insert-into :annotation)
       (values [{:selection selection
-                :annotation annotation}])
+                :annotation annotation
+                :context (to-jsonb context)}])
       (returning :id)
       do-query
       first
@@ -244,3 +245,18 @@
       (where [:= :a.project_id project-id])
       ;;(sql/format)
       do-query))
+
+(defn text-context-article-field-match
+  "Determine which field of an article text-context matches in article-id."
+  [text-context article-id]
+  (let [article (-> (select :primary_title :secondary_title :abstract)
+                    (from :article)
+                    (where [:= :article_id article-id])
+                    do-query
+                    first)
+        {:keys [primary-title secondary-title abstract]} article]
+    (condp = text-context
+      primary-title :primary-title
+      secondary-title :secondary-title
+      abstract :abstract
+      text-context)))

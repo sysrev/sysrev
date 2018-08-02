@@ -721,10 +721,21 @@
          {:error internal-server-error
           :message (.getMessage e)})))
 
+(defn process-annotation-context
+  "Convert the context annotation to the one saved on the server"
+  [context article-id]
+  (let [text-context (:text-context context)
+        article-field-match (db-annotations/text-context-article-field-match text-context article-id)]
+    (cond-> context
+      ;; the text-context
+      (not= text-context article-field-match) (assoc :text-context {:article-id article-id
+                                                                    :field article-field-match})
+      true (select-keys [:start-offset :end-offset :text-context]))))
+
 (defn save-article-annotation
-  [article-id user-id selection annotation & {:keys [pdf-key]}]
+  [article-id user-id selection annotation & {:keys [pdf-key context]}]
   (try
-    (let [annotation-id (db-annotations/create-annotation! selection annotation)]
+    (let [annotation-id (db-annotations/create-annotation! selection annotation (process-annotation-context context article-id))]
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
       (when pdf-key
