@@ -41,5 +41,5 @@
 (defn open-first-project []
   (browser/go-route "/select-project")
   (browser/click
-   {:xpath "//div[contains(@class,'projects-list')]/descendant::div[contains(@class,'button') and contains(text(),'Open')]"}
+   {:xpath "//div[contains(@class,'projects-list')]/descendant::a[contains(@class,'segment')]"}
    :delay 500))

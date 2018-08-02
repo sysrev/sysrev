@@ -8,6 +8,7 @@
              [panel-content logged-out-content render-panel-tree]]
             [sysrev.views.panels.create-project]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
+            [sysrev.views.panels.root]
             [sysrev.views.panels.password-reset]
             [sysrev.views.panels.payment]
             [sysrev.views.panels.pubmed]

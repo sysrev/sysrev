@@ -215,7 +215,7 @@
                    []) {}
       [:div.ui.segment.auto-margin
        {:id "login-register-panel"
-        :style {:max-width "500px" :margin-top "10px"}}
+        :style {:max-width "500px"}}
        [:h3.ui.dividing.header
         @(subscribe [::header-title])]
        (when register-hash
@@ -252,9 +252,9 @@
        [:div
         (if register?
           [:div
-           [:a {:href (if register-hash
-                        (str @active-route "/login")
-                        "/login")}
+           [:a.medium-weight {:href (if register-hash
+                                      (str @active-route "/login")
+                                      "/login")}
             "Already have an account?"]]
           [:div
            [:a.medium-weight {:href "/register"}
@@ -272,7 +272,7 @@
       (cond
         (nil? project-id)
         [:div.ui.padded.segments.auto-margin
-         {:style {:max-width "550px" :margin-top "10px"}}
+         {:style {:max-width "550px"}}
          [:div.ui.top.attached.segment
           [:h4 "You have been invited to join:"]]
          [:div.ui.bottom.attached.center.aligned.segment
@@ -280,7 +280,7 @@
 
         member?
         [:div.ui.padded.segments.auto-margin
-         {:style {:max-width "550px" :margin-top "10px"}}
+         {:style {:max-width "550px"}}
          [:div.ui.top.attached.segment
           [:h4 project-name]]
          [:div.ui.bottom.attached.center.aligned.segment
@@ -288,7 +288,7 @@
 
         :else
         [:div.ui.padded.segments.auto-margin
-         {:style {:max-width "550px" :margin-top "10px"}}
+         {:style {:max-width "550px"}}
          [:h4.ui.top.attached.center.aligned.header
           "You have been invited to join:"]
          [:div.ui.attached.segment

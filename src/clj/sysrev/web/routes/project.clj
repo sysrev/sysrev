@@ -699,6 +699,11 @@
          (let [annotation-id (-> request :params :annotation-id parse-integer)]
            (api/delete-annotation! annotation-id))))
 
+  (GET "/api/public-projects" request
+       (wrap-authorize
+        request {}
+        (api/public-projects)))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

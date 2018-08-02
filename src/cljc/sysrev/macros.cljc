@@ -110,7 +110,8 @@
   [name uri params & body]
   `(defroute ~name ~uri ~params
      (go-route-sync-data
-      #(do (dispatch [:set-active-project-url nil])
+      #(do (dispatch [:set-active-panel nil])
+           (dispatch [:set-active-project-url nil])
            ~@body))))
 
 (defn lookup-project-url-id [url-id]

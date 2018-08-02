@@ -85,25 +85,29 @@ div.label-status-help .ui.bottom.attached.buttons {
     margin-bottom: 8px;
 }
 
-div.projects-list {
-    margin-top: 1em;
-}
-
-div.projects-list .ui.list > .item > .content.project-name {
-    padding-top: 0.75em;
-    padding-bottom: 0.75em;
-}
-
-div.projects-list .ui.list > .item:hover > .ui.labeled.button > .ui.basic.label {
-    border-color: fadeout(@text, 70%, relative);
-}
-
 div.grid.export-data > .column > .ui.segment > h5 {
     margin-top: 1em;
 }
 
 div.message.read-only-message p {
     font-size: 1.075rem;
+}
+
+div.projects-list {
+    margin-top: 1em;
+}
+
+.ui.segments.projects-list {
+    margin-top: 1em;
+}
+
+.ui.segments > .ui.segment.project-list-project {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.projects-list.member .project-list-project:hover {
+    background-color: mix(@background, @text, 96);
 }
 
 @media only screen and (max-width: 767px) {
@@ -144,11 +148,6 @@ div.message.read-only-message p {
         width: 65% !important;
         margin-left: auto !important;
         margin-right: auto !important;
-    }
-
-    div.projects-list .ui.list > .item > .ui.labeled.button > .ui.basic.label {
-        padding: 0.75em;
-        font-size: 13px !important;
     }
 
     div.ui.message.read-only-message > div.content > div.header {

@@ -27,6 +27,7 @@
             [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.biosource.predict :as predict-api])
@@ -784,6 +785,31 @@
       {:error internal-server-error
        :message (.getMessage e)})))
 
+(defn pdf-download-url
+  [article-id filename key]
+  (str "/api/files/article/"
+       article-id
+       "/download/"
+       key
+       "/"
+       filename))
+
+(defn project-annotations
+  [project-id]
+  "Retrieve all annotations for a project"
+  (let [annotations (db-annotations/project-annotations project-id)]
+    (->> annotations
+         (mapv #(assoc % :pmid (parse-integer (:public-id %))))
+         (mapv #(if-not (nil? (and (:filename %)
+                                   (:key %)))
+                  (assoc % :pdf-source (pdf-download-url
+                                        (:article-id %)
+                                        (:filename %)
+                                        (:key %)))
+                  %))
+         (mapv #(rename-keys % {:definition :semantic-class}))
+         (mapv #(select-keys % [:selection :annotation :semantic-class :pmid :article-id :pdf-source])))))
+
 (defn change-project-permissions [project-id users-map]
   (try
     (assert project-id)
@@ -794,6 +820,9 @@
     (catch Throwable e
       {:error internal-server-error
        :message (.getMessage e)})))
+
+(defn public-projects []
+  {:result {:projects (project/all-public-projects)}})
 
 (defn test-response
   "Server Sanity Check"
