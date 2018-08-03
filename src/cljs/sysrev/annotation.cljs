@@ -479,16 +479,17 @@
     (fn [state child]
       [:div.annotation-capture
        {:on-mouse-up (fn [e]
-                       (when @annotator-enabled?
-                         (let [{:keys [text-selection text-context start-offset end-offset]} (get-selection)]
-                           (reset! selection text-selection)
-                           (swap! context assoc
-                                  :text-context ($ text-context :data)
-                                  :start-offset start-offset
-                                  :end-offset end-offset)
-                           (reset! client-x ($ e :clientX))
-                           (reset! client-y ($ e :clientY))
-                           (reset! editing? false))))}
+                       (when @(subscribe [:self/logged-in?])
+                         (when @annotator-enabled?
+                           (let [{:keys [text-selection text-context start-offset end-offset]} (get-selection)]
+                             (reset! selection text-selection)
+                             (swap! context assoc
+                                    :text-context ($ text-context :data)
+                                    :start-offset start-offset
+                                    :end-offset end-offset)
+                             (reset! client-x ($ e :clientX))
+                             (reset! client-y ($ e :clientY))
+                             (reset! editing? false)))))}
        (when-not (empty? @selection)
          [AddAnnotation state])
        child])))
@@ -499,6 +500,10 @@
     [:div.ui.label.tiny.button
      {:on-click (fn [e]
                   (swap! annotator-enabled? not))}
-     (if @annotator-enabled?
-       "Disable Annotator"
-       "Enable Annotator")]))
+     (if @(subscribe [:self/logged-in?])
+       (if @annotator-enabled?
+         "Disable Annotator"
+         "Enable Annotator")
+       (if @annotator-enabled?
+         "Hide Annotations"
+         "View Annotations"))]))

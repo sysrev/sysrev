@@ -626,17 +626,13 @@
            (api/update-annotation! annotation-id annotation semantic-class (parse-integer user-id)))))
 
   (GET "/api/annotations/user-defined/:article-id" request
-       (wrap-authorize
-        request {:allow-public true}
-        (let [article-id (-> request :params :article-id parse-integer)]
-          (api/user-defined-annotations article-id))))
+       (let [article-id (-> request :params :article-id parse-integer)]
+         (api/user-defined-annotations article-id)))
 
   (GET "/api/annotations/user-defined/:article-id/pdf/:pdf-key" request
-       (wrap-authorize
-        request {:allow-public true}
-        (let [article-id (-> request :params :article-id parse-integer)
-              pdf-key (-> request :params :pdf-key)]
-          (api/user-defined-pdf-annotations article-id pdf-key))))
+       (let [article-id (-> request :params :article-id parse-integer)
+             pdf-key (-> request :params :pdf-key)]
+         (api/user-defined-pdf-annotations article-id pdf-key)))
 
   (GET "/api/annotations/:article-id" request
        (wrap-authorize

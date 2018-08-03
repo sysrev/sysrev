@@ -335,10 +335,15 @@
                [:div.twelve.wide.left.aligned.column
                 [:div.ui.small.form
                  [OpenAccessPDF article-id]
-                 [ArticlePDFs article-id]]]
-               [:div.four.wide.right.aligned.column
-                [upload-form]]]]
+                 (when @(subscribe [:self/logged-in?])
+                   [ArticlePDFs article-id])]]
+               (when @(subscribe [:self/logged-in?])
+                 [:div.four.wide.right.aligned.column
+                  [upload-form]])]]
              [:div.ui.small.form
               [OpenAccessPDF article-id]
-              [ArticlePDFs article-id]
-              [upload-form]])))])))
+              ;; need better permissions for PDFs, for now, simple don't allow
+              ;; people who aren't logged in to view PDFs
+              (when @(subscribe [:self/logged-in?])
+                [ArticlePDFs article-id]
+                [upload-form])])))])))
