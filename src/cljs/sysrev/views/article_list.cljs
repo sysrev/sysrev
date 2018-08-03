@@ -349,9 +349,36 @@
                [:i.green.circle.icon]
                [:i.grey.circle.icon])
              label]))]
-    [:div.article-filters
-     (if expand-filters
-       [:div.ui.secondary.top.attached.segment.filters-content
+    [:div.ui.segments.article-filters
+     [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal
+      [:div.row
+       [:div.ten.wide.column.filters-summary
+        [:span {:style {:font-size "15px"}}
+         "Filters: "
+         [:span {:style {:font-style "italic"}}
+          "all articles"]]]
+       [:div.six.wide.column.right.aligned.control-buttons
+        [:button.ui.small.icon.button
+         {:class (if (and loading? (= recent-nav-action :refresh))
+                   "loading" "")
+          :on-click #(reload-list cstate)}
+         [:i.repeat.icon]]
+        [:button.ui.small.icon.button
+         [:i.erase.icon]]]]]
+     [:div.ui.secondary.segment.no-padding
+      [:button.ui.tiny.fluid.icon.button
+       {:style (cond-> {:border-top-left-radius "0"
+                        :border-top-right-radius "0"}
+                 expand-filters
+                 (merge {:border-bottom-left-radius "0"
+                         :border-bottom-right-radius "0"}))
+        :on-click #(dispatch [:article-list/toggle-display-option
+                              panel :expand-filters (not expand-filters)])}
+       (if expand-filters
+         [:i.chevron.up.icon]
+         [:i.chevron.down.icon])]]
+     (when expand-filters
+       [:div.ui.secondary.segment.filters-content
         [:div.ui.small.form
          [:div.field
           [:div.fields
@@ -363,44 +390,7 @@
             [view-button :show-inclusion "Inclusion"]
             [view-button :show-labels "Labels"]
             [view-button :show-notes "Notes"]]
-           [:div.two.wide.field]
-           [:div.four.wide.right.aligned.field.control-buttons
-            [:label nbsp]
-            [:div {:style {:width "100%"
-                           :text-align "right"}}
-             [:button.ui.right.labeled.small.icon.button.refresh-button
-              {:class (if (and loading? (= recent-nav-action :refresh))
-                        "loading" "")
-               :on-click #(reload-list cstate)}
-              [:i.repeat.icon]
-              (if (full-size?) "Refresh" "Refresh")]
-             [:button.ui.small.right.labeled.icon.button
-              [:i.erase.icon]
-              "Reset"]]]]]]]
-       [:div.ui.secondary.top.attached.middle.aligned.grid.segment.filters-minimal
-        [:div.row
-         [:div.ten.wide.column.filters-summary
-          [:span {:style {:font-size "15px"}}
-           "Filters: "
-           [:span {:style {:font-style "italic"}}
-            "all articles"]]]
-         [:div.six.wide.column.right.aligned.control-buttons
-          [:button.ui.small.icon.button
-           {:class (if (and loading? (= recent-nav-action :refresh))
-                     "loading" "")
-            :on-click #(reload-list cstate)}
-           [:i.repeat.icon]]
-          [:button.ui.small.icon.button
-           [:i.erase.icon]]]]])
-     [:div.ui.secondary.bottom.attached.segment.no-padding
-      [:button.ui.tiny.fluid.icon.button
-       {:style {:border-top-left-radius "0"
-                :border-top-right-radius "0"}
-        :on-click #(dispatch [:article-list/toggle-display-option
-                              panel :expand-filters (not expand-filters)])}
-       (if expand-filters
-         [:i.chevron.up.icon]
-         [:i.chevron.down.icon])]]]))
+           [:div.six.wide.field]]]]])]))
 
 (defn- ArticleListNavMessage [cstate]
   (let [{:keys [offset options]} cstate
@@ -720,9 +710,9 @@
     [:div
      [ArticleListFilters state defaults]
      [:div.article-list-view
-      (with-loader [(list-data-query cstate)] {}
-        (when (not-empty articles)
-          [ArticleListContent state defaults]))]]))
+      (with-loader [(list-count-query cstate)
+                    (list-data-query cstate)] {}
+        [ArticleListContent state defaults])]]))
 
 (defn ArticleListPanel [state defaults]
   (let [cstate (current-state @state defaults)
