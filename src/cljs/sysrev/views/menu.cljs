@@ -2,23 +2,16 @@
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch]]
-            [sysrev.util :refer [full-size? mobile? nbsp]]
+            [sysrev.loading :as loading]
+            [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.views.components :refer [dropdown-menu with-tooltip]]
-            [sysrev.nav :refer [nav nav-scroll-top]])
+            [sysrev.util :refer [full-size? mobile? nbsp]])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
   (let [project-id @(subscribe [:active-project-id])
-        loading?
-        (and @(subscribe [:any-loading? nil [:article/annotations]])
-             (not (and project-id
-                       @(subscribe
-                         [:loading? [:project/sources project-id]])))
-             (not (and project-id
-                       @(subscribe
-                         [:loading? [:project/important-terms project-id]]))))
-        action? @(subscribe [:action/any-running? nil [:sources/delete]])]
-    (if (or loading? action?)
+        loading? @(loading/loading-indicator)]
+    (if loading?
       [:div.item.loading-indicator
        [:div.ui.small.active.inline.loader]]
       [:div.item.loading-indicator-disabled])))

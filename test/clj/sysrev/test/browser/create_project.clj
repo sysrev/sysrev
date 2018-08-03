@@ -188,7 +188,7 @@
   [search-term]
   (let [delete {:xpath (search-term-delete-xpath search-term)}]
     (log/info "deleting article source")
-    (browser/click delete :delay 250)))
+    (browser/click delete :delay 1000)))
 
 (def project-title-xpath
   {:xpath "//span[contains(@class,'project-title')]//ancestor::div[contains(@class,'project-header') and contains(@class,'desktop')]"})

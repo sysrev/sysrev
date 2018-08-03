@@ -2,6 +2,10 @@
   (:require [cljsjs.jquery]
             [cljsjs.semantic-ui]
             [reagent.core :as r]
+            [re-frame.core :as re-frame :refer
+             [subscribe dispatch reg-sub reg-event-db]]
+            [re-frame.db :refer [app-db]]
+            [sysrev.loading :as loading]
             [sysrev.pdf]
             [sysrev.views.article]
             [sysrev.views.base :refer
@@ -28,11 +32,8 @@
             [sysrev.views.panels.project.review]
             [sysrev.views.panels.project.support]
             [sysrev.views.menu :refer [header-menu]]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-sub reg-event-db]]
             [sysrev.util :refer [full-size? mobile?]]
-            [sysrev.shared.components :refer [loading-content]]
-            [re-frame.db :refer [app-db]]))
+            [sysrev.shared.components :refer [loading-content]]))
 
 (defmethod panel-content :default []
   (fn [child]
@@ -59,7 +60,7 @@
   (if @(subscribe [:initialized?])
     [:div.main-content
      {:class (if (or (not @(subscribe [:data/ready?]))
-                     @(subscribe [:any-loading?]))
+                     (loading/any-loading?))
                "loading" "")}
      [header-menu]
      [:div.ui.container [active-panel-content]]

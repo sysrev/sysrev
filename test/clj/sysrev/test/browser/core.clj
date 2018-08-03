@@ -119,7 +119,7 @@
   [& [timeout interval]]
   (let [timeout (or timeout 10000)
         interval (or interval 50)]
-    (Thread/sleep 50)
+    (Thread/sleep 150)
     (taxi/wait-until
      #(not (taxi/exists?
             {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))

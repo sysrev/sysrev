@@ -1,15 +1,13 @@
 (ns sysrev.data.core
-  (:require
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-     reg-event-db reg-event-fx trim-v reg-fx]]
-   [re-frame.db :refer [app-db]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.action.core :refer [any-action-running?]]
-   [sysrev.ajax :refer
-    [reg-event-ajax reg-event-ajax-fx run-ajax]]
-   [sysrev.util :refer [dissoc-in]]
-   [sysrev.shared.util :refer [in?]]))
+  (:require [re-frame.core :as re-frame :refer
+             [subscribe dispatch reg-sub
+              reg-event-db reg-event-fx trim-v reg-fx]]
+            [re-frame.db :refer [app-db]]
+            [sysrev.loading :as loading]
+            [sysrev.ajax :refer
+             [reg-event-ajax reg-event-ajax-fx run-ajax]]
+            [sysrev.util :refer [dissoc-in]]
+            [sysrev.shared.util :refer [in?]]))
 
 (defonce
   ^{:doc "Holds static definitions for data items fetched from server"}
@@ -27,8 +25,11 @@
 ;; Adds an item to list of requirements
 (defn- require-item
   ([db prereqs item]
-   (update db :needed
-           #(-> % vec (conj [(vec prereqs) item]) distinct))))
+   (let [entry [(vec prereqs) item]]
+     (if (in? (:needed db) entry)
+       db
+       (update db :needed
+               #(-> % vec (conj entry) distinct vec))))))
 
 ;; Register `item` as required; will trigger fetching from server
 ;; immediately or after any prerequisites for `item` have been loaded.
@@ -125,102 +126,7 @@
 ;; Maintain counters for start/completion of AJAX requests
 ;;
 
-(reg-event-db
- ::sent
- [trim-v]
- (fn [db [item]]
-   (let [time-ms (js/Date.now)]
-     (-> db
-         (update-in [:ajax :data :sent item]
-                    #(-> % (or 0) inc))
-         (update-in [:ajax :data :timings item]
-                    #(->> (concat [time-ms] %)
-                          (take 10)))))))
 
-(reg-fx ::sent (fn [item] (dispatch [::sent item])))
-
-(reg-event-db
- ::returned
- [trim-v]
- (fn [db [item]]
-   (update-in db [:ajax :data :returned item]
-              #(-> % (or 0) inc))))
-
-(reg-event-fx
- ::failed
- [trim-v]
- (fn [{:keys [db]} [item]]
-   (let [time-ms (js/Date.now)]
-     {:db (assoc-in db [:ajax :data :failed item] true)
-      :data/reset-required true})))
-
-(reg-fx ::failed (fn [item] (dispatch [::failed item])))
-
-(reg-event-db
- ::reset-failed
- [trim-v]
- (fn [db [item]]
-   (assoc-in db [:ajax :data :failed item] false)))
-
-(reg-fx ::reset-failed (fn [item] (dispatch [::reset-failed item])))
-
-(defn- item-failed? [db item]
-  (true? (get-in db [:ajax :data :failed item])))
-
-;; Returns the time (ms) of 4th most recent fetch of item
-(defn- get-spam-time [db item]
-  (->> (get-in db [:ajax :data :timings item])
-       (drop 4)
-       first))
-
-;; Checks if item has been fetched 5 times within last 2.5s
-(defn- item-spammed? [db item]
-  (let [spam-ms (get-spam-time db item)]
-    (if (nil? spam-ms)
-      false
-      (let [now-ms (js/Date.now)]
-        (< (- now-ms spam-ms) 2500)))))
-
-(reg-fx ::returned (fn [item] (dispatch [::returned item])))
-
-(reg-sub ::ajax-data-counts (fn [db] (get-in db [:ajax :data])))
-
-(defn- get-sent-count [db item]
-  (get-in db [:ajax :data :sent item] 0))
-(reg-sub ::sent-count (fn [db [_ item]] (get-sent-count db item)))
-
-(defn- get-returned-count [db item]
-  (get-in db [:ajax :data :returned item] 0))
-(reg-sub ::returned-count (fn [db [_ item]] (get-returned-count db item)))
-
-;; Tests if an AJAX request for `item` is currently pending
-(defn- item-loading? [db item]
-  (> (get-sent-count db item)
-     (get-returned-count db item)))
-(reg-sub :loading? (fn [db [_ item]] (item-loading? db item)))
-
-(defn- any-loading-impl
-  [counts & [filter-item-name ignore-item-names]]
-  (boolean
-   (->> (keys (get-in counts [:sent]))
-        (filter #(or (nil? filter-item-name)
-                     (= (first %) filter-item-name)))
-        (filter #(not (in? ignore-item-names (first %))))
-        (some #(> (get-in counts [:sent %] 0)
-                  (get-in counts [:returned %] 0))))))
-
-(defn any-loading?
-  [db & [filter-item-name ignore-item-names]]
-  (let [counts (get-in db [:ajax :data])]
-    (any-loading-impl counts filter-item-name ignore-item-names)))
-
-;; Tests if any AJAX data request is currently pending
-;; If filter-item-name is passed, only test for entries which have that name
-(reg-sub
- :any-loading?
- :<- [::ajax-data-counts]
- (fn [counts [_ filter-item-name ignore-item-names]]
-   (any-loading-impl counts filter-item-name ignore-item-names)))
 
 ;; TODO: replace this with a queue for items to fetch in @app-db
 (defonce
@@ -238,16 +144,16 @@
    (let [[name & args] item
          entry (get @data-defs name)
          elapsed-millis (- (js/Date.now) @last-fetch-millis)]
-     (when (and entry (not (item-loading? db item)))
-       (cond (item-spammed? db item)
-             {::failed item}
+     (when (and entry (not (loading/item-loading? item)))
+       (cond (loading/item-spammed? item)
+             {:data-failed item}
 
              (< elapsed-millis 25)
              (do (js/setTimeout #(dispatch [:fetch item])
-                                (- 30 elapsed-millis))
+                                (- 40 elapsed-millis))
                  {})
 
-             (any-action-running? db nil [:sources/delete])
+             (loading/any-action-running? :ignore [:sources/delete])
              (do (js/setTimeout #(dispatch [:fetch item])
                                 50)
                  {})
@@ -259,34 +165,33 @@
                                     "application/transit+json")]
                (reset! last-fetch-millis (js/Date.now))
                (merge
-                {::sent item}
+                {:data-sent item}
                 (run-ajax
-                 (cond->
-                     {:db db
-                      :method :get
-                      :uri uri
-                      :on-success [::on-success item]
-                      :on-failure [::on-failure item]
-                      :content-type content-type}
+                 (cond-> {:db db
+                          :method :get
+                          :uri uri
+                          :on-success [::on-success item]
+                          :on-failure [::on-failure item]
+                          :content-type content-type}
                    content (assoc :content content))))))))))
 
 (reg-event-ajax-fx
  ::on-success
  (fn [{:keys [db] :as cofx} [item result]]
    (let [[name & args] item
-         spammed? (item-spammed? db item)]
+         spammed? (loading/item-spammed? item)]
      (merge
-      {::returned item}
+      {:data-returned item}
       (if spammed?
-        {::failed item}
-        {::reset-failed item})
+        {:data-failed item}
+        {:reset-data-failed item})
       (when (not spammed?)
         (when-let [entry (get @data-defs name)]
           (when-let [process (:process entry)]
             (merge (apply process [cofx args result])
                    ;; Run :fetch-missing in case this request provided any
                    ;; missing data prerequisites.
-                   {:fetch-missing true}
+                   {:fetch-missing [true item]}
                    (when (not-empty (lookup-load-triggers db item))
                      {::process-load-triggers item})))))))))
 
@@ -295,8 +200,8 @@
  (fn [cofx [item result]]
    (let [[name & args] item]
      (merge
-      {::returned item
-       ::failed item}
+      {:data-returned item
+       :data-failed item}
       (when-let [entry (get @data-defs name)]
         (when-let [process (:on-error entry)]
           (apply process [cofx args result])))))))
@@ -307,36 +212,45 @@
  [trim-v]
  (fn [{:keys [db]} [item]]
    (when (and (or (have-item? db item)
-                  (item-failed? db item))
-              (not (item-loading? db item)))
+                  (loading/item-failed? item))
+              (not (loading/item-loading? item)))
      {:dispatch [:fetch item]})))
 
 ;; Fetches any missing required data
 (reg-event-fx
  :fetch-missing
- (fn [{:keys [db]}]
+ [trim-v]
+ (fn [{:keys [db]} [trigger-item]]
    {:dispatch-n
     (->> (get-missing-items db)
-         (remove #(item-failed? db %))
-         (map (fn [item] [:fetch item])))}))
+         (remove #(loading/item-failed? %))
+         (remove #(loading/item-loading? %))
+         (map (fn [item]
+                #_ (js/console.log (str "fetch-missing [trigger " (pr-str trigger-item)
+                                        "] [fetching " (pr-str item) "]"))
+                [:fetch item]))
+         doall)}))
 
 (reg-fx
  ::fetch-if-missing
  (fn [item]
    (js/setTimeout
-    #(let [missing (get-missing-items @app-db)]
+    #(let [db @app-db
+           missing (get-missing-items db)]
        (when (and item (in? missing item)
-                  (not (item-failed? @app-db item)))
+                  (not (loading/item-failed? item))
+                  (not (loading/item-loading? item)))
+         #_ (js/console.log (str "fetch-if-missing [fetching " (pr-str item) "]"))
          (dispatch [:fetch item])))
     10)))
 
 (reg-fx
  :fetch-missing
- (fn [fetch?]
+ (fn [[fetch? trigger-item]]
    (when fetch?
      ;; Use setTimeout to ensure that changes to app-db from any simultaneously
      ;; dispatched events will have completed first.
-     (js/setTimeout #(dispatch [:fetch-missing]) 30))))
+     (js/setTimeout #(dispatch [:fetch-missing trigger-item]) 30))))
 
 ;; (Re-)fetches all required data. This shouldn't be needed.
 (reg-event-fx

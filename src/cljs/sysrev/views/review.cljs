@@ -1,21 +1,21 @@
 (ns sysrev.views.review
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [reagent.core :as r]
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub
-     reg-event-db reg-event-fx reg-fx trim-v]]
-   [sysrev.views.components :as ui]
-   [sysrev.state.nav :refer [active-panel project-uri]]
-   [sysrev.state.review :as review]
-   [sysrev.state.labels :refer [get-label-raw]]
-   [sysrev.state.notes :as notes]
-   [sysrev.nav :refer [nav nav-scroll-top]]
-   [sysrev.state.nav :refer [project-uri]]
-   [sysrev.util :refer
-    [full-size? mobile? desktop-size? nbsp wrap-prevent-default nbsp]]
-   [sysrev.shared.util :refer [in?]])
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [reagent.core :as r]
+            [re-frame.core :as re-frame :refer
+             [subscribe dispatch dispatch-sync reg-sub
+              reg-event-db reg-event-fx reg-fx trim-v]]
+            [sysrev.loading :as loading]
+            [sysrev.nav :refer [nav nav-scroll-top]]
+            [sysrev.state.nav :refer [active-panel project-uri]]
+            [sysrev.state.review :as review]
+            [sysrev.state.labels :refer [get-label-raw]]
+            [sysrev.state.notes :as notes]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.views.components :as ui]
+            [sysrev.util :refer
+             [full-size? mobile? desktop-size? nbsp wrap-prevent-default nbsp]]
+            [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn set-label-value [db article-id label-id label-value]
@@ -100,7 +100,7 @@
   (let [article-id @(subscribe [:review/editing-id])
         project-id @(subscribe [:active-project-id])]
     (when (and article-id project-id)
-      @(subscribe [:loading? [:article project-id article-id]]))))
+      (loading/item-loading? [:article project-id article-id]))))
 
 ;; Renders input component for label
 (defmulti label-input-el
@@ -401,12 +401,12 @@
         missing @(subscribe [:review/missing-labels article-id])
         disabled? (not-empty missing)
         saving? (and @(subscribe [:review/saving? article-id])
-                     (or @(subscribe [:action/any-running? :review/send-labels])
-                         @(subscribe [:any-loading? :article])
-                         @(subscribe [:any-loading? :review/task])))
+                     (or (loading/any-action-running? :only :review/send-labels)
+                         (loading/any-loading? :only :article)
+                         (loading/any-loading? :only :review/task)))
         loading-task? (and (not saving?)
                            @(subscribe [:review/on-review-task?])
-                           @(subscribe [:loading? [:review/task project-id]]))
+                           (loading/item-loading? [:review/task project-id]))
         on-review-task? @(subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         on-save

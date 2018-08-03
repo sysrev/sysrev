@@ -4,6 +4,7 @@
              [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer
@@ -245,7 +246,7 @@
          :on-reset #(reset-fields)
          :saving?
          (and modified?
-              @(subscribe [:action/any-running? :project/change-settings]))]])]))
+              (loading/any-action-running? :only :project/change-settings))]])]))
 
 (defonce members-state (r/cursor state [:members]))
 
@@ -457,8 +458,8 @@
         :on-reset #(reset-permissions)
         :saving?
         (and changed?
-             (or @(subscribe [:action/any-running? :project/change-permissions])
-                 @(subscribe [:loading? [:project project-id]])))])]))
+             (or (loading/any-action-running? :only :project/change-permissions)
+                 (loading/item-loading? [:project project-id])))])]))
 
 (defn- ProjectMembersBox []
   [:div.ui.segment.project-members

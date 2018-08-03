@@ -7,6 +7,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components :as ui]
             [sysrev.util :refer [wrap-prevent-default]]
@@ -420,8 +421,8 @@
        ;; valid search is completed with no results
        (and (not (nil? @current-search-term))
             (= (get-in @search-results [:count]) 0)
-            (not @(subscribe [:loading? [:pubmed-search
-                                         @current-search-term @page-number]])))
+            (not (loading/item-loading?
+                  [:pubmed-search @current-search-term @page-number])))
        [:div>h3 "No documents match your search terms"]
 
        :else

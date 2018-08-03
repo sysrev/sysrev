@@ -15,6 +15,10 @@
         prev-panel @(subscribe [:active-panel])
         diff-panel (and prev-panel (not= panel prev-panel))]
     (dispatch [:set-active-panel panel])
+    (dispatch [:require [:project project-id]])
+    (dispatch [:require [:project/label-counts project-id]])
+    (dispatch [:require [:project/important-terms project-id]])
+    (dispatch [:require [:project/prediction-histograms project-id]])
     (when diff-panel
       (dispatch [:reload [:project project-id]]))))
 

@@ -1,16 +1,17 @@
 (ns sysrev.views.panels.project.add-articles
-  (:require [reagent.core :as r]
+  (:require [cljs-time.core :as t]
+            [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [dispatch subscribe reg-fx reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
-            [cljs-time.core :as t]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.util :refer [continuous-update-until]]
+            [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.upload :refer [upload-container basic-text-button]]
-            [sysrev.views.components :as ui]))
+            [sysrev.views.components :as ui]
+            [sysrev.util :refer [continuous-update-until]]))
 
 (def panel [:project :project :add-articles])
 
@@ -192,12 +193,9 @@
     (reset! polling-sources? true)
     (dispatch [:fetch [:project/sources project-id]])
     (let [sources (subscribe [:project/sources])
-          delete-running?
-          (subscribe
-           [:action/running? [:sources/delete project-id source-id]])
           source-updating?
           (fn [source-id]
-            (or @delete-running?
+            (or (loading/action-running? [:sources/delete project-id source-id])
                 (->>
                  @sources
                  (filter #(= (:source-id %) source-id))
@@ -223,8 +221,8 @@
         enabled? enabled
         {:keys [importing-articles? deleting?]} meta
         polling? @polling-sources?
-        delete-running? @(subscribe
-                          [:action/running? [:sources/delete project-id source-id]])
+        delete-running? (loading/action-running?
+                         [:sources/delete project-id source-id])
         timed-out? (source-import-timed-out? source)]
     (when (or (and (true? importing-articles?) (not timed-out?))
               deleting? delete-running?)

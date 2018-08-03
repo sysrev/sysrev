@@ -4,6 +4,7 @@
    [re-frame.core :refer
     [subscribe dispatch reg-sub reg-sub-raw reg-event-db reg-event-fx trim-v]]
    [reagent.ratom :refer [reaction]]
+   [sysrev.loading :as loading]
    [sysrev.nav :refer [nav]]
    [sysrev.state.nav :refer [project-uri]]
    [sysrev.views.base :refer [panel-content logged-out-content]]
@@ -43,7 +44,7 @@
   true)
 
 (defmethod al/loading-articles? panel [_ project-id user-id]
-  @(subscribe [:loading? [:member/articles project-id user-id]]))
+  (loading/item-loading? [:member/articles project-id user-id]))
 
 (defmethod al/reload-articles panel [_ project-id user-id]
   (dispatch [:reload [:member/articles project-id user-id]]))

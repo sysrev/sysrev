@@ -7,6 +7,7 @@
             sysrev.nav
             sysrev.state.all
             sysrev.data.core
+            sysrev.loading
             sysrev.views.main
             sysrev.shared.util
             sysrev.shared.keywords
@@ -41,6 +42,8 @@
   (import-vars 'sysrev.shared.keywords)
   (import-vars 'sysrev.shared.spec.core)
   (import-vars 'sysrev.shared.spec.article)
+  (import-vars 'sysrev.nav)
+  (import-vars 'sysrev.loading)
   true)
 
 (populate-user-ns)

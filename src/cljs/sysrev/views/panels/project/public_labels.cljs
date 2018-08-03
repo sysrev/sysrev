@@ -11,6 +11,7 @@
    [sysrev.views.article-list :as al]
    [sysrev.shared.article-list :refer
     [is-resolved? is-consistent? is-single? is-conflict?]]
+   [sysrev.loading :as loading]
    [sysrev.state.ui :refer [get-panel-field]]
    [sysrev.nav :refer [nav nav-scroll-top]]
    [sysrev.state.nav :refer [project-uri]]
@@ -50,7 +51,7 @@
   false)
 
 (defmethod al/loading-articles? panel [_ project-id]
-  @(subscribe [:loading? [:project/public-labels project-id]]))
+  (loading/item-loading? [:project/public-labels project-id]))
 
 (defmethod al/reload-articles panel [_ project-id]
   (dispatch [:reload [:project/public-labels project-id]]))

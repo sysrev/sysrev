@@ -1,22 +1,22 @@
 (ns sysrev.views.article-list
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-     reg-event-db reg-event-fx reg-fx trim-v]]
-   [reagent.ratom :refer [reaction]]
-   [sysrev.views.article :refer [article-info-view]]
-   [sysrev.views.review :refer [label-editor-view]]
-   [sysrev.views.components :refer
-    [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
-   [sysrev.state.ui :refer [get-panel-field]]
-   [sysrev.nav :refer [nav]]
-   [sysrev.shared.keywords :refer [canonical-keyword]]
-   [sysrev.shared.article-list :refer
-    [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
-   [sysrev.util :refer [full-size? mobile? nbsp]]
-   [sysrev.shared.util :refer [in? map-values]])
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [re-frame.core :as re-frame :refer
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+              reg-event-db reg-event-fx reg-fx trim-v]]
+            [reagent.ratom :refer [reaction]]
+            [sysrev.loading :as loading]
+            [sysrev.views.article :refer [article-info-view]]
+            [sysrev.views.review :refer [label-editor-view]]
+            [sysrev.views.components :refer
+             [with-ui-help-tooltip ui-help-icon selection-dropdown three-state-selection-icons]]
+            [sysrev.state.ui :refer [get-panel-field]]
+            [sysrev.nav :refer [nav]]
+            [sysrev.shared.keywords :refer [canonical-keyword]]
+            [sysrev.shared.article-list :refer
+             [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
+            [sysrev.util :refer [full-size? mobile? nbsp]]
+            [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
@@ -646,7 +646,7 @@
         (fn [{:keys [article-id] :as article}]
           (let [active? (= article-id active-aid)
                 classes (if active? "active" "")
-                loading? @(subscribe [:loading? [:article project-id article-id]])]
+                loading? (loading/item-loading? [:article project-id article-id])]
             [:a.ui.middle.aligned.attached.grid.segment.article-list-article
              {:key article-id
               :class (str (if active? "active" "")
@@ -693,8 +693,8 @@
         close-article #(nav (panel-base-uri panel project-id))
         next-id @(subscribe [::next-article-id panel])
         prev-id @(subscribe [::prev-article-id panel])
-        next-loading? (when next-id @(subscribe [:loading? [:article project-id next-id]]))
-        prev-loading? (when prev-id @(subscribe [:loading? [:article project-id prev-id]]))
+        next-loading? (when next-id (loading/item-loading? [:article project-id next-id]))
+        prev-loading? (when prev-id (loading/item-loading? [:article project-id prev-id]))
         back-loading? (loading-articles? panel project-id user-id)
         prev-class (str (if (nil? prev-id) "disabled" "")
                         " " (if prev-loading? "loading" ""))
