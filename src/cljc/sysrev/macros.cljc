@@ -1,6 +1,7 @@
 (ns sysrev.macros
   (:require [cljs.analyzer.api :as ana-api]
             [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.loading]
             [secretary.core :refer [defroute]]
             [sysrev.shared.util :refer
              [map-values parse-integer integer-project-id?]]
@@ -33,7 +34,7 @@
          min-height# (:min-height options#)
          class# (:class options#)
          require# (get options# :require true)
-         loading# (some #(deref (subscribe [:loading? %])) reqs#)
+         loading# (some #(sysrev.loading/item-loading? %) reqs#)
          have-data# (every? #(deref (subscribe [:have? %])) reqs#)
          content-form# ~content-form
          dimmer-active# (and dimmer# (or loading#
@@ -80,7 +81,7 @@
           unconfirmed? (or (= user-status :unconfirmed)
                            (= user-status :none))
           resolving? @(subscribe [:review/resolving?])
-          article-loading? @(subscribe [:loading? [:article project-id article-id]])
+          article-loading? (sysrev.loading/item-loading? [:article project-id article-id])
           send-labels? (and unconfirmed?
                             (not resolving?)
                             (not article-loading?)

@@ -1,12 +1,13 @@
 (ns sysrev.views.panels.password-reset
-  (:require
-   [re-frame.core :refer
-    [subscribe dispatch dispatch-sync reg-sub reg-event-db reg-event-fx trim-v]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.state.ui :refer [get-panel-field]]
-   [sysrev.data.core :refer [def-data]]
-   [sysrev.action.core :refer [def-action]]
-   [sysrev.util :refer [validate wrap-prevent-default]]))
+  (:require [re-frame.core :refer
+             [subscribe dispatch dispatch-sync reg-sub
+              reg-event-db reg-event-fx trim-v]]
+            [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
+            [sysrev.state.ui :refer [get-panel-field]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.util :refer [validate wrap-prevent-default]]))
 
 (def ^:private request-panel [:request-password-reset])
 (def ^:private reset-panel [:reset-password])
@@ -195,7 +196,7 @@
       "Reset Password"]
      [:div.ui.bottom.attached.segment
       (if (nil? email)
-        (when-not @(subscribe [:any-loading?])
+        (when-not (loading/any-loading?)
           [:h4 "Invalid reset code"])
         [:form.ui.form {:class form-class :on-submit on-submit
                         :autoComplete "off"}

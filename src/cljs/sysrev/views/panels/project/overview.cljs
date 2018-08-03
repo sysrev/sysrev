@@ -8,13 +8,14 @@
              [subscribe dispatch reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.loading :as loading]
+            [sysrev.nav :as nav]
+            [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles]
             [sysrev.views.upload :refer [upload-container basic-text-button]]
-            [sysrev.nav :as nav]
-            [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.util :refer [full-size? random-id continuous-update-until]]
             [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -344,9 +345,10 @@
     (reset! polling-important-terms? true)
     (dispatch [:fetch [:project/important-terms project-id]])
     (let [server-loading? (subscribe [:project/important-terms-loading?])
-          ajax-loading? (subscribe [:loading? [:project/important-terms project-id]])
-          updating? (fn [] (or @server-loading? @ajax-loading?))]
-      (continuous-update-until #(dispatch [:fetch [:project/important-terms project-id]])
+          item [:project/important-terms project-id]
+          updating? (fn [] (or @server-loading?
+                               (loading/item-loading? item)))]
+      (continuous-update-until #(dispatch [:fetch item])
                                #(not (updating?))
                                #(reset! polling-important-terms? false)
                                1000))))
@@ -432,15 +434,15 @@
 (def-data :project/label-counts
   :loaded?
   (fn [db project-id]
-    (contains? (get-in db [:data :project project-id]) :label-counts))
+    (-> (get-in db [:data :project project-id])
+        (contains? :label-counts)))
   :uri (fn [] "/api/charts/label-count-data")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [] [[:identity]])
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] {:keys [data]}]
-    {:db
-     (assoc-in db [:data :project project-id :label-counts]
-               data)}))
+    {:db (assoc-in db [:data :project project-id :label-counts]
+                   data)}))
 
 (defn LabelCountChart [label-ids processed-label-counts]
   (let [color-filter (r/atom #{})]
@@ -544,15 +546,15 @@
 (def-data :project/prediction-histograms
   :loaded?
   (fn [db project-id]
-    (contains? (get-in db [:data :project project-id]) :histograms))
+    (-> (get-in db [:data :project project-id])
+        (contains? :histograms)))
   :uri (fn [] "/api/prediction-histograms")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [] [[:identity]])
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process
   (fn [{:keys [db]} [project-id] {:keys [prediction-histograms]}]
-    {:db
-     (assoc-in db [:data :project project-id :histograms]
-               prediction-histograms)}))
+    {:db (assoc-in db [:data :project project-id :histograms]
+                   prediction-histograms)}))
 
 (defn PredictionHistogramChart []
   (let [font-color (charts/graph-text-color)

@@ -18,6 +18,10 @@
         prev-panel @(subscribe [:active-panel])
         diff-panel (and prev-panel (not= panel prev-panel))]
     (dispatch [:set-active-panel panel])
+    (dispatch [:require [:project project-id]])
+    (dispatch [:require [:project/label-counts project-id]])
+    (dispatch [:require [:project/important-terms project-id]])
+    (dispatch [:require [:project/prediction-histograms project-id]])
     (when diff-panel
       (dispatch [:reload [:project project-id]]))))
 
@@ -45,12 +49,13 @@
        panel [:project :project :articles]
        active-panel @(subscribe [:active-panel])
        panel-changed? (not= panel active-panel)
-       [prev-args args]
-       [(article-list/query-args (project-articles/current-state))
-        (article-list/query-args (merge (project-articles/current-state)
-                                        (article-list/get-url-params)))]
-       item [:project/article-list project-id args]
-       item2 [:project/article-list-count project-id args]
+       old-cstate (project-articles/current-state)
+       new-cstate (merge (project-articles/current-state)
+                         (article-list/get-url-params))
+       [prev-args args] [(article-list/query-args old-cstate)
+                         (article-list/query-args new-cstate)]
+       item (article-list/list-data-query new-cstate)
+       item2 (article-list/list-count-query new-cstate)
        set-panel [:set-active-panel [:project :project :articles]]
        ensure-visible #(ensure-dom-elt-visible-soon
                         ".article-list-view div.ui.segment.article-nav")

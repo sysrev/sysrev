@@ -8,6 +8,4 @@
       [:img.ui.middle.aligned.image
        {:src "/SysRev_header.png" :alt "SysRev"
         :width "65" :height "20"}]]
-     [:a.item.loading-indicator
-      [:div.ui.small.active.inline.loader]]
      [:div.right.menu]]]])

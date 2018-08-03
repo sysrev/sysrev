@@ -4,12 +4,12 @@
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.data.core :refer [def-data]]
-            [sysrev.annotation :as annotation :refer [AnnotationCapture AnnotationToggleButton AnnotationMenu]]
-            [sysrev.util :refer [random-id full-size?]]
-            [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.state.articles :as articles]
             [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.annotation :as annotation
+             :refer [AnnotationCapture AnnotationToggleButton AnnotationMenu]]
             [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.util :refer [random-id full-size?]])
   (:require-macros [reagent.interop :refer [$ $!]]
@@ -192,9 +192,9 @@
      {:reagent-render
       (fn []
         ;; get the user defined annotations
-        (dispatch [:reload [:annotation/user-defined-annotations
-                            @(subscribe [:visible-article-id])
-                            annotator-state]])
+        (dispatch [:fetch [:annotation/user-defined-annotations
+                           @(subscribe [:visible-article-id])
+                           annotator-state]])
         [:div
          [:div
           [:button.ui.button
@@ -208,8 +208,8 @@
                          (do
                            (swap! page-num inc)
                            (queue-render-page @page-num)))} "Next Page"]
-          #_(when-not (= @(r/cursor annotator-state [:context :class])
-                       "open access pdf"))
+          #_ (when-not (= @(r/cursor annotator-state [:context :class])
+                          "open access pdf"))
           [AnnotationToggleButton annotator-state]
           (when-not (nil? @page-count)
             [:p (str "Page " @page-num " / " @page-count)])]
@@ -311,7 +311,8 @@
          (let [full-size? (full-size?)
                inline-loader
                (fn []
-                 (when @(subscribe [:any-loading? :pdf/open-access-available?])
+                 (when (and (loading/any-loading? :only :pdf/open-access-available?)
+                            @(loading/loading-indicator))
                    [:div.ui.small.active.inline.loader
                     {:style {:margin-right "1em"
                              :margin-left "1em"}}]))

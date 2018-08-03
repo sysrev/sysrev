@@ -10,6 +10,7 @@
             [sysrev.state.all]
             [sysrev.data.core :as data]
             [sysrev.action.core]
+            [sysrev.loading]
             [sysrev.routes :as routes]
             [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]

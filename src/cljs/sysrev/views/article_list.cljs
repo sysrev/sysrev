@@ -1,25 +1,26 @@
 (ns sysrev.views.article-list
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
+            [cognitect.transit :as transit]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
             [re-frame.db :refer [app-db]]
-            [sysrev.views.article :refer [article-info-view]]
-            [sysrev.views.review :refer [label-editor-view]]
-            [sysrev.views.components :refer
-             [with-ui-help-tooltip ui-help-icon selection-dropdown
-              three-state-selection-icons updated-time-label]]
+            [sysrev.loading :as loading]
             [sysrev.nav :as nav :refer [nav]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.shared.article-list :refer
              [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
+            [sysrev.views.article :refer [article-info-view]]
+            [sysrev.views.review :refer [label-editor-view]]
+            [sysrev.views.components :refer
+             [with-ui-help-tooltip ui-help-icon selection-dropdown
+              three-state-selection-icons updated-time-label]]
             [sysrev.util :refer [full-size? mobile? nbsp time-from-epoch]]
-            [sysrev.shared.util :as util :refer [in? map-values]]
-            [cognitect.transit :as transit])
+            [sysrev.shared.util :as util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti panel-defaults identity)
@@ -337,7 +338,8 @@
         {:keys [expand-filters show-inclusion
                 show-labels show-notes]} display
         project-id @(subscribe [:active-project-id])
-        loading? @(subscribe [:any-loading? :project/article-list])
+        loading? (and (loading/any-loading? :only :project/article-list)
+                      @(loading/loading-indicator))
         view-button
         (fn [option-key label]
           (let [status (get display option-key)]
@@ -432,7 +434,8 @@
            (set-nav :previous)
            (set-display-offset
             state cstate (max 0 (- offset display-count))))
-        loading? @(subscribe [:any-loading? :project/article-list])
+        loading? (and (loading/any-loading? :only :project/article-list)
+                      @(loading/loading-indicator))
         nav-loading? (fn [action]
                        (and loading? (= action recent-nav-action)))]
     (if (full-size?)
@@ -621,7 +624,7 @@
                  active? (= article-id active-article)
                  have? @(subscribe [:have? [:article project-id article-id]])
                  classes (if (or active? recent?) "active" "")
-                 loading? @(subscribe [:loading? [:article project-id article-id]])
+                 loading? (loading/item-loading? [:article project-id article-id])
                  next-id (next-article-id cstate)
                  prev-id (prev-article-id cstate)
                  next-url (when next-id (article-uri cstate next-id))
@@ -670,7 +673,7 @@
         active? (= article-id active-article)
         have? @(subscribe [:have? [:article project-id article-id]])
         classes (if (or active? recent?) "active" "")
-        loading? @(subscribe [:loading? [:article project-id article-id]])]
+        loading? (loading/item-loading? [:article project-id article-id])]
     (doall
      (list
       [:a.ui.middle.aligned.grid.segment.article-list-article

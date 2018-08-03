@@ -1,13 +1,13 @@
 (ns sysrev.views.panels.select-project
-  (:require
-   [re-frame.core :refer
-    [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-   [re-frame.db :refer [app-db]]
-   [reagent.core :as r]
-   [sysrev.state.nav :refer [project-uri]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.panels.create-project :refer [CreateProject]]
-   [sysrev.util :refer [go-back]])
+  (:require [re-frame.core :refer
+             [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+            [re-frame.db :refer [app-db]]
+            [reagent.core :as r]
+            [sysrev.loading :as loading]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.panels.create-project :refer [CreateProject]]
+            [sysrev.util :refer [go-back]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def panel [:select-project])
@@ -42,7 +42,7 @@
     (when (or (not-empty projects) (true? member?))
       [:div.ui.segments.projects-list
        {:class (if member? "member" "non-member")}
-       (when @(subscribe [:loading? [:identity]])
+       (when (loading/item-loading? [:identity])
          [:div.ui.active.inverted.dimmer
           [:div.ui.loader]])
        [:div.ui.segment

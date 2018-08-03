@@ -21,7 +21,7 @@
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels]))
     :dispatch [:fetch [:identity]]
-    :fetch-missing true}))
+    :fetch-missing [true nil]}))
 
 (reg-fx
  :reset-data
@@ -32,8 +32,7 @@
  (fn [{:keys [db]}]
    {:db (-> db
             (dissoc-in [:state :review])
-            (dissoc-in [:state :panels]))
-    :fetch-missing true}))
+            (dissoc-in [:state :panels]))}))
 
 (reg-fx
  :reset-ui
@@ -43,8 +42,7 @@
  :reset-needed
  (fn [{:keys [db]}]
    {:db (-> db (assoc :needed []))
-    :dispatch [:require [:identity]]
-    :fetch-missing true}))
+    :dispatch [:require [:identity]]}))
 
 (reg-fx
  :reset-needed

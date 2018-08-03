@@ -31,12 +31,11 @@
               annotation-map
               :context @(r/cursor state [:context])})
   :process (fn [_ [annotation-map state] result]
-             (dispatch [:reload [:annotation/user-defined-annotations
-                                 @(subscribe [:visible-article-id])
-                                 state]])
+             (dispatch [:fetch [:annotation/user-defined-annotations
+                                @(subscribe [:visible-article-id])
+                                state]])
              (reset! (r/cursor state [:annotation-retrieving?]) false)
              {}))
-
 
 (def-action :annotation/update-annotation
   :uri (fn [annotation-id] (str "/api/annotation/update/" annotation-id))
@@ -55,8 +54,8 @@
              {}))
 
 (def-data :annotation/user-defined-annotations
-  :loaded? (fn [_ _ _]
-             (constantly false))
+  :loaded? (fn [db article-id state]
+             (contains? @state :user-annotations))
   :uri (fn [article-id state]
          (condp = @(r/cursor state [:context :class])
            "abstract"
@@ -66,12 +65,12 @@
            (str "/api/annotations/user-defined/"
                 article-id "/pdf/" @(r/cursor state [:context :pdf-key]))))
   :prereqs (fn [] [[:identity]])
-  :content (fn [article-id state])
-  :process (fn [_ [article-id state] result]
-             (let [annotations (:annotations result)]
-               (when-not (nil? annotations)
-                 (reset! (r/cursor state [:user-annotations])
-                         (vector->hash-map annotations :id))))
+  :content (fn [article-id state]
+             {:project-id @(subscribe [:active-project-id])})
+  :process (fn [_ [article-id state] {:keys [annotations]}]
+             (when annotations
+               (swap! state assoc-in [:user-annotations]
+                      (vector->hash-map annotations :id)))
              {}))
 
 (defn within?
