@@ -21,10 +21,11 @@
       do-execute
       first))
 
-(defn create-annotation! [selection annotation]
+(defn create-annotation! [selection annotation context]
   (-> (insert-into :annotation)
       (values [{:selection selection
-                :annotation annotation}])
+                :annotation annotation
+                :context (to-jsonb context)}])
       (returning :id)
       do-query
       first
@@ -218,8 +219,10 @@
   "Retrieve all annotations for project-id"
   [project-id]
   (-> (select :an.selection :an.annotation :a.public_id
-              :a.article_id
-              :sc.definition :s3.key :s3.filename)
+              ;; some of these fields are needed to match 'text-context-article-field-match'
+              :a.article_id :a.primary_title :a.secondary_title :a.abstract
+              :sc.definition :s3.key :s3.filename
+              :an.context)
       (from [:annotation :an])
       (join
        ;; annotation article
@@ -244,3 +247,18 @@
       (where [:= :a.project_id project-id])
       ;;(sql/format)
       do-query))
+
+(defn text-context-article-field-match
+  "Determine which field of an article text-context matches in article-id."
+  [text-context article-id]
+  (let [article (-> (select :primary_title :secondary_title :abstract)
+                    (from :article)
+                    (where [:= :article_id article-id])
+                    do-query
+                    first)
+        {:keys [primary-title secondary-title abstract]} article]
+    (condp = text-context
+      primary-title :primary-title
+      secondary-title :secondary-title
+      abstract :abstract
+      text-context)))
