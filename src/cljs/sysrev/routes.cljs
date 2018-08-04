@@ -50,8 +50,8 @@
        active-panel @(subscribe [:active-panel])
        panel-changed? (not= panel active-panel)
        old-cstate (project-articles/current-state)
-       new-cstate (merge (project-articles/current-state)
-                         (article-list/get-url-params))
+       new-cstate (article-list/merge-url-params
+                   (project-articles/current-state))
        [prev-args args] [(article-list/query-args old-cstate)
                          (article-list/query-args new-cstate)]
        item (article-list/list-data-query new-cstate)

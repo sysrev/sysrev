@@ -31,7 +31,9 @@
     {:options
      {:display-count (if (mobile?) 10 20)}
      :filters
-     {:label-id overall-id}
+     [{:label-id overall-id}]
+     :sort-by :article-id
+     :sort-dir :asc
      :offset 0
      :base-uri (fn [project-id]
                  (project-uri project-id "/articles"))
@@ -55,12 +57,22 @@
 (s/def ::active-article (s/nilable integer?))
 (s/def ::panel (s/every keyword? :kind vector?))
 (s/def ::recent-nav-action (s/nilable keyword?))
+(s/def ::single-filter
+  (s/and (s/keys :opt-un [::label-id])
+         map? #(= 1 (count %))))
 (s/def ::filters
-  (s/keys :opt-un [::label-id]))
+  (s/and (s/every map? :kind vector?)
+         #(every? (in? [:label-id :text-search])
+                  (->> % (map keys) (apply concat)))))
+(s/def ::sort-by
+  (s/and keyword? (in? [:article-id :label-time])))
+(s/def ::sort-dir
+  (s/and keyword? (in? [:asc :desc])))
 (s/def ::options
   (s/keys :req-un [::display-count]))
 (s/def ::al-state
-  (s/keys :req-un [::options ::filters ::offset ::base-uri]
+  (s/keys :req-un [::options ::filters ::offset ::base-uri
+                   ::sort-by ::sort-dir]
           :opt-un [::recent-article ::active-article ::panel
                    ::recent-nav-action]))
 
@@ -76,14 +88,17 @@
             (s/explain ::al-state cstate))
           cstate)))
 
-(defn make-url-params [cstate]
-  (select-keys cstate [:offset]))
+(defn make-url-params [{:keys [filters] :as cstate}]
+  (merge (apply merge-with vector filters)
+         (select-keys cstate [:offset])))
 
 (defn get-url-params []
-  (let [{:keys [offset]} (nav/get-url-params)]
-    (cond-> {}
+  (let [{:keys [offset text-search]} (nav/get-url-params)]
+    (cond-> []
       offset
-      (merge {:offset (util/parse-integer offset)}))))
+      (conj [[:offset] (util/parse-integer offset)])
+      (string? text-search)
+      (conj [[:filters :text-search] text-search]))))
 
 (defn- panel-base-uri [cstate]
   ((:base-uri cstate)
@@ -100,13 +115,41 @@
   ((if redirect? nav/nav-redirect nav/nav)
    (article-uri cstate article-id) :params (merge (make-url-params cstate) params)))
 
-(reg-event-db
+(defn merge-url-params [cstate]
+  (let [params (get-url-params)
+        filter-keys
+        (->> params
+             (map (fn [[kpath value]]
+                    (when (= :filters (first kpath))
+                      (second kpath))))
+             (remove nil?)
+             distinct)
+        filters-init
+        (->> (:filters cstate)
+             (remove #(some (in? filter-keys) (keys %)))
+             vec)]
+    (reduce (fn [stateval f]
+              (f stateval))
+            (assoc cstate :filters filters-init)
+            (map (fn [[kpath value]]
+                   #(if (= :filters (first kpath))
+                      (update-in
+                       % [:filters]
+                       (fn [filters]
+                         (conj filters {(second kpath) value})))
+                      (assoc-in % kpath value)))
+                 params))))
+
+(reg-event-fx
  :article-list/load-url-params
  [trim-v]
- (fn [db [panel]]
+ (fn [{:keys [db]} [panel]]
    (let [path (panel-state-path panel)
-         current (get-in db path)]
-     (assoc-in db path (merge current (get-url-params))))))
+         current (get-in db path)
+         defaults (panel-defaults panel)
+         cstate (current-state current defaults)]
+     {:db (assoc-in db path (merge-url-params cstate))
+      ::sync-input-values panel})))
 
 (defn update-url-params [state defaults]
   (let [{:keys [panel]} (current-state @state defaults)
@@ -182,7 +225,7 @@
 
 (defn query-args [{:keys [options filters offset]}]
   (let [{:keys [display-count]} options]
-    (merge filters
+    (merge (apply merge-with vector filters)
            {:n-offset offset
             :n-count display-count})))
 
@@ -339,10 +382,6 @@
            (take-while #(not= % active-article))
            last))))
 
-(defn reset-filters [state defaults]
-  (set-display-offset state defaults 0)
-  (swap! state assoc :filters {}))
-
 (defn- private-article-view? [cstate]
   ;; TODO: function
   nil)
@@ -378,31 +417,119 @@
    (and (editing-article? cstate)
         (resolving-allowed? cstate))))
 
-(defn- input-value-cursor [state input-key]
+(defn input-value-cursor [state input-key]
   (r/cursor state [:inputs input-key]))
 
-(defn- filter-value-cursor [state filter-key]
-  (r/cursor state [:filters filter-key]))
+(defn filters-cursor [state]
+  (r/cursor state [:filters]))
+
+(defn current-filters [state defaults]
+  (:filters (current-state @state defaults)))
+
+(defn filter-entries [state defaults key]
+  (->> (current-filters state defaults)
+       (filterv #(in? (keys %) key))))
+
+(defn replace-filter-entry [state defaults entry-old entry-new]
+  (->> (current-filters state defaults)
+       (mapv #(if (= % entry-old) entry-new %))
+       distinct vec))
+
+(defn sync-input-values [state defaults]
+  (let [{:keys [filters] :as cstate}
+        (current-state @state defaults)
+        text-search (->> filters
+                         (filter #(in? (keys %) :text-search))
+                         first vals first)
+        text-search-input (input-value-cursor state :text-search)]
+    (reset! text-search-input text-search)))
+
+(reg-fx
+ ::sync-input-values
+ (fn [panel]
+   (let [state (panel-cursor panel)
+         defaults (panel-defaults panel)]
+     (sync-input-values state defaults))))
+
+(defn replace-filter-key [state defaults key new-value]
+  (let [filters (current-filters state defaults)]
+    (if (some #(= % key)
+              (->> filters (map keys) (apply concat)))
+      (->> filters
+           (mapv #(if (in? (keys %) key)
+                    {key new-value} %))
+           (filterv #(not (every? nil? (vals %))))
+           distinct vec)
+      (conj filters {key new-value}))))
+
+(defn reset-filters [state defaults]
+  (let [default-defaults (default-defaults)]
+    (set-display-offset state defaults 0)
+    (swap! state assoc :filters
+           (or (:filters defaults)
+               (:filters default-defaults)))
+    (sync-url-params (or (:panel @state)
+                         (:panel defaults)
+                         (:panel default-defaults)))
+    (sync-input-values state defaults)))
 
 (defn- TextSearchInput [state defaults]
-  (let [input (input-value-cursor state :text-search)
-        filter-cursor (filter-value-cursor state :text-search)
-        curval (get-in @state [:filters :text-search])
+  (let [key :text-search
+        {:keys [panel] :as cstate} (current-state @state defaults)
+        input (input-value-cursor state key)
+        [entry] (filter-entries state defaults key)
+        curval (get entry key)
         synced? (= @input curval)]
     [:div.ui.fluid.icon.input
      {:class (when-not synced? "loading")}
-     [:input {:type "text" :id "article-search" :name "article-search"
-              :value @input
-              :on-change
-              (fn [event]
-                (let [value (-> event .-target .-value)]
-                  (reset! input value)
-                  (js/setTimeout
-                   #(let [later-value @input]
-                      (when (= value later-value)
-                        (reset! filter-cursor value)))
-                   750)))}]
+     [:input
+      {:type "text" :id "article-search" :name "article-search"
+       :value (or @input curval)
+       :on-change
+       (fn [event]
+         (let [value (-> event .-target .-value)]
+           (reset! input value)
+           (js/setTimeout
+            #(let [later-value @input]
+               (let [later-value
+                     (if (empty? later-value) nil later-value)
+                     value
+                     (if (empty? value) nil value)]
+                 (when (= value later-value)
+                   (reset! (filters-cursor state)
+                           (replace-filter-key
+                            state defaults key value))
+                   (when (empty? value)
+                     (reset! input nil))
+                   (sync-url-params panel))))
+            750)))}]
      [:i.search.icon]]))
+
+(defn make-filter-descriptions [state defaults]
+  (let [{:keys [filters] :as cstate}
+        (current-state @state defaults)
+        descriptions
+        (->> filters
+             (map
+              (fn [m]
+                (let [key (-> m keys first)
+                      value (-> m vals first)]
+                  (case key
+                    :label-id
+                    (when value
+                      (str "has label "
+                           (pr-str @(subscribe [:label/display value]))))
+
+                    :text-search
+                    (when (and (string? value)
+                               (not-empty value))
+                      (str "text contains " (pr-str value)))
+
+                    nil))))
+             (remove nil?))]
+    (if (empty? descriptions)
+      ["all articles"]
+      descriptions)))
 
 (defn- ArticleListFilters [state defaults]
   (let [cstate (current-state @state defaults)
@@ -426,11 +553,22 @@
     [:div.ui.segments.article-filters
      [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal
       [:div.row
-       [:div.ten.wide.column.filters-summary
-        [:span {:style {:font-size "15px"}}
-         "Filters: "
-         [:span {:style {:font-style "italic"}}
-          "all articles"]]]
+       {:style {:padding-top "0"
+                :padding-bottom "0"}}
+       [:div.one.wide.column.medium-weight
+        {:style {:font-size "15px"
+                 :padding-top "12px"
+                 :padding-bottom "12px"
+                 :background-color "rgba(128,128,128,0.05)"
+                 :border-top-left-radius "3px"}}
+        "Filters"]
+       [:div.nine.wide.column.filters-summary
+        [:span
+         (doall
+          (map-indexed
+           (fn [i s] ^{:key [:filter-text i]}
+             [:div.ui.label {:style {:font-size "14px"}} s])
+           (make-filter-descriptions state defaults)))]]
        [:div.six.wide.column.right.aligned.control-buttons
         [:button.ui.small.icon.button
          {:class (if (and loading? (= recent-nav-action :refresh))
@@ -438,6 +576,7 @@
           :on-click #(reload-list cstate :refresh)}
          [:i.repeat.icon]]
         [:button.ui.small.icon.button
+         {:on-click #(reset-filters state defaults)}
          [:i.erase.icon]]]]]
      [:div.ui.secondary.segment.no-padding
       [:button.ui.tiny.fluid.icon.button
@@ -699,8 +838,14 @@
                  loading? (loading/item-loading? [:article project-id article-id])
                  next-id (next-article-id cstate)
                  prev-id (prev-article-id cstate)
-                 next-url (when next-id (article-uri cstate next-id))
-                 prev-url (when prev-id (article-uri cstate prev-id))]
+                 next-url
+                 (when next-id
+                   (nav/make-url (article-uri cstate next-id)
+                                 (make-url-params cstate)))
+                 prev-url
+                 (when prev-id
+                   (nav/make-url (article-uri cstate prev-id)
+                                 (make-url-params cstate)))]
              (doall
               (list
                [:a.ui.middle.aligned.grid.segment.article-list-article

@@ -7,13 +7,13 @@
             [sysrev.views.article-list :as al]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.util]
-            [sysrev.shared.util :refer [in?]])
+            [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :project :articles])
 
-(defmethod al/panel-defaults panel []
-  {:panel panel})
+(def panel-defaults {:panel panel})
+(defmethod al/panel-defaults panel [] panel-defaults)
 
 (def initial-state {:article-list {}})
 (defonce state (r/cursor app-db [:state :panels panel]))

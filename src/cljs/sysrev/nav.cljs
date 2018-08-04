@@ -1,17 +1,24 @@
 (ns sysrev.nav
-  (:require [secretary.core :as secretary]
+  (:require [clojure.string :as str]
+            [secretary.core :as secretary]
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-fx]]
             [cljs-http.client :as hc]
             [sysrev.base :refer [history]]
             [sysrev.util :refer [scroll-top]]
-            [clojure.string :as str]))
+            [sysrev.shared.util :refer [map-values]]))
 
 (defn force-dispatch [uri]
   (secretary/dispatch! uri))
 
 (defn make-url [route & [params]]
-  (let [hash (hc/generate-query-string params)]
+  (let [params-map
+        (if (map? params) params
+            (->> params
+                 (group-by #(-> % keys first))
+                 (map-values
+                  #(->> % (map vals) (apply concat)))))
+        hash (hc/generate-query-string params-map)]
     (if (empty? hash)
       route
       (str route "?" hash))))
