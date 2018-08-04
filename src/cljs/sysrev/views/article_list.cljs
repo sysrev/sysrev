@@ -108,6 +108,11 @@
          current (get-in db path)]
      (assoc-in db path (merge current (get-url-params))))))
 
+(defn update-url-params [state defaults]
+  (let [{:keys [panel]} (current-state @state defaults)
+        root-state (panel-cursor panel)]
+    (nav-list (current-state @root-state defaults))))
+
 (reg-event-fx
  ::sync-url-params
  [trim-v]
@@ -193,14 +198,16 @@
     [:project/article-list-count project-id args]))
 
 (defn- reload-list-data [cstate]
-  (dispatch [::set-recent-nav-action (:panel cstate) :refresh])
+  (dispatch [:require (list-data-query cstate)])
   (dispatch [:reload (list-data-query cstate)]))
 
 (defn- reload-list-count [cstate]
-  (dispatch [::set-recent-nav-action (:panel cstate) :refresh])
+  (dispatch [:require (list-count-query cstate)])
   (dispatch [:reload (list-count-query cstate)]))
 
-(defn- reload-list [cstate]
+(defn- reload-list [cstate & [nav-action]]
+  (when nav-action
+    (dispatch [::set-recent-nav-action (:panel cstate) nav-action]))
   (reload-list-count cstate)
   (reload-list-data cstate))
 
@@ -209,6 +216,28 @@
 
 (defn total-articles-count [cstate]
   @(subscribe (list-count-query cstate)))
+
+(defn current-state-ready? [cstate]
+  (let [item1 (list-data-query cstate)
+        item2 (list-count-query cstate)]
+    (and @(subscribe [:have? item1])
+         @(subscribe [:have? item2]))))
+
+(reg-event-db
+ :article-list/update-ready-state
+ [trim-v]
+ (fn [db [panel]]
+   (let [path (panel-state-path panel)
+         stateval (get-in db path)]
+     (assoc-in db (concat path [:ready])
+               (dissoc stateval :ready)))))
+
+(defn update-ready-state [panel]
+  (let [state (panel-cursor panel)
+        defaults (panel-defaults panel)
+        cstate (current-state @state defaults)]
+    (when (current-state-ready? cstate)
+      (dispatch [:article-list/update-ready-state panel]))))
 
 (reg-event-fx
  :article-list/set-recent-article
@@ -230,8 +259,12 @@
  ::set-recent-nav-action
  [trim-v]
  (fn [db [panel action]]
-   (let [path (panel-state-path panel)]
-     (assoc-in db (concat path [:recent-nav-action]) action))))
+   (let [path (panel-state-path panel)
+         have-ready? (contains? (get-in db path) :ready)]
+     (cond-> (assoc-in db (concat path [:recent-nav-action])
+                       action)
+       have-ready? (assoc-in (concat path [:ready :recent-nav-action])
+                             action)))))
 
 (reg-event-db
  :article-list/toggle-display-option
@@ -240,8 +273,47 @@
    (let [path (panel-state-path panel)]
      (assoc-in db (concat path [:display key]) value))))
 
-(defn set-display-offset [state cstate offset]
-  (nav-list cstate :params {:offset offset}))
+(reg-event-db
+ ::set-display-offset
+ [trim-v]
+ (fn [db [panel offset]]
+   (let [path (panel-state-path panel)]
+     (assoc-in db (concat path [:offset]) offset))))
+
+(defn ensure-data-loaded [panel]
+  (let [state (panel-cursor panel)
+        defaults (panel-defaults panel)
+        cstate (current-state @state defaults)]
+    (dispatch [:require (list-data-query cstate)])
+    (dispatch [:require (list-count-query cstate)])))
+
+(defn wrap-change-filters [state defaults f & {:keys [reload?]}]
+  (let [{:keys [panel] :as cstate} (current-state @state defaults)]
+    (ensure-data-loaded panel)
+    (if (current-state-ready? cstate)
+      (do (f)
+          (update-url-params state defaults)
+          (when reload?
+            (reload-list cstate)))
+      (do nil))))
+
+(defn set-display-offset [state defaults offset]
+  (let [{:keys [panel active-article] :as cstate}
+        (current-state @state defaults)
+        new-cstate (assoc cstate :offset offset)
+        change-offset
+        (fn []
+          (wrap-change-filters
+           state defaults
+           (fn []
+             (dispatch-sync [::set-display-offset panel offset])
+             (when @(subscribe [:have? (list-data-query new-cstate)])
+               (dispatch [:reload (list-data-query new-cstate)])))
+           :reload? false))]
+    (if active-article
+      (do (nav-list cstate :redirect? true)
+          (js/setTimeout change-offset 25))
+      (change-offset))))
 
 (defn- max-display-offset [cstate]
   (let [total-count (total-articles-count cstate)
@@ -267,8 +339,8 @@
            (take-while #(not= % active-article))
            last))))
 
-(defn reset-filters [state cstate]
-  (set-display-offset state cstate 0)
+(defn reset-filters [state defaults]
+  (set-display-offset state defaults 0)
   (swap! state assoc :filters {}))
 
 (defn- private-article-view? [cstate]
@@ -363,7 +435,7 @@
         [:button.ui.small.icon.button
          {:class (if (and loading? (= recent-nav-action :refresh))
                    "loading" "")
-          :on-click #(reload-list cstate)}
+          :on-click #(reload-list cstate :refresh)}
          [:i.repeat.icon]]
         [:button.ui.small.icon.button
          [:i.erase.icon]]]]]
@@ -421,21 +493,20 @@
         max-offset (max-display-offset cstate)
         set-nav #(dispatch-sync [::set-recent-nav-action panel %])
         on-first #(do (set-nav :first)
-                      (set-display-offset state cstate 0))
+                      (set-display-offset state defaults 0))
         on-last #(do (set-nav :last)
-                     (set-display-offset state cstate max-offset))
+                     (set-display-offset state defaults max-offset))
         on-next
         #(when (< (+ offset display-count) total-count)
            (set-nav :next)
            (set-display-offset
-            state cstate (+ offset display-count)))
+            state defaults (+ offset display-count)))
         on-previous
         #(when (>= offset display-count)
            (set-nav :previous)
            (set-display-offset
-            state cstate (max 0 (- offset display-count))))
-        loading? (and (loading/any-loading? :only :project/article-list)
-                      @(loading/loading-indicator))
+            state defaults (max 0 (- offset display-count))))
+        loading? (loading/any-loading? :only :project/article-list)
         nav-loading? (fn [action]
                        (and loading? (= action recent-nav-action)))]
     (if (full-size?)
@@ -504,17 +575,18 @@
         [:i.angle.double.right.icon]]])))
 
 (defn- ArticleListNavHeader [state defaults]
-  (let [cstate (current-state @state defaults)]
+  (let [{:keys [panel] :as visible-cstate} (current-state @state defaults)
+        root-state (panel-cursor panel)]
     [:div.ui.segment.article-nav
      (if (full-size?)
        [:div.ui.two.column.middle.aligned.grid
         [:div.ui.left.aligned.column
-         [ArticleListNavMessage cstate]]
-        [ArticleListNavButtons state defaults]]
+         [ArticleListNavMessage visible-cstate]]
+        [ArticleListNavButtons root-state defaults]]
        [:div.ui.middle.aligned.grid
         [:div.ui.left.aligned.seven.wide.column
-         [ArticleListNavMessage cstate]]
-        [ArticleListNavButtons state defaults]])]))
+         [ArticleListNavMessage visible-cstate]]
+        [ArticleListNavButtons root-state defaults]])]))
 
 (defn- AnswerCellIcon [value]
   (case value
@@ -709,13 +781,25 @@
 
 (defn MultiArticlePanel [state defaults]
   (let [cstate (current-state @state defaults)
-        articles (visible-articles cstate)]
-    [:div
-     [ArticleListFilters state defaults]
-     [:div.article-list-view
-      (with-loader [(list-count-query cstate)
-                    (list-data-query cstate)] {}
-        [ArticleListContent state defaults])]]))
+        {:keys [panel]} cstate
+        articles (visible-articles cstate)
+        item1 (list-count-query cstate)
+        item2 (list-data-query cstate)
+        ready? (and @(subscribe [:have? item1])
+                    @(subscribe [:have? item2])
+                    (not (loading/item-loading? item1))
+                    (not (loading/item-loading? item2)))]
+    (if (and (not ready?) (contains? @state :ready))
+      [:div.article-list-view
+       [ArticleListFilters state defaults]
+       [ArticleListContent (r/cursor state [:ready]) defaults] ]
+      (with-loader [item1 item2] {}
+        [:div.article-list-view
+         (when (not= @(r/cursor state [:ready])
+                     (-> @state (dissoc :ready)))
+           (update-ready-state panel))
+         [ArticleListFilters state defaults]
+         [ArticleListContent state defaults]]))))
 
 (defn ArticleListPanel [state defaults]
   (let [cstate (current-state @state defaults)

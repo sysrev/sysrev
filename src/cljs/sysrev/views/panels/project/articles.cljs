@@ -60,7 +60,7 @@
   [:article-list/set-active-article panel nil])
 
 (defn reset-filters []
-  (al/reset-filters al-state (current-state)))
+  (al/reset-filters al-state (al/panel-defaults panel)))
 
 (defn set-group-status []
   ;; TODO: function

@@ -70,8 +70,7 @@
      (and on-article? (= prev-args args) data-loaded?)
      (do (dispatch load-params)
          (dispatch set-panel)
-         (dispatch project-articles/hide-article)
-         #_ (ensure-visible))
+         (dispatch project-articles/hide-article))
 
      (not have-project?)
      (do (dispatch [:require [:project project-id]])
@@ -83,11 +82,11 @@
      (do nil)
 
      :else
-     (do (dispatch
+     (do (dispatch load-params)
+         (dispatch
           [:data/after-load item :project-articles-route
-           (list load-params set-panel project-articles/hide-article
-                 #(when panel-changed? (sync-params))
-                 #_ ensure-visible)])
+           (list set-panel project-articles/hide-article
+                 #(when panel-changed? (sync-params)))])
          (dispatch [:require item2])
          (dispatch [:require item])
          (dispatch [:reload item2])
