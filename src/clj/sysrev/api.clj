@@ -735,7 +735,10 @@
 (defn save-article-annotation
   [article-id user-id selection annotation & {:keys [pdf-key context]}]
   (try
-    (let [annotation-id (db-annotations/create-annotation! selection annotation (process-annotation-context context article-id))]
+    (let [annotation-id (db-annotations/create-annotation! selection
+                                                           annotation
+                                                           (process-annotation-context context article-id)
+                                                           article-id)]
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
       (when pdf-key

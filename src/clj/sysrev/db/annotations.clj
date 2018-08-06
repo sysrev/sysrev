@@ -21,11 +21,12 @@
       do-execute
       first))
 
-(defn create-annotation! [selection annotation context]
+(defn create-annotation! [selection annotation context article-id]
   (-> (insert-into :annotation)
       (values [{:selection selection
                 :annotation annotation
-                :context (to-jsonb context)}])
+                :context (to-jsonb context)
+                :article_id article-id}])
       (returning :id)
       do-query
       first
