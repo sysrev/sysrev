@@ -150,8 +150,11 @@
                 "application/transit+json" (ajax/transit-request-format)
                 "application/json" (ajax/json-request-format))
       :response-format (condp = content-type
-                         "application/transit+json" (ajax/transit-response-format)
-                         "application/json" (ajax/json-response-format {:keywords? true}))
+                         "application/transit+json"
+                         (ajax/transit-response-format
+                          :json {:handlers {"u" cljs.core/uuid}})
+                         "application/json"
+                         (ajax/json-response-format {:keywords? true}))
       :headers (when csrf-token {"x-csrf-token" csrf-token})
       :on-success (cond-> on-success
                     action-params (conj action-params))
