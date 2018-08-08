@@ -2,9 +2,9 @@
      User Global Variables
 *******************************/
 
-@pageBackground: #eeeeee;
+@pageBackground: rgba(242,243,245,1.0);
 
-@siteTextColor: rgba(45, 45, 45, 0.925);
+@siteTextColor: rgba(35, 35, 35, 0.925);
 @textColor : @siteTextColor;
 @invertedTextColor: rgba(230, 230, 230, 0.925);
 @mutedTextColor : rgba(60, 60, 60, 0.85);

@@ -116,7 +116,7 @@
                  updated-time (if (empty? all-times)
                                 (t/now)
                                 (time-from-epoch (apply max all-times)))]
-             [:div.ui.attached.segment {:key user-id}
+             [:div.ui.segment {:key user-id}
               [:h5.ui.dividing.header
                [:div.ui.two.column.middle.aligned.grid
                 [:div.row

@@ -647,7 +647,7 @@
           (let [active? (= article-id active-aid)
                 classes (if active? "active" "")
                 loading? (loading/item-loading? [:article project-id article-id])]
-            [:a.ui.middle.aligned.attached.grid.segment.article-list-article
+            [:a.ui.middle.aligned.grid.segment.article-list-article
              {:key article-id
               :class (str (if active? "active" "")
                           " "

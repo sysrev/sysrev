@@ -218,7 +218,7 @@
   (let [duplicates @(subscribe [:article/duplicates article-id])
         project-id @(subscribe [:active-project-id])]
     (when duplicates
-      [:div.ui.attached.segment
+      [:div.ui.segment
        {:key [:article-duplicates]}
        [:h5
         "Duplicate articles:"
@@ -247,10 +247,10 @@
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list
-        [:div.ui.top.attached.middle.aligned.header
+        [:div.ui.middle.aligned.header.segment.article-header
          {:key [:article-header]}
          [:div {:style {:float "left"}}
-          [:h4 "Article Info "
+          [:h4.article-info "Article Info "
            (when full-size? (article-flags-view article-id nil))]]
          (when (or status private-view?)
            [:div {:style {:float "right"}}
@@ -262,8 +262,8 @@
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         (article-duplicates-segment article-id)
-        (when-not full-size? (article-flags-view article-id "ui attached segment"))
-        [:div.ui.attached.segment
+        (when-not full-size? (article-flags-view article-id "ui segment"))
+        [:div.ui.segment
          {:key [:article-content]}
          [:div {:style {:top "0px"
                         :left "0px"

@@ -1,4 +1,4 @@
-@darkText: rgba(45, 45, 45, 0.925);
+@darkText: rgba(35, 35, 35, 0.925);
 @lightText: rgba(230, 230, 230, 0.925);
 
 @mutedDarkText: rgba(60, 60, 60, 0.85);
@@ -17,7 +17,7 @@
 @fadedInvertedText: @fadedDarkText;
 
 @green: rgba(33, 186, 69, 1);
-@blue: #2185d0;
+@blue: #4085d0;
 @mediumGrey: rgba(100, 100, 100, 1);
 @lightGrey: rgba(130, 130, 130, 0.7);
 
@@ -29,10 +29,10 @@
 @background01: lighten(@pageBackground, 8);
 @background02: lighten(@pageBackground, 10);
 
-@blueBackground: screen(@background, rgba(50,100,160,1.0));
-@greenBackground: screen(@background, rgba(60,140,60,1.0));
-@redBackground: screen(@background, rgba(140,60,60,1.0));
-@purpleBackground: screen(@background, rgba(100,60,140,1.0));
+@blueBackground: fade(screen(@background, rgba(50,100,160,1.0)),30%);
+@greenBackground: fade(screen(@background, rgba(40,180,40,1.0)),30%);
+@redBackground: fade(screen(@background, rgba(140,60,60,1.0)),30%);
+@purpleBackground: fade(screen(@background, rgba(100,60,140,1.0)),30%);
 
 @warningBackground: @redBackground;
 
