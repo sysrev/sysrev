@@ -45,7 +45,7 @@
        (when (loading/item-loading? [:identity])
          [:div.ui.active.inverted.dimmer
           [:div.ui.loader]])
-       [:div.ui.segment
+       [:div.ui.segment.projects-list-header
         [:h5.ui.header title]]
        (doall
         (->> projects

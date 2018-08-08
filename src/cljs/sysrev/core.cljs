@@ -23,12 +23,28 @@
             [sysrev.shared.spec.labels]
             [sysrev.shared.spec.users]
             [sysrev.shared.spec.keywords]
-            [sysrev.shared.spec.notes]))
+            [sysrev.shared.spec.notes]
+            [sysrev.util :as util]))
+
+(defn force-update-soon
+  "Force full render update, with js/setTimeout delay to avoid spamming
+  updates while window is being resized."
+  []
+  (let [start-size (util/viewport-width)]
+    (js/setTimeout
+     (fn [_]
+       (let [end-size (util/viewport-width)]
+         (when (= start-size end-size)
+           (reagent/force-update-all))))
+     100)))
 
 (defn mount-root []
   (re-frame/clear-subscription-cache!)
   (reagent/render [main-content]
-                  (.getElementById js/document "app")))
+                  (.getElementById js/document "app"))
+  (-> js/window (.addEventListener
+                 "resize"
+                 force-update-soon)))
 
 (defn ^:export init []
   (when base/debug?

@@ -304,46 +304,54 @@
 (defn PDFs [article-id]
   (when article-id
     (when-let [project-id @(subscribe [:active-project-id])]
-      [:div#article-pdfs.ui.attached.segment
-       {:style {:min-height "60px"}}
-       (with-loader [[:article project-id article-id]
-                     [:pdf/article-pdfs project-id article-id]] {}
-         (let [full-size? (full-size?)
-               inline-loader
-               (fn []
-                 (when (and (loading/any-loading? :only :pdf/open-access-available?)
-                            @(loading/loading-indicator))
-                   [:div.ui.small.active.inline.loader
-                    {:style {:margin-right "1em"
-                             :margin-left "1em"}}]))
-               upload-form
-               (fn []
-                 [:div.field>div.fields
-                  (when full-size?
-                    (inline-loader))
-                  [upload-container basic-text-button
-                   (str "/api/files/article/" article-id "/upload-pdf")
-                   #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
-                   "Upload PDF"]
-                  (when (not full-size?)
-                    (inline-loader))])]
-           (dispatch [:require [:pdf/open-access-available?
-                                project-id article-id]])
-           (if full-size?
-             [:div.ui.grid
-              [:div.row
-               [:div.twelve.wide.left.aligned.column
-                [:div.ui.small.form
-                 [OpenAccessPDF article-id]
-                 (when @(subscribe [:self/logged-in?])
-                   [ArticlePDFs article-id])]]
-               (when @(subscribe [:self/logged-in?])
-                 [:div.four.wide.right.aligned.column
-                  [upload-form]])]]
-             [:div.ui.small.form
-              [OpenAccessPDF article-id]
-              ;; need better permissions for PDFs, for now, simple don't allow
-              ;; people who aren't logged in to view PDFs
-              (when @(subscribe [:self/logged-in?])
-                [ArticlePDFs article-id]
-                [upload-form])])))])))
+      (with-loader [[:article project-id article-id]
+                    [:pdf/article-pdfs project-id article-id]]
+        {}
+        (let [full-size? (full-size?)
+              inline-loader
+              (fn []
+                (when (and (loading/any-loading? :only :pdf/open-access-available?)
+                           @(loading/loading-indicator))
+                  [:div.ui.small.active.inline.loader
+                   {:style {:margin-right "1em"
+                            :margin-left "1em"}}]))
+              upload-form
+              (fn []
+                [:div.field>div.fields
+                 (when full-size?
+                   (inline-loader))
+                 [upload-container basic-text-button
+                  (str "/api/files/article/" article-id "/upload-pdf")
+                  #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
+                  "Upload PDF"]
+                 (when (not full-size?)
+                   (inline-loader))])
+              open-access? @(subscribe [:article/open-access-available? article-id])
+              logged-in? @(subscribe [:self/logged-in?])
+              member? @(subscribe [:self/member?])]
+          (dispatch [:require [:pdf/open-access-available?
+                               project-id article-id]])
+          (when (if (or (not logged-in?)
+                        (not member?))
+                  open-access?
+                  true)
+            [:div#article-pdfs.ui.segment
+             {:style {:min-height "60px"}}
+             (if full-size?
+               [:div.ui.grid
+                [:div.row
+                 [:div.twelve.wide.left.aligned.column
+                  [:div.ui.small.form
+                   [OpenAccessPDF article-id]
+                   (when logged-in?
+                     [ArticlePDFs article-id])]]
+                 (when logged-in?
+                   [:div.four.wide.right.aligned.column
+                    [upload-form]])]]
+               [:div.ui.small.form
+                [OpenAccessPDF article-id]
+                ;; need better permissions for PDFs, for now, simple don't allow
+                ;; people who aren't logged in to view PDFs
+                (when logged-in?
+                  [ArticlePDFs article-id]
+                  [upload-form])])]))))))

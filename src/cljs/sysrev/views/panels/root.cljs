@@ -11,18 +11,6 @@
 
 (def ^:private panel [:root])
 
-(defn PublicProjectView [project-id]
-  (when-let [project (get @(subscribe [:public-projects]) project-id)]
-    (let [{:keys [name]} project]
-      [:a.ui.grid.segment.project-list-project
-       {:href (str "/p/" project-id)}
-       [:div.row
-        [:div.sixteen.wide.column
-         [:h4.ui.header.blue-text
-          [:i.grey.list.alternate.outline.icon]
-          [:div.content
-           [:span.project-title name]]]]]])))
-
 (defn PublicProjectsList []
   [:div.ui.segments.projects-list
    {:style {:margin-top "0"}}
@@ -31,8 +19,12 @@
      "Example Projects"]]
    (doall
     (for [project-id [100 269 2026 2283]]
-      ^{:key [:public-project project-id]}
-      [PublicProjectView project-id]))])
+      (when-let [project (get @(subscribe [:public-projects]) project-id)]
+        ^{:key [:public-project project-id]}
+        [select/ProjectListItem
+         {:project-id project-id
+          :name (:name project)
+          :member? true}])))])
 
 (defn RootFullPanelPublic []
   (with-loader [[:identity]
