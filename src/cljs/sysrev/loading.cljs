@@ -127,7 +127,7 @@
         new-status
         (cond
           ;; enable indicator when ajax active for >= 75ms
-          (>= (- time-active time-inactive) 100) true
+          (>= (- time-active time-inactive) 75) true
           ;; disable indicator when ajax inactive for >= 200ms
           (>= (- time-inactive time-active) 200) false
           ;; otherwise maintain existing indicator status
@@ -148,7 +148,7 @@
 
 (defn schedule-loading-update [& [times]]
   (let [times (if (vector? times) times
-                  [5 25 75 125 200 275 350 500])]
+                  [5 25 50 75 100 150 200 275 350 500])]
     (doseq [ms times]
       (js/setTimeout #(update-loading-status) ms))))
 
