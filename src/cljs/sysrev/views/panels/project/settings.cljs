@@ -170,7 +170,7 @@
   (let [skey :second-review-prob]
     [:div.field {:class (input-field-class skey)}
      [:label "Article Review Priority"]
-     [:div.ui.buttons
+     [:div.ui.buttons.selection
       (doall
        (for [entry review-priority-buttons]
          ^{:key (:key entry)}
@@ -214,7 +214,7 @@
   (let [skey :public-access]
     [:div.field {:class (input-field-class skey)}
      [:label "Project Visibility"]
-     [:div.ui.buttons
+     [:div.ui.buttons.selection
       (doall
        (for [entry public-access-buttons]
          ^{:key (:key entry)}

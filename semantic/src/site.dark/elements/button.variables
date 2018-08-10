@@ -1,2 +1,8 @@
 @basicTextColor: @siteTextColor;
 @basicBackground: inherit;
+
+// Dark control elements
+/*
+@textColor: rgba(230, 230, 230, 0.9);
+@backgroundColor: rgba(110,110,110,1.0);
+*/

@@ -103,3 +103,10 @@
 (defn integer-project-id? [url-id]
   (if (re-matches #"^[0-9]+$" url-id)
     true false))
+
+(defn parse-html-str
+  "Convert \"&lt;\" and \"&gt;\" to \"<\" and \">\"."
+  [s]
+  (-> s
+      (str/replace #"\&lt;" "<")
+      (str/replace #"\&gt;" ">")))

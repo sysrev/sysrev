@@ -10,8 +10,10 @@
             [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.components :as ui]
-            [sysrev.util :refer [wrap-prevent-default]]
-            [sysrev.shared.util :as util]))
+            [sysrev.views.list-pager :refer [ListPager]]
+            [sysrev.util :refer [wrap-prevent-default nbsp]]
+            [sysrev.shared.util :as util])
+  (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def panel [:pubmed-search])
 
@@ -184,112 +186,59 @@
    {}))
 
 (defn SearchResultArticlesPager []
-  (let [current-page-input (r/atom nil)]
-    (fn []
-      (let [current-page (r/cursor state [:page-number])
-            current-search-term (r/cursor state [:current-search-term])
-            search-results
-            @(subscribe [:pubmed/search-term-result @current-search-term])
-            n-results (get-in search-results [:count])
-            pmids-per-page (r/cursor state [:pmids-per-page])
-            total-pages (Math/ceil (/ n-results @pmids-per-page))
-            on-navigate
-            #(do (reset! current-page-input nil)
-                 (dispatch [:require [:pubmed-search @current-search-term @current-page]]))
-            page-width 1
-            pages (->> (range 1 (+ 1 total-pages))
-                       (partition-all page-width))
-            displayed-pages (->> pages
-                                 (filter (fn [i] (some #(= @current-page %) i)))
-                                 first)]
-        ;; prevent overshooting of current-page for tables
-        ;; of different sizes
-        (when (> @current-page displayed-pages)
-          (reset! current-page 1))
-        (when (> total-pages 1)
-          [:div.articles-pager
-           [:div.ui.grid>div.row
-            [:div.five.wide.column.left.aligned
-             [:div.ui.tiny.buttons
-              [:div.ui.tiny.icon.button
-               {:class (when (= @current-page 1)
-                         "disabled")
-                :on-click #(do (reset! current-page 1)
-                               (when on-navigate (on-navigate)))}
-               [:i.angle.double.left.icon]
-               "First"]
-              [:div.ui.tiny.icon.button
-               {:class (when (= @current-page 1)
-                         "disabled")
-                :on-click #(let [new-current-page (- (first displayed-pages) 1)]
-                             (if (< new-current-page 1)
-                               (reset! current-page 1)
-                               (reset! current-page new-current-page))
-                             (when on-navigate (on-navigate)))}
-               [:i.angle.left.icon]
-               "Previous"]]]
-            [:div.six.wide.column.center.aligned
-             [:form.ui.action.input.page-number
-              {:on-submit
-               (wrap-prevent-default
-                (fn []
-                  (let [value (util/parse-integer @current-page-input)]
-                    (cond (not= (type value) (type 1))
-                          (reset! current-page-input nil)
-
-                          (not (<= 1 value total-pages))
-                          (reset! current-page-input nil)
-
-                          (<= 1 value total-pages)
-                          (do (reset! current-page value)
-                              (reset! current-page-input nil)
-                              (when on-navigate (on-navigate)))))))}
-              [:div
-               [:span "Page "]
-               [:input.ui.input.search-page-number
-                {:type "text"
-                 :value (or @current-page-input (str @current-page))
-                 :defaultValue ""
-                 :on-change #(reset! current-page-input (-> % .-target .-value))}]
-               [:span (str " of " total-pages)]]]]
-            [:div.five.wide.column.right.aligned
-             [:div.ui.tiny.buttons
-              [:div.ui.tiny.icon.button
-               {:class (when (= @current-page total-pages)
-                         "disabled")
-                :on-click #(let [new-current-page (+ (last displayed-pages) 1)]
-                             (if (> new-current-page total-pages)
-                               (reset! current-page total-pages)
-                               (reset! current-page new-current-page))
-                             (when on-navigate (on-navigate)))}
-               [:i.angle.right.icon]
-               "Next"]
-              [:div.ui.tiny.icon.button
-               {:class (when (= @current-page total-pages)
-                         "disabled")
-                :on-click #(do (reset! current-page total-pages)
-                               (when on-navigate (on-navigate)))}
-               [:i.angle.double.right.icon]
-               "Last"]]]]])))))
+  (let [current-page (r/cursor state [:page-number])
+        current-search-term (r/cursor state [:current-search-term])
+        search-results
+        @(subscribe [:pubmed/search-term-result @current-search-term])
+        n-results (get-in search-results [:count])
+        pmids-per-page (r/cursor state [:pmids-per-page])
+        total-pages (Math/ceil (/ n-results @pmids-per-page))
+        on-navigate
+        (fn [_ offset]
+          (dispatch [:require [:pubmed-search @current-search-term @current-page]]))
+        page-width 1
+        pages (->> (range 1 (+ 1 total-pages))
+                   (partition-all page-width))
+        displayed-pages (->> pages
+                             (filter (fn [i] (some #(= @current-page %) i)))
+                             first)
+        offset (* (dec @current-page) @pmids-per-page)]
+    [:div.ui.segment
+     [ListPager
+      {:panel panel
+       :instance-key [:pubmed-search-results]
+       :offset offset
+       :total-count n-results
+       :items-per-page @pmids-per-page
+       :item-name-string "articles"
+       :set-offset #(reset! current-page (inc (quot % @pmids-per-page)))
+       :on-nav-action on-navigate
+       :recent-nav-action nil
+       :loading? nil}]]))
 
 (defn ArticleSummary
   "Display an article summary item"
-  [article item-idx]
+  [article global-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    [:div.ui.segment
-     item-idx [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
-                   :target "_blank"}
-               title]
+    [:div.ui.segment.pubmed-article
+     [:span
+      (str (inc global-idx) "." nbsp nbsp)
+      [ui/dangerous
+       :a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
+           :target "_blank"}
+       (util/parse-html-str title)]]
      [:p.bold (->> authors (mapv :name) (str/join ", "))]
      [:p (str source ". " pubdate
               (when-not (empty? volume)
                 (str "; " volume ":" pages))
               ". " elocationid ".")]
-     [:p (str "PMID: " uid)]
-     [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
-                     "linkname=pubmed_pubmed&from_uid=" uid)
-          :target "_blank"}
-      "Similar articles"]]))
+     [:p.pmid
+      (str "PMID: " uid)
+      nbsp nbsp nbsp nbsp
+      [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
+                      "linkname=pubmed_pubmed&from_uid=" uid)
+           :target "_blank"}
+       "Similar articles"]]]))
 
 (defn ImportArticlesButton
   "Add articles to a project from a PubMed search"
@@ -319,17 +268,6 @@
     [:div.ui.tiny.icon.button.search.results
      {:on-click #(reset! show-results? false)}
      "Close " [:i.times.icon]]))
-
-(defn SearchItemsCount
-  "Display the total amount of items for a search term as well as the current range being viewed"
-  [count page-number pmids-per-page]
-  [:div.items-count
-   [:h5#items-count
-    [:span (str "Showing items "
-                (min count (+ 1 (* (- page-number 1) pmids-per-page)))
-                " to "
-                (min count (* page-number pmids-per-page))
-                " of " count)]]])
 
 (defn SearchBar
   "The search input for a pubmed query"
@@ -366,7 +304,10 @@
         show-results? (r/cursor state [:show-results?])
         search-results @(subscribe [:pubmed/search-term-result
                                     @current-search-term])
-        n-results (get-in search-results [:count])]
+        n-results (get-in search-results [:count])
+        page-offset (* (- @page-number 1) @pmids-per-page)
+        have-entries?
+        (not-empty (get-in search-results [:pages @page-number :summaries]))]
     (when (and n-results @show-results?)
       [:div.pubmed-search-results
        [:h4.ui.dividing.header
@@ -378,26 +319,26 @@
           [ImportArticlesButton]
           [PubMedSearchLink]
           [CloseSearchResultsButton]]]]
-       [SearchResultArticlesPager]
-       [SearchItemsCount
-        (:count search-results)
-        @page-number
-        @pmids-per-page]
-       (if-not (empty? (get-in search-results [:pages @page-number :summaries]))
-         [:div
+       (when (and (not-empty @current-search-term)
+                  @page-number)
+         (dispatch [:require [:pubmed-search @current-search-term @page-number]]))
+       [:div.ui.segments.pubmed-articles
+        {:style (if have-entries? {}
+                    {:min-height "800px"})}
+        [SearchResultArticlesPager]
+        (if have-entries?
           (doall
            (map-indexed
             (fn [idx pmid]
               ^{:key pmid}
-              [:div
-               [ArticleSummary (get-in search-results
-                                       [:pages @page-number :summaries pmid])
-                (str (+ (+ idx 1) (* (- @page-number 1) @pmids-per-page)) ". ")]
-               [:br]])
+              [ArticleSummary
+               (get-in search-results [:pages @page-number :summaries pmid])
+               (+ page-offset idx)])
             (get-in search-results [:pages @page-number :pmids])))
-          [SearchResultArticlesPager]]
-         [:div.ui.active.centered.loader.inline
-          [:div.ui.loader]])])))
+          [:div.ui.active.inverted.dimmer
+           [:div.ui.loader]])
+        (when have-entries?
+          [SearchResultArticlesPager])]])))
 
 (defn SearchResultsContainer []
   (let [current-search-term (r/cursor state [:current-search-term])

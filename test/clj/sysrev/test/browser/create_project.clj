@@ -7,7 +7,8 @@
             [sysrev.import.pubmed :as pubmed]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :refer [log-in log-out]]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [sysrev.shared.util :as util]))
 
 ;; manual tests
 ;; (sysrev.init/start-app {:dbname "sysrev_test"}) ; start the app, if
@@ -40,27 +41,33 @@
 (defn search-count
   "Return an integer item count of search results"
   []
-  (let [parse-count-string
-        (fn [count-string]
-          (clojure.core/read-string (second (re-matches #".*of (\d*)" count-string))))
-        count-query {:xpath "//h5[@id='items-count']"}]
-    (browser/wait-until-exists count-query)
-    (parse-count-string (taxi/text (taxi/find-element count-query)))))
+  (Thread/sleep 100)
+  (browser/wait-until-exists
+   {:xpath "//h5[contains(@class,'list-pager-message')]"})
+  (browser/wait-until-exists
+   {:xpath "//div[contains(@class,'pubmed-article')]"})
+  (->> (taxi/find-elements
+        {:xpath "//h5[contains(@class,'list-pager-message')]"})
+       first
+       taxi/text
+       (re-matches #".*of (\d*).*")
+       last
+       util/parse-integer))
 
 (defn max-pages
   "Return max number of pages"
   []
-  (let [pages-query {:xpath "//form[contains(@class,'page-number')]/div"}]
+  (let [pages-query {:xpath "//span[contains(@class,'page-number')]"}]
     (browser/wait-until-exists pages-query)
     (->> (taxi/text (taxi/find-element pages-query))
-         (re-matches #"(.|\s)*of (\d*)")
+         (re-matches #"(.|\s)*of (\d*).*")
          last
-         clojure.core/read-string)))
+         util/parse-integer)))
 
 (defn get-current-page-number
   []
-  (->> {:xpath "//input[contains(@class,'search-page-number') and @type='text']"}
-       taxi/find-element taxi/value clojure.core/read-string))
+  (->> {:xpath "//input[contains(@class,'page-number') and @type='text']"}
+       taxi/find-element taxi/value util/parse-integer))
 
 (defn search-term-count-matches?
   "Does the search-term result in the browser match the remote call?"
@@ -73,15 +80,19 @@
   "Given a nav string, click the link in the pager corresponding to that position"
   [nav]
   (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
-    (browser/click query)
-    (browser/wait-until-loading-completes)))
+    (browser/click query)))
+
+(defn click-button-class
+  [class]
+  (let [query {:xpath (str "//div[contains(@class,'button') and contains(@class,'" class "')]")}]
+    (browser/click query)))
 
 (defn disabled-pager-link?
   "Given a nav string, check to see if that pager link is disabled"
   [nav]
   (let [query {:xpath (str "//div[contains(@class,'button') and contains(text(),'" nav "')]")}]
     (browser/wait-until-exists query)
-    (boolean (re-matches #".*disabled" (taxi/attribute query :class)))))
+    (boolean (re-matches #".*disabled.*" (taxi/attribute query :class)))))
 
 (deftest pubmed-search
   (log-in)
@@ -95,23 +106,23 @@
          {:xpath "//h3[contains(text(),'No documents match your search terms')]"})))
   (testing "Pager works properly"
     (search-for "dangerous statistics three")
-    (is (disabled-pager-link? "First"))
-    (is (disabled-pager-link? "Prev"))
+    ;; (is (disabled-pager-link? "First"))
+    (is (disabled-pager-link? "Previous"))
     ;; Go to next page
     (click-pager "Next")
     (is (= 2 (get-current-page-number)))
     ;; Go to last page
-    (click-pager "Last")
+    (click-button-class "nav-last")
     (is (disabled-pager-link? "Next"))
-    (is (disabled-pager-link? "Last"))
+    ;; (is (disabled-pager-link? "Last"))
     (is (= (max-pages)
            (get-current-page-number)))
     ;; Go back one page
-    (click-pager "Prev")
+    (click-pager "Previous")
     (is (= (- (max-pages) 1)
            (get-current-page-number)))
     ;; Go to first page
-    (click-pager "First")
+    (click-button-class "nav-first")
     (is (= 1 (get-current-page-number)))
     (log-out)))
 
@@ -158,12 +169,12 @@
                 (re-matches #"(\d*) article(?:s)? shared with (.*)"
                             overlap-string)]
             (if-not (and (nil? overlap) (nil? source))
-              {:overlap (read-string overlap) :source source})))
+              {:overlap (util/parse-integer overlap) :source source})))
         summary-map
         {:unique-articles (->> (re-matches #"(\d*) unique article(?:s)?" unique)
-                               second read-string)
-         :reviewed-articles (read-string reviewed)
-         :total-articles (read-string total)}]
+                               second util/parse-integer)
+         :reviewed-articles (util/parse-integer reviewed)
+         :total-articles (util/parse-integer total)}]
     (if-not (empty? overlap)
       (assoc summary-map :overlap-maps
              (set (mapv overlap-string->overlap-map overlap)))

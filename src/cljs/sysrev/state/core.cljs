@@ -21,7 +21,8 @@
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels])
             (dissoc-in [:state :navigation :subpanels]))
-    :dispatch [:fetch [:identity]]
+    :dispatch-n (list [:require [:identity]]
+                      [:reload [:identity]])
     :fetch-missing [true nil]}))
 
 (reg-fx

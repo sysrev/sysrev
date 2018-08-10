@@ -246,31 +246,29 @@
         error-msg #(when-let [msg (get errors %)]
                      [:div.ui.warning.message msg])
         form-class (when-not (empty? errors) "warning")]
-    [:div.ui.padded.segments.auto-margin
-     {:style {:max-width "500px" :margin-top "10px"}}
-     [:h3.ui.top.attached.header
-      "Request Password Reset"]
-     [:div.ui.bottom.attached.segment
-      [:form.ui.form {:class form-class :on-submit on-submit}
-       [:div.field {:class (error-class :email)}
-        [:label "Enter your email address"]
-        [:input.ui.input
+    [:div.ui.segment.auto-margin.auth-segment
+     [:form.ui.form {:class form-class :on-submit on-submit}
+      [:div.field {:class (error-class :email)}
+       [:div.ui.left.icon.input
+        [:i.user.icon]
+        [:input
          {:type "email"
           :name "email"
+          :placeholder "E-mail address"
           :value email
-          :on-change on-email-change}]]
-       [error-msg :email]
-       [:div.ui.divider]
-       [:button.ui.button
+          :on-change on-email-change}]]]
+      [error-msg :email]
+      [:div.field
+       [:button.ui.fluid.primary.button
         {:type "submit"
          :name "submit"
          :class (if loading? "loading" "")}
-        "Submit"]
-       (when-let [msg @(subscribe [:request-password-reset/error])]
-         [:div.ui.negative.message msg])
-       (when @(subscribe [:request-password-reset/sent?])
-         [:div.ui.green.message
-          (str "An email has been sent with a link to reset your password.")])]]]))
+        "Request Password Reset Link"]]
+      (when-let [msg @(subscribe [:request-password-reset/error])]
+        [:div.ui.negative.message msg])
+      (when @(subscribe [:request-password-reset/sent?])
+        [:div.ui.green.message
+         "An email has been sent with a link to reset your password."])]]))
 
 (defmethod panel-content [:request-password-reset] []
   (fn [child]

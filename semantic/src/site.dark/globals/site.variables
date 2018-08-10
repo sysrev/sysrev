@@ -1,13 +1,13 @@
 /*******************************
      User Global Variables
 *******************************/
-@pageBackground : rgba(55, 55, 55, 1.0);
-@lighterBackground : lighten(@pageBackground, 7);
+@pageBackground : rgba(45, 45, 45, 1.0);
+@lighterBackground : lighten(@pageBackground, 4);
 @lightBackground: rgba(200, 200, 200, 1.0);
 
-@segmentBackground: lighten(@pageBackground, 5);
-@messageBackground: lighten(@pageBackground, 10);
-@secondarySegmentBackground: lighten(@pageBackground, 10);
+@segmentBackground: lighten(@pageBackground, 3);
+@messageBackground: lighten(@pageBackground, 8);
+@secondarySegmentBackground: lighten(@pageBackground, 6);
 @tertiarySegmentBackground: darken(@pageBackground, 3);
 
 @siteTextColor: rgba(230, 230, 230, 0.925);
@@ -20,15 +20,23 @@
 @lightPrimaryColor : @lightBlue;
 @secondaryColor : lighten(@pageBackground, 20);
 @lightSecondaryColor : rgba(140, 140, 140, 1.0);
+@grey: rgba(150, 150, 150, 0.925);
 
 @inputBackground : rgba(245,245,245,1.0);
 @inputColor: @invertedTextColor;
 @inputPlaceholderColor: rgba(50,50,50,1.0);
 @inputPlaceholderFocusColor: rgba(30,30,30,1.0);
 
-@borderColor: rgba(130, 130, 130, 0.45);
-@solidBorderColor: rgba(130, 130, 130, 0.525);
+// Dark control elements
+/*
+@inputBackground: rgba(80, 80, 80, 1.0);
+@siteInputColor: @textColor;
+@inputColor: @siteInputColor;
+@inputPlaceholderColor: rgba(170,170,170,1.0);
+@inputPlaceholderFocusColor: rgba(200,200,200,1.0);
+@selectedTextColor : @siteTextColor;
+*/
 
-@grey: rgba(180, 180, 180, 0.925);
-
+@borderColor: rgba(130, 130, 130, 0.5);
+@solidBorderColor: rgba(130, 130, 130, 0.6);
 @solidInternalBorderColor: rgba(60, 60, 60, 0.2);

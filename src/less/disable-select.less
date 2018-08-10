@@ -44,6 +44,12 @@ table thead tr th {
 
 div.article-list-segments {
     .noselect;
+
+    div.ui.segments.article-info {
+        div.ui.segment.article-content {
+            .select-text;
+        }
+    }
 }
 
 div.article-info div.ui.top.attached.header {
@@ -102,7 +108,9 @@ div#project-sources .ui.button
     .noselect;
 }
 
-div#project-sources div.import-label.ui.label {
+div#project-sources div.import-label.ui.label,
+div#import-articles div.ui.segment.pubmed-article
+{
     .select-text;
 }
 

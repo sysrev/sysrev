@@ -46,7 +46,7 @@
          [:div.ui.active.inverted.dimmer
           [:div.ui.loader]])
        [:div.ui.segment.projects-list-header
-        [:h5.ui.header title]]
+        [:h4.ui.header title]]
        (doall
         (->> projects
              (map (fn [{:keys [project-id] :as project}]

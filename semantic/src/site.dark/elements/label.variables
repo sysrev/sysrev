@@ -1,3 +1,9 @@
 @color: @mutedInvertedTextColor;
 @basicColor: @textColor;
 @basicBackground: inherit;
+
+// Dark control elements
+/*
+@color: rgba(230, 230, 230, 0.9);
+@backgroundColor: rgba(110,110,110,1.0);
+*/

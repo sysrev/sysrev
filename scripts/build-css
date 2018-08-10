@@ -1,14 +1,22 @@
 #!/bin/bash
 set -eu
 
-mkdir -p resources/public/css
+rel_out_path="resources/public/css"
+abs_out_path="$PWD/$rel_out_path"
+
+ls resources/public > /dev/null
+mkdir -p $rel_out_path
 
 cd src/less
 
-rm -f ../../resources/public/css/style.default.css
-lessc main.less > ../../resources/public/css/style.default.css
+rm -f .tmp.css
+lessc main.less > .tmp.css
+mv -f .tmp.css "$abs_out_path/style.default.css"
+echo "wrote $rel_out_path/style.default.css"
 
-rm -f ../../resources/public/css/style.dark.css
-lessc main.dark.less > ../../resources/public/css/style.dark.css
+rm -f .tmp.css
+lessc main.dark.less > .tmp.css
+mv -f .tmp.css "$abs_out_path/style.dark.css"
+echo "wrote $rel_out_path/style.dark.css"
 
 cd ../..

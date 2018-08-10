@@ -21,23 +21,27 @@
 @mediumGrey: rgba(100, 100, 100, 1);
 @lightGrey: rgba(130, 130, 130, 0.7);
 
-@pageBackground : rgba(55, 55, 55, 1.0);
-@background: lighten(@pageBackground, 5);
+@pageBackground : rgba(45, 45, 45, 1.0);
+@background: lighten(@pageBackground, 4);
 @menuBackground: lighten(@pageBackground, 2);
-@background1: lighten(@pageBackground, 12);
-@background2: lighten(@pageBackground, 20);
-@background01: lighten(@pageBackground, 8);
-@background02: lighten(@pageBackground, 10);
-@partialSegmentBackground: lighten(@pageBackground, 2);
+@background1: lighten(@pageBackground, 8);
+@background2: lighten(@pageBackground, 16);
+@background01: lighten(@pageBackground, 6);
+@background02: lighten(@pageBackground, 12);
+@partialSegmentBackground: lighten(@pageBackground, 1);
 
 @blueBackground: fade(screen(@background, rgba(50,100,160,1.0)),30%);
 @greenBackground: fade(screen(@background, rgba(40,180,40,1.0)),30%);
 @redBackground: fade(screen(@background, rgba(140,60,60,1.0)),30%);
 @purpleBackground: fade(screen(@background, rgba(100,60,140,1.0)),30%);
-
 @warningBackground: @redBackground;
 
 @inputBackground: @background;
+
+// Dark control elements
+/*
+@inputBackground: rgba(80, 80, 80, 1.0);
+*/
 
 @menuActiveBorder: @blue;
 @menuActiveBackground: rgba(255,255,255,0.75);
@@ -45,11 +49,11 @@
 @secondaryMenuActiveColor: rgba(245, 245, 245, 0.925);
 
 @blackButtonBackground: rgba(34, 35, 36, 1.0);
-@greyButtonBackground: rgba(118, 118, 118, 1.0);
+@greyButtonBackground: rgba(130, 130, 130, 1.0);
 
 @internalBorderColor: rgba(34, 36, 38, 0.1);
 
-@subtleButtonColor: rgba(90, 90, 90, 1.0);
+@subtleButtonColor: rgba(75, 75, 75, 1.0);
 @subtleButtonHoverColor: lighten(@subtleButtonColor, 2);
 
 .ui.segment,
@@ -59,8 +63,11 @@
     box-shadow: none !important;
 }
 
-.ui.buttons .ui.active.button {
-    background-color: #a8a9aa;
+.ui.buttons.selection {
+    .ui.active.button {
+        // color: @darkText;
+        background-color: #a8a9aa;
+    }
 }
 
 .ui.segments > .ui.no-padding.segment > .ui.button,
@@ -83,4 +90,14 @@
 .ui.attached.no-padding.segment > .ui.button:active,
 .ui.attached.no-padding.segment > .ui.buttons > .ui.button:active {
     background-color: @subtleButtonHoverColor;
+}
+
+.article-filters {
+    .filters-summary {
+        .ui.label {
+            font-weight: normal;
+            background-color: @greyButtonBackground;
+            color: @lightText;
+        }
+    }
 }

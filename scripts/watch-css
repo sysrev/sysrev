@@ -1,7 +1,13 @@
 #!/bin/bash
 
+# On MacOS, somehow this can end up with lingering entr processes, so kill them
+ensure_killed="./scripts/psgkill ./scripts/build-css || true"
+
+$ensure_killed
+
 while true; do
-    find src/less -name \*.less | entr ./scripts/build-css
+    find src/less -name \*.less | entr -r bash ./scripts/build-css
     echo "Restarting CSS watcher..."
     sleep 1
+    $ensure_killed
 done

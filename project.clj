@@ -1,42 +1,44 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [;;;
-                 ;;; Clojure
-                 ;;;
+  :dependencies [
+
+;;;
+;;; Clojure
+;;;
                  [org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.10.339"]
 
-                 ;;;
-                 ;;; Force versions of indirect dependencies
-                 ;;;
+;;;
+;;; Force versions of indirect dependencies
+;;;
                  [com.fasterxml.jackson.core/jackson-databind "2.6.5"]
                  [cheshire "5.5.0"]
                  [commons-io/commons-io "2.6"]
                  [commons-codec "1.10"]
 
-                 ;;;
-                 ;;; Logging
-                 ;;;
+;;;
+;;; Logging
+;;;
                  [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.2.3"]
                  [org.slf4j/jul-to-slf4j "1.7.25"]
 
-                 ;;;
-                 ;;; Clojure (JVM) libraries
-                 ;;;
+;;;
+;;; Clojure (JVM) libraries
+;;;
                  [org.clojure/test.check "0.9.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
-                 ;;; Data formats
+;;; Data formats
                  [org.clojure/data.json "0.2.6"]
                  [com.cognitect/transit-clj "0.8.309"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.2"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
-                 ;;; Database
+;;; Database
                  [org.clojure/java.jdbc "0.7.7"]
-                 [org.postgresql/postgresql "42.2.2"]
+                 [org.postgresql/postgresql "42.2.4"]
                  [joda-time "2.10"]
                  [clj-time "0.14.4" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
@@ -44,9 +46,9 @@
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
-                 [honeysql "0.9.2"]
+                 [honeysql "0.9.3"]
                  [nilenso/honeysql-postgres "0.2.4"]
-                 ;;; Web server
+;;; Web server
                  [javax.servlet/servlet-api "2.5"]
                  [http-kit "2.3.0"]
                  [ring "1.6.3"]
@@ -55,41 +57,37 @@
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.3.2" :exclusions [cheshire]]
                  [compojure "1.6.1"]
-                 ;;; Encryption / Authentication
+;;; Encryption / Authentication
                  [buddy "2.0.0"]
-                 ;;; Web client
-                 [clj-http "3.9.0"]
-                 ;;; Email
+;;; Web client
+                 [clj-http "3.9.1"]
+;;; Email
                  [com.draines/postal "2.0.2"]
-                 ;;; Amazon
-                 [amazonica "0.3.128"
+;;; Amazon
+                 [amazonica "0.3.130"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
 
-                 ;;; Stripe
+;;; Stripe
                  [abengoa/clj-stripe "1.0.4"]
-
-                 ;;; environ
+;;; environ
                  [environ "1.1.0"]
-
-                 ;;; caching
+;;; caching
                  [org.clojure/core.memoize "0.7.1"]
-
-                 ;;; validation library
+;;; validation library
                  [bouncer "1.0.1"]
-
-                 ;;; html parser
+;;; html parser
                  [hickory "0.7.1"]
-
-                 ;;; ftp client
+;;; ftp client
                  [com.velisco/clj-ftp "0.3.12"]
-                 ;;;
-                 ;;; ClojureScript libraries
-                 ;;;
+
+;;;
+;;; ClojureScript libraries
+;;;
                  [com.cognitect/transit-cljs "0.8.256"]
-                 [reagent "0.8.0"]
+                 [reagent "0.8.1"]
                  [re-frame "0.10.5"]
                  [day8.re-frame/http-fx "0.1.6"]
                  [secretary "1.2.3"]
@@ -99,7 +97,6 @@
                  [cljsjs/stripe "2.0-0"]
                  ;; stripe provided form components
                  [cljsjs/react-stripe-elements "1.4.1-1"]
-                 #_ [cljsjs/semantic-ui "2.2.13-0"]
                  [org.clojars.jeffwk/semantic-ui "2.3.2-0"]
                  [cljsjs/semantic-ui-react "0.81.1-0"]
                  [cljsjs/chartjs "2.7.0-0"]
@@ -169,9 +166,11 @@
              ;; these should work with both Cider and Cursive
              :nrepl-middleware ["cider.nrepl/cider-middleware"
                                 "cemerick.piggieback/wrap-cljs-repl"]
-             :css-dirs ["resources/public/css"
+             :css-dirs ["resources/public/css/style.default.css"
+                        "resources/public/css/style.dark.css"
                         "resources/public/semantic/default/semantic.min.css"
-                        "resources/public/semantic/dark/semantic.min.css"]}
+                        "resources/public/semantic/dark/semantic.min.css"
+                        #_ "resources/public/css"]}
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
   :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]

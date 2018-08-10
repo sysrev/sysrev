@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+./scripts/build-css
+./scripts/build-semantic default
+./scripts/build-semantic dark

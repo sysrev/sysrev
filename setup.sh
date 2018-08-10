@@ -10,18 +10,9 @@ echo "Installing semantic through NPM"
 npm install > /dev/null
 echo
 
-echo "Building semantic CSS"
-./scripts/build-semantic default > /dev/null
-echo " * built default theme"
-./scripts/build-semantic dark > /dev/null
-echo " * built dark theme"
-echo
-
-echo "Building site CSS"
-./scripts/build-css > /dev/null
+echo "Building CSS"
+./scripts/build-all-css
 echo
 
 echo "Done"
-echo
-echo "Remember to link ./sysrev.dev.nginx.site into /etc/nginx/sites-enabled"
 echo

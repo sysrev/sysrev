@@ -263,7 +263,7 @@
          [:div {:style {:clear "both"}}]]
         (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui segment"))
-        [:div.ui.segment
+        [:div.ui.segment.article-content
          {:key [:article-content]}
          [:div {:style {:top "0px"
                         :left "0px"

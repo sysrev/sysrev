@@ -32,7 +32,7 @@
 (def login-validation
   {:email [not-empty "Must enter an email address"]
    :password [#(>= (count %) 6)
-              (str "Password must be at least six characters")]})
+              "Password must be at least six characters"]})
 
 (reg-event-fx
  :register/register-hash
@@ -158,16 +158,22 @@
      (cond
        (or (empty? email) (empty? password))
        {}
+
        (not-empty errors)
        {:dispatch-n
-        (list [::set-submitted])}
+        (list [::set-submitted]
+              [::set-submitted-fields fields])}
+
        register?
        {:dispatch-n
         (list [::set-submitted]
+              [::set-submitted-fields fields]
               [:action [:auth/register email password project-id]])}
+
        :else
        {:dispatch-n
         (list [::set-submitted]
+              [::set-submitted-fields fields]
               [:action [:auth/log-in email password]])}))))
 
 (reg-sub
@@ -195,10 +201,26 @@
 (reg-sub
  ::form-errors
  :<- [::fields]
+ :<- [::submitted-fields]
  :<- [::submitted]
- (fn [[fields submitted]]
+ (fn [[fields sfields submitted]]
    (when submitted
-     (validate fields login-validation))))
+     (let [fkeys (filter #(= (get fields %)
+                             (get sfields %))
+                         (keys fields))]
+       (validate (select-keys sfields fkeys)
+                 (select-keys login-validation fkeys))))))
+
+(reg-sub
+ ::submitted-fields
+ :<- [:view-field :login [:submitted-fields]]
+ (fn [fields] fields))
+
+(reg-event-fx
+ ::set-submitted-fields
+ [trim-v]
+ (fn [_ [fields]]
+   {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
 
 (defn LoginRegisterPanel []
   (let [register? @(subscribe [::register?])
@@ -206,6 +228,8 @@
         project-name @(subscribe [:register/project-name])
         register-hash @(subscribe [:register/register-hash])
         form-errors @(subscribe [::form-errors])
+        fields @(subscribe [::fields])
+        sfields @(subscribe [::submitted-fields])
         field-class #(if (get form-errors %) "error" "")
         field-error #(when-let [msg (get form-errors %)]
                        [:div.ui.warning.message msg])
@@ -213,15 +237,14 @@
     (with-loader (if register-hash
                    [[:register-project register-hash]]
                    []) {}
-      [:div.ui.segment.auto-margin
-       {:id "login-register-panel"
-        :style {:max-width "500px"}}
-       [:h3.ui.dividing.header
-        @(subscribe [::header-title])]
+      [:div.ui.segment.auto-margin.auth-segment
+       {:id "login-register-panel"}
        (when register-hash
          [:h4.ui.header
-          (if project-name project-name "< Project not found >")])
-       [:form.ui.form
+          [:i.grey.list.alternate.outline.icon]
+          [:div.content
+           (if project-name project-name "< Project not found >")]])
+       [:form.ui.form.login-register-form
         {:class form-class
          :on-submit
          (wrap-prevent-default
@@ -230,38 +253,50 @@
                                        :password password
                                        :register? register?
                                        :project-id project-id}])))}
-        [:div.field {:class (field-class :email)}
-         [:label "Email"]
-         [:input {:type "email" :name "email"
-                  :id "login-email-input"
-                  :on-change
-                  #(dispatch-sync [::set-email (-> % .-target .-value)])}]]
-        [:div.field {:class (field-class :password)}
-         [:label "Password"]
-         [:input {:type "password" :name "password"
-                  :id "login-password-input"
-                  :on-change
-                  #(dispatch-sync [::set-password (-> % .-target .-value)])}]]
+        [:div.field.email {:class (field-class :email)}
+         [:div.ui.left.icon.input
+          [:i.user.icon]
+          [:input {:type "email" :name "email"
+                   :id "login-email-input"
+                   :placeholder "E-mail address"
+                   :on-change
+                   #(dispatch-sync [::set-email (-> % .-target .-value)])}]]]
+        [:div.field.password {:class (field-class :password)}
+         [:div.ui.left.icon.input
+          [:i.lock.icon]
+          [:input {:type "password" :name "password"
+                   :id "login-password-input"
+                   :placeholder "Password"
+                   :on-change
+                   #(dispatch-sync [::set-password (-> % .-target .-value)])}]]]
         [field-error :email]
         [field-error :password]
-        [:div.ui.divider]
-        [:button.ui.button {:type "submit" :name "submit"} "Submit"]
+        [:button.ui.fluid.primary.button
+         {:type "submit" :name "submit"}
+         (if register? "Register" "Login")]
         (when-let [err @(subscribe [::login-error-msg])]
           [:div.ui.negative.message err])]
-       [:div.ui.divider]
-       [:div
-        (if register?
-          [:div
+       (if register?
+         [:div.ui.center.aligned.grid
+          [:div.column
            [:a.medium-weight {:href (if register-hash
                                       (str @active-route "/login")
                                       "/login")}
-            "Already have an account?"]]
-          [:div
+            "Already have an account?"]]]
+         [:div.ui.two.column.center.aligned.grid
+          [:div.column
            [:a.medium-weight {:href "/register"}
-            "Create Account"]
-           nbsp nbsp nbsp "|" nbsp nbsp nbsp
+            "Create Account"]]
+          [:div.column
            [:a.medium-weight {:href "/request-password-reset"}
-            "Forgot Password?"]])]])))
+            "Forgot Password?"]]])])))
+
+(defn- wrap-join-project [& children]
+  [:div.ui.padded.segments.auto-margin.join-project-panel
+   (doall
+    (map-indexed
+     (fn [i e] ^{:key [:join-project i]} e)
+     children))])
 
 (defn join-project-panel []
   (let [register-hash @(subscribe [:register/register-hash])
@@ -271,32 +306,35 @@
     (with-loader [[:register-project register-hash]] {}
       (cond
         (nil? project-id)
-        [:div.ui.padded.segments.auto-margin
-         {:style {:max-width "550px"}}
-         [:div.ui.top.attached.segment
-          [:h4 "You have been invited to join:"]]
-         [:div.ui.bottom.attached.center.aligned.segment
-          [:h4 "< Project not found >"]]]
+        [wrap-join-project
+         [:h3.ui.center.aligned.header.segment
+          "You have been invited to join:"]
+         [:div.ui.center.aligned.segment
+          [:h4.ui.header
+           [:i.grey.list.alternate.outline.icon]
+           [:div.content "< Project not found >"]]]]
 
         member?
-        [:div.ui.padded.segments.auto-margin
-         {:style {:max-width "550px"}}
-         [:div.ui.top.attached.segment
-          [:h4 project-name]]
-         [:div.ui.bottom.attached.center.aligned.segment
+        [wrap-join-project
+         [:div.ui.segment
+          [:h4.ui.header
+           [:i.grey.list.alternate.outline.icon]
+           [:div.content project-name]]]
+         [:div.ui.center.aligned.segment
           [:h4 "You are already a member of this project."]]]
 
         :else
-        [:div.ui.padded.segments.auto-margin
-         {:style {:max-width "550px"}}
-         [:h4.ui.top.attached.center.aligned.header
+        [wrap-join-project
+         [:h3.ui.center.aligned.header.segment
           "You have been invited to join:"]
-         [:div.ui.attached.segment
-          [:h4 project-name]]
-         [:div.ui.bottom.attached.center.aligned.segment
-          [:button.ui.primary.button
+         [:div.ui.segment
+          [:h4.ui.header
+           [:i.grey.list.alternate.outline.icon]
+           [:div.content project-name]]]
+         [:div.ui.center.aligned.segment
+          [:button.ui.fluid.primary.button
            {:on-click #(dispatch [:action [:join-project project-id]])}
-           "Join project"]]]))))
+           "Join Project"]]]))))
 
 (defmethod logged-out-content [:login] []
   [LoginRegisterPanel])

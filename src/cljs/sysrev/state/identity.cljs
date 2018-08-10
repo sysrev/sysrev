@@ -19,6 +19,9 @@
   :process
   (fn [{:keys [db]} _ {:keys [identity projects]}]
     (let [have-user? (contains? identity :user-id)
+          cur-theme (get-in db [:state :identity :settings :ui-theme])
+          new-theme (get-in identity [:settings :ui-theme])
+          theme-changed? (and cur-theme (not= new-theme cur-theme))
           identity (some-> identity (update :user-uuid to-uuid))
           url-ids-map (->> projects
                            (map (fn [{:keys [project-id url-ids]}]
@@ -27,11 +30,14 @@
                            (apply concat)
                            (apply concat)
                            (apply hash-map))]
-      {:db (cond-> (-> db
-                       (assoc-in [:state :identity] identity)
-                       (assoc-in [:state :self :projects] projects))
-             have-user? (store-user-map identity))
-       :dispatch-n (list [:load-project-url-ids url-ids-map])})))
+      (cond->
+          {:db (cond-> (-> db
+                           (assoc-in [:state :identity] identity)
+                           (assoc-in [:state :self :projects] projects))
+                 have-user? (store-user-map identity))
+           :dispatch-n (list [:load-project-url-ids url-ids-map])}
+          theme-changed?
+          (merge {:reload-page [true]})))))
 
 (def-action :auth/log-in
   :uri (fn [_ _] "/api/auth/login")
@@ -42,9 +48,8 @@
     (if valid
       {:dispatch-n
        (list [:ga-event "auth" "login_success"]
-             [:self/unset-identity]
-             [:do-login-redirect])
-       :reload-page [true 50]}
+             [:do-login-redirect]
+             [:fetch [:identity]])}
       {:dispatch-n
        (list [:ga-event "auth" "login_failure"]
              [:set-login-error-msg message])})))
@@ -54,7 +59,7 @@
   :process
   (fn [{:keys [db]} _ result]
     {:db (-> db
-             (assoc-in [:state :identity] nil)
+             #_ (assoc-in [:state :identity] nil)
              (dissoc-in [:state :self]))
      :reset-data true
      :nav-scroll-top "/"

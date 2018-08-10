@@ -15,7 +15,7 @@
   [:div.ui.segments.projects-list
    {:style {:margin-top "0"}}
    [:div.ui.segment.projects-list-header
-    [:h5.ui.header
+    [:h4.ui.header
      "Example Projects"]]
    (doall
     (for [project-id [100 269 2026 2283]]

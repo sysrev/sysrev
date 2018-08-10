@@ -19,6 +19,7 @@
             [sysrev.views.components :refer
              [with-ui-help-tooltip ui-help-icon selection-dropdown
               three-state-selection-icons updated-time-label]]
+            [sysrev.views.list-pager :refer [ListPager]]
             [sysrev.util :refer [full-size? mobile? nbsp time-from-epoch]]
             [sysrev.shared.util :as util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -553,21 +554,14 @@
     [:div.ui.segments.article-filters
      [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal
       [:div.row
-       {:style {:padding-top "0"
-                :padding-bottom "0"}}
-       [:div.one.wide.column.medium-weight
-        {:style {:font-size "15px"
-                 :padding-top "12px"
-                 :padding-bottom "12px"
-                 :background-color "rgba(128,128,128,0.05)"
-                 :border-top-left-radius "3px"}}
+       [:div.one.wide.column.medium-weight.filters-header
         "Filters"]
        [:div.nine.wide.column.filters-summary
         [:span
          (doall
           (map-indexed
            (fn [i s] ^{:key [:filter-text i]}
-             [:div.ui.label {:style {:font-size "14px"}} s])
+             [:div.ui.label s])
            (make-filter-descriptions state defaults)))]]
        [:div.six.wide.column.right.aligned.control-buttons
         [:button.ui.small.icon.button
@@ -605,127 +599,28 @@
             [view-button :show-notes "Notes"]]
            [:div.six.wide.field]]]]])]))
 
-(defn- ArticleListNavMessage [cstate]
-  (let [{:keys [offset options]} cstate
-        {:keys [display-count]} options
-        articles (visible-articles cstate)
-        total-count (total-articles-count cstate)]
-    [:h5.no-margin
-     (if (or (nil? total-count) (zero? total-count))
-       "No matching articles found"
-       (str "Showing "
-            (+ offset 1)
-            "-"
-            (+ offset
-               (if (pos? (count articles))
-                 (count articles)
-                 display-count))
-            " of "
-            total-count
-            " matching articles "))]))
-
-(defn- ArticleListNavButtons [state defaults]
-  (let [cstate (current-state @state defaults)
-        {:keys [options offset panel recent-nav-action]} cstate
-        {:keys [display-count]} options
-        total-count (total-articles-count cstate)
-        max-offset (max-display-offset cstate)
-        set-nav #(dispatch-sync [::set-recent-nav-action panel %])
-        on-first #(do (set-nav :first)
-                      (set-display-offset state defaults 0))
-        on-last #(do (set-nav :last)
-                     (set-display-offset state defaults max-offset))
-        on-next
-        #(when (< (+ offset display-count) total-count)
-           (set-nav :next)
-           (set-display-offset
-            state defaults (+ offset display-count)))
-        on-previous
-        #(when (>= offset display-count)
-           (set-nav :previous)
-           (set-display-offset
-            state defaults (max 0 (- offset display-count))))
-        loading? (loading/any-loading? :only :project/article-list)
-        nav-loading? (fn [action]
-                       (and loading? (= action recent-nav-action)))]
-    (if (full-size?)
-      ;; non-mobile view
-      [:div.ui.right.aligned.column
-       [:div.ui.tiny.icon.button
-        {:class (str (if (= offset 0) "disabled" "")
-                     " "
-                     (if (nav-loading? :first) "loading" ""))
-         :style {:margin-right "5px"}
-         :on-click on-first}
-        [:i.angle.double.left.icon]]
-       [:div.ui.tiny.buttons
-        {:style {:margin-right "5px"}}
-        [:div.ui.tiny.button
-         {:class (str (if (= offset 0) "disabled" "")
-                      " "
-                      (if (nav-loading? :previous) "loading" ""))
-          :on-click on-previous}
-         [:i.chevron.left.icon] "Previous"]
-        [:div.ui.tiny.button
-         {:class (str (if (>= (+ offset display-count) total-count)
-                        "disabled" "")
-                      " "
-                      (if (nav-loading? :next) "loading" ""))
-          :on-click on-next}
-         "Next" [:i.chevron.right.icon]]]
-       [:div.ui.tiny.icon.button
-        {:class (str (if (>= (+ offset display-count) total-count)
-                       "disabled" "")
-                     " "
-                     (if (nav-loading? :last) "loading" ""))
-         :style {:margin-right "0"}
-         :on-click on-last}
-        [:i.angle.double.right.icon]]]
-      ;; mobile view
-      [:div.ui.right.aligned.nine.wide.column
-       [:div.ui.tiny.icon.button
-        {:class (str (if (= offset 0) "disabled" "")
-                     " "
-                     (if (nav-loading? :first) "loading" ""))
-         :style {:margin-right "4px"}
-         :on-click on-first}
-        [:i.angle.double.left.icon]]
-       [:div.ui.tiny.buttons
-        {:style {:margin-right "4px"}}
-        [:div.ui.tiny.button
-         {:class (str (if (= offset 0) "disabled" "")
-                      " "
-                      (if (nav-loading? :previous) "loading" ""))
-          :on-click on-previous}
-         [:i.chevron.left.icon] "Previous"]
-        [:div.ui.tiny.button
-         {:class (str (if (>= (+ offset display-count) total-count)
-                        "disabled" "")
-                      " "
-                      (if (nav-loading? :next) "loading" ""))
-          :on-click on-next}
-         "Next" [:i.chevron.right.icon]]]
-       [:div.ui.tiny.icon.button
-        {:class (str (if (>= (+ offset display-count) total-count)
-                       "disabled" "")
-                     " "
-                     (if (nav-loading? :last) "loading" ""))
-         :on-click on-last}
-        [:i.angle.double.right.icon]]])))
-
 (defn- ArticleListNavHeader [state defaults]
   (let [{:keys [panel] :as visible-cstate} (current-state @state defaults)
-        root-state (panel-cursor panel)]
+        {:keys [display-count]} (:options visible-cstate)
+        root-state (panel-cursor panel)
+        root-cstate (current-state @root-state defaults)]
     [:div.ui.segment.article-nav
-     (if (full-size?)
-       [:div.ui.two.column.middle.aligned.grid
-        [:div.ui.left.aligned.column
-         [ArticleListNavMessage visible-cstate]]
-        [ArticleListNavButtons root-state defaults]]
-       [:div.ui.middle.aligned.grid
-        [:div.ui.left.aligned.seven.wide.column
-         [ArticleListNavMessage visible-cstate]]
-        [ArticleListNavButtons root-state defaults]])]))
+     [ListPager
+      {:panel panel
+       :instance-key [:article-list]
+       :offset (:offset root-cstate)
+       :total-count (total-articles-count root-cstate)
+       :items-per-page display-count
+       :item-name-string "articles"
+       :set-offset #(set-display-offset root-state defaults %)
+       :on-nav-action
+       (fn [action offset]
+         (dispatch-sync [::set-recent-nav-action panel action]))
+       :recent-nav-action nil #_ (:recent-nav-action root-cstate)
+       :loading? (loading/any-loading? :only :project/article-list)
+       :message-overrides
+       {:offset (:offset visible-cstate)
+        :total-count (total-articles-count visible-cstate)}}]]))
 
 (defn- AnswerCellIcon [value]
   (case value

@@ -1,0 +1,56 @@
+div.ui.grid.list-pager {
+    > .column {
+        padding: 0.5em 0.6em 0.5em 0.6em;
+    }
+    > .right.aligned.column {
+    }
+    .list-pager-message {
+        margin: 0 !important;
+    }
+    .list-pager-nav {
+        .ui.button.nav-first {
+            margin-right: 5px;
+        }
+        .ui.buttons.nav-prev-next {
+            margin-right: 5px;
+        }
+        .ui.button.nav-last {
+            margin-right: 0px;
+        }
+        span.page-number {
+            margin-right: 1em;
+
+            form.page-number {
+                padding: 0;
+                margin: 0 3px 0 3px;
+                input {
+                    width: 3em;
+                    padding: 0.35em;
+                }
+            }
+        }
+    }
+}
+
+// TODO: update these CSS paths for new component
+@media only screen and (max-width: 900px) {
+    div.ui.grid.list-pager {
+        .ui.segment.article-nav > .ui.grid > .column {
+            padding: 0.75em;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .right.aligned.column {
+            padding-left: 0;
+            padding-right: 0.5em;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .left.aligned.column h5 {
+            font-size: 12px;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.button {
+            font-size: 10px;
+            padding: 0.75em;
+        }
+    }
+}
