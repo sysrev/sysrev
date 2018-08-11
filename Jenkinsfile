@@ -87,6 +87,7 @@ node {
     echo 'Setting up workspace...'
     try {
       sh './jenkins/init'
+      sh './jenkins/init-build'
       if (branch == 'dev') {
         sh './jenkins/migrate.build'
       }

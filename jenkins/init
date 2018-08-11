@@ -6,7 +6,3 @@ for profile in ${profiles[@]}; do
   cp /data/deployment/sysrev/config/$profile/config.local.edn ./config/$profile/
 done
 cp /data/deployment/sysrev/resources/* ./resources/ && true
-
-./setup.sh
-
-lein do clean, cljsbuild once production
