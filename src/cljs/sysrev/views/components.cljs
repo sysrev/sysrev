@@ -1,15 +1,12 @@
 (ns sysrev.views.components
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer
-    [subscribe dispatch]]
-   [reagent.core :as r]
-   [cljsjs.clipboard]
-   [sysrev.util :refer
-    [url-domain nbsp time-elapsed-string full-size?]]
-   [sysrev.shared.util :refer [num-to-english]]
-   [sysrev.util :refer [random-id]]))
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch]]
+            [cljsjs.clipboard]
+            [cljsjs.dropzone]
+            [sysrev.util :as util :refer [nbsp]]
+            [sysrev.shared.util :as sutil]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -96,7 +93,7 @@
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
         ;; n-tabs (count entries)
-        ;; n-tabs-word (num-to-english n-tabs)
+        ;; n-tabs-word (sutil/num-to-english n-tabs)
         render-entry
         (fn [{:keys [tab-id action content class] :as entry}]
           (when entry
@@ -212,7 +209,8 @@
     [:div.tabbed-panel
      [:div.ui
       {:class
-       (str (num-to-english (count entries)) " item" " tabbed menu tabbed-panel " menu-class)}
+       (str (sutil/num-to-english (count entries)) " item"
+            " tabbed menu tabbed-panel " menu-class)}
       (doall
        (for [entry entries]
          (render-entry entry)))]]))
@@ -241,14 +239,14 @@
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
-   (url-domain url) nbsp [:i.external.icon]])
+   (util/url-domain url) nbsp [:i.external.icon]])
 
 (defn document-link [url name]
   [:div.item>a.ui.large.label {:target "_blank" :href url}
    [:i.large.file.pdf.outline.icon] name])
 
 (defn updated-time-label [dt]
-  [:div.ui.tiny.label (time-elapsed-string dt)])
+  [:div.ui.tiny.label (util/time-elapsed-string dt)])
 
 (defn three-state-selection
   "props are:
@@ -257,7 +255,7 @@
   }"
   [{:keys [set-answer! value]}]
   ;; nil for unset, true, false
-  (let [size (if (full-size?) "large" "small")
+  (let [size (if (util/full-size?) "large" "small")
         class (str "ui " size " buttons three-state")
         bclass (fn [secondary? selected?]
                  (str "ui " size " "
@@ -282,7 +280,7 @@
                               nil   [:i.question.circle.outline.icon]
                               true  [:i.plus.circle.icon]}}}]
   ;; nil for unset, true, false
-  (let [size (if (full-size?) "large" "small")
+  (let [size (if (util/full-size?) "large" "small")
         class (str "ui " size " fluid buttons three-state-icon")
         bclass (fn [secondary? selected?]
                  (str "ui " size " "
@@ -360,7 +358,7 @@
    [:div.ui.basic.label {:style {:text-align "justify"}}
     content]])
 
-(defn clipboard-button [target child]
+(defn ClipboardButton [target child]
   (let [clip (atom nil)
         status (r/atom nil)
         transtime 1500
@@ -493,3 +491,34 @@
      {:on-click on-cancel}
      "Cancel"]]])
 
+(defn UploadContainer
+  "Create uploader form component."
+  [childer upload-url on-success & args]
+  (let [id (util/random-id)
+        csrf-token (subscribe [:csrf-token])
+        opts {:url upload-url
+              :headers (when-let [token @csrf-token]
+                         {"x-csrf-token" token})
+              :addedfile #(dispatch [:notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"]])
+              :success on-success}]
+    (letfn [(make-uploader [url]
+              (js/Dropzone. (str "div#" id) (clj->js opts)))]
+      (r/create-class {:reagent-render (fn [childer upload-url _ & args]
+                                         (apply childer id args))
+                       :component-did-mount #(make-uploader upload-url)
+                       :display-name "upload-container"}))))
+
+(defn- UploadButtonImpl [id & [text class]]
+  [:div.ui.button
+   {:id id
+    :style {:cursor "pointer"}
+    :class (str (cond (util/full-size?) ""
+                      (util/mobile?)    "tiny"
+                      :else             "small")
+                " "
+                (if class class ""))}
+   [:i.green.add.circle.icon]
+   text])
+
+(defn UploadButton [upload-url on-success text & [class]]
+  [UploadContainer UploadButtonImpl upload-url on-success text class])

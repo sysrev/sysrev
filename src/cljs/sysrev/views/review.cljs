@@ -22,10 +22,6 @@
   (assoc-in db [:state :review :labels article-id label-id]
             label-value))
 
-(defn update-label-value [db article-id label-id update-fn]
-  (update-in db [:state :review :labels article-id label-id]
-             update-fn))
-
 (reg-event-db
  ::set-label-value
  [trim-v]
@@ -64,24 +60,27 @@
 (reg-event-db
  ::remove-string-value
  [trim-v]
- (fn [db [article-id label-id value-idx]]
-   (update-label-value db article-id label-id
-                       #(->> (assoc (vec %) value-idx "")
-                             (filterv not-empty)))))
+ (fn [db [article-id label-id value-idx curvals]]
+   (set-label-value
+    db article-id label-id
+    (->> (assoc (vec curvals) value-idx "")
+         (filterv not-empty)))))
 
 (reg-event-db
  ::set-string-value
  [trim-v]
- (fn [db [article-id label-id value-idx label-value]]
-   (update-label-value db article-id label-id
-                       #(assoc (vec %) value-idx label-value))))
+ (fn [db [article-id label-id value-idx label-value curvals]]
+   (set-label-value
+    db article-id label-id
+    (assoc (vec curvals) value-idx label-value))))
 
 (reg-event-db
  ::extend-string-answer
  [trim-v]
- (fn [db [article-id label-id]]
-   (update-label-value db article-id label-id
-                       #(assoc (vec %) (count %) ""))))
+ (fn [db [article-id label-id curvals]]
+   (set-label-value
+    db article-id label-id
+    (assoc (vec curvals) (count curvals) ""))))
 
 ;; Simulates an "enable value" label input component event
 (reg-event-fx
@@ -222,16 +221,15 @@
                    " " (if right-action? "right action input" "input")
                    " ")}
                  (when left-action?
-                   [:div.ui.label.input-remove
-                    [:div.ui.icon.button
-                     {:class (if (and (= i 0)
-                                      (= nvals 1)
-                                      (empty? val)) "disabled" "")
-                      :on-click
-                      (fn [ev]
-                        (dispatch [::remove-string-value
-                                   article-id label-id i]))}
-                     [:i.fitted.times.icon]]])
+                   [:a.ui.icon.label.input-remove
+                    {:class (if (and (= i 0)
+                                     (= nvals 1)
+                                     (empty? val)) "disabled" "")
+                     :on-click
+                     (fn [ev]
+                       (dispatch [::remove-string-value
+                                  article-id label-id i curvals]))}
+                    [:i.fitted.times.icon]])
                  [:input
                   {:type "text"
                    :name (str label-id "__" i)
@@ -240,14 +238,14 @@
                    (fn [ev]
                      (let [s (-> ev .-target .-value)]
                        (dispatch-sync [::set-string-value
-                                       article-id label-id i s])))}]
+                                       article-id label-id i s curvals])))}]
                  (when right-action?
                    [:div.ui.icon.button.input-row
                     {:class (if (empty? val) "disabled" "")
                      :on-click
                      (fn [ev]
                        (dispatch [::extend-string-answer
-                                  article-id label-id]))}
+                                  article-id label-id curvals]))}
                     [:i.fitted.plus.icon]])]]])))))])))
 
 (defn- inclusion-tag [article-id label-id]
@@ -366,7 +364,7 @@
           user-id @(subscribe [:self/user-id])
           note-description @(subscribe [:note/description note-name])
           note-content @(subscribe [:review/active-note article-id note-name])]
-      [:div.ui.attached.segment.notes
+      [:div.ui.segment.notes
        [:div.ui.middle.aligned.form.notes
         [:div.middle.aligned.field.notes
          [:label.middle.aligned.notes
@@ -447,7 +445,7 @@
                                :confirm? false
                                :resolve? false}])
                    (dispatch [:fetch [:review/task project-id]]))]
-    [:div.ui.bottom.attached.segment
+    [:div.ui.segment
      (if (full-size?)
        [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
         [ui/CenteredColumn
@@ -540,27 +538,25 @@
                           [^{:key {:label-row-end (last row)}}
                            [:div.column]])))])))]
             [:div.ui.segments.label-editor-view
-             [:div.ui.top.attached.segment
+             [:div.ui.segment.label-editor-header
               [:div.ui.two.column.middle.aligned.grid
                [:div.ui.left.aligned.column
                 [:h3 (if resolving? "Resolve Labels" "Set Labels")]]
                [:div.ui.right.aligned.column
-                [:a.ui.tiny.right.labeled.icon.button
+                [:a.ui.tiny.icon.button
                  {:href (project-uri project-id "/labels/edit")
+                  :class (if (full-size?) "right labeled" nil)
                   :on-click
                   (wrap-prevent-default
-                   (fn [_]
-                     (nav-scroll-top (project-uri project-id "/labels/edit"))))}
+                   #(nav-scroll-top (project-uri project-id "/labels/edit")))}
                  [:i.sliders.horizontal.icon]
-                 "Definitions"]
+                 (when (full-size?) "Definitions")]
                 (when change-set?
                   [:div.ui.tiny.button
                    {:on-click #(dispatch [:review/disable-change-labels article-id])}
                    "Cancel"])]]]
              [:div.ui.label-section
-              {:class (str "attached "
-                           n-cols-str " column "
-                           "celled grid segment")}
+              {:class (str n-cols-str " column celled grid segment")}
               (make-label-columns label-ids n-cols)]
              [note-input-element "default"]
              [label-editor-buttons-view article-id]]))))))

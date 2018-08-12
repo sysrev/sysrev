@@ -1,38 +1,22 @@
 div.ui.segments.label-editor-view {
     margin-top: 1em;
-}
 
-div.ui.segments.label-editor-view > .ui.top.attached.segment {
-    padding-top: 0.6em;
-    padding-bottom: 0.6em;
-}
+    > .ui.segment.label-editor-header {
+        border-bottom: 0;
 
-div.label-editor-view .ui.header .ui.grid > .right.aligned.column {
-    padding: 0.5rem;
-}
+        .ui.grid > .right.aligned.column {
+            padding: 0.6rem;
 
-.row.label-edit-name i {
-    font-size: 17px;
-    width: 25px;
-}
+            .ui.icon.button {
+                margin-right: 6px;
+            }
+        }
 
-.row.label-edit-name div.clear {
-    clear: both;
-    width: 100%;
-}
-
-.row.label-edit-name span.name {
-    margin-left: auto;
-    margin-right: auto;
-    font-size: 13px;
-}
-
-.row.label-edit-name span.name.small-text {
-    font-size: 11px;
-}
-
-.row.label-edit-name i.grey.circle.question.mark.icon {
-    font-size: 13px;
+        .ui.grid > .left.aligned.column {
+            padding-top: 0.6rem;
+            padding-bottom: 0.6rem;
+        }
+    }
 }
 
 .ui.buttons.three-state .ui.button {
@@ -41,104 +25,120 @@ div.label-editor-view .ui.header .ui.grid > .right.aligned.column {
 }
 
 .ui.celled.grid > .row > .column.label-edit {
-    padding: 0.0em;
+    padding: 0;
 }
 
+.column.label-edit {
+    padding: 0;
+
+    input {
+        padding-left: 0.6em;
+        padding-right: 0.6em;
+        padding-top: 0.6em;
+        padding-bottom: 0.6em;
+    }
+
+    > .middle.aligned.grid {
+        margin: 0px;
+
+        .row.label-edit-name {
+            padding-bottom: 6px;
+            padding-top: 5px;
+            text-align: center;
+
+            i {
+                font-size: 17px;
+                width: 25px;
+            }
+
+            i.grey.circle.question.mark.icon {
+                font-size: 13px;
+            }
+
+            div.clear {
+                clear: both;
+                width: 100%;
+            }
+
+            span.name {
+                margin-left: auto;
+                margin-right: auto;
+                font-size: 13px;
+            }
+            span.name.small-text {
+                font-size: 11px;
+            }
+        }
+
+        .row.label-edit-value {
+            padding-top: 0px;
+            padding-bottom: 12px;
+        }
+        .row.label-edit-value.boolean {
+            div.inner {
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+        .row.label-edit-value.string {
+            div.inner {
+                width: 100%;
+            }
+
+            .ui.form.string-label .field .ui.input {
+                padding-top: 0.15em;
+                padding-bottom: 0.15em;
+            }
+        }
+        .row.label-edit-value.category {
+            padding-left: 0.5em;
+            padding-right: 0.5em;
+
+            div.inner {
+                width: 100%;
+                margin: 0;
+            }
+        }
+        .row.label-edit-value.string, .row.label-edit-value.numeric {
+            padding-left: 0.5em;
+            padding-right: 0.5em;
+        }
+    }
+
+    .ui.icon.button.input-row {
+        padding: 0.5em;
+    }
+
+    .ui.label.input-remove {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+        padding-top: 0.75em;
+        padding-bottom: 0.75em;
+
+        i.icon {
+            padding: 0;
+            margin: 0;
+        }
+    }
+}
 .column.label-edit.required {
     background-color: @background1;
 }
-
 .column.label-edit.inconsistent {
     background-color: @warningBackground;
 }
-
 .column.label-edit.extra {
 }
 
-.column.label-edit > .middle.aligned.grid {
-    margin: 0px;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-name {
-    padding-bottom: 6px;
-    padding-top: 5px;
-    text-align: center;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-value {
-    padding-top: 0px;
-    padding-bottom: 12px;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-value.boolean div.inner {
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-value.string div.inner {
-    width: 100%;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-value.category {
-    padding-left: 0.5em;
-    padding-right: 0.5em;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-value.string,
-.column.label-edit > .middle.aligned.grid .row.label-edit-value.numeric {
-    padding-left: 0.5em;
-    padding-right: 0.5em;
-}
-
-.column.label-edit .ui.icon.button.input-row {
+div.ui.segment.labels-warning {
     padding: 0.5em;
-}
 
-.column.label-edit .ui.label.input-remove {
-    padding: 0;
-}
-
-.column.label-edit .ui.label.input-remove .ui.button {
-    padding-left: 0.5em;
-    padding-right: 0.5em;
-    padding-top: 0.75em;
-    padding-bottom: 0.75em;
-    margin: 0;
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.column.label-edit .ui.label.input-remove i.icon {
-    padding: 0;
-    margin: 0;
-}
-
-div.segment.labels-warning {
-    padding: 0.5em;
-}
-
-div.ui.segment.labels-warning .ui.message {
-    padding-top: 0.4em;
-    padding-bottom: 0.4em;
-    padding-left: 0.75em;
-    padding-right: 0.75em;
-}
-
-.ui.form.string-label .field .ui.input {
-    padding-top: 0.15em;
-    padding-bottom: 0.15em;
-}
-
-.column.label-edit input {
-    padding-left: 0.6em;
-    padding-right: 0.6em;
-    padding-top: 0.6em;
-    padding-bottom: 0.6em;
-}
-
-.column.label-edit > .middle.aligned.grid .row.label-edit-value.category div.inner {
-    width: 100%;
-    margin: 0;
+    .ui.message {
+        padding-top: 0.4em;
+        padding-bottom: 0.4em;
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+    }
 }
 
 @media only screen and (max-width: 900px) {
@@ -187,5 +187,27 @@ div.ui.segment.labels-warning .ui.message {
         padding-bottom: 5px;
         padding-left: 7px;
         padding-right: 7px;
+    }
+
+    .label-editor-view {
+        > .ui.segment.label-editor-header {
+            .ui.tiny.button {
+                padding: 0.6em;
+            }
+        }
+
+        .ui.grid > .column {
+            padding: 0.6rem;
+        }
+
+        .ui.grid > .right.aligned.column {
+            .ui.button {
+                margin-right: 0;
+            }
+
+            .ui.icon.button {
+                margin-right: 6px;
+            }
+        }
     }
 }

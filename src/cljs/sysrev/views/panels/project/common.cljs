@@ -1,10 +1,11 @@
 (ns sysrev.views.panels.project.common
   (:require [re-frame.core :as re-frame :refer [subscribe dispatch]]
-            [sysrev.util :refer [full-size? mobile? nbsp]]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.base :refer [use-new-article-list?]]
+            [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components :refer
              [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]
-            [sysrev.state.nav :refer [project-uri]]))
+            [sysrev.util :refer [full-size? mobile? nbsp]]
+            [sysrev.shared.util :refer [in?]]))
 
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
@@ -118,6 +119,22 @@
                        "Articles"]
              :action (project-uri project-id "/articles")
              #_ (list [:project :project :articles] action-params)})
+          (when (and (not use-new-article-list?)
+                     member? (> total 0))
+            {:tab-id [:user :labels]
+             :content [:span
+                       (when-not mobile?
+                         [:span
+                          [:i.user.icon]
+                          #_
+                          [:i.icons
+                           [:i.user.icon]
+                           [:i.corner.tag.icon]]
+                          " "])
+                       (if mobile?
+                         "Answers" "Saved Answers")]
+             :action (project-uri project-id "/user")
+             #_ (list [:project :user :labels] action-params)})
           (when (and member? (> total 0))
             {:tab-id [:review]
              :content [:span

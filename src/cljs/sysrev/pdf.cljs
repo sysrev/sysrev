@@ -10,7 +10,7 @@
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.annotation :as annotation
              :refer [AnnotationCapture AnnotationToggleButton AnnotationMenu]]
-            [sysrev.views.upload :refer [upload-container basic-text-button]]
+            [sysrev.views.components :refer [UploadButton]]
             [sysrev.util :refer [random-id full-size?]])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
@@ -320,7 +320,7 @@
                 [:div.field>div.fields
                  (when full-size?
                    (inline-loader))
-                 [upload-container basic-text-button
+                 [UploadButton
                   (str "/api/files/article/" article-id "/upload-pdf")
                   #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
                   "Upload PDF"]

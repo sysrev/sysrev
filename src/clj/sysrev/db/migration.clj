@@ -260,6 +260,7 @@
           (doseq [article-id article-ids]
             (articles/set-article-flag article-id "legacy-disable" true)))))))
 
+;; TODO: this doesn't work for replacing existing stripe_plan entries
 (defn update-stripe-plans-table
   "Update the stripe_plans table based upon what is stored on stripe. We never delete plans, even though they may no longer exist on stripe so that there is a record of their existence. If a plan is changed on the stripe, it is updated here."
   []

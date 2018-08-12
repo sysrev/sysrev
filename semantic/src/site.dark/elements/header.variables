@@ -1,1 +1,2 @@
 @attachedBackground: @segmentBackground;
+@blockBackground: @secondarySegmentBackground;

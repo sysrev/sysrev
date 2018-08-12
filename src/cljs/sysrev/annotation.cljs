@@ -6,7 +6,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-project-id]]
-            [sysrev.util :refer [get-input-value vector->hash-map]]
+            [sysrev.util :refer [get-input-value vector->hash-map desktop-size?]]
             [sysrev.views.components :refer [TextInput]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -494,14 +494,15 @@
 
 (defn AnnotationToggleButton
   [state]
-  (let [annotator-enabled? (r/cursor state [:annotator-enabled?])]
-    [:div.ui.label.button
-     {:on-click (fn [e]
-                  (swap! annotator-enabled? not))}
-     (if @(subscribe [:self/logged-in?])
-       (if @annotator-enabled?
-         "Disable Annotator"
-         "Enable Annotator")
-       (if @annotator-enabled?
-         "Hide Annotations"
-         "View Annotations"))]))
+  (when (desktop-size?)
+    (let [annotator-enabled? (r/cursor state [:annotator-enabled?])]
+      [:div.ui.label.button
+       {:on-click (fn [e]
+                    (swap! annotator-enabled? not))}
+       (if @(subscribe [:self/logged-in?])
+         (if @annotator-enabled?
+           "Disable Annotator"
+           "Enable Annotator")
+         (if @annotator-enabled?
+           "Hide Annotations"
+           "View Annotations"))])))

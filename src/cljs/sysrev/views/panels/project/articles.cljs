@@ -3,9 +3,10 @@
             [reagent.ratom :refer [reaction]]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
+            [sysrev.base :refer [use-new-article-list?]]
+            [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list :as al]
-            [sysrev.state.nav :refer [project-uri]]
             [sysrev.util]
             [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -70,9 +71,10 @@
   ;; TODO: function
   nil)
 
-(defmethod panel-content [:project :project :articles] []
-  (fn [child]
-    (when-let [project-id @(subscribe [:active-project-id])]
-      [:div.project-content
-       [al/ArticleListPanel al-state (al/panel-defaults panel)]
-       child])))
+(when use-new-article-list?
+  (defmethod panel-content [:project :project :articles] []
+    (fn [child]
+      (when-let [project-id @(subscribe [:active-project-id])]
+        [:div.project-content
+         [al/ArticleListPanel al-state (al/panel-defaults panel)]
+         child]))))

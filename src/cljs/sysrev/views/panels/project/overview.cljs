@@ -7,6 +7,7 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
+            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav]
@@ -15,7 +16,6 @@
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles]
-            [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.util :refer [full-size? random-id continuous-update-until]]
             [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -44,9 +44,13 @@
   (when-let [project-id @(subscribe [:active-project-id])]
     (dispatch [:navigate [:project :project :articles]
                {:project-id project-id}])
-    (dispatch [:project-articles/reset-filters [:group-status :inclusion-status]])
-    (dispatch [:project-articles/set-group-status group-status])
-    (dispatch [:project-articles/set-inclusion-status inclusion])))
+    (if use-new-article-list?
+      (do (dispatch [:project-articles/reset-filters [:group-status :inclusion-status]])
+          (dispatch [:project-articles/set-group-status group-status])
+          (dispatch [:project-articles/set-inclusion-status inclusion]))
+      (do (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
+          (dispatch [:public-labels/set-group-status group-status])
+          (dispatch [:public-labels/set-inclusion-status inclusion])))))
 
 (defn- label-status-help-column [colors]
   (let [scounts @(subscribe [:project/status-counts])
@@ -212,8 +216,7 @@
               [])))
           (when member?
             [:div.upload-container
-             [upload-container
-              basic-text-button
+             [ui/UploadButton
               (str "/api/files/" project-id "/upload")
               pull-files
               "Upload document"]

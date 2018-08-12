@@ -66,7 +66,7 @@
    [(subscribe [:project/settings project-id])])
  (fn [[settings]] (:public-access settings)))
 
-#_
+;; TODO: disable after new article list ready
 (reg-sub
  :project/public-labels
  (fn [[_ project-id]]
@@ -135,4 +135,6 @@
   :process
   (fn [_ [project-id _] {:keys [success] :as result}]
     (when success
-      {:dispatch [:reload [:project project-id]]})))
+      {:dispatch-n
+       (list [:reload [:project project-id]]
+             [:reload [:project/sources project-id]])})))

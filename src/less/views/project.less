@@ -123,6 +123,21 @@ div.projects-list {
          padding-top: 0.5em !important;
          padding-bottom: 0.5em !important;
     }
+
+    div.landing-page {
+        .ui.segments.projects-list {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        > .ui.stackable.grid {
+            > .row > .column {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                padding-bottom: 0 !important;
+            }
+        }
+    }
 }
 
 @media only screen and (max-width: 900px) {

@@ -9,9 +9,8 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.views.components :as ui]
-            [sysrev.util :refer [continuous-update-until]]))
+            [sysrev.util :refer [continuous-update-until full-size?]]))
 
 (def panel [:project :project :add-articles])
 
@@ -40,7 +39,8 @@
     (if success
       {:dispatch-n
        (list [:reload [:review/task project-id]]
-             [:reload [:project project-id]])})))
+             [:reload [:project project-id]]
+             [:reload [:project/sources project-id]])})))
 
 (defn admin?
   []
@@ -61,71 +61,69 @@
 
 (defn ImportEndNoteView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div
-     [:h4.ui.dividing.header "Import from EndNote XML file"]
-     [:div.upload-container
-      [:h4 (str "To create an EndNote XML file in EndNote, go to File > Export."
-                " Select 'XML' in 'Save file as type'")]
-      [upload-container
-       basic-text-button
-       "/api/import-articles-from-endnote-file"
-       #(do (dispatch [:reload [:project/sources project-id]]))
-       "Upload File..."]]]))
+    [:div.ui.segment.import-upload
+     [:h5
+      "Upload an EndNote XML export file."]
+     [:h5
+      "To create from EndNote, go to File > Export,"
+      " and under \"Save file as type\" select \"XML\"."]
+     [ui/UploadButton
+      "/api/import-articles-from-endnote-file"
+      #(dispatch [:reload [:project/sources project-id]])
+      "Upload XML File..."
+      "fluid"]]))
 
 (defn ImportPMIDsView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div
-     [:h4.ui.dividing.header "Import from PMIDs in text file"]
-     [:div.upload-container
-      [:h4 "Upload a plain text file with each PubMed ID (PMID) on a separate line"]
-      [upload-container
-       basic-text-button
-       "/api/import-articles-from-file"
-       #(do (dispatch [:reload [:project/sources project-id]]))
-       "Upload File..."]]]))
+    [:div.ui.segment.import-upload
+     [:h5
+      "Upload a plain text file containing a list of PubMed IDs (one per line)."]
+     [ui/UploadButton
+      "/api/import-articles-from-file"
+      #(dispatch [:reload [:project/sources project-id]])
+      "Upload Text File..."
+      "fluid"]]))
 
 (defn ImportPDFZipsView []
   (let [project-id @(subscribe [:active-project-id])]
-    [:div
-     [:h4.ui.dividing.header "Import PDFs from a zip file"]
-     [:div.upload-container
-      [:h4 "Upload a zip file containing PDFs. Each PDF will have its own article entry"]
-      [upload-container
-       basic-text-button
+    [:div.ui.segment.import-upload
+     [:h5
+      "Upload a zip file containing PDFs."
+      " An article entry will be created for each PDF."]
+      [ui/UploadButton
        "/api/import-articles-from-pdf-zip-file"
-       #(do (dispatch [:reload [:project/sources project-id]]))
-       "Upload File..."]]]))
+       #(dispatch [:reload [:project/sources project-id]])
+       "Upload Zip File..."
+       "fluid"]]))
 
 (defn ImportPubMedView []
   (pubmed/ensure-state)
   (let [current-search-term (r/cursor pubmed/state [:current-search-term])]
     [:div
-     [:h4.ui.dividing.header "Import from PubMed search"]
      [SearchPanel pubmed/state]]))
 
 (defn DeleteArticleSource
   [source-id]
   (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui.tiny.orange.basic.icon.button.delete-button
+    [:div.ui.tiny.fluid.labeled.icon.button.delete-button
      {:on-click
-      (fn [] (do (dispatch
-                  [:action [:sources/delete project-id source-id]])
-                 (js/setTimeout
-                  #(dispatch [:fetch [:project/sources project-id]])
-                  100)))}
-     "Delete " [:i.times.circle.icon]]))
+      #(dispatch [:action [:sources/delete project-id source-id]])}
+     "Delete"
+     [:i.red.times.circle.icon]]))
 
 (defn ToggleArticleSource
   [source-id enabled?]
-  (let [project-id @(subscribe [:active-project-id])]
-    [:div.ui.tiny.button
-     {:on-click
-      (fn []
-        (do (dispatch [:action [:sources/toggle-source
-                                project-id source-id (not enabled?)]])
-            (js/setTimeout
-             #(dispatch [:fetch [:project/sources project-id]])
-             100)))}
+  (let [project-id @(subscribe [:active-project-id])
+        action [:sources/toggle-source
+                project-id source-id (not enabled?)]
+        loading? (loading/action-running? action)]
+    [:button.ui.tiny.fluid.labeled.icon.button
+     {:on-click #(dispatch [:action action])
+      :class (if loading? "loading" nil)}
+     (when-not loading?
+       (if enabled?
+         [:i.green.circle.icon]
+         [:i.grey.circle.icon]))
      (if enabled?
        "Enabled"
        "Disabled")]))
@@ -160,12 +158,13 @@
 (defn SourceInfoView [{:keys [source] :as meta}]
   (let [[source-type import-label]
         (meta->source-name-vector meta)]
-    [:div.ui.middle.aligned.grid.source-info>div.row
-     [:div.eight.wide.column.left.aligned
+    [:div.ui.middle.aligned.stackable.grid.source-info>div.row
+     [:div.three.wide.column.left.aligned
       [:div.ui.large.label (str source-type)]]
-     [:div.eight.wide.column.right.aligned
+     [:div.thirteen.wide.column.right.aligned
       (when import-label
-        [:div.import-label.ui.large.basic.label (str import-label)])]]))
+        [:div.import-label.ui.large.basic.label
+         [:span.import-label import-label]])]]))
 
 (defn source-name
   "Given a source-id, return the source name vector"
@@ -218,33 +217,33 @@
         {:keys [meta source-id date-created
                 article-count labeled-article-count
                 enabled]} source
-        enabled? enabled
         {:keys [importing-articles? deleting?]} meta
         polling? @polling-sources?
         delete-running? (loading/action-running?
                          [:sources/delete project-id source-id])
-        timed-out? (source-import-timed-out? source)]
+        timed-out? (source-import-timed-out? source)
+        segment-class (if enabled nil "secondary")]
     (when (or (and (true? importing-articles?) (not timed-out?))
               deleting? delete-running?)
       (poll-project-sources project-id source-id)
       nil)
-    [:div.project-source
-     [:div.ui.top.attached.segment
+    [:div.project-source>div.ui.segments.project-source
+     [:div.ui.segment.source-info
+      {:class segment-class}
       [SourceInfoView meta]]
-     [:div.ui.bottom.attached.segment
-      [:div.ui.middle.aligned.grid>div.row
+     [:div.ui.segment.source-details
+      {:class segment-class}
+      [:div.ui.middle.aligned.stackable.grid>div.row
        (cond
          (= (:source meta) "legacy")
          (list
-          [:div.eight.wide.column.left.aligned.reviewed-count
+          [:div.sixteen.wide.column.left.aligned.reviewed-count
            {:key :reviewed-count}
            [:div
-            (str (.toLocaleString labeled-article-count) " of "
-                 (.toLocaleString article-count) " "
-                 (article-or-articles article-count) " reviewed")]]
-          [:div.eight.wide.column.right.aligned
-           {:key :buttons}
-           nil])
+            (.toLocaleString labeled-article-count)
+            " of "
+            (.toLocaleString article-count)
+            " reviewed"]])
 
          ;; when source is currently being deleted
          (or deleting? delete-running?)
@@ -252,7 +251,7 @@
           [:div.eight.wide.column.left.aligned
            {:key :deleting}
            [:div "Deleting source..."]]
-          [:div.six.wide.column
+          [:div.six.wide.column.placeholder
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
            {:key :loader}
@@ -279,7 +278,7 @@
            [:div
             (str (.toLocaleString article-count) " "
                  (article-or-articles article-count) " loaded")]]
-          [:div.six.wide.column
+          [:div.six.wide.column.placeholder
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
            {:key :loader}
@@ -289,36 +288,47 @@
          (and (false? importing-articles?)
               labeled-article-count article-count)
          (list
-          [:div.source-description.eight.wide.column.left.aligned
-           {:key :reviewed-count}
-           [:div
-            (str (.toLocaleString labeled-article-count) " of "
-                 (.toLocaleString article-count) " "
-                 (article-or-articles article-count) " reviewed")]
-           ;; put unique
-           (let [unique-articles-count (:unique-articles-count source)]
-             (when-not (nil? unique-articles-count)
-               [:span unique-articles-count " unique " (article-or-articles unique-articles-count)]))
-           ;; put overlap
-           (let [overlap (:overlap source)
-                 non-empty-overlap (filter #(> (:count %) 0) overlap)]
-             [:div
+          [:div.source-description.column.left.aligned
+           {:key :reviewed-count
+            :class (if (admin?) "fourteen wide" "sixteen wide")}
+           [:div.ui.two.column.stackable.left.aligned.middle.aligned.grid
+            ;; total/reviewed count
+            [:div.column
+             [:span.reviewed-count (.toLocaleString labeled-article-count)]
+             " of "
+             [:span.total-count (.toLocaleString article-count)]
+             " " (article-or-articles article-count) " reviewed"]
+            ;; unique count
+            (let [unique-articles-count (:unique-articles-count source)]
+              (when-not (nil? unique-articles-count)
+                [:div.column
+                 [:span.unique-count (.toLocaleString unique-articles-count)]
+                 " unique " (article-or-articles unique-articles-count)]))
+            ;; source overlap counts
+            (let [overlap (:overlap source)
+                  non-empty-overlap (filter #(> (:count %) 0) overlap)]
               (when-not (empty? non-empty-overlap)
                 (doall
-                 (map (fn [{:keys [count overlap-source-id]} overlap-map]
-                        ^{:key (gensym (:overlap-source-id overlap-map))}
-                        [:div
-                         [:span
-                          (str
-                           count " " (article-or-articles count) " shared with "
-                           (let [name (source-name overlap-source-id)]
-                             (str (first name) " " (second name))))]
-                         [:br]])
-                      non-empty-overlap)))])]
+                 (map
+                  (fn [{shared-count :count
+                        overlap-source-id :overlap-source-id} overlap-map]
+                    (let [[src-type src-info] (source-name overlap-source-id)
+                          info-size (count src-info)
+                          src-info (if (< info-size 40)
+                                     src-info
+                                     (str (subs src-info 0 20) " [.....] "
+                                          (subs src-info (- info-size 20))))]
+                      ^{:key [:shared source-id overlap-source-id]}
+                      [:div.column
+                       (str (.toLocaleString shared-count) " shared : ")
+                       [:div.ui.small.label.source-shared
+                        src-type
+                        [:div.detail src-info]]]))
+                  non-empty-overlap))))]]
           (when (admin?)
-            [:div.eight.wide.column.right.aligned
+            [:div.two.wide.column.right.aligned.source-actions
              {:key :buttons}
-             [ToggleArticleSource source-id enabled?]
+             [ToggleArticleSource source-id enabled]
              (when (and (<= labeled-article-count 0))
                [DeleteArticleSource source-id])]))
          :else
@@ -326,7 +336,7 @@
           [:div.eight.wide.column.left.aligned
            {:key :import-status}
            "Starting import..."]
-          [:div.six.wide.column
+          [:div.six.wide.column.placeholder
            {:key :placeholder}]
           [:div.two.wide.column.right.aligned
            {:key :loader}
@@ -336,46 +346,53 @@
   (ensure-state)
   (let [sources @(subscribe [:project/sources])
         article-count (:total @(subscribe [:project/article-counts]))]
-    [:div#project-sources.ui.segment
-     [:h4.ui.dividing.header
-      "Article Sources"]
+    [:div#project-sources
      (if (empty? sources)
-       (if (and article-count (> article-count 0))
-         [:h4 "No article sources added yet"]
-         [:h4 "No articles imported yet"])
-       [:div.project-sources-list
-        (doall (map (fn [source]
-                      ^{:key (:source-id source)}
-                      [ArticleSource source])
-                    (reverse (sort-by :source-id sources))))])]))
+       [:h4.ui.block.header
+        (if (and article-count (> article-count 0))
+          "No article sources added yet"
+          "No articles imported yet")]
+       [:div
+        [:h4.ui.block.header
+         "Article Sources"]
+        [:div.project-sources-list
+         (doall (map (fn [source]
+                       ^{:key (:source-id source)}
+                       [ArticleSource source])
+                     (sort-by (fn [{:keys [source-id enabled]}]
+                                [(not enabled) (- source-id)])
+                              sources)))]])]))
 
 (defn ImportArticlesView []
   (ensure-state)
   (let [import-tab (r/cursor state [:import-tab])
-        active-tab (or @import-tab :pubmed)]
-    [:div#import-articles.ui.segment
-     [:h4.ui.dividing.header
+        active-tab (or @import-tab :pubmed)
+        full-size? (full-size?)]
+    [:div#import-articles
+     {:style {:margin-bottom "1em"}}
+     [:h4.ui.block.header
       "Import Articles"]
-     [ui/tabbed-panel-menu
-      [{:tab-id :pubmed
-        :content "PubMed Search"
-        :action #(reset! import-tab :pubmed)}
-       {:tab-id :pmid
-        :content "PMIDs"
-        :action #(reset! import-tab :pmid)}
-       {:tab-id :endnote
-        :content "EndNote XML"
-        :action #(reset! import-tab :endnote)}
-       {:tab-id :zip-file
-        :content "Zip File"
-        :action #(reset! import-tab :zip-file)}]
-      active-tab
-      "import-source-tabs"]
-     (case active-tab
-       :pubmed   [ImportPubMedView]
-       :pmid     [ImportPMIDsView]
-       :endnote  [ImportEndNoteView]
-       :zip-file [ImportPDFZipsView])]))
+     [:div.ui.segment
+      [ui/tabbed-panel-menu
+       [{:tab-id :pubmed
+         :content (if full-size? "PubMed Search" "PubMed")
+         :action #(reset! import-tab :pubmed)}
+        {:tab-id :pmid
+         :content "PMIDs"
+         :action #(reset! import-tab :pmid)}
+        {:tab-id :endnote
+         :content (if full-size? "EndNote XML" "EndNote")
+         :action #(reset! import-tab :endnote)}
+        {:tab-id :zip-file
+         :content "Zip File"
+         :action #(reset! import-tab :zip-file)}]
+       active-tab
+       "import-source-tabs"]
+      (case active-tab
+        :pubmed   [ImportPubMedView]
+        :pmid     [ImportPMIDsView]
+        :endnote  [ImportEndNoteView]
+        :zip-file [ImportPDFZipsView])]]))
 
 (defn ProjectSourcesPanel []
   (ensure-state)

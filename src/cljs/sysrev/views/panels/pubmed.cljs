@@ -220,7 +220,7 @@
   "Display an article summary item"
   [article global-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    [:div.ui.segment.pubmed-article
+    [:div.ui.secondary.segment.pubmed-article
      [:span
       (str (inc global-idx) "." nbsp nbsp)
       [ui/dangerous
@@ -348,26 +348,28 @@
         search-results (subscribe [:pubmed/search-term-result
                                    @current-search-term])
         result-count (get-in @search-results [:count])]
-    [:div.search-results-container
-     (cond
-       @import-error
+    (cond
+      @import-error
+      [:div.search-results-container.margin
        [:div.ui.error.message
-        (str @import-error)]
+        (str @import-error)]]
 
-       ;; search input form is empty
-       (or (nil? @current-search-term)
-           (empty? @current-search-term))
-       nil
+      ;; search input form is empty
+      (or (nil? @current-search-term)
+          (empty? @current-search-term))
+      nil
 
-       ;; valid search is completed with no results
-       (and (not (nil? @current-search-term))
-            (= (get-in @search-results [:count]) 0)
-            (not (loading/item-loading?
-                  [:pubmed-search @current-search-term @page-number])))
-       [:div>h3 "No documents match your search terms"]
+      ;; valid search is completed with no results
+      (and (not (nil? @current-search-term))
+           (= (get-in @search-results [:count]) 0)
+           (not (loading/item-loading?
+                 [:pubmed-search @current-search-term @page-number])))
+      [:div.search-results-container.margin
+       [:h3 "No documents match your search terms"]]
 
-       :else
-       [SearchResultsView])]))
+      :else
+      [:div.search-results-container
+       [SearchResultsView]])))
 
 (defn SearchPanel
   "A panel for searching pubmed"

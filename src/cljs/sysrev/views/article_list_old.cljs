@@ -5,32 +5,33 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
             [reagent.ratom :refer [reaction]]
+            [sysrev.base :refer [use-new-article-list?]]
+            [sysrev.loading :as loading]
             [sysrev.views.article :refer [article-info-view]]
             [sysrev.views.review :refer [label-editor-view]]
             [sysrev.views.components :refer
              [with-ui-help-tooltip ui-help-icon selection-dropdown
-              three-state-selection-icons updated-time-label]]
+              three-state-selection-icons]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.nav :refer [nav]]
             [sysrev.shared.keywords :refer [canonical-keyword]]
             [sysrev.shared.article-list :refer
              [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
-            [sysrev.util :refer [full-size? mobile? nbsp time-from-epoch]]
+            [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti default-filters-sub (fn [panel] panel))
 (defmulti panel-base-uri (fn [panel project-id] panel))
 (defmulti article-uri (fn [panel project-id article-id] panel))
+(defmulti all-articles-sub (fn [panel project-id] panel))
+(defmulti allow-null-label? (fn [panel] panel))
 (defmulti list-header-tooltip (fn [panel] panel))
+(defmulti render-article-entry (fn [panel article full-size?] panel))
 (defmulti private-article-view? (fn [panel] panel))
+(defmulti loading-articles? (fn [panel project-id user-id] panel))
 (defmulti reload-articles (fn [panel project-id user-id] panel))
-
-(defn allow-null-label? [panel]
-  true)
-
-(defn loading-articles? []
-  @(subscribe [:any-loading? :project/article-list]))
+(defmulti auto-refresh? (fn [panel] panel))
 
 (defmethod list-header-tooltip :default [] nil)
 
@@ -92,53 +93,13 @@
                          distinct)]
         (in? answers value)))))
 
-(defn- label-user-filter [label-user]
-  (if (nil? label-user)
-    (constantly true)
-    (fn [labels]
-      (->> labels
-           (filter #(= (:user-id %) label-user))
-           not-empty))))
-
-(reg-sub-raw
- :article-list/query-args
- (fn [db [_ panel]]
-   (reaction
-    (let [default-filters @(subscribe (default-filters-sub panel))
-          filters (->> @(subscribe [:panel-field [:filters] panel])
-                       vec
-                       (remove
-                        (fn [[k v]]
-                          (nil? v)))
-                       (apply concat)
-                       (apply hash-map))
-          n-offset @(subscribe [::display-offset])]
-      (merge default-filters
-             filters
-             {:n-offset n-offset
-              :n-count (display-count)})))))
-
-(reg-sub-raw
- ::article-list-response
- (fn [db [_ panel]]
-   (reaction
-    (let [args @(subscribe [:article-list/query-args panel])]
-      @(subscribe [:project/article-list nil args])))))
-
 (reg-sub
  ::articles
  (fn [[_ panel]]
-   [(subscribe [::article-list-response panel])])
- (fn [[response]] (->> response :entries)))
-
-(reg-sub
- ::articles-count
- (fn [[_ panel]]
-   [(subscribe [::article-list-response panel])])
- (fn [[response]] (->> response :total-count)))
+   [(subscribe (all-articles-sub panel))])
+ (fn [[articles]] articles))
 
 ;; Gets full list of article entries to display based on selected filters
-#_
 (reg-sub
  :article-list/filtered
  (fn [[_ panel]]
@@ -149,22 +110,13 @@
     (subscribe [:article-list/filter-value :label-id panel])
     (subscribe [:article-list/filter-value :group-status panel])
     (subscribe [:article-list/filter-value :answer-value panel])
-    (subscribe [:article-list/filter-value :inclusion-status panel])
-    (subscribe [:article-list/filter-value :label-user panel])])
- (fn [[overall-id articles
-       search-text confirm-status label-id group-status
-       answer-value inclusion-status label-user]]
+    (subscribe [:article-list/filter-value :inclusion-status panel])])
+ (fn [[overall-id articles search-text confirm-status
+       label-id group-status answer-value inclusion-status]]
    (let [not-nil? (complement nil?)
 
-         all-labels #(:labels %)
-
-         get-labels
-         (fn [article]
-           (->> article :labels (filter #(= (:label-id %) label-id))))
-
-         get-overall
-         (fn [article]
-           (->> article :labels (filter #(= (:label-id %) overall-id))))
+         get-labels #(get-in % [:labels label-id])
+         get-overall #(get-in % [:labels overall-id])
 
          search-text-test
          (when (not-empty search-text)
@@ -187,12 +139,7 @@
          answer-value-test
          (when (and label-id (not-nil? answer-value))
            (comp (answer-value-filter answer-value group-status)
-                 get-labels))
-
-         label-user-test
-         (when label-user
-           (comp (label-user-filter label-user)
-                 all-labels))]
+                 get-labels))]
      (cond->> articles
        label-id
        (filterv (comp not-empty get-labels))
@@ -210,10 +157,7 @@
        (filterv group-status-test)
 
        (not-nil? answer-value-test)
-       (filterv answer-value-test)
-
-       (not-nil? label-user-test)
-       (filterv label-user-test)))))
+       (filterv answer-value-test)))))
 
 ;; Gets active value of a filter option from user selection or defaults
 (reg-sub
@@ -263,16 +207,6 @@
  (fn [_ [panel]]
    {:dispatch [:set-panel-field [:article-id] nil panel]}))
 
-;; Gets id of article currently being individually displayed
-(reg-sub
- :article-list/article-id
- (fn [[_ panel]]
-   [(subscribe [:active-panel])
-    (subscribe [:panel-field [:article-id] panel])])
- (fn [[active-panel article-id] [_ panel]]
-   (when (= active-panel panel)
-     article-id)))
-
 ;; Gets id of most recent article to have been individually displayed,
 ;; so it can be indicated visually in list interface.
 (reg-sub
@@ -287,7 +221,7 @@
  ::next-article-id
  (fn [[_ panel]]
    [(subscribe [:article-list/article-id panel])
-    (subscribe [::articles panel])])
+    (subscribe [:article-list/filtered panel])])
  (fn [[article-id articles]]
    (when (some #(= (:article-id %) article-id) articles)
      (->> articles
@@ -300,7 +234,7 @@
  ::prev-article-id
  (fn [[_ panel]]
    [(subscribe [:article-list/article-id panel])
-    (subscribe [::articles panel])])
+    (subscribe [:article-list/filtered panel])])
  (fn [[article-id articles]]
    (when (some #(= (:article-id %) article-id) articles)
      (->> articles
@@ -308,7 +242,7 @@
           last
           :article-id))))
 
-;; Offset index for visible articles within search results
+;; Offset index for visible articles within filtered list
 (reg-sub
  ::display-offset
  (fn [[_ panel]]
@@ -318,10 +252,10 @@
 (reg-sub
  ::max-display-offset
  (fn [[_ panel]]
-   [(subscribe [::articles-count panel])])
- (fn [[articles-count]]
+   [(subscribe [:article-list/filtered panel])])
+ (fn [[articles]]
    (let [display-count (display-count)]
-     (* display-count (quot (dec articles-count) display-count)))))
+     (* display-count (quot (dec (count articles)) display-count)))))
 ;;
 (reg-event-fx
  ::set-display-offset
@@ -348,25 +282,6 @@
        (or @(subscribe [::resolving-allowed? panel])
            (in? [:confirmed :unconfirmed]
                 @(subscribe [:article/user-status article-id]))))))))
-
-(reg-sub-raw
- :article-list/editing?
- (fn [_ [_ panel]]
-   (reaction
-    (boolean
-     (when-let [article-id @(subscribe [:article-list/article-id panel])]
-       (and @(subscribe [::editing-allowed? panel])
-            (or (and (private-article-view? panel)
-                     (= :unconfirmed @(subscribe [:article/user-status article-id])))
-                @(subscribe [:review/change-labels? article-id panel]))))))))
-
-(reg-sub
- :article-list/resolving?
- (fn [[_ panel]]
-   [(subscribe [:article-list/editing? panel])
-    (subscribe [::resolving-allowed? panel])])
- (fn [[editing? resolving-allowed?]]
-   (boolean (and editing? resolving-allowed?))))
 
 ;;;
 ;;; Input components for controlling article list filters
@@ -544,12 +459,12 @@
            ["Filter by matching keywords in article title"]])
 
         refresh-button
-        [:button.ui.right.labeled.icon.button.refresh-button
-         {:class (if (loading-articles?) "loading" "")
+        [:div.ui.right.labeled.icon.button.refresh-button
+         {:class (if (loading-articles? panel project-id user-id) "loading" "")
           :style {:width "100%"}
           :on-click #(reload-articles panel project-id user-id)}
          [:i.repeat.icon]
-         (if (full-size?) "Refresh" "Refresh")]
+         (if (full-size?) "Refresh Articles" "Refresh")]
 
         reset-button
         [:div.ui.right.labeled.icon.button.reset-button
@@ -560,103 +475,51 @@
             #(dispatch [::reset-filters [] panel]))}
          [:i.times.icon]
          "Reset Filters"]]
-    [:div.article-filters
-     [:div.ui.secondary.top.attached.segment
-      {:style {:padding "10px"}}
-      [:div.ui.two.column.grid
-       [:div.middle.aligned.row
-        {:style {:padding-top "9px"
-                 :padding-bottom "9px"}}
-        [:div.left.aligned.column
-         [:h4 "Filters"]]
-        [:div.right.aligned.column
-         [:button.ui.tiny.right.labeled.icon.button
-          [:i.erase.icon]
-          "Reset"]]]]]
-     [:div.ui.secondary.attached.segment.filters-content
-      {:style {:padding "10px"}}
-      (if (not (mobile?))
-        ;; non-mobile view
-        [:div.ui.small.form
-         [:div.field
-          #_
-          [:div.fields
-           (when select-inclusion?    [inclusion-status-field "three"])
-           (when select-group-status? [group-status-field "three"])
-           (when select-confirmed?    [confirmed-field "three"])
-           [search-field "six"]
-           [:div.four.wide.field [:label nbsp] reset-button]]
-          [:div.fields
-           [:div.four.wide.field
-            [:label "Keyword search"]
-            [:div.ui.fluid.icon.input
-             [:input {:type "text"
-                      :placeholder "Search..."}]
-             [:i.search.icon]]]
-           [:div.five.wide.field
-            [:label "View Mode"]
-            [:div {:style { ;; :text-align "center"
-                           :width "100%"}}
-             [:button.ui.labeled.icon.button
-              [:i.green.circle.icon]
-              "Self"]
-             [:button.ui.labeled.icon.button
-              [:i.grey.circle.icon]
-              "Consensus"]]]
-           [:div.five.wide.field
-            [:label "View Options"]
-            [:div {:style { ;; :text-align "center"
-                           :width "100%"}}
-             [:button.ui.labeled.icon.button
-              [:i.green.circle.icon]
-              "Labels"]
-             [:button.ui.labeled.icon.button
-              [:i.green.circle.icon]
-              "Notes"]]]
-           [:div.two.wide.field [:label nbsp] refresh-button]]]
-         [:div.field
-          [:button.ui.icon.button [:i.plus.icon]]
-          #_
-          [:div.fields
-           [label-field "three"]
-           [answer-value-field "three" (not select-answer?)]
-           [:div.six.wide.field]
-           [:div.four.wide.field [:label nbsp] refresh-button]]]]
-        ;; mobile view
-        [:div.ui.small.form
-         [:div.two.fields.mobile-group
-          (when select-inclusion?    [inclusion-status-field nil])
-          (when select-group-status? [group-status-field nil])
-          (when select-confirmed?    [confirmed-field nil])]
-         [:div.two.fields.mobile-group
-          [label-field nil]
-          [answer-value-field nil (not select-answer?)]]
-         [search-field nil]
-         [:div.two.fields.mobile-group
-          [:div.field refresh-button]
-          [:div.field reset-button]]])]
-     [:div.ui.secondary.bottom.attached.segment
-      {:style {:padding "0px"}}
-      [:button.ui.tiny.fluid.icon.button
-       {:style {:border-top-left-radius "0"
-                :border-top-right-radius "0"
-                :padding-top "7px"
-                :padding-bottom "7px"}}
-       [:i.chevron.up.icon]]]]))
+    [:div.ui.secondary.segment.article-filters
+     {:style {:padding "10px"}}
+     (if (not (mobile?))
+       ;; non-mobile view
+       [:div.ui.small.form
+        [:div.field
+         [:div.fields
+          (when select-inclusion?    [inclusion-status-field "three"])
+          (when select-group-status? [group-status-field "three"])
+          (when select-confirmed?    [confirmed-field "three"])
+          [search-field "six"]
+          [:div.four.wide.field [:label nbsp] reset-button]]]
+        [:div.field
+         [:div.fields
+          [label-field "three"]
+          [answer-value-field "three" (not select-answer?)]
+          [:div.six.wide.field]
+          [:div.four.wide.field [:label nbsp] refresh-button]]]]
+       ;; mobile view
+       [:div.ui.small.form
+        [:div.two.fields.mobile-group
+         (when select-inclusion?    [inclusion-status-field nil])
+         (when select-group-status? [group-status-field nil])
+         (when select-confirmed?    [confirmed-field nil])]
+        [:div.two.fields.mobile-group
+         [label-field nil]
+         [answer-value-field nil (not select-answer?)]]
+        [search-field nil]
+        [:div.two.fields.mobile-group
+         [:div.field refresh-button]
+         [:div.field reset-button]]])]))
 
 (reg-sub
  ::article-list-header-text
  (fn [[_ panel]]
-   [(subscribe [::articles panel])
-    (subscribe [::display-offset panel])
-    (subscribe [::articles-count panel])])
- (fn [[articles display-offset total-count]]
-   (if (zero? total-count)
-     "No matching articles found"
-     (str "Showing " (+ display-offset 1)
-          "-" (+ display-offset (count articles))
-          " of "
-          total-count " matching articles "))))
+   [(subscribe [:article-list/filtered panel])
+    (subscribe [::display-offset panel])])
+ (fn [[filtered display-offset]]
+   (let [total-count (count filtered)]
+     (if (zero? total-count)
+       "No matching articles found"
+       (str "Showing " (+ display-offset 1)
+            "-" (min total-count (+ display-offset (display-count)))
+            " of "
+            total-count " matching articles ")))))
 
 (defn- article-list-header-message [panel]
   (let [text @(subscribe [::article-list-header-text panel])
@@ -670,7 +533,7 @@
 
 ;; Render directional navigation buttons for article list interface
 (defn- article-list-header-buttons [panel]
-  (let [total-count @(subscribe [::articles-count panel])
+  (let [total-count (count @(subscribe [:article-list/filtered panel]))
         display-count (display-count)
         max-display-offset @(subscribe [::max-display-offset panel])
         display-offset @(subscribe [::display-offset panel])
@@ -733,214 +596,61 @@
          :on-click on-last}
         [:i.angle.double.right.icon]]])))
 
-(defmulti answer-cell-icon identity)
-(defmethod answer-cell-icon true [] [:i.ui.green.circle.plus.icon])
-(defmethod answer-cell-icon false [] [:i.ui.orange.circle.minus.icon])
-(defmethod answer-cell-icon :default [] [:i.ui.grey.question.mark.icon])
-
-(defn- answer-cell [article-id labels answer-class]
-  [:div.ui.divided.list
-   (->> labels
-        (map (fn [entry]
-               (let [user-id (:user-id entry)
-                     inclusion (:inclusion entry)]
-                 (when (or (not= answer-class "resolved")
-                           (:resolve entry))
-                   [:div.item {:key [:answer article-id user-id]}
-                    (answer-cell-icon inclusion)
-                    [:div.content>div.header
-                     @(subscribe [:user/display user-id])]]))))
-        (doall))])
-
-(defn- render-article-content [panel article-id]
-  (let [editing-allowed? @(subscribe [::editing-allowed? panel])
-        resolving-allowed? @(subscribe [::resolving-allowed? panel])
-        editing? @(subscribe [:article-list/editing? panel])]
-    [:div
-     [article-info-view article-id
-      :show-labels? true
-      :private-view? (private-article-view? panel)
-      :context :article-list]
-     (cond editing?
-           [label-editor-view article-id]
-
-           editing-allowed?
-           [:div.ui.segment
-            [:div.ui.fluid.button
-             {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
-             (if resolving-allowed? "Resolve Labels" "Change Labels")]])]))
-
-(defn render-article-entry [panel article full-size?]
-  (let [ ;; label-id @(subscribe [:article-list/filter-value :label-id panel])
-        overall-id @(subscribe [:project/overall-label-id])
-        {:keys [article-id primary-title labels updated-time]} article
-        ;; active-labels (get labels label-id)
-        overall-labels (->> labels (filter #(= (:label-id %) overall-id)))
-        answer-class
-        (cond
-          (is-resolved? overall-labels) "resolved"
-          (is-consistent? overall-labels) "consistent"
-          (is-single? overall-labels) "single"
-          :else "conflict")]
-    (if full-size?
-      ;; non-mobile view
-      [:div.ui.row
-       [:div.ui.thirteen.wide.column.article-title
-        [:div.ui.middle.aligned.grid
-         [:div.row
-          [:div.ui.one.wide.center.aligned.column
-           [:div.ui.fluid.labeled.center.aligned.button
-            [:i.ui.right.chevron.center.aligned.icon
-             {:style {:width "100%"}}]]]
-          [:div.thirteen.wide.column>span.article-title primary-title]
-          [:div.two.wide.center.aligned.column.article-updated-time
-           (when-let [updated-time (some-> updated-time (time-from-epoch))]
-             [updated-time-label updated-time])]]]]
-       [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
-        {:class answer-class}
-        [:div.ui.middle.aligned.grid>div.row>div.column
-         [answer-cell article-id overall-labels answer-class]]]]
-      ;; mobile view
-      [:div.ui.row
-       [:div.ui.ten.wide.column.article-title
-        [:span.article-title primary-title]
-        (when-let [updated-time (some-> updated-time (time-from-epoch))]
-          [updated-time-label updated-time])]
-       [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
-        {:class answer-class}
-        [:div.ui.middle.aligned.grid>div.row>div.column
-         [answer-cell article-id overall-labels answer-class]]]])))
-
-;; user self labels interface
-#_
-(defn render-article-entry [_ article full-size?]
-  (let [{:keys [article-id primary-title labels
-                notes updated-time confirmed]} article
-        user-id @(subscribe [:self/user-id])
-        have-notes? (some #(and (string? %)
-                                (not-empty (str/trim %)))
-                          (vals notes))
-        user-labels (->> labels
-                         (filter #(= (:user-id %) user-id))
-                         (group-by :label-id)
-                         (map-values first))]
-    (if full-size?
-      ;; non-mobile view
-      [:div.ui.row
-       [:div.ui.one.wide.center.aligned.column
-        [:div.ui.fluid.labeled.center.aligned.button
-         [:i.ui.right.chevron.center.aligned.icon
-          {:style {:width "100%"}}]]]
-       [:div.ui.fifteen.wide.column.article-title
-        [:div.ui.middle.aligned.grid
-         [:div.row
-          [:div.twelve.wide.column>span.article-title primary-title]
-          [:div.four.wide.right.aligned.column
-           (when (false? confirmed)
-             [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
-           (when-let [updated-time (some-> updated-time (time-from-epoch))]
-             [updated-time-label updated-time])]]]
-        [:div.ui.fitted.divider]
-        [:div.ui.middle.aligned.grid
-         [:div.row
-          [:div.sixteen.wide.column
-           [labels/label-values-component user-labels]]]]
-        (when have-notes?
-          [:div
-           [:div.ui.fitted.divider]
-           (doall
-            (for [note-name (keys notes)]
-              ^{:key [note-name]}
-              [note-content-label note-name (get notes note-name)]))])]]
-      ;; mobile view
-      [:div.ui.row.user-article
-       [:div.ui.sixteen.wide.column
-        [:div.ui.middle.aligned.grid
-         [:div.row
-          [:div.twelve.wide.column>span.article-title primary-title]
-          [:div.four.wide.right.aligned.column
-           (when (false? confirmed)
-             [:div.ui.tiny.basic.yellow.label "Unconfirmed"])
-           (when-let [updated-time (some-> updated-time (time-from-epoch))]
-             [updated-time-label updated-time])]]]
-        [:div.ui.fitted.divider]
-        [:div.ui.middle.aligned.grid
-         [:div.row
-          [:div.sixteen.wide.column.label-values
-           [labels/label-values-component user-labels]]]]
-        (when have-notes?
-          [:div.ui.fitted.divider])
-        (when have-notes?
-          [:div.ui.middle.aligned.grid
-           [:div.row
-            [:div.sixteen.wide.column.label-values
-             (doall
-              (for [note-name (keys notes)]
-                ^{:key [note-name]}
-                [note-content-label note-name (get notes note-name)]))]]])]])))
+(reg-sub
+ ::visible-entries
+ (fn [[_ panel]]
+   [(subscribe [:article-list/filtered panel])
+    (subscribe [::display-offset panel])])
+ (fn [[articles display-offset]]
+   (->> articles
+        (drop display-offset)
+        (take (display-count)))))
 
 (defn- article-list-view-articles [panel]
   (let [project-id @(subscribe [:active-project-id])
         active-aid @(subscribe [::selected-article-id panel])
-        visible-aid @(subscribe [:article-list/article-id panel])
         show-article #(nav (article-uri panel project-id %))
         full-size? (full-size?)]
     [:div.ui.segments.article-list-segments
      (doall
       (->>
-       @(subscribe [::articles panel])
+       @(subscribe [::visible-entries panel])
        (map
         (fn [{:keys [article-id] :as article}]
           (let [active? (= article-id active-aid)
-                visible? (= article-id visible-aid)
                 classes (if active? "active" "")
-                loading? @(subscribe [:loading? [:article project-id article-id]])]
-            (doall
-             (list
-              [:a.ui.middle.aligned.attached.grid.segment.article-list-article
-               {:key [:list-row article-id]
-                :class (str (if active? "active" "")
-                            " "
-                            (if loading? "article-loading" ""))
-                ;; :on-click #(show-article article-id)
-                :href (if visible?
-                        (panel-base-uri panel project-id)
-                        (article-uri panel project-id article-id))}
-               (when loading?
-                 [:div.ui.active.inverted.dimmer
-                  [:div.ui.loader]])
-               [render-article-entry panel article full-size?]]
-              (when (= article-id
-                       @(subscribe [:article-list/article-id panel]))
-                [:div.ui.middle.aligned.attached.grid.segment.article-list-full-article
-                 {:key [:article-row article-id]
-                  :class (str (if active? "active" "")
-                              " "
-                              (if loading? "article-loading" ""))}
-                 (when loading?
-                   [:div.ui.active.inverted.dimmer
-                    [:div.ui.loader]])
-                 [render-article-content panel article-id]]))))))))]))
+                loading? (loading/item-loading? [:article project-id article-id])]
+            [:a.ui.middle.aligned.grid.segment.article-list-article
+             {:key article-id
+              :class (str (if active? "active" "")
+                          " "
+                          (if loading? "article-loading" ""))
+              ;; :on-click #(show-article article-id)
+              :href (article-uri panel project-id article-id)}
+             (when loading?
+               [:div.ui.active.inverted.dimmer
+                [:div.ui.loader]])
+             [render-article-entry panel article full-size?]])))))]))
 
 (defn- article-list-list-view [panel]
   (let [user-id @(subscribe [:self/user-id])
-        articles @(subscribe [::articles panel])]
+        filtered @(subscribe [:article-list/filtered panel])]
     (if (full-size?)
       [:div.article-list-view
-       [:div.ui.segment.article-nav
+       [:div.ui.segments>div.ui.segment.article-nav
         [:div.ui.two.column.middle.aligned.grid
          [:div.ui.left.aligned.column
           [article-list-header-message panel]]
          [article-list-header-buttons panel]]]
-       (when (not-empty articles)
+       (when (not-empty filtered)
          [article-list-view-articles panel])]
       [:div.article-list-view
-       [:div.ui.segment.article-nav
+       [:div.ui.segments>div.ui.segment.article-nav
         [:div.ui.middle.aligned.grid
          [:div.ui.left.aligned.seven.wide.column
           [article-list-header-message panel]]
          [article-list-header-buttons panel]]]
-       (when (not-empty articles)
+       (when (not-empty filtered)
          [article-list-view-articles panel])])))
 
 (defn- article-list-article-view [article-id panel]
@@ -949,12 +659,16 @@
         overall-label-id @(subscribe [:project/overall-label-id])
         user-id @(subscribe [:self/user-id])
         user-status @(subscribe [:article/user-status article-id user-id])
+        editing-allowed? @(subscribe [::editing-allowed? panel])
+        resolving-allowed? @(subscribe [::resolving-allowed? panel])
+        editing? @(subscribe [:article-list/editing? panel])
+        resolving? @(subscribe [:article-list/resolving? panel])
         close-article #(nav (panel-base-uri panel project-id))
         next-id @(subscribe [::next-article-id panel])
         prev-id @(subscribe [::prev-article-id panel])
-        next-loading? (when next-id @(subscribe [:loading? [:article project-id next-id]]))
-        prev-loading? (when prev-id @(subscribe [:loading? [:article project-id prev-id]]))
-        back-loading? (loading-articles?)
+        next-loading? (when next-id (loading/item-loading? [:article project-id next-id]))
+        prev-loading? (when prev-id (loading/item-loading? [:article project-id prev-id]))
+        back-loading? (loading-articles? panel project-id user-id)
         prev-class (str (if (nil? prev-id) "disabled" "")
                         " " (if prev-loading? "loading" ""))
         next-class (str (if (nil? next-id) "disabled" "")
@@ -965,7 +679,7 @@
     [:div.article-view
      (if (full-size?)
        ;; non-mobile view
-       [:div.ui.segment.article-nav
+       [:div.ui.segments>div.ui.segment.article-nav
         [:div.ui.three.column.middle.aligned.grid
          [:div.ui.left.aligned.column
           [:div.ui.tiny.fluid.button {:class back-class :on-click close-article}
@@ -980,7 +694,7 @@
            [:div.ui.tiny.button {:class next-class :on-click on-next}
             "Next" [:i.chevron.right.icon]]]]]]
        ;; mobile view
-       [:div.ui.segment.article-nav
+       [:div.ui.segments>div.ui.segment.article-nav
         [:div.ui.middle.aligned.grid
          [:div.ui.six.wide.left.aligned.column
           [:div.ui.tiny.fluid.button {:class back-class :on-click close-article}
@@ -993,20 +707,57 @@
             [:i.chevron.left.icon] "Previous"]
            [:div.ui.tiny.button {:class next-class :on-click on-next}
             "Next" [:i.chevron.right.icon]]]]]])
-     [render-article-content panel article-id]]))
+     [:div
+      [article-info-view article-id
+       :show-labels? true
+       :private-view? (private-article-view? panel)
+       :context :article-list]
+      (cond editing?
+            [label-editor-view article-id]
+
+            editing-allowed?
+            [:div.ui.segment
+             [:div.ui.fluid.button
+              {:on-click #(dispatch [:review/enable-change-labels article-id panel])}
+              (if resolving-allowed? "Resolve Labels" "Change Labels")]])]]))
 
 ;; Top-level component for article list interface
-(defn article-list-view [panel]
+(defn article-list-view [panel & [loader-items]]
   (let [project-id @(subscribe [:active-project-id])
-        article-id @(subscribe [:article-list/article-id panel])
-        args @(subscribe [:article-list/query-args panel])
-        articles @(subscribe [::articles panel])
-        visible-ids (map :article-id articles)]
-    [:div
+        article-id @(subscribe [:article-list/article-id panel])]
+    [:div.article-list-toplevel-old
      [article-list-filter-form panel]
-     (with-loader [[:project project-id]
-                   [:project/article-list project-id args]] {}
-       (if (and article-id (not (in? visible-ids article-id)))
-           ;; article-id
+     (with-loader (concat [[:project project-id]] loader-items) {}
+       (if article-id
          [article-list-article-view article-id panel]
          [article-list-list-view panel]))]))
+
+(when (not use-new-article-list?)
+  ;; Gets id of article currently being individually displayed
+  (reg-sub
+   :article-list/article-id
+   (fn [[_ panel]]
+     [(subscribe [:active-panel])
+      (subscribe [:panel-field [:article-id] panel])])
+   (fn [[active-panel article-id] [_ panel]]
+     (when (= active-panel panel)
+       article-id)))
+
+  (reg-sub-raw
+   :article-list/editing?
+   (fn [_ [_ panel]]
+     (reaction
+      (boolean
+       (when-let [article-id @(subscribe [:article-list/article-id panel])]
+         (and @(subscribe [::editing-allowed? panel])
+              (or (and (private-article-view? panel)
+                       (= :unconfirmed @(subscribe [:article/user-status article-id])))
+                  @(subscribe [:review/change-labels? article-id panel]))))))))
+
+  (reg-sub
+   :article-list/resolving?
+   (fn [[_ panel]]
+     [(subscribe [:article-list/editing? panel])
+      (subscribe [::resolving-allowed? panel])])
+   (fn [[editing? resolving-allowed?]]
+     (boolean (and editing? resolving-allowed?)))))

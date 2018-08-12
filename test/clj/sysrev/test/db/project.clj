@@ -17,9 +17,8 @@
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
-
 (deftest article-flag-counts
-  (doseq [project-id (test-project-ids)]
+  (doseq [project-id (take 10 (test-project-ids))]
     (let [query (q/select-project-articles
                  project-id [:%count.*] {:include-disabled? true})
           total (-> query do-query first :count)

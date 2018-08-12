@@ -9,11 +9,10 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation :refer [AnnotatedText AnnotationCapture AnnotationToggleButton AnnotationMenu]]
             [sysrev.pdf :as pdf :refer [PDFs]]
-            [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.components :refer [out-link document-link]]
+            [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer
              [label-values-component article-labels-view]]
-            [sysrev.views.upload :refer [upload-container basic-text-button]]
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 

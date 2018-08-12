@@ -73,7 +73,7 @@
     (when (vector? files)
       {:db (assoc-in db [:data :project project-id :files] files)})))
 
-#_
+;; TODO: disable after new article list ready
 (def-data :project/public-labels
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id])

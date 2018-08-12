@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.invite-link
   (:require
    [re-frame.core :refer [subscribe dispatch]]
-   [sysrev.views.components :refer [clipboard-button]]
+   [sysrev.views.components :refer [ClipboardButton]]
    [sysrev.views.base :refer [panel-content logged-out-content]]))
 
 (defmethod panel-content [:project :project :invite-link] []
@@ -15,5 +15,5 @@
           [:div.ui.fluid.action.input
            [:input#invite-url.ui.input {:readOnly true
                                         :value invite-url}]
-           [clipboard-button "#invite-url" "Copy URL"]]]]])
+           [ClipboardButton "#invite-url" "Copy URL"]]]]])
      child]))

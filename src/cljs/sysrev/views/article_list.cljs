@@ -8,6 +8,7 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
             [re-frame.db :refer [app-db]]
+            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav :refer [nav]]
             [sysrev.state.nav :refer [project-uri]]
@@ -282,22 +283,6 @@
         cstate (current-state @state defaults)]
     (when (current-state-ready? cstate)
       (dispatch [:article-list/update-ready-state panel]))))
-
-(reg-event-fx
- :article-list/set-recent-article
- [trim-v]
- (fn [{:keys [db]} [panel article-id]]
-   (let [path (panel-state-path panel)]
-     {:db (assoc-in db (concat path [:recent-article]) article-id)})))
-
-(reg-event-fx
- :article-list/set-active-article
- [trim-v]
- (fn [{:keys [db]} [panel article-id]]
-   (let [path (panel-state-path panel)]
-     (cond-> {:db (assoc-in db (concat path [:active-article]) article-id)}
-       article-id
-       (merge {:dispatch [:article-list/set-recent-article panel article-id]})))))
 
 (reg-event-db
  ::set-recent-nav-action
@@ -850,37 +835,55 @@
     (when item
       (dispatch [:require item])
       (dispatch [:require (list-count-query cstate)]))
-    (if (and active-article (not (in? visible-ids active-article)))
-      [SingleArticlePanel state defaults]
-      [MultiArticlePanel state defaults])))
+    [:div.article-list-toplevel-new
+     (if (and active-article (not (in? visible-ids active-article)))
+       [SingleArticlePanel state defaults]
+       [MultiArticlePanel state defaults])]))
 
-(reg-sub
- :article-list/panel-state
- (fn [db [_ panel]]
-   (get-in db [:state :panels panel])))
+(when use-new-article-list?
+  (reg-sub
+   :article-list/panel-state
+   (fn [db [_ panel]]
+     (get-in db [:state :panels panel])))
 
-;; Gets id of article currently being individually displayed
-(reg-sub
- :article-list/article-id
- (fn [[_ panel]]
-   [(subscribe [:active-panel])
-    (subscribe [:panel-field [:article-list :active-article] panel])])
- (fn [[active-panel article-id] [_ panel]]
-   (when (= active-panel panel)
-     article-id)))
+  ;; Gets id of article currently being individually displayed
+  (reg-sub
+   :article-list/article-id
+   (fn [[_ panel]]
+     [(subscribe [:active-panel])
+      (subscribe [:panel-field [:article-list :active-article] panel])])
+   (fn [[active-panel article-id] [_ panel]]
+     (when (= active-panel panel)
+       article-id)))
 
-(reg-sub-raw
- :article-list/editing?
- (fn [_ [_ panel]]
-   (reaction
-    (editing-article?
-     (current-state @(panel-cursor panel)
-                    (panel-defaults panel))))))
+  (reg-sub-raw
+   :article-list/editing?
+   (fn [_ [_ panel]]
+     (reaction
+      (editing-article?
+       (current-state @(panel-cursor panel)
+                      (panel-defaults panel))))))
 
-(reg-sub-raw
- :article-list/resolving?
- (fn [_ [_ panel]]
-   (reaction
-    (resolving-article?
-     (current-state @(panel-cursor panel)
-                    (panel-defaults panel))))))
+  (reg-sub-raw
+   :article-list/resolving?
+   (fn [_ [_ panel]]
+     (reaction
+      (resolving-article?
+       (current-state @(panel-cursor panel)
+                      (panel-defaults panel))))))
+
+  (reg-event-fx
+   :article-list/set-recent-article
+   [trim-v]
+   (fn [{:keys [db]} [panel article-id]]
+     (let [path (panel-state-path panel)]
+       {:db (assoc-in db (concat path [:recent-article]) article-id)})))
+
+  (reg-event-fx
+   :article-list/set-active-article
+   [trim-v]
+   (fn [{:keys [db]} [panel article-id]]
+     (let [path (panel-state-path panel)]
+       (cond-> {:db (assoc-in db (concat path [:active-article]) article-id)}
+         article-id
+         (merge {:dispatch [:article-list/set-recent-article panel article-id]}))))))

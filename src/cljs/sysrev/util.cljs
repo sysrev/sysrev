@@ -1,14 +1,13 @@
 (ns sysrev.util
-  (:require
-   [clojure.string :as str]
-   [clojure.test.check.generators :as gen]
-   [re-frame.core :as re-frame]
-   [goog.string :refer [unescapeEntities]]
-   [cljs-time.core :as t]
-   [cljs-time.coerce :as tc]
-   [cljs-time.format :as tformat]
-   [cljsjs.jquery]
-   [sysrev.shared.util :refer [parse-integer]])
+  (:require [clojure.string :as str]
+            [clojure.test.check.generators :as gen]
+            [re-frame.core :as re-frame]
+            [goog.string :refer [unescapeEntities]]
+            [cljs-time.core :as t]
+            [cljs-time.coerce :as tc]
+            [cljs-time.format :as tformat]
+            [cljsjs.jquery]
+            [sysrev.shared.util :refer [parse-integer]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (defn integerify-map-keys

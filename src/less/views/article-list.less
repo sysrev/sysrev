@@ -1,276 +1,518 @@
-.ui.segments > .ui.grid.segment.article-list-article {
-    margin: 0;
-    border-bottom-width: 1px;
-    border-bottom-color: @lightGrey;
-}
-
-.ui.segments > .ui.grid.segment.article-list-full-article {
-    margin: 0;
-    padding-top: 1.5em;
-    padding-bottom: 1.5em;
-    padding-left: 1em;
-    padding-right: 1em;
-    min-height: 60px;
-}
-
-.ui.segments > .ui.grid.segment.article-list-full-article,
-.ui.segments > .ui.grid.segment.article-list-full-article
-             .ui.active.inverted.dimmer {
-    background-color: @partialSegmentBackground;
-}
-
-.ui.segments > .ui.grid.segment.article-list-full-article > div {
-    padding: 0;
-}
-
-.ui.segments > .ui.segment.article-list-article-nav > .ui.buttons > .ui.button {
-    border-radius: 0;
-}
-
-.ui.segments > .ui.grid.segment.article-list-article:last-child {
-    border-bottom-width: 0px;
-}
-
-a.article-list-article {
-    color: @text;
-}
-
-.article-list-article {
-    cursor: pointer;
-    padding-top: 10px;
-    padding-bottom: 10px;
-}
-
-.article-list-article.article-loading .ui.row {
-    visibility: hidden;
-}
-
-.article-list-article.active {
-    background-color: mix(@background, @text, 94);
-}
-
-.article-list-article.active:hover {
-    background-color: mix(@background, @text, 91);
-}
-
-.article-list-article:hover {
-    background-color: mix(@background, @text, 96);
-}
-
-.article-list-article .article-title {
-    .medium-weight;
-}
-
-.article-list-article div.ui.row {
-    padding-top: 0px;
-    padding-bottom: 0px;
-}
-
-.article-list-article div.column.article-title {
-    padding: 10px;
-}
-
-.article-list-article .ui.row.user-article {
-    padding: 10px;
-}
-
-div.ui.segments.article-list-segments {
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
-
-div.column.article-answers {
-    height: 100%;
-}
-div.column.article-answers>div.ui.grid {
-    margin-top: 0;
-    margin-bottom: 0;
-    height: 100%;
-}
-div.column.article-answers>div.ui.grid>div.row {
-    padding-top: 5px;
-    padding-bottom: 5px;
-}
-div.article-answers.single {
-    background-color: @blueBackground;
-}
-div.article-answers.consistent {
-    background-color: @greenBackground;
-}
-div.article-answers.conflict {
-    background-color: @redBackground;
-}
-div.article-answers.resolved {
-    background-color: @purpleBackground;
-}
-
-.ui.grid.article-list-article .row div.column.article-updated-time {
-    padding-left: 0;
-    padding-right: 0;
-}
-
-div.article-filters {
-    > .ui.form {
+.article-list-toplevel-old {
+    .ui.segment.article-nav {
+        padding-top: 9px;
+        padding-bottom: 9px;
+        padding-left: 12px;
+        padding-right: 12px;
     }
-    .ui.bottom.attached.segment {
-        margin-bottom: 1em !important;
+
+    .ui.segments > .ui.grid.segment.article-list-article {
+        margin: 0;
+        border-bottom-width: 1px;
+        border-bottom-color: @lightGrey;
     }
-    .ui.segment.filters-content {
-        padding: 0.7em;
-        padding-top: 0.4em;
-        padding-bottom: 0.1em;
+
+    .ui.segments > .ui.grid.segment.article-list-article:last-child {
+        border-bottom-width: 0px;
     }
-    .ui.segment.filters-minimal {
+
+    a.article-list-article {
+        color: @text;
+        cursor: pointer;
+
+        .article-title {
+            .medium-weight;
+        }
+
         > .row {
-            padding-top: 0;
-            padding-bottom: 0;
+            padding-top: 0px;
+            padding-bottom: 0px;
 
-            > .column.filters-header {
-                font-size: 15px;
-                padding-top: 12px;
-                padding-bottom: 12px;
-                background-color: rgba(128,128,128,0.1);
-                border-top-left-radius: 3px;
+            > .column.article-title .grid .column.article-updated-time {
+                padding-left: 0;
+                padding-right: 0;
             }
-            > .column.filters-summary {
-                padding-left: 0.7em;
+        }
 
-                .ui.label {
-                    font-size: 13px;
+        .column.article-title {
+            padding: 10px;
+        }
+
+        .ui.row.user-article {
+            padding: 10px;
+        }
+
+        > .ui.row i.right.chevron.icon {
+            color: @text;
+        }
+
+        .ui.list>.item .header {
+            color: @text !important;
+        }
+
+        div.article-title div.ui.fitted.divider {
+            margin-top: 0.6em;
+            margin-bottom: 0.6em;
+        }
+    }
+    .article-list-article.active {
+        background-color: mix(@background, @text, 94);
+    }
+    .article-list-article.active:hover {
+        background-color: mix(@background, @text, 91);
+    }
+    .article-list-article:hover {
+        background-color: mix(@background, @text, 96);
+    }
+    .article-list-article.article-loading {
+        .ui.row {
+            visibility: hidden;
+        }
+    }
+
+    .ui.segments.article-list-segments {
+        margin-top: 10px;
+        margin-bottom: 10px;
+
+        > div.ui.segment {
+            border-left: 0;
+        }
+    }
+
+    div.column.article-answers {
+        height: 100%;
+
+        > div.ui.grid {
+            margin-top: 0;
+            margin-bottom: 0;
+            height: 100%;
+
+            > div.row {
+                padding-top: 5px;
+                padding-bottom: 5px;
+            }
+        }
+    }
+
+    .article-answers.single {
+        background-color: @blueBackground;
+    }
+    .article-answers.consistent {
+        background-color: @greenBackground;
+    }
+    .article-answers.conflict {
+        background-color: @redBackground;
+    }
+    .article-answers.resolved {
+        background-color: @purpleBackground;
+    }
+
+    .article-filters {
+        > .ui.form {
+            margin-bottom: -1em;
+        }
+
+        .ui.buttons.three-state-icon .ui.button {
+            text-align: center;
+            padding-top: 0.7em;
+            padding-bottom: 0.7em;
+            padding-left: 0.7em;
+            padding-right: 0.7em;
+
+            i.icon {
+                font-size: 17px;
+            }
+        }
+    }
+}
+
+.article-list-toplevel-new {
+    .ui.segments {
+        > .ui.grid.segment.article-list-article {
+            margin: 0;
+            border-bottom-width: 1px;
+            border-bottom-color: @lightGrey;
+        }
+        > .ui.grid.segment.article-list-article:last-child {
+            border-bottom-width: 0px;
+        }
+        > .ui.grid.segment.article-list-full-article {
+            margin: 0;
+            padding-top: 1.5em;
+            padding-bottom: 1.5em;
+            padding-left: 1em;
+            padding-right: 1em;
+            min-height: 60px;
+
+            background-color: @partialSegmentBackground;
+            .ui.active.inverted.dimmer {
+                background-color: @partialSegmentBackground;
+            }
+
+            > div {
+                padding: 0;
+            }
+        }
+        > .ui.segment.article-list-article-nav {
+            > .ui.buttons > .ui.button {
+                border-radius: 0;
+            }
+        }
+    }
+
+    a.article-list-article {
+        color: @text;
+        cursor: pointer;
+
+        .article-title {
+            .medium-weight;
+        }
+
+        > .row {
+            padding-top: 0px;
+            padding-bottom: 0px;
+
+            > .column.article-title .grid .column.article-updated-time {
+                padding-left: 0;
+                padding-right: 0;
+            }
+        }
+
+        .column.article-title {
+            padding: 10px;
+        }
+
+        .ui.row.user-article {
+            padding: 10px;
+        }
+
+        > div.ui.row i.chevron.icon {
+            color: @text;
+        }
+
+        .ui.list > .item .header {
+            color: @text !important;
+        }
+
+        div.article-title div.ui.fitted.divider {
+            margin-top: 0.6em;
+            margin-bottom: 0.6em;
+        }
+    }
+    .article-list-article.active {
+        background-color: mix(@background, @text, 94);
+    }
+    .article-list-article.active:hover {
+        background-color: mix(@background, @text, 91);
+    }
+    .article-list-article:hover {
+        background-color: mix(@background, @text, 96);
+    }
+    .article-list-article.article-loading {
+        .ui.row {
+            visibility: hidden;
+        }
+    }
+
+    div.ui.segments.article-list-segments {
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+
+    div.column.article-answers {
+        height: 100%;
+
+        > div.ui.grid {
+            margin-top: 0;
+            margin-bottom: 0;
+            height: 100%;
+
+            > div.row {
+                padding-top: 5px;
+                padding-bottom: 5px;
+            }
+        }
+    }
+    .article-answers.single {
+        background-color: @blueBackground;
+    }
+    .article-answers.consistent {
+        background-color: @greenBackground;
+    }
+    .article-answers.conflict {
+        background-color: @redBackground;
+    }
+    .article-answers.resolved {
+        background-color: @purpleBackground;
+    }
+
+    div.article-filters {
+        > .ui.form {
+        }
+        .ui.bottom.attached.segment {
+            margin-bottom: 1em !important;
+        }
+        .ui.segment.filters-content {
+            padding: 0.7em;
+            padding-top: 0.4em;
+            padding-bottom: 0.1em;
+        }
+        .ui.segment.filters-minimal {
+            > .row {
+                padding-top: 0;
+                padding-bottom: 0;
+
+                > .column.filters-header {
+                    font-size: 15px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    background-color: rgba(128,128,128,0.1);
+                    border-top-left-radius: 4px;
+                }
+                > .column.filters-summary {
+                    padding-left: 0.7em;
+
+                    .ui.label {
+                        font-size: 13px;
+                    }
+                }
+                > .column.control-buttons {
+                    padding-right: 0.2em;
                 }
             }
-            > .column.control-buttons {
-                padding-right: 0.2em;
+        }
+        .ui.buttons.three-state-icon .ui.button {
+            text-align: center;
+            padding-top: 0.7em;
+            padding-bottom: 0.7em;
+            padding-left: 0.7em;
+            padding-right: 0.7em;
+
+            i.icon {
+                font-size: 17px;
+            }
+        }
+        .ui.form .field.control-buttons {
+            padding-right: 0;
+
+            .ui.button {
             }
         }
     }
-    .ui.buttons.three-state-icon .ui.button {
-        text-align: center;
-        padding-top: 0.7em;
-        padding-bottom: 0.7em;
-        padding-left: 0.7em;
-        padding-right: 0.7em;
-
-        i.icon {
-            font-size: 17px;
-        }
-    }
-    .ui.form .field.control-buttons {
-        padding-right: 0;
-
-        .ui.button {
-        }
-    }
-}
-
-.article-list-article > div.ui.row i.chevron.icon {
-    color: @text;
-}
-
-.article-list-article .ui.list>.item .header {
-    color: @text !important;
-}
-
-.article-list-article div.article-title div.ui.fitted.divider {
-    margin-top: 0.6em;
-    margin-bottom: 0.6em;
 }
 
 @media only screen and (max-width: 767px) {
-    .article-filters .ui.form .field .refresh-button,
-    .article-filters .ui.form .field .reset-button {
-        margin-top: 4px;
-        margin-bottom: 6px;
+    .article-list-toplevel-old {
+        .article-filters .ui.form .field .refresh-button,
+        .article-filters .ui.form .field .reset-button {
+            margin-top: 4px;
+            margin-bottom: 6px;
+        }
     }
 }
 
 @media only screen and (max-width: 900px) {
-    div.column.article-answers >div.ui.grid > div.row > div.column {
-        padding-left: 10px;
-        padding-right: 10px;
-        font-size: 13px;
+    .article-list-toplevel-old {
+        div.column.article-answers >div.ui.grid > div.row > div.column {
+            padding-left: 10px;
+            padding-right: 10px;
+            font-size: 13px;
+        }
+
+        div.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
+            padding-left: 3px;
+        }
+
+        .ui.segment.article-nav {
+            padding: 0.3em;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .column{
+            padding: 0.75em;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .right.aligned.column {
+            padding-left: 0;
+            padding-right: 0.5em;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .left.aligned.column h5 {
+            font-size: 12px;
+        }
+
+        .ui.segment.article-nav > .ui.grid > .right.aligned.column .ui.tiny.button {
+            font-size: 10px;
+            padding: 0.75em;
+        }
+
+        div.article-filters .ui.buttons,
+        div.article-filters .ui.button {
+            font-size: 12px;
+        }
+
+        div.article-filters div.ui.selection.dropdown,
+        div.article-filters div.ui.selection.dropdown div.text,
+        div.article-filters div.ui.selection.dropdown div.menu,
+        div.article-filters div.ui.input,
+        div.article-filters div.ui.input input[type=text],
+        div.article-filters div.ui.input i.icon
+        {
+            font-size: 12px;
+        }
+
+        div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
+            font-size: 12px;
+        }
+
+        div.article-filters .ui.form .field .fields {
+            margin-top: 0;
+            margin-bottom: 0.5em;
+        }
+
+        div.article-filters .ui.form .field .fields .field {
+            padding-top: 0.25em;
+            padding-bottom: 0.25em;
+        }
+
+        .article-list-article .ui.row.user-article {
+            padding: 0.6em;
+        }
+
+        .article-list-article .ui.row.user-article > .column {
+            padding: 0;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .grid {
+            margin: -0.6em;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .ui.fitted.divider {
+            margin-top: 0.3em;
+            margin-bottom: 0.3em;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .grid > .row {
+            padding-top: 0.8em;
+            padding-bottom: 0.8em;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .column {
+            padding-left: 0.6em;
+            padding-right: 0.6em;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .column.label-values {
+            margin-left: -3px;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column {
+            padding-left: 0;
+        }
+
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column > .ui.label {
+            margin-top: 1px;
+            margin-bottom: 2px;
+        }
+
+        .article-list-article .article-title {
+            font-size: 12px;
+        }
+
+        .article-list-article .article-title div.ui.tiny.label {
+            margin-left: 5px;
+            margin-top: 1px;
+            margin-bottom: 1px;
+        }
     }
 
-    div.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
-        padding-left: 3px;
-    }
+    .article-list-toplevel-new {
+        div.column.article-answers >div.ui.grid > div.row > div.column {
+            padding-left: 10px;
+            padding-right: 10px;
+            font-size: 13px;
+        }
 
-    div.article-filters .ui.buttons,
-    div.article-filters .ui.button {
-        font-size: 12px;
-    }
+        div.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
+            padding-left: 3px;
+        }
 
-    div.article-filters div.ui.selection.dropdown,
-    div.article-filters div.ui.selection.dropdown div.text,
-    div.article-filters div.ui.selection.dropdown div.menu,
-    div.article-filters div.ui.input,
-    div.article-filters div.ui.input input[type=text],
-    div.article-filters div.ui.input i.icon
-    {
-        font-size: 12px;
-    }
+        div.article-filters .ui.buttons,
+        div.article-filters .ui.button {
+            font-size: 12px;
+        }
 
-    div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
-        font-size: 12px;
-    }
+        div.article-filters div.ui.selection.dropdown,
+        div.article-filters div.ui.selection.dropdown div.text,
+        div.article-filters div.ui.selection.dropdown div.menu,
+        div.article-filters div.ui.input,
+        div.article-filters div.ui.input input[type=text],
+        div.article-filters div.ui.input i.icon
+        {
+            font-size: 12px;
+        }
 
-    div.article-filters .ui.form .field .fields {
-        margin-top: 0;
-        margin-bottom: 0.5em;
-    }
+        div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
+            font-size: 12px;
+        }
 
-    div.article-filters .ui.form .field .fields .field {
-        padding-top: 0.25em;
-        padding-bottom: 0.25em;
-    }
+        div.article-filters .ui.form .field .fields {
+            margin-top: 0;
+            margin-bottom: 0.5em;
+        }
 
-    .article-list-article .ui.row.user-article {
-        padding: 0.6em;
-    }
+        div.article-filters .ui.form .field .fields .field {
+            padding-top: 0.25em;
+            padding-bottom: 0.25em;
+        }
 
-    .article-list-article .ui.row.user-article > .column {
-        padding: 0;
-    }
+        .article-list-article .ui.row.user-article {
+            padding: 0.6em;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .grid {
-        margin: -0.6em;
-    }
+        .article-list-article .ui.row.user-article > .column {
+            padding: 0;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .ui.fitted.divider {
-        margin-top: 0.3em;
-        margin-bottom: 0.3em;
-    }
+        .article-list-article .ui.row.user-article > .column > .grid {
+            margin: -0.6em;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .grid > .row {
-        padding-top: 0.8em;
-        padding-bottom: 0.8em;
-    }
+        .article-list-article .ui.row.user-article > .column > .ui.fitted.divider {
+            margin-top: 0.3em;
+            margin-bottom: 0.3em;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .grid > .row > .column {
-        padding-left: 0.6em;
-        padding-right: 0.6em;
-    }
+        .article-list-article .ui.row.user-article > .column > .grid > .row {
+            padding-top: 0.8em;
+            padding-bottom: 0.8em;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .grid > .row > .column.label-values {
-        margin-left: -3px;
-    }
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .column {
+            padding-left: 0.6em;
+            padding-right: 0.6em;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column {
-        padding-left: 0;
-    }
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .column.label-values {
+            margin-left: -3px;
+        }
 
-    .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column > .ui.label {
-        margin-top: 1px;
-        margin-bottom: 2px;
-    }
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column {
+            padding-left: 0;
+        }
 
-    .article-list-article .article-title {
-        font-size: 12px;
-    }
+        .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column > .ui.label {
+            margin-top: 1px;
+            margin-bottom: 2px;
+        }
 
-    .article-list-article .article-title div.ui.tiny.label {
-        margin-left: 5px;
-        margin-top: 1px;
-        margin-bottom: 1px;
+        .article-list-article .article-title {
+            font-size: 12px;
+        }
+
+        .article-list-article .article-title div.ui.tiny.label {
+            margin-left: 5px;
+            margin-top: 1px;
+            margin-bottom: 1px;
+        }
     }
 }

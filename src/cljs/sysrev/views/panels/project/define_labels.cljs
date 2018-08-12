@@ -555,28 +555,33 @@
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "string" ...)
 (defn StringLabelForm
-  [{:keys [set-answer! value label-id]}]
-  (let [left-action? true]
+  [{:keys [set-answer! value label-id definition]}]
+  (let [left-action? true
+        {:keys [multi?]} definition
+        right-action? (if multi? true false)]
     ^{:key [label-id]}
     [:div.inner
      [:div.ui.form.string-label
       [:div.field.string-label
        {:class "" }
-       [:div.ui.fluid
-        {:class "labeled right action input"}
+       [:div.ui.fluid.labeled.input
+        {:class (if right-action? "right action" nil)}
         (when left-action?
-          [:div.ui.label.input-remove
-           [:div.ui.icon.button
-            {:class " "
-             :on-click
-             (fn [ev]
-               (reset! value [""]))}
-            [:i.fitted.times.icon]]])
+          [:a.ui.icon.label.input-remove
+           {:class " "
+            :on-click
+            (fn [ev]
+              (reset! value [""]))}
+           [:i.fitted.times.icon]])
         [:input
          {:type "text"
           :name (str label-id)
           :value @value
-          :on-change set-answer!}]]]]]))
+          :on-change set-answer!}]
+        (when right-action?
+          [:a.ui.icon.button.input-row
+           {:class "disabled"}
+           [:i.fitted.plus.icon]])]]]]))
 
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "categorical" ...)
@@ -705,7 +710,8 @@
               [StringLabelForm {:value value
                                 :set-answer!
                                 #(reset! value [(-> % .-target .-value)])
-                                :label-id label-id}]
+                                :label-id label-id
+                                :definition definition}]
               "categorical"
               [CategoricalLabelForm
                {:value value
