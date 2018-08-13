@@ -138,9 +138,9 @@
   "Given a search term, return a string of the xpath corresponding to the
   project-source div"
   [search-term]
-  (str "//span[contains(@class,'import-label') and text()='\""
+  (str "//span[contains(@class,'import-label') and text()='"
        search-term
-       "\"']/ancestor::div[@class='project-source']"))
+       "']/ancestor::div[@class='project-source']"))
 
 (defn search-term-delete-xpath
   "Given a search term, return the xpath corresponding to its delete button"

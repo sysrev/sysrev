@@ -31,24 +31,33 @@
     margin-bottom: 1em;
 
     > .ui.segment.source-info {
-        padding: 0.6em 1em 0.6em 1em;
+        > .row {
+            padding: 0.5em 0 0.5em 0;
+        }
+        .ui.label.import-label {
+            text-align: justify;
+
+            span.import-label {
+                text-align: justify;
+            }
+        }
     }
 
     > .ui.segment.source-details {
         > .ui.grid > .row {
-            padding-top: 0.2em;
-            padding-bottom: 0.4em;
+            padding-top: 0.5em;
+            padding-bottom: 0.5em;
             min-height: 4em;
 
             > .column.source-description {
+                padding: 0.5em 1em 0.5em 1em;
+
                 > .ui.stackable.grid {
-                    margin-top: 0;
-                    margin-bottom: 0;
-                    margin-left: -0.5em;
-                    margin-right: -0.5em;
+                    margin: -0.5em;
 
                     > .column {
                         padding: 0.5em;
+                        padding-right: 0;
                     }
                 }
             }
@@ -70,6 +79,14 @@
     .auto-margin;
     max-width: 900px;
 
+    div.ui.header.segment.grid {
+        > div.column.results-header {
+            padding: 0.5em 0.6em 0.5em 0.6em;
+        }
+        > div.column.results-header.right.aligned {
+            padding-left: 0;
+        }
+    }
     div.ui.segment.pubmed-article {
         padding: 0.75em;
         p {
@@ -85,5 +102,82 @@ div#import-articles {
     .ui.segment.import-upload {
         .auto-margin;
         max-width: 600px;
+    }
+
+    .ui.segment.import-menu {
+        padding: 0.75em;
+
+        .ui.tabbed.menu {
+            margin-bottom: 0;
+        }
+    }
+}
+
+div#add-articles {
+    .ui.large.block.header {
+        padding: 1em;
+    }
+}
+
+@media only screen and (max-width: 767px) {
+    .ui.segments.pubmed-articles {
+        div.ui.header.segment.grid {
+            h5.ui.header {
+                font-size: 13px;
+            }
+            .ui.button {
+                font-size: 11px;
+                padding: 0.66em;
+            }
+        }
+    }
+
+    .ui.segments.project-source {
+        > .ui.stackable.grid.segment.source-info {
+            padding: 0.1em;
+
+            > .row {
+                padding: 0;
+
+                > .column {
+                    padding: 0.5em !important;
+                }
+            }
+        }
+
+        > .ui.segment.source-details {
+            padding: 0;
+
+            > .ui.stackable.grid {
+                margin: 0;
+
+                > .row {
+                    padding: 0;
+                    min-height: 4em;
+
+                    > .column.source-description {
+                        > .ui.stackable.grid {
+                            margin: -0.5em !important;
+
+                            > .column {
+                                padding: 0.5em !important;
+                            }
+                        }
+                    }
+
+                    > .column.source-actions {
+                        padding-top: 0.5em !important;
+
+                        .ui.button.delete-button {
+                            margin-top: 0.5em;
+                        }
+                    }
+                }
+            }
+        }
+
+        .ui.button.delete-button {
+            margin-right: 0;
+        }
     }
 }

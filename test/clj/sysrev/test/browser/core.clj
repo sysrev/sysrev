@@ -121,8 +121,11 @@
         interval (or interval 50)]
     (Thread/sleep 150)
     (taxi/wait-until
-     #(not (taxi/exists?
-            {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
+     #(and
+       (not (taxi/exists?
+             {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
+       (not (taxi/exists?
+             {:xpath "//div[contains(@class,'dimmer') and contains(@class,'active')]"})))
      timeout interval)))
 
 (defn init-route [& [path wait-ms]]

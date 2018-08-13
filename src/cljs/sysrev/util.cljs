@@ -67,10 +67,10 @@
   (< (viewport-width) 768))
 
 (defn full-size? []
-  (> (viewport-width) 900))
+  (>= (viewport-width) 992))
 
 (defn desktop-size? []
-  (> (viewport-width) 1100))
+  (>= (viewport-width) 1160))
 
 (defn get-layout-status []
   [(mobile?) (full-size?) (desktop-size?)])

@@ -52,29 +52,34 @@ div.article-list-segments {
     }
 }
 
-div.article-info div.ui.top.attached.header {
+div.article-info div.ui.header.segment.article-header {
     .noselect;
 }
 
-div.article-labels-view .ui.attached.segment .ui.dividing.header {
+div.article-labels-view .ui.segment .ui.dividing.header {
     .noselect;
 }
 
-div.ui.grid.invite-link .column .ui.segment .header {
-    .noselect;
+div.ui.grid.invite-link .column .ui.segment {
+    .header {
+        .noselect;
+    }
 }
 
-div.ui.secondary.pointing.menu,
-div.ui.secondary.pointing.menu > a.item,
-div.ui.secondary.pointing.menu > a.item.active {
+div.ui.secondary.pointing.menu {
     .noselect;
+
+    > a.item,
+    > a.item.active {
+        .noselect;
+    }
 }
 
 div.label-edit-name {
     .noselect;
 }
 
-div.label-editor-view .ui.top.attached.header {
+div.label-editor-view .ui.segment.label-editor-header {
     .noselect;
 }
 
@@ -87,17 +92,11 @@ div.ui.label.activity-report {
     .noselect;
 }
 
-div.projects-list div.header.segment {
+div.projects-list div.segment.projects-list-header {
     .noselect;
 }
 
-div#import-articles,
-div#import-articles h3,
-div#import-articles h4,
-div#import-articles h5,
-div#import-articles h6,
-div#import-articles .ui.header,
-div#add-articles div#import-articles a.item {
+div#import-articles .ui.header {
     .noselect;
 }
 

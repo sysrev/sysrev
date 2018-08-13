@@ -62,7 +62,10 @@
   (if @(subscribe [:initialized?])
     [:div.main-content
      {:class (if (or (not @(subscribe [:data/ready?]))
-                     (loading/any-loading?))
+                     (loading/any-loading?
+                      :ignore (into loading/ignore-data-names
+                                    [:pdf/open-access-available?
+                                     :pdf/article-pdfs])))
                "loading" "")}
      [header-menu]
      [:div.ui.container [active-panel-content]]

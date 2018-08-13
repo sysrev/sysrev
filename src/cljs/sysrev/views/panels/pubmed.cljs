@@ -220,7 +220,7 @@
   "Display an article summary item"
   [article global-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
-    [:div.ui.secondary.segment.pubmed-article
+    [:div.ui.segment.pubmed-article
      [:span
       (str (inc global-idx) "." nbsp nbsp)
       [ui/dangerous
@@ -245,7 +245,7 @@
   []
   (let [current-search-term (r/cursor state [:current-search-term])
         project-id (subscribe [:active-project-id])]
-    [:div.ui.tiny.icon.button.search-results
+    [:div.ui.tiny.primary.icon.button.search-results
      {:on-click
       #(do (dispatch [:action [:project/import-articles-from-search
                                @project-id @current-search-term "PubMed"]])
@@ -265,13 +265,15 @@
 
 (defn CloseSearchResultsButton []
   (let [show-results? (r/cursor state [:show-results?])]
-    [:div.ui.tiny.icon.button.search.results
-     {:on-click #(reset! show-results? false)}
+    [:div.ui.tiny.icon.button.search-results
+     {:on-click #(reset! show-results? false)
+      :style {:margin-right "0"}}
      "Close " [:i.times.icon]]))
 
 (defn SearchBar
   "The search input for a pubmed query"
   []
+  (ensure-state)
   (let [current-search-term (r/cursor state [:current-search-term])
         on-change-search-term (r/cursor state [:on-change-search-term])
         page-number (r/cursor state [:page-number])
@@ -310,21 +312,20 @@
         (not-empty (get-in search-results [:pages @page-number :summaries]))]
     (when (and n-results @show-results?)
       [:div.pubmed-search-results
-       [:h4.ui.dividing.header
-        [:div.ui.middle.aligned.grid>div.row
-         [ui/CenteredColumn
-          (str "Found " n-results " articles")
-          "six wide column"]
-         [:div.ui.ten.wide.right.aligned.column
-          [ImportArticlesButton]
-          [PubMedSearchLink]
-          [CloseSearchResultsButton]]]]
        (when (and (not-empty @current-search-term)
                   @page-number)
          (dispatch [:require [:pubmed-search @current-search-term @page-number]]))
        [:div.ui.segments.pubmed-articles
         {:style (if have-entries? {}
                     {:min-height "800px"})}
+        [:div.ui.header.segment.middle.aligned.grid
+         [:div.six.wide.column.results-header
+          [:h5.ui.header
+           (str "Found " n-results " articles")]]
+         [:div.ten.wide.right.aligned.column.results-header
+          [ImportArticlesButton]
+          [PubMedSearchLink]
+          [CloseSearchResultsButton]]]
         [SearchResultArticlesPager]
         (if have-entries?
           (doall
@@ -341,6 +342,7 @@
           [SearchResultArticlesPager])]])))
 
 (defn SearchResultsContainer []
+  (ensure-state)
   (let [current-search-term (r/cursor state [:current-search-term])
         page-number (r/cursor state [:page-number])
         pmids-per-page (r/cursor state [:pmids-per-page])
@@ -350,7 +352,7 @@
         result-count (get-in @search-results [:count])]
     (cond
       @import-error
-      [:div.search-results-container.margin
+      [:div.ui.segment.search-results-container.margin
        [:div.ui.error.message
         (str @import-error)]]
 
@@ -364,25 +366,20 @@
            (= (get-in @search-results [:count]) 0)
            (not (loading/item-loading?
                  [:pubmed-search @current-search-term @page-number])))
-      [:div.search-results-container.margin
+      [:div.ui.segment.search-results-container.margin
        [:h3 "No documents match your search terms"]]
 
       :else
-      [:div.search-results-container
-       [SearchResultsView]])))
+      [SearchResultsView])))
 
 (defn SearchPanel
   "A panel for searching pubmed"
   []
   (ensure-state)
-  (let [current-search-term (r/cursor state [:current-search-term])
-        on-change-search-term (r/cursor state [:on-change-search-term])
-        page-number (r/cursor state [:page-number])]
-    [:div.search-panel
-     [SearchBar]
-     [SearchResultsContainer]]))
+  [:div.search-panel
+   [SearchBar]
+   [SearchResultsContainer]])
 
 (defmethod panel-content panel []
   (fn [child]
-    [:div.ui.segment
-     [SearchPanel]]))
+    [SearchPanel]))

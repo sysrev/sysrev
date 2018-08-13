@@ -10,7 +10,7 @@
             [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components :as ui]
-            [sysrev.util :refer [continuous-update-until full-size?]]))
+            [sysrev.util :as util]))
 
 (def panel [:project :project :add-articles])
 
@@ -90,17 +90,14 @@
      [:h5
       "Upload a zip file containing PDFs."
       " An article entry will be created for each PDF."]
-      [ui/UploadButton
-       "/api/import-articles-from-pdf-zip-file"
-       #(dispatch [:reload [:project/sources project-id]])
-       "Upload Zip File..."
-       "fluid"]]))
+     [ui/UploadButton
+      "/api/import-articles-from-pdf-zip-file"
+      #(dispatch [:reload [:project/sources project-id]])
+      "Upload Zip File..."
+      "fluid"]]))
 
 (defn ImportPubMedView []
-  (pubmed/ensure-state)
-  (let [current-search-term (r/cursor pubmed/state [:current-search-term])]
-    [:div
-     [SearchPanel pubmed/state]]))
+  [pubmed/SearchBar])
 
 (defn DeleteArticleSource
   [source-id]
@@ -133,7 +130,7 @@
   (let [source (:source meta)]
     (condp = source
       "PubMed search"
-      ["PubMed Search" (str "\"" (:search-term meta) "\"")]
+      ["PubMed Search" (str (:search-term meta))]
 
       "PMID file"
       ["PMIDs from File" (:filename meta)]
@@ -158,13 +155,14 @@
 (defn SourceInfoView [{:keys [source] :as meta}]
   (let [[source-type import-label]
         (meta->source-name-vector meta)]
-    [:div.ui.middle.aligned.stackable.grid.source-info>div.row
-     [:div.three.wide.column.left.aligned
-      [:div.ui.large.label (str source-type)]]
-     [:div.thirteen.wide.column.right.aligned
-      (when import-label
-        [:div.import-label.ui.large.basic.label
-         [:span.import-label import-label]])]]))
+    [:div.ui.middle.aligned.stackable.grid.segment.source-info
+     [:div.row
+      [:div.three.wide.column.left.aligned
+       [:div.ui.large.label (str source-type)]]
+      [:div.thirteen.wide.column.right.aligned
+       (when import-label
+         [:div.import-label.ui.large.basic.label
+          [:span.import-label import-label]])]]]))
 
 (defn source-name
   "Given a source-id, return the source name vector"
@@ -206,11 +204,12 @@
                       (or (and (true? importing-articles?)
                                (not (source-import-timed-out? source)))
                           (true? deleting?))))))))]
-      (continuous-update-until #(dispatch [:fetch [:project/sources project-id]])
-                               #(not (source-updating? source-id))
-                               #(do (reset! polling-sources? false)
-                                    (dispatch [:reload [:project project-id]]))
-                               1500))))
+      (util/continuous-update-until
+       #(dispatch [:fetch [:project/sources project-id]])
+       #(not (source-updating? source-id))
+       #(do (reset! polling-sources? false)
+            (dispatch [:reload [:project project-id]]))
+       1500))))
 
 (defn ArticleSource [source]
   (let [project-id @(subscribe [:active-project-id])
@@ -228,9 +227,7 @@
       (poll-project-sources project-id source-id)
       nil)
     [:div.project-source>div.ui.segments.project-source
-     [:div.ui.segment.source-info
-      {:class segment-class}
-      [SourceInfoView meta]]
+     [SourceInfoView meta segment-class]
      [:div.ui.segment.source-details
       {:class segment-class}
       [:div.ui.middle.aligned.stackable.grid>div.row
@@ -290,7 +287,10 @@
          (list
           [:div.source-description.column.left.aligned
            {:key :reviewed-count
-            :class (if (admin?) "fourteen wide" "sixteen wide")}
+            :class (if (admin?)
+                     (if (util/desktop-size?)
+                       "fourteen wide" "thirteen wide")
+                     "sixteen wide")}
            [:div.ui.two.column.stackable.left.aligned.middle.aligned.grid
             ;; total/reviewed count
             [:div.column
@@ -320,14 +320,16 @@
                                           (subs src-info (- info-size 20))))]
                       ^{:key [:shared source-id overlap-source-id]}
                       [:div.column
-                       (str (.toLocaleString shared-count) " shared : ")
-                       [:div.ui.small.label.source-shared
+                       (str (.toLocaleString shared-count) " shared: ")
+                       [:div.ui.label.source-shared
                         src-type
                         [:div.detail src-info]]]))
                   non-empty-overlap))))]]
           (when (admin?)
-            [:div.two.wide.column.right.aligned.source-actions
-             {:key :buttons}
+            [:div.column.right.aligned.source-actions
+             {:key :buttons
+              :class (if (util/desktop-size?)
+                       "two wide" "three wide")}
              [ToggleArticleSource source-id enabled]
              (when (and (<= labeled-article-count 0))
                [DeleteArticleSource source-id])]))
@@ -353,7 +355,7 @@
           "No article sources added yet"
           "No articles imported yet")]
        [:div
-        [:h4.ui.block.header
+        [:h4.ui.large.block.header
          "Article Sources"]
         [:div.project-sources-list
          (doall (map (fn [source]
@@ -367,32 +369,36 @@
   (ensure-state)
   (let [import-tab (r/cursor state [:import-tab])
         active-tab (or @import-tab :pubmed)
-        full-size? (full-size?)]
+        full-size? (util/full-size?)]
     [:div#import-articles
      {:style {:margin-bottom "1em"}}
-     [:h4.ui.block.header
+     [:h4.ui.large.block.header
       "Import Articles"]
-     [:div.ui.segment
-      [ui/tabbed-panel-menu
-       [{:tab-id :pubmed
-         :content (if full-size? "PubMed Search" "PubMed")
-         :action #(reset! import-tab :pubmed)}
-        {:tab-id :pmid
-         :content "PMIDs"
-         :action #(reset! import-tab :pmid)}
-        {:tab-id :endnote
-         :content (if full-size? "EndNote XML" "EndNote")
-         :action #(reset! import-tab :endnote)}
-        {:tab-id :zip-file
-         :content "Zip File"
-         :action #(reset! import-tab :zip-file)}]
-       active-tab
-       "import-source-tabs"]
-      (case active-tab
-        :pubmed   [ImportPubMedView]
-        :pmid     [ImportPMIDsView]
-        :endnote  [ImportEndNoteView]
-        :zip-file [ImportPDFZipsView])]]))
+     [:div.ui.segments
+      [:div.ui.segment.import-menu
+       [ui/tabbed-panel-menu
+        [{:tab-id :pubmed
+          :content (if full-size? "PubMed Search" "PubMed")
+          :action #(reset! import-tab :pubmed)}
+         {:tab-id :pmid
+          :content "PMIDs"
+          :action #(reset! import-tab :pmid)}
+         {:tab-id :endnote
+          :content (if full-size? "EndNote XML" "EndNote")
+          :action #(reset! import-tab :endnote)}
+         {:tab-id :zip-file
+          :content "Zip File"
+          :action #(reset! import-tab :zip-file)}]
+        active-tab
+        "import-source-tabs"]]
+      [:div.ui.bottom.attached.secondary.segment
+       (case active-tab
+         :pubmed   [ImportPubMedView]
+         :pmid     [ImportPMIDsView]
+         :endnote  [ImportEndNoteView]
+         :zip-file [ImportPDFZipsView])]]
+     (when (= active-tab :pubmed)
+       [pubmed/SearchResultsContainer])]))
 
 (defn ProjectSourcesPanel []
   (ensure-state)
