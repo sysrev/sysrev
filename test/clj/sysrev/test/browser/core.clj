@@ -148,7 +148,7 @@
     (taxi/execute-script "sysrev.base.toggle_analytics(false);")))
 
 (defn go-route [path & [wait-ms]]
-  (let [wait-ms (or wait-ms 250)
+  (let [wait-ms (or wait-ms 100)
         js-str (format "sysrev.nav.set_token(\"%s\");" path)]
     (wait-until-loading-completes :pre-wait true)
     (log/info "navigating:" path)
@@ -170,7 +170,7 @@
       (start-webdriver)
       (f)
       (stop-webdriver)
-      (Thread/sleep 50)))
+      (Thread/sleep 25)))
 
 (defn set-input-text [q text & {:keys [delay] :or {delay 25}}]
   (wait-until-exists q)
@@ -185,7 +185,8 @@
   (Thread/sleep delay)
   (doall (map (fn [c]
                 (Thread/sleep delay)
-                (taxi/input-text q (str c))) text)))
+                (taxi/input-text q (str c))) text))
+  (Thread/sleep delay))
 
 (defn exists? [q & {:keys [wait?] :or {wait? true}}]
   (when wait?

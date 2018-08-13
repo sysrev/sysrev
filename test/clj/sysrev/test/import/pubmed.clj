@@ -1,15 +1,16 @@
 (ns sysrev.test.import.pubmed
-  (:require
-   [clojure.test :refer :all]
-   [clojure.java.jdbc :as jdbc]
-   [clojure.string :as str]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
-   [sysrev.import.pubmed :refer [fetch-pmid-entry import-pmids-to-project-with-meta! get-search-query-response get-pmids-summary get-all-pmids-for-query]]
-   [sysrev.util :refer [parse-xml-str xml-find]]
-   [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
-   [sysrev.db.project :as project]
-   [sysrev.db.sources :as sources]))
+  (:require [clojure.test :refer :all]
+            [clojure.java.jdbc :as jdbc]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.test.core :refer
+             [default-fixture database-rollback-fixture full-tests?]]
+            [sysrev.import.pubmed :as pubmed]
+            [sysrev.util :refer [parse-xml-str xml-find]]
+            [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
+            [sysrev.db.project :as project]
+            [sysrev.db.sources :as sources]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -31,7 +32,7 @@
     (is (= (count els) 3))))
 
 (deftest parse-pmid-test
-  (let [parsed (fetch-pmid-entry 11592337)]
+  (let [parsed (pubmed/fetch-pmid-entry 11592337)]
     (is (str/starts-with? (:abstract parsed) "OBJECTIVE: To determine"))
     (is (str/includes? (:abstract parsed) "\n\nSAMPLE POPULATION: Corneal"))
     (is (= (str/join "; " (:authors parsed)) "Hendrix, DV.; Ward, DA.; Barnhill, MA."))
@@ -39,7 +40,7 @@
 
 ; Fails to get public-id for this pubmed article
 (deftest parse-pmid-test-2
-  (let [parsed (fetch-pmid-entry 28280522)]
+  (let [parsed (pubmed/fetch-pmid-entry 28280522)]
     (is (= (:public-id parsed) "28280522"))))
 
 #_
@@ -59,29 +60,34 @@
         do-execute)
     (is (importing-articles? new-project-id))))
 
-#_
 (deftest retrieve-articles
-  (let [result-count (fn [result] (-> result first :count))
-        search-term "foo bar"
-        pmids (:pmids (get-search-query-response search-term 1))
-        meta (sources/import-pmids-search-term-meta search-term
-                                                    (count pmids))
-        new-project (project/create-project "test project")
-        new-project-id (:project-id new-project)
-        article-summaries (get-pmids-summary pmids)]
-    #_ (is (not (importing-articles? new-project-id)))
-    (import-pmids-to-project-with-meta! (get-all-pmids-for-query search-term) new-project-id
-                                        meta)
-    #_ (is (not (importing-articles? new-project-id)))
+  (if (full-tests?)
+    (log/info "running test (retrieve-articles)")
+    (log/info "skipping test (retrieve-articles)"))
+  (when (full-tests?)
+    (let [result-count (fn [result] (-> result first :count))
+          search-term "foo bar"
+          pmids (:pmids (pubmed/get-search-query-response search-term 1))
+          meta (sources/import-pmids-search-term-meta search-term
+                                                      (count pmids))
+          new-project (project/create-project "test project")
+          new-project-id (:project-id new-project)
+          article-summaries (pubmed/get-pmids-summary pmids)]
+      #_ (is (not (importing-articles? new-project-id)))
+      (pubmed/import-pmids-to-project-with-meta!
+       (pubmed/get-all-pmids-for-query search-term)
+       new-project-id meta)
+      #_ (is (not (importing-articles? new-project-id)))
     
-    ;; Do we have the correct amount of PMIDS?
-    (is (= (count pmids)
-           (project/project-article-count new-project-id)))
-    ;; is the author of a known article included in the results from get-pmids-summary?
-    (is (= (-> (get-in (get-pmids-summary pmids) [25706626])
-               :authors
-               first)
-           {:name "Aung T", :authtype "Author", :clusterid ""}))
-    ;; can all PMIDs for a search term with more than 100000 results be retrieved?
-    (is (= (:count (get-search-query-response "animals and cancer and blood" 1))
-           (count (get-all-pmids-for-query "animals and cancer and blood"))))))
+      ;; Do we have the correct amount of PMIDS?
+      (is (= (count pmids)
+             (project/project-article-count new-project-id)))
+      ;; is the author of a known article included in the results from get-pmids-summary?
+      (is (= (-> (get-in (pubmed/get-pmids-summary pmids) [25706626])
+                 :authors
+                 first)
+             {:name "Aung T", :authtype "Author", :clusterid ""}))
+      ;; can all PMIDs for a search term with more than 100000 results be retrieved?
+      (let [query "animals and cancer and blood"]
+        (is (= (:count (pubmed/get-search-query-response query 1))
+               (count (pubmed/get-all-pmids-for-query query))))))))

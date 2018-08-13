@@ -3,6 +3,6 @@ set -eux
 
 rm -rf ./target
 
-rm -f target/junit-all.xml
+SYSREV_FULL_TESTS=1
 testcmd1='lein test-aws-dev-all'
 $testcmd1 || $testcmd1

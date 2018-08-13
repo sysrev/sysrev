@@ -128,3 +128,11 @@
             ;; make sure this has occurred for the next test
             (wait-until #(nil? (users/get-user-by-email email)))
             (is (nil? (users/get-user-by-email email))))))))
+
+(defn full-tests? []
+  (let [{:keys [sysrev-full-tests]} env]
+    (boolean
+     (and sysrev-full-tests
+          (not= sysrev-full-tests "")
+          (not= sysrev-full-tests "0")
+          (not= sysrev-full-tests 0)))))

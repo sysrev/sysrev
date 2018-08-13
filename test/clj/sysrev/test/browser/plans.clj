@@ -7,7 +7,8 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
-            [sysrev.test.core :refer [default-fixture wait-until]]
+            [sysrev.test.core :refer
+             [default-fixture wait-until full-tests?]]
             [sysrev.test.browser.core :as browser]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.stripe :as stripe]))
@@ -59,9 +60,11 @@
                "\")]")})
 
 (deftest register-and-check-basic-plan-subscription
+  (log/info "register-and-check-basic-plan-subscription")
   (when (not= :remote-test (-> env :profile))
     (let [{:keys [email password]} browser/test-login]
       (browser/delete-test-user)
+      (Thread/sleep 200)
       (navigate/register-user email password)
       ;; after registering, does the stripe customer exist?
       (is (= email
@@ -120,6 +123,7 @@
 (defn select-plan
   "Click the 'Select Plan' button of plan with plan-name"
   [plan-name]
+  (log/info "selecting plan" (pr-str plan-name))
   (browser/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}
                  :delay 100))
 
@@ -129,9 +133,12 @@
   (browser/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
 (deftest register-and-subscribe-to-paid-plans
-  (when (not= :remote-test (-> env :profile))
-    (let [{:keys [email password]} browser/test-login]
+  (log/info "register-and-subscribe-to-paid-plans")
+  (let [{:keys [email password]} browser/test-login
+        full-tests? (full-tests?)]
+    (when (not= :remote-test (-> env :profile))
       (browser/delete-test-user)
+      (Thread/sleep 200)
       (navigate/register-user email password)
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
@@ -173,76 +180,85 @@
                                 :wait? false)
                (browser/exists? (error-msg-xpath incomplete-security-code-error)
                                 :wait? false)))
-      ;; basic failure with Luhn Check
-      (taxi/input-text (label-input "Card Number") fail-luhn-check-cc)
-      ;; error message displayed?
-      (is (browser/exists? (error-msg-xpath invalid-card-number-error)))
-      ;; 'Use Card' button disabled?
-      (is (browser/exists? use-card-disabled-button))
 
-      ;; cvc-check-fail-cc
-      ;; why so many backspaces? the exact amount needed, 16,
-      ;; doesn't consistently clear the fields
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") cvc-check-fail-cc)
-      (taxi/input-text (label-input "Expiration date") "0120")
-      (taxi/input-text (label-input "CVC") "123")
-      (taxi/input-text (label-input "Postal code") "11111")
-      (browser/click use-card-button)
-      (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
+      (if full-tests?
+        (log/info "running full stripe tests")
+        (log/info "skipping full stripe tests"))
+      (when full-tests?
+        ;; basic failure with Luhn Check
+        (taxi/input-text (label-input "Card Number") fail-luhn-check-cc)
+        ;; error message displayed?
+        (is (browser/exists? (error-msg-xpath invalid-card-number-error)))
+        ;; 'Use Card' button disabled?
+        (is (browser/exists? use-card-disabled-button))
 
-      ;;  card-declined-cc
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") card-declined-cc)
-      (browser/click use-card-button)
-      (is (browser/exists? (error-msg-xpath card-declined-error)))
+        ;; cvc-check-fail-cc
+        ;; why so many backspaces? the exact amount needed, 16,
+        ;; doesn't consistently clear the fields
+        (backspace-clear backspace-clear-length (label-input "Card Number"))
+        (taxi/input-text (label-input "Card Number") cvc-check-fail-cc)
+        (taxi/input-text (label-input "Expiration date") "0120")
+        (taxi/input-text (label-input "CVC") "123")
+        (taxi/input-text (label-input "Postal code") "11111")
+        (browser/click use-card-button)
+        (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
 
-      ;; incorrect-cvc-cc
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
-      (browser/click use-card-button)
-      (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
+        ;;  card-declined-cc
+        (backspace-clear backspace-clear-length (label-input "Card Number"))
+        (taxi/input-text (label-input "Card Number") card-declined-cc)
+        (browser/click use-card-button)
+        (is (browser/exists? (error-msg-xpath card-declined-error)))
 
-      ;; expired-card-cc
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") expired-card-cc)
-      (browser/click use-card-button)
-      (is (browser/exists? (error-msg-xpath card-expired-error)))
+        ;; incorrect-cvc-cc
+        (backspace-clear backspace-clear-length (label-input "Card Number"))
+        (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
+        (browser/click use-card-button)
+        (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
 
-      ;; processing-error-cc
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") processing-error-cc)
-      (browser/click use-card-button)
-      (is (browser/exists? (error-msg-xpath card-processing-error)))
+        ;; expired-card-cc
+        (backspace-clear backspace-clear-length (label-input "Card Number"))
+        (taxi/input-text (label-input "Card Number") expired-card-cc)
+        (browser/click use-card-button)
+        (is (browser/exists? (error-msg-xpath card-expired-error)))
+
+        ;; processing-error-cc
+        (backspace-clear backspace-clear-length (label-input "Card Number"))
+        (taxi/input-text (label-input "Card Number") processing-error-cc)
+        (browser/click use-card-button)
+        (is (browser/exists? (error-msg-xpath card-processing-error)))
 
 ;;; attach-success-charge-fail-cc
-      ;; in this case, the card is attached to the customer
-      ;; but they won't be able to subscribe because the card doesn't go
-      ;; through
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
-      (browser/click use-card-button)
-      (browser/click subscribe-button)
-      ;; check for the declined card message
-      (is (browser/exists? (error-msg-xpath card-declined-error)))
+        ;; in this case, the card is attached to the customer
+        ;; but they won't be able to subscribe because the card doesn't go
+        ;; through
+        (backspace-clear backspace-clear-length (label-input "Card Number"))
+        (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
+        (browser/click use-card-button)
+        (browser/click subscribe-button)
+        ;; check for the declined card message
+        (is (browser/exists? (error-msg-xpath card-declined-error)))
 
 ;;; let's update our payment information (again) with a fraudulent card
-      (browser/click update-payment-button)
-      (browser/wait-until-displayed use-card-button)
-      (taxi/input-text (label-input "Card Number") highest-risk-fraudulent-cc)
-      (taxi/input-text (label-input "Expiration date") "0120")
-      (taxi/input-text (label-input "CVC") "123")
-      (taxi/input-text (label-input "Postal code") "11111")
-      (browser/click use-card-button)
-      ;; try to subscribe again
-      (browser/click subscribe-button)
-      ;; card was declined
-      (browser/wait-until-displayed (error-msg-xpath card-declined-error))
-      (is (taxi/exists? (error-msg-xpath card-declined-error)))
+        (browser/click update-payment-button)
+        (browser/wait-until-displayed use-card-button)
+        (taxi/input-text (label-input "Card Number") highest-risk-fraudulent-cc)
+        (taxi/input-text (label-input "Expiration date") "0120")
+        (taxi/input-text (label-input "CVC") "123")
+        (taxi/input-text (label-input "Postal code") "11111")
+        (browser/click use-card-button)
+        ;; try to subscribe again
+        (browser/click subscribe-button)
+        ;; card was declined
+        (browser/wait-until-displayed (error-msg-xpath card-declined-error))
+        (is (taxi/exists? (error-msg-xpath card-declined-error)))
+
+        (browser/click update-payment-button)
+        (browser/wait-until-displayed use-card-button))
+
 ;;; finally, update with a valid cc number and see if we can subscribe
 ;;; to plans!
-      (browser/click update-payment-button)
-      (browser/wait-until-displayed use-card-button)
+
+      (backspace-clear backspace-clear-length (label-input "Card Number"))
       (taxi/input-text (label-input "Card Number") valid-visa-cc)
       (taxi/input-text (label-input "Expiration date") "0120")
       (taxi/input-text (label-input "CVC") "123")
@@ -296,12 +312,14 @@
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email browser/test-login)))
 (deftest register-and-support-projects
+  (log/info "register-and-support-projects")
   (when (not= :remote-test (-> env :profile))
     (let [{:keys [email password]} browser/test-login
           project-name "SysRev Support Project Test"]
       ;; cancel any previouly create subscriptions
       (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
       (browser/delete-test-user)
+      (Thread/sleep 200)
       (navigate/register-user email password)
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
@@ -354,7 +372,7 @@
       ;; subscribe at a custom amount of $200
       (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
       (taxi/clear {:xpath "//input[@type='text']"})
-      (Thread/sleep 500)
+      (Thread/sleep 250)
       (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
       (browser/click support-submit-button)
       (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$200.00")))
@@ -370,7 +388,7 @@
       ;; is there a minimum support level?
       (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
       (taxi/clear {:xpath "//input[@type='text']"})
-      (Thread/sleep 500)
+      (Thread/sleep 250)
       (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
       (browser/click support-submit-button)
       (is (browser/exists? (error-msg-xpath "Minimum support level is $1.00 per month")))

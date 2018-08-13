@@ -14,28 +14,30 @@
 (defn log-out []
   (browser/click "a#log-out-link"
                  :if-not-exists :skip
-                 :delay 200))
+                 :delay 300))
 
 (defn log-in [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
+    (log/info "logging in")
     (browser/init-route "/")
     (log-out)
     (browser/go-route "/login")
-    (browser/set-input-text "input[name='email']" email)
-    (browser/set-input-text "input[name='password']" password)
+    (browser/set-input-text "input[name='email']" email :delay 50)
+    (browser/set-input-text "input[name='password']" password :delay 50)
     (browser/click "button[name='submit']" :delay 300)
     (browser/go-route "/")))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email test-login))
         password (or password (:password test-login))]
+    (log/info "registering user")
     (browser/init-route "/")
     (log-out)
     (browser/go-route "/register")
-    (browser/set-input-text "input[name='email']" email)
-    (browser/set-input-text "input[name='password']" password)
-    (browser/click "button[name='submit']" :delay 300)
+    (browser/set-input-text "input[name='email']" email :delay 100)
+    (browser/set-input-text "input[name='password']" password :delay 100)
+    (browser/click "button[name='submit']" :delay 1500)
     (browser/go-route "/")))
 
 (defn open-first-project []
