@@ -59,6 +59,7 @@
         do-execute)
     (is (importing-articles? new-project-id))))
 
+#_
 (deftest retrieve-articles
   (let [result-count (fn [result] (-> result first :count))
         search-term "foo bar"

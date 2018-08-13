@@ -97,7 +97,7 @@
   "Given a query q, wait until the element it represents exists"
   [q & [timeout interval]]
   (let [timeout (or timeout 10000)
-        interval (or interval 50)]
+        interval (or interval 25)]
     (Thread/sleep 25)
     (taxi/wait-until
      #(taxi/exists? q)
@@ -108,7 +108,7 @@
   and is displayed"
   [q & [timeout interval]]
   (let [timeout (or timeout 10000)
-        interval (or interval 50)]
+        interval (or interval 25)]
     (Thread/sleep 25)
     (taxi/wait-until
      #(and (taxi/exists? q)
@@ -116,17 +116,21 @@
      timeout interval)))
 
 (defn wait-until-loading-completes
-  [& [timeout interval]]
-  (let [timeout (or timeout 10000)
-        interval (or interval 50)]
-    (Thread/sleep 150)
-    (taxi/wait-until
-     #(and
-       (not (taxi/exists?
-             {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
-       (not (taxi/exists?
-             {:xpath "//div[contains(@class,'dimmer') and contains(@class,'active')]"})))
-     timeout interval)))
+  [& {:keys [timeout interval pre-wait]
+      :or {timeout 10000
+           interval 25
+           pre-wait false}}]
+  (when pre-wait
+    (if (integer? pre-wait)
+      (Thread/sleep pre-wait)
+      (Thread/sleep 75)))
+  (taxi/wait-until
+   #(and
+     (not (taxi/exists?
+           {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
+     (not (taxi/exists?
+           {:xpath "//div[contains(@class,'dimmer') and contains(@class,'active')]"})))
+   timeout interval))
 
 (defn init-route [& [path wait-ms]]
   (let [path (or path "/")
@@ -144,9 +148,9 @@
     (taxi/execute-script "sysrev.base.toggle_analytics(false);")))
 
 (defn go-route [path & [wait-ms]]
-  (let [wait-ms (or wait-ms 500)
+  (let [wait-ms (or wait-ms 250)
         js-str (format "sysrev.nav.set_token(\"%s\");" path)]
-    (wait-until-loading-completes)
+    (wait-until-loading-completes :pre-wait true)
     (log/info "navigating:" path)
     (taxi/execute-script js-str)
     (Thread/sleep wait-ms)
@@ -166,9 +170,9 @@
       (start-webdriver)
       (f)
       (stop-webdriver)
-      (Thread/sleep 100)))
+      (Thread/sleep 50)))
 
-(defn set-input-text [q text & {:keys [delay] :or {delay 50}}]
+(defn set-input-text [q text & {:keys [delay] :or {delay 25}}]
   (wait-until-exists q)
   (taxi/clear q)
   (Thread/sleep delay)
@@ -176,7 +180,7 @@
   (Thread/sleep delay))
 
 (defn set-input-text-per-char
-  [q text & {:keys [delay] :or {delay 50}}]
+  [q text & {:keys [delay] :or {delay 25}}]
   (taxi/clear q)
   (Thread/sleep delay)
   (doall (map (fn [c]
@@ -193,7 +197,7 @@
 
 (defn click [q & {:keys [if-not-exists delay displayed?]
                   :or {if-not-exists :wait
-                       delay 50
+                       delay 25
                        displayed? false}}]
   (when (= if-not-exists :wait)
     (if displayed?
@@ -204,7 +208,8 @@
     nil
     (do (taxi/click q)
         (Thread/sleep delay)
-        (wait-until-loading-completes))))
+        (wait-until-loading-completes
+         :pre-wait (if (<= delay 100) 50 false)))))
 
 (defn panel-name [panel-keys]
   (str/join "_" (map name panel-keys)))
@@ -223,7 +228,7 @@
       (parse-integer id-str))))
 
 (defn go-project-route [suburi & [project-id]]
-  (Thread/sleep 50)
+  (Thread/sleep 25)
   (let [project-id (or project-id (current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))

@@ -63,7 +63,6 @@
     (let [{:keys [email password]} browser/test-login]
       (browser/delete-test-user)
       (navigate/register-user email password)
-      (browser/wait-until-loading-completes)
       ;; after registering, does the stripe customer exist?
       (is (= email
              (:email (stripe/execute-action
@@ -98,13 +97,14 @@
 (def stop-support-button {:xpath "//button[contains(text(),'Stop Support')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
-(def backspace-clear-length 30)
+(def backspace-clear-length 20)
 ;; might be worth it to pull this library in at some point
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
   (doall (repeatedly length
-                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE))))
+                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
+                          (Thread/sleep 20))))
   true)
 
 (defn label-input
@@ -120,7 +120,8 @@
 (defn select-plan
   "Click the 'Select Plan' button of plan with plan-name"
   [plan-name]
-  (browser/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}))
+  (browser/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}
+                 :delay 100))
 
 (defn subscribed-to?
   "Is the customer subscribed to plan-name?"
@@ -132,7 +133,6 @@
     (let [{:keys [email password]} browser/test-login]
       (browser/delete-test-user)
       (navigate/register-user email password)
-      (browser/wait-until-loading-completes)
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
       ;; after registering, does the stripe customer exist?
@@ -303,7 +303,6 @@
       (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
       (browser/delete-test-user)
       (navigate/register-user email password)
-      (browser/wait-until-loading-completes)
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
       ;; after registering, does the stripe customer exist?

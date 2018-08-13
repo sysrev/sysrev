@@ -179,8 +179,7 @@
   (browser/click {:xpath (str xpath "/descendant::i[contains(@class,'edit')]")}))
 
 (defn save-labels []
-  (browser/click save-labels-button :delay 200)
-  (browser/wait-until-loading-completes))
+  (browser/click save-labels-button :delay 200))
 
 (defn label-text-input-xpath
   "Given an xpath, get the text input for label-name under xpath"
@@ -374,9 +373,8 @@
   "Given a vector of label-settings maps, set the labels for an article in the browser."
   [label-settings]
   (mapv #(set-article-label %) label-settings)
-  (Thread/sleep 250)
-  (browser/click save-button :delay 250)
-  (browser/wait-until-loading-completes))
+  (Thread/sleep 100)
+  (browser/click save-button :delay 250))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
@@ -397,7 +395,6 @@
 ;;; register the user
       (browser/delete-test-user)
       (navigate/register-user email password)
-      (browser/wait-until-loading-completes)
 
       ;; create a project
       (browser/go-route "/select-project")

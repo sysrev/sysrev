@@ -35,8 +35,8 @@
      :if-not-exists :skip)
     (browser/set-input-text search-input query)
     (taxi/submit search-form)
-    (Thread/sleep 100)
-    (browser/wait-until-loading-completes 20000)))
+    (browser/wait-until-loading-completes
+     :pre-wait 200 :timeout 20000)))
 
 (defn search-count
   "Return an integer item count of search results"

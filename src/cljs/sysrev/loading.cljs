@@ -132,9 +132,6 @@
           (>= (- time-inactive time-active) 200) false
           ;; otherwise maintain existing indicator status
           :else cur-status)]
-    #_ (when (not= new-status cur-status)
-         (js/console.log (str "diff = " (int (- time-active time-inactive))
-                              " ; setting " new-status)))
     (swap! ajax-db (fn [db]
                      (-> db
                          ;; update logged time for ajax activity
