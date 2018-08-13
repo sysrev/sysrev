@@ -21,8 +21,8 @@
              [with-ui-help-tooltip ui-help-icon selection-dropdown
               three-state-selection-icons updated-time-label]]
             [sysrev.views.list-pager :refer [ListPager]]
-            [sysrev.util :refer [full-size? mobile? nbsp time-from-epoch]]
-            [sysrev.shared.util :as util :refer [in? map-values]])
+            [sysrev.util :as util :refer [nbsp]]
+            [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defmulti panel-defaults identity)
@@ -31,7 +31,7 @@
 (defn default-defaults []
   (let [overall-id @(subscribe [:project/overall-label-id])]
     {:options
-     {:display-count (if (mobile?) 10 20)}
+     {:display-count (if (util/mobile?) 10 20)}
      :filters
      [{:label-id overall-id}]
      :sort-by :article-id
@@ -57,6 +57,7 @@
 (s/def ::base-uri fn?)
 (s/def ::recent-article (s/nilable integer?))
 (s/def ::active-article (s/nilable integer?))
+(s/def ::collapse-filters (s/nilable boolean?))
 (s/def ::panel (s/every keyword? :kind vector?))
 (s/def ::recent-nav-action (s/nilable keyword?))
 (s/def ::single-filter
@@ -76,7 +77,7 @@
   (s/keys :req-un [::options ::filters ::offset ::base-uri
                    ::sort-by ::sort-dir]
           :opt-un [::recent-article ::active-article ::panel
-                   ::recent-nav-action]))
+                   ::recent-nav-action ::collapse-filters]))
 
 (defn current-state [stateval defaults]
   (as-> (merge-with (fn [a b]
@@ -98,7 +99,7 @@
   (let [{:keys [offset text-search]} (nav/get-url-params)]
     (cond-> []
       offset
-      (conj [[:offset] (util/parse-integer offset)])
+      (conj [[:offset] (sutil/parse-integer offset)])
       (string? text-search)
       (conj [[:filters :text-search] text-search]))))
 
@@ -275,7 +276,7 @@
    (let [path (panel-state-path panel)
          stateval (get-in db path)]
      (assoc-in db (concat path [:ready])
-               (dissoc stateval :ready)))))
+               (dissoc stateval :ready :inputs)))))
 
 (defn update-ready-state [panel]
   (let [state (panel-cursor panel)
@@ -471,6 +472,7 @@
      [:input
       {:type "text" :id "article-search" :name "article-search"
        :value (or @input curval)
+       :placeholder "Search articles"
        :on-change
        (fn [event]
          (let [value (-> event .-target .-value)]
@@ -517,7 +519,7 @@
       ["all articles"]
       descriptions)))
 
-(defn- ArticleListFilters [state defaults]
+(defn- ArticleListFiltersRow [state defaults]
   (let [cstate (current-state @state defaults)
         {:keys [recent-nav-action panel display]} cstate
         {:keys [expand-filters show-inclusion
@@ -536,7 +538,7 @@
                [:i.green.circle.icon]
                [:i.grey.circle.icon])
              label]))]
-    [:div.ui.segments.article-filters
+    [:div.ui.segments.article-filters.article-filters-row
      [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal
       [:div.row
        [:div.one.wide.column.medium-weight.filters-header
@@ -583,6 +585,50 @@
             [view-button :show-labels "Labels"]
             [view-button :show-notes "Notes"]]
            [:div.six.wide.field]]]]])]))
+
+(defn- ArticleListFiltersColumn [state defaults]
+  (let [cstate (current-state @state defaults)
+        {:keys [recent-nav-action panel display
+                active-article collapse-filters]} cstate
+        {:keys [expand-filters show-inclusion
+                show-labels show-notes]} display
+        project-id @(subscribe [:active-project-id])
+        loading? (and (loading/any-loading? :only :project/article-list)
+                      @(loading/loading-indicator))
+        view-button
+        (fn [option-key label]
+          (let [status (get display option-key)]
+            [:button.ui.small.labeled.icon.button
+             {:on-click
+              #(dispatch [:article-list/toggle-display-option
+                          panel option-key (not status)])}
+             (if status
+               [:i.green.circle.icon]
+               [:i.grey.circle.icon])
+             label]))]
+    (if (or active-article collapse-filters)
+      [:div.ui.segments.article-filters.article-filters-column.expand-header
+       {:on-click
+        #(do (dispatch [:article-list/toggle-filters panel true])
+             (nav/nav-redirect
+              (nav/make-url (panel-base-uri cstate)
+                            (make-url-params cstate))))}
+       [:div.ui.center.aligned.secondary.header.segment
+        "Filters"]
+       [:div.ui.one.column.center.aligned.secondary.grid.segment.expand-filters
+        [:div.column
+         [:i.fitted.angle.double.right.icon]]]]
+      [:div.ui.segments.article-filters.article-filters-column
+       [:a.ui.center.aligned.secondary.header.grid.segment.collapse-header
+        {:on-click
+         #(dispatch [:article-list/toggle-filters panel false])}
+        [:div.two.wide.column
+         [:i.fitted.angle.double.left.icon]]
+        [:div.twelve.wide.column
+         "Filters"]
+        [:div.two.wide.column
+         [:i.fitted.angle.double.left.icon]]]
+       [:div.ui.bottom.attached.secondary.segment]])))
 
 (defn- ArticleListNavHeader [state defaults]
   (let [{:keys [panel] :as visible-cstate} (current-state @state defaults)
@@ -666,16 +712,21 @@
        [:div.ui.thirteen.wide.column.article-title
         [:div.ui.middle.aligned.grid
          [:div.row
-          [:div.ui.one.wide.center.aligned.column
-           [:div.ui.fluid.labeled.center.aligned.button
-            [:i.fitted.center.aligned
-             {:class (str (if active? "down" "right")
-                          " chevron icon")
-              :style {:width "100%"}}]]]
-          [:div.thirteen.wide.column>span.article-title primary-title]
-          [:div.two.wide.center.aligned.column.article-updated-time
-           (when-let [updated-time (some-> updated-time (time-from-epoch))]
-             [updated-time-label updated-time])]]]]
+          [:div.fourteen.wide.column
+           {:style {:padding-right "0"}}
+           [:div.ui.middle.aligned.grid>div.row
+            [:div.one.wide.center.aligned.column
+             [:div.ui.fluid.labeled.center.aligned.button
+              [:i.fitted.center.aligned
+               {:class (str (if active? "down" "right")
+                            " chevron icon")
+                :style {:width "100%"}}]]]
+            [:div.fifteen.wide.column
+             {:style {:padding-left "0"}}
+             [:span.article-title primary-title]]]]
+          [:div.two.wide.right.aligned.column.article-updated-time
+           (when-let [updated-time (some-> updated-time (util/time-from-epoch))]
+             [updated-time-label updated-time true])]]]]
        [:div.ui.three.wide.center.aligned.middle.aligned.column.article-answers
         (when (not-empty labels)
           {:class answer-class})
@@ -684,11 +735,11 @@
            [AnswerCell article-id overall-labels answer-class]])]]
       ;; mobile view
       [:div.ui.row
-       [:div.ui.ten.wide.column.article-title
+       [:div.ui.eleven.wide.column.article-title
         [:span.article-title primary-title]
-        (when-let [updated-time (some-> updated-time (time-from-epoch))]
-          [updated-time-label updated-time])]
-       [:div.ui.six.wide.center.aligned.middle.aligned.column.article-answers
+        (when-let [updated-time (some-> updated-time (util/time-from-epoch))]
+          [updated-time-label updated-time true])]
+       [:div.ui.five.wide.center.aligned.middle.aligned.column.article-answers
         (when (not-empty labels)
           {:class answer-class})
         (when (not-empty labels)
@@ -700,7 +751,7 @@
         {:keys [recent-article active-article]} cstate
         project-id @(subscribe [:active-project-id])
         articles (visible-articles cstate)
-        full-size? (full-size?)]
+        full-size? (util/full-size?)]
     [:div.ui.segments.article-list-segments
      (doall
       (concat
@@ -770,7 +821,8 @@
         active? (= article-id active-article)
         have? @(subscribe [:have? [:article project-id article-id]])
         classes (if (or active? recent?) "active" "")
-        loading? (loading/item-loading? [:article project-id article-id])]
+        loading? (loading/item-loading? [:article project-id article-id])
+        full-size? (util/full-size?)]
     (doall
      (list
       [:a.ui.middle.aligned.grid.segment.article-list-article
@@ -806,25 +858,46 @@
 
 (defn MultiArticlePanel [state defaults]
   (let [cstate (current-state @state defaults)
-        {:keys [panel]} cstate
+        {:keys [panel collapse-filters]} cstate
         articles (visible-articles cstate)
         item1 (list-count-query cstate)
         item2 (list-data-query cstate)
         ready? (and @(subscribe [:have? item1])
                     @(subscribe [:have? item2])
                     (not (loading/item-loading? item1))
-                    (not (loading/item-loading? item2)))]
-    (if (and (not ready?) (contains? @state :ready))
+                    (not (loading/item-loading? item2)))
+        draw-cached? (and (not ready?) (contains? @state :ready))
+        ready-state (r/cursor state [:ready])
+        content-state (if draw-cached? ready-state state)
+        content-cstate (current-state @content-state defaults)
+        {:keys [active-article]} content-cstate
+        article-id @(subscribe [:article-list/article-id])
+        render (fn [active-article])]
+    (with-loader (if draw-cached?
+                   []
+                   [item1 item2]) {}
       [:div.article-list-view
-       [ArticleListFilters state defaults]
-       [ArticleListContent (r/cursor state [:ready]) defaults] ]
-      (with-loader [item1 item2] {}
-        [:div.article-list-view
-         (when (not= @(r/cursor state [:ready])
-                     (-> @state (dissoc :ready)))
-           (update-ready-state panel))
-         [ArticleListFilters state defaults]
-         [ArticleListContent state defaults]]))))
+       (when (and (not draw-cached?)
+                  (not= @(r/cursor state [:ready])
+                        (-> @state (dissoc :ready :inputs))))
+         (update-ready-state panel))
+       (if (util/desktop-size?)
+         [:div.ui.grid.article-list-grid
+          [:div.row
+           [:div.column.filters-column
+            {:class (if (or active-article collapse-filters)
+                      "one wide" "four wide")}
+            [ArticleListFiltersColumn state defaults]]
+           [:div.column.content-column
+            {:class (if (or active-article collapse-filters)
+                      "fifteen wide" "twelve wide")}
+            [:div.ui.form
+             [:div.field>div.fields>div.sixteen.wide.field
+              [TextSearchInput state defaults]]]
+            [ArticleListContent content-state defaults]]]]
+         [:div
+          [ArticleListFiltersRow state defaults]
+          [ArticleListContent content-state defaults]])])))
 
 (defn ArticleListPanel [state defaults]
   (let [cstate (current-state @state defaults)
@@ -839,6 +912,14 @@
      (if (and active-article (not (in? visible-ids active-article)))
        [SingleArticlePanel state defaults]
        [MultiArticlePanel state defaults])]))
+
+(reg-event-fx
+ :article-list/toggle-filters
+ [trim-v]
+ (fn [{:keys [db]} [panel expand?]]
+   (let [path (panel-state-path panel)]
+     {:db (assoc-in db (concat path [:collapse-filters])
+                    (not expand?))})))
 
 (when use-new-article-list?
   (reg-sub

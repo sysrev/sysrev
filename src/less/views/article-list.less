@@ -174,12 +174,12 @@
 
             > .column.article-title .grid .column.article-updated-time {
                 padding-left: 0;
-                padding-right: 0;
+                padding-right: 8px;
             }
         }
 
         .column.article-title {
-            padding: 10px;
+            padding: 0.75em 1em 0.75em 1em;
         }
 
         .ui.row.user-article {
@@ -246,7 +246,7 @@
         background-color: @purpleBackground;
     }
 
-    div.article-filters {
+    .article-filters-row {
         > .ui.form {
         }
         .ui.bottom.attached.segment {
@@ -297,6 +297,66 @@
 
             .ui.button {
             }
+        }
+    }
+
+    .article-filters-column {
+        margin-top: 0px;
+    }
+
+    .ui.segments.article-filters {
+        .ui.grid {
+        }
+    }
+
+    .ui.grid.article-list-grid {
+        > .row > .column.filters-column {
+            padding-right: 0;
+
+            > .article-filters-column {
+                > .ui.header.segment {
+                    padding-left: 0.25em;
+                    padding-right: 0.25em;
+                    padding-top: 0.5em;
+                    padding-bottom: 0.5em;
+                }
+                > a.ui.grid.segment.collapse-header,
+                > div.ui.grid.segment.expand-filters {
+                    > .column {
+                        padding: 0;
+                        > i.icon {
+                            padding: 0;
+                        }
+                    }
+                }
+                > div.ui.grid.segment.expand-filters {
+                    padding-top: 0.5em;
+                    padding-bottom: 0.5em;
+                }
+                > a.ui.segment.collapse-header {
+                    cursor: pointer;
+                }
+                > a.ui.segment.collapse-header:hover {
+                    background-color: mix(@background, @text, 90);
+                }
+                > .ui.button.expand-filters {
+                    padding-top: 1.5em;
+                    padding-bottom: 1.5em;
+                }
+            }
+
+            > div.ui.segments.article-filters-column.expand-header,
+            > div.ui.segments.article-filters-column.expand-header > div.segment {
+                cursor: pointer;
+            }
+
+            > div.ui.segments.article-filters-column.expand-header:hover,
+            > div.ui.segments.article-filters-column.expand-header:hover > div.segment {
+                background-color: mix(@background, @text, 90);
+            }
+        }
+        .ui.segments.article-list-segments {
+            margin-top: 0px;
         }
     }
 }

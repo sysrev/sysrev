@@ -245,8 +245,14 @@
   [:div.item>a.ui.large.label {:target "_blank" :href url}
    [:i.large.file.pdf.outline.icon] name])
 
-(defn updated-time-label [dt]
-  [:div.ui.tiny.label (util/time-elapsed-string dt)])
+(defn updated-time-label [dt & [shorten?]]
+  (let [s (util/time-elapsed-string dt)
+        label (if shorten?
+                (->> (str/split s #" ")
+                     butlast
+                     (str/join " "))
+                s)]
+    [:div.ui.tiny.label label]))
 
 (defn three-state-selection
   "props are:
