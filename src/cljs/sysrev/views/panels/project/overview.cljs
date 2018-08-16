@@ -360,9 +360,9 @@
   (when (not-empty data)
     (let [project-id @(subscribe [:active-project-id])
           height (+ 35 (* 10 (count data)))]
-      (let [entries (->> data (sort-by :instance-count >))
+      (let [entries (->> data (sort-by :tfidf >))
             labels (mapv :instance-name entries)
-            counts (mapv :instance-count entries)]
+            counts (mapv :tfidf entries)]
         [charts/bar-chart height labels ["count"] [counts]
          ["rgba(33,186,69,0.55)"]
          {:legend {:display false}}]))))

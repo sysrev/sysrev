@@ -471,8 +471,11 @@
      {:terms
       (->> terms (map-values
                   #(->> %
-                        (sort-by :instance-count >)
+                        (sort-by (fn [term] (/ (:instance-count term)
+                                               (:instance-score term)))  >)
                         (take n)
+                        (map (fn [term] (assoc term :tfidf (/ (:instance-count term)
+                                                              (:instance-score term)))))
                         (into []))))
       :loading
       (importance/project-importance-loading? project-id)}}))
