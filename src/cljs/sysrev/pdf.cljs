@@ -2,28 +2,49 @@
   (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [goog.dom :as dom]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer
+             [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
+            [sysrev.state.ui :as ui-state]
             [sysrev.state.articles :as articles]
             [sysrev.state.nav :refer [active-project-id]]
-            [sysrev.annotation :as annotation
-             :refer [AnnotationCapture AnnotationToggleButton AnnotationMenu]]
+            [sysrev.views.annotator :as annotator]
             [sysrev.views.components :refer [UploadButton]]
-            [sysrev.util :refer [random-id full-size?]])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
 
-(def initial-pdf-view-state {:pdf-doc nil
-                             :page-count nil
-                             :page-num 1
-                             :page-rendering false
-                             :page-num-pending nil
-                             :scale 1.5
-                             :container-id nil})
+(def view :pdf)
 
-(defonce state (r/atom {:pdf-view initial-pdf-view-state}))
+(def initial-view-state
+  {:pdf-doc nil
+   :page-count nil
+   :page-num 1
+   :page-rendering false
+   :page-rendering-soon false
+   :page-num-pending nil
+   :container-id nil})
+
+(reg-sub
+ ::get
+ :<- [:view-field view []]
+ (fn [view-state [_ path]]
+   (get-in view-state path)))
+
+(reg-event-db
+ ::set
+ [trim-v]
+ (fn [db [path value]]
+   (ui-state/set-view-field db view path value)))
+
+(reg-event-db
+ :pdf/init-view-state
+ [trim-v]
+ (fn [db [& [panel]]]
+   (ui-state/set-view-field db view nil initial-view-state panel)))
 
 (def semantic-ui js/semanticUIReact)
 (def Button (r/adapt-react-class (goog.object/get semantic-ui "Button")))
@@ -50,8 +71,8 @@
   [{:keys [trigger]} child]
   [Modal {:trigger (r/as-element trigger)
           :size "fullscreen"
-          :on-close (fn []
-                      (reset! (r/cursor state [:pdf-view]) initial-pdf-view-state))}
+          :on-close (util/wrap-user-event
+                     #(dispatch [:pdf/init-view-state]))}
    [ModalContent child]])
 
 (def-data :pdf/open-access-available?
@@ -99,49 +120,55 @@
 
 (defn render-page
   "Render page num"
-  [num]
+  [pdf num]
   ;; this should probably be more function, render-page should take a pdf object
-  (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])
-        page-num-pending (r/cursor state [:pdf-view :page-num-pending])
-        page-rendering (r/cursor state [:pdf-view :page-rendering])]
-    (reset! page-rendering true)
-    (-> ($ @pdf-doc getPage num)
-        ($ then (fn [page]
-                  ;; this could could be more functional by including container as the parameter in render page
-                  (let [scale (r/cursor state [:pdf-view :scale])
-                        ;;viewport ($ page getViewport @scale)
-                        container ($ js/document getElementById @(r/cursor state [:pdf-view :container-id]))
-                        ;; context ($ container getContext "2d")
-                        ]
-                    ;; set the container dimensions
-                    #_ ($! container :height ($ viewport :height))
-                    #_ ($! container :width ($ viewport :width))
+  (let [{:keys []} @(subscribe [::get])]
+    (dispatch-sync [::set [:page-rendering] true])
+    (-> ($ pdf getPage num)
+        ($ then
+           (fn [page]
+             ;; this could be more functional by including container as the
+             ;; parameter in render page
+             (let [{:keys [container-id]}
+                   @(subscribe [::get])
+                   container ($ js/document getElementById container-id)
 
-                    ;; remove previous divs that were in place
-                    (dom/removeChildren container)
-                    (let [pdf-page-view
-                          (PDFPageView.
-                           (clj->js {:container container
-                                     :id num
-                                     :scale @scale
-                                     :defaultViewport ($ page getViewport @scale)
-                                     :textLayerFactory
-                                     (DefaultTextLayerFactory.)
-                                     :annotationLayerFactory
-                                     (DefaultAnnotationLayerFactory.)}))]
-                      ($ pdf-page-view setPdfPage page)
-                      ($ pdf-page-view draw)
-                      (reset! page-rendering false)
-                      (reset! page-num-pending nil))))))))
+                   ;; Try to auto-adjust PDF size to containing element.
+                   cwidth ($ (js/$ container) width)
+                   ;; this should be 1.0? but result is too big.
+                   pwidth ($ ($ page getViewport 1.5) :width)
+                   scale (/ cwidth pwidth)]
+               #_
+               (do (println (str "[render-page] cwidth = " cwidth))
+                   (println (str "[render-page] pwidth = " pwidth))
+                   (println (str "[render-page] scale = " scale)))
+
+               ;; remove any previous divs
+               (dom/removeChildren container)
+
+               (let [pdf-page-view
+                     (PDFPageView.
+                      (clj->js {:container container
+                                :id num
+                                :scale scale
+                                :defaultViewport ($ page getViewport scale)
+                                :textLayerFactory
+                                (DefaultTextLayerFactory.)
+                                :annotationLayerFactory
+                                (DefaultAnnotationLayerFactory.)}))]
+                 ($ pdf-page-view setPdfPage page)
+                 ($ pdf-page-view draw)
+                 (dispatch-sync [::set [:page-rendering] false])
+                 (dispatch-sync [::set [:page-rendering-soon] false])
+                 (dispatch-sync [::set [:page-num-pending] nil]))))))))
 
 (defn queue-render-page
-  "If another page rendering is in progress, waits until the rendering is finished. Otherwise, execute rendering immediately"
-  [num]
-  (let [page-rendering (r/cursor state [:pdf-view :page-rendering])
-        page-num-pending (r/cursor state [:pdf-view :page-num-pending])]
-    (if @page-rendering
-      (reset! page-num-pending num)
-      (render-page num))))
+  "Renders page, or queues it to render next if a page is currently rendering."
+  [pdf num]
+  (let [{:keys [page-rendering]} @(subscribe [::get])]
+    (if page-rendering
+      (dispatch-sync [::set [:page-num-pending] num])
+      (render-page pdf num))))
 
 (defn pdf-url-open-access?
   "Given a pdf-url, is it an open access pdf?"
@@ -152,11 +179,12 @@
 (defn pdf-url->article-id
   "Given a pdf-url, return the article-id"
   [pdf-url]
-  (if (pdf-url-open-access? pdf-url)
-    (second (re-find #"/api/open-access/(\d+)/view"
-                     pdf-url))
-    (second (re-find #"/api/files/article/(\d+)/view"
-                     pdf-url))))
+  (sutil/parse-integer
+   (if (pdf-url-open-access? pdf-url)
+     (second (re-find #"/api/open-access/(\d+)/view"
+                      pdf-url))
+     (second (re-find #"/api/files/article/(\d+)/view"
+                      pdf-url)))))
 
 (defn pdf-url->key
   "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
@@ -168,87 +196,112 @@
 (defn ViewPDF
   "Given a PDF URL, view it"
   [pdf-url]
-  (let [container-id (random-id)
-        _ (reset! (r/cursor state [:pdf-view :container-id]) container-id)
-        page-num (r/cursor state [:pdf-view :page-num])
-        page-count (r/cursor state [:pdf-view :page-count])
-        annotator-state (r/atom
-                         (if (pdf-url-open-access? pdf-url)
-                           ;; it is open access
-                           (assoc annotation/default-annotator-state
-                                  :context {:class "pdf"
-                                            :article-id (pdf-url->article-id pdf-url)
-                                            :pdf-key (pdf-url->key pdf-url)})
-                           ;; it is not open access, assume user uploaded pdf file
-                           (assoc annotation/default-annotator-state
-                                  :context {:class "pdf"
-                                            :article-id (pdf-url->article-id pdf-url)
-                                            :pdf-key (pdf-url->key pdf-url)})))
-        ;; also, disable annotations for now if it is an open access pdf
-        _ (reset! (r/cursor annotator-state [:annotator-enabled?])
-                  false)
-        annotator-enabled? (r/cursor annotator-state [:annotator-enabled?])]
+  (let [container-id (util/random-id)]
     (r/create-class
      {:reagent-render
-      (fn []
-        ;; get the user defined annotations
-        (dispatch [:fetch [:annotation/user-defined-annotations
-                           @(subscribe [:visible-article-id])
-                           annotator-state]])
-        [:div
-         [:div
-          [:button.ui.button
-           {:on-click #(if-not (<= @page-num 1)
-                         (do
-                           (swap! page-num dec)
-                           (queue-render-page @page-num)))}
-           "Previous Page"]
-          [:button.ui.button
-           {:on-click #(if-not (>= @page-num @page-count)
-                         (do
-                           (swap! page-num inc)
-                           (queue-render-page @page-num)))} "Next Page"]
-          #_ (when-not (= @(r/cursor annotator-state [:context :class])
-                          "open access pdf"))
-          [AnnotationToggleButton annotator-state]
-          (when-not (nil? @page-count)
-            [:p (str "Page " @page-num " / " @page-count)])]
-         [:div.ui.grid
-          [:div.four.wide.column
-           [AnnotationMenu annotator-state]]
-          [:div.twelve.wide.column
-           [AnnotationCapture annotator-state
-            [:div {:id container-id
-                   :style {:position "relative"}}]]]]])
+      (fn [pdf-url]
+        (let [[article-id pdf-key] [(pdf-url->article-id pdf-url)
+                                    (pdf-url->key pdf-url)]
+
+              {:keys [pdf-doc page-num page-count
+                      page-rendering page-rendering-soon]}
+              @(subscribe [::get])
+
+              on-prev (when (> page-num 1)
+                        (util/wrap-user-event
+                         #(do (dispatch-sync [::set [:page-num] (dec page-num)])
+                              (queue-render-page pdf-doc (dec page-num)))))
+              on-next (when (< page-num page-count)
+                        (util/wrap-user-event
+                         #(do (dispatch-sync [::set [:page-num] (inc page-num)])
+                              (queue-render-page pdf-doc (inc page-num)))))
+
+              project-id @(subscribe [:active-project-id])
+              ann-context {:class "pdf"
+                           :project-id project-id
+                           :article-id article-id
+                           :pdf-key pdf-key}
+              ann-enabled? @(subscribe [:annotator/enabled? ann-context])]
+          ;; get the user defined annotations
+          (dispatch [:require (annotator/annotator-data-item ann-context)])
+          [:div.view-pdf
+           {:class (if (or page-rendering page-rendering-soon)
+                     "rendering" nil)}
+           [:div.navigate
+            [:button.ui.large.label.button
+             {:class (if on-prev nil "disabled")
+              :on-click on-prev}
+             "Previous"]
+            [:button.ui.large.label.button
+             {:class (if on-next nil "disabled")
+              :on-click on-next}
+             "Next"]
+            (when page-count
+              [:h5.ui.header.page-status
+               (str "Page " page-num " of " page-count)])
+            [annotator/AnnotationToggleButton
+             ann-context
+             :class "large"
+             :on-change
+             (fn []
+               (let [re-render #(let [{:keys [pdf-doc page-num]}
+                                      @(subscribe [::get])]
+                                  (queue-render-page pdf-doc page-num))]
+                 ;; Set `:page-rendering-soon` to enable CSS min-height
+                 ;; on modal content for smoother looking update.
+                 (dispatch-sync [::set [:page-rendering-soon] true])
+                 ;; Use setTimeout to wait for CSS update to take effect
+                 (js/setTimeout re-render 50)))]]
+           [:div.ui.grid.view-pdf-main
+            (when ann-enabled?
+              [:div.four.wide.column.pdf-annotation
+               [annotator/AnnotationMenu ann-context "pdf"]])
+            [:div.column.pdf-content
+             {:class (if ann-enabled? "twelve wide" "sixteen wide")}
+             [annotator/AnnotationCapture ann-context
+              [:div.pdf-container {:id container-id}]]]]]))
+      :component-will-mount
+      (fn [this]
+        (dispatch-sync [::set [:container-id] container-id]))
       :component-did-mount
       (fn [this]
-        (let [pdf-doc (r/cursor state [:pdf-view :pdf-doc])
-              page-count (r/cursor state [:pdf-view :page-count])
-              loadingTask (-> (doto ($ js/pdfjsLib getDocument pdf-url)
-                                ($! :GlobalWorkerOptions
-                                    (clj->js {:workerSrc "//mozilla.github.io/pdf.js/build/pdf.worker.js"})))
-                              ($ then
-                                 (fn [pdf]
-                                   (reset! pdf-doc pdf)
-                                   (reset! page-count ($ pdf :numPages))
-                                   (render-page @page-num))))]))})))
+        (-> (doto ($ js/pdfjsLib getDocument pdf-url)
+              ($! :GlobalWorkerOptions
+                  (clj->js {:workerSrc
+                            "//mozilla.github.io/pdf.js/build/pdf.worker.js"})))
+            ($ then
+               (fn [pdf]
+                 (let [{:keys [page-num]} @(subscribe [::get])]
+                   #_
+                   (do (println (str "pdf = " (type pdf)))
+                       (println (str "numPages = " ($ pdf :numPages)))
+                       (println (str "page-num = " page-num)))
+                   (dispatch-sync [::set [:pdf-doc] pdf])
+                   (dispatch-sync [::set [:page-count] ($ pdf :numPages)])
+                   (render-page pdf page-num))))))})))
 
 (defn view-open-access-pdf-url
   [article-id key]
   (str "/api/open-access/" article-id "/view/" key))
 
 (defn OpenAccessPDF
-  [article-id on-click]
+  [article-id]
   (when @(subscribe [:article/open-access-available? article-id])
     [:div.field>div.fields
-     [:div.ui.buttons
-      [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
-                           [:i.expand.icon] "Open Access PDF"]}
-       [ViewPDF (view-open-access-pdf-url article-id @(subscribe [:article/key article-id]))]]
-      [:a.ui.button
-       {:href (view-open-access-pdf-url article-id @(subscribe [:article/key article-id]))
+     [:div
+      [PDFModal
+       {:trigger [:a.ui.labeled.icon.button
+                  {:on-click (util/wrap-user-event
+                              #(do nil))}
+                  [:i.expand.icon] "Open Access PDF"]}
+       [ViewPDF (view-open-access-pdf-url
+                 article-id @(subscribe [:article/key article-id]))]]
+      [:a.ui.labeled.icon.button
+       {:href (view-open-access-pdf-url
+               article-id @(subscribe [:article/key article-id]))
         :target "_blank"
         :download (str article-id ".pdf")}
+       [:i.download.icon]
        "Download"]]]))
 
 (defn view-s3-pdf-url
@@ -261,31 +314,41 @@
     (fn [{:keys [article-id key filename]}]
       [:div
        (when-not @confirming?
-         [:div.ui.buttons
-          [PDFModal {:trigger [:a.ui.button {:on-click #(.preventDefault %)}
-                               [:i.expand.icon] filename]}
+         [:div
+          [PDFModal
+           {:trigger [:a.ui.labeled.icon.button
+                      {:on-click (util/wrap-user-event
+                                  #(do nil))}
+                      [:i.expand.icon] filename]}
            [ViewPDF (view-s3-pdf-url article-id key filename)]]
-          [:a.ui.button
+          [:a.ui.labeled.icon.button
            {:href (str "/api/files/article/" article-id
                        "/download/" key "/" filename)
             :target "_blank"
             :download filename}
+           [:i.download.icon]
            "Download"]
-          [:a.ui.icon.button
-           {:on-click #(reset! confirming? true)}
+          [:button.ui.icon.button
+           {:on-click (util/wrap-user-event
+                       #(reset! confirming? true))}
            [:i.times.icon]]])
        (when @confirming?
-         [:div.ui.negative.message
+         [:div.ui.negative.message.delete-pdf
           [:div.header
            (str "Are you sure you want to delete " filename "?")]
-          [:br]
-          [:div.ui.button
-           {:on-click
-            #(do (reset! confirming? false)
-                 (dispatch [:action [:pdf/delete-pdf article-id key filename]]))}
-0           "Yes"]
-          [:div.ui.blue.button {:on-click #(reset! confirming? false)}
-           "No"]])])))
+          [:div.ui.two.column.grid
+           [:div.column
+            [:div.ui.fluid.button
+             {:on-click (util/wrap-user-event
+                         #(do (reset! confirming? false)
+                              (dispatch [:action [:pdf/delete-pdf
+                                                  article-id key filename]])))}
+             "Yes"]]
+           [:div.column
+            [:div.ui.fluid.blue.button
+             {:on-click (util/wrap-user-event
+                         #(reset! confirming? false))}
+             "No"]]]])])))
 
 (defn ArticlePDFs [article-id]
   (let [article-pdfs @(subscribe [:article/pdfs article-id])]
@@ -307,7 +370,7 @@
       (with-loader [[:article project-id article-id]
                     [:pdf/article-pdfs project-id article-id]]
         {}
-        (let [full-size? (full-size?)
+        (let [full-size? (util/full-size?)
               inline-loader
               (fn []
                 (when (and (loading/any-loading? :only :pdf/open-access-available?)
@@ -331,27 +394,20 @@
               member? @(subscribe [:self/member?])]
           (dispatch [:require [:pdf/open-access-available?
                                project-id article-id]])
-          (when (if (or (not logged-in?)
-                        (not member?))
+          (when (if (or (not logged-in?) (not member?))
                   open-access?
                   true)
             [:div#article-pdfs.ui.segment
              {:style {:min-height "60px"}}
-             (if full-size?
-               [:div.ui.grid
-                [:div.row
-                 [:div.twelve.wide.left.aligned.column
-                  [:div.ui.small.form
-                   [OpenAccessPDF article-id]
-                   (when logged-in?
-                     [ArticlePDFs article-id])]]
+             [:div.ui.grid
+              [:div.row
+               [:div.twelve.wide.left.aligned.column
+                [:div.ui.small.form
+                 [OpenAccessPDF article-id]
+                 ;; need better permissions for PDFs, for now, simple don't allow
+                 ;; people who aren't logged in to view PDFs
                  (when logged-in?
-                   [:div.four.wide.right.aligned.column
-                    [upload-form]])]]
-               [:div.ui.small.form
-                [OpenAccessPDF article-id]
-                ;; need better permissions for PDFs, for now, simple don't allow
-                ;; people who aren't logged in to view PDFs
-                (when logged-in?
-                  [ArticlePDFs article-id]
-                  [upload-form])])]))))))
+                   [ArticlePDFs article-id])]]
+               (when logged-in?
+                 [:div.four.wide.right.aligned.column
+                  [upload-form]])]]]))))))

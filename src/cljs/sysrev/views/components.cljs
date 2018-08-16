@@ -6,7 +6,7 @@
             [cljsjs.clipboard]
             [cljsjs.dropzone]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -66,17 +66,19 @@
           ^{:key entry}
           [:a.item
            {:href (when (string? action) action)
-            :on-click (cond (and (seq? action)
-                                 (= (count action) 2))
-                            #(dispatch [:navigate
-                                        (first action) (second action)])
+            :on-click
+            (util/wrap-user-event
+             (cond (and (seq? action)
+                        (= (count action) 2))
+                   #(dispatch [:navigate
+                               (first action) (second action)])
 
-                            (vector? action)
-                            #(dispatch [:navigate action])
+                   (vector? action)
+                   #(dispatch [:navigate action])
 
-                            (string? action) nil
+                   (string? action) nil
 
-                            :else action)}
+                   :else action))}
            content])))]]])
 
 (s/def ::tab-id keyword?)
@@ -102,17 +104,19 @@
                                "active item" "item")
                              " " (if class class ""))
                  :href (when (string? action) action)
-                 :on-click (cond (and (seq? action)
-                                      (= (count action) 2))
-                                 #(dispatch [:navigate
-                                             (first action) (second action)])
+                 :on-click
+                 (util/wrap-user-event
+                  (cond (and (seq? action)
+                             (= (count action) 2))
+                        #(dispatch [:navigate
+                                    (first action) (second action)])
 
-                                 (vector? action)
-                                 #(dispatch [:navigate action])
+                        (vector? action)
+                        #(dispatch [:navigate action])
 
-                                 (string? action) nil
+                        (string? action) nil
 
-                                 :else action)}
+                        :else action))}
              content]))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (str menu-class " " (if mobile? "tiny" ""))}
@@ -146,17 +150,19 @@
                                "active item" "item")
                              " " (if class class ""))
                  :href (when (string? action) action)
-                 :on-click (cond (and (seq? action)
-                                      (= (count action) 2))
-                                 #(dispatch [:navigate
-                                             (first action) (second action)])
+                 :on-click
+                 (util/wrap-user-event
+                  (cond (and (seq? action)
+                             (= (count action) 2))
+                        #(dispatch [:navigate
+                                    (first action) (second action)])
 
-                                 (vector? action)
-                                 #(dispatch [:navigate action])
+                        (vector? action)
+                        #(dispatch [:navigate action])
 
-                                 (string? action) nil
+                        (string? action) nil
 
-                                 :else action)}
+                        :else action))}
              content]))]
     [:div.ui
      {:class
@@ -194,17 +200,19 @@
                                "active item" "item")
                              " " (if class class ""))
                  :href (when (string? action) action)
-                 :on-click (cond (and (seq? action)
-                                      (= (count action) 2))
-                                 #(dispatch [:navigate
-                                             (first action) (second action)])
+                 :on-click
+                 (util/wrap-user-event
+                  (cond (and (seq? action)
+                             (= (count action) 2))
+                        #(dispatch [:navigate
+                                    (first action) (second action)])
 
-                                 (vector? action)
-                                 #(dispatch [:navigate action])
+                        (vector? action)
+                        #(dispatch [:navigate action])
 
-                                 (string? action) nil
+                        (string? action) nil
 
-                                 :else action)}
+                        :else action))}
              content]))]
     [:div.tabbed-panel
      [:div.ui
@@ -261,24 +269,58 @@
   }"
   [{:keys [set-answer! value]}]
   ;; nil for unset, true, false
-  (let [size (if (util/full-size?) "large" "small")
-        class (str "ui " size " buttons three-state")
-        bclass (fn [secondary? selected?]
-                 (str "ui " size " "
-                      (cond (not selected?) ""
-                            secondary?        "grey"
-                            :else             "primary")
-                      " icon button"))]
-    [:div {:class class}
-     [:div.ui {:class (bclass false (false? @value))
-               :on-click #(set-answer! false)}
-      "No"]
-     [:div.ui {:class (bclass true (nil? @value))
-               :on-click #(set-answer! nil)}
-      "?"]
-     [:div.ui {:class (bclass false (true? @value))
-               :on-click #(set-answer! true)}
-      "Yes"]]))
+  (let [domid (util/random-id)]
+    (fn [{:keys [set-answer! value]}]
+      (let [size (if (util/full-size?) "large" "small")
+            class (str "ui " size " buttons three-state")
+            bclass (fn [secondary? selected?]
+                     (str "ui " size " "
+                          (cond (not selected?) ""
+                                secondary?        "grey"
+                                :else             "primary")
+                          " icon button"))
+            get-domid #(str domid "_" (pr-str %))
+            has-focus? #(-> (js/$ (str "#" (get-domid %)))
+                            (.is ":focus"))
+            set-focus #(js/setTimeout
+                        (fn []
+                          (-> (js/$ (str "#" (get-domid %)))
+                              (.focus)))
+                        25)
+            set-value-focus #(do (set-answer! %) (set-focus %))
+            render
+            (fn [bvalue]
+              (let [curval @value]
+                [:div
+                 (cond->
+                     {:id (get-domid bvalue)
+                      :class (bclass (nil? bvalue) (= curval bvalue))
+                      :on-click (util/wrap-user-event
+                                 #(set-value-focus bvalue))
+                      :on-key-down
+                      (when (= curval bvalue)
+                        #(cond (->> % .-key (in? ["Backspace" "Delete" "Del"]))
+                               (set-value-focus nil)
+                               (and (->> % .-key (= "ArrowLeft"))
+                                    (= bvalue nil))
+                               (set-value-focus false)
+                               (and (->> % .-key (= "ArrowLeft"))
+                                    (= bvalue true))
+                               (set-value-focus nil)
+                               (and (->> % .-key (= "ArrowRight"))
+                                    (= bvalue false))
+                               (set-value-focus nil)
+                               (and (->> % .-key (= "ArrowRight"))
+                                    (= bvalue nil))
+                               (set-value-focus true)
+                               :else true))}
+                     (= curval bvalue)
+                     (merge {:tabIndex "0"}))
+                 (case bvalue false "No", nil "?", true "Yes")]))]
+        [:div {:class class}
+         [render false]
+         [render nil]
+         [render true]]))))
 
 (defn three-state-selection-icons
   [on-change curval &
@@ -296,13 +338,13 @@
                       " icon button"))]
     [:div {:class class}
      [:div.ui {:class (bclass false (false? curval))
-               :on-click #(on-change false)}
+               :on-click (util/wrap-user-event #(on-change false))}
       (get icons false)]
      [:div.ui {:class (bclass true (nil? curval))
-               :on-click #(on-change nil)}
+               :on-click (util/wrap-user-event #(on-change nil))}
       (get icons nil)]
      [:div.ui {:class (bclass false (true? curval))
-               :on-click #(on-change true)}
+               :on-click (util/wrap-user-event #(on-change true))}
       (get icons true)]]))
 
 (defn true-false-nil-tag
@@ -431,26 +473,72 @@
    :default-value <string>       ; optional
    :label         <string>       ; label value
    :autofocus     <boolean>      ; should this start focused?
+   :disabled      <boolean>      ; set disabled state on input
+   :read-only     <boolean>      ; set readOnly attribute on input
   }"
-  [{:keys [error value on-mouse-up on-mouse-down on-change placeholder default-value label autofocus]}]
-  [:div {:class (cond-> "field "
-                  error (str "error"))}
-   [:label {:style {:display "block"
-                    :margin-top "0.5em"
-                    :margin-bottom "0.5em"}} label]
-   [:div.ui.form
-    [:input (cond-> {:type "text"
-                     :on-change on-change}
-              (not (nil? default-value)) (merge {:default-value default-value})
-              (and (nil? default-value)
-                   (not (nil? value))) (merge {:value @value})
-              (not (nil? placeholder)) (merge {:placeholder placeholder})
-              (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
-              (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
-              (not (nil? autofocus)) (merge {:autoFocus true}))]]
+  [{:keys [error value on-change on-mouse-up on-mouse-down
+           placeholder default-value label autofocus disabled read-only]}]
+  [:div.field
+   {:class (cond-> ""
+             error (str " error"))}
+   [:label label]
+   [:input.ui.input
+    (cond-> {:type "text"
+             :on-change on-change
+             :class (cond-> ""
+                      disabled (str " disabled"))}
+      (not (nil? default-value)) (merge {:default-value default-value})
+      (and (nil? default-value)
+           (not (nil? value)))
+      (merge {:value (if (in? [cljs.core/Atom
+                               reagent.ratom/RAtom
+                               reagent.ratom/RCursor
+                               reagent.ratom/Reaction]
+                              (type value))
+                       @value
+                       value)})
+      (not (nil? placeholder)) (merge {:placeholder placeholder})
+      (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
+      (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
+      autofocus (merge {:autoFocus true})
+      read-only (merge {:readOnly true}))]
    (when error
-     [:div {:class "ui red message"}
-      error])])
+     [:div.ui.red.message error])])
+
+(defn LabeledCheckbox
+  "Props:
+  {:checked?  <boolean>
+   :on-change <fn>      ; a fn of event
+   :label     <string>
+  }"
+  [{:keys [checked? on-change label]}]
+  [:div.ui.checkbox
+   {:style {:margin-right "0.5em"}}
+   [:input {:type "checkbox"
+            :on-change (util/wrap-user-event
+                        on-change :timeout false)
+            :checked checked?}]
+   [:label label]])
+
+(defn LabeledCheckboxField
+  "Props:
+  {:checked?  <boolean>
+   :on-change <fn>      ; a fn of event
+   :error     <string>  ; optional
+   :label     <string>
+  }"
+  [{:keys [error on-change checked? label]}]
+  [:div.field
+   {:class (when error "error")}
+   [:div.ui.checkbox
+    [:input
+     {:type "checkbox"
+      :on-change (util/wrap-user-event
+                  on-change :timeout false)
+      :checked checked?}]
+    [:label label]]
+   (when error
+     [:div.ui.red.message error])])
 
 (defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
   [:div
@@ -458,12 +546,14 @@
     {:class (str (if can-save? "" "disabled")
                  " "
                  (if saving? "loading" ""))
-     :on-click #(when (and can-save? on-save (not saving?)) (on-save))}
+     :on-click (util/wrap-user-event
+                #(when (and can-save? on-save (not saving?)) (on-save)))}
     "Save Changes"
     [:i.check.circle.outline.icon]]
    [:button.ui.right.labeled.icon.button
     {:class (if can-reset? "" "disabled")
-     :on-click #(when (and can-reset? on-reset) (on-reset))}
+     :on-click (util/wrap-user-event
+                #(when (and can-reset? on-reset) (on-reset)))}
     "Reset"
     [:i.eraser.icon]]])
 
@@ -491,10 +581,10 @@
         message])]]
    [:div
     [:button.ui.button
-     {:on-click on-confirm :class action-color}
+     {:on-click (util/wrap-user-event on-confirm) :class action-color}
      "Confirm"]
     [:button.ui.button
-     {:on-click on-cancel}
+     {:on-click (util/wrap-user-event on-cancel)}
      "Cancel"]]])
 
 (defn UploadContainer

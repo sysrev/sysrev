@@ -1,11 +1,11 @@
 (ns sysrev.views.menu
   (:require [reagent.core :as r]
             [re-frame.core :as re-frame :refer
-             [subscribe dispatch]]
+             [subscribe dispatch dispatch-sync]]
             [sysrev.loading :as loading]
             [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.views.components :refer [dropdown-menu with-tooltip]]
-            [sysrev.util :refer [full-size? mobile? nbsp]])
+            [sysrev.util :as util])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
 (defn loading-indicator []
@@ -33,8 +33,8 @@
         user-display @(subscribe [:user/display])
         admin? @(subscribe [:user/admin?])
         project-ids @(subscribe [:user/project-ids])
-        full? (full-size?)
-        mobile? (mobile?)
+        full? (util/full-size?)
+        mobile? (util/mobile?)
         dev-menu (when admin?
                    [dropdown-menu [{:content "Clear query cache"
                                     :action #(dispatch [:action [:dev/clear-query-cache]])}]
@@ -84,7 +84,12 @@
          [:div.item {:style {:width "0" :padding "0"}}]]
         [:div.right.menu
          (toggle-theme-button)
-         [:a.item.distinct {:id "log-in-link"
-                            :on-click #(dispatch [:navigate [:login]])}
+         [:a.item.distinct
+          {:id "log-in-link"
+           :on-click
+           (util/wrap-user-event
+            #(do (dispatch-sync
+                  [:set-login-redirect-url (util/get-url-path)])
+                 (dispatch [:navigate [:login]])))}
           "Log In"]
          [:div.item {:style {:width "0" :padding "0"}}]])]]))

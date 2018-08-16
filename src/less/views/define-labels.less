@@ -40,9 +40,45 @@
 }
 
 .define-labels .form.define-label {
-    max-width: 700px;
+    max-width: 600px;
     margin-left: auto;
     margin-right: auto;
+    padding-top: 1em;
+    padding-bottom: 1em;
+}
+
+@media only screen and (max-width: 900px) {
+    .define-labels {
+        .label-item {
+            > .row {
+                > .column.label-index .ui.label,
+                > .column.delete-label .ui.icon.button {
+                    font-size: 13px;
+                    min-width: 25px;
+                    min-height: 25px;
+                    padding: 0.5em;
+                    margin-top: 1.75em;
+                }
+            }
+        }
+    }
+}
+
+@media only screen and (min-width: 901px) {
+    .define-labels {
+        .label-item {
+            > .row {
+                > .column.label-index .ui.label,
+                > .column.delete-label .ui.icon.button {
+                    font-size: 14px;
+                    min-width: 35px;
+                    min-height: 35px;
+                    padding: 0.75em;
+                    margin-top: 1.6em;
+                }
+            }
+        }
+    }
 }
 
 @media only screen and (max-width: 767px) {

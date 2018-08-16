@@ -651,21 +651,24 @@
                {:keys [users-map]} (:body request)]
            (api/change-project-permissions project-id users-map))))
 
-  (POST "/api/annotation" request
+  (POST "/api/annotation/create" request
         (wrap-authorize
          request {:roles ["member"]}
-         (let [body (-> request :body)
-               {:keys [article-id selection annotation]} (:annotation-map body)
-               annotation-class (get-in body [:context :class])
-               pdf-key (get-in body [:context :pdf-key])
-               context (:context body)
+         (let [{:keys [context annotation-map]} (-> request :body)
+               {:keys [selection annotation]} annotation-map
+               {:keys [class article-id pdf-key]} context
                user-id (current-user-id request)]
-           (condp = annotation-class
+           (condp = class
              "abstract"
-             (api/save-article-annotation article-id user-id selection annotation :context context)
+             (do (assert (nil? pdf-key))
+                 (api/save-article-annotation
+                  article-id user-id selection annotation
+                  :context (:context annotation-map)))
              "pdf"
-             (api/save-article-annotation article-id user-id selection annotation :pdf-key pdf-key :context context)
-             ))))
+             (do (assert pdf-key)
+                 (api/save-article-annotation
+                  article-id user-id selection annotation
+                  :context (:context annotation-map) :pdf-key pdf-key))))))
 
   (POST "/api/annotation/update/:annotation-id" request
         (wrap-authorize
@@ -673,7 +676,14 @@
          (let [annotation-id (-> request :params :annotation-id parse-integer)
                {:keys [annotation semantic-class]} (-> request :body)
                user-id (current-user-id request)]
-           (api/update-annotation! annotation-id annotation semantic-class (parse-integer user-id)))))
+           (api/update-annotation!
+            annotation-id annotation semantic-class user-id))))
+
+  (POST "/api/annotation/delete/:annotation-id" request
+        (wrap-authorize
+         request {:roles ["member"]}
+         (let [annotation-id (-> request :params :annotation-id parse-integer)]
+           (api/delete-annotation! annotation-id))))
 
   (GET "/api/annotations/user-defined/:article-id" request
        (let [article-id (-> request :params :article-id parse-integer)]
@@ -689,12 +699,6 @@
         request {:allow-public true}
         (let [article-id (-> request :params :article-id parse-integer)]
           (api/article-abstract-annotations article-id))))
-
-  (POST "/api/annotations/delete/:annotation-id" request
-        (wrap-authorize
-         request {:roles ["member"]}
-         (let [annotation-id (-> request :params :annotation-id parse-integer)]
-           (api/delete-annotation! annotation-id))))
 
   (GET "/api/public-projects" request
        (wrap-authorize

@@ -306,18 +306,17 @@
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
       (try
-        (-> (sqlh/update :web-user)
-            (sset {:stripe-id stripe-customer-id})
-            (where [:= :user-id user-id])
-            do-execute)
+        (do (-> (sqlh/update :web-user)
+                (sset {:stripe-id stripe-customer-id})
+                (where [:= :user-id user-id])
+                do-execute)
+            {:success true})
         (catch Throwable e
-          (let [error-message (.getMessage e)]
-            (log/error (str "Error in " (util/current-function-name) ": " error-message))
-            {:error error-message}))
-        (finally {:success true}))
-      (let [error-message (str "No customer id returned by stripe.com for email: " email " and uuid: " user-uuid)]
-        (log/error (str "Error in " (util/current-function-name) ": " error-message))
-        {:error error-message}))))
+          {:error {:message "Exception in create-sysrev-stripe-customer!"
+                   :exception e}}))
+      {:error {:message
+               (str "No customer id returned by stripe.com for email: "
+                    email " and uuid: " user-uuid)}})))
 
 (defn set-user-default-project [user-id project-id]
   (-> (sqlh/update :web-user)

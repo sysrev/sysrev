@@ -39,4 +39,4 @@
 
 @borderColor: rgba(130, 130, 130, 0.5);
 @solidBorderColor: rgba(130, 130, 130, 0.6);
-@solidInternalBorderColor: rgba(60, 60, 60, 0.2);
+@solidInternalBorderColor: rgba(70, 70, 70, 0.125);

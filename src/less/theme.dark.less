@@ -22,12 +22,10 @@
 @lightGrey: rgba(130, 130, 130, 0.7);
 
 @pageBackground : rgba(45, 45, 45, 1.0);
-@background: lighten(@pageBackground, 4);
+@background: lighten(@pageBackground, 3);
 @menuBackground: lighten(@pageBackground, 2);
-@background1: lighten(@pageBackground, 8);
-@background2: lighten(@pageBackground, 16);
-@background01: lighten(@pageBackground, 6);
-@background02: lighten(@pageBackground, 12);
+@background1: lighten(@pageBackground, 6);
+@background2: lighten(@pageBackground, 10);
 @partialSegmentBackground: lighten(@pageBackground, 1);
 
 @blueBackground: fade(screen(@background, rgba(50,100,160,1.0)),30%);
@@ -36,7 +34,8 @@
 @purpleBackground: fade(screen(@background, rgba(100,60,140,1.0)),30%);
 @warningBackground: @redBackground;
 
-@inputBackground: @background;
+@inputBackground: rgba(245,245,245,1.0);
+@disabledInputBackground: rgba(210,210,210,1.0);
 
 // Dark control elements
 /*
@@ -99,5 +98,14 @@
             background-color: @greyButtonBackground;
             color: @lightText;
         }
+    }
+}
+
+.ui.checkbox {
+    input:focus~label,
+    input:hover~label,
+    > label:hover,
+    > label:active {
+        color: @text;
     }
 }

@@ -89,8 +89,7 @@
         search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)
         pmids-count (:count (pubmed/get-search-query-response search-term 1)) ]
     (cond (> pmids-count max-import-articles)
-          {:error {:status internal-server-error
-                   :message (format "Too many PMIDs from search (max %d; got %d)"
+          {:error {:message (format "Too many PMIDs from search (max %d; got %d)"
                                     max-import-articles pmids-count)}}
 
           (not (project/project-exists? project-id))
@@ -112,18 +111,15 @@
                    :threads threads)]
               (if success?
                 {:result {:success true}}
-                {:error {:status internal-server-error
-                         :message "Error during import (1)"}}))
+                {:error {:message "Error during import (1)"}}))
             (catch Throwable e
-              {:error {:status internal-server-error
-                       :message "Error during import (2)"}}))
+              {:error {:message "Error during import (2)"}}))
 
           (not (empty? search-term-sources))
           {:result {:success true}}
 
           :else
-          {:error {:status internal-server-error
-                   :message "Unknown event occurred"}})))
+          {:error {:message "Unexpected event occurred"}})))
 
 (s/def ::threads integer?)
 
@@ -144,13 +140,11 @@
       (let [pmid-vector (pubmed/parse-pmid-file file)]
         (cond (and (sequential? pmid-vector)
                    (> (count pmid-vector) max-import-articles))
-              {:error {:status internal-server-error
-                       :message (format "Too many PMIDs from file (max %d; got %d)"
+              {:error {:message (format "Too many PMIDs from file (max %d; got %d)"
                                         max-import-articles (count pmid-vector))}}
 
               (empty? pmid-vector)
-              {:error {:status internal-server-error
-                       :message "Error parsing file"}}
+              {:error {:message "Error parsing file"}}
 
               (not (project/project-exists? project-id))
               {:error {:status not-found
@@ -167,21 +161,18 @@
                        :threads threads)]
                   (if success?
                     {:result {:success true}}
-                    {:error {:status internal-server-error
-                             :message "Error during import (1)"}}))
+                    {:error {:message "Error during import (1)"}}))
                 (catch Throwable e
-                  {:error {:status internal-server-error
-                           :message "Error during import (2)"}}))
+                  {:error {:message "Error during import (2)"}}))
 
               (not (empty? filename-sources))
               {:result {:success true}}
 
               :else
-              {:error {:status forbidden
-                       :message "Unknown event occurred"}}))
+              {:error {:message "Error (unexpected event)"}}))
       (catch Throwable e
-        {:error {:status internal-server-error
-                 :message "Error parsing file"}}))))
+        {:error {:message "Exception during import"
+                 :exception e}}))))
 
 (defn import-articles-from-endnote-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
@@ -205,11 +196,10 @@
             (not (empty? filename-sources))
             {:result {:success true}}
             :else
-            {:error {:status internal-server-error
-                     :message "Unknown event occurred"}})
+            {:error {:message "Error (unexpected event)"}})
       (catch Throwable e
-        {:error {:status internal-server-error
-                 :message (.getMessage e)}}))))
+        {:error {:message "Exception during import"
+                 :exception e}}))))
 
 (defn import-articles-from-pdf-zip-file
   "Import PDFs from pdf zip file. A pdf zip file is a file which contains pdfs. Each pdf will create its own article entry with the simply the name of the pdf as a title."
@@ -233,11 +223,10 @@
             (not (empty? filename-sources))
             {:result {:success true}}
             :else
-            {:error {:status internal-server-error
-                     :message "Unknown event occurred"}})
+            {:error {:message "Error (unexpected event)"}})
       (catch Throwable e
-        {:error {:status internal-server-error
-                 :message (.getMessage e)}}))))
+        {:error {:message "Exception during import"
+                 :exception e}}))))
 
 (defn project-sources
   "Return sources for project-id"
@@ -246,7 +235,7 @@
     {:result {:success true
               :sources (sources/project-sources project-id)}}
     {:error {:status not-found
-             :mesaage (str "project-id " project-id  " not found")}}))
+             :message (str "project-id " project-id  " not found")}}))
 
 (s/fdef project-sources
         :args (s/cat :project-id int?)
@@ -308,7 +297,7 @@
       (isa? (type db-result) Throwable)
       {:error
        {:status 500
-        :message "An error occurred while creating account"
+        :message "Exception occurred while creating account"
         :exception db-result}}
       (true? db-result)
       (do
@@ -386,8 +375,8 @@
       (do (stripe/cancel-subscription! id)
           (support-project user project-id amount))
       ;; something we hadn't planned for happened
-      :else {:status internal-server-error
-             :message "Unexpected outcome"})))
+      :else
+      {:error {:message "Unexpected event in support-project"}})))
 
 (defn current-project-support-level
   "The current level of support of this user for project-id"
@@ -586,8 +575,9 @@
   (try
     (response/response (ByteArrayInputStream. (s3store/get-file key)))
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error
+       {:message "Exception in label-count-data"
+        :exception e}})))
 
 (defn view-s3-pdf
   [key]
@@ -595,8 +585,9 @@
     {:headers {"Content-Type" "application/pdf"}
      :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error
+       {:message "Exception in view-s3-pdf"
+        :exception e}})))
 
 (defn save-article-pdf
   "Handle saving a file on S3 and the associated accounting with it"
@@ -619,13 +610,13 @@
                {:result {:success true
                          :key hash}})
            (catch Throwable e
-             {:error {:status internal-server-error
-                      :message (.getMessage e)}}))
+             {:error {:message "error (associate article file)"
+                      :exception e}}))
       ;; there is a file. but not with this filename
       (and (nil? s3-id)
            (files/s3-has-key? hash))
       (try
-        (let [;; create the association between this file name and
+        (let [ ;; create the association between this file name and
               ;; the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
@@ -635,8 +626,8 @@
           {:result {:success true
                     :key hash}})
         (catch Throwable e
-          {:error {:status internal-server-error
-                   :message (.getMessage e)}}))
+          {:error {:message "error (associate filename)"
+                   :exception e}}))
       ;; the file does not exist in our s3 store
       (and (nil? s3-id)
            (not (files/s3-has-key? hash)))
@@ -652,10 +643,10 @@
           {:result {:success true
                     :key hash}})
         (catch Throwable e
-          {:error {:status internal-server-error
-                   :message (.getMessage e)}}))
-      :else {:error {:status internal-server-error
-                     :message "Unknown Processing Error Occurred."}})))
+          {:error {:message "error (store file)"
+                   :exception e}}))
+      :else
+      {:error {:message "error (unexpected event)"}})))
 
 (defn open-access-pdf
   [article-id key]
@@ -702,7 +693,8 @@
        {:available? false}})))
 
 (defn article-pdfs
-  "Given an article-id, return a vector of maps that correspond to the files associated with article-id"
+  "Given an article-id, return a vector of maps that correspond to the files
+  associated with article-id"
   [article-id]
   (let [pmcid (-> article-id
                   articles/article-pmcid)
@@ -716,32 +708,36 @@
                                           false))))}}))
 
 (defn dissociate-pdf-article
-  "Given an article-id, file key and filename remove the association between it and this article"
+  "Remove the association between an article and PDF file."
   [article-id key filename]
   (try (do (files/dissociate-file-from-article article-id key filename)
            {:result {:success true}})
        (catch Throwable e
-         {:error internal-server-error
-          :message (.getMessage e)})))
+         {:error
+          {:message "Exception in dissociate-pdf-article"
+           :exception e}})))
 
 (defn process-annotation-context
   "Convert the context annotation to the one saved on the server"
   [context article-id]
   (let [text-context (:text-context context)
-        article-field-match (db-annotations/text-context-article-field-match text-context article-id)]
+        article-field-match (db-annotations/text-context-article-field-match
+                             text-context article-id)]
     (cond-> context
-      ;; the text-context
-      (not= text-context article-field-match) (assoc :text-context {:article-id article-id
-                                                                    :field article-field-match})
+      (not= text-context article-field-match)
+      (assoc :text-context {:article-id article-id
+                            :field article-field-match})
+
       true (select-keys [:start-offset :end-offset :text-context]))))
 
 (defn save-article-annotation
   [article-id user-id selection annotation & {:keys [pdf-key context]}]
   (try
-    (let [annotation-id (db-annotations/create-annotation! selection
-                                                           annotation
-                                                           (process-annotation-context context article-id)
-                                                           article-id)]
+    (let [annotation-id
+          (db-annotations/create-annotation!
+           selection annotation
+           (process-annotation-context context article-id)
+           article-id)]
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
       (when pdf-key
@@ -750,8 +746,8 @@
       {:result {:success true
                 :annotation-id annotation-id}})
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error {:message "Exception in save-article-annotation"
+               :exception e}})))
 
 (defn user-defined-annotations
   [article-id]
@@ -760,19 +756,19 @@
       {:result {:success true
                 :annotations annotations}})
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error {:message "Exception in user-defined-annotations"
+               :exception e}})))
 
 (defn user-defined-pdf-annotations
   [article-id pdf-key]
   (try (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)
-             annotations (db-annotations/user-defined-article-pdf-annotations article-id
-                                                                              s3store-id)]
+             annotations (db-annotations/user-defined-article-pdf-annotations
+                          article-id s3store-id)]
          {:result {:success true
                    :annotations annotations}})
        (catch Throwable e
-         {:error internal-server-error
-          :message (.getMessage e)})))
+         {:error {:message "Exception in user-defined-pdf-annotations"
+                  :exception e}})))
 
 (defn delete-annotation!
   [annotation-id]
@@ -782,8 +778,8 @@
       {:result {:success true
                 :annotation-id annotation-id}})
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error {:message "Exception in delete-annotation!"
+               :exception e}})))
 
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
@@ -794,13 +790,15 @@
         (db-annotations/update-annotation! annotation-id annotation semantic-class)
         {:result {:success true
                   :annotation-id annotation-id
-                  :annotation annotation}})
+                  :annotation annotation
+                  :semantic-class semantic-class}})
       {:result {:success false
                 :annotation-id annotation-id
-                :annotation annotation}})
+                :annotation annotation
+                :semantic-class semantic-class}})
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error {:message "Exception in update-annotation!"
+               :exception e}})))
 
 (defn pdf-download-url
   [article-id filename key]
@@ -829,9 +827,12 @@
                  (let [text-context (get-in result [:context :text-context])
                        field (:field text-context)]
                    (if (map? text-context)
-                     (assoc-in result [:context :text-context] (get result (keyword field)))
-                     (assoc-in result [:context :text-context] text-context)))))
-         (mapv #(select-keys % [:selection :annotation :semantic-class :pmid :article-id :pdf-source :context])))))
+                     (assoc-in result [:context :text-context]
+                               (get result (keyword field)))
+                     (assoc-in result [:context :text-context]
+                               text-context)))))
+         (mapv #(select-keys % [:selection :annotation :semantic-class
+                                :pmid :article-id :pdf-source :context])))))
 
 (defn change-project-permissions [project-id users-map]
   (try
@@ -841,8 +842,8 @@
         (project/set-member-permissions project-id user-id perms))
       {:result {:success true}})
     (catch Throwable e
-      {:error internal-server-error
-       :message (.getMessage e)})))
+      {:error {:message "Exception in change-project-permissions"
+               :exception e}})))
 
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})

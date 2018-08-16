@@ -132,6 +132,11 @@
  :<- [::identity]
  (fn [identity] (:settings identity)))
 
+(reg-sub
+ :self/dark-theme?
+ :<- [:self/settings]
+ (fn [settings] (-> settings :ui-theme (= "Dark"))))
+
 (def-action :user/change-settings
   :uri (fn [_] "/api/change-user-settings")
   :content (fn [changes] {:changes changes})

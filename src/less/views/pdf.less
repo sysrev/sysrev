@@ -1,0 +1,43 @@
+div.view-pdf {
+    div.navigate {
+        margin-bottom: 1em;
+
+        h5.ui.header.page-status {
+            margin: 0;
+            display: inline-block;
+            padding: 0 0.5em 0 0.5em;
+            min-width: 9em;
+            text-align: center;
+        }
+    }
+}
+
+/*
+ * Make sure modal stays large enough to cover screen during re-render.
+ */
+div.view-pdf.rendering {
+    min-height: 150em;
+}
+
+div.pdf-container {
+    position: relative;
+
+    > div.page {
+    }
+
+    div.textLayer {
+        border: 1px solid #444444;
+        border-radius: 4px;
+        margin: -1px;
+    }
+}
+
+div.ui.message.delete-pdf {
+    > .ui.grid {
+        margin: 1em -0.5em 0 -0.5em;
+
+        > .column {
+            padding: 0 0.5em 0 0.5em;
+        }
+    }
+}

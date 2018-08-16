@@ -513,23 +513,29 @@
 
 (defn label-answer-valid? [label-id answer]
   (let [label (get (all-labels-cached) label-id)]
-    (boolean
-     (case (:value-type label)
-       "boolean"
-       (in? [true false nil] answer)
-       "categorical"
-       (cond (nil? answer)
-             true
-             (sequential? answer)
-             (let [allowed (-> label :definition :all-values)]
-               (every? (in? allowed) answer))
-             :else false)
-       ;; TODO check that answer value matches label regex
-       "string" (and (not (nil? answer))
-                     (coll? answer)
-                     (every? string? answer)
-                     (every? not-empty answer))
-       true))))
+    (case (:value-type label)
+      "boolean"
+      (when (in? [true false nil] answer)
+        {label-id answer})
+      "categorical"
+      (cond (nil? answer)
+            {label-id answer}
+            (sequential? answer)
+            (let [allowed (-> label :definition :all-values)]
+              (when (every? (in? allowed) answer)
+                {label-id answer}))
+            :else nil)
+      ;; TODO check that answer value matches label regex
+      "string" (when (coll? answer)
+                 (let [filtered (->> answer
+                                     (filter string?)
+                                     (filterv not-empty))]
+                   (cond (empty? filtered)
+                         {label-id nil}
+                         (every? string? filtered)
+                         {label-id filtered}
+                         :else nil)))
+      {label-id answer})))
 
 (defn label-answer-inclusion [label-id answer]
   (let [label (get (all-labels-cached) label-id)
@@ -559,11 +565,11 @@
 
 (defn filter-valid-label-values [label-values]
   (->> label-values
-       (filterv
+       (mapv
         (fn [[label-id answer]]
           (label-answer-valid? label-id answer)))
-       (apply concat)
-       (apply hash-map)))
+       (remove nil?)
+       (apply merge)))
 
 ;; TODO: check that all required labels are answered
 (defn set-user-article-labels
@@ -1125,18 +1131,19 @@
 (defn used-label?
   "Has a label been set for an article?"
   [label-id]
-  (if (= java.util.UUID
-         (type label-id))
+  (cond
+    ;; string value implies label is not yet created (?)
+    (string? label-id) false
+
+    (uuid? label-id)
     (boolean (> (count (-> (select :article_id)
                            (from :article_label)
                            (where [:= :label_id label-id])
                            (do-query)))
                 0))
-    ;; label-id must be a UUID, otherwise above will throw an error
-    ;; safe to assume that it hasn't been used if its label-id isn't
-    ;; of the correct type
-    false
-    ))
+
+    :else
+    (throw (Exception. "used-label? - invalid label-id value"))))
 
 (defn boolean-or-nil?
   "Is the value supplied boolean or nil?"
@@ -1147,7 +1154,8 @@
 (defn every-boolean-or-nil?
   "Is every value boolean or nil?"
   [value]
-  (every? boolean-or-nil? value))
+  (and (seqable? value)
+       (every? boolean-or-nil? value)))
 
 (defn editable-value-type?
   "If the label-id is a string (i.e. it doesn't yet exist on the server), the label hasn't been set for an article, or the value-type is the same as what exists on the server, return true. Otherwise, return false"
@@ -1178,41 +1186,36 @@
                                         [:definition :all-values])))))
 
 (def boolean-definition-validations
-  {:inclusion-values [[v/required
-                       :message "Inclusion values must be included"]
-                      [every-boolean-or-nil?
-                       :message "Inclusion values must be boolean or nil"]]})
+  {:inclusion-values
+   [[every-boolean-or-nil?
+     :message "[Error] Invalid value for \"Inclusion Values\""]]})
 
 (def string-definition-validations
-  {:multi?     [[v/required
-                 :message "Allow multiple values responses must be set"]
-                [boolean-or-nil?
-                 :message "Allow multiple values must be true, false or nil"]]
+  {:multi?     [[boolean-or-nil?
+                 :message "[Error] Invalid value for \"Multiple Values\""]]
 
    :examples   [[v/every string?
-                 :message "Examples must be strings"]]
+                 :message "[Error] Invalid value for \"Examples\""]]
 
    :max-length [[v/required
-                 :message "Max Length must be provided"]
+                 :message "Max length must be provided"]
                 [v/integer
-                 :message "Max length must be defined by an integer"]]
+                 :message "Max length must be an integer"]]
 
    :entity     [[v/string
-                 :message "Entity must be defined by a string"]]})
+                 :message "[Error] Invalid value for \"Entity\""]]})
 
 (defn categorical-definition-validations
   [definition label-id]
-  {:multi? [[v/required
-             :message "A setting for multiple responses must be made"]
-            [boolean-or-nil?
+  {:multi? [[boolean-or-nil?
              :message "Allow multiple values must be true, false or nil"]]
 
    :all-values [[v/required
-                 :message "A category must have defined options"]
+                 :message "Category options must be provided"]
                 [sequential?
-                 :message "Categories must be within a sequence"]
+                 :message "[Error] Categories value is non-sequential"]
                 [v/every string?
-                 :message "All options must be strings"]
+                 :message "[Error] Invalid value for \"Categories\""]
                 [(partial only-deleteable-all-values-removed? label-id)
                  :message
                  (str "An option can not be removed from a category if
@@ -1223,59 +1226,55 @@
                                               [:definition :all-values]))))]]
 
    :inclusion-values [[sequential?
-                       :message "Inclusion values must be within a sequence"]
-                      [v/every #(contains? (set (:all-values definition)) %)
-                       :message "All inclusion values must be within categories"]
+                       :message "[Error] Inclusion Values is non-sequential"]
                       [v/every string?
-                       :message "All inclusion values must be strings"]]})
+                       :message "[Error] Invalid value for \"Inclusion Values\""]
+                      [v/every #(contains? (set (:all-values definition)) %)
+                       :message "Inclusion values must each be present in list of categories"]]})
 
 (defn label-validations
   "Given a label, return a validation map for it"
   [{:keys [value-type definition label-id]}]
   {:value-type [[v/required
-                 :message "A label must have a type"]
+                 :message "[Error] Label type is not set"]
                 [v/string
-                 :message "Label type must be a string"]
+                 :message "[Error] Invalid value for label type (non-string)"]
                 [(partial contains? (set valid-label-value-types))
-                 :message (str "A label must of type "
-                               (str/join "," (rest valid-label-value-types)) " or " (first valid-label-value-types))]
+                 :message "[Error] Invalid value for label type (option not valid)"]
                 [(partial editable-value-type? label-id)
-                 :message (str "You can not change the type of label if a user has already labeled an article with it. "
-                               ;; get-label-by-id might encounter an error because a label with label-id doesn't exist on the server
-                               (when-not (string? label-id)
-                                 (str "The label was originally a "
-                                      (:value-type (get-label-by-id label-id))
-                                      " and has been set as "
-                                      value-type)))
-                 ]]
+                 :message
+                 (str "You can not change the type of label if a user has already labeled an article with it. "
+                      ;; get-label-by-id might encounter an error because a label with label-id doesn't exist on the server
+                      (when-not (string? label-id)
+                        (str "The label was originally a "
+                             (:value-type (get-label-by-id label-id))
+                             " and has been set as "
+                             value-type)))]]
 
    :project-id [[v/required
-                 :message "Project ID must not be blank"]
+                 :message "[Error] Project ID not set"]
                 [v/integer
-                 :message "Project ID must be an integer"]]
+                 :message "[Error] Project ID is not integer"]]
 
    ;; these are going to be generated by the client so shouldn't
    ;; be blank, checking anyway
    :name [[v/required
-           :message "Name must not be blank"]
+           :message "Label name must be provided"]
           [v/string
-           :message "Name must be a string"]]
+           :message "[Error] Invalid value for \"Label Name\""]]
 
    :question [[v/required
-               :message "Question can not be blank"]
+               :message "Question text must be provided"]
               [v/string
-               :message "Question must be a string"]]
+               :message "[Error] Invalid value for \"Question\""]]
 
    :short-label [[v/required
-                  :message "Label must have a name"]
+                  :message "Display name must be provided"]
                  [v/string
-                  :message "Label must be a string"]]
-
-   :inclusion-values [[boolean-or-nil?
-                       :message "Inclusion must be true, false or nil"]]
+                  :message "[Error] Invalid value for \"Display Name\""]]
 
    :required [[boolean-or-nil?
-               :message "Required must be true, false or nil"]]
+               :message "[Error] Invalid value for \"Required\""]]
 
    ;; each value-type has a different definition
    :definition (condp = value-type

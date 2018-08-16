@@ -7,8 +7,9 @@
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.annotation :as annotation :refer [AnnotatedText AnnotationCapture AnnotationToggleButton AnnotationMenu]]
+            [sysrev.annotation :as annotation]
             [sysrev.pdf :as pdf :refer [PDFs]]
+            [sysrev.views.annotator :as annotator]
             [sysrev.views.components :refer [out-link document-link]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer
@@ -102,7 +103,7 @@
        (map first)))
 
 (defn get-annotations
-  "Get annotations with a delay of seconds, defaults to 30"
+  "Get annotations with a delay of seconds"
   [article-id & {:keys [delay]
                  :or {delay 3}}]
   (let [project-id @(subscribe [:active-project-id])
@@ -133,21 +134,24 @@
                                vals
                                (mapv :value)
                                (mapv #(hash-map :word %))))
-            delay 5
-            annotator-enabled? (r/cursor annotation/abstract-annotator-state
-                                         [:annotator-enabled?])]
+            annotator-context
+            {:class "abstract"
+             :project-id project-id
+             :article-id article-id}
+            annotator-enabled?
+            @(subscribe [:annotator/enabled? annotator-context])]
         (when (= context :article-list)
-          (get-annotations article-id :delay delay))
-        [AnnotationCapture
-         annotation/abstract-annotator-state
+          (get-annotations article-id))
+        [annotator/AnnotationCapture
+         annotator-context
          [:div
           [:h3.header
            (when-not (empty? title)
-             (if @annotator-enabled?
+             (if annotator-enabled?
                title
-               [AnnotatedText title annotations
-                (if (= context
-                       :review)
+               [annotation/AnnotatedText
+                title annotations
+                (if (= context :review)
                   "underline green"
                   "underline #909090")]))]
           (when-not (empty? journal-name)
@@ -161,13 +165,12 @@
             [:h5.header {:style {:margin-top "0px"}}
              (author-names-text 5 authors)])
           ;; abstract, with annotations
-
           (when-not (empty? abstract)
-            (if @annotator-enabled?
+            (if annotator-enabled?
               [:div abstract]
-              [AnnotatedText abstract annotations
-               (if (= context
-                      :review)
+              [annotation/AnnotatedText
+               abstract annotations
+               (when (= context :review)
                  "underline green")]))
           (when-not (empty? documents)
             [:div {:style {:padding-top "0.75em"}}
@@ -237,11 +240,11 @@
         status @(subscribe [:article/review-status article-id])
         full-size? (full-size?)
         score @(subscribe [:article/score article-id])
-        duplicates @(subscribe [:article/duplicates article-id])]
-    ;; get the user-defined annotations
-    (dispatch [:fetch [:annotation/user-defined-annotations
-                       @(subscribe [:visible-article-id])
-                       annotation/abstract-annotator-state]])
+        duplicates @(subscribe [:article/duplicates article-id])
+        annotator-context {:class "abstract"
+                           :project-id project-id
+                           :article-id article-id}]
+    (dispatch [:require (annotator/annotator-data-item annotator-context)])
     [:div
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
@@ -257,22 +260,14 @@
               [article-disabled-label])
             (when (and score show-score? (not= status :single))
               [article-score-label score])
-            [AnnotationToggleButton annotation/abstract-annotator-state]
+            [annotator/AnnotationToggleButton annotator-context]
             [review-status-label (if private-view? :user status)]])
          [:div {:style {:clear "both"}}]]
         (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui segment"))
         [:div.ui.segment.article-content
          {:key [:article-content]}
-         [:div {:style {:top "0px"
-                        :left "0px"
-                        :height "100%"
-                        :width "10%"
-                        :z-index "100"
-                        :position "fixed"
-                        ;;:overflow-y "auto"
-                        }}
-          [AnnotationMenu annotation/abstract-annotator-state]]
+         [annotator/AnnotationMenu annotator-context "abstract"]
          [article-info-main-content article-id
           :context context]]
         ^{:key :article-pdfs}

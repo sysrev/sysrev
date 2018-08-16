@@ -13,8 +13,7 @@
             [sysrev.state.notes :as notes]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components :as ui]
-            [sysrev.util :refer
-             [full-size? mobile? desktop-size? nbsp wrap-prevent-default nbsp]]
+            [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -154,22 +153,29 @@
                   vs))
               current-values @(subscribe [:review/active-labels article-id label-id])
               dom-id (str "label-edit-" article-id "-" label-id)
-              dropdown-class (if (or (and (>= (count all-values) 25)
-                                          (desktop-size?))
-                                     (>= (count all-values) 40))
-                               "search dropdown" "dropdown")]
-          [:div.ui.fluid.multiple.selection
+              ;; TODO: is multiple search selection good for mobile?
+              #_ dropdown-class #_ (if (util/mobile-size?)
+                                     "multiple selection"
+                                     "search selection multiple")]
+          [:div.ui.small.fluid.search.selection.dropdown.multiple
            {:id dom-id
-            :class dropdown-class
+            ;; :class dropdown-class
+
+            ;;;
+            ;;; this (below) is for "multiple selection", not good for "search"
+            ;;;
             ;; hide dropdown on click anywhere in main dropdown box
-            :on-click #(when (or (= dom-id (-> % .-target .-id))
-                                 (-> (js/$ (-> % .-target))
-                                     (.hasClass "default"))
-                                 (-> (js/$ (-> % .-target))
-                                     (.hasClass "label")))
-                         (let [dd (js/$ (str "#" dom-id))]
-                           (when (.dropdown dd "is visible")
-                             (.dropdown dd "hide"))))}
+            #_ :on-click
+            #_ (util/wrap-user-event
+                #(when (or (= dom-id (-> % .-target .-id))
+                           (-> (js/$ (-> % .-target))
+                               (.hasClass "default"))
+                           (-> (js/$ (-> % .-target))
+                               (.hasClass "label")))
+                   (let [dd (js/$ (str "#" dom-id))]
+                     (when (.dropdown dd "is visible")
+                       (.dropdown dd "hide"))))
+                :timeout false)}
            [:input
             {:name (str "label-edit(" dom-id ")")
              :value (str/join "," current-values)
@@ -197,7 +203,8 @@
                     vs
                     (if (empty? vs) [""] vs))
         multi? @(subscribe [:label/multi? label-id])
-        nvals (count curvals)]
+        nvals (count curvals)
+        dom-id-for-idx #(str label-id "__" %)]
     (when (= article-id @(subscribe [:review/editing-id]))
       [:div.inner
        (doall
@@ -207,46 +214,79 @@
           (fn [i val]
             (let [left-action? true
                   right-action? (and multi? (= i (dec nvals)))
-                  valid? @(subscribe [:label/valid-string-value? label-id val])]
+                  valid? @(subscribe [:label/valid-string-value? label-id val])
+                  focus-elt (fn [value-idx]
+                              #(js/setTimeout
+                                (fn []
+                                  (some->
+                                   (-> js/document
+                                       (.getElementById (dom-id-for-idx value-idx)))
+                                   (.focus)))
+                                25))
+                  focus-prev (focus-elt (dec i))
+                  focus-next (focus-elt (inc i))
+                  can-add? (and right-action? (not-empty val))
+                  add-next (when can-add?
+                             #(do (dispatch-sync
+                                   [::extend-string-answer
+                                    article-id label-id curvals])
+                                  (focus-next)))
+                  add-next-handler (util/wrap-user-event
+                                    add-next
+                                    :prevent-default true
+                                    :stop-propagation true
+                                    :timeout false)
+                  can-delete? (not (and (= i 0)
+                                        (= nvals 1)
+                                        (empty? val)))
+                  delete-current #(do (dispatch-sync [::remove-string-value
+                                                      article-id label-id i curvals])
+                                      (focus-prev))]
               ^{:key [label-id i]}
-              [:div.ui.form.string-label
+              [:div.ui.small.form.string-label
                [:div.field.string-label
                 {:class (cond (empty? val)  ""
                               valid?        "success"
                               :else         "error")}
-                [:div.ui.fluid
+                [:div.ui.fluid.input
                  {:class
-                  (str
-                   (if left-action? "labeled" "")
-                   " " (if right-action? "right action input" "input")
-                   " ")}
+                  (cond-> ""
+                    (and left-action? right-action?)
+                    (str " labeled right action")
+                    (and left-action? (not right-action?))
+                    (str " left action"))}
                  (when left-action?
-                   [:a.ui.icon.label.input-remove
-                    {:class (if (and (= i 0)
-                                     (= nvals 1)
-                                     (empty? val)) "disabled" "")
-                     :on-click
-                     (fn [ev]
-                       (dispatch [::remove-string-value
-                                  article-id label-id i curvals]))}
-                    [:i.fitted.times.icon]])
+                   [:div.ui.label.icon.button.input-remove
+                    {:class (cond-> ""
+                              (not can-delete?) (str " disabled"))
+                     :on-click (util/wrap-user-event
+                                delete-current
+                                :prevent-default true
+                                :timeout false)}
+                    [:i.times.icon]])
                  [:input
                   {:type "text"
-                   :name (str label-id "__" i)
+                   :id (dom-id-for-idx i)
                    :value val
                    :on-change
-                   (fn [ev]
-                     (let [s (-> ev .-target .-value)]
-                       (dispatch-sync [::set-string-value
-                                       article-id label-id i s curvals])))}]
+                   (util/wrap-prevent-default
+                    (fn [ev]
+                      (let [s (-> ev .-target .-value)]
+                        (dispatch-sync [::set-string-value
+                                        article-id label-id i s curvals]))))
+                   :on-key-down
+                   #(cond (->> % .-key (= "Enter"))
+                          (if add-next (add-next) (focus-next))
+                          (and (->> % .-key (in? ["Backspace" "Delete" "Del"]))
+                               (empty? val) can-delete?)
+                          (delete-current)
+                          :else true)}]
                  (when right-action?
                    [:div.ui.icon.button.input-row
-                    {:class (if (empty? val) "disabled" "")
-                     :on-click
-                     (fn [ev]
-                       (dispatch [::extend-string-answer
-                                  article-id label-id curvals]))}
-                    [:i.fitted.plus.icon]])]]])))))])))
+                    {:class (cond-> ""
+                              (not can-add?) (str " disabled"))
+                     :on-click add-next-handler}
+                    [:i.plus.icon]])]]])))))])))
 
 (defn- inclusion-tag [article-id label-id]
   (let [criteria? @(subscribe [:label/inclusion-criteria? label-id])
@@ -263,36 +303,35 @@
                  nil    "circle outline icon")]
     (if criteria?
       [:i.left.floated.fitted {:class (str color " " iclass)}]
-      [:i.left.floated.fitted {:class "grey content icon"
-                               :style {} #_ (when-not boolean-label?
-                                              {:visibility "hidden"})}])))
+      [:i.left.floated.fitted {:class "grey content icon"}])))
 
 (defn- label-help-popup [label]
-  (when (or true (full-size?))
-    (let [{:keys [category required question definition]} label
-          criteria? (= category "inclusion criteria")
-          required? required
-          examples (:examples definition)]
-      [:div.ui.inverted.grid.popup.transition.hidden.label-help
-       [:div.middle.aligned.center.aligned.row.label-help-header
-        [:div.ui.sixteen.wide.column
-         [:span (cond (not criteria?)  "Extra label"
-                      required?        "Inclusion criteria [Required]"
-                      :else            "Inclusion criteria")]]]
-       [:div.middle.aligned.center.aligned.row.label-help-question
-        [:div.sixteen.wide.column.label-help
-         [:div [:span (str question)]]
-         (when (seq examples)
-           [:div
-            [:div.ui.small.divider]
-            [:div
-             [:strong "Examples: "]
-             (doall
-              (map-indexed
-               (fn [i ex]
-                 ^{:key i}
-                 [:div.ui.small.green.label (str ex)])
-               examples))]])]]])))
+  (let [{:keys [category required question definition]} label
+        criteria? (= category "inclusion criteria")
+        required? required
+        examples (:examples definition)]
+    [:div.ui.inverted.grid.popup.transition.hidden.label-help
+     {:on-click (util/wrap-user-event
+                 #(do nil) :timeout false)}
+     [:div.middle.aligned.center.aligned.row.label-help-header
+      [:div.ui.sixteen.wide.column
+       [:span (cond (not criteria?)  "Extra label"
+                    required?        "Inclusion criteria [Required]"
+                    :else            "Inclusion criteria")]]]
+     [:div.middle.aligned.center.aligned.row.label-help-question
+      [:div.sixteen.wide.column.label-help
+       [:div [:span (str question)]]
+       (when (seq examples)
+         [:div
+          [:div.ui.small.divider]
+          [:div
+           [:strong "Examples: "]
+           (doall
+            (map-indexed
+             (fn [i ex]
+               ^{:key i}
+               [:div.ui.small.green.label (str ex)])
+             examples))]])]]]))
 
 (reg-sub
  ::label-css-class
@@ -311,7 +350,9 @@
   (let [value-type @(subscribe [:label/value-type label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display label-id])
-        question @(subscribe [:label/question label-id])]
+        question @(subscribe [:label/question label-id])
+        on-click-help (util/wrap-user-event
+                       #(do nil) :timeout false)]
     ^{:key {:article-label [article-id label-id]}}
     [:div.ui.column.label-edit {:class label-css-class}
      [:div.ui.middle.aligned.grid.label-edit
@@ -321,14 +362,16 @@
               {:class (when (>= (count label-string) 30)
                         "small-text")}
               [:span.inner label-string]]]
-         (if (and (mobile?) (>= (count label-string) 30))
+         (if (and (util/mobile?) (>= (count label-string) 30))
            [:div.ui.row.label-edit-name
+            {:on-click on-click-help}
             [inclusion-tag article-id label-id]
             [:span.name " "]
             (when (not-empty question)
               [:i.right.floated.fitted.grey.circle.question.mark.icon])
             [:div.clear name-content]]
            [:div.ui.row.label-edit-name
+            {:on-click on-click-help}
             [inclusion-tag article-id label-id]
             name-content
             (when (not-empty question)
@@ -383,7 +426,7 @@
 
 (defn- activity-report []
   (when-let [today-count @(subscribe [:review/today-count])]
-    (if (full-size?)
+    (if (util/full-size?)
       [:div.ui.large.label.activity-report
        [:span.ui.green.circular.label today-count]
        [:span nbsp "finished today"]]
@@ -408,45 +451,48 @@
         on-review-task? @(subscribe [:review/on-review-task?])
         review-task-id @(subscribe [:review/task-id])
         on-save
-        (fn []
-          (notes/sync-article-notes article-id)
-          (dispatch
-           [:review/send-labels
-            {:project-id project-id
-             :article-id article-id
-             :confirm? true
-             :resolve? (boolean resolving?)
-             :on-success
-             (->> (list (when (or on-review-task? (= article-id review-task-id))
-                          [:fetch [:review/task project-id]])
-                        (when (not on-review-task?)
-                          [:fetch [:article project-id article-id]])
-                        (when (not on-review-task?)
-                          [:review/disable-change-labels article-id])
-                        #_
-                        (when @(subscribe [:user-labels/article-id])
-                          ;; Use setTimeout here to avoid immediately triggering
-                          ;; the :review/send-labels logic in sr-defroute before
-                          ;; state has been fully updated
-                          #(js/setTimeout
-                            (fn [] (nav-scroll-top (project-uri project-id "/user")))
-                            50)))
-                  (remove nil?))}]))
-        save-class (str (if disabled? "disabled" "")
-                        " "
-                        (if saving? "loading" "")
-                        " "
-                        (if resolving? "purple button" "primary button"))
-        on-next #(when on-review-task?
-                   (notes/sync-article-notes article-id)
-                   (dispatch [:review/send-labels
-                              {:project-id project-id
-                               :article-id article-id
-                               :confirm? false
-                               :resolve? false}])
-                   (dispatch [:fetch [:review/task project-id]]))]
+        (util/wrap-user-event
+         (fn []
+           (notes/sync-article-notes article-id)
+           (dispatch
+            [:review/send-labels
+             {:project-id project-id
+              :article-id article-id
+              :confirm? true
+              :resolve? (boolean resolving?)
+              :on-success
+              (->> (list (when (or on-review-task? (= article-id review-task-id))
+                           [:fetch [:review/task project-id]])
+                         (when (not on-review-task?)
+                           [:fetch [:article project-id article-id]])
+                         (when (not on-review-task?)
+                           [:review/disable-change-labels article-id])
+                         #_
+                         (when @(subscribe [:user-labels/article-id])
+                           ;; Use setTimeout here to avoid immediately triggering
+                           ;; the :review/send-labels logic in sr-defroute before
+                           ;; state has been fully updated
+                           #(js/setTimeout
+                             (fn [] (nav-scroll-top (project-uri project-id "/user")))
+                             50)))
+                   (remove nil?))}])))
+        save-class (cond-> ""
+                     disabled?        (str " disabled")
+                     saving?          (str " loading")
+                     resolving?       (str " purple")
+                     (not resolving?) (str " primary"))
+        on-next
+        (util/wrap-user-event
+         #(when on-review-task?
+            (notes/sync-article-notes article-id)
+            (dispatch [:review/send-labels
+                       {:project-id project-id
+                        :article-id article-id
+                        :confirm? false
+                        :resolve? false}])
+            (dispatch [:fetch [:review/task project-id]])))]
     [:div.ui.segment
-     (if (full-size?)
+     (if (util/full-size?)
        [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
         [ui/CenteredColumn
          (when on-review-task?
@@ -456,7 +502,7 @@
          [:div.ui.grid.centered
           [:div.ui.row
            (let [save-button
-                 [:div.ui.right.labeled.icon
+                 [:button.ui.right.labeled.icon.button
                   {:class save-class
                    :on-click on-save}
                   (if resolving? "Resolve Labels" "Save Labels")
@@ -467,7 +513,7 @@
            [:div.ui.inverted.popup.top.left.transition.hidden
             "Answer missing for a required label"]
            (when on-review-task?
-             [:div.ui.right.labeled.icon.button
+             [:button.ui.right.labeled.icon.button
               {:class (if loading-task? "loading" "")
                :on-click on-next}
               "Skip Article"
@@ -485,7 +531,7 @@
          [:div.ui.center.aligned.grid
           [:div.ui.row
            (let [save-button
-                 [:div.ui.small
+                 [:button.ui.small.button
                   {:class save-class
                    :on-click on-save}
                   (if resolving? "Resolve" "Save")
@@ -496,7 +542,7 @@
            [:div.ui.inverted.popup.top.left.transition.hidden
             "Answer missing for a required label"]
            (when on-review-task?
-             [:div.ui.small.button
+             [:button.ui.small.button
               {:class (if loading-task? "loading" "")
                :on-click on-next}
               "Skip"
@@ -516,7 +562,9 @@
           (let [change-set? @(subscribe [:review/change-labels? article-id])
                 label-ids @(subscribe [:project/label-ids])
                 resolving? @(subscribe [:review/resolving?])
-                n-cols (cond (full-size?) 4 (mobile?) 2 :else 3)
+                n-cols (cond (util/full-size?) 4
+                             (util/mobile?)    2
+                             :else             3)
                 n-cols-str (case n-cols 4 "four" 2 "two" 3 "three")
                 make-label-columns
                 (fn [label-ids n-cols]
@@ -545,15 +593,14 @@
                [:div.ui.right.aligned.column
                 [:a.ui.tiny.icon.button
                  {:href (project-uri project-id "/labels/edit")
-                  :class (if (full-size?) "right labeled" nil)
-                  :on-click
-                  (wrap-prevent-default
-                   #(nav-scroll-top (project-uri project-id "/labels/edit")))}
+                  :class (if (util/full-size?) "right labeled" nil)
+                  :tabIndex "-1"}
                  [:i.sliders.horizontal.icon]
-                 (when (full-size?) "Definitions")]
+                 (when (util/full-size?) "Definitions")]
                 (when change-set?
                   [:div.ui.tiny.button
-                   {:on-click #(dispatch [:review/disable-change-labels article-id])}
+                   {:on-click (util/wrap-user-event
+                               #(dispatch [:review/disable-change-labels article-id]))}
                    "Cancel"])]]]
              [:div.ui.label-section
               {:class (str n-cols-str " column celled grid segment")}

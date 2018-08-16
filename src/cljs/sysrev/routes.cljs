@@ -107,6 +107,7 @@
        (dispatch set-panel)
        (dispatch (project-articles/show-article article-id))
        (dispatch load-params)
+       (dispatch [:pdf/init-view-state panel])
        (dispatch [:require item])
        (dispatch [:reload item]))))
   (do
@@ -139,12 +140,14 @@
     (sr-defroute-project
      articles-id "/articles/:article-id" [project-id article-id]
      (let [project-id @(subscribe [:active-project-id])
+           panel [:project :project :articles]
            article-id (parse-integer article-id)
            item [:article project-id article-id]
-           set-panel [:set-active-panel [:project :project :articles]]
+           set-panel [:set-active-panel panel]
            have-project? @(subscribe [:have? [:project project-id]])]
        (when (not have-project?)
          (dispatch set-panel))
+       (dispatch [:pdf/init-view-state panel])
        (dispatch
         [:data/after-load item :project-articles-route
          (list set-panel
@@ -174,12 +177,14 @@
     (sr-defroute-project
      project-user-article "/user/article/:article-id" [project-id article-id]
      (let [project-id @(subscribe [:active-project-id])
+           panel [:project :user :labels]
            article-id (parse-integer article-id)
            item [:article project-id article-id]
-           set-panel [:set-active-panel [:project :user :labels]]
+           set-panel [:set-active-panel panel]
            have-project? @(subscribe [:have? [:project project-id]])]
        (when (not have-project?)
          (dispatch set-panel))
+       (dispatch [:pdf/init-view-state panel])
        (dispatch
         [:data/after-load item :user-articles-route
          (list set-panel
@@ -197,12 +202,14 @@
 (sr-defroute-project
  review "/review" [project-id]
  (let [project-id @(subscribe [:active-project-id])
+       panel [:project :review]
        have-project? @(subscribe [:have? [:project project-id]])
-       set-panel [:set-active-panel [:project :review]]
+       set-panel [:set-active-panel panel]
        set-panel-after #(dispatch
                          [:data/after-load % :review-route set-panel])]
    (when (not have-project?)
      (dispatch set-panel))
+   (dispatch [:pdf/init-view-state panel])
    (let [task-id @(subscribe [:review/task-id])]
      (if (integer? task-id)
        (do (set-panel-after [:article project-id task-id])

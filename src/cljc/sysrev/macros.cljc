@@ -110,10 +110,14 @@
 (defmacro sr-defroute
   [name uri params & body]
   `(defroute ~name ~uri ~params
-     (go-route-sync-data
-      #(do (dispatch [:set-active-panel nil])
-           (dispatch [:set-active-project-url nil])
-           ~@body))))
+     (js/setTimeout
+      (fn []
+        (go-route-sync-data
+         #(do (dispatch [:set-active-panel nil])
+              (dispatch [:set-active-project-url nil])
+              ~@body
+              (sysrev.util/clear-text-selection-soon))))
+      10)))
 
 (defn lookup-project-url-id [url-id]
   (cond (integer? url-id)
@@ -136,7 +140,9 @@
                "params = " (pr-str params)))
   (let [uri (str "/p/:project-id" suburi)]
     `(defroute ~name ~uri ~params
-       (let [body-fn# (fn [] ~@body)
+       (let [body-fn# (fn []
+                        ~@body
+                        (sysrev.util/clear-text-selection-soon))
              route-fn#
              #(let [url-id# ~(first params)
                     cur-id# @(subscribe [:active-project-url])]
@@ -160,4 +166,6 @@
                     (js/setTimeout body-fn# 50)
 
                     :else (body-fn#))))]
-         (go-route-sync-data route-fn#)))))
+         (js/setTimeout
+          #(go-route-sync-data route-fn#)
+          10)))))

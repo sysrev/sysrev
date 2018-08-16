@@ -479,7 +479,7 @@
      {:style {:padding "10px"}}
      (if (not (mobile?))
        ;; non-mobile view
-       [:div.ui.small.form
+       [:form.ui.small.form
         [:div.field
          [:div.fields
           (when select-inclusion?    [inclusion-status-field "three"])
@@ -494,7 +494,7 @@
           [:div.six.wide.field]
           [:div.four.wide.field [:label nbsp] refresh-button]]]]
        ;; mobile view
-       [:div.ui.small.form
+       [:form.ui.small.form
         [:div.two.fields.mobile-group
          (when select-inclusion?    [inclusion-status-field nil])
          (when select-group-status? [group-status-field nil])
@@ -502,7 +502,8 @@
         [:div.two.fields.mobile-group
          [label-field nil]
          [answer-value-field nil (not select-answer?)]]
-        [search-field nil]
+        [:div.fields
+         [search-field "sixteen"]]
         [:div.two.fields.mobile-group
          [:div.field refresh-button]
          [:div.field reset-button]]])]))

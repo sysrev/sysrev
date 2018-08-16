@@ -136,17 +136,6 @@
               (when (not (func (k data))) [k message])))
        (into (hash-map))))
 
-(defn wrap-prevent-default
-  "Wraps an event handler function to prevent execution of a default
-  event handler. Tested for on-submit event."
-  [f]
-  (fn [event]
-    (f event)
-    (when (.-preventDefault event)
-      (.preventDefault event))
-    #_ (set! (.-returnValue event) false)
-    false))
-
 (defn time-from-epoch [epoch]
   (tc/from-long (* epoch 1000)))
 
@@ -236,16 +225,161 @@
         js/isNaN
         not)))
 
-(defn get-input-value
+(defn event-input-value
   [event]
-  (-> event
-      ($ :target)
-      ($ :value)))
+  (-> event ($ :target) ($ :value)))
 
 (defn vector->hash-map
   "Convert a vector into a hash-map with keys that correspond to the val of kw in each element"
   [v kw]
   (->> v
-       (map #(hash-map (kw %)
-                       %))
+       (map #(hash-map (kw %) %))
        (apply merge)))
+
+;; https://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
+(defn clear-text-selection
+  "Clears any user text selection in window."
+  []
+  (cond
+    (-> js/window .-getSelection)
+    (do (cond (-> js/window (.getSelection) .-empty) ;; Chrome
+              (-> js/window (.getSelection) (.empty))
+
+              (-> js/window (.getSelection) .-removeAllRanges) ;; Firefox
+              (-> js/window (.getSelection) (.removeAllRanges))))
+
+    (-> js/document .-selection) ;; IE?
+    (-> js/document .-selection (.empty))))
+
+(defn clear-text-selection-soon
+  "Runs clear-text-selection after short js/setTimeout delays."
+  []
+  (doseq [ms [5 25 50]]
+    (js/setTimeout #(clear-text-selection) ms)))
+
+(defn wrap-prevent-default
+  "Wraps an event handler function to prevent execution of a default
+  event handler. Tested for on-submit event."
+  [f]
+  (when f
+    (fn [event]
+      (f event)
+      (when (.-preventDefault event)
+        (.preventDefault event))
+      #_ (set! (.-returnValue event) false)
+      false)))
+
+(defn wrap-stop-propagation
+  [f]
+  (when f
+    (fn [event]
+      (when (.-stopPropagation event)
+        ($ event stopPropagation))
+      (f event))))
+
+(defn wrap-user-event
+  "Wraps an event handler for an event triggered by a user click.
+
+  Should be used for all such events (e.g. onClick, onSubmit).
+
+  Handles issue of unintentional text selection on touchscreen devices.
+
+  {
+    f :
+      Base event handler function; `(fn [event] ...)`
+      `wrap-user-event` will return nil when given nil value for `f`.
+    timeout :
+      When true (default), runs inner handler via `js/setTimeout`.
+      This breaks (at least) ability to access `(.-target event)`.
+      Set as false if handler accesses `.-target` or has other issues.
+    prevent-default :
+      Adds wrap-prevent-default at outermost level of handler.
+    stop-propagation :
+      Adds `(.stopPropagation event)` before inner handler executes.
+    clear-text-after :
+      When true (default), runs `(clear-text-selection-soon)` after
+      inner handler executes.
+    clear-text-before :
+      When true, runs `(clear-text-selection)` before inner handler executes.
+      Defaults to true when `timeout` is set to false.
+  }"
+  [f & {:keys [timeout prevent-default stop-propagation
+               clear-text-after clear-text-before]
+        :or {timeout true
+             prevent-default false
+             stop-propagation false
+             clear-text-after true
+             clear-text-before nil}}]
+  (when f
+    (let [clear-text-before (if (boolean? clear-text-before)
+                              clear-text-before
+                              (not timeout))
+          wrap-handler
+          (fn [event]
+            (when clear-text-before
+              (clear-text-selection))
+            (let [result (f event)]
+              (when clear-text-after
+                (clear-text-selection-soon))
+              result))]
+      (cond->
+          (fn [event]
+            ;; Add short delay before processing event to allow touchscreen
+            ;; events to resolve.
+            (if timeout
+              (do (js/setTimeout #(wrap-handler event) 20)
+                  #_ (js/setTimeout #(f event) 20)
+                  true)
+              (wrap-handler event))
+            true)
+          stop-propagation (wrap-stop-propagation)
+          prevent-default (wrap-prevent-default)))))
+
+;; https://www.kirupa.com/html5/get_element_position_using_javascript.htm
+(defn get-element-position [el]
+  (letfn [(get-position [el x y]
+            (let [next-el ($ el :offsetParent)
+                  [next-x next-y]
+                  (if (= ($ el :tagName) "BODY")
+                    (let [xscroll (if (number? ($ el :scrollLeft))
+                                    ($ el :scrollLeft)
+                                    (-> ($ js/document :documentElement)
+                                        ($ :scrollLeft)))
+                          yscroll (if (number? ($ el :scrollTop))
+                                    ($ el :scrollTop)
+                                    (-> ($ js/document :documentElement)
+                                        ($ :scrollTop)))]
+                      [(+ x
+                          ($ el :offsetLeft)
+                          (- xscroll)
+                          ($ el :clientLeft))
+                       (+ y
+                          ($ el :offsetTop)
+                          (- yscroll)
+                          ($ el :clientTop))])
+                    [(+ x
+                        ($ el :offsetLeft)
+                        (- ($ el :scrollLeft))
+                        ($ el :clientLeft))
+                     (+ y
+                        ($ el :offsetTop)
+                        (- ($ el :scrollTop))
+                        ($ el :clientTop))])]
+              (if (or (nil? next-el) (undefined? next-el))
+                {:top next-y :left next-x}
+                (get-position next-el next-x next-y))))]
+    (when-not (or (nil? el) (undefined? el))
+      (get-position el 0 0))))
+
+(defn get-scroll-position []
+  {:top  (or ($ js/window :pageYOffset)
+             (-> ($ js/document :documentElement)
+                 ($ :scrollTop)))
+   :left (or ($ js/window :pageXOffset)
+             (-> ($ js/document :documentElement)
+                 ($ :scrollLeft)))})
+
+(defn get-url-path []
+  (str js/window.location.pathname
+       js/window.location.search
+       js/window.location.hash))

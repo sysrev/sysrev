@@ -65,6 +65,10 @@
  (fn [db [path val & [panel]]]
    (set-panel-field db path val panel)))
 
+(defn set-view-field [db view path val & [panel]]
+  (let [panel (or panel (nav/active-panel db))]
+    (assoc-in db (concat [:state :panels panel :views view] path) val)))
+
 (reg-event-db
  :set-view-field
  [trim-v]

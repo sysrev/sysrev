@@ -19,9 +19,11 @@ div.ui.segments.label-editor-view {
     }
 }
 
-.ui.buttons.three-state .ui.button {
-    padding-top: 0.6em;
-    padding-bottom: 0.6em;
+.ui.buttons.three-state {
+    .ui.button {
+        padding-top: 0.6em;
+        padding-bottom: 0.6em;
+    }
 }
 
 .ui.celled.grid > .row > .column.label-edit {
@@ -40,6 +42,7 @@ div.ui.segments.label-editor-view {
 
     > .middle.aligned.grid {
         margin: 0px;
+        // height: 100%;
 
         .row.label-edit-name {
             padding-bottom: 6px;
@@ -72,7 +75,7 @@ div.ui.segments.label-editor-view {
 
         .row.label-edit-value {
             padding-top: 0px;
-            padding-bottom: 12px;
+            padding-bottom: 8px;
         }
         .row.label-edit-value.boolean {
             div.inner {
@@ -85,9 +88,13 @@ div.ui.segments.label-editor-view {
                 width: 100%;
             }
 
-            .ui.form.string-label .field .ui.input {
-                padding-top: 0.15em;
-                padding-bottom: 0.15em;
+            .ui.form.string-label > .field {
+                margin-bottom: 0 !important;
+
+                .ui.input {
+                    padding-top: 0.15em;
+                    padding-bottom: 0.05em;
+                }
             }
         }
         .row.label-edit-value.category {
@@ -97,6 +104,21 @@ div.ui.segments.label-editor-view {
             div.inner {
                 width: 100%;
                 margin: 0;
+                padding-top: 0.15em;
+
+                .ui.selection.dropdown {
+                    padding-bottom: 0;
+                    font-size: 12px;
+
+                    > div.menu {
+                        > div.item {
+                            font-size: 13px;
+                            color: rgba(0, 0, 0, 0.9);
+
+                            padding: 0.7rem 0.8rem 0.7rem 0.8rem !important;
+                        }
+                    }
+                }
             }
         }
         .row.label-edit-value.string, .row.label-edit-value.numeric {
@@ -105,15 +127,21 @@ div.ui.segments.label-editor-view {
         }
     }
 
-    .ui.icon.button.input-row {
-        padding: 0.5em;
+    .ui.icon.button.input-row,
+    .ui.button.input-remove {
+        font-size: 13px;
+
+        i.icon {
+            font-size: 13px;
+        }
     }
 
-    .ui.label.input-remove {
-        padding-left: 0.5em;
-        padding-right: 0.5em;
-        padding-top: 0.75em;
-        padding-bottom: 0.75em;
+    .ui.icon.button.input-row {
+        padding: 0.4em;
+    }
+
+    .ui.button.input-remove {
+        padding: 0.6em;
 
         i.icon {
             padding: 0;
@@ -178,11 +206,11 @@ div.ui.segment.labels-warning {
         margin-left: 3px;
         margin-top: 2px;
         margin-bottom: 2px;
-        font-size: 12px !important;
+        font-size: 11px !important;
     }
 
     .ui.selection.dropdown > .ui.label {
-        font-size: 12px !important;
+        font-size: 11px !important;
         padding-top: 5px;
         padding-bottom: 5px;
         padding-left: 7px;

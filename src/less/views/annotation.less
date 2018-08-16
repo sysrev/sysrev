@@ -1,0 +1,76 @@
+.ui.segments.annotation-menu {
+    height: 100%;
+    overflow-y: auto;
+
+    > .ui.segment {
+        padding-left: 0.75em;
+        padding-right: 0.75em;
+    }
+
+    > .ui.header.segment {
+        padding-top: 0.5em;
+        padding-bottom: 0.5em;
+    }
+}
+
+.ui.segments.annotation-menu.abstract {
+    top: 0px;
+    left: 0px;
+    width: 260px;
+    z-index: 100;
+    position: fixed;
+
+    border-radius: 0;
+    border-top-width: 0;
+    border-left-width: 0;
+    border-bottom-width: 0;
+}
+
+.ui.segments.annotation-menu.pdf {
+    width: 100%;
+    margin-top: -1px;
+}
+
+.ui.button.add-annotation-popup {
+    // position: relative;
+    position: absolute;
+    z-index: 100;
+    display: block !important;
+    font-size: 15px;
+    min-width: 160px;
+    text-align: center;
+    margin: 0;
+}
+
+.ui.button.add-annotation-popup.dark-theme {
+}
+
+.annotation-view {
+    .ui.form.edit-annotation,
+    .ui.form.view-annotation {
+        > div.field {
+            margin-bottom: 0.5em;
+        }
+        > div.field.buttons {
+            margin-top: 1em;
+            margin-bottom: 0;
+            > div.fields {
+                margin-bottom: 0;
+            }
+        }
+    }
+
+    .ui.form.edit-annotation {
+        input.ui.disabled {
+            background-color: @disabledInputBackground;
+            opacity: 0.95;
+        }
+    }
+
+    .ui.form.view-annotation {
+    }
+
+    .ui.label.selection-label {
+        font-size: 12px;
+    }
+}

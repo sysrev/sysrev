@@ -34,20 +34,21 @@
 ;;;; begin dom element definitions
 (def review-articles-button  {:xpath "//span[text()='Review']"})
 (def articles-button  {:xpath "//span[text()='Articles']"})
-(def save-button {:xpath "//div[contains(text(),'Save')]"})
-(def disabled-save-button {:xpath "//div[contains(text(),'Save') and contains(@class,'disabled')]"})
+(def save-button
+  {:xpath "//button[contains(@class,'labeled') and contains(text(),'Save')]"})
+(def disabled-save-button
+  {:xpath "//button[contains(@class,'disabled') and contains(text(),'Save')]"})
+(def discard-button
+  {:xpath "//button[contains(@class,'labeled') and contains(text(),'Discard')]"})
 (def label-definitions-tab {:xpath "//span[contains(text(),'Label Definitions')]"})
 ;; create new labels buttons
-(def add-boolean-label-button {:xpath "//div[contains(text(),'Add Boolean Label')]"})
-(def add-string-label-button {:xpath "//div[contains(text(),'Add String Label')]"})
-(def add-categorical-label-button {:xpath "//div[contains(text(),'Add Categorical Label')]"})
+(def add-boolean-label-button {:xpath "//button[contains(text(),'Add Boolean Label')]"})
+(def add-string-label-button {:xpath "//button[contains(text(),'Add String Label')]"})
+(def add-categorical-label-button {:xpath "//button[contains(text(),'Add Categorical Label')]"})
 ;; editing label inputs
-(def display-label-input {:xpath "//label[contains(text(),'Display Label')]/descendant::input[@type='text']"})
+(def display-label-input {:xpath "//label[contains(text(),'Display Name')]/descendant::input[@type='text']"})
 (def must-be-answered-input {:xpath "//label[contains(text(),'Must be answered?')]/descendant::input[@type='radio']"})
 (def question-input {:xpath "//label[contains(text(),'Question')]/descendant::input[@type='text']"})
-;; save / cancel labels buttons
-(def save-labels-button {:xpath "//div[contains(@class,'button') and contains(text(),'Save Labels')]"})
-(def cancel-button {:xpath "//div[contains(@class,'button') and contains(text(),'Cancel')]"})
 ;; a string xpath for a label item div with errors
 (def label-item-div-with-errors "//div[contains(@class,'error')]/ancestor::div[contains(@class,'label-item')]")
 
@@ -108,14 +109,6 @@
   "Get all error messages"
   []
   (map taxi/text (taxi/find-elements {:xpath "//div[contains(@class,'error')]/descendant::div[contains(@class,'message') and contains(@class,'red')]"})))
-
-(defn change-label-type
-  "Change label to type"
-  [xpath value-type]
-  (taxi/select-option
-   {:xpath (str xpath "//select[contains(@class,'ui dropdown')]")}
-   {:value value-type})
-  (Thread/sleep 25))
 
 ;;;; end element definitions
 
@@ -178,8 +171,11 @@
   (browser/click {:xpath xpath})
   (browser/click {:xpath (str xpath "/descendant::i[contains(@class,'edit')]")}))
 
-(defn save-labels []
-  (browser/click save-labels-button :delay 200))
+(defn save-label []
+  (browser/click save-button :delay 200))
+
+(defn discard-label []
+  (browser/click discard-button :delay 200))
 
 (defn label-text-input-xpath
   "Given an xpath, get the text input for label-name under xpath"
@@ -245,11 +241,9 @@
               value-type "boolean"}} label-map
         {:keys [inclusion-values]
          :or {inclusion-values [true]}} definition]
-    ;; set the type
-    (change-label-type xpath value-type)
     ;; Enter the display name
     (browser/set-input-text
-     {:xpath (label-text-input-xpath xpath "Display Label")}
+     {:xpath (label-text-input-xpath xpath "Display Name")}
      short-label)
     ;; enter the question
     (browser/set-input-text
@@ -271,16 +265,14 @@
         {:keys [examples max-length multi?]
          :or {examples []
               max-length ""}} definition]
-    ;; set the type
-    (change-label-type xpath value-type)
     ;; Enter the display name
     (browser/set-input-text
-     {:xpath (label-text-input-xpath xpath "Display Label")}
+     {:xpath (label-text-input-xpath xpath "Display Name")}
      short-label)
     ;; required setting
     (set-checkbox-button (label-checkbox-input-xpath xpath "Must be answered?") required)
     ;; allow multiple values?
-    (set-checkbox-button (label-checkbox-input-xpath xpath "Allow Multiple Values?") multi?)
+    (set-checkbox-button (label-checkbox-input-xpath xpath "Allow multiple values?") multi?)
     ;; enter the question
     (browser/set-input-text
      {:xpath (label-text-input-xpath xpath "Question")}
@@ -306,11 +298,9 @@
         {:keys [multi? all-values inclusion-values]
          :or {all-values []
               inclusion-values []}} definition]
-    ;; set the type
-    (change-label-type xpath value-type)
     ;; Enter the display name
     (browser/set-input-text
-     {:xpath (label-text-input-xpath xpath "Display Label")}
+     {:xpath (label-text-input-xpath xpath "Display Name")}
      short-label)
     ;; required setting
     (set-checkbox-button (label-checkbox-input-xpath xpath "Must be answered?") required)
@@ -391,7 +381,13 @@
   (when (browser/db-connected?)
     (let [{:keys [email password]} browser/test-login
           project-name "Sysrev Browser Test"
-          search-term-first "foo bar"]
+          search-term-first "foo bar"
+          no-display "Display name must be provided"
+          no-question "Question text must be provided"
+          no-max-length "Max length must be provided"
+          no-options "Category options must be provided"
+          have-errors? #(= (set (get-all-error-messages))
+                           (set %))]
 ;;; register the user
       (browser/delete-test-user)
       (navigate/register-user email password)
@@ -431,64 +427,42 @@
               (browser/click label-definitions-tab)
               ;; create a new boolean label
               (browser/click add-boolean-label-button)
-              (save-labels)
+              (save-label)
               ;; there should be some errors
-              (taxi/wait-until #(= (set (get-all-error-messages))
-                                   (set ["Label must have a name"
-                                         "Question can not be blank"]))
+              (taxi/wait-until #(have-errors? [no-display no-question])
                                5000 50)
-              (is (= (set (get-all-error-messages))
-                     (set ["Label must have a name"
-                           "Question can not be blank"])))
+              (is (have-errors? [no-display no-question]))
+              (discard-label)
               ;; change the type of the label to string, check error messages
-              (change-label-type label-item-div-with-errors "string")
-              (save-labels)
-              (taxi/wait-until #(= (set (get-all-error-messages))
-                                   (set ["Label must have a name"
-                                         "Question can not be blank"
-                                         "Max Length must be provided"]))
+              (browser/click add-string-label-button)
+              (save-label)
+              (taxi/wait-until #(have-errors? [no-display no-question no-max-length])
                                5000 50)
-              (is (= (set (get-all-error-messages))
-                     (set ["Label must have a name"
-                           "Question can not be blank"
-                           "Max Length must be provided"])))
+              (is (have-errors? [no-display no-question no-max-length]))
+              (discard-label)
               ;; change the type of the label to categorical, check error message
-              (change-label-type label-item-div-with-errors "categorical")
-              (Thread/sleep 25)
-              (save-labels)
-              (taxi/wait-until #(= (set (get-all-error-messages))
-                                   (set ["Label must have a name"
-                                         "Question can not be blank"
-                                         "A category must have defined options"]))
+              (browser/click add-categorical-label-button)
+              (save-label)
+              (taxi/wait-until #(have-errors? [no-display no-question no-options])
                                5000 50)
-              (is (= (set (get-all-error-messages))
-                     (set ["Label must have a name"
-                           "Question can not be blank"
-                           "A category must have defined options"])))
-              ;; delete this label
-              (delete-label label-item-div-with-errors)
-              (when false
-                ;; this fails now after some minor layout changes
-                (taxi/wait-until
-                 #(= 1 (count (taxi/find-elements
-                               {:xpath "//div[contains(@class,'label-item')]"})))
-                 5000 50))
+              (is (have-errors? [no-display no-question no-options]))
+              (discard-label)
               ;; create a boolean label
               (browser/click add-boolean-label-button)
               (set-label-values "//div[contains(@id,'new-label-')]" boolean-label-definition)
-              (save-labels)
+              (save-label)
               ;; there is a new boolean label
               (is (browser/exists? {:xpath (str "//span[text()='" (:short-label boolean-label-definition) "']")}))
               ;; create a string label
               (browser/click add-string-label-button)
               (set-label-values "//div[contains(@id,'new-label-')]" string-label-definition)
-              (save-labels)
+              (save-label)
               ;; there is a new string label
               (is (browser/exists? {:xpath (str "//span[text()='" (:short-label string-label-definition) "']")}))
               ;; create a categorical label
               (browser/click add-categorical-label-button)
               (set-label-values "//div[contains(@id,'new-label-')]" categorical-label-definition)
-              (save-labels)
+              (save-label)
               ;; there is a new categorical label
               (is (browser/exists? {:xpath (str "//span[text()='" (:short-label categorical-label-definition) "']")}))
 ;;;; review an article

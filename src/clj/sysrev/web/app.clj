@@ -9,7 +9,7 @@
             [sysrev.web.index :as index]
             [sysrev.db.users :refer [get-user-by-id get-user-by-api-token]]
             [sysrev.db.project :as project]
-            [sysrev.util]
+            [sysrev.util :as util]
             [sysrev.shared.util :refer [in? parse-integer]]
             [sysrev.resources :as res]))
 
@@ -36,7 +36,7 @@
     true (assoc :status http-code
                 :body {:error {:type etype
                                :message emessage}})
-    exception (assoc-in [:body :error :exception] (str exception))))
+    #_ exception false (assoc-in [:body :error :exception] (str exception))))
 
 (defn not-found-response [request]
   (-> (r/response (index/not-found request))

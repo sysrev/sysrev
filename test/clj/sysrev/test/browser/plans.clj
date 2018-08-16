@@ -100,11 +100,12 @@
 (def stop-support-button {:xpath "//button[contains(text(),'Stop Support')]"})
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
-(def backspace-clear-length 20)
+(def backspace-clear-length 30)
 ;; might be worth it to pull this library in at some point
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
+  (browser/wait-until-exists input-element)
   (doall (repeatedly length
                      #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
                           (Thread/sleep 20))))
@@ -186,7 +187,7 @@
         (log/info "skipping full stripe tests"))
       (when full-tests?
         ;; basic failure with Luhn Check
-        (taxi/input-text (label-input "Card Number") fail-luhn-check-cc)
+        (browser/input-text (label-input "Card Number") fail-luhn-check-cc)
         ;; error message displayed?
         (is (browser/exists? (error-msg-xpath invalid-card-number-error)))
         ;; 'Use Card' button disabled?
@@ -196,34 +197,34 @@
         ;; why so many backspaces? the exact amount needed, 16,
         ;; doesn't consistently clear the fields
         (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (taxi/input-text (label-input "Card Number") cvc-check-fail-cc)
-        (taxi/input-text (label-input "Expiration date") "0120")
-        (taxi/input-text (label-input "CVC") "123")
-        (taxi/input-text (label-input "Postal code") "11111")
+        (browser/input-text (label-input "Card Number") cvc-check-fail-cc)
+        (browser/input-text (label-input "Expiration date") "0120")
+        (browser/input-text (label-input "CVC") "123")
+        (browser/input-text (label-input "Postal code") "11111")
         (browser/click use-card-button)
         (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
 
         ;;  card-declined-cc
         (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (taxi/input-text (label-input "Card Number") card-declined-cc)
+        (browser/input-text (label-input "Card Number") card-declined-cc)
         (browser/click use-card-button)
         (is (browser/exists? (error-msg-xpath card-declined-error)))
 
         ;; incorrect-cvc-cc
         (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (taxi/input-text (label-input "Card Number") incorrect-cvc-cc)
+        (browser/input-text (label-input "Card Number") incorrect-cvc-cc)
         (browser/click use-card-button)
         (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
 
         ;; expired-card-cc
         (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (taxi/input-text (label-input "Card Number") expired-card-cc)
+        (browser/input-text (label-input "Card Number") expired-card-cc)
         (browser/click use-card-button)
         (is (browser/exists? (error-msg-xpath card-expired-error)))
 
         ;; processing-error-cc
         (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (taxi/input-text (label-input "Card Number") processing-error-cc)
+        (browser/input-text (label-input "Card Number") processing-error-cc)
         (browser/click use-card-button)
         (is (browser/exists? (error-msg-xpath card-processing-error)))
 
@@ -232,7 +233,7 @@
         ;; but they won't be able to subscribe because the card doesn't go
         ;; through
         (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (taxi/input-text (label-input "Card Number") attach-success-charge-fail-cc)
+        (browser/input-text (label-input "Card Number") attach-success-charge-fail-cc)
         (browser/click use-card-button)
         (browser/click subscribe-button)
         ;; check for the declined card message
@@ -241,10 +242,10 @@
 ;;; let's update our payment information (again) with a fraudulent card
         (browser/click update-payment-button)
         (browser/wait-until-displayed use-card-button)
-        (taxi/input-text (label-input "Card Number") highest-risk-fraudulent-cc)
-        (taxi/input-text (label-input "Expiration date") "0120")
-        (taxi/input-text (label-input "CVC") "123")
-        (taxi/input-text (label-input "Postal code") "11111")
+        (browser/input-text (label-input "Card Number") highest-risk-fraudulent-cc)
+        (browser/input-text (label-input "Expiration date") "0120")
+        (browser/input-text (label-input "CVC") "123")
+        (browser/input-text (label-input "Postal code") "11111")
         (browser/click use-card-button)
         ;; try to subscribe again
         (browser/click subscribe-button)
@@ -259,10 +260,10 @@
 ;;; to plans!
 
       (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (taxi/input-text (label-input "Card Number") valid-visa-cc)
-      (taxi/input-text (label-input "Expiration date") "0120")
-      (taxi/input-text (label-input "CVC") "123")
-      (taxi/input-text (label-input "Postal code") "11111")
+      (browser/input-text (label-input "Card Number") valid-visa-cc)
+      (browser/input-text (label-input "Expiration date") "0120")
+      (browser/input-text (label-input "CVC") "123")
+      (browser/input-text (label-input "Postal code") "11111")
       (browser/click use-card-button)
       ;; try to subscribe again
       (browser/click subscribe-button)
@@ -344,10 +345,10 @@
 ;;; update with a valid cc number and see if we can support a project
       (browser/click update-payment-button)
       (browser/wait-until-displayed use-card-button)
-      (taxi/input-text (label-input "Card Number") valid-visa-cc)
-      (taxi/input-text (label-input "Expiration date") "0120")
-      (taxi/input-text (label-input "CVC") "123")
-      (taxi/input-text (label-input "Postal code") "11111")
+      (browser/input-text (label-input "Card Number") valid-visa-cc)
+      (browser/input-text (label-input "Expiration date") "0120")
+      (browser/input-text (label-input "CVC") "123")
+      (browser/input-text (label-input "Postal code") "11111")
       (browser/click use-card-button)
       ;; support the project at $10 per month
       (browser/wait-until-displayed support-submit-button)

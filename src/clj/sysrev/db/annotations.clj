@@ -212,9 +212,10 @@
         (associate-annotation-semantic-class! annotation-id new-semantic-class-id))
       (associate-annotation-semantic-class! annotation-id (:id new-semantic-class)))
     ;; dissociate the current-semantic-class, if needed
-    (if-not (nil? current-semantic-class)
+    (when (and current-semantic-class
+               (not= new-semantic-class
+                     current-semantic-class))
       (dissociate-semantic-class! annotation-id (:id current-semantic-class)))))
-
 
 (defn project-annotations
   "Retrieve all annotations for project-id"
