@@ -2,7 +2,7 @@
   (:require [cljsjs.jquery]
             [reagent.core :as reagent]
             [re-frame.core :as re-frame :refer
-             [dispatch dispatch-sync subscribe]]
+             [dispatch dispatch-sync subscribe reg-sub reg-event-db]]
             [pushy.core :as pushy]
             [sysrev.base :as base]
             [sysrev.ajax]
@@ -46,6 +46,45 @@
                  "resize"
                  force-update-soon)))
 
+(reg-sub
+ :touch-event-time
+ (fn [db _] (:touch-event-time db)))
+
+(reg-event-db
+ :touch-event-time
+ (fn [db] (assoc db :touch-event-time (js/Date.now))))
+
+(reg-sub
+ :mouse-event-time
+ (fn [db _] (:mouse-event-time db)))
+
+(reg-event-db
+ :mouse-event-time
+ (fn [db] (assoc db :mouse-event-time (js/Date.now))))
+
+(reg-sub
+ :touchscreen?
+ :<- [:touch-event-time]
+ :<- [:mouse-event-time]
+ (fn [[touch mouse]]
+   (cond (and (nil? touch)
+              (nil? mouse)) false
+         (and touch mouse)  (> touch mouse)
+         touch              true
+         :else              false)))
+
+(defn on-touchstart []
+  (dispatch [:touch-event-time]))
+
+(defn on-pointerdown []
+  (dispatch [:mouse-event-time]))
+
+(defn start-touch-listener []
+  (-> js/window (.addEventListener "touchstart" on-touchstart)))
+
+(defn start-mouse-listener []
+  (-> js/window (.addEventListener "pointerdown" on-pointerdown)))
+
 (defn ^:export init []
   (when base/debug?
     (enable-console-print!))
@@ -55,4 +94,7 @@
   (mount-root))
 
 (defonce started
-  (do (init) true))
+  (do (init)
+      (start-touch-listener)
+      (start-mouse-listener)
+      true))

@@ -27,6 +27,7 @@
 ;;;
                  [org.clojure/test.check "0.9.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
+                 [org.clojure/math.combinatorics "0.1.4"]
                  [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
 ;;; Data formats
@@ -164,8 +165,9 @@
   :figwheel {:nrepl-port 7888
              :server-port 3449
              ;; these should work with both Cider and Cursive
-             :nrepl-middleware ["cider.nrepl/cider-middleware"
-                                "cemerick.piggieback/wrap-cljs-repl"]
+             #_ :nrepl-middleware
+             #_ ["cider.nrepl/cider-middleware"
+                 "cemerick.piggieback/wrap-cljs-repl"]
              :css-dirs ["resources/public/css/style.default.css"
                         "resources/public/css/style.dark.css"
                         "resources/public/semantic/default/semantic.min.css"
@@ -219,13 +221,13 @@
              :dev-jvm
              {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
-             {:dependencies [[figwheel-sidecar "0.5.16"]
-                             [org.clojure/tools.nrepl "0.2.13"]
-                             [com.cemerick/piggieback "0.2.2"]
-                             [acyclic/squiggly-clojure "0.1.8"
-                              :exclusions [org.clojure/tools.reader]]]
-              :plugins [[lein-figwheel "0.5.16"]
-                        [cider/cider-nrepl "0.17.0"]
+             {:dependencies [#_ [figwheel-sidecar "0.5.16"]
+                             #_ [org.clojure/tools.nrepl "0.2.13"]
+                             #_ [com.cemerick/piggieback "0.2.2"]
+                             #_ [acyclic/squiggly-clojure "0.1.8"
+                                 :exclusions [org.clojure/tools.reader]]]
+              :plugins [#_ [lein-figwheel "0.5.16"]
+                        #_ [cider/cider-nrepl "0.17.0"]
                         [lein-environ "1.1.0"]]}
              :figwheel
              {:jvm-opts ["-Xms300m" "-Xmx600m"]}

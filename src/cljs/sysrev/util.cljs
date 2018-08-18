@@ -72,6 +72,9 @@
 (defn desktop-size? []
   (>= (viewport-width) 1160))
 
+(defn annotator-size? []
+  (>= (viewport-width) 1340))
+
 (defn get-layout-status []
   [(mobile?) (full-size?) (desktop-size?)])
 
@@ -305,7 +308,7 @@
   }"
   [f & {:keys [timeout prevent-default stop-propagation
                clear-text-after clear-text-before]
-        :or {timeout true
+        :or {timeout false
              prevent-default false
              stop-propagation false
              clear-text-after true

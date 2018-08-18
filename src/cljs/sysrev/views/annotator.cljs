@@ -359,15 +359,14 @@
        [:div.ui.secondary.header.segment
         [:h3.ui.center.aligned.header
          "Annotations"]]
-       (if (empty? (vals annotations))
-         [:div.ui.secondary.segment]
-         (doall (map
-                 (fn [{:keys [id]}]
-                   ^{:key (str id)}
-                   [AnnotationEditor context id])
-                 (->> (vals annotations)
-                      (sort-by :id)
-                      reverse))))])))
+       (doall (map
+               (fn [{:keys [id]}]
+                 ^{:key (str id)}
+                 [AnnotationEditor context id])
+               (->> (vals annotations)
+                    (sort-by :id)
+                    reverse)))
+       [:div.ui.secondary.segment]])))
 
 (defn get-selection
   "Get the current selection, with context, in the dom"
@@ -433,7 +432,7 @@
 
 (defn AnnotationToggleButton
   [context & {:keys [on-change class]}]
-  (when (util/desktop-size?)
+  (when (util/full-size?)
     (let [{:keys [enabled?]} @(subscribe [::get context])]
       [:div.ui.label.button
        {:on-click
@@ -441,7 +440,10 @@
          #(do (dispatch-sync [:annotator/init-view-state context])
               (dispatch-sync [::set context [:enabled?] (not enabled?)])
               (when on-change (on-change))))
-        :class class}
+        :class (cond-> class
+                 (and (not (util/annotator-size?))
+                      (not enabled?))
+                 (str " disabled"))}
        (if (and @(subscribe [:self/logged-in?])
                 @(subscribe [:self/member?]))
          (if enabled?

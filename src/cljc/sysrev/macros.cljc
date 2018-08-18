@@ -110,14 +110,21 @@
 (defmacro sr-defroute
   [name uri params & body]
   `(defroute ~name ~uri ~params
-     (js/setTimeout
-      (fn []
-        (go-route-sync-data
-         #(do (dispatch [:set-active-panel nil])
-              (dispatch [:set-active-project-url nil])
-              ~@body
-              (sysrev.util/clear-text-selection-soon))))
-      10)))
+     (let [clear-text# true
+           use-timeout# false
+           route-fn#
+           (fn []
+             (go-route-sync-data
+              #(do (dispatch [:set-active-panel nil])
+                   (dispatch [:set-active-project-url nil])
+                   (when clear-text#
+                     (sysrev.util/clear-text-selection))
+                   ~@body
+                   (when clear-text#
+                     (sysrev.util/clear-text-selection-soon)))))]
+       (if use-timeout#
+         (js/setTimeout route-fn# 20)
+         (route-fn#)))))
 
 (defn lookup-project-url-id [url-id]
   (cond (integer? url-id)
@@ -140,9 +147,14 @@
                "params = " (pr-str params)))
   (let [uri (str "/p/:project-id" suburi)]
     `(defroute ~name ~uri ~params
-       (let [body-fn# (fn []
+       (let [clear-text# true
+             use-timeout# false
+             body-fn# (fn []
+                        (when clear-text#
+                          (sysrev.util/clear-text-selection))
                         ~@body
-                        (sysrev.util/clear-text-selection-soon))
+                        (when clear-text#
+                          (sysrev.util/clear-text-selection-soon)))
              route-fn#
              #(let [url-id# ~(first params)
                     cur-id# @(subscribe [:active-project-url])]
@@ -166,6 +178,6 @@
                     (js/setTimeout body-fn# 50)
 
                     :else (body-fn#))))]
-         (js/setTimeout
-          #(go-route-sync-data route-fn#)
-          10)))))
+         (if use-timeout#
+           (js/setTimeout #(go-route-sync-data route-fn#) 20)
+           (go-route-sync-data route-fn#))))))

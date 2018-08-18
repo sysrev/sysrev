@@ -28,13 +28,11 @@
  (fn [db [url]]
    (assoc db :login-redirect url)))
 
-(reg-event-db
+(reg-event-fx
  :do-login-redirect
- (fn [db]
+ (fn [{:keys [db]}]
    (let [url (get-login-redirect-url db)]
-     (nav-scroll-top url)
-     (force-dispatch url)
-     (dissoc db :login-redirect))))
+     {:nav-reload url})))
 
 (defn panel-prefixes [path]
   (->> (range 1 (inc (count path)))
@@ -147,7 +145,7 @@
                        (not= cur-active new-active))]
      (cond-> {:db new-db}
        changed?
-       (merge {:reset-ui true, :reset-needed true})
+       (merge {:reset-data true})
 
        (and url-id (nil? literal-id))
        (merge {:dispatch [:require [:project-url-id url-id]]})

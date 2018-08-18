@@ -1,18 +1,29 @@
 .ui.segments.annotation-menu {
-    height: 100%;
+    height: 100% !important;
     overflow-y: auto;
-
-    > .ui.segment {
-        padding-left: 0.75em;
-        padding-right: 0.75em;
-    }
 
     > .ui.header.segment {
         padding-top: 0.5em;
         padding-bottom: 0.5em;
     }
+    > .ui.segment {
+        padding-left: 0.5em;
+        padding-right: 0.5em;
+    }
+    > .ui.segment:last-child {
+        height: 100%;
+    }
 }
 
+.ui.segments.annotation-menu.abstract {
+}
+
+.ui.segments.annotation-menu.pdf {
+    width: 100%;
+    margin-top: -1px;
+}
+
+/*
 .ui.segments.annotation-menu.abstract {
     top: 0px;
     left: 0px;
@@ -25,10 +36,38 @@
     border-left-width: 0;
     border-bottom-width: 0;
 }
+*/
 
-.ui.segments.annotation-menu.pdf {
-    width: 100%;
-    margin-top: -1px;
+@media only screen and (min-width: 1440px) {
+    .main-content.annotator {
+        .ui.container {
+            width: 1430px;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+    }
+}
+
+@media only screen and (min-width: 1340px) and (max-width: 1439px) {
+    .main-content.annotator {
+        .ui.container {
+            width: 100%;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+    }
+}
+
+.main-content.annotator {
+    > .ui.container.panel-content {
+        > .ui.grid {
+            margin-left: 0;
+            margin-right: 0;
+            > .column {
+                padding: 1em 0.5em 1em 0.5em;
+            }
+        }
+    }
 }
 
 .ui.button.add-annotation-popup {

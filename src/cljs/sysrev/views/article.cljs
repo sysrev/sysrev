@@ -267,7 +267,7 @@
         (when-not full-size? (article-flags-view article-id "ui segment"))
         [:div.ui.segment.article-content
          {:key [:article-content]}
-         [annotator/AnnotationMenu annotator-context "abstract"]
+         #_ [annotator/AnnotationMenu annotator-context "abstract"]
          [article-info-main-content article-id
           :context context]]
         ^{:key :article-pdfs}

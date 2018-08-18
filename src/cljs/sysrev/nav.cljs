@@ -23,6 +23,17 @@
       route
       (str route "?" hash))))
 
+(defn current-url-base []
+  (str js/window.location.protocol
+       "//"
+       js/window.location.host))
+
+(defn nav-reload [route]
+  (set! js/window.location.href
+        (str (current-url-base) route)))
+
+(reg-fx :nav-reload #(when % (nav-reload %)))
+
 (defn nav
   "Change the current route."
   [route & {:keys [params]}]

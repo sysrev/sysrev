@@ -8,6 +8,7 @@
             [sysrev.loading :as loading]
             [sysrev.pdf]
             [sysrev.views.article]
+            [sysrev.views.annotator :as annotator]
             [sysrev.views.base :refer
              [panel-content logged-out-content render-panel-tree]]
             [sysrev.views.panels.create-project]
@@ -33,7 +34,7 @@
             [sysrev.views.panels.project.review]
             [sysrev.views.panels.project.support]
             [sysrev.views.menu :refer [header-menu]]
-            [sysrev.util :refer [full-size? mobile?]]
+            [sysrev.util :as util]
             [sysrev.shared.components :refer [loading-content]]))
 
 (defmethod panel-content :default []
@@ -60,14 +61,33 @@
 
 (defn main-content []
   (if @(subscribe [:initialized?])
-    [:div.main-content
-     {:class (if (or (not @(subscribe [:data/ready?]))
+    (let [project-id @(subscribe [:active-project-id])
+          article-id @(subscribe [:visible-article-id])
+          ann-context {:class "abstract"
+                       :project-id project-id
+                       :article-id article-id}
+          annotator?
+          (and project-id article-id
+               @(subscribe [:annotator/enabled? ann-context])
+               (util/annotator-size?))]
+      [:div.main-content
+       {:class (cond-> ""
+                 (or (not @(subscribe [:data/ready?]))
                      (loading/any-loading?
                       :ignore (into loading/ignore-data-names
                                     [:pdf/open-access-available?
                                      :pdf/article-pdfs])))
-               "loading" "")}
-     [header-menu]
-     [:div.ui.container [active-panel-content]]
-     [notifier @(subscribe [:active-notification])]]
+                 (str " loading")
+                 annotator?
+                 (str " annotator"))}
+       [header-menu]
+       [:div.ui.container.panel-content
+        (if annotator?
+          [:div.ui.grid
+           [:div.three.wide.column
+            [annotator/AnnotationMenu ann-context "abstract"]]
+           [:div.thirteen.wide.column
+            [active-panel-content]]]
+          [active-panel-content])]
+       [notifier @(subscribe [:active-notification])]])
     loading-content))

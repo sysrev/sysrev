@@ -18,6 +18,7 @@
    {:db (-> db
             (assoc :data {}
                    :needed [])
+            (dissoc-in [:state :self])
             (dissoc-in [:state :review])
             (dissoc-in [:state :panels])
             (dissoc-in [:state :navigation :subpanels]))

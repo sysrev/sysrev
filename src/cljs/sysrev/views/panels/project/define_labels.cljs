@@ -736,7 +736,22 @@
           read-only-message-closed? (r/cursor state [:read-only-message-closed?])
           sort-label-ids
           (fn [enabled?]
-            (->> (labels/sort-project-labels @labels true)
+            (->> (concat
+                  (->> @labels
+                       (filter
+                        (fn [[label-id label]]
+                          (uuid? label-id)))
+                       (apply concat)
+                       (apply hash-map)
+                       (#(labels/sort-project-labels % true)))
+                  (->> @labels
+                       (remove
+                        (fn [[label-id label]]
+                          (uuid? label-id)))
+                       (sort-by
+                        (fn [[label-id label]]
+                          (:project-ordering label)))
+                       (mapv first)))
                  (filter (fn [label-id]
                            (let [label (get @labels label-id)]
                              (cond (true? enabled?)

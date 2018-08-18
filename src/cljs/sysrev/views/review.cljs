@@ -153,29 +153,23 @@
                   vs))
               current-values @(subscribe [:review/active-labels article-id label-id])
               dom-id (str "label-edit-" article-id "-" label-id)
-              ;; TODO: is multiple search selection good for mobile?
-              #_ dropdown-class #_ (if (util/mobile-size?)
-                                     "multiple selection"
-                                     "search selection multiple")]
-          [:div.ui.small.fluid.search.selection.dropdown.multiple
+              touchscreen? @(subscribe [:touchscreen?])]
+          [(if touchscreen?
+             :div.ui.small.fluid.multiple.selection.dropdown
+             :div.ui.small.fluid.search.selection.dropdown.multiple)
            {:id dom-id
-            ;; :class dropdown-class
-
-            ;;;
-            ;;; this (below) is for "multiple selection", not good for "search"
-            ;;;
-            ;; hide dropdown on click anywhere in main dropdown box
-            #_ :on-click
-            #_ (util/wrap-user-event
-                #(when (or (= dom-id (-> % .-target .-id))
-                           (-> (js/$ (-> % .-target))
-                               (.hasClass "default"))
-                           (-> (js/$ (-> % .-target))
-                               (.hasClass "label")))
-                   (let [dd (js/$ (str "#" dom-id))]
-                     (when (.dropdown dd "is visible")
-                       (.dropdown dd "hide"))))
-                :timeout false)}
+            :on-click
+            (when touchscreen?
+              ;; hide dropdown on click anywhere in main dropdown box
+              (util/wrap-user-event
+               #(when (or (= dom-id (-> % .-target .-id))
+                          (-> (js/$ (-> % .-target))
+                              (.hasClass "default"))
+                          (-> (js/$ (-> % .-target))
+                              (.hasClass "label")))
+                  (let [dd (js/$ (str "#" dom-id))]
+                    (when (.dropdown dd "is visible")
+                      (.dropdown dd "hide"))))))}
            [:input
             {:name (str "label-edit(" dom-id ")")
              :value (str/join "," current-values)

@@ -48,8 +48,7 @@
     (if valid
       {:dispatch-n
        (list [:ga-event "auth" "login_success"]
-             [:do-login-redirect]
-             [:fetch [:identity]])}
+             [:do-login-redirect])}
       {:dispatch-n
        (list [:ga-event "auth" "login_failure"]
              [:set-login-error-msg message])})))
@@ -58,12 +57,8 @@
   :uri (fn [] "/api/auth/logout")
   :process
   (fn [{:keys [db]} _ result]
-    {:db (-> db
-             #_ (assoc-in [:state :identity] nil)
-             (dissoc-in [:state :self]))
-     :reset-data true
-     :nav-scroll-top "/"
-     :dispatch [:fetch [:identity]]}))
+    {:reset-data true
+     :nav-scroll-top "/"}))
 
 (def-action :auth/register
   :uri (fn [& _] "/api/auth/register")
