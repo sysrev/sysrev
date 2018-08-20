@@ -75,7 +75,7 @@
               (= status :consistent)   "green"
               :else                    "")]
     (when sstr
-      [:div.ui.large.basic.label.review-status
+      [:div.ui.basic.label.review-status
        {:class color}
        (str sstr)])))
 
@@ -254,12 +254,12 @@
          [:div.five.wide.column
           [:h4.ui.article-info "Article Info"]]
          [:div.eleven.wide.column.right.aligned
+          [annotator/AnnotationToggleButton
+           annotator-context :class "mini"]
           (when (:disabled? duplicates)
             [article-disabled-label])
           (when (and score show-score? (not= status :single))
             [article-score-label score])
-          [annotator/AnnotationToggleButton
-           annotator-context :class "tiny"]
           [review-status-label (if private-view? :user status)]]]
         (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui segment"))

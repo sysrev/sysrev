@@ -395,7 +395,7 @@
         [:div error-message-class
          error])]
      ;; short-label
-     [ui/TextInput
+     [ui/TextInputField
       {:error (:short-label @errors)
        :value short-label
        :on-change #(reset! short-label (-> % .-target .-value))
@@ -414,14 +414,14 @@
          :checked? @multi?
          :label "Allow multiple values?"}])
      ;; question
-     [ui/TextInput
+     [ui/TextInputField
       {:error (:question @errors)
        :value question
        :on-change #(reset! question (-> % .-target .-value))
        :label "Question"}]
      ;; max-length on a string label
      (when (= @value-type "string")
-       [ui/TextInput
+       [ui/TextInputField
         {:error (get-in @errors [:definition :max-length])
          :value max-length
          :on-change (fn [event]
@@ -434,7 +434,7 @@
          :label "Max Length"}])
      ;; examples on a string label
      (when (= @value-type "string")
-       [ui/TextInput
+       [ui/TextInputField
         {:error (get-in @errors [:definition :examples])
          :default-value (str/join "," @examples)
          :type "text"
@@ -451,7 +451,7 @@
        (doall
         (list
          ^{:key [:categories-all name]}
-         [ui/TextInput
+         [ui/TextInputField
           {:error (get-in @errors [:definition :all-values])
            :default-value (str/join "," @all-values)
            :placeholder "one,two,three"

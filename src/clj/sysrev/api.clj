@@ -834,6 +834,15 @@
          (mapv #(select-keys % [:selection :annotation :semantic-class
                                 :pmid :article-id :pdf-source :context])))))
 
+(defn project-annotation-status [project-id & {:keys [user-id]}]
+  (let [member? (and user-id (project/member-has-permission?
+                              project-id user-id "member"))]
+    {:result
+     {:status
+      (cond-> {:project (db-annotations/project-annotation-status project-id)}
+        member? (merge {:member (db-annotations/project-annotation-status
+                                 project-id :user-id user-id)}))}}))
+
 (defn change-project-permissions [project-id users-map]
   (try
     (assert project-id)

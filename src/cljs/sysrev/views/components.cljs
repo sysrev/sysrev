@@ -464,6 +464,41 @@
 
 (defn TextInput
   "Props:
+  {:value         <reagent atom> ; value, optional
+   :on-change     <fn>           ; a fn of event
+   :on-mouse-up   <fn>           ; a fn of event, optional
+   :on-mouse-down <fn>           ; a fn of event, optional
+   :placeholder   <string>       ; optional
+   :default-value <string>       ; optional
+   :autofocus     <boolean>      ; should this start focused?
+   :disabled      <boolean>      ; set disabled state on input
+   :read-only     <boolean>      ; set readOnly attribute on input
+  }"
+  [{:keys [value on-change on-mouse-up on-mouse-down
+           placeholder default-value autofocus disabled read-only]}]
+  [:input.ui.input
+   (cond-> {:type "text"
+            :on-change on-change
+            :class (cond-> ""
+                     disabled (str " disabled"))}
+     (not (nil? default-value)) (merge {:default-value default-value})
+     (and (nil? default-value)
+          (not (nil? value)))
+     (merge {:value (if (in? [cljs.core/Atom
+                              reagent.ratom/RAtom
+                              reagent.ratom/RCursor
+                              reagent.ratom/Reaction]
+                             (type value))
+                      @value
+                      value)})
+     (not (nil? placeholder)) (merge {:placeholder placeholder})
+     (not (nil? on-mouse-up)) (merge {:on-mouse-up on-mouse-up})
+     (not (nil? on-mouse-down)) (merge {:on-mouse-down on-mouse-down})
+     autofocus (merge {:autoFocus true})
+     read-only (merge {:readOnly true}))])
+
+(defn TextInputField
+  "Props:
   {:error         <string>       ; error message, optional
    :value         <reagent atom> ; value, optional
    :on-change     <fn>           ; a fn of event

@@ -2,7 +2,10 @@
   (:require [honeysql.helpers :as sqlh :refer [insert-into values where select from delete-from sset
                                                join left-join]]
             [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.db.core :refer [do-query do-execute to-jsonb]]))
+            [clj-time.coerce :as tc]
+            [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :refer [in? map-values] :as sutil]))
 
 (defn create-semantic-class!
   [definition]
@@ -249,6 +252,43 @@
       (where [:= :a.project_id project-id])
       ;;(sql/format)
       do-query))
+
+(defn project-annotation-status [project-id & {:keys [user-id]}]
+  (-> (select :an.created :a.article_id :sc.definition
+              #_ [:sc.created :sc-created])
+      (from [:annotation :an])
+      (join
+       ;; annotation article
+       [:annotation_article :aa]
+       [:= :aa.annotation_id :an.id]
+       ;; article
+       [:article :a]
+       [:= :a.article_id :aa.article_id]
+       ;; annotation semantic class
+       [:annotation_semantic_class :asc]
+       [:= :an.id :asc.annotation_id]
+       ;; semantic class
+       [:semantic_class :sc]
+       [:= :sc.id :asc.semantic_class_id]
+       ;; user
+       [:annotation-web-user :au]
+       [:= :au.annotation-id :an.id])
+      (where [:and
+              [:= :a.project_id project-id]
+              (if (nil? user-id)
+                true
+                [:= :au.user-id user-id])])
+      (->> do-query
+           (group-by :definition)
+           (map-values
+            (fn [entries]
+              {:last-used (->> entries
+                               (map :created)
+                               (map tc/to-epoch)
+                               (apply max 0)
+                               tc/from-epoch
+                               tc/to-sql-time)
+               :count (count entries)})))))
 
 (defn text-context-article-field-match
   "Determine which field of an article text-context matches in article-id."

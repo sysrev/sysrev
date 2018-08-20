@@ -159,7 +159,8 @@
              :div.ui.small.fluid.search.selection.dropdown.multiple)
            {:id dom-id
             :on-click
-            (when touchscreen?
+            ;; this seems to cause problems now
+            (when false #_ touchscreen?
               ;; hide dropdown on click anywhere in main dropdown box
               (util/wrap-user-event
                #(when (or (= dom-id (-> % .-target .-id))

@@ -14,6 +14,7 @@
             [sysrev.db.sources :as sources]
             [sysrev.db.files :as files]
             [sysrev.db.article_list :as alist]
+            [sysrev.db.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.export.endnote :as endnote-out]
             [sysrev.files.stores :as fstore]
@@ -692,6 +693,13 @@
          request {:roles ["member"]}
          (let [annotation-id (-> request :params :annotation-id parse-integer)]
            (api/delete-annotation! annotation-id))))
+
+  (GET "/api/annotation/status" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [project-id (active-project request)
+              user-id (current-user-id request)]
+          (api/project-annotation-status project-id :user-id user-id))))
 
   (GET "/api/annotations/user-defined/:article-id" request
        (let [article-id (-> request :params :article-id parse-integer)]

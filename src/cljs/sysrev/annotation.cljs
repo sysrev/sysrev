@@ -11,8 +11,8 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.util :as util]
-            [sysrev.views.components :refer [TextInput]])
+            [sysrev.views.components :as ui]
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def semantic-ui js/semanticUIReact)
