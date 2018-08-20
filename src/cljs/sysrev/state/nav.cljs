@@ -145,7 +145,7 @@
                        (not= cur-active new-active))]
      (cond-> {:db new-db}
        changed?
-       (merge {:reset-data true})
+       (merge {:reset-ui true, :reset-needed true})
 
        (and url-id (nil? literal-id))
        (merge {:dispatch [:require [:project-url-id url-id]]})
