@@ -319,12 +319,14 @@
         dark-theme? @(subscribe [:self/dark-theme?])
         touchscreen? @(subscribe [:touchscreen?])]
     [:div.ui.secondary.segment.annotation-view
+     {:class (cond-> ""
+               new? (str " new-annotation"))}
      [:form.ui.small.form.edit-annotation
       {:on-submit (util/wrap-user-event
                    on-save
                    :timeout false
                    :prevent-default true)}
-      [:div.field
+      [:div.field.selection
        [:label "Selection"]
        (let [display (when (string? selection)
                        (if (<= (count selection) 400)
@@ -382,12 +384,13 @@
            (if text-input?
              [:i.list.ul.icon]
              [:i.plus.icon])]])]
-      [ui/TextInputField
-       {:value (:annotation active)
-        :on-change #(set-ann [:annotation] (util/event-input-value %))
-        :read-only (not editing?)
-        :disabled (not editing?)
-        :label "Value"}]
+      [:div.field.value
+       [:label "Value"]
+       [ui/TextInput
+        {:value (:annotation active)
+         :on-change #(set-ann [:annotation] (util/event-input-value %))
+         :read-only (not editing?)
+         :disabled (not editing?)}]]
       (cond
         editing?
         [:div.field.buttons>div.fields
@@ -538,6 +541,7 @@
         set-pos (fn [key value]
                   (dispatch-sync [::set context [:positions key] value]))
         data (subscribe (annotator-data-item context))
+        touchscreen? @(subscribe [:touchscreen?])
         update-selection
         (when (and @(subscribe [:self/logged-in?])
                    @(subscribe [:self/member?])
@@ -571,7 +575,12 @@
                              :annotation ""
                              :semantic-class nil}]
                   (set [:new-annotation] entry)
-                  (set-ann (:id entry) nil entry))))
+                  (set-ann (:id entry) nil entry)
+                  (when (not touchscreen?)
+                    (js/setTimeout #(-> (js/$ (str ".annotation-view.new-annotation"
+                                                   " .field.value input"))
+                                        (.focus))
+                                   50)))))
             true))]
     [:div.annotation-capture
      {:on-mouse-up update-selection
