@@ -75,7 +75,7 @@
               (= status :consistent)   "green"
               :else                    "")]
     (when sstr
-      [:div.ui.basic.label.review-status
+      [:div.ui.large.basic.label.review-status
        {:class color}
        (str sstr)])))
 
@@ -249,20 +249,18 @@
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list
-        [:div.ui.middle.aligned.header.segment.article-header
+        [:div.ui.middle.aligned.header.grid.segment.article-header
          {:key [:article-header]}
-         [:div {:style {:float "left"}}
-          [:h4.article-info "Article Info "
-           (when full-size? (article-flags-view article-id nil))]]
-         (when (or status private-view?)
-           [:div {:style {:float "right"}}
-            (when (:disabled? duplicates)
-              [article-disabled-label])
-            (when (and score show-score? (not= status :single))
-              [article-score-label score])
-            [annotator/AnnotationToggleButton annotator-context]
-            [review-status-label (if private-view? :user status)]])
-         [:div {:style {:clear "both"}}]]
+         [:div.five.wide.column
+          [:h4.ui.article-info "Article Info"]]
+         [:div.eleven.wide.column.right.aligned
+          (when (:disabled? duplicates)
+            [article-disabled-label])
+          (when (and score show-score? (not= status :single))
+            [article-score-label score])
+          [annotator/AnnotationToggleButton
+           annotator-context :class "tiny"]
+          [review-status-label (if private-view? :user status)]]]
         (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui segment"))
         [:div.ui.segment.article-content

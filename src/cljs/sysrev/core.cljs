@@ -26,17 +26,23 @@
             [sysrev.shared.spec.notes]
             [sysrev.util :as util]))
 
+(defonce current-width (atom nil))
+
 (defn force-update-soon
   "Force full render update, with js/setTimeout delay to avoid spamming
   updates while window is being resized."
   []
-  (let [start-size (util/viewport-width)]
-    (js/setTimeout
-     (fn [_]
-       (let [end-size (util/viewport-width)]
-         (when (= start-size end-size)
-           (reagent/force-update-all))))
-     100)))
+  (let [cur-size @current-width
+        start-size (util/viewport-width)]
+    (reset! current-width start-size)
+    (when (and cur-size (not= start-size cur-size))
+      (js/setTimeout
+       (fn [_]
+         (let [end-size (util/viewport-width)]
+           (when (and (= start-size end-size))
+             (reagent/force-update-all))))
+       100))
+    true))
 
 (defn mount-root []
   (re-frame/clear-subscription-cache!)

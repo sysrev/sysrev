@@ -20,7 +20,8 @@
 (def view :pdf)
 
 (def initial-view-state
-  {:pdf-doc nil
+  {:visible false
+   :pdf-doc nil
    :page-count nil
    :page-num 1
    :page-rendering false
@@ -69,11 +70,14 @@
 
 (defn PDFModal
   [{:keys [trigger]} child]
-  [Modal {:trigger (r/as-element trigger)
-          :size "fullscreen"
-          :on-close (util/wrap-user-event
-                     #(dispatch [:pdf/init-view-state]))}
-   [ModalContent child]])
+  (let [{:keys [visible]} @(subscribe [::get])]
+    [Modal {:trigger (r/as-element trigger)
+            :size "fullscreen"
+            :open visible
+            :on-open #(dispatch-sync [::set [:visible] true])
+            :on-close (util/wrap-user-event
+                       #(dispatch-sync [:pdf/init-view-state]))}
+     [ModalContent child]]))
 
 (def-data :pdf/open-access-available?
   :loaded? (fn [db project-id article-id]
@@ -136,7 +140,7 @@
                    ;; Try to auto-adjust PDF size to containing element.
                    cwidth ($ (js/$ container) width)
                    ;; this should be 1.0? but result is too big.
-                   pwidth ($ ($ page getViewport 1.5) :width)
+                   pwidth ($ ($ page getViewport 1.4) :width)
                    scale (/ cwidth pwidth)]
                #_
                (do (println (str "[render-page] cwidth = " cwidth))
@@ -225,20 +229,20 @@
            {:class (if (or page-rendering page-rendering-soon)
                      "rendering" nil)}
            [:div.navigate
-            [:button.ui.large.label.button
+            [:button.ui.small.icon.labeled.button
              {:class (if on-prev nil "disabled")
               :on-click on-prev}
-             "Previous"]
-            [:button.ui.large.label.button
+             [:i.chevron.left.icon] "Previous"]
+            [:button.ui.small.icon.right.labeled.button
              {:class (if on-next nil "disabled")
               :on-click on-next}
-             "Next"]
+             [:i.chevron.right.icon] "Next"]
             (when page-count
               [:h5.ui.header.page-status
                (str "Page " page-num " of " page-count)])
             [annotator/AnnotationToggleButton
              ann-context
-             :class "large"
+             :class "small"
              :on-change
              (fn []
                (let [re-render #(let [{:keys [pdf-doc page-num]}
@@ -248,7 +252,11 @@
                  ;; on modal content for smoother looking update.
                  (dispatch-sync [::set [:page-rendering-soon] true])
                  ;; Use setTimeout to wait for CSS update to take effect
-                 (js/setTimeout re-render 50)))]]
+                 (js/setTimeout re-render 50)))]
+            [:div.ui.small.icon.right.labeled.button
+             {:on-click #(dispatch-sync [::set [:visible] false])
+              :style {:margin-right "1em"}}
+             [:i.circle.times.icon] "Close"]]
            [:div.ui.grid.view-pdf-main
             (when @ann-enabled?
               [:div.four.wide.column.pdf-annotation
