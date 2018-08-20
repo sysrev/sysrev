@@ -655,20 +655,28 @@
         (wrap-authorize
          request {:roles ["member"]}
          (let [{:keys [context annotation-map]} (-> request :body)
-               {:keys [selection annotation]} annotation-map
+               {:keys [selection annotation semantic-class]} annotation-map
                {:keys [class article-id pdf-key]} context
-               user-id (current-user-id request)]
-           (condp = class
-             "abstract"
-             (do (assert (nil? pdf-key))
-                 (api/save-article-annotation
-                  article-id user-id selection annotation
-                  :context (:context annotation-map)))
-             "pdf"
-             (do (assert pdf-key)
-                 (api/save-article-annotation
-                  article-id user-id selection annotation
-                  :context (:context annotation-map) :pdf-key pdf-key))))))
+               user-id (current-user-id request)
+               result
+               (condp = class
+                 "abstract"
+                 (do (assert (nil? pdf-key))
+                     (api/save-article-annotation
+                      article-id user-id selection annotation
+                      :context (:context annotation-map)))
+                 "pdf"
+                 (do (assert pdf-key)
+                     (api/save-article-annotation
+                      article-id user-id selection annotation
+                      :context (:context annotation-map) :pdf-key pdf-key)))]
+           (when (and (string? semantic-class)
+                      (not-empty semantic-class)
+                      (-> result :result :annotation-id))
+             (api/update-annotation!
+              (-> result :result :annotation-id)
+              annotation semantic-class user-id))
+           result)))
 
   (POST "/api/annotation/update/:annotation-id" request
         (wrap-authorize

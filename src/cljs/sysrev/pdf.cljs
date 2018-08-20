@@ -196,14 +196,19 @@
 (defn ViewPDF
   "Given a PDF URL, view it"
   [pdf-url]
-  (let [container-id (util/random-id)]
+  (let [container-id (util/random-id)
+        [article-id pdf-key] [(pdf-url->article-id pdf-url)
+                              (pdf-url->key pdf-url)]
+        project-id @(subscribe [:active-project-id])
+        ann-context {:class "pdf"
+                     :project-id project-id
+                     :article-id article-id
+                     :pdf-key pdf-key}
+        ann-enabled? (subscribe [:annotator/enabled ann-context])]
     (r/create-class
      {:reagent-render
       (fn [pdf-url]
-        (let [[article-id pdf-key] [(pdf-url->article-id pdf-url)
-                                    (pdf-url->key pdf-url)]
-
-              {:keys [pdf-doc page-num page-count
+        (let [{:keys [pdf-doc page-num page-count
                       page-rendering page-rendering-soon]}
               @(subscribe [::get])
 
@@ -214,16 +219,8 @@
               on-next (when (< page-num page-count)
                         (util/wrap-user-event
                          #(do (dispatch-sync [::set [:page-num] (inc page-num)])
-                              (queue-render-page pdf-doc (inc page-num)))))
-
-              project-id @(subscribe [:active-project-id])
-              ann-context {:class "pdf"
-                           :project-id project-id
-                           :article-id article-id
-                           :pdf-key pdf-key}
-              ann-enabled? @(subscribe [:annotator/enabled? ann-context])]
+                              (queue-render-page pdf-doc (inc page-num)))))]
           ;; get the user defined annotations
-          (dispatch [:require (annotator/annotator-data-item ann-context)])
           [:div.view-pdf
            {:class (if (or page-rendering page-rendering-soon)
                      "rendering" nil)}
@@ -253,16 +250,18 @@
                  ;; Use setTimeout to wait for CSS update to take effect
                  (js/setTimeout re-render 50)))]]
            [:div.ui.grid.view-pdf-main
-            (when ann-enabled?
+            (when @ann-enabled?
               [:div.four.wide.column.pdf-annotation
                [annotator/AnnotationMenu ann-context "pdf"]])
             [:div.column.pdf-content
-             {:class (if ann-enabled? "twelve wide" "sixteen wide")}
+             {:class (if @ann-enabled? "twelve wide" "sixteen wide")}
              [annotator/AnnotationCapture ann-context
               [:div.pdf-container {:id container-id}]]]]]))
       :component-will-mount
       (fn [this]
-        (dispatch-sync [::set [:container-id] container-id]))
+        (dispatch-sync [::set [:container-id] container-id])
+        (dispatch [:require (annotator/annotator-data-item ann-context)])
+        (dispatch [:reload (annotator/annotator-data-item ann-context)]))
       :component-did-mount
       (fn [this]
         (-> (doto ($ js/pdfjsLib getDocument pdf-url)

@@ -29,7 +29,8 @@
   :process
   (fn [{:keys [db]} [project-id article-id] {:keys [article labels notes]}]
     (let [article (merge article {:labels labels :notes notes})]
-      {:db (-> db (load-article article))})))
+      {:db (-> db (load-article article))
+       :dispatch [:reload [:annotator/article project-id article-id]]})))
 
 (reg-sub
  :articles/all

@@ -73,7 +73,7 @@
   (>= (viewport-width) 1160))
 
 (defn annotator-size? []
-  (>= (viewport-width) 1340))
+  (>= (viewport-width) 1100))
 
 (defn get-layout-status []
   [(mobile?) (full-size?) (desktop-size?)])

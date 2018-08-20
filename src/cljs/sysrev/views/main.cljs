@@ -68,7 +68,7 @@
                        :article-id article-id}
           annotator?
           (and project-id article-id
-               @(subscribe [:annotator/enabled? ann-context])
+               @(subscribe [:annotator/enabled ann-context])
                (util/annotator-size?))]
       [:div.main-content
        {:class (cond-> ""

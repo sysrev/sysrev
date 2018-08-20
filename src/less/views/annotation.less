@@ -2,13 +2,19 @@
     height: 100% !important;
     overflow-y: auto;
 
-    > .ui.header.segment {
-        padding-top: 0.5em;
-        padding-bottom: 0.5em;
-    }
     > .ui.segment {
         padding-left: 0.5em;
         padding-right: 0.5em;
+    }
+    > .ui.segment.menu-header {
+        margin: 0;
+        padding: 0;
+        > .ui.fluid.label {
+            font-weight: normal;
+            color: @text;
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
     }
     > .ui.segment:last-child {
         height: 100%;
@@ -23,21 +29,6 @@
     margin-top: -1px;
 }
 
-/*
-.ui.segments.annotation-menu.abstract {
-    top: 0px;
-    left: 0px;
-    width: 260px;
-    z-index: 100;
-    position: fixed;
-
-    border-radius: 0;
-    border-top-width: 0;
-    border-left-width: 0;
-    border-bottom-width: 0;
-}
-*/
-
 @media only screen and (min-width: 1440px) {
     .main-content.annotator {
         .ui.container {
@@ -48,7 +39,7 @@
     }
 }
 
-@media only screen and (min-width: 1340px) and (max-width: 1439px) {
+@media only screen and (min-width: 1100px) and (max-width: 1439px) {
     .main-content.annotator {
         .ui.container {
             width: 100%;
@@ -111,5 +102,8 @@
 
     .ui.label.selection-label {
         font-size: 12px;
+    }
+    .ui.label.selection-label.new-annotation {
+        border: 2px solid @brightBlue;
     }
 }

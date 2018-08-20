@@ -67,17 +67,18 @@
  :<- [:touch-event-time]
  :<- [:mouse-event-time]
  (fn [[touch mouse]]
-   (cond (and (nil? touch)
-              (nil? mouse)) false
-         (and touch mouse)  (> touch mouse)
-         touch              true
-         :else              false)))
+   (cond (and touch mouse)        (not (> (- mouse touch) 1000))
+         (and touch (nil? mouse)) true
+         (and mouse (nil? touch)) false
+         :else                    (if (util/full-size?) false true))))
 
 (defn on-touchstart []
-  (dispatch [:touch-event-time]))
+  (dispatch [:touch-event-time])
+  true)
 
 (defn on-pointerdown []
-  (dispatch [:mouse-event-time]))
+  (dispatch [:mouse-event-time])
+  true)
 
 (defn start-touch-listener []
   (-> js/window (.addEventListener "touchstart" on-touchstart)))

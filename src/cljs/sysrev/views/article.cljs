@@ -139,7 +139,7 @@
              :project-id project-id
              :article-id article-id}
             annotator-enabled?
-            @(subscribe [:annotator/enabled? annotator-context])]
+            @(subscribe [:annotator/enabled annotator-context])]
         (when (= context :article-list)
           (get-annotations article-id))
         [annotator/AnnotationCapture

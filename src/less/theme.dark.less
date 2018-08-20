@@ -18,6 +18,7 @@
 
 @green: rgba(33, 186, 69, 1);
 @blue: #4085d0;
+@brightBlue: rgba(70, 150, 250, 1);
 @mediumGrey: rgba(100, 100, 100, 1);
 @lightGrey: rgba(130, 130, 130, 0.7);
 
@@ -108,4 +109,14 @@
     > label:active {
         color: @text;
     }
+}
+
+.ui.label.selection-label {
+    border-width: 2px;
+    background-color: @lightText;
+    color: @darkText;
+}
+
+.ui.segment > .ui.fluid.label {
+    background-color: @background2;
 }
