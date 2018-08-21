@@ -10,6 +10,7 @@
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
+            [sysrev.markdown :refer [RenderMarkdown]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
@@ -626,6 +627,11 @@
 
 (defn ProjectOverviewContent []
   [:div.project-content
+   [:div
+    [:div.ui.segment
+     [RenderMarkdown
+      (str "<a href=\"https://biopredic.com\"><img alt=\"BIOPREDIC\" src=\"https://biopredic.com/styles/biopredic/images/logo.png\"></a>")]]
+    [:div]]
    [:div.ui.two.column.stackable.grid.project-overview
     [:div.ui.row
      [:div.ui.column

@@ -56,6 +56,7 @@
     [:script {:src "https://js.stripe.com/v3/"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
+    [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"}]
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")
