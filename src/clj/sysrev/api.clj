@@ -845,6 +845,35 @@
       {:error {:message "Exception in change-project-permissions"
                :exception e}})))
 
+(def project-description (atom ""))
+
+(defn create-project-description!
+  "Create a description of project-id with markdown string by user-id"
+  [project-id user-id markdown]
+  (reset! project-description markdown)
+  {:result {:success true
+            :project-description @project-description}})
+
+(defn read-project-description
+  "Read project description of project-id"
+  [project-id]
+  {:result {:success true
+            :project-description @project-description}})
+
+(defn update-project-description!
+  "Update the description of project-id with markdown string by user-id"
+  [project-id user-id markdown]
+  (reset! project-description markdown)
+  {:result {:success true
+            :project-description @project-description}})
+
+;; (defn delete-project-description!
+;;   "Delete the description of project-id by user-id"
+;;   [project-id user-id]
+;;   (reset! project-description "")
+;;   {:result {:success true
+;;             :project-description @project-description}})
+
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
 
