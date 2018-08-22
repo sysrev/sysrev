@@ -24,7 +24,8 @@
 ;; Some example of md that could cause issues:
 ;; "[some text](javascript:alert('xss'))"
 ;; a particularly nasty one:
-;; "> hello <a name=\"n\"\n> href=\"javascript:alert('xss')\">*you*</a>"
+;; > hello <a name="n"
+;; > href="javascript:alert('xss')">*you*</a>
 ;;
 ;; This currently uses the https://github.com/cure53/DOMPurify
 ;;
@@ -50,37 +51,49 @@
         get-description! (fn [current-description]
                            (reset! retrieving? true)
                            (GET "/api/project-description"
-                                :handler (fn [response]
-                                           (reset! retrieving? false)
-                                           (reset! current-description
-                                                   (-> response
-                                                       :result
-                                                       :project-description)))
-                                :error-handler (fn [error]
-                                                 (reset! retrieving? false)
-                                                 ($ js/console log "[Error] get-description!"))))
+                                {:params {:project-id @(subscribe [:active-project-id])}
+                                 :handler (fn [response]
+                                            (reset! retrieving? false)
+                                            (reset! current-description
+                                                    (-> response
+                                                        :result
+                                                        :project-description)))
+                                 :error-handler (fn [error]
+                                                  (reset! retrieving? false)
+                                                  ($ js/console log "[Error] get-description!"))}))
         create-description! (fn [markdown]
-                  (reset! retrieving? true)
-                  (POST "/api/project-description"
-                        {:params {:markdown markdown}
-                         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                         :handler (fn [response]
-                                    (reset! retrieving? false))
-                         :error-handler (fn [error]
-                                          ($ js/console log "[Error] create-description!")
-                                          (reset! retrieving? false))}))
+                              (reset! retrieving? true)
+                              (POST "/api/project-description"
+                                    {:params {:markdown markdown
+                                              :project-id @(subscribe [:active-project-id])}
+                                     :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                     :handler (fn [response]
+                                                (reset! retrieving? false))
+                                     :error-handler (fn [error]
+                                                      ($ js/console log "[Error] create-description!")
+                                                      (reset! retrieving? false))}))
         update-description! (fn [markdown]
-                    (reset! retrieving? true)
-                    (PUT "/api/project-description"
-                        {:params {:markdown markdown}
-                         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                         :handler (fn [response]
-                                    ($ js/console log (clj->js (-> response
-                                                                   :result)))
-                                    (reset! retrieving? false))
-                         :error-handler (fn [error]
-                                          ($ js/console log "[Error] update-description")
-                                          (reset! retrieving? false))}))]
+                              (reset! retrieving? true)
+                              (if-not (clojure.string/blank? markdown)
+                                ;; was updated
+                                (PUT "/api/project-description"
+                                     {:params {:markdown markdown
+                                               :project-id @(subscribe [:active-project-id])}
+                                      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                      :handler (fn [response]
+                                                 (reset! retrieving? false))
+                                      :error-handler (fn [error]
+                                                       ($ js/console log "[Error] update-description")
+                                                       (reset! retrieving? false))})
+                                ;; was deleted
+                                (DELETE "/api/project-description"
+                                        {:params {:project-id @(subscribe [:active-project-id])}
+                                         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                         :handler (fn [response]
+                                                    (reset! retrieving? false))
+                                         :error-handler (fn [error]
+                                                          ($ js/console log "[Error] delete-description")
+                                                          (reset! retrieving? false))})))]
     (get-description! (r/cursor state [:current-description]))
     (fn [state]
       [:div.ui.panel

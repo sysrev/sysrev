@@ -717,30 +717,28 @@
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (-> request :body :project-id)
-               markdown (-> request :body :markdown)
-               user-id (current-user-id request)]
-           (api/create-project-description! project-id user-id markdown))))
+               markdown (-> request :body :markdown)]
+           (api/create-project-description! project-id markdown))))
 
   (GET "/api/project-description" request
        (wrap-authorize
         request {:allow-public true}
-        (let [project-id (-> request :body :project-id)]
+        (let [project-id (-> request :params :project-id parse-integer)]
           (api/read-project-description project-id))))
 
   (PUT "/api/project-description" request
        (wrap-authorize
         request {:roles ["admin"]}
         (let [project-id (-> request :body :project-id)
-              markdown (-> request :body :markdown)
-              user-id (current-user-id request)]
-          (api/update-project-description! project-id user-id markdown))))
+              markdown (-> request :body :markdown)]
+          (api/update-project-description! project-id markdown))))
 
-  #_(DELETE "/api/project-description" request
+  (DELETE "/api/project-description" request
           (wrap-authorize
            request {:roles ["admin"]}
            (let [project-id (-> request :body :project-id)
                  user-id (current-user-id request)]
-             (api/delete-project-description! project-id user-id))))
+             (api/delete-project-description! project-id))))
 
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request

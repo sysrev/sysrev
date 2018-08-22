@@ -16,6 +16,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
             [sysrev.db.labels :as labels]
+            [sysrev.db.markdown :as markdown]
             [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
@@ -848,31 +849,42 @@
 (def project-description (atom ""))
 
 (defn create-project-description!
-  "Create a description of project-id with markdown string by user-id"
-  [project-id user-id markdown]
-  (reset! project-description markdown)
-  {:result {:success true
-            :project-description @project-description}})
+  "Create a description of project-id with markdown string"
+  [project-id markdown]
+  (try (markdown/create-project-description! project-id markdown)
+       {:result {:success true
+                 :project-description @project-description}}
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
 
 (defn read-project-description
   "Read project description of project-id"
   [project-id]
-  {:result {:success true
-            :project-description @project-description}})
+  (try (let [project-description (markdown/read-project-description project-id)]
+         {:result {:success true
+                   :project-description project-description}})
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
 
 (defn update-project-description!
   "Update the description of project-id with markdown string by user-id"
-  [project-id user-id markdown]
-  (reset! project-description markdown)
-  {:result {:success true
-            :project-description @project-description}})
+  [project-id markdown]
+  (try (markdown/update-project-description! project-id markdown)
+       {:result {:success true}}
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
 
-;; (defn delete-project-description!
-;;   "Delete the description of project-id by user-id"
-;;   [project-id user-id]
-;;   (reset! project-description "")
-;;   {:result {:success true
-;;             :project-description @project-description}})
+(defn delete-project-description!
+  "Delete the description of project-id by user-id"
+  [project-id]
+  (try (markdown/delete-project-description! project-id)
+       {:result {:success true}}
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
 
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
