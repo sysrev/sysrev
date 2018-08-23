@@ -10,7 +10,7 @@
                     :current-description ""
                     :draft-description ""
                     :retrieving? false
-                    :ignore-create-description-warning? false})
+                    :ignore-create-description-warning? {}})
 (def state (r/atom default-state))
 
 (def semantic-ui js/semanticUIReact)
@@ -161,11 +161,12 @@
 
 (defn ProjectDescriptionNag
   [state]
-  (let [ignore-create-description-warning? (r/cursor state [:ignore-create-description-warning?])
+  (let [ignore-create-description-warning? (r/cursor state [:ignore-create-description-warning? @(subscribe [:active-project-id])])
         editing? (r/cursor state [:editing?])]
     [:div.ui.icon.message.read-only-message
      [:i {:class "close icon"
-          :on-click #(reset! ignore-create-description-warning? true)}]
+          :on-click #(swap! ignore-create-description-warning?
+                            assoc @(subscribe [:active-project-id]) true)}]
      [:div.content
       [:div.header "Create a Project Description, your users will thank you!"]
       [:br]
@@ -182,7 +183,7 @@
   []
   (let [current-description (r/cursor state [:current-description])
         retrieving? (r/cursor state [:retrieving?])
-        ignore-create-description-warning? (r/cursor state [:ignore-create-description-warning?])
+        ignore-create-description-warning? (r/cursor state [:ignore-create-description-warning? @(subscribe [:active-project-id])])
         editing? (r/cursor state [:editing?])]
     (r/create-class
      {:reagent-render
@@ -201,5 +202,4 @@
               [:div {:style {:display "none"}}]))
       :component-did-mount
       (fn [this]
-        (reset! ignore-create-description-warning? false)
         (get-description! state))})))
