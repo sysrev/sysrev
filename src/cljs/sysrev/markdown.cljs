@@ -6,11 +6,11 @@
             [reagent.core :as r])
   (:require-macros [reagent.interop :refer [$]]))
 
-
 (def default-state {:editing? false
                     :current-description ""
                     :draft-description ""
-                    :retrieving? false})
+                    :retrieving? false
+                    :ignore-create-description-warning? false})
 (def state (r/atom default-state))
 
 (def semantic-ui js/semanticUIReact)
@@ -22,8 +22,8 @@
 ;; unfortunately, there is little in the way in regards to mitigation at that article
 ;;
 ;; Some example of md that could cause issues:
-;; "[some text](javascript:alert('xss'))"
-;; a particularly nasty one:
+;; [some text](javascript:alert('xss'))
+;;
 ;; > hello <a name="n"
 ;; > href="javascript:alert('xss')">*you*</a>
 ;;
@@ -42,25 +42,13 @@
     [:div {:dangerouslySetInnerHTML {:__html (->> markdown
                                                   ($ converter makeHtml)
                                                   ($ js/DOMPurify sanitize))}}]))
+
 (defn MarkdownComponent
   [state]
   (let [editing? (r/cursor state [:editing?])
         current-description (r/cursor state [:current-description])
         draft-description (r/cursor state [:draft-description])
         retrieving? (r/cursor state [:retrieving?])
-        get-description! (fn [current-description]
-                           (reset! retrieving? true)
-                           (GET "/api/project-description"
-                                {:params {:project-id @(subscribe [:active-project-id])}
-                                 :handler (fn [response]
-                                            (reset! retrieving? false)
-                                            (reset! current-description
-                                                    (-> response
-                                                        :result
-                                                        :project-description)))
-                                 :error-handler (fn [error]
-                                                  (reset! retrieving? false)
-                                                  ($ js/console log "[Error] get-description!"))}))
         create-description! (fn [markdown]
                               (reset! retrieving? true)
                               (POST "/api/project-description"
@@ -100,55 +88,118 @@
                                                           ($ js/console log "[Error] delete-description")
                                                           (reset! retrieving? false)
                                                           (reset! editing? false))})))]
-    (get-description! (r/cursor state [:current-description]))
-    (fn [state]
-      [:div.ui.panel
-       [:div.ui.two.column.middle.aligned.grid
-        [:div.ui.left.aligned.column]
-        [:div.ui.right.aligned.column
-         (if-not @editing?
-           [:div {:on-click (fn [event]
-                              (reset! draft-description @current-description)
-                              (reset! editing? true))
-                  :class "ui small icon button"}
-            [:i {:class "ui blue pencil horizontal icon"}]]
-           [:div
-            (when (and @editing?
-                       (not @retrieving?))
-              [:div {:on-click (fn [event]
-                                 (reset! editing? false))
-                     :class "ui small icon button"}
-               [:p
-                (if (= @current-description @draft-description)
-                  "Stop Editing"
-                  "Discard Changes")]])
+    [:div.ui.segment
+     [:div.ui.panel
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column]
+       [:div.ui.right.aligned.column
+        (if-not @editing?
+          (when (or @(subscribe [:member/admin?])
+                    @(subscribe [:user/admin?]))
             [:div {:on-click (fn [event]
-                               (let [saving? (clojure.string/blank? @current-description)]
-                                 (reset! current-description @draft-description)
-                                 (if saving?
-                                   (create-description! @current-description)
-                                   (update-description! @current-description))))
-                   :class (cond-> "ui small icon button"
-                            (= @current-description @draft-description )
-                            (str " disabled")
-                            @retrieving?
-                            (str " loading"))}
-             [:p "Save"]]])]
-        (if @editing?
-          [:div {:class "sixteen wide column"}
-           [:form.ui.form
-            [TextArea {:fluid "true"
-                       :autoHeight true
-                       :disabled @retrieving?
-                       :placeholder "Enter a Markdown description"
-                       :on-change (fn [e]
-                                    (let [value (-> ($ e :target)
-                                                    ($ :value))]
-                                      (reset! draft-description
-                                              (-> ($ e :target)
-                                                  ($ :value)))))
-                       :default-value @draft-description}]]
-           [:div
-            [RenderMarkdown @draft-description]]]
-          [:div [RenderMarkdown @current-description]
-           [:br]])]])))
+                               (reset! draft-description @current-description)
+                               (reset! editing? true))
+                   :class "ui small icon button"}
+             [:i {:class "ui blue pencil horizontal icon"}]])
+          [:div
+           (when (and @editing?
+                      (not @retrieving?))
+             [:div {:on-click (fn [event]
+                                (reset! editing? false))
+                    :class "ui small icon button"}
+              [:p
+               (if (= @current-description @draft-description)
+                 "Stop Editing"
+                 "Discard Changes")]])
+           [:div {:on-click (fn [event]
+                              (let [saving? (clojure.string/blank? @current-description)]
+                                (reset! current-description @draft-description)
+                                (if saving?
+                                  (create-description! @current-description)
+                                  (update-description! @current-description))))
+                  :class (cond-> "ui small icon button"
+                           (= @current-description @draft-description)
+                           (str " disabled")
+                           @retrieving?
+                           (str " loading"))}
+            [:p "Save"]]])]
+       (if @editing?
+         [:div {:class "sixteen wide column"}
+          [:form.ui.form
+           [TextArea {:fluid "true"
+                      :autoHeight true
+                      :disabled @retrieving?
+                      :placeholder "Enter a Markdown description"
+                      :on-change (fn [e]
+                                   (let [value (-> ($ e :target)
+                                                   ($ :value))]
+                                     (reset! draft-description
+                                             (-> ($ e :target)
+                                                 ($ :value)))))
+                      :default-value @draft-description}]]
+          [:div
+           [RenderMarkdown @draft-description]]]
+         [:div [RenderMarkdown @current-description]
+          [:br]])]]]))
+
+(defn get-description!
+  [state]
+  (let [current-description (r/cursor state [:current-description])
+        retrieving? (r/cursor state [:retrieving?])]
+    (reset! retrieving? true)
+    (GET "/api/project-description"
+         {:params {:project-id @(subscribe [:active-project-id])}
+          :handler (fn [response]
+                     (reset! retrieving? false)
+                     (reset! current-description
+                             (-> response
+                                 :result
+                                 :project-description)))
+          :error-handler (fn [error]
+                           (reset! retrieving? false)
+                           ($ js/console log "[Error] get-description!"))})))
+
+(defn ProjectDescriptionNag
+  [state]
+  (let [ignore-create-description-warning? (r/cursor state [:ignore-create-description-warning?])
+        editing? (r/cursor state [:editing?])]
+    [:div.ui.icon.message.read-only-message
+     [:i {:class "close icon"
+          :on-click #(reset! ignore-create-description-warning? true)}]
+     [:div.content
+      [:div.header "Create a Project Description, your users will thank you!"]
+      [:br]
+      [:p "This project does not currently have a description. It's easy to create a description using " [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" :target "_blank" :rel "noopener noreferrer"} "Markdown"] " and will help visitors better understand your project."]
+      [:br]
+      [:div.ui.two.column.middle.aligned.grid
+       [:div.ui.left.aligned.column
+        [:div {:on-click (fn [event]
+                           (reset! editing? true))
+               :class "ui small icon button"}
+         [:p "Create Project Description"]]]]]]))
+
+(defn ProjectDescription
+  []
+  (let [current-description (r/cursor state [:current-description])
+        retrieving? (r/cursor state [:retrieving?])
+        ignore-create-description-warning? (r/cursor state [:ignore-create-description-warning?])
+        editing? (r/cursor state [:editing?])]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (cond @editing?
+              [MarkdownComponent state]
+              (and (not @retrieving?)
+                   (clojure.string/blank? @current-description)
+                   (or @(subscribe [:member/admin?])
+                       @(subscribe [:user/admin?]))
+                   (not @ignore-create-description-warning?))
+              [ProjectDescriptionNag state]
+              (not (clojure.string/blank? @current-description))
+              [MarkdownComponent state]
+              :else
+              [:div {:style {:display "none"}}]))
+      :component-did-mount
+      (fn [this]
+        (reset! ignore-create-description-warning? false)
+        (get-description! state))})))

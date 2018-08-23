@@ -10,7 +10,7 @@
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
-            [sysrev.markdown :as markdown :refer [RenderMarkdown MarkdownComponent]]
+            [sysrev.markdown :as markdown :refer [ProjectDescription]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
@@ -627,8 +627,7 @@
 
 (defn ProjectOverviewContent []
   [:div.project-content
-   [:div.ui.segment
-    [MarkdownComponent markdown/state]]
+   [ProjectDescription]
    [:div.ui.two.column.stackable.grid.project-overview
     [:div.ui.row
      [:div.ui.column
