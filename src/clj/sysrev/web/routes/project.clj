@@ -486,12 +486,10 @@
                 (when (not-empty text-search)
                   text-search))
               filters
-              (->> [(map #(alist/filter-has-user-labels %)
-                         label-users)
-                    (map #(alist/filter-has-label-id %)
-                         label-ids)
+              (->> [(map #(do {:has-user-labels %}) label-users)
+                    (map #(do {:has-label-id %}) label-ids)
                     (when text-search
-                      [(alist/filter-free-text-search text-search)])]
+                      [{:text-search text-search}])]
                    (apply concat)
                    (remove nil?)
                    vec)

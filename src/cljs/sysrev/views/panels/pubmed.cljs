@@ -287,7 +287,7 @@
              (dispatch [:require [:pubmed-search @current-search-term 1]]))]
     [:form {:on-submit (wrap-prevent-default fetch-results)
             :id "search-bar"}
-     [:div.ui.fluid.icon.input
+     [:div.ui.fluid.left.icon.action.input
       [:input {:type "text"
                :placeholder "PubMed Search..."
                :value @on-change-search-term
@@ -296,8 +296,8 @@
                                     (-> event
                                         (aget "target")
                                         (aget "value"))))}]
-      [:i.inverted.circular.search.link.icon
-       {:on-click fetch-results}]]]))
+      [:i.search.icon]
+      [:button.ui.button {:type "submit"} "Search"]]]))
 
 (defn SearchResultsView []
   (let [current-search-term (r/cursor state [:current-search-term])

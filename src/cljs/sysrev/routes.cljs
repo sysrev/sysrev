@@ -50,50 +50,29 @@
      articles "/articles" [project-id]
      (let [project-id @(subscribe [:active-project-id])
            panel [:project :project :articles]
+           context (project-articles/get-context)
            active-panel @(subscribe [:active-panel])
            panel-changed? (not= panel active-panel)
-           old-cstate (project-articles/current-state)
-           new-cstate (article-list/merge-url-params
-                       (project-articles/current-state))
-           [prev-args args] [(article-list/query-args old-cstate)
-                             (article-list/query-args new-cstate)]
-           item (article-list/list-data-query new-cstate)
-           item2 (article-list/list-count-query new-cstate)
-           set-panel [:set-active-panel [:project :project :articles]]
-           ensure-visible #(ensure-dom-elt-visible-soon
-                            ".article-list-view div.ui.segment.article-nav")
-           on-article? (and (= @(subscribe [:active-panel]) panel)
-                            @(subscribe [:project-articles/article-id]))
-           data-loaded? @(subscribe [:have? item])
+           count-item @(subscribe [::article-list/count-query context])
+           data-item @(subscribe [::article-list/articles-query context])
+           set-panel [:set-active-panel panel]
            have-project? @(subscribe [:have? [:project project-id]])
-           load-params [:article-list/load-url-params panel]
-           sync-params #(article-list/sync-url-params panel)
-           changed? (or panel-changed? on-article? (not= args prev-args))]
+           load-params [:article-list/load-url-params context]
+           sync-params #(article-list/sync-url-params context)]
        (cond
-         (and on-article? (= prev-args args) data-loaded?)
-         (do (dispatch load-params)
-             (dispatch set-panel)
-             (dispatch project-articles/hide-article))
-
          (not have-project?)
          (do (dispatch [:require [:project project-id]])
              (dispatch
               [:data/after-load [:project project-id] :project-articles-project
                (list load-params set-panel)]))
 
-         (not changed?)
-         (do nil)
+         panel-changed?
+         (do (dispatch
+              [:data/after-load data-item :project-articles-route
+               (list sync-params set-panel)])
+             (article-list/reload-list context))
 
-         :else
-         (do (dispatch load-params)
-             (dispatch
-              [:data/after-load item :project-articles-route
-               (list set-panel project-articles/hide-article
-                     #(when panel-changed? (sync-params)))])
-             (dispatch [:require item2])
-             (dispatch [:require item])
-             (dispatch [:reload item2])
-             (dispatch [:reload item])))))
+         :else (do (dispatch load-params)))))
 
     (sr-defroute-project
      articles-id "/articles/:article-id" [project-id article-id]
@@ -103,10 +82,11 @@
            item [:article project-id article-id]
            set-panel [:set-active-panel panel]
            have-project? @(subscribe [:have? [:project project-id]])
-           load-params [:article-list/load-url-params panel]]
+           ;; load-params [:article-list/load-url-params panel]
+           ]
        (dispatch set-panel)
        (dispatch (project-articles/show-article article-id))
-       (dispatch load-params)
+       #_ (dispatch load-params)
        (dispatch [:pdf/init-view-state panel])
        (dispatch [:require item])
        (dispatch [:reload item]))))

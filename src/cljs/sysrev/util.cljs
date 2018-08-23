@@ -239,20 +239,27 @@
        (map #(hash-map (kw %) %))
        (apply merge)))
 
+(defn input-focused? []
+  (let [el js/document.activeElement]
+    (when (and el (-> (js/$ el) (.is "input")))
+      el)))
+
 ;; https://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript
 (defn clear-text-selection
   "Clears any user text selection in window."
   []
-  (cond
-    (-> js/window .-getSelection)
-    (do (cond (-> js/window (.getSelection) .-empty) ;; Chrome
-              (-> js/window (.getSelection) (.empty))
+  ;; don't run if input element is focused, will interfere with focus/behavior
+  (when-not (input-focused?)
+    (cond
+      (-> js/window .-getSelection)
+      (do (cond (-> js/window (.getSelection) .-empty) ;; Chrome
+                (-> js/window (.getSelection) (.empty))
 
-              (-> js/window (.getSelection) .-removeAllRanges) ;; Firefox
-              (-> js/window (.getSelection) (.removeAllRanges))))
+                (-> js/window (.getSelection) .-removeAllRanges) ;; Firefox
+                (-> js/window (.getSelection) (.removeAllRanges))))
 
-    (-> js/document .-selection) ;; IE?
-    (-> js/document .-selection (.empty))))
+      (-> js/document .-selection) ;; IE?
+      (-> js/document .-selection (.empty)))))
 
 (defn clear-text-selection-soon
   "Runs clear-text-selection after short js/setTimeout delays."
@@ -386,3 +393,10 @@
   (str js/window.location.pathname
        js/window.location.search
        js/window.location.hash))
+
+(defn write-json [x]
+  (js/JSON.stringify (clj->js x)))
+
+(defn read-json [s]
+  (js->clj (js/JSON.parse s)
+           :keywordize-keys true))

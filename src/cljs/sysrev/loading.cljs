@@ -108,7 +108,8 @@
 
 (def ignore-data-names [:article/annotations
                         :project/sources
-                        :project/important-terms])
+                        :project/important-terms
+                        :pdf/open-access-available?])
 (def ignore-action-names [:sources/delete])
 
 (defn any-loading-for-indicator? []

@@ -356,7 +356,7 @@
               :on-change #(set-ann [:semantic-class] (util/event-input-value %))
               :read-only (not editing?)
               :disabled (not editing?)
-              :placeholder "New class name"}]
+              :placeholder (if editing? "New class name" nil)}]
             [ui/selection-dropdown
              [:div.text (:semantic-class active)]
              (map-indexed

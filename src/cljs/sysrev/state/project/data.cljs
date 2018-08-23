@@ -4,8 +4,9 @@
               dispatch trim-v reg-fx]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.core :refer [store-user-maps]]
-            [sysrev.state.nav :refer [active-project-id]]
+            [sysrev.state.nav :refer [active-project-id active-panel]]
             [sysrev.state.project.base :refer [get-project-raw]]
+            [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.shared.transit :as sr-transit]
             [sysrev.util :refer [dissoc-in]]
             [sysrev.shared.util :as util]))
@@ -116,8 +117,11 @@
                project-id (dissoc args :n-count :n-offset)]])
   :process
   (fn [{:keys [db]} [project-id args] result]
-    {:db (assoc-in db [:data :project project-id :article-list args]
-                   result)}))
+    (let [panel (active-panel db)]
+      (cond-> {:db (assoc-in db [:data :project project-id :article-list args]
+                             result)}
+        (= panel [:project :project :articles])
+        (merge {:dispatch (project-articles/reset-nav-action)})))))
 
 (reg-sub
  :project/article-list

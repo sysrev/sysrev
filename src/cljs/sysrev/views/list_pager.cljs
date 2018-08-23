@@ -30,8 +30,8 @@
                                  items-per-page
                                  item-name-string]
                           :as config}]
-  (let [end-offset (min (dec total-count)
-                        (+ offset items-per-page))]
+  (let [end-offset (dec (min total-count
+                             (+ offset items-per-page)))]
     [:h5.list-pager-message
      (if (or (nil? total-count) (zero? total-count))
        (if (util/full-size?)

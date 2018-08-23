@@ -380,22 +380,21 @@
         (let [full-size? (util/full-size?)
               inline-loader
               (fn []
-                (when (and (loading/any-loading? :only :pdf/open-access-available?)
-                           @(loading/loading-indicator))
+                (when (loading/any-loading? :only :pdf/open-access-available?)
                   [:div.ui.small.active.inline.loader
                    {:style {:margin-right "1em"
                             :margin-left "1em"}}]))
               upload-form
               (fn []
                 [:div.field>div.fields
-                 (when full-size?
-                   (inline-loader))
+                 #_ (when full-size?
+                      (inline-loader))
                  [UploadButton
                   (str "/api/files/article/" article-id "/upload-pdf")
                   #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
                   "Upload PDF"]
-                 (when (not full-size?)
-                   (inline-loader))])
+                 #_ (when (not full-size?)
+                      (inline-loader))])
               open-access? @(subscribe [:article/open-access-available? article-id])
               logged-in? @(subscribe [:self/logged-in?])
               member? @(subscribe [:self/member?])]

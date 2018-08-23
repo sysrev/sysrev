@@ -1,6 +1,7 @@
 (ns sysrev.state.nav
-  (:require [re-frame.core :refer
-             [subscribe reg-sub reg-event-db reg-event-fx
+  (:require [reagent.ratom :refer [reaction]]
+            [re-frame.core :refer
+             [subscribe reg-sub reg-sub-raw reg-event-db reg-event-fx
               dispatch trim-v reg-fx]]
             [sysrev.base :refer [active-route]]
             [sysrev.nav :refer [nav-scroll-top force-dispatch]]
@@ -156,11 +157,19 @@
        new-active
        (merge {:set-page-title (:name (get-project-raw new-db new-active))})))))
 
+(reg-sub-raw
+ :project/uri
+ (fn [_ [_ project-id suburi]]
+   (reaction
+    (let [active-id @(subscribe [:active-project-id])
+          project-id (or project-id active-id)
+          project-url-id @(subscribe [:project/active-url-id project-id])
+          url-id (if (string? project-url-id)
+                   project-url-id project-id)]
+      (str "/p/" url-id (or suburi ""))))))
+;;
 (defn project-uri [project-id suburi]
-  (let [project-url-id @(subscribe [:project/active-url-id project-id])
-        url-id (if (string? project-url-id)
-                 project-url-id project-id)]
-    (str "/p/" url-id suburi)))
+  @(subscribe [:project/uri project-id suburi]))
 
 (reg-event-fx
  :project/navigate

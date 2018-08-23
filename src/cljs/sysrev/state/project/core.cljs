@@ -2,6 +2,8 @@
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.state.project.base :refer [get-project-raw]]
+            [sysrev.state.identity :refer [get-self-projects]]
             [sysrev.shared.util :refer [short-uuid]]))
 
 (reg-sub
@@ -40,19 +42,33 @@
  (fn [[project-hash]]
    (str "https://sysrev.com/register/" project-hash)))
 
+(defn- project-active-url-id-impl [project-id project self-projects]
+  (let [project-url
+        (-> project :url-ids first :url-id)
+        self-url
+        (->> self-projects
+             (filter #(= (:project-id %) project-id))
+             first :url-ids first)]
+    (or project-url self-url)))
+;;
+(defn project-active-url-id [db project-id]
+  (let [project (get-project-raw db project-id)
+        self-projects (get-self-projects db :include-available? true)]
+    (project-active-url-id-impl project-id project self-projects)))
+;;
 (reg-sub
  :project/active-url-id
  (fn [[_ project-id]]
    [(subscribe [:project/raw project-id])
     (subscribe [:self/projects true])])
  (fn [[project self-projects] [_ project-id]]
-   (let [project-url
-         (-> project :url-ids first :url-id)
-         self-url
-         (->> self-projects
-              (filter #(= (:project-id %) project-id))
-              first :url-ids first)]
-     (or project-url self-url))))
+   (project-active-url-id-impl project-id project self-projects)))
+
+(defn get-project-uri [db project-id suburi]
+  (let [project-url-id (project-active-url-id db project-id)
+        url-id (if (string? project-url-id)
+                 project-url-id project-id)]
+    (str "/p/" url-id suburi)))
 
 (reg-sub
  :project/settings

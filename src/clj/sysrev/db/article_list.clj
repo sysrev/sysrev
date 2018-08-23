@@ -67,6 +67,10 @@
          (filter #(= (:user-id %) user-id))
          not-empty)))
 
+#_
+(defn filter-has-annotations [user-id]
+  nil)
+
 ;; TODO: include user notes in search
 (defn filter-free-text-search [text]
   (fn [article]
@@ -92,17 +96,38 @@
          (filter #(= (:label-id %) label-id))
          not-empty)))
 
+(defn get-sort-fn [sort-by]
+  (case sort-by
+    :article-id sort-article-id
+    :article-id))
+
+(defn get-filter-fn [fmap]
+  (let [filter-name (first (keys fmap))
+        make-filter
+        (case filter-name
+          :has-user-labels   filter-has-user-labels
+          :has-label-id      filter-has-label-id
+          :text-search       filter-free-text-search)]
+    (make-filter (get fmap filter-name))))
+
+(defn project-article-list-filtered [project-id filters sort-by]
+  (with-project-cache
+    project-id [:filtered-article-list [sort-by filters]]
+    (let [sort-fn (get-sort-fn sort-by)
+          filter-fns (mapv get-filter-fn filters)
+          filter-all-fn (if (empty? filters)
+                          (constantly true)
+                          (apply every-pred filter-fns))]
+      (->> (vals (project-full-article-list project-id))
+           (filter filter-all-fn)
+           (sort-fn)))))
+
 (defn query-project-article-list
-  [project-id {:keys [filters sort-fn n-offset n-count]
+  [project-id {:keys [filters sort-by n-offset n-count]
                :or {filters []
-                    sort-fn sort-article-id
+                    sort-by :article-id
                     n-offset 0
-                    n-count 10}}]
-  (let [filter-all-fn (if (empty? filters)
-                        (constantly true)
-                        (apply every-pred filters))
-        entries (->> (vals (project-full-article-list project-id))
-                     (filter filter-all-fn)
-                     (sort-fn))]
+                    n-count 20}}]
+  (let [entries (project-article-list-filtered project-id filters sort-by)]
     {:entries (->> entries (drop n-offset) (take n-count))
      :total-count (count entries)}))

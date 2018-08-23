@@ -13,23 +13,24 @@
 
 (def ^:private panel [:project :project :articles])
 
-(def panel-defaults {:panel panel})
-(defmethod al/panel-defaults panel [] panel-defaults)
+(reg-sub
+ ::article-list-context
+ :<- [:project/uri]
+ :<- [:project/overall-label-id]
+ (fn [[project-uri overall-id]]
+   {:panel panel
+    :base-uri (str project-uri "/articles")
+    ;; TODO: make /article/:id route
+    :article-base-uri (str project-uri "/article")
+    :defaults {:filters [#_ {:label-id overall-id}]}}))
 
-(def initial-state {:article-list {}})
-(defonce state (r/cursor app-db [:state :panels panel]))
-(defonce al-state (r/cursor app-db [:state :panels panel :article-list]))
-(defn ensure-state []
-  (when (nil? @state)
-    (reset! state initial-state)))
-
-(defn current-state []
-  (al/current-state @al-state (al/panel-defaults panel)))
+(defn get-context []
+  @(subscribe [::article-list-context]))
 
 (reg-sub
  :project-articles/article-id
  :<- [:active-panel]
- :<- [:article-list/article-id panel]
+ :<- [:article-list/article-id {:panel panel}]
  (fn [[active-panel article-id]]
    (when (= active-panel panel)
      article-id)))
@@ -54,14 +55,17 @@
   ;; TODO: function
   false)
 
-(defn show-article [article-id]
-  [:article-list/set-active-article panel article-id])
+(defn reset-nav-action []
+  [::al/set-recent-nav-action (get-context) nil])
 
-(def hide-article
-  [:article-list/set-active-article panel nil])
+(defn show-article [article-id]
+  [:article-list/set-active-article (get-context) article-id])
+
+(defn hide-article []
+  [:article-list/set-active-article (get-context) nil])
 
 (defn reset-filters []
-  (al/reset-filters al-state (al/panel-defaults panel)))
+  (dispatch [::al/reset-filters (get-context)]))
 
 (defn set-group-status []
   ;; TODO: function
@@ -76,5 +80,5 @@
     (fn [child]
       (when-let [project-id @(subscribe [:active-project-id])]
         [:div.project-content
-         [al/ArticleListPanel al-state (al/panel-defaults panel)]
+         [al/ArticleListPanel (get-context)]
          child]))))

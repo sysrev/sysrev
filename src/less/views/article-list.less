@@ -300,8 +300,87 @@
         }
     }
 
-    .article-filters-column {
+    div.ui.segments.article-filters-column {
         margin-top: 0px;
+
+        > .ui.segment {
+            padding: 0.3em 0.75em 0.5em 0.75em;
+
+            > form.ui.form {
+                > .field {
+                    > .ui.grid {
+                        margin: 0 -0.25em 0 -0.25em;
+
+                        > .column {
+                            padding: 0 0.25em 0 0.25em;
+                        }
+                    }
+                }
+            }
+        }
+
+        > .ui.segment.filters-content {
+            > div.inner {
+                > div.ui.label,
+                > div.ui.fluid.button {
+                    margin-top: 5px;
+                    margin-bottom: 5px;
+                }
+            }
+        }
+
+        > .ui.header.segment {
+            padding-top: 0.5em;
+            padding-bottom: 0.5em;
+        }
+        > a.ui.grid.segment.collapse-header,
+        > div.ui.grid.segment.expand-filters {
+            > .column {
+                padding: 0;
+                > i.icon {
+                    padding: 0;
+                }
+            }
+        }
+        > div.ui.grid.segment.expand-filters {
+            padding-top: 0.5em;
+            padding-bottom: 0.5em;
+        }
+        > a.ui.segment.collapse-header {
+            cursor: pointer;
+        }
+        > a.ui.segment.collapse-header:hover {
+            background-color: mix(@background, @text, 90);
+        }
+        > .ui.button.expand-filters {
+            padding-top: 1.5em;
+            padding-bottom: 1.5em;
+        }
+
+        div.edit-filter {
+            > .ui.form {
+                padding-top: 0.75em;
+                margin-top: 1em;
+                margin-bottom: 1em;
+                border-top: 1px solid rgba(128,128,128, 0.75);
+                border-bottom: 1px solid rgba(128,128,128, 0.75);
+            }
+        }
+    }
+
+    div.ui.segments.article-filters-column.expand-header > div.segment {
+        padding-left: 0.25em;
+        padding-right: 0.25em;
+    }
+
+    div.ui.segments.article-filters-column.expand-header,
+    div.ui.segments.article-filters-column.expand-header > div.segment {
+        cursor: pointer;
+    }
+
+    div.ui.segments.article-filters-column.expand-header:hover,
+    div.ui.segments.article-filters-column.expand-header:hover > div.segment {
+        background-color: mix(@background, @text, 90);
     }
 
     .ui.segments.article-filters {
@@ -312,48 +391,6 @@
     .ui.grid.article-list-grid {
         > .row > .column.filters-column {
             padding-right: 0;
-
-            > .article-filters-column {
-                > .ui.header.segment {
-                    padding-left: 0.25em;
-                    padding-right: 0.25em;
-                    padding-top: 0.5em;
-                    padding-bottom: 0.5em;
-                }
-                > a.ui.grid.segment.collapse-header,
-                > div.ui.grid.segment.expand-filters {
-                    > .column {
-                        padding: 0;
-                        > i.icon {
-                            padding: 0;
-                        }
-                    }
-                }
-                > div.ui.grid.segment.expand-filters {
-                    padding-top: 0.5em;
-                    padding-bottom: 0.5em;
-                }
-                > a.ui.segment.collapse-header {
-                    cursor: pointer;
-                }
-                > a.ui.segment.collapse-header:hover {
-                    background-color: mix(@background, @text, 90);
-                }
-                > .ui.button.expand-filters {
-                    padding-top: 1.5em;
-                    padding-bottom: 1.5em;
-                }
-            }
-
-            > div.ui.segments.article-filters-column.expand-header,
-            > div.ui.segments.article-filters-column.expand-header > div.segment {
-                cursor: pointer;
-            }
-
-            > div.ui.segments.article-filters-column.expand-header:hover,
-            > div.ui.segments.article-filters-column.expand-header:hover > div.segment {
-                background-color: mix(@background, @text, 90);
-            }
         }
         .ui.segments.article-list-segments {
             margin-top: 0px;

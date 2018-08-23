@@ -21,15 +21,16 @@
 
 (reg-sub
  ::view-state
- (fn [_]
-   [(subscribe [::panel-state])])
- (fn [[pstate] [_ view]]
+ (fn [[_ view & [panel]]]
+   [(subscribe [::panel-state panel])])
+ (fn [[pstate] [_ view & [panel]]]
    (when (and pstate view)
      (get-in pstate [:views view]))))
 
 (defn get-panel-field [db path & [panel]]
   (let [panel (or panel (nav/active-panel db))
-        path (if (sequential? path) path [path])]
+        path (if (or (nil? path) (sequential? path))
+               path [path])]
     (get-in db (concat [:state :panels panel] path))))
 
 (reg-sub
@@ -38,21 +39,24 @@
    [(subscribe [::panel-state panel])])
  (fn [[pstate] [_ path & [panel]]]
    (when (and pstate path)
-     (let [path (if (sequential? path) path [path])]
+     (let [path (if (or (nil? path) (sequential? path))
+                  path [path])]
        (get-in pstate path)))))
 
-(defn get-view-field [db path view]
-  (let [panel (nav/active-panel db)
-        path (if (sequential? path) path [path])]
+(defn get-view-field [db path view & [panel]]
+  (let [panel (or panel (nav/active-panel db))
+        path (if (or (nil? path) (sequential? path))
+               path [path])]
     (get-in db (concat [:state :panels panel :views view] path))))
 
 (reg-sub
  :view-field
- (fn [[_ view path]]
-   [(subscribe [::view-state view])])
- (fn [[vstate] [_ view path]]
+ (fn [[_ view path & [panel]]]
+   [(subscribe [::view-state view panel])])
+ (fn [[vstate] [_ view path _]]
    (when (and vstate path)
-     (let [path (if (sequential? path) path [path])]
+     (let [path (if (or (nil? path) (sequential? path))
+                  path [path])]
        (get-in vstate path)))))
 
 (defn set-panel-field [db path val & [panel]]

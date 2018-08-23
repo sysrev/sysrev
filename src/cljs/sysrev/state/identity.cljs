@@ -98,6 +98,12 @@
  ::self-state
  (fn [db] (get-in db [:state :self])))
 
+(defn get-self-projects [db & {:keys [include-available?]}]
+  (let [{:keys [projects]} (get-in db [:state :self])]
+    (if include-available?
+      projects
+      (->> projects (filterv :member?)))))
+
 (reg-sub
  :self/projects
  :<- [::self-state]

@@ -68,6 +68,10 @@
  (fn [url] (nav url)))
 
 (reg-fx
+ :nav-redirect
+ (fn [url] (nav-redirect url)))
+
+(reg-fx
  :nav-scroll-top
  (fn [url] (nav-scroll-top url)))
 

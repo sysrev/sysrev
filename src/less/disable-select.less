@@ -30,7 +30,7 @@ div.article-nav {
     .noselect;
 }
 
-div.field label {
+div.field > label {
     .noselect;
 }
 
@@ -43,17 +43,15 @@ table thead tr th {
 }
 
 div.article-list-segments {
-    .noselect;
-
-    div.ui.segments.article-info {
-        div.ui.segment.article-content {
-            .select-auto;
-        }
+    > div.article-list-full-article {
+        .select-auto;
     }
 }
 
-div.article-info div.ui.header.segment.article-header {
-    .noselect;
+div.ui.segments.article-info {
+    > div.ui.segment.article-header {
+        .noselect;
+    }
 }
 
 div.article-labels-view .ui.segment .ui.dividing.header {
