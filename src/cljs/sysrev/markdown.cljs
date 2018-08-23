@@ -68,10 +68,12 @@
                                               :project-id @(subscribe [:active-project-id])}
                                      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                      :handler (fn [response]
-                                                (reset! retrieving? false))
+                                                (reset! retrieving? false)
+                                                (reset! editing? false))
                                      :error-handler (fn [error]
                                                       ($ js/console log "[Error] create-description!")
-                                                      (reset! retrieving? false))}))
+                                                      (reset! retrieving? false)
+                                                      (reset! editing? false))}))
         update-description! (fn [markdown]
                               (reset! retrieving? true)
                               (if-not (clojure.string/blank? markdown)
@@ -81,54 +83,63 @@
                                                :project-id @(subscribe [:active-project-id])}
                                       :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                       :handler (fn [response]
-                                                 (reset! retrieving? false))
+                                                 (reset! retrieving? false)
+                                                 (reset! editing? false))
                                       :error-handler (fn [error]
                                                        ($ js/console log "[Error] update-description")
-                                                       (reset! retrieving? false))})
+                                                       (reset! retrieving? false)
+                                                       (reset! editing? false))})
                                 ;; was deleted
                                 (DELETE "/api/project-description"
                                         {:params {:project-id @(subscribe [:active-project-id])}
                                          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                          :handler (fn [response]
-                                                    (reset! retrieving? false))
+                                                    (reset! retrieving? false)
+                                                    (reset! editing? false))
                                          :error-handler (fn [error]
                                                           ($ js/console log "[Error] delete-description")
-                                                          (reset! retrieving? false))})))]
+                                                          (reset! retrieving? false)
+                                                          (reset! editing? false))})))]
     (get-description! (r/cursor state [:current-description]))
     (fn [state]
       [:div.ui.panel
        [:div.ui.two.column.middle.aligned.grid
-        [:div.ui.left.aligned.column
-         (when (clojure.string/blank? @current-description)
-           [:h4 "Project Description"])]
+        [:div.ui.left.aligned.column]
         [:div.ui.right.aligned.column
-         [:div {:on-click (fn [event]
-                            (if @editing?
-                              (let [saving? (clojure.string/blank? @current-description)]
-                                (reset! current-description @draft-description)
-                                (if saving?
-                                  (create-description! @current-description)
-                                  (update-description! @current-description)))
-                              (reset! draft-description @current-description))
-                            (reset! editing? (not @editing?)))
-                :class (cond-> "ui small icon button"
-                         (and @editing?
-                              (= @current-description @draft-description ))
-                         (str " disabled"))}
-          (if @editing?
-            [:p "Save"]
-            [:i {:class "ui blue pencil horizontal icon"}])]
-         (when (and @editing?
-                    (not (clojure.string/blank? @current-description)))
+         (if-not @editing?
            [:div {:on-click (fn [event]
-                              (reset! editing? false))
+                              (reset! draft-description @current-description)
+                              (reset! editing? true))
                   :class "ui small icon button"}
-            [:p "Discard Changes"]])]
+            [:i {:class "ui blue pencil horizontal icon"}]]
+           [:div
+            (when (and @editing?
+                       (not @retrieving?))
+              [:div {:on-click (fn [event]
+                                 (reset! editing? false))
+                     :class "ui small icon button"}
+               [:p
+                (if (= @current-description @draft-description)
+                  "Stop Editing"
+                  "Discard Changes")]])
+            [:div {:on-click (fn [event]
+                               (let [saving? (clojure.string/blank? @current-description)]
+                                 (reset! current-description @draft-description)
+                                 (if saving?
+                                   (create-description! @current-description)
+                                   (update-description! @current-description))))
+                   :class (cond-> "ui small icon button"
+                            (= @current-description @draft-description )
+                            (str " disabled")
+                            @retrieving?
+                            (str " loading"))}
+             [:p "Save"]]])]
         (if @editing?
           [:div {:class "sixteen wide column"}
            [:form.ui.form
             [TextArea {:fluid "true"
                        :autoHeight true
+                       :disabled @retrieving?
                        :placeholder "Enter a Markdown description"
                        :on-change (fn [e]
                                     (let [value (-> ($ e :target)
