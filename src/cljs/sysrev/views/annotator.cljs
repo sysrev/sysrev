@@ -291,7 +291,8 @@
                                   (:annotation initial-new))
                   :semantic-class (or (:semantic-class annotation)
                                       (:semantic-class initial-new)
-                                      (first class-options))}
+                                      (first class-options))
+                  :context (:context initial-new)}
                  {:selection (:selection saved)
                   :annotation (or (:annotation annotation)
                                   (:annotation saved))
