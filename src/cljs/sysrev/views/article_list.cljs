@@ -237,16 +237,24 @@
       (str article-base-uri "/" article-id)
       base-uri)))
 
+(defn- get-display-options-impl [state context & [key defaults-only?]]
+  (let [state-options (-> state :display)
+        context-defaults (-> context :defaults :display)
+        display-defaults (-> default-options :display)]
+    (cond-> (merge display-defaults context-defaults
+                   (if defaults-only? {} state-options))
+      key (get key))))
+;;
+(defn- get-display-options [db context & [key defaults-only?]]
+  (get-display-options-impl
+   (get-state db context) context key defaults-only?))
+;;
 (reg-sub
  ::display-options
- (fn [[_ context key]]
+ (fn [[_ context _ _]]
    [(subscribe [::get context])])
- (fn [[state] [_ context key]]
-   (let [state-options (-> state :display)
-         context-defaults (-> context :defaults :display)
-         display-defaults (-> default-options :display) ]
-     (cond-> (merge display-defaults context-defaults state-options)
-       key (get key)))))
+ (fn [[state] [_ context key defaults-only?]]
+   (get-display-options-impl state context key defaults-only?)))
 
 (reg-event-db
  ::set-display-option
@@ -277,27 +285,34 @@
       :label-id {key (sutil/to-uuid value)}
       {key value})))
 
-(defn- get-url-params-impl
-  [{:keys [display display-offset active-article]
-    :or {display-offset 0}
-    :as db}
-   context]
-  (let [[{:keys [text-search]}] (get-active-filters db context :text-search)
+(defn- get-url-params-impl [db context]
+  (let [{:keys [display-offset active-article]} (get-state db context)
+        [{:keys [text-search]}] (get-active-filters db context :text-search)
         filters (-> (get-active-filters db context)
                     (replace-filter-key :text-search nil)
-                    (#(mapv filter-to-json %)))]
-    (cond-> {}
-      (not-empty filters)
-      (merge {:filters (util/write-json filters)})
+                    (#(mapv filter-to-json %)))
+        display (get-display-options db context)
+        display-defaults (get-display-options db context nil true)
+        display-changes (->> (keys display)
+                             (filter
+                              #(not= (boolean (get display %))
+                                     (boolean (get display-defaults %))))
+                             (select-keys display))]
+    (cond-> []
+      display-offset
+      (conj [:offset display-offset])
+
+      active-article
+      (conj [:show-article active-article])
 
       (not-empty text-search)
-      (merge {:text-search text-search})
+      (conj [:text-search text-search])
 
-      (not-empty display)
-      (merge {:display (util/write-json display)})
+      (not-empty display-changes)
+      (conj [:display (util/write-json display-changes)])
 
-      display-offset (merge {:offset display-offset})
-      active-article (merge {:show-article active-article}))))
+      (not-empty filters)
+      (conj [:filters (util/write-json filters)]))))
 ;;
 (defn- get-url-params [db context]
   (get-url-params-impl db context))
@@ -980,16 +995,16 @@
             [:button.ui.tiny.fluid.icon.labeled.button
              {:on-click
               (util/wrap-user-event
-               #(dispatch-sync
-                 [::set-display-option
-                  context key (not enabled?)]))}
+               #(do #_ (println (str "toggling " key " = " (not enabled?)))
+                    (dispatch-sync
+                     [::set-display-option
+                      context key (not enabled?)])))}
              (if enabled?
                [:i.green.circle.icon]
                [:i.grey.circle.icon])
              [:span [:i {:class (str icon-class " icon")}]]]))]
     [:div.ui.secondary.segment.display-options
-     [:form.ui.small.form
-      {:on-submit (util/wrap-prevent-default #(do nil))}
+     [:div.ui.small.form
       [:div.sixteen.wide.field
        [:label "Display Options"]
        [:div.ui.three.column.grid

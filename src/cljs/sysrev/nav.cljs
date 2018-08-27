@@ -12,13 +12,7 @@
   (secretary/dispatch! uri))
 
 (defn make-url [route & [params]]
-  (let [params-map
-        (if (map? params) params
-            (->> params
-                 (group-by #(-> % keys first))
-                 (map-values
-                  #(->> % (map vals) (apply concat)))))
-        hash (hc/generate-query-string params-map)]
+  (let [hash (hc/generate-query-string params)]
     (if (empty? hash)
       route
       (str route "?" hash))))
