@@ -67,7 +67,8 @@
        [:i {:class "ui blue pencil horizontal icon"}]])))
 
 (defn MarkdownComponent
-  [state]
+  [state & {:keys [id]
+            :or {id "project-description"}}]
   (let [editing? (r/cursor state [:editing?])
         current-description (r/cursor state [:current-description])
         draft-description (r/cursor state [:draft-description])
@@ -116,7 +117,8 @@
      {:on-mouse-over #(reset! hovering? true)
       :on-mouse-out #(reset! hovering? false)
       :style {:position "relative"}}
-     [:div.ui.panel
+     [:div {:class "ui panel"
+            :id id}
       (if-not @editing?
         [EditMarkdownButton state]
         [:div {:style {:text-align "right"
