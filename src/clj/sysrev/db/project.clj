@@ -718,3 +718,10 @@
       (->> do-query
            (filter #(-> % :settings :public-access true?))
            (mapv #(select-keys % [:project-id :name])))))
+
+(defn delete-all-projects-with-name [project-name]
+  (assert (string? project-name))
+  (assert (not-empty project-name))
+  (-> (delete-from :project)
+      (where [:= :name project-name])
+      do-execute))

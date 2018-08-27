@@ -11,7 +11,9 @@
             [sysrev.init :refer [start-app]]
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
-            [sysrev.db.core :refer [set-active-db! make-db-config close-active-db with-rollback-transaction]]
+            [sysrev.db.core :refer
+             [set-active-db! make-db-config close-active-db
+              with-rollback-transaction]]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]))
 
