@@ -7,7 +7,7 @@
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
             [sysrev.config.core :refer [env]]
-            [sysrev.util :refer
+            [sysrev.util :as util :refer
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
             [sysrev.shared.util :refer [parse-integer]]
             [hickory.core :as hickory]
@@ -46,10 +46,12 @@
 
 (defn extract-article-location-entries
   "Extracts entries for article_location from parsed PubMed API XML article."
-  [pxml]
+  [pxml & [insilica?]]
   (distinct
    (concat
-    (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
+    (->> (if insilica?
+           (xml-find pxml [:Article :ELocationID])
+           (xml-find pxml [:MedlineCitation :Article :ELocationID]))
          (map (fn [{tag :tag
                     {source :EIdType} :attrs
                     content :content}]
@@ -109,14 +111,60 @@
      :date (str year " " month " " day)
      }))
 
+(defn parse-pmid-xml-insilica [pxml]
+  (let [title (xml-find-value pxml [:Article :ArticleTitle])
+        journal (xml-find-value pxml [:Article :Journal :Title])
+        abstract (-> (xml-find pxml [:Article :Abstract :AbstractText]) parse-abstract)
+        authors (-> (xml-find pxml [:Article :AuthorList :Author])
+                    parse-pubmed-author-names)
+        pmid (xml-find-value pxml [:PMID])
+        keywords (xml-find-vector pxml [:KeywordList :Keyword])
+        locations (extract-article-location-entries pxml true)
+        year (or (-> (xml-find [pxml] [:Article :Journal :JournalIssue :PubDate :Year])
+                     first :content first parse-integer)
+                 (-> (xml-find [pxml] [:DateCompleted :Year])
+                     first :content first parse-integer))
+        month (or (-> (xml-find [pxml] [:Article :Journal :JournalIssue :PubDate :Month])
+                      first :content first)
+                  (-> (xml-find [pxml] [:DateCompleted :Month])
+                      first :content first parse-integer))
+        day (or (-> (xml-find [pxml] [:Article :Journal :JournalIssue :PubDate :Day])
+                    first :content first)
+                (-> (xml-find [pxml] [:DateCompleted :Day])
+                    first :content first parse-integer))]
+    {:raw (dxml/emit-str pxml)
+     :remote-database-name "MEDLINE"
+     :primary-title (str/trim title)
+     :secondary-title (str/trim journal)
+     :abstract (str/trim abstract)
+     :authors (mapv str/trim authors)
+     :year year
+     :keywords keywords
+     :public-id (str pmid)
+     :locations locations
+     :date (str year " " month " " day)}))
+
 (defn fetch-pmids-xml [pmids]
-  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-                {:query-params {"db" "pubmed"
-                                "id" (str/join "," pmids)
-                                "retmode" "xml"
-                                "api_key" e-util-api-key}})
+  (util/wrap-retry
+   (fn []
+     (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+                   {:query-params {"db" "pubmed"
+                                   "id" (str/join "," pmids)
+                                   "retmode" "xml"
+                                   "api_key" e-util-api-key}})
+         #_(format "?db=pubmed&id=%s&retmode=xml"
+                   (str/join "," pmids))
+         :body))
+   :fname "fetch-pmids-xml" :throttle-delay 100))
+
+(defn fetch-pmids-xml-insilica [pmids]
+  (-> (http/post "https://api.insilica.co/datasource/pubmed/getEntities"
+                 {:query-params {"ids" (str
+                                        "["
+                                        (str/join "," (->> pmids (map str) (map pr-str)))
+                                        "]")}})
       #_(format "?db=pubmed&id=%s&retmode=xml"
-                      (str/join "," pmids))
+                (str/join "," pmids))
       :body))
 
 (defn fetch-pmid-entries [pmids]
@@ -131,15 +179,18 @@
 (defn get-search-query
   "Given a query and retstart value, fetch the json associated with that query. Return a EDN map of that data. A page size is 20 PMIDs and starts on page 1"
   [query retmax retstart]
-  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
-                {:query-params {"db" "pubmed"
-                                "term" query
-                                "retmode" "json"
-                                "retmax" retmax
-                                "retstart" retstart
-                                "api_key" e-util-api-key}})
-      :body
-      (json/read-str :key-fn keyword)))
+  (util/wrap-retry
+   (fn []
+     (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+                   {:query-params {"db" "pubmed"
+                                   "term" query
+                                   "retmode" "json"
+                                   "retmax" retmax
+                                   "retstart" retstart
+                                   "api_key" e-util-api-key}})
+         :body
+         (json/read-str :key-fn keyword)))
+   :fname "get-search-query"))
 
 (defn get-search-query-response
   "Given a query and page number, return a EDN map corresponding to a JSON response. A page size is 20 PMIDs and starts on page 1"
@@ -158,16 +209,19 @@
 (defn get-pmids-summary
   "Given a vector of PMIDs, return the summaries as a map"
   [pmids]
-  (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
-                {:query-params {"db" "pubmed"
-                                "retmode" "json"
-                                "id" (clojure.string/join "," pmids)
-                                "api_key" e-util-api-key}})
-      :body
-      (json/read-str :key-fn (fn [item] (if (int? (read-string item))
-                                          (read-string item)
-                                          (keyword item))))
-      :result))
+  (util/wrap-retry
+   (fn []
+     (-> (http/get "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                   {:query-params {"db" "pubmed"
+                                   "retmode" "json"
+                                   "id" (clojure.string/join "," pmids)
+                                   "api_key" e-util-api-key}})
+         :body
+         (json/read-str :key-fn (fn [item] (if (int? (read-string item))
+                                             (read-string item)
+                                             (keyword item))))
+         :result))
+   :fname "get-pmids-summary"))
 
 
 (defn get-all-pmids-for-query
@@ -199,7 +253,7 @@
   in the project."
   [pmids project-id source-id]
   (try
-    (doseq [pmids-group (->> pmids (partition-all 20))]
+    (doseq [pmids-group (->> pmids (partition-all 40))]
       (doseq [article (->> pmids-group fetch-pmid-entries (remove nil?))]
         (try
           (with-transaction
@@ -366,15 +420,18 @@
   "Given a pmicd (PMC*), return the ftp link for the pdf, if it exists, nil otherwise"
   [pmcid]
   (when pmcid
-    (let [parsed-html (-> (http/get oa-root-link
-                                    {:query-params {"id" pmcid}})
-                          :body
-                          hickory/parse
-                          hickory/as-hickory)]
-      (-> (s/select (s/child (s/attr :format #(= % "pdf")))
-                    parsed-html)
-          first
-          (get-in [:attrs :href])))))
+    (util/wrap-retry
+     (fn []
+       (let [parsed-html (-> (http/get oa-root-link
+                                       {:query-params {"id" pmcid}})
+                             :body
+                             hickory/parse
+                             hickory/as-hickory)]
+         (-> (s/select (s/child (s/attr :format #(= % "pdf")))
+                       parsed-html)
+             first
+             (get-in [:attrs :href]))))
+     :fname "pdf-ftp-link" :max-retries 5 :retry-delay 1000)))
 
 (defn article-pmcid-pdf-filename
   "Given a pmcid (PMC*), return the filename of the pdf returned for that pmcid, if it exists, nil otherwise"
