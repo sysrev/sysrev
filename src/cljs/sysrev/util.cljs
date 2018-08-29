@@ -1,6 +1,7 @@
 (ns sysrev.util
   (:require [clojure.string :as str]
             [clojure.test.check.generators :as gen]
+            [cognitect.transit :as transit]
             [re-frame.core :as re-frame]
             [goog.string :refer [unescapeEntities]]
             [cljs-time.core :as t]
@@ -400,3 +401,6 @@
 (defn read-json [s]
   (js->clj (js/JSON.parse s)
            :keywordize-keys true))
+
+(defn write-transit-str [x]
+  (transit/write (transit/writer :json) x))

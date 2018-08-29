@@ -458,52 +458,39 @@
                 (labels/filter-recent-public-articles project-id exclude-hours)
                 (sr-transit/encode-public-labels))})))
 
-  (GET "/api/project-articles" request
-       (wrap-authorize
-        request {:allow-public true}
-        (let [project-id (active-project request)
-              exclude-hours (if (= :dev (:profile env))
-                              nil nil)
-              args (-> request :query-params)
-              n-count (some-> (get args "n-count") parse-integer)
-              n-offset (some-> (get args "n-offset") parse-integer)
-              lookup-count (let [value (get args "lookup-count")]
-                             (boolean (or (true? value) (= value "true"))))
-              label-users
-              (when-let [label-user (get args "label-user")]
-                (->> (str/split label-user #",")
-                     (map parse-integer)
-                     (remove nil?)))
-              label-ids
-              (when-let [label-id (get args "label-id")]
-                (->> (str/split label-id #",")
-                     (map #(try (to-uuid %)
-                                (catch Throwable e
-                                  nil)))
-                     (remove nil?)))
-              text-search
-              (when-let [text-search (get args "text-search")]
-                (when (not-empty text-search)
-                  text-search))
-              filters
-              (->> [(map #(do {:has-user-labels %}) label-users)
-                    (map #(do {:has-label-id %}) label-ids)
-                    (when text-search
-                      [{:text-search text-search}])]
-                   (apply concat)
-                   (remove nil?)
-                   vec)
-              query-result
-              (alist/query-project-article-list
-               project-id (cond-> {}
-                            n-count (merge {:n-count n-count})
-                            n-offset (merge {:n-offset n-offset})
-                            (not-empty filters) (merge {:filters filters})))]
-          (update-user-default-project request)
-          {:result
-           (if lookup-count
-             (:total-count query-result)
-             (:entries query-result))})))
+  (POST "/api/project-articles" request
+        (wrap-authorize
+         request {:allow-public true}
+         (let [project-id (active-project request)
+               exclude-hours (if (= :dev (:profile env))
+                               nil nil)
+               args (-> request :body)
+               n-count (some-> (:n-count args) parse-integer)
+               n-offset (some-> (:n-offset args) parse-integer)
+               lookup-count (let [value (:lookup-count args)]
+                              (boolean (or (true? value) (= value "true"))))
+               text-search
+               (when-let [text-search (:text-search args)]
+                 (when (not-empty text-search)
+                   text-search))
+               filters
+               (->> [(:filters args)
+                     (when text-search
+                       [{:text-search text-search}])]
+                    (apply concat)
+                    (remove nil?)
+                    vec)
+               query-result
+               (alist/query-project-article-list
+                project-id (cond-> {}
+                             n-count (merge {:n-count n-count})
+                             n-offset (merge {:n-offset n-offset})
+                             (not-empty filters) (merge {:filters filters})))]
+           (update-user-default-project request)
+           {:result
+            (if lookup-count
+              (:total-count query-result)
+              (:entries query-result))})))
 
   (POST "/api/sync-project-labels" request
         (wrap-authorize
