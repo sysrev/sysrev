@@ -181,7 +181,7 @@
             project-id search-term source
             :threads 3))))
 
-  (POST "/api/import-articles-from-file" request
+  (POST "/api/import-articles-from-file/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
@@ -189,11 +189,12 @@
                file (:tempfile file-data)
                filename (:filename file-data)
                user-id (current-user-id request)]
+           (assert (integer? project-id))
            (api/import-articles-from-file
             project-id file filename
             :threads 3))))
 
-  (POST "/api/import-articles-from-endnote-file" request
+  (POST "/api/import-articles-from-endnote-file/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
@@ -201,13 +202,11 @@
                file (:tempfile file-data)
                filename (:filename file-data)
                user-id (current-user-id request)]
-           (log/info "file-data =" file-data)
-           (log/info "file =" file)
-           (log/info "filename =" filename)
+           (assert (integer? project-id))
            (api/import-articles-from-endnote-file
             project-id file filename))))
 
-  (POST "/api/import-articles-from-pdf-zip-file" request
+  (POST "/api/import-articles-from-pdf-zip-file/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
@@ -215,6 +214,7 @@
                file (:tempfile file-data)
                filename (:filename file-data)
                user-id (current-user-id request)]
+           (assert (integer? project-id))
            (api/import-articles-from-pdf-zip-file
             file filename project-id
             :threads 3))))
@@ -600,7 +600,7 @@
   (GET "/api/open-access/:article-id/view/:key" [article-id key]
        (api/open-access-pdf (parse-integer article-id) key))
 
-  (POST "/api/files/article/:article-id/upload-pdf" request
+  (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
         (wrap-authorize
          request {:roles ["member"]}
          (let [{:keys [article-id]} (:params request)]
@@ -609,25 +609,25 @@
                  filename (:filename file-data)]
              (api/save-article-pdf (parse-integer article-id) file filename)))))
 
-  (GET "/api/files/article/:article-id/article-pdfs" request
+  (GET "/api/files/:project-id/article/:article-id/article-pdfs" request
        (wrap-authorize
         request {:roles ["member"]}
         (let [{:keys [article-id]} (:params request)]
           (api/article-pdfs (parse-integer article-id)))))
 
-  (GET "/api/files/article/:article-id/download/:key/:filename" request
+  (GET "/api/files/:project-id/article/:article-id/download/:key/:filename" request
        (wrap-authorize
         request {:roles ["member"]}
         (let [{:keys [key]} (:params request)]
           (api/get-s3-file key))))
 
-  (GET "/api/files/article/:article-id/view/:key/:filename" request
+  (GET "/api/files/:project-id/article/:article-id/view/:key/:filename" request
        (wrap-authorize
         request {:roles ["member"]}
         (let [{:keys [key]} (:params request)]
           (api/view-s3-pdf key))))
 
-  (POST "/api/files/article/:article-id/delete/:key/:filename" request
+  (POST "/api/files/:project-id/article/:article-id/delete/:key/:filename" request
         (wrap-authorize
          request {:roles ["member"]}
          (let [{:keys [article-id key filename]} (:params request)]

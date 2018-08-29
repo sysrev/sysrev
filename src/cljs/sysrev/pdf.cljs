@@ -95,7 +95,8 @@
   :loaded? (fn [db project-id article-id]
              (-> (articles/get-article db article-id)
                  (contains? :pdfs)))
-  :uri (fn [_ article-id] (str "/api/files/article/" article-id "/article-pdfs"))
+  :uri (fn [project-id article-id]
+         (str "/api/files/" project-id "/article/" article-id "/article-pdfs"))
   :prereqs (fn [project-id article-id]
              [[:identity] [:article project-id article-id]])
   :process (fn [{:keys [db]} [_ article-id] {:keys [files]}]
@@ -103,11 +104,11 @@
                    db article-id {:pdfs files})}))
 
 (def-action :pdf/delete-pdf
-  :uri (fn [article-id key filename]
-         (str "/api/files/article/" article-id "/delete/" key "/" filename))
-  :process (fn [{:keys [db]} [article-id key filename] result]
-             (let [project-id (active-project-id db)]
-               {:dispatch [:reload [:pdf/article-pdfs project-id article-id]]})))
+  :uri (fn [project-id article-id key filename]
+         (str "/api/files/" project-id "/article/"
+              article-id "/delete/" key "/" filename))
+  :process (fn [{:keys [db]} [project-id article-id key filename] result]
+             {:dispatch [:reload [:pdf/article-pdfs project-id article-id]]}))
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
 
@@ -187,7 +188,7 @@
    (if (pdf-url-open-access? pdf-url)
      (second (re-find #"/api/open-access/(\d+)/view"
                       pdf-url))
-     (second (re-find #"/api/files/article/(\d+)/view"
+     (second (re-find #"/api/files/.*/article/(\d+)/view"
                       pdf-url)))))
 
 (defn pdf-url->key
@@ -195,7 +196,7 @@
   [pdf-url]
   (if (pdf-url-open-access? pdf-url)
     (nth (re-find #"/api/open-access/(\d+)/view/(.*)" pdf-url) 2)
-    (nth (re-find #"/api/files/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
+    (nth (re-find #"/api/files/.*/article/(\d+)/view/(.*)/.*" pdf-url) 2)))
 
 (defn ViewPDF
   "Given a PDF URL, view it"
@@ -312,50 +313,52 @@
        "Download"]]]))
 
 (defn view-s3-pdf-url
-  [article-id key filename]
-  (str "/api/files/article/" article-id  "/view/" key "/" filename))
+  [project-id article-id key filename]
+  (str "/api/files/" project-id "/article/" article-id  "/view/" key "/" filename))
 
 (defn S3PDF
   [{:keys [article-id key filename]}]
   (let [confirming? (r/atom false)]
     (fn [{:keys [article-id key filename]}]
-      [:div
-       (when-not @confirming?
-         [:div
-          [PDFModal
-           {:trigger [:a.ui.labeled.icon.button
-                      {:on-click (util/wrap-user-event
-                                  #(do nil))}
-                      [:i.expand.icon] filename]}
-           [ViewPDF (view-s3-pdf-url article-id key filename)]]
-          [:a.ui.labeled.icon.button
-           {:href (str "/api/files/article/" article-id
-                       "/download/" key "/" filename)
-            :target "_blank"
-            :download filename}
-           [:i.download.icon]
-           "Download"]
-          [:button.ui.icon.button
-           {:on-click (util/wrap-user-event
-                       #(reset! confirming? true))}
-           [:i.times.icon]]])
-       (when @confirming?
-         [:div.ui.negative.message.delete-pdf
-          [:div.header
-           (str "Are you sure you want to delete " filename "?")]
-          [:div.ui.two.column.grid
-           [:div.column
-            [:div.ui.fluid.button
+      (let [project-id @(subscribe [:active-project-id])]
+        [:div
+         (when-not @confirming?
+           [:div
+            [PDFModal
+             {:trigger [:a.ui.labeled.icon.button
+                        {:on-click (util/wrap-user-event
+                                    #(do nil))}
+                        [:i.expand.icon] filename]}
+             [ViewPDF (view-s3-pdf-url project-id article-id key filename)]]
+            [:a.ui.labeled.icon.button
+             {:href (str "/api/files/" project-id "/article/"
+                         article-id "/download/" key "/" filename)
+              :target "_blank"
+              :download filename}
+             [:i.download.icon]
+             "Download"]
+            [:button.ui.icon.button
              {:on-click (util/wrap-user-event
-                         #(do (reset! confirming? false)
-                              (dispatch [:action [:pdf/delete-pdf
-                                                  article-id key filename]])))}
-             "Yes"]]
-           [:div.column
-            [:div.ui.fluid.blue.button
-             {:on-click (util/wrap-user-event
-                         #(reset! confirming? false))}
-             "No"]]]])])))
+                         #(reset! confirming? true))}
+             [:i.times.icon]]])
+         (when @confirming?
+           [:div.ui.negative.message.delete-pdf
+            [:div.header
+             (str "Are you sure you want to delete " filename "?")]
+            [:div.ui.two.column.grid
+             [:div.column
+              [:div.ui.fluid.button
+               {:on-click
+                (util/wrap-user-event
+                 #(do (reset! confirming? false)
+                      (dispatch [:action [:pdf/delete-pdf
+                                          project-id article-id key filename]])))}
+               "Yes"]]
+             [:div.column
+              [:div.ui.fluid.blue.button
+               {:on-click (util/wrap-user-event
+                           #(reset! confirming? false))}
+               "No"]]]])]))))
 
 (defn ArticlePDFs [article-id]
   (let [article-pdfs @(subscribe [:article/pdfs article-id])]
@@ -377,7 +380,8 @@
       (with-loader [[:article project-id article-id]
                     [:pdf/article-pdfs project-id article-id]]
         {}
-        (let [full-size? (util/full-size?)
+        (let [project-id @(subscribe [:active-project-id])
+              full-size? (util/full-size?)
               inline-loader
               (fn []
                 (when (loading/any-loading? :only :pdf/open-access-available?)
@@ -390,7 +394,7 @@
                  #_ (when full-size?
                       (inline-loader))
                  [UploadButton
-                  (str "/api/files/article/" article-id "/upload-pdf")
+                  (str "/api/files/" project-id "/article/" article-id "/upload-pdf")
                   #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
                   "Upload PDF"]
                  #_ (when (not full-size?)
