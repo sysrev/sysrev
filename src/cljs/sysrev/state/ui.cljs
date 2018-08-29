@@ -5,6 +5,14 @@
             [sysrev.state.nav :as nav]
             [sysrev.util :refer [dissoc-in]]))
 
+;;;
+;;; Panels
+;;;
+;;; A "panel" is a top-level component for a route, identified by a panel
+;;; value which is a vector of keywords. These functions provide for reading
+;;; and writing state associated with a specific panel.
+;;;
+
 (reg-sub
  ::panels
  (fn [db]
@@ -18,14 +26,6 @@
  (fn [[panels active-panel] [_ panel]]
    (when-let [panel (or panel active-panel)]
      (get panels panel))))
-
-(reg-sub
- ::view-state
- (fn [[_ view & [panel]]]
-   [(subscribe [::panel-state panel])])
- (fn [[pstate] [_ view & [panel]]]
-   (when (and pstate view)
-     (get-in pstate [:views view]))))
 
 (defn get-panel-field [db path & [panel]]
   (let [panel (or panel (nav/active-panel db))
@@ -43,11 +43,51 @@
                   path [path])]
        (get-in pstate path)))))
 
-(defn get-view-field [db path view & [panel]]
+(defn set-panel-field [db path val & [panel]]
+  (let [panel (or panel (nav/active-panel db))]
+    (assoc-in db (concat [:state :panels panel] path) val)))
+
+(reg-event-db
+ :set-panel-field
+ [trim-v]
+ (fn [db [path val & [panel]]]
+   (set-panel-field db path val panel)))
+
+(reg-event-db
+ :reset-transient-fields
+ [trim-v]
+ (fn [db [panel]]
+   (dissoc-in db [:state :panels panel :transient])))
+
+;;;
+;;; Views
+;;;
+;;; A "view" is a subpath of panel state, for keeping state associated
+;;; with some element that may appear in multiple panels, and whose
+;;; state should be separate in each.
+;;;
+
+(reg-sub
+ ::view-state
+ (fn [[_ view & [panel]]]
+   [(subscribe [::panel-state panel])])
+ (fn [[pstate] [_ view & [panel]]]
+   (when (and pstate view)
+     (get-in pstate [:views view]))))
+
+(defn get-view-field [db view path & [panel]]
   (let [panel (or panel (nav/active-panel db))
         path (if (or (nil? path) (sequential? path))
                path [path])]
     (get-in db (concat [:state :panels panel :views view] path))))
+
+(defn set-view-field [db view path val & [panel]]
+  (let [panel (or panel (nav/active-panel db))]
+    (assoc-in db (concat [:state :panels panel :views view] path) val)))
+
+(defn update-view-field [db view path update-fn & [panel]]
+  (let [panel (or panel (nav/active-panel db))]
+    (update-in db (concat [:state :panels panel :views view] path) update-fn)))
 
 (reg-sub
  :view-field
@@ -59,20 +99,6 @@
                   path [path])]
        (get-in vstate path)))))
 
-(defn set-panel-field [db path val & [panel]]
-  (let [panel (or panel (nav/active-panel db))]
-    (assoc-in db (concat [:state :panels panel] path) val)))
-
-(reg-event-db
- :set-panel-field
- [trim-v]
- (fn [db [path val & [panel]]]
-   (set-panel-field db path val panel)))
-
-(defn set-view-field [db view path val & [panel]]
-  (let [panel (or panel (nav/active-panel db))]
-    (assoc-in db (concat [:state :panels panel :views view] path) val)))
-
 (reg-event-db
  :set-view-field
  [trim-v]
@@ -80,13 +106,13 @@
    (let [panel (or panel (nav/active-panel db))]
      (assoc-in db (concat [:state :panels panel :views view] path) val))))
 
-(reg-event-db
- :reset-transient-fields
- [trim-v]
- (fn [db [panel]]
-   (dissoc-in db [:state :panels panel :transient])))
+;;;
+;;; Notifications
+;;;
+;;; This is an old concept for popup notifications upon certain events.
+;;; Not currently in use.
+;;;
 
-;; TODO: re-add support for notification popups?
 (reg-sub
  :active-notification
  (fn [db]
@@ -110,6 +136,10 @@
      #_ (add-notify-entry entry)
      (when inactive?
        (schedule-notify-display entry)))))
+
+;;;
+;;; Misc
+;;;
 
 (reg-sub
  :visible-article-id

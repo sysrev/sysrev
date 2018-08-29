@@ -61,14 +61,14 @@
 
 (defn- get-state [db context & [path]]
   (let [panel (get-panel db context)
-        rstate #(ui-state/get-view-field db [:ready] view panel)
+        rstate #(ui-state/get-view-field db view [:ready] panel)
         path (as-> (or path []) path
                (if (and (:read-cache? context)
                         (not= path [:ready])
                         (not-empty (rstate)))
                  (vec (concat [:ready] path))
                  path))]
-    (ui-state/get-view-field db path view panel)))
+    (ui-state/get-view-field db view path panel)))
 
 (reg-sub-raw
  ::get
