@@ -201,6 +201,9 @@
                file (:tempfile file-data)
                filename (:filename file-data)
                user-id (current-user-id request)]
+           (log/info "file-data =" file-data)
+           (log/info "file =" file)
+           (log/info "filename =" filename)
            (api/import-articles-from-endnote-file
             project-id file filename))))
 

@@ -180,6 +180,7 @@
   [project-id file filename & {:keys [threads] :or {threads 1}}]
   (let [project-sources (sources/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
+    (log/info "filename-sources =" filename-sources)
     (try
       (cond (not (project/project-exists? project-id))
             {:error {:status not-found
@@ -195,7 +196,8 @@
                        :threads 3))
               {:result {:success true}})
             (not (empty? filename-sources))
-            {:result {:success true}}
+            (do (log/info "got (not (empty? filename-sources))")
+                {:result {:success true}})
             :else
             {:error {:message "Error (unexpected event)"}})
       (catch Throwable e

@@ -225,6 +225,7 @@
                    (assoc meta
                           :importing-articles? true))]
     (try (let [articles (endnote-file->articles file)]
+           (log/info "got" (count articles) "articles")
            (add-articles! articles project-id source-id meta
                           :use-future? use-future?
                           :threads threads))
