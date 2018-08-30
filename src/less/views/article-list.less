@@ -396,6 +396,30 @@
             margin-top: 0px;
         }
     }
+
+    div.describe-filter {
+        margin-top: 5px;
+        margin-bottom: 5px;
+
+        > .ui.grid {
+            margin: -2px;
+
+            > .row {
+                padding: 0;
+
+                > .column {
+                    padding: 2px;
+                }
+
+                > .column.delete-filter {
+                    > .ui.tiny.icon.button {
+                        padding-left: 0;
+                        padding-right: 0;
+                    }
+                }
+            }
+        }
+    }
 }
 
 @media only screen and (max-width: 767px) {

@@ -88,6 +88,7 @@
                    (sr-transit/decode-public-labels result))}))
 
 (def-data :project/article-list-count
+  :method :post
   :loaded? (fn [db project-id args]
              (-> (get-in db [:data :project project-id :article-list-count])
                  (contains? args)))
@@ -104,6 +105,7 @@
                    result)}))
 
 (def-data :project/article-list
+  :method :post
   :loaded? (fn [db project-id args]
              (-> (get-in db [:data :project project-id :article-list])
                  (contains? args)))

@@ -178,6 +178,7 @@
 (defn import-articles-from-endnote-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
+  (assert (integer? project-id))
   (let [project-sources (sources/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
@@ -195,7 +196,9 @@
                        :threads 3))
               {:result {:success true}})
             (not (empty? filename-sources))
-            {:result {:success true}}
+            (do (log/warn "got (not (empty? filename-sources))")
+                (log/warn "filename-sources =" filename-sources)
+                {:result {:success true}})
             :else
             {:error {:message "Error (unexpected event)"}})
       (catch Throwable e

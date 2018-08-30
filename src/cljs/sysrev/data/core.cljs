@@ -168,7 +168,7 @@
                 {:data-sent item}
                 (run-ajax
                  (cond-> {:db db
-                          :method :get
+                          :method (or (:method entry) :get)
                           :uri uri
                           :on-success [::on-success item]
                           :on-failure [::on-failure item]

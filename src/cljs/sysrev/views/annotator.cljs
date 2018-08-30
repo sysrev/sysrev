@@ -21,62 +21,36 @@
 
 (def view :annotator)
 
-(def initial-annotator-state {})
+(defn- get-path [db context path]
+  (ui-state/get-view-field db view (concat [context] path)))
+(defn- set-field [db context path value]
+  (ui-state/set-view-field db view (concat [context] path) value))
+(defn- update-field [db context path f]
+  (ui-state/update-view-field db view (concat [context] path) f))
 
 (reg-sub
  ::get
  (fn [[_ context path]]
-   [(subscribe [:view-field view [context]])])
- (fn [[context-state] [_ _ path]]
-   (get-in context-state path)))
+   [(subscribe [:view-field view (concat [context] path)])])
+ (fn [[value]] value))
 
 (reg-event-db
- ::set
- [trim-v]
+ ::set [trim-v]
  (fn [db [context path value]]
-   (ui-state/set-view-field
-    db view (concat [context] path) value)))
-
-(reg-sub
- ::annotations
- (fn [[_ context]]
-   [(subscribe [::get context])])
- (fn [[context-state]] (:annotations context-state)))
-
-(reg-sub
- ::get-ann
- (fn [[_ context id path]]
-   [(subscribe [:view-field view [context :annotations id]])])
- (fn [[ann-state] [_ _ _ path]]
-   (get-in ann-state path)))
+   (set-field db context path value)))
 
 (reg-event-db
- ::set-ann
- [trim-v]
- (fn [db [context id path value]]
-   (ui-state/set-view-field
-    db view (concat [context :annotations id] path) value)))
-
-(reg-event-db
- ::clear-annotations
- [trim-v]
+ ::clear-annotations [trim-v]
  (fn [db [context]]
    (-> db
-       (ui-state/set-view-field
-        view [context :annotations] {})
-       (ui-state/set-view-field
-        view [context :new-annotation] nil)
-       (ui-state/set-view-field
-        view [context :editing-id] nil))))
+       (set-field context [:annotations] {})
+       (set-field context [:new-annotation] nil)
+       (set-field context [:editing-id] nil))))
 
 (reg-event-db
- ::remove-ann
- [trim-v]
+ ::remove-ann [trim-v]
  (fn [db [context id]]
-   (let [path [context :annotations]
-         annotations (ui-state/get-view-field db path view)]
-     (ui-state/set-view-field db view path
-                              (dissoc annotations id)))))
+   (update-field db context [:annotations] #(dissoc % id))))
 
 (reg-sub
  :annotator/enabled
@@ -90,18 +64,9 @@
              (boolean enabled?))))
 
 (reg-event-db
- :annotator/clear-view-state
- [trim-v]
- (fn [db [panel]]
-   (ui-state/set-view-field db view nil {} panel)))
-
-(reg-event-db
- :annotator/init-view-state
- [trim-v]
+ :annotator/init-view-state [trim-v]
  (fn [db [context & [panel]]]
-   (ui-state/set-view-field
-    db view [context]
-    (merge initial-annotator-state {:context context}))))
+   (set-field db context [] {:context context})))
 
 (defn annotator-data-item
   "Given an annotator context, returns a vector representing both the
@@ -111,13 +76,6 @@
     "abstract" [:annotator/article project-id article-id]
     "pdf"      [:annotator/article-pdf project-id article-id pdf-key]
     nil))
-
-(reg-sub-raw
- :annotator/data
- (fn [db [_ context]]
-   (reaction
-    (let [subscription (annotator-data-item context)]
-      @(subscribe subscription)))))
 
 (def-action :annotator/create-annotation
   :uri (fn [] "/api/annotation/create")
@@ -269,7 +227,9 @@
   (let [set (fn [path value]
               (dispatch-sync [::set context path value]))
         set-ann (fn [path value]
-                  (dispatch-sync [::set-ann context id path value]))
+                  (dispatch-sync [::set context
+                                  (concat [:annotations id] path)
+                                  value]))
         {:keys [new-annotation editing-id]} @(subscribe [::get context])
         data @(subscribe (annotator-data-item context))
         saved (get data id)
@@ -283,7 +243,7 @@
         current-user @(subscribe [:self/user-id])
         original-user-id (if new? current-user (:user-id saved))
         fields [:annotation :semantic-class]
-        annotation (get @(subscribe [::annotations context]) id)
+        annotation @(subscribe [::get context [:annotations id]])
         class-options @(subscribe [:annotator/semantic-class-options])
         active (if new?
                  {:selection (:selection initial-new)
@@ -538,7 +498,9 @@
   (let [set (fn [path value]
               (dispatch-sync [::set context path value]))
         set-ann (fn [id path value]
-                  (dispatch-sync [::set-ann context id path value]))
+                  (dispatch-sync [::set context
+                                  (concat [:annotations id] path)
+                                  value]))
         set-pos (fn [key value]
                   (dispatch-sync [::set context [:positions key] value]))
         data (subscribe (annotator-data-item context))

@@ -5,7 +5,7 @@
             [day8.re-frame.http-fx]
             [re-frame.core :as re-frame :refer
              [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
-            [sysrev.util :refer [integerify-map-keys uuidify-map-keys]]
+            [sysrev.util :as util]
             [sysrev.shared.util :refer [in? to-uuid]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
@@ -140,26 +140,40 @@
 
 (defn run-ajax [{:keys [db method uri content on-success on-failure action-params content-type]}]
   (let [csrf-token (get-csrf-token db)
-        on-failure (or on-failure [:ajax/default-failure])]
+        on-failure (or on-failure [:ajax/default-failure])
+        force-body? false
+        #_
+        (and (= method :get)
+             (or (vector? content)
+                 (and (map? content)
+                      (some (some-fn map? vector?) (vals content)))))]
     {:http-xhrio
-     {:method method
-      :uri uri
-      :params content
-      :timeout (* 2 60 1000)
-      :format (condp = content-type
-                "application/transit+json" (ajax/transit-request-format)
-                "application/json" (ajax/json-request-format))
-      :response-format (condp = content-type
-                         "application/transit+json"
-                         (ajax/transit-response-format
-                          :json {:handlers {"u" cljs.core/uuid}})
-                         "application/json"
-                         (ajax/json-response-format {:keywords? true}))
-      :headers (when csrf-token {"x-csrf-token" csrf-token})
-      :on-success (cond-> on-success
-                    action-params (conj action-params))
-      :on-failure (cond-> on-failure
-                    action-params (conj action-params))}}))
+     (cond->
+         {:method method
+          :uri uri
+          :timeout (* 2 60 1000)
+          :format (condp = content-type
+                    "application/transit+json" (ajax/transit-request-format)
+                    "application/json" (ajax/json-request-format))
+          :response-format (condp = content-type
+                             "application/transit+json"
+                             (ajax/transit-response-format
+                              :json {:handlers {"u" cljs.core/uuid}})
+                             "application/json"
+                             (ajax/json-response-format {:keywords? true}))
+          :headers (cond-> {}
+                     csrf-token
+                     (merge {"x-csrf-token" csrf-token})
+                     force-body?
+                     (merge {"Content-Type" "application/transit+json"}))
+          :on-success (cond-> on-success
+                        action-params (conj action-params))
+          :on-failure (cond-> on-failure
+                        action-params (conj action-params))}
+         force-body?
+         (merge {:body (util/write-transit-str content)})
+         (not force-body?)
+         (merge {:params content}))}))
 
 (s/fdef run-ajax
         :args (s/cat

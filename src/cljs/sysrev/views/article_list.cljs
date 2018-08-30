@@ -61,14 +61,14 @@
 
 (defn- get-state [db context & [path]]
   (let [panel (get-panel db context)
-        rstate #(ui-state/get-view-field db [:ready] view panel)
+        rstate #(ui-state/get-view-field db view [:ready] panel)
         path (as-> (or path []) path
                (if (and (:read-cache? context)
                         (not= path [:ready])
                         (not-empty (rstate)))
                  (vec (concat [:ready] path))
                  path))]
-    (ui-state/get-view-field db path view panel)))
+    (ui-state/get-view-field db view path panel)))
 
 (reg-sub-raw
  ::get
@@ -97,16 +97,7 @@
  (fn [db [context path value]]
    (set-state db context path value)))
 
-(defn- set-input-field
-  "Returns re-frame dispatch vector for setting an input field value."
-  [context path value]
-  [::set context (concat [:inputs] path) value])
 
-(reg-sub
- ::inputs
- (fn [[_ context path]]
-   [(subscribe [::get context (concat [:inputs] path)])])
- (fn [[input-val]] input-val))
 
 (defn- active-filters-impl [state context & [key]]
   (as-> (cond (-> state :filters not-empty)
@@ -131,50 +122,13 @@
  (fn [[state] [_ context & [key]]]
    (active-filters-impl state context key)))
 
-;; Reset state of UI input elements based on the corresponding values
-;; present in the current state.
-(reg-event-fx
- ::load-input-fields
- [trim-v]
- (fn [{:keys [db]} [context]]
-   (let [{:keys [text-search] :as filters}
-         (get-active-filters db context)]
-     {:dispatch-n
-      (list (set-input-field context [:text-search] text-search))})))
-
-(defn- replace-filter-key
-  "Helper function for manipulating filter values"
-  [filters key new-value]
-  ;; `filters` here is a vector of single-entry maps
-  (if (or (nil? new-value)
-          (some #(= % key)
-                (->> filters (map keys) (apply concat))))
-    (->> filters
-         (mapv #(if (in? (keys %) key) 
-                  {key new-value} %))
-         (filterv #(not (every? nil? (vals %))))
-         distinct vec)
-    (conj filters {key new-value})))
-
-(reg-event-db
- ::replace-filter-key
- [trim-v]
- (fn [db [context key new-value]]
-   (let [filters (get-active-filters db context)
-         new-db (set-state db context [:filters]
-                           (replace-filter-key filters key new-value))]
-     (if (= db new-db)
-       new-db
-       (-> new-db (set-state context [:display-offset] 0))))))
-
 (reg-event-fx
  ::reset-filters
  [trim-v]
  (fn [{:keys [db]} [context]]
    {:dispatch-n
     (list [::set context [:filters] nil]
-          [::set context [:display-offset] nil]
-          [::load-input-fields context])}))
+          [::set context [:display-offset] nil])}))
 
 (reg-sub
  ::sort-by
@@ -269,27 +223,31 @@
         db context [:display key]
         value)))))
 
-(defn filter-to-json [filter]
-  (let [key (first (keys filter))
-        value (first (vals filter))]
-    #_ (println (str "to: " {key value}))
-    (case key
-      :label-id {key (str value)}
-      {key value})))
+(defn filter-to-json [entry]
+  (let [[[fkey value]] (vec entry)]
+    (case fkey
+      ;; :label-id {key (str value)}
+      {fkey value})))
 
-(defn filter-from-json [filter]
-  (let [key (first (keys filter))
-        value (first (vals filter))]
-    #_ (println (str "from: " {key value}))
-    (case key
-      :label-id {key (sutil/to-uuid value)}
+(defn filter-from-json [entry]
+  (let [[[fkey value]] (vec entry)]
+    (case fkey
+      :has-user
+      {fkey (-> value
+                (update :content keyword)
+                (update :confirmed #(case %
+                                      "true" true
+                                      "false" false
+                                      "any" nil
+                                      "null" nil
+                                      %)))}
+      ;; :label-id {key (sutil/to-uuid value)}
       {key value})))
 
 (defn- get-url-params-impl [db context]
-  (let [{:keys [display-offset active-article]} (get-state db context)
-        [{:keys [text-search]}] (get-active-filters db context :text-search)
+  (let [{:keys [display-offset active-article
+                text-search]} (get-state db context)
         filters (-> (get-active-filters db context)
-                    (replace-filter-key :text-search nil)
                     (#(mapv filter-to-json %)))
         display (get-display-options db context)
         display-defaults (get-display-options db context nil true)
@@ -317,32 +275,6 @@
 (defn- get-url-params [db context]
   (get-url-params-impl db context))
 
-#_
-(reg-sub
- ::url-params
- (fn [[_ context]]
-   [(subscribe [::filters context])
-    (subscribe [::get context [:display]])
-    (subscribe [::display-offset context])
-    (subscribe [::active-article context])])
- (fn [[filters options display-offset active-article]]
-   (let [{:keys [text-search]} filters
-         filters (replace-filter-key filters :text-search nil)]
-     (get-url-params-impl
-      (cond-> {:text-search text-search
-               :display-offset display-offset
-               :active-article active-article}
-        (not-empty filters)
-        (merge {:filters (util/write-json filters)})
-        (not-empty options)
-        (merge {:options (util/write-json options)}))))))
-
-#_
-(reg-sub
- ::url-params-json
- (fn [_ _]
-   nil))
-
 (defn- get-params-from-url []
   (let [{:keys [filters text-search display offset show-article]}
         (nav/get-url-params)]
@@ -368,15 +300,6 @@
         base-uri (get-base-uri context article-id)]
     (nav/make-url base-uri url-params)))
 
-#_
-(reg-sub
- ::nav-url
- (fn [[_ context & [article-id]]]
-   [(subscribe [::url-params context])])
- (fn [[url-params] [_ context & [article-id]]]
-   (let [base-uri (get-base-uri context article-id)]
-     (nav/make-url base-uri url-params))))
-
 (reg-event-fx
  ::navigate
  [trim-v]
@@ -394,15 +317,12 @@
          {:keys [filters display offset text-search show-article]}
          (get-params-from-url)
          ;; active-filters (get-active-filters db context)
-         new-filters
-         (cond-> filters
-           text-search
-           (replace-filter-key :text-search text-search))
          new-db
          (cond->
              (-> db
                  (set-state context [:active-article] show-article)
-                 (set-state context [:filters] new-filters)
+                 (set-state context [:filters] filters)
+                 (set-state context [:text-search] text-search)
                  (set-state context [:display-offset] (or offset 0)))
            (not-empty display)
            (set-state context [:display] display))]
@@ -435,11 +355,13 @@
  ::ajax-query-args
  (fn [[_ context]]
    [(subscribe [::filters context])
-    (subscribe [::display-offset context])])
- (fn [[filters display-offset]]
+    (subscribe [::display-offset context])
+    (subscribe [::get context [:text-search]])])
+ (fn [[filters display-offset text-search]]
    (let [display-count (get-display-count)]
-     (merge (apply merge-with vector filters)
-            {:n-offset display-offset
+     (merge {:filters filters
+             :text-search text-search
+             :n-offset display-offset
              :n-count display-count}))))
 
 (reg-sub
@@ -603,12 +525,189 @@
       (or can-resolve?
           (in? [:confirmed :unconfirmed] user-status))))))
 
+(reg-sub
+ ::inputs
+ (fn [[_ context path]]
+   [(subscribe [::get context (concat [:inputs] path)])])
+ (fn [[input-val]] input-val))
+
+(defn create-filter [filter-type]
+  {filter-type
+   (merge
+    (case filter-type
+      :has-content    {:content nil ;; [:label :annotation :note]
+                       :users nil
+                       :search nil ;; for notes
+                       }
+      :has-label      {:label-id nil
+                       :users nil
+                       :values nil
+                       :confirmed true}
+      :has-annotation {:semantic-class nil
+                       :has-value nil
+                       :users nil}
+      :has-user       {:user nil
+                       :content nil
+                       :confirmed nil}
+      :inclusion      {:label-id nil
+                       :values nil}
+      :consensus      {:status nil})
+    {:editing? true})})
+
+(defn filter-presets []
+  (let [self-id @(subscribe [:self/user-id])
+        overall-id @(subscribe [:project/overall-label-id])]
+    {:self
+     [{:has-user {:user self-id
+                  :content nil
+                  :confirmed nil}}]
+
+     :content
+     [{:has-content {:content nil
+                     :confirmed true}}]
+
+     :inclusion
+     [{:inclusion {:label-id overall-id
+                   :values []}}
+      {:consensus {:status nil}}]}))
+
+(defn- reset-filters-input [db context]
+  (set-state db context [:inputs :filters] nil))
+
+(reg-event-db
+ ::reset-filters-input
+ [trim-v]
+ (fn [db [context]]
+   (reset-filters-input db context)))
+
+(defn- get-filters-input [db context]
+  (let [input (get-state db context [:inputs :filters])
+        active (get-active-filters db context)]
+    (if (nil? input) active input)))
+
+(reg-sub
+ ::filters-input
+ (fn [[_ context]]
+   [(subscribe [::inputs context [:filters]])
+    (subscribe [::filters context])])
+ (fn [[input active]]
+   (if (nil? input) active input)))
+
+(reg-event-db
+ ::update-filter-input
+ [trim-v]
+ (fn [db [context filter-idx update-fn]]
+   (let [ifilter (get-state db context [:inputs :filters filter-idx])
+         filter-type (first (keys ifilter))
+         value (first (vals ifilter))]
+     (set-state db context [:inputs :filters filter-idx]
+                {filter-type (update-fn value)}))))
+
+(defn- remove-null-filters [db context]
+  (let [ifilters (get-state db context [:inputs :filters])
+        filters (get-state db context [:filters])]
+    (cond-> db
+      (not-empty ifilters)
+      (set-state context [:inputs :filters]
+                 (->> ifilters (remove nil?) vec))
+      (not-empty filters)
+      (set-state context [:filters]
+                 (->> filters (remove nil?) vec)))))
+
+(defn- delete-filter [db context filter-idx]
+  (let [ifilters (get-state db context [:inputs :filters])
+        filters (get-state db context [:filters])]
+    (cond-> db
+      (contains? ifilters filter-idx)
+      (set-state context [:inputs :filters filter-idx] nil)
+      (contains? filters filter-idx)
+      (set-state context [:filters filter-idx] nil)
+      true
+      (remove-null-filters context))))
+
+(reg-event-db
+ ::delete-filter
+ [trim-v]
+ (fn [db [context filter-idx]]
+   (delete-filter db context filter-idx)))
+
+(defn- edit-filter [db context filter-idx]
+  (let [filters (get-state db context [:filters])]
+    (if (and (vector? filters)
+             (contains? filters filter-idx))
+      (set-state
+       db context [:inputs :filters]
+       (vec (map-indexed
+             (fn [i entry]
+               (let [[[fkey fval]] (vec entry)]
+                 (if (= i filter-idx)
+                   {fkey (assoc fval :editing? true)}
+                   {fkey (dissoc fval :editing?)})))
+             filters)))
+      db)))
+
+(reg-event-db
+ ::edit-filter [trim-v]
+ (fn [db [context filter-idx]]
+   (edit-filter db context filter-idx)))
+
+;; TODO: is this needed?
+(defn- process-filter-input [ifilter]
+  (let [[[filter-type value]] (vec ifilter)
+        nilify #(if (= % :any) nil %)]
+    (case filter-type
+      :has-user
+      (let [{:keys [user content confirmed]} value]
+        {filter-type
+         {:user (if (integer? user) user nil)
+          :content (nilify content)
+          :confirmed (nilify confirmed)}})
+
+      nil)))
+
+(defn- process-all-filters-input [ifilters]
+  (->> ifilters
+       (mapv #(let [[[filter-type value]] (vec %)
+                    {:keys [editing?]} value]
+                (if editing?
+                  (process-filter-input %)
+                  %)))
+       (filterv (comp not nil?))))
+
+(reg-event-db
+ ::sync-filters-input
+ [trim-v]
+ (fn [db [context]]
+   (->
+    (->> (get-state db context [:inputs :filters])
+         (process-all-filters-input)
+         (set-state db context [:filters]))
+    (set-state context [:inputs :filters] nil))))
+
+(reg-event-db
+ ::add-filter
+ [trim-v]
+ (fn [db [context filter-type]]
+   (let [filters (get-filters-input db context)
+         new-filter (create-filter filter-type)]
+     (if (in? filters new-filter)
+       db
+       (set-state db context (concat [:inputs :filters])
+                  (->> [new-filter]
+                       (concat filters) vec))))))
+
+(reg-sub
+ ::editing-filter?
+ (fn [[_ context]]
+   [(subscribe [::filters context])
+    (subscribe [::filters-input context])])
+ (fn [[active input]]
+   (boolean (some #(not (in? active %)) input))))
+
 (defn- TextSearchInput [context]
-  (let [key :text-search
-        set-input #(dispatch-sync (set-input-field context [key] %))
-        input (subscribe [::inputs context [key]])
-        [entry] @(subscribe [::filters context key])
-        curval (get entry key)
+  (let [input (subscribe [::inputs context [:text-search]])
+        set-input #(dispatch-sync [::set context [:inputs :text-search] %])
+        curval @(subscribe [::get context [:text-search]])
         synced? (or (nil? @input) (= @input curval))]
     [:div.ui.fluid.left.icon.input
      {:class (when-not synced? "loading")}
@@ -623,37 +722,124 @@
           (let [value (-> event .-target .-value)]
             (set-input value)
             (js/setTimeout
-             #(let [later-value @input]
-                (let [later-value
-                      (if (empty? later-value) nil later-value)
-                      value
-                      (if (empty? value) nil value)]
-                  (when (= value later-value)
-                    (dispatch [::replace-filter-key context key value])
-                    (when (empty? value)
-                      (set-input nil)))))
+             #(let [later-value (if (empty? @input) nil @input)
+                    value (if (empty? value) nil value)]
+                (when (= value later-value)
+                  (dispatch [::set context [:text-search] value])
+                  (when (empty? value)
+                    (set-input nil))))
              1000))))}]
      [:i.search.icon]]))
 
+(defn- FilterDropdown [options option-name active on-change multiple? read-value]
+  (let [touchscreen? @(subscribe [:touchscreen?])
+        to-data-value #(cond (nil? %)          "any"
+                             (or (symbol? %)
+                                 (keyword? %)) (name %)
+                             :else             (str %))]
+    [ui/selection-dropdown
+     [:div.text (option-name active)]
+     (map-indexed
+      (fn [i x]
+        [:div.item
+         {:key [:filter-item i]
+          :data-value (to-data-value x)
+          :class (when (= x active)
+                   "active selected")}
+         (option-name x)])
+      options)
+     {:class
+      (cond-> "ui fluid"
+        multiple?          (str " multiple")
+        (not touchscreen?) (str " search")
+        true               (str " selection dropdown"))
+      :onChange
+      (fn [v t]
+        #_ (println (str "v = " (pr-str v)))
+        (let [v (cond (= v "any")  nil
+                      read-value   (read-value v)
+                      :else        v)]
+          (when on-change
+            (on-change v))))}]))
+
+(defn- SelectUserDropdown [context value on-change multiple?]
+  (let [user-ids @(subscribe [:project/member-user-ids nil true])
+        self-id @(subscribe [:self/user-id])
+        value (if (= value :self)
+                (if (and self-id (in? user-ids self-id))
+                  self-id
+                  nil)
+                value)]
+    [FilterDropdown
+     (concat [nil] user-ids)
+     #(if (or (nil? %) (= :any %))
+        "Any User"
+        @(subscribe [:user/display %]))
+     value
+     on-change
+     multiple?
+     #(sutil/parse-integer %)]))
+
+(defn- SelectLabelDropdown [context value on-change]
+  (let [label-ids @(subscribe [:project/label-ids])
+        {:keys [labels]} @(subscribe [:project/raw])]
+    [FilterDropdown
+     (concat [nil] label-ids)
+     #(if (or (nil? %) (= :any %))
+        "Any Label"
+        (get-in labels [% :short-label]))
+     value
+     on-change
+     false
+     #(if (in? label-ids (uuid %))
+        (uuid %) nil)]))
+
+(defn- ContentTypeDropdown [context value on-change]
+  [FilterDropdown
+   [nil :labels :annotations]
+   #(case %
+      :labels "Labels"
+      :annotations "Annotations"
+      "Any")
+   value
+   on-change
+   false
+   #(keyword %)])
+
+(defn- ConfirmedStatusSelector [context value on-change]
+  [FilterDropdown
+   [nil true false]
+   #(cond (= % true)  "Yes"
+          (= % false) "No"
+          :else       "Any")
+   value
+   on-change
+   false
+   #(cond (= % "true")  true
+          (= % "false") false
+          :else         nil)])
+
+
+;; TODO: break up into multiple functions
 (defn- FilterEditElement
-  [context fr & {:keys [labels]}]
+  [context filter-idx]
   [:div.edit-filter
-   (let [filter-type (first (keys fr))
-         value (first (vals fr))
-         label-name #(if (or (nil? %) (= :any %))
-                       "Any Label"
-                       (get-in labels [% :short-label]))
-         touchscreen? @(subscribe [:touchscreen?])
+   (let [filters @(subscribe [::filters-input context])
+         fr (nth filters filter-idx)
+         [[filter-type value]] (vec fr)
+         update-filter #(dispatch [::update-filter-input context filter-idx %])
+         valid? ((comp not nil?) (process-filter-input fr))
          buttons-field
          (fn []
            [:div.field
             [:div.fields
              [:div.eight.wide.field
               [:div.ui.tiny.fluid.labeled.icon.button
-               {:class "disabled"
+               {:class (if valid? nil "disabled")
                 :on-click
-                (util/wrap-user-event
-                 #(dispatch [::reset-filters-input context]))}
+                (when valid?
+                  (util/wrap-user-event
+                   #(dispatch [::sync-filters-input context])))}
                [:i.circle.check.icon]
                "Save"]]
              [:div.eight.wide.field
@@ -662,92 +848,108 @@
                 (util/wrap-user-event
                  #(dispatch [::reset-filters-input context]))}
                [:i.times.icon]
-               "Cancel"]]]])]
-     (case filter-type
-       :has-label
-       (let [{:keys [label-id users values confirmed]}
-             value]
-         [:div.ui.small.form
-          [:div.field
-           [:div.fields
-            [:div.eight.wide.field
-             [:label "Label"]
-             [ui/selection-dropdown
-              [:div.text (label-name label-id)]
-              (map-indexed
-               (fn [i label-id-option]
-                 [:div.item
-                  {:key [:label-id i]
-                   :data-value (str label-id-option)}
-                  [:span (label-name label-id-option)]])
-               (vec
-                (concat
-                 [:any]
-                 (sort-project-labels labels))))
-              {:class
-               (if touchscreen?
-                 "ui fluid selection dropdown"
-                 "ui fluid search selection dropdown")
-               :onChange
-               (fn [v t]
-                 #_ (println (str "v = " (pr-str v))))}]]
-            [:div.eight.wide.field]]]
-          [buttons-field]])
+               "Cancel"]]]])
+         fields
+         (case filter-type
+           :has-label
+           (let [{:keys [label-id users values confirmed]} value]
+             [[:div.field
+               {:key [:has-label 1]}
+               [:div.fields
+                [:div.eight.wide.field
+                 [:label "Label"]
+                 [SelectLabelDropdown context nil nil]]
+                [:div.eight.wide.field]]]])
 
-       [:div.ui.small.form
-        [:div.sixteen.wide.field
-         [:div.ui.tiny.fluid.button
-          (str "editing filter (" (pr-str filter-type) ")")]]
-        [buttons-field]]))])
+           :has-user
+           (let [{:keys [user content confirmed]} value]
+             [[:div.field
+               {:key [:has-user 1]}
+               [:div.fields
+                [:div.eight.wide.field
+                 [:label "User"]
+                 [SelectUserDropdown context user
+                  (fn [new-value]
+                    (update-filter
+                     #(assoc % :user new-value)))
+                  false]]
+                [:div.eight.wide.field
+                 [:label "Content Type"]
+                 [ContentTypeDropdown context content
+                  (fn [new-value]
+                    (update-filter
+                     #(assoc % :content new-value)))]]]]
+              (when (or (= content :labels)
+                        (in? [true false] confirmed))
+                [:div.field
+                 {:key [:has-user 2]}
+                 [:div.fields
+                  [:div.eight.wide.field
+                   [:label "Confirmed"]
+                   [ConfirmedStatusSelector
+                    context confirmed
+                    (fn [new-value]
+                      (update-filter
+                       #(assoc % :confirmed new-value)))]]]])])
+
+           [[:div.sixteen.wide.field
+             {:key [:unknown-filter 1]}
+             [:div.ui.tiny.fluid.button
+              (str "editing filter (" (pr-str filter-type) ")")]]])]
+     [:div.ui.small.form
+      (doall (for [field (remove nil? fields)] field))
+      [buttons-field]])])
 
 (defn- FilterDescribeElement
-  [context fr & {:keys [labels]}]
-  (if (nil? fr)
-    [:div.ui.tiny.fluid.button
-     {:class "disabled"}
-     "all articles"]
-    (let [label-name #(get-in labels [% :short-label])
-          filter-type (first (keys fr))
-          value (first (vals fr))
-          description
-          (case filter-type
-            :has-label
-            (when value
-              (str "has label " (pr-str (label-name value))))
+  [context filter-idx]
+  [:div.describe-filter
+   (if (nil? filter-idx)
+     [:div.ui.tiny.fluid.button
+      "all articles"]
+     (let [{:keys [labels]} @(subscribe [:project/raw])
+           filters @(subscribe [::filters-input context])
+           fr (nth filters filter-idx)
+           [[filter-type value]] (vec fr)
+           label-name #(get-in labels [% :short-label])
+           description
+           (case filter-type
+             :has-user
+             (let [{:keys [user content confirmed]} value
+                   content-str (case content
+                                 :labels "labels"
+                                 :annotations "annotations"
+                                 "content")
+                   user-name (when (integer? user)
+                               @(subscribe [:user/display user]))
+                   user-str (if (integer? user)
+                              (str "user " (pr-str user-name))
+                              "any user")
+                   confirmed-str (case confirmed
+                                   true "[confirmed only]"
+                                   false "[unconfirmed only]"
+                                   nil)]
+               (->> ["has" content-str "from" user-str confirmed-str]
+                    (remove nil?)
+                    (str/join " ")))
 
-            :text-search
-            (when (and (string? value)
-                       (not-empty value))
-              (str "text contains " (pr-str value)))
+             (str "unknown filter (" (pr-str filter-type) ")"))]
+       [:div.ui.center.aligned.middle.aligned.grid
+        [:div.row
+         [:div.middle.aligned.two.wide.column.delete-filter
+          [:div.ui.tiny.fluid.icon.button
+           {:on-click #(dispatch-sync [::delete-filter context filter-idx])}
+           [:i.times.icon]]]
+         [:div.middle.aligned.fourteen.wide.column
+          [:div.ui.tiny.fluid.button
+           {:on-click #(dispatch-sync [::edit-filter context filter-idx])}
+           description]]]]))])
 
-            (str "unknown filter (" (pr-str filter-type) ")"))]
+(defn- TextSearchDescribeElement [context]
+  (let [text-search @(subscribe [::get context [:text-search]])]
+    (when (and (string? text-search)
+               (not-empty text-search))
       [:div.ui.tiny.fluid.button
-       description])))
-
-(defn- make-filter-descriptions
-  "Helper function for generating short filter summaries."
-  [{:keys [filters labels]}]
-  (let [label-name #(get-in labels [% :short-label])]
-    (as-> (->> filters
-               (map
-                (fn [m]
-                  (let [key (-> m keys first)
-                        value (-> m vals first)]
-                    (case key
-                      :label-id
-                      (when value
-                        (str "has label "
-                             (pr-str (label-name value))))
-
-                      :text-search
-                      (when (and (string? value)
-                                 (not-empty value))
-                        (str "text contains " (pr-str value)))
-
-                      nil))))
-               (remove nil?))
-        descriptions
-        (if (empty? descriptions) ["all articles"] descriptions))))
+       (str "text contains " (pr-str text-search))])))
 
 (defn- ArticleListFiltersRow [context]
   (let [get-val #(deref (subscribe [::get context %]))
@@ -778,12 +980,10 @@
         "Filters"]
        [:div.nine.wide.column.filters-summary
         [:span
+         #_
          (doall
-          (map-indexed
-           (fn [i s] ^{:key [:filter-text i]}
-             [:div.ui.label s])
-           (make-filter-descriptions
-            {:filters filters :labels labels})))]]
+          (for [filter-idx ...]
+            [FilterDescribeElement context filter-idx]))]]
        [:div.six.wide.column.right.aligned.control-buttons
         [:button.ui.small.icon.button
          {:class (if (and loading? (= recent-nav-action :refresh))
@@ -823,113 +1023,6 @@
             [view-button :show-notes "Notes"]]
            [:div.six.wide.field]]]]])]))
 
-(def filter-types [:has-content :has-label :has-annotation
-                   :has-user :inclusion :consensus])
-
-(defn create-filter [filter-type]
-  {filter-type
-   (merge
-    (case filter-type
-      #_ :i.pencil.icon
-      :has-content {:content :any #_ [:label :annotation :note]
-                    :users :any
-                    :search nil ;; for notes
-                    }
-      #_ :i.tags.icon
-      :has-label {:label-id :any
-                  :users :any
-                  :values :any
-                  :confirmed true}
-      #_ :i.quote.left.icon
-      :has-annotation {:semantic-class :any
-                       :has-value nil
-                       :users :any}
-      #_ :i.user.icon
-      :has-user {:users nil
-                 :content :any
-                 :confirmed true}
-      #_ :i.check.circle.outline.icon
-      :inclusion {:label-id nil
-                  :values nil}
-      #_ :i.users.icon
-      :consensus {:status :any})
-    {:editing? true})})
-
-(def filter-presets
-  {#_ :i.user.icon
-   :self [{:has-user {:users :self
-                      :content :any
-                      :confirmed nil}}]
-   #_ :i.pencil.icon
-   :content [{:has-content {:content :any
-                            :confirmed true}}]
-   #_ :i.check.circle.outline.icon
-   :inclusion [{:inclusion {:label-id :overall
-                            :values nil}}
-               {:consensus {:status :any}}]})
-
-(defn- load-filters-input [db context]
-  (set-state db context [:inputs :filters]
-              (get-active-filters db context)))
-
-(reg-event-db
- ::load-filters-input
- [trim-v]
- (fn [db [context]]
-   (load-filters-input db context)))
-
-(defn- reset-filters-input [db context]
-  (set-state db context [:inputs :filters] nil))
-
-(reg-event-db
- ::reset-filters-input
- [trim-v]
- (fn [db [context]]
-   (reset-filters-input db context)))
-
-(defn- get-filters-input [db context]
-  (let [input (get-state db context [:inputs :filters])
-        active (get-active-filters db context)]
-    (if (nil? input) active input)))
-
-(reg-sub
- ::filters-input
- (fn [[_ context]]
-   [(subscribe [::inputs context [:filters]])
-    (subscribe [::filters context])])
- (fn [[input active]]
-   (if (nil? input) active input)))
-
-(reg-event-db
- ::set-filters-input
- [trim-v]
- (fn [db [context path value]]
-   (set-state db context (concat [:inputs :filters] path) value)))
-
-(reg-event-db
- ::add-filter
- [trim-v]
- (fn [db [context filter-type]]
-   (let [filters (get-filters-input db context)
-         new-filter (create-filter filter-type)]
-     (if (in? filters new-filter)
-       db
-       (set-state db context (concat [:inputs :filters])
-                  (->> [new-filter]
-                       (concat filters) vec))))))
-
-(reg-sub
- ::editing-filter?
- (fn [[_ context]]
-   [(subscribe [::filters context])
-    (subscribe [::filters-input context])])
- (fn [[active input]]
-   (boolean (some #(not (in? active %)) input))))
-
-(defn- FilterElement [filter-id]
-  (let []
-    nil))
-
 (defn- NewFilterElement [context]
   (when (not @(subscribe [::editing-filter? context]))
     (let [items [[:has-content "Content" "pencil alternate"]
@@ -948,31 +1041,31 @@
             {:key [:new-filter-item i]
              :data-value (name ftype)}
             [:i {:class (str icon " icon")}]
-            [:span label]])
+            (str label)])
          items)
         {:class
-         (if touchscreen?
-           "ui fluid selection dropdown"
-           "ui fluid search selection dropdown")
+         (if true #_ touchscreen?
+             "ui fluid selection dropdown"
+             "ui fluid search selection dropdown")
          :onChange
          (fn [v t]
-           #_ (println (str "v = " (pr-str v)))
-           (dispatch-sync [::add-filter context (keyword v)]))}]])))
+           (when (not-empty v)
+             (dispatch-sync [::add-filter context (keyword v)])))}]])))
 
 (defn- FilterPresetsForm [context]
   (let [filters @(subscribe [::filters-input context])
+        presets (filter-presets)
         make-button
         (fn [key icon-class]
-          (let [preset (get filter-presets key)]
+          (let [preset (get presets key)]
             [:button.ui.tiny.fluid.icon.button
              {:class (if (= filters preset)
                        "primary")
               :on-click
               (util/wrap-user-event
                #(dispatch-sync
-                 [::set-filters-input
-                  context []
-                  (get filter-presets key)]))}
+                 [::set context [:filters]
+                  (process-all-filters-input (get presets key))]))}
              [:i {:class (str icon-class " icon")}]]))]
     [:div.ui.secondary.segment.filter-presets
      [:form.ui.small.form
@@ -995,10 +1088,7 @@
             [:button.ui.tiny.fluid.icon.labeled.button
              {:on-click
               (util/wrap-user-event
-               #(do #_ (println (str "toggling " key " = " (not enabled?)))
-                    (dispatch-sync
-                     [::set-display-option
-                      context key (not enabled?)])))}
+               #(dispatch-sync [::set-display-option context key (not enabled?)]))}
              (if enabled?
                [:i.green.circle.icon]
                [:i.grey.circle.icon])
@@ -1019,8 +1109,7 @@
   (let [{:keys [expand-filters] :as display-options}
         @(subscribe [::display-options (cached context)])
         project-id @(subscribe [:active-project-id])
-        {:keys [labels]} @(subscribe [:project/raw])
-        active-filters @(subscribe [::filters (cached context)])
+        active-filters @(subscribe [::filters context])
         input-filters @(subscribe [::filters-input context])
         active-article @(subscribe [::get (cached context) [:active-article]])
         loading? (and (loading/any-loading? :only :project/article-list)
@@ -1065,19 +1154,24 @@
        [DisplayOptionsForm context]
        [:div.ui.secondary.segment.filters-content
         [:div.inner
-         (doall
-          (map-indexed
-           (fn [i fr] ^{:key [:filter-element i]}
-             #_ (println (str "fr = " (pr-str fr)))
-             (if (in? active-filters fr)
-               (let [[s] (make-filter-descriptions
-                          {:filters [fr] :labels labels})]
-                 ^{:key [:filter-text i]}
-                 [FilterDescribeElement context fr :labels labels]
-                 #_ [:div.ui.tiny.fluid.button s])
-               ^{:key [:filter-editor i]}
-               [FilterEditElement context fr :labels labels]))
-           input-filters))
+         (when (not-empty input-filters)
+           [:div.ui.tiny.fluid.icon.labeled.button
+            {:on-click #(do (dispatch-sync [::reset-filters-input context])
+                            (dispatch-sync [::reset-filters context]))}
+            [:i.times.icon]
+            "Reset Filters"])
+         [TextSearchDescribeElement context]
+         (if (empty? input-filters)
+           [FilterDescribeElement context nil]
+           (doall
+            (map-indexed
+             (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
+               (if (in? active-filters fr)
+                 ^{:key [:filter-text filter-idx]}
+                 [FilterDescribeElement context filter-idx]
+                 ^{:key [:filter-editor filter-idx]}
+                 [FilterEditElement context filter-idx]))
+             input-filters)))
          [NewFilterElement context]]]])))
 
 (defn- ArticleListNavHeader [context]

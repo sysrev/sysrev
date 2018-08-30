@@ -55,20 +55,38 @@
 
 (def sort-article-id #(sort-by :article-id < %))
 
-(def filter-has-labels #(not-empty (:labels %)))
-
+#_
 (def filter-has-confirmed-labels
   #(->> % :labels (filter :confirm-time) not-empty))
 
-(defn filter-has-user-labels [user-id]
+(defn filter-has-user [{:keys [user content confirmed]}]
   (fn [article]
-    (->> article
-         :labels
-         (filter #(= (:user-id %) user-id))
-         not-empty)))
+    (let [labels (cond->> (:labels article)
+                   ;; TODO: filter confirmed
+                   user (filter #(= (:user-id %) user)))
+          ;; TODO: search annotations
+          annotations nil]
+      (or (not-empty labels)
+          (not-empty annotations)))))
 
 #_
-(defn filter-has-annotations [user-id]
+(defn filter-has-content [{:keys []}]
+  nil)
+
+#_
+(defn filter-has-labels [{:keys []}]
+  nil)
+
+#_
+(defn filter-has-annotations [{:keys []}]
+  nil)
+
+#_
+(defn filter-by-inclusion [{:keys []}]
+  nil)
+
+#_
+(defn filter-by-consensus [{:keys []}]
   nil)
 
 ;; TODO: include user notes in search
@@ -83,31 +101,18 @@
                                 (str/lower-case))]
       (every? #(str/includes? all-article-text %) tokens))))
 
-(defn filter-has-label-id
-  [label-id &
-   {:keys [require-confirmed?]
-    :or {require-confirmed? false}}]
-  (fn [article]
-    (->> article
-         :labels
-         (filter #(if require-confirmed?
-                    (:confirm-time %)
-                    true))
-         (filter #(= (:label-id %) label-id))
-         not-empty)))
-
 (defn get-sort-fn [sort-by]
   (case sort-by
     :article-id sort-article-id
-    :article-id))
+    sort-article-id))
 
 (defn get-filter-fn [fmap]
   (let [filter-name (first (keys fmap))
         make-filter
         (case filter-name
-          :has-user-labels   filter-has-user-labels
-          :has-label-id      filter-has-label-id
-          :text-search       filter-free-text-search)]
+          :has-user          filter-has-user
+          :text-search       filter-free-text-search
+          (constantly true))]
     (make-filter (get fmap filter-name))))
 
 (defn project-article-list-filtered [project-id filters sort-by]
