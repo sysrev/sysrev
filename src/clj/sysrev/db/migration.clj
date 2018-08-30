@@ -269,7 +269,7 @@
                    (mapv #(select-keys % [:name :amount :product :created :id])))]
     (-> (insert-into :stripe-plan)
         (values plans)
-        (upsert (-> (on-conflict :product)
+        (upsert (-> (on-conflict :name)
                     (do-update-set :name :amount :id :created)))
         do-execute)))
 
