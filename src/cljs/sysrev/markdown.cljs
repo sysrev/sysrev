@@ -38,8 +38,15 @@
 
 (defn RenderMarkdown
   [markdown]
-  (let [converter (doto (js/showdown.Converter.)
-                    ($ setOption "simpleLineBreaks" true))]
+  (let [converter (js/showdown.Converter. (clj->js
+                                           {:simpleLineBreaks true}))
+        ;; this is a hook to add target=_blank to anything
+        ;; with a href
+        _ ($ js/DOMPurify addHook
+             "afterSanitizeAttributes"
+             (fn [node]
+               (when ($ node hasAttribute "href")
+                 ($ node setAttribute "target" "_blank"))))]
     [:div {:style {:word-wrap "break-word"}
            :dangerouslySetInnerHTML {:__html (->> markdown
                                                   ($ converter makeHtml)
@@ -147,6 +154,11 @@
       (if @editing?
         [:div
          [:div {:style {:margin-bottom "1em"}}
+          [:div {:style {:margin-bottom "0.25em"
+                         :margin-left "0.25em"}}
+           [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
+                :target "_blank"
+                :rel "noopener noreferrer"} "Markdown"]]
           [:form.ui.form
            [TextArea {:fluid "true"
                       :autoHeight true
