@@ -11,7 +11,10 @@
             [sysrev.shared.util :as util]))
 
 ;; manual tests
+;; there are additional notes in review_articles.clj
 ;; (sysrev.init/start-app {:dbname "sysrev_test"}) ; start the app, if
+;; make sure there is a sysrev test user
+;; (browser/create-test-user)
 ;; not already running
 ;; (browser/start-visual-webdriver)
 ;; run some tests

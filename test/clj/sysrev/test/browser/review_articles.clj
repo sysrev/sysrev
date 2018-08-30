@@ -15,6 +15,7 @@
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
 ;; helpful manual testing functions:
+;; There are additional notes in create_project.clj
 ;; (browser/delete-test-user)
 
 ;; find the project

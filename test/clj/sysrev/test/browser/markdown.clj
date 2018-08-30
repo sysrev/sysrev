@@ -75,7 +75,7 @@
         (println "There was an error in " "sysrev.test.browser.markdown/happy-path-project-description")
         (println "View screenshot at " filename)
         (taxi/take-screenshot :file filename)
-        (throw e)))
+        (println e)))
     (finally
       (project/delete-current-project)
       (log-out))))
