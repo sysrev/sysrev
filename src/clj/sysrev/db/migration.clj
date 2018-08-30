@@ -270,7 +270,7 @@
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :name)
-                    (do-update-set :name :amount :id :created)))
+                    (do-update-set :product :amount :id :created)))
         do-execute)))
 
 (defn update-dates-from-article-raw
