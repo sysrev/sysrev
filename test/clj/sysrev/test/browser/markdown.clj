@@ -70,12 +70,6 @@
       (browser/wait-until-displayed create-project-description)
       ;; a prompt for creating a project description
       (is (browser/exists? create-project-description)))
-    (catch Throwable e
-      (let [filename (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-        (println "There was an error in " "sysrev.test.browser.markdown/happy-path-project-description")
-        (println "View screenshot at " filename)
-        (taxi/take-screenshot :file filename)
-        (println e)))
     (finally
       (project/delete-current-project)
       (log-out))))

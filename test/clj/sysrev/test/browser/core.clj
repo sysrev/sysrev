@@ -246,5 +246,4 @@
          (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
            (taxi/take-screenshot :file filename#)
            (log/info "Saved screenshot:" filename#)
-           (log/info e#))))))
-
+           (throw e#))))))

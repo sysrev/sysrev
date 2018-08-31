@@ -79,12 +79,6 @@
                (get-in  annotation [:context :text-context])))
         (is (= 15 (get-in annotation [:context :start-offset])))
         (is (= 23 (get-in annotation [:context :end-offset])))))
-    (catch Throwable e
-      (let [filename (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-        (println "There was an error in " "sysrev.test.browser.annotator/happy-path-project-description")
-        (println "Screenshot: " filename)
-        (taxi/take-screenshot :file filename)
-        (println e)))
     (finally
       (project/delete-current-project)
       (log-out))))
