@@ -110,6 +110,44 @@ div.projects-list {
     background-color: mix(@background, @text, 96);
 }
 
+.ui.message.project-description {
+    p {
+        margin-top: 0.75em;
+    }
+}
+
+.ui.segment.markdown-component {
+    .ui.button.edit-markdown {
+        opacity: 0.5;
+    }
+    .column.form-buttons {
+        > .ui.button {
+            margin-left: 2px;
+        }
+    }
+    a.markdown-link {
+        font-size: 15px;
+    }
+    .editor-view {
+        > .ui.segments {
+            > .ui.grid.segment {
+                > .column {
+                    padding-top: 0.5em;
+                    padding-bottom: 0.5em;
+                }
+            }
+        }
+    }
+}
+.ui.segment.markdown-component:hover {
+    .ui.button.edit-markdown {
+        opacity: 1.0;
+        > i.icon {
+            .blue-text;
+        }
+    }
+}
+
 @media only screen and (max-width: 767px) {
     .ui.column.stackable.grid.project-overview {
         margin-top: -0.5em;
@@ -118,10 +156,10 @@ div.projects-list {
 
     .project-content > .ui.two.column.stackable.grid > .column,
     .project-content > .ui.two.column.stackable.grid > .row > .column {
-         padding-left: 0 !important;
-         padding-right: 0 !important;
-         padding-top: 0.5em !important;
-         padding-bottom: 0.5em !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0.5em !important;
+        padding-bottom: 0.5em !important;
     }
 
     div.landing-page {

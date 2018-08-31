@@ -14,11 +14,12 @@
   (try
     (let [project-name "Markdown Test"
           search-term "foo bar"
-          create-project-description {:xpath "//p[contains(text(),'Create Project Description')]"}
-          edit-markdown-icon {:xpath "//i[contains(@class,'pencil horizontal icon')]"}
-          save-button {:xpath "//p[contains(text(),'Save')]"}
+          create-project-description {:xpath "//div[contains(text(),'Create Project Description')]"}
+          edit-markdown-icon {:xpath "//i[contains(@class,'pencil icon')]"}
+          save-button {:xpath "//button[contains(text(),'Save')]"}
           markdown-description "#foo bar\n##baz qux"
-          edited-markdown-description (str markdown-description "\nquxx quzz corge")]
+          edited-markdown-description (str markdown-description "\nquxx quzz corge")
+          overview-tab {:xpath "//span[contains(text(),'Overview')]"}]
       (log-in)
 ;;; create a project
       (browser/go-route "/select-project")
@@ -35,20 +36,16 @@
                        10000 75)
 ;;; project description
       ;; create project description
-      (browser/wait-until-displayed {:xpath "//span[contains(text(),'Overview')]"})
-      (taxi/click {:xpath "//span[contains(text(),'Overview')]"})
-      (browser/wait-until-displayed create-project-description)
-      (taxi/click create-project-description)
+      (browser/click overview-tab)
+      (browser/click create-project-description)
       ;; enter markdown
-      (browser/wait-until-displayed {:xpath "//textarea"})
       (browser/set-input-text {:xpath "//textarea"} markdown-description)
-      (browser/click {:xpath "//p[contains(text(),'Save')]"})
+      (browser/click save-button)
       ;; check that the markdown exists
       (browser/wait-until-displayed {:xpath "//h1[contains(text(),'foo bar')]"})
       (is (browser/exists? {:xpath "//h2[contains(text(),'baz qux')]"}))
       ;; edit the markdown
       (browser/click {:xpath "//div[@id='project-description']"})
-      (browser/wait-until-displayed edit-markdown-icon)
       (browser/click edit-markdown-icon)
       (browser/wait-until-displayed {:xpath "//textarea"})
       (taxi/clear {:xpath "//textarea"})
@@ -58,7 +55,6 @@
       (is (browser/exists? {:xpath "//p[contains(text(),'quxx quzz corge')]"}))
       ;; delete the markdown, make sure we are back at stage one
       (browser/click {:xpath "//div[@id='project-description']"})
-      (browser/wait-until-displayed edit-markdown-icon)
       (browser/click edit-markdown-icon)
       ;; clear the text area
       (taxi/clear {:xpath "//textarea"})
@@ -67,7 +63,6 @@
       (taxi/send-keys {:xpath "//textarea"}
                       org.openqa.selenium.Keys/BACK_SPACE)
       (browser/click save-button)
-      (browser/wait-until-displayed create-project-description)
       ;; a prompt for creating a project description
       (is (browser/exists? create-project-description)))
     (finally

@@ -21,8 +21,10 @@
             [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
+(def panel [:project :project :overview])
+
 (def initial-state {})
-(defonce state (r/cursor app-db [:state :panels :project :overview]))
+(defonce state (r/cursor app-db [:state :panels panel]))
 (defonce important-terms-tab (r/cursor state [:important-terms-tab]))
 
 (def colors {:grey "rgba(160,160,160,0.5)"
@@ -626,20 +628,24 @@
       [PredictionHistogramChart])))
 
 (defn ProjectOverviewContent []
-  [:div.project-content
-   [ProjectDescription]
-   [:div.ui.two.column.stackable.grid.project-overview
-    [:div.ui.row
-     [:div.ui.column
-      [ReviewStatusBox]
-      [RecentProgressChart]
-      [LabelPredictionsInfo]
-      [PredictionHistogram]]
-     [:div.ui.column
-      [MemberActivityChart]
-      [ProjectFilesBox]
-      [KeyTerms]
-      [LabelCounts]]]]])
+  (when-let [project-id @(subscribe [:active-project-id])]
+    (with-loader [[:project project-id]
+                  [:project/markdown-description
+                   project-id {:panel panel}]] {}
+      [:div.project-content
+       [ProjectDescription {:panel panel}]
+       [:div.ui.two.column.stackable.grid.project-overview
+        [:div.ui.row
+         [:div.ui.column
+          [ReviewStatusBox]
+          [RecentProgressChart]
+          [LabelPredictionsInfo]
+          [PredictionHistogram]]
+         [:div.ui.column
+          [MemberActivityChart]
+          [ProjectFilesBox]
+          [KeyTerms]
+          [LabelCounts]]]]])))
 
 (defn ProjectOverviewPanel [child]
   (let [project-id @(subscribe [:active-project-id])
