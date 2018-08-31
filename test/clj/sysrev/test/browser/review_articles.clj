@@ -7,7 +7,7 @@
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :refer [default-fixture wait-until]]
-            [sysrev.test.browser.core :as browser]
+            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.test.browser.create-project :as create-project]
             [clojure.tools.logging :as log]))
@@ -378,7 +378,7 @@
                            (nth all-values (rand-int (count all-values)))})))
          label-settings)))
 
-(deftest create-project-and-review-article
+(deftest-browser create-project-and-review-article
   (when (browser/db-connected?)
     (let [{:keys [email password]} browser/test-login
           project-name "Sysrev Browser Test"

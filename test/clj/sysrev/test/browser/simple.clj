@@ -6,7 +6,7 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :refer [default-fixture completes?]]
             [sysrev.test.browser.core :as browser :refer
-             [webdriver-fixture-once webdriver-fixture-each]]
+             [webdriver-fixture-once webdriver-fixture-each deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [clojure.string :as str]))
 
@@ -25,7 +25,7 @@
       (browser/panel-exists? [:project :project :add-articles]
                              :wait? false)))
 
-(deftest project-routes
+(deftest-browser project-routes
   (nav/log-in)
   (nav/open-first-project)
   (is (browser/panel-exists? [:project]))

@@ -5,7 +5,7 @@
             [clojure.test :refer :all]
             [sysrev.api :as api]
             [sysrev.db.users :as users]
-            [sysrev.test.browser.core :as browser]
+            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.create-project :as project]
             [sysrev.test.browser.navigate :refer [log-in log-out]]
             [sysrev.test.browser.review-articles :as review-articles]
@@ -14,7 +14,7 @@
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
 
-(deftest happy-path-project-annotator
+(deftest-browser happy-path-project-annotator
   (try
     (let [project-name "Annotator Test"
           search-term "foo bar enthalpic mesoporous"
@@ -78,10 +78,7 @@
         (is (= "Journal of the American Chemical Society"
                (get-in  annotation [:context :text-context])))
         (is (= 15 (get-in annotation [:context :start-offset])))
-        (is (= 23 (get-in annotation [:context :end-offset])))
-
-        )
-      )
+        (is (= 23 (get-in annotation [:context :end-offset])))))
     (catch Throwable e
       (let [filename (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
         (println "There was an error in " "sysrev.test.browser.annotator/happy-path-project-description")

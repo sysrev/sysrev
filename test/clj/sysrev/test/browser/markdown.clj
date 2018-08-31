@@ -2,7 +2,7 @@
   (:require [clj-webdriver.taxi :as taxi]
             [clojure.string :as string]
             [clojure.test :refer :all]
-            [sysrev.test.browser.core :as browser]
+            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.create-project :as project]
             [sysrev.test.browser.navigate :refer [log-in log-out]]
             [sysrev.test.core :refer [default-fixture]]))
@@ -10,7 +10,7 @@
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
 
-(deftest happy-path-project-description
+(deftest-browser happy-path-project-description
   (try
     (let [project-name "Markdown Test"
           search-term "foo bar"

@@ -5,7 +5,7 @@
             [clojure.test :refer :all]
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.import.pubmed :as pubmed]
-            [sysrev.test.browser.core :as browser]
+            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.navigate :refer [log-in log-out]]
             [clojure.tools.logging :as log]
             [sysrev.shared.util :as util]))
@@ -97,7 +97,7 @@
     (browser/wait-until-exists query)
     (boolean (re-matches #".*disabled.*" (taxi/attribute query :class)))))
 
-(deftest pubmed-search
+(deftest-browser pubmed-search
   (log-in)
   (browser/go-route "/pubmed-search")
   (is (browser/panel-exists? [:pubmed-search]))
@@ -238,7 +238,7 @@
 (def project-source-xpath
   {:xpath "//div[@class='project-sources-list']//ancestor::div[@id='project-sources']/descendant::div[@class='project-source']"})
 
-(deftest create-project-and-import-sources
+(deftest-browser create-project-and-import-sources
   (try
     (let [project-name "Sysrev Browser Test"
           search-term-first "foo bar"

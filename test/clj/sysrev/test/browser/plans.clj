@@ -9,7 +9,7 @@
             [sysrev.db.users :as users]
             [sysrev.test.core :refer
              [default-fixture wait-until full-tests?]]
-            [sysrev.test.browser.core :as browser]
+            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as navigate]
             [sysrev.stripe :as stripe]))
 
@@ -59,7 +59,7 @@
                string
                "\")]")})
 
-(deftest register-and-check-basic-plan-subscription
+(deftest-browser register-and-check-basic-plan-subscription
   (log/info "register-and-check-basic-plan-subscription")
   (when (not= :remote-test (-> env :profile))
     (let [{:keys [email password]} browser/test-login]
@@ -133,7 +133,7 @@
   [plan-name]
   (browser/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
-(deftest register-and-subscribe-to-paid-plans
+(deftest-browser register-and-subscribe-to-paid-plans
   (log/info "register-and-subscribe-to-paid-plans")
   (let [{:keys [email password]} browser/test-login
         full-tests? (full-tests?)]
@@ -312,7 +312,7 @@
 
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email browser/test-login)))
-(deftest register-and-support-projects
+(deftest-browser register-and-support-projects
   (log/info "register-and-support-projects")
   (when (not= :remote-test (-> env :profile))
     (let [{:keys [email password]} browser/test-login

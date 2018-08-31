@@ -1,15 +1,15 @@
 (ns sysrev.test.browser.navigate
-  (:require
-   [clojure.test :refer :all]
-   [clojure.spec.alpha :as s]
-   [clojure.spec.test.alpha :as t]
-   [clojure.tools.logging :as log]
-   [clj-webdriver.taxi :as taxi]
-   [sysrev.test.core :refer [default-fixture completes?]]
-   [sysrev.test.browser.core :as browser :refer
-    [webdriver-fixture-once webdriver-fixture-each go-route test-login]]
-   [clojure.string :as str]
-   [sysrev.db.users :refer [delete-user create-user]]))
+  (:require [clojure.test :refer :all]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as t]
+            [clojure.tools.logging :as log]
+            [clj-webdriver.taxi :as taxi]
+            [sysrev.test.core :refer [default-fixture completes?]]
+            [sysrev.test.browser.core :as browser :refer
+             [webdriver-fixture-once webdriver-fixture-each go-route test-login
+              deftest-browser]]
+            [clojure.string :as str]
+            [sysrev.db.users :refer [delete-user create-user]]))
 
 (defn log-out []
   (browser/click "a#log-out-link"

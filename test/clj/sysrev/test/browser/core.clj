@@ -237,3 +237,14 @@
   (let [project-id (or project-id (current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))
+
+(defmacro deftest-browser [name & body]
+  `(deftest ~name
+     (try
+       ~@body
+       (catch Throwable e#
+         (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
+           (taxi/take-screenshot :file filename#)
+           (log/info "Saved screenshot:" filename#)
+           (log/info e#))))))
+
