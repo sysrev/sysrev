@@ -7,8 +7,8 @@
             [reagent.ratom :refer [reaction]]
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.loading :as loading]
-            [sysrev.views.article :refer [article-info-view]]
-            [sysrev.views.review :refer [label-editor-view]]
+            [sysrev.views.article :refer [ArticleInfo]]
+            [sysrev.views.review :refer [LabelEditor]]
             [sysrev.views.components :refer
              [with-ui-help-tooltip ui-help-icon selection-dropdown
               three-state-selection-icons]]
@@ -709,12 +709,12 @@
            [:div.ui.tiny.button {:class next-class :on-click on-next}
             "Next" [:i.chevron.right.icon]]]]]])
      [:div
-      [article-info-view article-id
+      [ArticleInfo article-id
        :show-labels? true
        :private-view? (private-article-view? panel)
        :context :article-list]
       (cond editing?
-            [label-editor-view article-id]
+            [LabelEditor article-id]
 
             editing-allowed?
             [:div.ui.segment

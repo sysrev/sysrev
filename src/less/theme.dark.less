@@ -17,6 +17,7 @@
 @fadedInvertedText: @fadedDarkText;
 
 @green: rgba(33, 186, 69, 1);
+@orange: #f2711c;
 @blue: #4085d0;
 @brightBlue: rgba(70, 150, 250, 1);
 @mediumGrey: rgba(100, 100, 100, 1);
@@ -52,6 +53,10 @@
 @greyButtonBackground: rgba(130, 130, 130, 1.0);
 
 @internalBorderColor: rgba(34, 36, 38, 0.1);
+// @internalBorderColor: rgba(130, 130, 130, 0.5);
+@solidInternalBorderColor: rgba(130, 130, 130, 0.5);
+
+@buttonBackground: rgb(224, 225, 226);
 
 @subtleButtonColor: rgba(75, 75, 75, 1.0);
 @subtleButtonHoverColor: lighten(@subtleButtonColor, 2);
@@ -119,4 +124,15 @@
 
 .ui.segment > .ui.fluid.label {
     background-color: @background2;
+}
+
+div.article-answers {
+    .ui.divided.list {
+        > .item {
+            // border-top: 1px solid rgba(200,200,200,0.4);
+        }
+        > .item:first-child {
+            border-top: 0;
+        }
+    }
 }

@@ -20,7 +20,7 @@
         color (case inclusion
                 true   "green"
                 false  "orange"
-                nil    "")
+                nil)
         values (if @(subscribe [:label/boolean? label-id])
                  (if (boolean? answer)
                    [answer] [])
@@ -29,36 +29,42 @@
                        :else                [answer]))
         display-label (if @(subscribe [:label/boolean? label-id])
                         (str display "?")
-                        display)]
+                        display)
+        dark-theme? @(subscribe [:self/dark-theme?])]
     [:div.ui.tiny.labeled.button.label-answer-tag
-     [:div.ui.button {:class color}
+     [:div.ui.button {:class (when dark-theme? "basic")}
       (str display-label " ")]
      [:div.ui.basic.label
-      (if (empty? values)
-        [:i.grey.question.circle.icon
-         {:style {:margin-right "0"}
-          :aria-hidden true}]
-        (str/join ", " values))]]))
+      [:span {:class (when color (str color "-text"))}
+       (if (empty? values)
+         [:i.grey.question.circle.icon
+          {:style {:margin-right "0"}
+           :aria-hidden true}]
+         (str/join ", " values))]]]))
 
-(defn label-values-component [labels & {:keys [notes]}]
-  [:div
-   (doall
-    (->>
-     @(subscribe [:project/label-ids])
-     (filter #(contains? labels %))
-     (map #(do [% (get-in labels [% :answer])]))
-     (map-indexed
-      (fn [i [label-id answer]]
-        (when (real-answer? answer)
-          ^{:key i}
-          [label-answer-tag label-id answer])))))
-   (when notes
+(defn label-values-component [labels & {:keys [notes user-name]}]
+  (let [dark-theme? @(subscribe [:self/dark-theme?])]
+    [:div.label-values
+     {:style {:margin-bottom "-3px"}}
+     (when user-name
+       [:div.ui.label.user-name
+        {:class (if dark-theme? nil "basic")}
+        user-name])
      (doall
-      (concat
-       '([:span {:key [:labels] :style {:margin-left "0.5em"}}])
-       (for [note-name (keys notes)]
-         ^{:key [note-name]}
-         [note-content-label note-name (get notes note-name)]))))])
+      (->>
+       @(subscribe [:project/label-ids])
+       (filter #(contains? labels %))
+       (map #(do [% (get-in labels [% :answer])]))
+       (map-indexed
+        (fn [i [label-id answer]]
+          (when (real-answer? answer) ^{:key i}
+            [label-answer-tag label-id answer])))))
+     (when notes
+       (doall
+        (concat
+         '([:span {:key [:labels] :style {:margin-left "0.5em"}}])
+         (for [note-name (keys notes)] ^{:key [note-name]}
+           [note-content-label note-name (get notes note-name)]))))]))
 
 (defn article-label-values-component [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])]

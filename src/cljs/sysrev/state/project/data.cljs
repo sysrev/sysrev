@@ -2,6 +2,7 @@
   (:require [re-frame.core :refer
              [subscribe reg-sub reg-event-db reg-event-fx
               dispatch trim-v reg-fx]]
+            [sysrev.loading :as loading]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.core :refer [store-user-maps]]
             [sysrev.state.nav :refer [active-project-id active-panel]]
@@ -9,7 +10,7 @@
             [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.shared.transit :as sr-transit]
             [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :as util]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defn project-loaded? [db project-id]
   (contains? (get-in db [:data :project]) project-id))
@@ -28,7 +29,7 @@
   (fn [{:keys [db]} [] {:keys [projects]}]
     (let [projects-map (->> projects
                             (group-by :project-id)
-                            (util/map-values first))]
+                            (sutil/map-values first))]
       {:db (-> db (assoc-in [:data :public-projects] projects-map))})))
 
 (def-data :project
@@ -119,11 +120,17 @@
                project-id (dissoc args :n-count :n-offset)]])
   :process
   (fn [{:keys [db]} [project-id args] result]
-    (let [panel (active-panel db)]
-      (cond-> {:db (assoc-in db [:data :project project-id :article-list args]
-                             result)}
-        (= panel [:project :project :articles])
-        (merge {:dispatch (project-articles/reset-nav-action)})))))
+    (let [panel (active-panel db)
+          action @(subscribe (project-articles/nav-action))]
+      (when (= panel [:project :project :articles])
+        (js/setTimeout
+         (fn []
+           (when-not (some #(loading/any-loading? :only %)
+                           [:project/article-list :project/article-list-count])
+             (dispatch (project-articles/reset-nav-action))))
+         (if (in? [:refresh :transition] action) 150 50)))
+      {:db (assoc-in db [:data :project project-id :article-list args]
+                     result)})))
 
 (reg-sub
  :project/article-list

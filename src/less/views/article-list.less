@@ -130,16 +130,33 @@
     .ui.segments {
         > .ui.grid.segment.article-list-article {
             margin: 0;
-            border-bottom-width: 1px;
-            border-bottom-color: @lightGrey;
+        }
+        > .ui.grid.segment.article-list-article.with-labels {
+            border-top-width: 8px;
+
+            .column.article-entry > .ui.grid.article-main > .row {
+                border-bottom: 1px solid @internalBorderColor;
+            }
+        }
+        > .ui.grid.segment.article-list-article.with-labels.expanded {
+            .column.article-entry > .ui.grid.article-main > .row {
+                border-bottom: 0;
+            }
+        }
+        > .ui.grid.segment.article-list-article.first,
+        > .ui.grid.segment.article-list-article.with-labels.first {
+            border-top-width: 1px;
         }
         > .ui.grid.segment.article-list-article:last-child {
             border-bottom-width: 0px;
         }
+        > .ui.grid.segment.article-list-article-extra {
+            padding: 0.5em;
+        }
         > .ui.grid.segment.article-list-full-article {
             margin: 0;
-            padding-top: 1.5em;
-            padding-bottom: 1.5em;
+            padding-top: 1em;
+            padding-bottom: 1em;
             padding-left: 1em;
             padding-right: 1em;
             min-height: 60px;
@@ -153,10 +170,13 @@
                 padding: 0;
             }
         }
-        > .ui.segment.article-list-article-nav {
-            > .ui.buttons > .ui.button {
-                border-radius: 0;
-            }
+        > .ui.segment.article-nav {
+            border-top: 0;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        > .ui.dimmer {
+            background-color: fadeout(@pageBackground, 40%);
         }
     }
 
@@ -165,16 +185,43 @@
         cursor: pointer;
 
         .article-title {
-            .medium-weight;
+            // .medium-weight;
+            font-size: 13px;
+            .noselect;
+        }
+
+        .ui.segment.article-labels {
+            margin: 0.7rem -0.4rem;
+            padding: 0.4rem 0.5rem;
+            background-color: @partialSegmentBackground;
         }
 
         > .row {
             padding-top: 0px;
             padding-bottom: 0px;
 
-            > .column.article-title .grid .column.article-updated-time {
-                padding-left: 0;
-                padding-right: 8px;
+            > .column.article-entry {
+                > .ui.grid.article-main {
+                    margin-top: 0;
+                    margin-bottom: 0;
+                    > .row {
+                        padding-top: 0px;
+                        padding-bottom: 0px;
+                        > .column.article-title .grid .column.article-updated-time {
+                            padding-left: 0;
+                            padding-right: 8px;
+                        }
+                    }
+                }
+
+                > div.article-labels, > div.article-notes {
+                    > .ui.divider {
+                        margin: 0.5rem 0;
+                    }
+                }
+            }
+
+            > .column.article-entry.with-labels {
             }
         }
 
@@ -220,6 +267,7 @@
     }
 
     div.column.article-answers {
+        font-size: 13px;
         height: 100%;
 
         > div.ui.grid {
@@ -230,7 +278,16 @@
             > div.row {
                 padding-top: 5px;
                 padding-bottom: 5px;
+                border-left: 1px solid @solidInternalBorderColor;
+
+                > div.column {
+                    padding: 0 0.8em;
+                }
             }
+        }
+
+        .item > .content > .header {
+            font-weight: normal;
         }
     }
     .article-answers.single {
@@ -306,7 +363,7 @@
         > .ui.segment {
             padding: 0.3em 0.75em 0.5em 0.75em;
 
-            > .ui.form {
+            > .ui.form, > div.inner > .ui.form {
                 > .field {
                     > .ui.grid {
                         margin: 0 -0.25em 0 -0.25em;
@@ -359,11 +416,51 @@
 
         div.edit-filter {
             > .ui.form {
-                padding-top: 0.75em;
-                margin-top: 1em;
-                margin-bottom: 1em;
+                padding-top: 5px;
+                margin-top: 7px;
+                margin-bottom: 7px;
                 border-top: 1px solid rgba(128,128,128, 0.75);
                 border-bottom: 1px solid rgba(128,128,128, 0.75);
+
+                > .field, > .field > .fields {
+                    margin-bottom: 8px;
+                }
+            }
+        }
+
+        input.ui.input,
+        .ui.input > input,
+        .ui.dropdown,
+        .ui.dropdown > div.text {
+            font-size: 12px;
+        }
+
+        .ui.dropdown > .menu,
+        .ui.dropdown > .menu > .item {
+            font-size: 12px;
+        }
+
+        .ui.button {
+            font-size: 11px;
+        }
+
+        .ui.labeled.button.toggle {
+            > .icon {
+                width: 2.2em;
+            }
+        }
+
+        .filter-presets {
+            .ui.button {
+                font-size: 12px;
+            }
+        }
+
+        .display-options {
+            .ui.labeled.icon.button {
+                padding-left: 2.6em !important;
+                padding-right: 0.7em !important;
+                margin: 2px 0;
             }
         }
     }

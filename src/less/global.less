@@ -13,6 +13,9 @@
 .green-text {
     color: @green !important;
 }
+.orange-text {
+    color: @orange !important
+}
 
 .black-text {
     color: @text !important;
@@ -32,9 +35,15 @@
 }
 
 .flex-center-children {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    -ms-flex-align: center;
+    align-items: center;
+    -webkit-box-pack: center;
+    -webkit-justify-content: center;
+    -ms-flex-pack: center;
+    justify-content: center;
 }
 
 .main-content {

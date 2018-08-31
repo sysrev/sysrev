@@ -232,7 +232,7 @@
                         project-id (str "/articles/" article-id))}
              (str "#" article-id)]]))]])))
 
-(defn article-info-view
+(defn ArticleInfo
   [article-id & {:keys [show-labels? private-view? show-score?
                         context]
                  :or {show-score? true}}]

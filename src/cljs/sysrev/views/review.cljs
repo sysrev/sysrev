@@ -548,7 +548,7 @@
          "right aligned four wide column"]])]))
 
 ;; Top-level component for label editor
-(defn label-editor-view [article-id]
+(defn LabelEditor [article-id]
   (when article-id
     (when-let [project-id @(subscribe [:active-project-id])]
       (with-loader [[:article project-id article-id]] {}

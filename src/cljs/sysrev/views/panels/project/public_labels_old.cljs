@@ -11,7 +11,6 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer
              [selection-dropdown with-ui-help-tooltip ui-help-icon updated-time-label]]
-            [sysrev.views.article :refer [article-info-view]]
             [sysrev.views.article-list-old :as al]
             [sysrev.shared.article-list :refer
              [is-resolved? is-consistent? is-single? is-conflict?]]

@@ -6,7 +6,8 @@
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.article-list :as al]
+            [sysrev.views.article-list.base :as al]
+            [sysrev.views.article-list.core :refer [ArticleListPanel]]
             [sysrev.util]
             [sysrev.shared.util :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -55,6 +56,9 @@
   ;; TODO: function
   false)
 
+(defn nav-action []
+  [::al/get (get-context) [:recent-nav-action]])
+
 (defn reset-nav-action []
   [::al/set-recent-nav-action (get-context) nil])
 
@@ -80,5 +84,5 @@
     (fn [child]
       (when-let [project-id @(subscribe [:active-project-id])]
         [:div.project-content
-         [al/ArticleListPanel (get-context)]
+         [ArticleListPanel (get-context)]
          child]))))

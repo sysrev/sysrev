@@ -112,7 +112,7 @@
         (case filter-name
           :has-user          filter-has-user
           :text-search       filter-free-text-search
-          (constantly true))]
+          (constantly (constantly true)))]
     (make-filter (get fmap filter-name))))
 
 (defn project-article-list-filtered [project-id filters sort-by]

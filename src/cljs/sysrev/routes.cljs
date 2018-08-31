@@ -5,7 +5,7 @@
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.nav :as nav :refer [nav nav-scroll-top nav-redirect]]
             [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
-            [sysrev.views.article-list :as article-list]
+            [sysrev.views.article-list.base :as article-list]
             [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.views.panels.project.define-labels :as define-labels]
             [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
@@ -69,7 +69,7 @@
          panel-changed?
          (do (dispatch
               [:data/after-load data-item :project-articles-route
-               (list sync-params set-panel)])
+               (list set-panel #(js/setTimeout sync-params 25))])
              (article-list/reload-list context))
 
          :else (do (dispatch load-params)))))
