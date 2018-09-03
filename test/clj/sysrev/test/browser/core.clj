@@ -179,18 +179,19 @@
   (taxi/input-text q text)
   (Thread/sleep delay))
 
-(defn input-text [q text & {:keys [delay] :as opts}]
-  (apply set-input-text q text
-         (->> (merge opts {:clear? false}) vec (apply concat))))
-
 (defn set-input-text-per-char
-  [q text & {:keys [delay] :or {delay 25}}]
-  (taxi/clear q)
+  [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
+  (wait-until-exists q)
+  (when clear? (taxi/clear q))
   (Thread/sleep delay)
   (doall (map (fn [c]
                 (Thread/sleep delay)
                 (taxi/input-text q (str c))) text))
   (Thread/sleep delay))
+
+(defn input-text [q text & {:keys [delay] :as opts}]
+  (apply set-input-text q text
+         (->> (merge opts {:clear? false}) vec (apply concat))))
 
 (defn exists? [q & {:keys [wait?] :or {wait? true}}]
   (when wait?
