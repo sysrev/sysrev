@@ -16,7 +16,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]
-            [sysrev.views.panels.project.articles]
+            [sysrev.views.panels.project.articles :as articles]
             [sysrev.util :refer [full-size? random-id continuous-update-until]]
             [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -45,13 +45,13 @@
 
 (defn nav-article-status [[inclusion group-status]]
   (when-let [project-id @(subscribe [:active-project-id])]
-    (dispatch [:navigate [:project :project :articles]
-               {:project-id project-id}])
     (if use-new-article-list?
-      (do (dispatch [:project-articles/reset-filters [:group-status :inclusion-status]])
-          (dispatch [:project-articles/set-group-status group-status])
-          (dispatch [:project-articles/set-inclusion-status inclusion]))
-      (do (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
+      (do (articles/load-consensus-settings :status group-status
+                                            :inclusion inclusion)
+          (nav/nav-scroll-top (project-uri project-id "/articles")))
+      (do (dispatch [:navigate [:project :project :articles]
+                     {:project-id project-id}])
+          (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
           (dispatch [:public-labels/set-group-status group-status])
           (dispatch [:public-labels/set-inclusion-status inclusion])))))
 

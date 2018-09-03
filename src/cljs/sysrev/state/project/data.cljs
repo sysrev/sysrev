@@ -8,6 +8,7 @@
             [sysrev.state.nav :refer [active-project-id active-panel]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.views.panels.project.articles :as project-articles]
+            [sysrev.views.article-list.base :as al]
             [sysrev.shared.transit :as sr-transit]
             [sysrev.util :refer [dissoc-in]]
             [sysrev.shared.util :as sutil :refer [in?]]))
@@ -120,20 +121,20 @@
                project-id (dissoc args :n-count :n-offset)]])
   :process
   (fn [{:keys [db]} [project-id args] result]
-    (let [panel (active-panel db)
-          action @(subscribe (project-articles/nav-action))]
-      (when (= panel [:project :project :articles])
+    (doseq [panel [[:project :project :articles]]]
+      (let [context {:panel panel}
+            action @(subscribe [::al/get context [:recent-nav-action]])]
         (js/setTimeout
          (fn []
            (when-not (some #(loading/any-loading? :only %)
                            [:project/article-list :project/article-list-count])
-             (dispatch (project-articles/reset-nav-action))))
+             (dispatch [::al/set-recent-nav-action context nil])))
          (case action
            :transition  150
            :refresh     75
-           50)))
-      {:db (assoc-in db [:data :project project-id :article-list args]
-                     result)})))
+           50))))
+    {:db (assoc-in db [:data :project project-id :article-list args]
+                   result)}))
 
 (reg-sub
  :project/article-list

@@ -62,7 +62,9 @@
            set-panel [:set-active-panel panel]
            have-project? @(subscribe [:have? [:project project-id]])
            load-params [:article-list/load-url-params context]
-           sync-params #(article-list/sync-url-params context)]
+           sync-params #(article-list/sync-url-params context)
+           set-transition [::article-list/set-recent-nav-action
+                           context :transition]]
        (cond
          (not have-project?)
          (do (dispatch [:require [:project project-id]])
@@ -74,6 +76,7 @@
          (do (dispatch
               [:data/after-load data-item :project-articles-route
                (list set-panel #(js/setTimeout sync-params 25))])
+             (dispatch-sync set-transition)
              (article-list/reload-list context))
 
          :else (do (dispatch load-params)))))

@@ -171,8 +171,11 @@
                     (update m field #(some-> % f))
                     m))]
     {k
-     (-> v
-         (convert :label-id str))}))
+     (cond->
+         (-> v
+             (convert :label-id str))
+       (= k :consensus)
+       (convert :status name))}))
 
 (defn- filter-from-json [entry]
   (let [[[k v]] (vec entry)
@@ -181,15 +184,18 @@
                     (update m field #(some-> % f))
                     m))]
     {k
-     (-> v
-         (convert :label-id sutil/to-uuid)
-         (convert :content keyword)
-         (convert :confirmed #(case %
-                                "true" true
-                                "false" false
-                                "any" nil
-                                "null" nil
-                                %)))}))
+     (cond->
+         (-> v
+             (convert :label-id sutil/to-uuid)
+             (convert :content keyword)
+             (convert :confirmed #(case %
+                                    "true" true
+                                    "false" false
+                                    "any" nil
+                                    "null" nil
+                                    %)))
+         (= k :consensus)
+         (convert :status keyword))}))
 
 (defn- active-filters-impl [state context & [key]]
   (as-> (cond (-> state :filters not-empty)

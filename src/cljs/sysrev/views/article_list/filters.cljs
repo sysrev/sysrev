@@ -44,7 +44,8 @@
                        :confirmed nil}
       :inclusion      {:label-id nil
                        :values nil}
-      :consensus      {:status nil})
+      :consensus      {:status nil
+                       :inclusion nil})
     {:editing? true})})
 
 (defn filter-presets []
@@ -68,9 +69,8 @@
                 :show-notes true}}
 
      :inclusion
-     {:filters [{:inclusion {:label-id overall-id
-                             :values []}}
-                {:consensus {:status nil}}]
+     {:filters [{:consensus {:status nil
+                             :inclusion nil}}]
       :display {:self-only false
                 :show-inclusion true
                 :show-labels false
@@ -158,17 +158,21 @@
 
 ;; TODO: is this needed?
 (defn- process-filter-input [ifilter]
-  (let [[[filter-type value]] (vec ifilter)
-        nilify #(if (= % :any) nil %)]
-    (case filter-type
-      :has-user
-      (let [{:keys [user content confirmed]} value]
-        {filter-type
-         {:user (if (integer? user) user nil)
-          :content (nilify content)
-          :confirmed (nilify confirmed)}})
+  (let [[[filter-type value]] (vec ifilter)]
+    (->> (case filter-type
+           :has-user
+           (let [{:keys [user content confirmed]} value]
+             {filter-type
+              {:user (if (integer? user) user nil)
+               :content content
+               :confirmed confirmed}})
 
-      nil)))
+           :consensus
+           (let [{:keys [status inclusion]} value]
+             {filter-type value})
+
+           nil)
+         (map-values #(dissoc % :editing?)))))
 
 (defn- process-all-filters-input [ifilters]
   (->> ifilters
@@ -300,7 +304,7 @@
         {:keys [labels]} @(subscribe [:project/raw])]
     [FilterDropdown
      (concat [nil] label-ids)
-     #(if (or (nil? %) (= :any %))
+     #(if (nil? %)
         "Any Label"
         (get-in labels [% :short-label]))
      value
@@ -321,7 +325,7 @@
    false
    #(keyword %)])
 
-(defn- ConfirmedStatusSelector [context value on-change]
+(defn- BooleanDropdown [context value on-change]
   [FilterDropdown
    [nil true false]
    #(cond (= % true)  "Yes"
@@ -334,85 +338,167 @@
           (= % "false") false
           :else         nil)])
 
+(defn- ConsensusStatusDropdown [context value on-change]
+  [FilterDropdown
+   [nil :single :determined :conflict :consistent :resolved]
+   #(if (keyword? %)
+      (str/capitalize (name %))
+      "Any")
+   value
+   on-change
+   false
+   #(when % (-> % str/lower-case keyword))])
+
+(defn- ifilter-valid? [ifilter]
+  (not-empty (process-filter-input ifilter)))
+
+(defn- FilterEditButtons [context filter-idx]
+  (let [valid? (-> @(subscribe [::filters-input context])
+                   (nth filter-idx) ifilter-valid?)]
+    [:div.field.edit-buttons>div.fields
+     [:div.eight.wide.field
+      [:button.ui.tiny.fluid.labeled.icon.positive.button
+       {:class (if valid? nil "disabled")
+        :on-click
+        (when valid?
+          (util/wrap-user-event
+           #(dispatch [::sync-filters-input context])))}
+       [:i.circle.check.icon]
+       "Save"]]
+     [:div.eight.wide.field
+      [:button.ui.tiny.fluid.labeled.icon.button
+       {:on-click
+        (util/wrap-user-event
+         #(dispatch [::reset-filters-input context]))}
+       [:i.times.icon]
+       "Cancel"]]]))
+
+(defmulti FilterEditorFields
+  (fn [context filter-idx ifilter update-filter]
+    (-> ifilter keys first)))
+
+(defmethod FilterEditorFields :default [context filter-idx ifilter update-filter]
+  (let [[[ftype value]] (vec ifilter)]
+    (list
+     [:div.sixteen.wide.field
+      {:key [:unknown-filter 1]}
+      [:button.ui.tiny.fluid.button
+       (str "editing filter (" (pr-str ftype) ")")]])))
+
+(defmethod FilterEditorFields :has-user [context filter-idx ifilter update-filter]
+  (let [[[_ value]] (vec ifilter)
+        {:keys [user content confirmed]} value]
+    (list
+     [:div.field
+      {:key [:has-user 1]}
+      [:div.fields
+       [:div.eight.wide.field
+        [:label "User"]
+        [SelectUserDropdown context user
+         (fn [new-value]
+           (update-filter
+            #(assoc % :user new-value)))
+         false]]
+       [:div.eight.wide.field
+        [:label "Content Type"]
+        [ContentTypeDropdown context content
+         (fn [new-value]
+           (update-filter
+            #(assoc % :content new-value)))]]]]
+     (when (or (= content :labels)
+               (in? [true false] confirmed))
+       [:div.field
+        {:key [:has-user 2]}
+        [:div.fields
+         [:div.eight.wide.field
+          [:label "Confirmed"]
+          [BooleanDropdown
+           context confirmed
+           (fn [new-value]
+             (update-filter
+              #(assoc % :confirmed new-value)))]]]]))))
+
+;; TODO: finish this function
+(defmethod FilterEditorFields :has-label [context filter-idx ifilter update-filter]
+  (let [[[_ value]] (vec ifilter)
+        {:keys [label-id users values confirmed]} value]
+    (list
+     [:div.field
+      {:key [:has-label 1]}
+      [:div.fields
+       [:div.eight.wide.field
+        [:label "Label"]
+        [SelectLabelDropdown context label-id nil]]
+       [:div.eight.wide.field]]])))
+
+(defmethod FilterEditorFields :consensus [context filter-idx ifilter update-filter]
+  (let [[[_ value]] (vec ifilter)
+        {:keys [status inclusion]} value]
+    (list
+     [:div.field
+      {:key [:consensus 1]}
+      [:div.fields
+       [:div.eight.wide.field
+        [:label "Consensus Status"]
+        [ConsensusStatusDropdown context status
+         (fn [new-value]
+           (update-filter #(assoc % :status new-value)))]]
+       [:div.eight.wide.field
+        [:label "Inclusion"]
+        [BooleanDropdown context inclusion
+         (fn [new-value]
+           (update-filter #(assoc % :inclusion new-value)))]]]])))
+
 ;; TODO: break up into multiple functions
 (defn- FilterEditElement
   [context filter-idx]
   [:div.edit-filter
    (let [filters @(subscribe [::filters-input context])
-         fr (nth filters filter-idx)
-         [[filter-type value]] (vec fr)
+         ifilter (nth filters filter-idx)
          update-filter #(dispatch [::update-filter-input context filter-idx %])
-         valid? ((comp not nil?) (process-filter-input fr))
-         buttons-field
-         (fn []
-           [:div.field
-            [:div.fields
-             [:div.eight.wide.field
-              [:button.ui.tiny.fluid.labeled.icon.button
-               {:class (if valid? nil "disabled")
-                :on-click
-                (when valid?
-                  (util/wrap-user-event
-                   #(dispatch [::sync-filters-input context])))}
-               [:i.circle.check.icon]
-               "Save"]]
-             [:div.eight.wide.field
-              [:button.ui.tiny.fluid.labeled.icon.button
-               {:on-click
-                (util/wrap-user-event
-                 #(dispatch [::reset-filters-input context]))}
-               [:i.times.icon]
-               "Cancel"]]]])
-         fields
-         (case filter-type
-           :has-label
-           (let [{:keys [label-id users values confirmed]} value]
-             [[:div.field
-               {:key [:has-label 1]}
-               [:div.fields
-                [:div.eight.wide.field
-                 [:label "Label"]
-                 [SelectLabelDropdown context nil nil]]
-                [:div.eight.wide.field]]]])
-
-           :has-user
-           (let [{:keys [user content confirmed]} value]
-             [[:div.field
-               {:key [:has-user 1]}
-               [:div.fields
-                [:div.eight.wide.field
-                 [:label "User"]
-                 [SelectUserDropdown context user
-                  (fn [new-value]
-                    (update-filter
-                     #(assoc % :user new-value)))
-                  false]]
-                [:div.eight.wide.field
-                 [:label "Content Type"]
-                 [ContentTypeDropdown context content
-                  (fn [new-value]
-                    (update-filter
-                     #(assoc % :content new-value)))]]]]
-              (when (or (= content :labels)
-                        (in? [true false] confirmed))
-                [:div.field
-                 {:key [:has-user 2]}
-                 [:div.fields
-                  [:div.eight.wide.field
-                   [:label "Confirmed"]
-                   [ConfirmedStatusSelector
-                    context confirmed
-                    (fn [new-value]
-                      (update-filter
-                       #(assoc % :confirmed new-value)))]]]])])
-
-           [[:div.sixteen.wide.field
-             {:key [:unknown-filter 1]}
-             [:button.ui.tiny.fluid.button
-              (str "editing filter (" (pr-str filter-type) ")")]]])]
+         fields (FilterEditorFields context filter-idx ifilter update-filter)]
      [:div.ui.small.form
       (doall (for [field (remove nil? fields)] field))
-      [buttons-field]])])
+      [FilterEditButtons context filter-idx]])])
+
+(defmulti filter-description (fn [context ftype value] ftype))
+
+(defmethod filter-description :default [context ftype value]
+  (str "unknown filter (" (pr-str ftype) ")"))
+
+(defmethod filter-description :has-user [context ftype value]
+  (let [{:keys [user content confirmed]} value
+        content-str (case content
+                      :labels "labels"
+                      :annotations "annotations"
+                      "content")
+        user-name (when (integer? user)
+                    @(subscribe [:user/display user]))
+        user-str (if (integer? user)
+                   (str "user " (pr-str user-name))
+                   "any user")
+        confirmed-str (case confirmed
+                        true "[confirmed only]"
+                        false "[unconfirmed only]"
+                        nil)]
+    (->> ["has" content-str "from" user-str confirmed-str]
+         (remove nil?)
+         (str/join " "))))
+
+(defmethod filter-description :consensus [context ftype value]
+  (let [{:keys [status inclusion]} value
+        status-str (-> (cond (= status :determined)
+                             "Consistent OR Resolved"
+                             (keyword? status)
+                             (-> status name str/capitalize)
+                             :else "Any")
+                       (#(str "(" % ")")))
+        inclusion-str (case inclusion
+                        true "positive inclusion"
+                        false "negative inclusion"
+                        nil)]
+    (cond-> (str "has consensus status " status-str)
+      inclusion-str (str " for " inclusion-str))))
 
 (defn- FilterDescribeElement
   [context filter-idx]
@@ -425,28 +511,7 @@
            fr (nth filters filter-idx)
            [[filter-type value]] (vec fr)
            label-name #(get-in labels [% :short-label])
-           description
-           (case filter-type
-             :has-user
-             (let [{:keys [user content confirmed]} value
-                   content-str (case content
-                                 :labels "labels"
-                                 :annotations "annotations"
-                                 "content")
-                   user-name (when (integer? user)
-                               @(subscribe [:user/display user]))
-                   user-str (if (integer? user)
-                              (str "user " (pr-str user-name))
-                              "any user")
-                   confirmed-str (case confirmed
-                                   true "[confirmed only]"
-                                   false "[unconfirmed only]"
-                                   nil)]
-               (->> ["has" content-str "from" user-str confirmed-str]
-                    (remove nil?)
-                    (str/join " ")))
-
-             (str "unknown filter (" (pr-str filter-type) ")"))]
+           description (filter-description context filter-type value)]
        [:div.ui.center.aligned.middle.aligned.grid
         [:div.row
          [:div.middle.aligned.two.wide.column.delete-filter
@@ -482,7 +547,7 @@
                  #_ [:has-annotation "Annotation" "quote left"]
                  [:has-user "User" "user"]
                  #_ [:inclusion "Inclusion" "check circle"]
-                 #_ [:consensus "Consensus" "users"]]
+                 [:consensus "Consensus" "users"]]
           touchscreen? @(subscribe [:touchscreen?])]
       [:div.ui.small.form
        [ui/selection-dropdown
@@ -505,7 +570,7 @@
              (dispatch-sync [::add-filter context (keyword v)])))}]])))
 
 (reg-event-db
- ::apply-filter-preset [trim-v]
+ :article-list/load-settings [trim-v]
  (fn [db [context {:keys [filters display]}]]
    (-> (al/set-state db context [:display] display)
        (al/set-state context [:inputs :filters] filters)
@@ -521,7 +586,7 @@
              {:class (when (= filters (:filters preset)) "primary")
               :on-click
               (util/wrap-user-event
-               #(dispatch-sync [::apply-filter-preset context preset]))}
+               #(dispatch-sync [:article-list/load-settings context preset]))}
              #_ [:i {:class (str icon-class " icon")}]
              text]))]
     [:div.ui.segment.filter-presets

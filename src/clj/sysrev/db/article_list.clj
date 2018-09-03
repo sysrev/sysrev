@@ -12,8 +12,11 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute to-sql-array sql-now with-project-cache
               clear-project-cache to-jsonb]]
+            [sysrev.db.project :as project]
+            [sysrev.db.labels :as labels]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as u]
+            [sysrev.shared.util :as u :refer [in? map-values]]
+            [sysrev.shared.article-list :as al]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]))
 
@@ -27,7 +30,7 @@
                            :a.keywords])
               (->> do-query
                    (group-by :article-id)
-                   (u/map-values first)))
+                   (map-values first)))
           alabels
           (-> (q/select-project-articles
                project-id [:al.article-id :al.label-id :al.user-id
@@ -43,7 +46,7 @@
                              (update :updated-time tc/to-epoch)
                              (update :confirm-time tc/to-epoch)))
                    (group-by :article-id)
-                   (u/map-values #(do {:labels %}))))
+                   (map-values #(do {:labels %}))))
           anotes
           (-> (q/select-project-articles
                project-id [:a.article-id :an.user-id  :an.content
@@ -55,10 +58,10 @@
                                  (and (string? content)
                                       (empty? (str/trim content))))))
                    (group-by :article-id)
-                   (u/map-values #(do {:notes %}))))
+                   (map-values #(do {:notes %}))))
           amap
           (->> (merge-with merge articles alabels anotes)
-               (u/map-values
+               (map-values
                 (fn [article]
                   (let [updated-time
                         (->> (:labels article)
@@ -74,7 +77,7 @@
 (def filter-has-confirmed-labels
   #(->> % :labels (filter :confirm-time) not-empty))
 
-(defn filter-has-user [{:keys [user content confirmed]}]
+(defn filter-has-user [context {:keys [user content confirmed]}]
   (fn [article]
     (let [labels (cond->> (:labels article)
                    ;; TODO: filter confirmed
@@ -100,12 +103,42 @@
 (defn filter-by-inclusion [{:keys []}]
   nil)
 
-#_
-(defn filter-by-consensus [{:keys []}]
-  nil)
+(defn filter-by-consensus [context {:keys [status inclusion]}]
+  (let [{:keys [project-id]} context
+        overall-id (project/project-overall-label-id project-id)]
+    (fn [{:keys [labels] :as article}]
+      (let [overall
+            (->> labels
+                 (filter #((every-pred (comp not nil?)
+                                       (comp not zero?))
+                           (:confirm-time %)))
+                 (filter #(= (:label-id %) overall-id)))
+            status-test
+            (case status
+              :single al/is-single?
+              :determined #(or (al/is-resolved? %)
+                               (al/is-consistent? %))
+              :conflict al/is-conflict?
+              :consistent al/is-consistent?
+              :resolved al/is-resolved?
+              (constantly true))
+            inclusion-test
+            (if (nil? inclusion)
+              (constantly true)
+              (fn []
+                (let [entries (if (or (= status :resolved)
+                                      (and (= status :determined)
+                                           (al/is-resolved? overall)))
+                                (filter :resolve overall)
+                                overall)]
+                  (in? (->> entries (map :inclusion) distinct)
+                       inclusion))))]
+        (and (not-empty overall)
+             (status-test overall)
+             (inclusion-test))))))
 
 ;; TODO: include user notes in search
-(defn filter-free-text-search [text]
+(defn filter-free-text-search [context text]
   (fn [article]
     (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))
           all-article-text (->> [(:primary-title article)
@@ -121,20 +154,23 @@
     :article-id sort-article-id
     sort-article-id))
 
-(defn get-filter-fn [fmap]
-  (let [filter-name (first (keys fmap))
-        make-filter
-        (case filter-name
-          :has-user          filter-has-user
-          :text-search       filter-free-text-search
-          (constantly (constantly true)))]
-    (make-filter (get fmap filter-name))))
+(defn get-filter-fn [context]
+  (fn [fmap]
+    (let [filter-name (first (keys fmap))
+          make-filter
+          (case filter-name
+            :has-user          filter-has-user
+            :text-search       filter-free-text-search
+            :consensus         filter-by-consensus
+            (constantly (constantly true)))]
+      (make-filter context (get fmap filter-name)))))
 
-(defn project-article-list-filtered [project-id filters sort-by]
+(defn project-article-list-filtered
+  [{:keys [project-id] :as context} filters sort-by]
   (with-project-cache
     project-id [:filtered-article-list [sort-by filters]]
     (let [sort-fn (get-sort-fn sort-by)
-          filter-fns (mapv get-filter-fn filters)
+          filter-fns (mapv (get-filter-fn context) filters)
           filter-all-fn (if (empty? filters)
                           (constantly true)
                           (apply every-pred filter-fns))]
@@ -143,11 +179,13 @@
            (sort-fn)))))
 
 (defn query-project-article-list
-  [project-id {:keys [filters sort-by n-offset n-count]
+  [project-id {:keys [filters sort-by n-offset n-count user-id]
                :or {filters []
                     sort-by :article-id
                     n-offset 0
-                    n-count 20}}]
-  (let [entries (project-article-list-filtered project-id filters sort-by)]
+                    n-count 20
+                    user-id nil}}]
+  (let [context {:project-id project-id :user-id user-id}
+        entries (project-article-list-filtered context filters sort-by)]
     {:entries (->> entries (drop n-offset) (take n-count))
      :total-count (count entries)}))

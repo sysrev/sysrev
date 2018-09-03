@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.project.articles
   (:require [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
-            [re-frame.core :refer [subscribe dispatch reg-sub]]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :refer [project-uri]]
@@ -70,6 +70,23 @@
 
 (defn reset-filters []
   (dispatch [::al/reset-filters (get-context)]))
+
+(defn load-settings [& {:keys [filters display]}]
+  (dispatch-sync [:article-list/load-settings
+                  (get-context)
+                  (cond-> {}
+                    filters (merge {:filters filters})
+                    display (merge {:display display}))]))
+
+(defn load-consensus-settings [& {:keys [status inclusion]}]
+  (let [display {:show-inclusion true}
+        filters [{:consensus {:status status
+                              :inclusion inclusion}}]]
+    (dispatch-sync [::al/set-recent-nav-action
+                    (get-context) :transition])
+    (dispatch-sync [:article-list/load-settings
+                    (get-context)
+                    {:filters filters :display display}])))
 
 (defn set-group-status []
   ;; TODO: function
