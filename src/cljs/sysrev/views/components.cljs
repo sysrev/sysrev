@@ -653,3 +653,22 @@
 
 (defn UploadButton [upload-url on-success text & [class]]
   [UploadContainer UploadButtonImpl upload-url on-success text class])
+
+(defn WrapFixedVisibility [offset child]
+  (let [on-update
+        (fn [this]
+          (let [el (r/dom-node this)]
+            (-> (js/$ el)
+                (.visibility
+                 (clj->js {:type "fixed"
+                           :offset (or offset 0)
+                           :continuous true
+                           :onUnfixed
+                           #(-> (js/$ el) (.removeAttr "style"))
+                           :onFixed
+                           #(let [width (-> (js/$ el) (.parent) (.width))]
+                              (-> (js/$ el) (.width width)))})))))]
+    (r/create-class
+     {:component-did-mount on-update
+      :component-did-update on-update
+      :reagent-render (fn [offset child] [:div.visibility-wrapper child])})))

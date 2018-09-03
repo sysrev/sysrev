@@ -1,6 +1,9 @@
+.panel-side-column > .visibility-wrapper {
+}
+
 .ui.segments.annotation-menu {
-    height: 100% !important;
     overflow-y: auto;
+    background-color: @secondarySegmentBackground;
 
     > .ui.segment {
         padding-left: 0.5em;
@@ -17,14 +20,17 @@
         }
     }
     > .ui.segment:last-child {
-        height: 100%;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
     }
 }
 
 .ui.segments.annotation-menu.abstract {
+    height: 800px !important;
 }
 
 .ui.segments.annotation-menu.pdf {
+    height: 100% !important;
     width: 100%;
     margin-top: -1px;
 }

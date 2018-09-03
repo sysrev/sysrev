@@ -128,7 +128,10 @@
            (when-not (some #(loading/any-loading? :only %)
                            [:project/article-list :project/article-list-count])
              (dispatch (project-articles/reset-nav-action))))
-         (if (in? [:refresh :transition] action) 150 50)))
+         (case action
+           :transition  150
+           :refresh     75
+           50)))
       {:db (assoc-in db [:data :project project-id :article-list args]
                      result)})))
 

@@ -339,7 +339,8 @@
                                     (al/cached context) :expand-filters])
         count-item (subscribe [::al/count-query (al/cached context)])
         data-item (subscribe [::al/articles-query (al/cached context)])
-        active-article @(subscribe [::al/get (al/cached context) [:active-article]])]
+        active-article @(subscribe [::al/get (al/cached context) [:active-article]])
+        expanded? (and expand-filters #_ (nil? active-article))]
     [:div.article-list-view
      (al/update-ready-state context)
      (with-loader [@count-item @data-item] {}
@@ -347,12 +348,11 @@
          [:div.ui.grid.article-list-grid
           [:div.row
            [:div.column.filters-column
-            {:class (if (or active-article (not expand-filters))
-                      "one wide" "four wide")}
-            [f/ArticleListFiltersColumn context]]
+            {:class (if expanded? "four wide" "one wide")}
+            [ui/WrapFixedVisibility 10
+             [f/ArticleListFiltersColumn context expanded?]]]
            [:div.column.content-column
-            {:class (if (or active-article (not expand-filters))
-                      "fifteen wide" "twelve wide")}
+            {:class (if expanded? "twelve wide" "fifteen wide")}
             [:div.ui.form
              [:div.field>div.fields>div.sixteen.wide.field
               [f/TextSearchInput context]]]

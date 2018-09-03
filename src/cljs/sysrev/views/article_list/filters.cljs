@@ -657,66 +657,56 @@
             [view-button :show-notes "Notes"]]
            [:div.six.wide.field]]]]])]))
 
-(defn- ArticleListFiltersColumn [context]
-  (let [{:keys [expand-filters] :as display-options}
-        @(subscribe [::al/display-options (al/cached context)])
-        project-id @(subscribe [:active-project-id])
-        active-filters @(subscribe [::al/filters context])
+(defn- FilterColumnCollapsed [context]
+  [:div.ui.segments.article-filters.article-filters-column.collapsed
+   {:on-click
+    (util/wrap-user-event
+     #(do (dispatch-sync [::al/set-display-option
+                          context :expand-filters true])
+          #_ (dispatch-sync [::al/set-active-article context nil])))}
+   [:div.ui.center.aligned.header.segment
+    "Filters"]
+   [:div.ui.one.column.center.aligned.grid.segment.expand-filters
+    [:div.column
+     [:i.fitted.angle.double.right.icon]]]])
+
+(defn- FilterColumnElement [context]
+  (let [active-filters @(subscribe [::al/filters context])
         input-filters @(subscribe [::filters-input context])
-        active-article @(subscribe [::al/get (al/cached context) [:active-article]])
-        recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
-        loading? (= recent-nav-action :refresh)
-        view-button
-        (fn [option-key label]
-          (let [status (get display-options option-key)]
-            [:button.ui.small.labeled.icon.button
-             {:on-click
-              (util/wrap-user-event
-               #(dispatch [::al/set-display-option
-                           context option-key (not status)]))}
-             (if status
-               [:i.green.circle.icon]
-               [:i.grey.circle.icon])
-             label]))]
-    (if (or active-article (not expand-filters))
-      [:div.ui.segments.article-filters.article-filters-column.expand-header
-       {:on-click
-        (util/wrap-user-event
-         #(do (dispatch-sync [::al/set-display-option
-                              context :expand-filters true])
-              (dispatch-sync [::al/set-active-article context nil])))}
-       [:div.ui.center.aligned.header.segment
-        "Filters"]
-       [:div.ui.one.column.center.aligned.grid.segment.expand-filters
-        [:div.column
-         [:i.fitted.angle.double.right.icon]]]]
-      [:div.ui.segments.article-filters.article-filters-column
-       [:a.ui.center.aligned.header.grid.segment.collapse-header
-        {:on-click
-         (util/wrap-user-event
-          #(dispatch-sync [::al/set-display-option
-                           context :expand-filters false]))}
-        [:div.two.wide.column.left.aligned
-         [:i.fitted.angle.double.left.icon]]
-        [:div.twelve.wide.column
-         "Filters"]
-        [:div.two.wide.column.right.aligned
-         [:i.fitted.angle.double.left.icon]]]
-       [FilterPresetsForm context]
-       [DisplayOptionsForm context]
-       [:div.ui.segment.filters-content
-        [:div.inner
-         [ResetReloadForm context]
-         [TextSearchDescribeElement context]
-         (if (empty? input-filters)
-           [FilterDescribeElement context nil]
-           (doall
-            (map-indexed
-             (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
-               (if (in? active-filters fr)
-                 ^{:key [:filter-text filter-idx]}
-                 [FilterDescribeElement context filter-idx]
-                 ^{:key [:filter-editor filter-idx]}
-                 [FilterEditElement context filter-idx]))
-             input-filters)))
-         [NewFilterElement context]]]])))
+        recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])]
+    [:div.ui.segments.article-filters.article-filters-column.expanded
+     [:a.ui.center.aligned.header.grid.segment.collapse-header
+      {:on-click
+       (util/wrap-user-event
+        #(dispatch-sync [::al/set-display-option
+                         context :expand-filters false]))}
+      [:div.two.wide.column.left.aligned
+       [:i.fitted.angle.double.left.icon]]
+      [:div.twelve.wide.column
+       "Filters"]
+      [:div.two.wide.column.right.aligned
+       [:i.fitted.angle.double.left.icon]]]
+     [FilterPresetsForm context]
+     [DisplayOptionsForm context]
+     [:div.ui.segment.filters-content
+      [:div.inner
+       [ResetReloadForm context]
+       [TextSearchDescribeElement context]
+       (if (empty? input-filters)
+         [FilterDescribeElement context nil]
+         (doall
+          (map-indexed
+           (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
+             (if (in? active-filters fr)
+               ^{:key [:filter-text filter-idx]}
+               [FilterDescribeElement context filter-idx]
+               ^{:key [:filter-editor filter-idx]}
+               [FilterEditElement context filter-idx]))
+           input-filters)))
+       [NewFilterElement context]]]]))
+
+(defn- ArticleListFiltersColumn [context expanded?]
+  [:div
+   (if expanded?
+     [FilterColumnElement context]
+     [FilterColumnCollapsed context])])

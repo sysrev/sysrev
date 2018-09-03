@@ -398,7 +398,7 @@
 
 (defn reload-list [context & [nav-action]]
   (when nav-action
-    (dispatch [::set-recent-nav-action context nav-action]))
+    (dispatch-sync [::set-recent-nav-action context nav-action]))
   (reload-list-count context)
   (reload-list-data context))
 (reg-fx ::reload-list #(reload-list %))

@@ -34,6 +34,7 @@
             [sysrev.views.panels.project.review]
             [sysrev.views.panels.project.support]
             [sysrev.views.menu :refer [header-menu]]
+            [sysrev.views.components :as ui]
             [sysrev.util :as util]
             [sysrev.shared.components :refer [loading-content]]))
 
@@ -84,8 +85,9 @@
        [:div.ui.container.panel-content
         (if annotator?
           [:div.ui.grid
-           [:div.three.wide.column
-            [annotator/AnnotationMenu ann-context "abstract"]]
+           [:div.three.wide.column.panel-side-column
+            [ui/WrapFixedVisibility 10
+             [annotator/AnnotationMenu ann-context "abstract"]]]
            [:div.thirteen.wide.column
             [active-panel-content]]]
           [active-panel-content])]
