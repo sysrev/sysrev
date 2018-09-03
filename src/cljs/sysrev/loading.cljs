@@ -6,9 +6,9 @@
 
 (defonce ajax-db (r/atom {}))
 
-;;
-;; Maintain counters for start/completion of AJAX requests (data)
-;;
+;;;
+;;; Maintain counters for start/completion of AJAX requests (data)
+;;;
 
 (defn ajax-data-counts []
   (r/cursor ajax-db [:ajax :data]))
@@ -21,11 +21,8 @@
 
 ;; Tests if an AJAX request for `item` is currently pending
 (defn item-loading? [item]
-  (let [result (> (or @(data-sent-count item) 0)
-                  (or @(data-returned-count item) 0))]
-    #_ (js/console.log (str "item-loading? [" (pr-str item) "]"
-                            " [" result "]"))
-    result))
+  (> (or @(data-sent-count item) 0)
+     (or @(data-returned-count item) 0)))
 
 (defn- any-loading-impl
   [counts & [filter-item-name ignore-item-names]]
@@ -70,9 +67,9 @@
 
 (reg-fx :reset-data-failed (fn [item] (reset-data-failed item)))
 
-;;
-;; Maintain counters for start/completion of AJAX requests (action)
-;;
+;;;
+;;; Maintain counters for start/completion of AJAX requests (action)
+;;;
 
 (defn ajax-action-counts []
   (r/cursor ajax-db [:ajax :action]))

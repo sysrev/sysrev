@@ -1,0 +1,9 @@
+;; figwheel-main config file
+
+^{:target-dir "resources"
+  :watch-dirs ["src/cljs" "src/cljc"]
+  :build-inputs ["src/cljs" "src/cljc"]}
+{:main sysrev.user
+ :output-to "resources/public/out-dev/sysrev.js"
+ :output-dir "resources/public/out-dev"
+ :asset-path "/out"}

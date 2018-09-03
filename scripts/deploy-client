@@ -15,7 +15,10 @@ mkdir -p $dir/deploy
 rm -f $dir/deploy/client.tgz
 
 if [[ $SYSREV_REBUILD == "1" ]]; then
-    lein cljsbuild once production
+    cd client
+    lein do clean, cljsbuild once production
+    cd ..
+
     ./scripts/build-css
 fi
 

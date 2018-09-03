@@ -1,35 +1,25 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [
-
-;;;
-;;; Clojure
-;;;
-                 [org.clojure/clojure "1.9.0"]
+  :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.10.339"]
 
-;;;
 ;;; Force versions of indirect dependencies
-;;;
                  [com.fasterxml.jackson.core/jackson-databind "2.6.5"]
                  [cheshire "5.5.0"]
                  [commons-io/commons-io "2.6"]
                  [commons-codec "1.10"]
 
-;;;
 ;;; Logging
-;;;
                  [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.2.3"]
                  [org.slf4j/jul-to-slf4j "1.7.25"]
 
-;;;
-;;; Clojure (JVM) libraries
-;;;
+;;; Libraries
                  [org.clojure/test.check "0.9.0"]
                  [org.clojure/math.numeric-tower "0.0.4"]
                  [org.clojure/math.combinatorics "0.1.4"]
                  [crypto-random "1.2.0"]
                  [me.raynes/fs "1.4.6"]
+
 ;;; Data formats
                  [org.clojure/data.json "0.2.6"]
                  [com.cognitect/transit-clj "0.8.309"]
@@ -37,6 +27,7 @@
                  [org.clojure/data.zip "0.1.2"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
+
 ;;; Database
                  [org.clojure/java.jdbc "0.7.7"]
                  [org.postgresql/postgresql "42.2.4"]
@@ -49,6 +40,7 @@
                                cheshire]]
                  [honeysql "0.9.3"]
                  [nilenso/honeysql-postgres "0.2.4"]
+
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
                  [http-kit "2.3.0"]
@@ -58,65 +50,29 @@
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
                  [ring/ring-mock "0.3.2" :exclusions [cheshire]]
                  [compojure "1.6.1"]
-;;; Encryption / Authentication
-                 [buddy "2.0.0"]
-;;; Web client
+
+;;; More libraries
+                 [buddy "2.0.0"] ;; encryption/authentication
                  [clj-http "3.9.1"]
-;;; Email
-                 [com.draines/postal "2.0.2"]
-;;; Amazon
+                 [com.velisco/clj-ftp "0.3.12"]
+                 [com.draines/postal "2.0.2"] ;; email client
                  [amazonica "0.3.130"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
-
-;;; Stripe
                  [abengoa/clj-stripe "1.0.4"]
-;;; environ
                  [environ "1.1.0"]
-;;; caching
-                 [org.clojure/core.memoize "0.7.1"]
-;;; validation library
-                 [bouncer "1.0.1"]
-;;; html parser
-                 [hickory "0.7.1"]
-;;; ftp client
-                 [com.velisco/clj-ftp "0.3.12"]
-
-;;;
-;;; ClojureScript libraries
-;;;
-                 [com.cognitect/transit-cljs "0.8.256"]
-                 [reagent "0.8.1"]
-                 [re-frame "0.10.5"]
-                 [day8.re-frame/http-fx "0.1.6"]
-                 [secretary "1.2.3"]
-                 [kibu/pushy "0.3.8"]
-                 [cljs-http "0.1.45"]
-                 ;; only provides ext.js for stripe.js
-                 [cljsjs/stripe "2.0-0"]
-                 ;; stripe provided form components
-                 [cljsjs/react-stripe-elements "1.4.1-1"]
-                 [org.clojars.jeffwk/semantic-ui "2.3.2-0"]
-                 [cljsjs/semantic-ui-react "0.81.1-0"]
-                 [cljsjs/chartjs "2.7.0-0"]
-                 [cljsjs/dropzone "4.3.0-0"]
-                 [cljsjs/clipboard "1.6.1-1"]
-                 [cljsjs/accounting "0.4.1-1"]
-                 [com.andrewmcveigh/cljs-time "0.5.2"]
-                 ;; markdown converter
-                 [cljsjs/showdown "1.8.6-0"]]
+                 [bouncer "1.0.1"] ;; validation
+                 [hickory "0.7.1"] ;; html parser
+                 [org.clojure/core.memoize "0.7.1"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-Xms800m"
              "-Xmx1500m"
              "-server"
              "-XX:+TieredCompilation"
-             "-XX:+AggressiveOpts"
-             #_ "-XX:+UseParNewGC"
-             #_ "-XX:+UseConcMarkSweepGC"
-             #_ "-XX:+CMSConcurrentMTEnabled"]
+             "-XX:+AggressiveOpts"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
@@ -125,60 +81,15 @@
             "test-aws-prod-browser"
             ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
             "test-aws-dev-all"
-            ["with-profile" "+test,+test-all,+test-aws-dev" "run"]
-            "browser-test"
-            ["do"
-             ["cljsbuild" "once" "production"]
-             ["test"]]}
+            ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
   :plugins [[lein-cljsbuild "1.1.7"]]
   :clean-targets ^{:protect false}
   ["target"
-   "resources/public/out-dev"
-   "resources/public/integration"
+   #_ "resources/public/out-dev"
+   #_ "resources/public/integration"
    #_ "resources/public/out-production"]
-  :cljsbuild
-  {:builds
-   [{:id "dev"
-     :source-paths ["src/cljs" "src/cljc"]
-     :figwheel {:on-jsload "sysrev.core/mount-root"}
-     :compiler {:main "sysrev.user"
-                :output-to "resources/public/out-dev/sysrev.js"
-                :output-dir "resources/public/out-dev"
-                :asset-path "/out"
-                :optimizations :none
-                :pretty-print true
-                :source-map true
-                :source-map-timestamp true
-                :preloads [devtools.preload]
-                :external-config {:devtools/config {:features-to-install :all}}
-                :npm-deps false}}
-    {:id "production"
-     :source-paths ["src/cljs" "src/cljc"]
-     :compiler {:main "sysrev.core"
-                :output-to "resources/public/out-production/sysrev.js"
-                :output-dir "resources/public/out-production"
-                :asset-path "/out"
-                :closure-defines {goog.DEBUG false}
-                :optimizations :advanced
-                :pretty-print false
-                :source-map "resources/public/out-production/sysrev.js.map"
-                :source-map-timestamp true
-                :npm-deps false}}]}
-  :figwheel {:nrepl-port 7888
-             :server-port 3449
-             ;; these should work with both Cider and Cursive
-             #_ :nrepl-middleware
-             #_ ["cider.nrepl/cider-middleware"
-                 "cemerick.piggieback/wrap-cljs-repl"]
-             :css-dirs ["resources/public/css/style.default.css"
-                        "resources/public/css/style.dark.css"
-                        "resources/public/semantic/default/semantic.min.css"
-                        "resources/public/semantic/dark/semantic.min.css"
-                        #_ "resources/public/css"]}
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
-  :eastwood {:exclude-linters [:unlimited-use :unused-ret-vals :constant-test]
-             :config-files ["eastwood.clj"]}
   :profiles {:prod
              {:jvm-opts ["-Xms800m" "-Xmx1500m"]
               :resource-paths ["config/prod"]

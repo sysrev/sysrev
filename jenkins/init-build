@@ -4,4 +4,9 @@ set -eux
 echo "Building CSS and ClojureScript code"
 
 ./setup.sh
+
+lein clean
+
+cd client
 lein do clean, cljsbuild once production
+cd ..

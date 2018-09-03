@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eux
+
+cd client
+lein cljsbuild once production
+cd ..
+
+time lein test

@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eux
 
-rm -r resources/public/out-production 2> /dev/null || true
-lein cljsbuild once production
+cd client
+lein do clean, cljsbuild once production
+cd ..
