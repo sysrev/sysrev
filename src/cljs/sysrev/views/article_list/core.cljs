@@ -139,28 +139,48 @@
              (if resolving-allowed? "Resolve Labels" "Change Labels")]])]))
 
 (defn ArticleLabelsNotes [context article full-size?]
-  (let [{:keys [labels notes]} article
-        users-labels (group-by :user-id labels)]
+  (let [{:keys [show-labels show-notes self-only]}
+        @(subscribe [::al/display-options context])
+        {:keys [labels notes]} article
+        users-labels (group-by :user-id labels)
+        users-notes (group-by :user-id notes)
+        self-id @(subscribe [:self/user-id])]
     [:div.ui.segment.article-labels
      (doall
-      (for [user-id (keys users-labels)]
-        (let [user-labels (->> (get users-labels user-id)
-                               (group-by :label-id)
-                               (map-values first))
+      (for [user-id (->> [(keys users-labels)
+                          (keys users-notes)]
+                         (apply concat) distinct)]
+        (let [user-labels (if show-labels
+                            (->> (get users-labels user-id)
+                                 (group-by :label-id)
+                                 (map-values first))
+                            {})
+              user-note (when show-notes
+                          (->> (get users-notes user-id) first))
               user-name @(subscribe [:user/display user-id])]
-          ^{:key [:user-labels user-id]}
-          [labels/label-values-component
-           user-labels :user-name user-name])))]))
+          (when (or user-note (not-empty user-labels))
+            ^{:key [:user-labels user-id]}
+            [labels/label-values-component
+             user-labels
+             :user-name user-name
+             :notes (when user-note
+                      {(:name user-note) (:content user-note)})]))))]))
 
 (defn- ArticleListEntry
   [context article full-size?]
-  (let [{:keys [show-inclusion show-labels show-notes]}
+  (let [self-id @(subscribe [:self/user-id])
+        {:keys [show-inclusion show-labels show-notes self-only]}
         @(subscribe [::al/display-options context])
         active-article @(subscribe [::al/get context [:active-article]])
         overall-id @(subscribe [:project/overall-label-id])
         {:keys [article-id primary-title labels notes updated-time]} article
-        active? (and active-article (= article-id active-article))
+        notes (cond->> notes
+                self-only (filterv #(= (:user-id %) self-id)))
+        labels (cond->> labels
+                 self-only (filterv #(= (:user-id %) self-id))
+                 (not self-only) (filterv #(not (in? [0 nil] (:confirm-time %)))))
         overall-labels (->> labels (filter #(= (:label-id %) overall-id)))
+        active? (and active-article (= article-id active-article))
         answer-class
         (cond
           (is-resolved? overall-labels) "resolved"

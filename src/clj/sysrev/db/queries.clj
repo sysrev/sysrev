@@ -322,6 +322,7 @@
   (-> m (merge-where [:and
                       (label-confirmed-test confirmed?)
                       [:!= :al.answer nil]
+                      [:!= :al.answer (to-jsonb nil)]
                       [:!= :al.answer (to-jsonb [])]
                       [:!= :al.answer (to-jsonb {})]])))
 

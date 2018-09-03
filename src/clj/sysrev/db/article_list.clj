@@ -36,13 +36,28 @@
               (q/join-article-labels)
               (q/filter-valid-article-label nil)
               (->> do-query
+                   (remove #(or (nil? (:answer %))
+                                (and (sequential? (:answer %))
+                                     (empty? (:answer %)))))
                    (map #(-> %
                              (update :updated-time tc/to-epoch)
                              (update :confirm-time tc/to-epoch)))
                    (group-by :article-id)
                    (u/map-values #(do {:labels %}))))
+          anotes
+          (-> (q/select-project-articles
+               project-id [:a.article-id :an.user-id  :an.content
+                           :an.updated-time :pn.name])
+              (q/with-article-note)
+              (->> do-query
+                   (remove (fn [{:keys [content]}]
+                             (or (nil? content)
+                                 (and (string? content)
+                                      (empty? (str/trim content))))))
+                   (group-by :article-id)
+                   (u/map-values #(do {:notes %}))))
           amap
-          (->> (merge-with merge articles alabels)
+          (->> (merge-with merge articles alabels anotes)
                (u/map-values
                 (fn [article]
                   (let [updated-time
