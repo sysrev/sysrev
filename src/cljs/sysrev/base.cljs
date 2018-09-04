@@ -65,4 +65,4 @@
 
 (def default-db {})
 
-(def use-new-article-list? false)
+(def use-new-article-list? true)
