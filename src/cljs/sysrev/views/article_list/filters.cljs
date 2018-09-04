@@ -316,7 +316,8 @@
 
 (defn- ContentTypeDropdown [context value on-change]
   [FilterDropdown
-   [nil :labels :annotations]
+   ;; TODO: implement :labels and :annotations options
+   [nil #_ :labels #_ :annotations]
    #(case %
       :labels "Labels"
       :annotations "Annotations"
@@ -417,8 +418,10 @@
          (fn [new-value]
            (update-filter
             #(assoc % :content new-value)))]]]]
-     (when (or (= content :labels)
-               (in? [true false] confirmed))
+     ;; TODO: implement this
+     (when (and false
+                (or (= content :labels)
+                    (in? [true false] confirmed)))
        [:div.field
         {:key [:has-user 2]}
         [:div.fields

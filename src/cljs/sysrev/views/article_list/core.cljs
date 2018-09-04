@@ -376,7 +376,7 @@
     [:div.article-list-view
      (al/update-ready-state context)
      (with-loader [@count-item @data-item] {}
-       (if (util/desktop-size?)
+       (if (util/full-size?)
          [:div.ui.grid.article-list-grid
           [:div.row
            [:div.column.filters-column
@@ -390,7 +390,8 @@
               [f/TextSearchInput context]]]
             [ArticleListContent context]]]]
          [:div
-          [f/ArticleListFiltersRow context]
+          ;; TODO: make filters interface for mobile/tablet
+          #_ [f/ArticleListFiltersRow context]
           [ArticleListContent context]]))]))
 
 (defn- require-all-data [context]
