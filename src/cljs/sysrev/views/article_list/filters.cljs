@@ -58,7 +58,8 @@
       :display {:self-only true
                 :show-inclusion false
                 :show-labels true
-                :show-notes true}}
+                :show-notes true
+                :show-unconfirmed true}}
 
      :content
      {:filters [{:has-content {:content nil
@@ -651,7 +652,9 @@
         [:div.column
          [make-button :show-labels "Labels" "tags"]]
         [:div.column
-         [make-button :show-notes "Notes" "pencil alternate"]]]]]]))
+         [make-button :show-notes "Notes" "pencil alternate"]]
+        [:div.column
+         [make-button :show-unconfirmed "Unconfirmed" nil]]]]]]))
 
 (defn- SortOptionsForm [context]
   (let [sort-by @(subscribe [::al/sort-by context])

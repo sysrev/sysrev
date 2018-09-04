@@ -43,28 +43,41 @@
          (str/join ", " values))]]]))
 
 (defn label-values-component [labels & {:keys [notes user-name]}]
-  (let [dark-theme? @(subscribe [:self/dark-theme?])]
+  (let [dark-theme? @(subscribe [:self/dark-theme?])
+        note-entries (concat
+                      (for [note-name (keys notes)] ^{:key [note-name]}
+                        [note-content-label note-name (get notes note-name)]))
+        label-entries (->> @(subscribe [:project/label-ids])
+                           (filter #(contains? labels %))
+                           (map #(do [% (get-in labels [% :answer])])))]
     [:div.label-values
      {:style {:margin-bottom "-3px"}}
      (when user-name
        [:div.ui.label.user-name
         {:class (if dark-theme? nil "basic")}
         user-name])
+     (when (and (some #(contains? % :confirm-time) (vals labels))
+                (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
+       [:div.ui.basic.yellow.label.labels-status
+        "Unconfirmed"])
+     (when (and (some #(contains? % :resolve) (vals labels))
+                (some :resolve (vals labels)))
+       [:div.ui.basic.purple.label.labels-status
+        "Resolved"])
+     (doall note-entries)
      (doall
-      (->>
-       @(subscribe [:project/label-ids])
-       (filter #(contains? labels %))
-       (map #(do [% (get-in labels [% :answer])]))
-       (map-indexed
-        (fn [i [label-id answer]]
-          (when (real-answer? answer) ^{:key i}
-            [label-answer-tag label-id answer])))))
-     (when notes
-       [:div {:style {:margin-left "-3px"}}
-        (doall
-         (concat
-          (for [note-name (keys notes)] ^{:key [note-name]}
-            [note-content-label note-name (get notes note-name)])))])]))
+      (->> label-entries
+           (map-indexed
+            (fn [i [label-id answer]]
+              (when (real-answer? answer) ^{:key i}
+                [label-answer-tag label-id answer])))))
+     #_
+     (when (not-empty note-entries)
+       (if (empty? label-entries)
+         (doall note-entries)
+         [:div {:style {:margin-left "-3px"
+                        :margin-bottom "3px"}}
+          (doall note-entries)]))]))
 
 (defn article-label-values-component [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])]
@@ -126,10 +139,7 @@
               [:h5.ui.dividing.header
                [:div.ui.two.column.middle.aligned.grid
                 [:div.row
-                 [:div.column
-                  (if self-only? "Your Labels" user-name)
-                  (when (resolved? user-id)
-                    [:div.ui.tiny.basic.purple.label "Resolved"])]
+                 [:div.column (if self-only? "Your Labels" user-name)]
                  [:div.right.aligned.column
                   [updated-time-label updated-time]]]]]
               [:div.labels
@@ -138,7 +148,6 @@
                     @(subscribe [:article/notes article-id user-id "default"])]
                 (when (and (string? note-content)
                            (not-empty (str/trim note-content)))
-                  [:div
-                   [:div.ui.divider]
-                   [:div.notes
-                    [note-content-label "default" note-content]]]))])))))))
+                  [:div.notes {:style {:margin-top "5px"
+                                       :margin-left "-6px"}}
+                   [note-content-label "default" note-content]]))])))))))

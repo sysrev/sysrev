@@ -139,9 +139,16 @@
              (if resolving-allowed? "Resolve Labels" "Change Labels")]])]))
 
 (defn ArticleLabelsNotes [context article full-size?]
-  (let [{:keys [show-labels show-notes self-only]}
+  (let [self-id @(subscribe [:self/user-id])
+        {:keys [show-labels show-notes self-only show-unconfirmed]}
         @(subscribe [::al/display-options context])
         {:keys [labels notes]} article
+        notes (cond->> notes
+                self-only (filterv #(= (:user-id %) self-id)))
+        labels (cond->> labels
+                 self-only (filterv #(= (:user-id %) self-id))
+                 (not show-unconfirmed)
+                 (filterv #(not (in? [0 nil] (:confirm-time %)))))
         users-labels (group-by :user-id labels)
         users-notes (group-by :user-id notes)
         self-id @(subscribe [:self/user-id])]
@@ -169,7 +176,7 @@
 (defn- ArticleListEntry
   [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
-        {:keys [show-inclusion show-labels show-notes self-only]}
+        {:keys [show-inclusion show-labels show-notes self-only show-unconfirmed]}
         @(subscribe [::al/display-options context])
         active-article @(subscribe [::al/get context [:active-article]])
         overall-id @(subscribe [:project/overall-label-id])
@@ -178,8 +185,12 @@
                 self-only (filterv #(= (:user-id %) self-id)))
         labels (cond->> labels
                  self-only (filterv #(= (:user-id %) self-id))
-                 (not self-only) (filterv #(not (in? [0 nil] (:confirm-time %)))))
-        overall-labels (->> labels (filter #(= (:label-id %) overall-id)))
+                 (not show-unconfirmed)
+                 (filterv #(not (in? [0 nil] (:confirm-time %)))))
+        consensus-labels
+        (->> labels
+             (filterv #(not (in? [0 nil] (:confirm-time %)))))
+        overall-labels (->> consensus-labels (filter #(= (:label-id %) overall-id)))
         active? (and active-article (= article-id active-article))
         answer-class
         (cond
@@ -218,9 +229,9 @@
                  (util/time-from-epoch updated-time) true])]]]]
           (when show-inclusion
             [:div.three.wide.center.aligned.middle.aligned.column.article-answers
-             (when (not-empty labels)
+             (when (not-empty overall-labels)
                {:class answer-class})
-             (when (not-empty labels)
+             (when (not-empty overall-labels)
                [:div.ui.middle.aligned.grid>div.row>div.column
                 [AnswerCell article-id overall-labels answer-class]])])]]
         (when labels?
@@ -234,9 +245,9 @@
           [ui/updated-time-label
            (util/time-from-epoch updated-time) true])]
        [:div.five.wide.center.aligned.middle.aligned.column.article-answers
-        (when (not-empty labels)
+        (when (not-empty overall-labels)
           {:class answer-class})
-        (when (not-empty labels)
+        (when (not-empty overall-labels)
           [:div.ui.middle.aligned.grid>div.row>div.column
            [AnswerCell article-id overall-labels answer-class]])]])))
 

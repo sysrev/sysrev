@@ -21,7 +21,8 @@
              :show-inclusion true
              :self-only false
              :show-labels false
-             :show-notes false}
+             :show-notes false
+             :show-unconfirmed false}
    :sort-by :content-updated
    :sort-dir :desc
    :private-view? false})

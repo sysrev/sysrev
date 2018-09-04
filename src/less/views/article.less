@@ -166,6 +166,12 @@ div.ui.segment.labeled-notes > div.ui.labeled.button > .ui.basic.label {
 }
 
 div.label-values {
+    > .ui.label.labels-status {
+        .label-tags-button;
+
+        font-weight: normal;
+        text-align: center;
+    }
     > .ui.label.user-name {
         .label-tags-button;
 
@@ -186,7 +192,7 @@ div.label-values {
         }
         > .ui.basic.button:hover {
             background-color: rgba(0, 0, 0, 0.0) !important;
-            box-shadow: 0 0 0 1px @internalBorderColor inset !important;
+            box-shadow: 0 0 0 1px @solidInternalBorderColor inset !important;
         }
     }
 }
