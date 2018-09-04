@@ -27,7 +27,7 @@
    :private-view? false})
 
 (defn get-display-count []
-  (if (util/mobile?) 10 15))
+  (if (util/mobile?) 10 20))
 
 (reg-sub
  ::panel

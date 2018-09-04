@@ -1,7 +1,8 @@
 (ns sysrev.views.panels.project.articles
   (:require [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub]]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
+                                   reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :refer [project-uri]]
@@ -83,6 +84,16 @@
                      :display display
                      :sort-by :content-updated
                      :sort-dir :desc}])))
+
+(reg-event-fx
+ :project-articles/load-settings [trim-v]
+ (fn [_ [options]]
+   {:dispatch [:article-list/load-settings (get-context) options]}))
+
+(reg-event-fx
+ :project-articles/load-preset [trim-v]
+ (fn [_ [preset-name]]
+   {:dispatch [:article-list/load-preset (get-context) preset-name]}))
 
 (defn set-group-status []
   ;; TODO: function

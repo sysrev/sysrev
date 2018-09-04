@@ -110,7 +110,8 @@
              :content [:span
                        (when-not mobile?
                          [:span
-                          [:i.file.alternate.icon]
+                          #_ [:i.file.alternate.icon]
+                          [:i.list.icon]
                           #_
                           [:i.icons
                            [:i.text.file.outline.icon]

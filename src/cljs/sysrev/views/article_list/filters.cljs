@@ -591,6 +591,12 @@
        (al/set-state context [:inputs :text-search] nil)
        (sync-filters-input context))))
 
+(reg-event-fx
+ :article-list/load-preset [trim-v]
+ (fn [_ [context preset-name]]
+   (let [preset (get (filter-presets) :self)]
+     {:dispatch [:article-list/load-settings context preset]})))
+
 (defn- FilterPresetsForm [context]
   (let [filters @(subscribe [::filters-input context])
         text-search @(subscribe [::al/get context [:text-search]])

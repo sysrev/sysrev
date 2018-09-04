@@ -554,7 +554,8 @@
       (with-loader [[:article project-id article-id]] {}
         (if (not= article-id @(subscribe [:review/editing-id]))
           [:div]
-          (let [change-set? @(subscribe [:review/change-labels? article-id])
+          (let [panel @(subscribe [:active-panel])
+                change-set? @(subscribe [:review/change-labels? article-id])
                 label-ids @(subscribe [:project/label-ids])
                 resolving? @(subscribe [:review/resolving?])
                 n-cols (cond (util/full-size?) 4
@@ -588,10 +589,21 @@
                [:div.ui.right.aligned.column
                 [:a.ui.tiny.icon.button
                  {:href (project-uri project-id "/labels/edit")
-                  :class (if (util/full-size?) "right labeled" nil)
+                  :on-click #(do (util/scroll-top) true)
+                  :class (if (util/full-size?) "labeled" nil)
                   :tabIndex "-1"}
                  [:i.sliders.horizontal.icon]
                  (when (util/full-size?) "Definitions")]
+                (when (not= panel [:project :project :articles])
+                  [:a.ui.tiny.primary.button
+                   {:class (if (util/full-size?) "labeled icon" nil)
+                    :on-click
+                    (util/wrap-user-event
+                     #(do (dispatch-sync [:project-articles/load-preset :self])
+                          (nav-scroll-top (project-uri project-id "/articles"))))
+                    :tabIndex "-1"}
+                   (when (util/full-size?) [:i.list.horizontal.icon])
+                   (if (util/full-size?) "View All Labels" "View Labels")])
                 (when change-set?
                   [:div.ui.tiny.button
                    {:on-click (util/wrap-user-event
