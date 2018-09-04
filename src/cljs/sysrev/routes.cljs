@@ -65,6 +65,7 @@
            sync-params #(article-list/sync-url-params context)
            set-transition [::article-list/set-recent-nav-action
                            context :transition]]
+       (dispatch [:pdf/init-view-state panel])
        (cond
          (not have-project?)
          (do (dispatch [:require [:project project-id]])
