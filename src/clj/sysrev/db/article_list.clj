@@ -57,6 +57,7 @@
                              (or (nil? content)
                                  (and (string? content)
                                       (empty? (str/trim content))))))
+                   (map #(-> % (update :updated-time tc/to-epoch)))
                    (group-by :article-id)
                    (map-values #(do {:notes %}))))
           amap
@@ -64,14 +65,27 @@
                (map-values
                 (fn [article]
                   (let [updated-time
-                        (->> (:labels article)
-                             (map :updated-time)
+                        (->> [(->> (:labels article)
+                                   (map :updated-time))
+                              (->> (:notes article)
+                                   (map :updated-time))]
+                             (apply concat)
+                             (remove nil?)
                              (apply max 0))]
                     (merge article
                            {:updated-time updated-time})))))]
       amap)))
 
-(def sort-article-id #(sort-by :article-id < %))
+(defn sort-article-id [sort-dir]
+  (let [dir (if (= sort-dir :desc) > <)]
+    #(sort-by :article-id dir %)))
+
+(defn sort-updated-time [sort-dir]
+  (fn [entries]
+    (cond-> (sort-by (fn [{:keys [updated-time article-id]}]
+                       [updated-time article-id])
+                     entries)
+      (= sort-dir :desc) reverse)))
 
 #_
 (def filter-has-confirmed-labels
@@ -149,10 +163,11 @@
                                 (str/lower-case))]
       (every? #(str/includes? all-article-text %) tokens))))
 
-(defn get-sort-fn [sort-by]
+(defn get-sort-fn [sort-by sort-dir]
   (case sort-by
-    :article-id sort-article-id
-    sort-article-id))
+    :article-added (sort-article-id sort-dir)
+    :content-updated (sort-updated-time sort-dir)
+    (sort-article-id sort-dir)))
 
 (defn get-filter-fn [context]
   (fn [fmap]
@@ -166,10 +181,10 @@
       (make-filter context (get fmap filter-name)))))
 
 (defn project-article-list-filtered
-  [{:keys [project-id] :as context} filters sort-by]
+  [{:keys [project-id] :as context} filters sort-by sort-dir]
   (with-project-cache
-    project-id [:filtered-article-list [sort-by filters]]
-    (let [sort-fn (get-sort-fn sort-by)
+    project-id [:filtered-article-list [filters sort-by sort-dir]]
+    (let [sort-fn (get-sort-fn sort-by sort-dir)
           filter-fns (mapv (get-filter-fn context) filters)
           filter-all-fn (if (empty? filters)
                           (constantly true)
@@ -179,13 +194,15 @@
            (sort-fn)))))
 
 (defn query-project-article-list
-  [project-id {:keys [filters sort-by n-offset n-count user-id]
+  [project-id {:keys [filters sort-by sort-dir n-offset n-count user-id]
                :or {filters []
-                    sort-by :article-id
+                    sort-by :content-updated
+                    sort-dir :desc
                     n-offset 0
                     n-count 20
                     user-id nil}}]
   (let [context {:project-id project-id :user-id user-id}
-        entries (project-article-list-filtered context filters sort-by)]
+        entries (project-article-list-filtered
+                 context filters sort-by sort-dir)]
     {:entries (->> entries (drop n-offset) (take n-count))
      :total-count (count entries)}))

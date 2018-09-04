@@ -22,7 +22,7 @@
              :self-only false
              :show-labels false
              :show-notes false}
-   :sort-by :article-id
+   :sort-by :content-updated
    :sort-dir :desc
    :private-view? false})
 
@@ -81,27 +81,33 @@
  (fn [db [context path value]]
    (set-state db context path value)))
 
+(defn active-sort-by [state context]
+  (if (nil? (:sort-by state))
+    (if (-> context :defaults :sort-by)
+      (-> context :defaults :sort-by)
+      (-> default-options :sort-by))
+    (:sort-by state)))
+
 (reg-sub
  ::sort-by
  (fn [[_ context]]
    [(subscribe [::get context])])
  (fn [[state] [_ context]]
-   (if (nil? (:sort-by state))
-     (if (-> context :defaults :sort-by)
-       (-> context :defaults :sort-by)
-       (-> default-options :sort-by))
-     (:sort-by state))))
+   (active-sort-by state context)))
+
+(defn active-sort-dir [state context]
+  (if (nil? (:sort-dir state))
+    (if (-> context :defaults :sort-dir)
+      (-> context :defaults :sort-dir)
+      (-> default-options :sort-dir))
+    (:sort-dir state)))
 
 (reg-sub
  ::sort-dir
  (fn [[_ context]]
    [(subscribe [::get context])])
  (fn [[state] [_ context]]
-   (if (nil? (:sort-dir state))
-     (if (-> context :defaults :sort-dir)
-       (-> context :defaults :sort-dir)
-       (-> default-options :sort-dir))
-     (:sort-dir state))))
+   (active-sort-dir state context)))
 
 (reg-sub
  ::display-offset
@@ -230,7 +236,10 @@
 
 (defn- get-url-params-impl [db context]
   (let [{:keys [display-offset active-article
-                text-search]} (get-state db context)
+                text-search]
+         :as state} (get-state db context)
+        sort-by (active-sort-by state context)
+        sort-dir (active-sort-dir state context)
         filters (-> (get-active-filters db context)
                     (#(mapv filter-to-json %)))
         display (get-display-options db context)
@@ -247,6 +256,12 @@
       active-article
       (conj [:show-article active-article])
 
+      sort-by
+      (conj [:sort-by (name sort-by)])
+
+      sort-by
+      (conj [:sort-dir (name sort-dir)])
+
       (not-empty text-search)
       (conj [:text-search text-search])
 
@@ -260,7 +275,8 @@
   (get-url-params-impl db context))
 
 (defn get-params-from-url []
-  (let [{:keys [filters text-search display offset show-article]}
+  (let [{:keys [filters text-search display offset show-article
+                sort-by sort-dir]}
         (nav/get-url-params)]
     (cond-> {}
       (string? offset)
@@ -268,6 +284,12 @@
 
       (string? text-search)
       (assoc :text-search text-search)
+
+      (string? sort-by)
+      (assoc :sort-by (keyword sort-by))
+
+      (string? sort-dir)
+      (assoc :sort-dir (keyword sort-dir))
 
       (string? show-article)
       (assoc :show-article (sutil/parse-integer show-article))
@@ -337,11 +359,15 @@
  (fn [[_ context]]
    [(subscribe [::filters context])
     (subscribe [::display-offset context])
-    (subscribe [::get context [:text-search]])])
- (fn [[filters display-offset text-search]]
+    (subscribe [::get context [:text-search]])
+    (subscribe [::sort-by context])
+    (subscribe [::sort-dir context])])
+ (fn [[filters display-offset text-search sort-by sort-dir]]
    (let [display-count (get-display-count)]
      (merge {:filters filters
              :text-search text-search
+             :sort-by sort-by
+             :sort-dir sort-dir
              :n-offset display-offset
              :n-count display-count}))))
 

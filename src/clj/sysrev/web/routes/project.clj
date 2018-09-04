@@ -470,6 +470,7 @@
                args (-> request :body)
                n-count (some-> (:n-count args) parse-integer)
                n-offset (some-> (:n-offset args) parse-integer)
+               {:keys [sort-by sort-dir]} args
                lookup-count (let [value (:lookup-count args)]
                               (boolean (or (true? value) (= value "true"))))
                text-search
@@ -488,7 +489,9 @@
                 project-id (cond-> {}
                              n-count (merge {:n-count n-count})
                              n-offset (merge {:n-offset n-offset})
-                             (not-empty filters) (merge {:filters filters})))]
+                             (not-empty filters) (merge {:filters filters})
+                             sort-by (merge {:sort-by sort-by})
+                             sort-dir (merge {:sort-dir sort-dir})))]
            (update-user-default-project request)
            {:result
             (if lookup-count

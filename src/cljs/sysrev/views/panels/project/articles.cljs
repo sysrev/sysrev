@@ -71,13 +71,6 @@
 (defn reset-filters []
   (dispatch [::al/reset-filters (get-context)]))
 
-(defn load-settings [& {:keys [filters display]}]
-  (dispatch-sync [:article-list/load-settings
-                  (get-context)
-                  (cond-> {}
-                    filters (merge {:filters filters})
-                    display (merge {:display display}))]))
-
 (defn load-consensus-settings [& {:keys [status inclusion]}]
   (let [display {:show-inclusion true}
         filters [{:consensus {:status status
@@ -86,7 +79,10 @@
                     (get-context) :transition])
     (dispatch-sync [:article-list/load-settings
                     (get-context)
-                    {:filters filters :display display}])))
+                    {:filters filters
+                     :display display
+                     :sort-by :content-updated
+                     :sort-dir :desc}])))
 
 (defn set-group-status []
   ;; TODO: function

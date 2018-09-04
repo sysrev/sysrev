@@ -347,7 +347,18 @@
    value
    on-change
    false
-   #(when % (-> % str/lower-case keyword))])
+   #(some-> % keyword)])
+
+(defn- SortByDropdown [context value on-change]
+  [FilterDropdown
+   [:content-updated :article-added]
+   #(case %
+      :content-updated "Content Updated"
+      :article-added "Article Added")
+   value
+   on-change
+   false
+   #(some-> % keyword)])
 
 (defn- ifilter-valid? [ifilter]
   (not-empty (process-filter-input ifilter)))
@@ -571,13 +582,18 @@
 
 (reg-event-db
  :article-list/load-settings [trim-v]
- (fn [db [context {:keys [filters display]}]]
+ (fn [db [context {:keys [filters display sort-by sort-dir text-search]}]]
    (-> (al/set-state db context [:display] display)
        (al/set-state context [:inputs :filters] filters)
+       (al/set-state context [:sort-by] sort-by)
+       (al/set-state context [:sort-dir] sort-dir)
+       (al/set-state context [:text-search] text-search)
+       (al/set-state context [:inputs :text-search] nil)
        (sync-filters-input context))))
 
 (defn- FilterPresetsForm [context]
   (let [filters @(subscribe [::filters-input context])
+        text-search @(subscribe [::al/get context [:text-search]])
         presets (filter-presets)
         make-button
         (fn [pkey text icon-class]
@@ -586,7 +602,8 @@
              {:class (when (= filters (:filters preset)) "primary")
               :on-click
               (util/wrap-user-event
-               #(dispatch-sync [:article-list/load-settings context preset]))}
+               #(dispatch-sync [:article-list/load-settings
+                                context (merge preset {:text-search text-search})]))}
              #_ [:i {:class (str icon-class " icon")}]
              text]))]
     [:div.ui.segment.filter-presets
@@ -629,6 +646,28 @@
          [make-button :show-labels "Labels" "tags"]]
         [:div.column
          [make-button :show-notes "Notes" "pencil alternate"]]]]]]))
+
+(defn- SortOptionsForm [context]
+  (let [sort-by @(subscribe [::al/sort-by context])
+        sort-dir @(subscribe [::al/sort-dir context])]
+    [:div.ui.segment.sort-options
+     [:div.ui.small.form
+      [:div.field
+       [:label "Sort By"]
+       [:div.fields
+        [:div.nine.wide.field
+         [SortByDropdown context sort-by
+          #(dispatch [::al/set context [:sort-by] %])]]
+        [:div.seven.wide.field
+         [:div.ui.tiny.fluid.buttons
+          [:button.ui.button
+           {:class (when (= sort-dir :asc) "blue")
+            :on-click #(dispatch [::al/set context [:sort-dir] :asc])}
+           "Asc"]
+          [:button.ui.button
+           {:class (when (= sort-dir :desc) "blue")
+            :on-click #(dispatch [::al/set context [:sort-dir] :desc])}
+           "Desc"]]]]]]]))
 
 (defn ResetReloadForm [context]
   (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
@@ -753,6 +792,7 @@
        [:i.fitted.angle.double.left.icon]]]
      [FilterPresetsForm context]
      [DisplayOptionsForm context]
+     [SortOptionsForm context]
      [:div.ui.segment.filters-content
       [:div.inner
        [ResetReloadForm context]

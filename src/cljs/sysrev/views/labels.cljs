@@ -60,11 +60,11 @@
           (when (real-answer? answer) ^{:key i}
             [label-answer-tag label-id answer])))))
      (when notes
-       (doall
-        (concat
-         '([:span {:key [:labels] :style {:margin-left "0.5em"}}])
-         (for [note-name (keys notes)] ^{:key [note-name]}
-           [note-content-label note-name (get notes note-name)]))))]))
+       [:div {:style {:margin-left "-3px"}}
+        (doall
+         (concat
+          (for [note-name (keys notes)] ^{:key [note-name]}
+            [note-content-label note-name (get notes note-name)])))])]))
 
 (defn article-label-values-component [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])]
