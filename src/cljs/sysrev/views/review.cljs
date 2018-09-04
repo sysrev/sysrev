@@ -603,10 +603,14 @@
                 (when (not= panel [:project :project :articles])
                   [:a.ui.tiny.primary.button
                    {:class (if (util/full-size?) "labeled icon" nil)
+                    :href
+                    (when (not use-new-article-list?)
+                      (project-uri project-id "/user"))
                     :on-click
-                    (util/wrap-user-event
-                     #(do (dispatch-sync [:project-articles/load-preset :self])
-                          (nav-scroll-top (project-uri project-id "/articles"))))
+                    (when use-new-article-list?
+                      (util/wrap-user-event
+                       #(do (dispatch-sync [:project-articles/load-preset :self])
+                            (nav-scroll-top (project-uri project-id "/articles")))))
                     :tabIndex "-1"}
                    (when (util/full-size?) [:i.unordered.list.icon])
                    (if (util/full-size?) "View All Labels" "View Labels")])
