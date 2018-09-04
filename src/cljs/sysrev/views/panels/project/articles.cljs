@@ -1,11 +1,12 @@
 (ns sysrev.views.panels.project.articles
   (:require [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub
-                                   reg-event-db reg-event-fx trim-v]]
+            [re-frame.core :refer
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+              reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [use-new-article-list?]]
-            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
@@ -14,6 +15,13 @@
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :project :articles])
+
+(defn- get-context-from-db [db]
+  (let [project-id (active-project-id db)]
+    {:panel panel
+     :base-uri (project-uri project-id "/articles")
+     :article-base-uri (project-uri project-id "/article")
+     :defaults {:filters []}}))
 
 (reg-sub
  ::article-list-context
@@ -37,25 +45,25 @@
    (when (= active-panel panel)
      article-id)))
 
-(reg-sub
+(reg-sub-raw
  :project-articles/editing?
- :<- [:active-panel]
- :<- [:article-list/editing? panel]
- (fn [[active-panel editing?]]
-   (when (= active-panel panel)
-     editing?)))
+ (fn [_]
+   (reaction
+    (let [context (get-context)
+          article-id @(subscribe [:article-list/article-id context])
+          active-panel @(subscribe [:active-panel])]
+      (when (= active-panel panel)
+        @(subscribe [:article-list/editing? context article-id]))))))
 
-(reg-sub
+(reg-sub-raw
  :project-articles/resolving?
- :<- [:active-panel]
- :<- [:article-list/resolving? panel]
- (fn [[active-panel resolving?]]
-   (when (= active-panel panel)
-     resolving?)))
-
-(defn resolving? []
-  ;; TODO: function
-  false)
+ (fn [_]
+   (reaction
+    (let [context (get-context)
+          article-id @(subscribe [:article-list/article-id context])
+          active-panel @(subscribe [:active-panel])]
+      (when (= active-panel panel)
+        @(subscribe [:article-list/resolving? context article-id]))))))
 
 (defn nav-action []
   [::al/get (get-context) [:recent-nav-action]])
@@ -68,6 +76,12 @@
 
 (defn hide-article []
   [:article-list/set-active-article (get-context) nil])
+
+(reg-event-fx
+ :project-articles/hide-article [trim-v]
+ (fn [{:keys [db]} []]
+   {:dispatch [:article-list/set-active-article
+               (get-context-from-db db) nil]}))
 
 (defn reset-filters []
   (dispatch [::al/reset-filters (get-context)]))
@@ -87,13 +101,21 @@
 
 (reg-event-fx
  :project-articles/load-settings [trim-v]
- (fn [_ [options]]
-   {:dispatch [:article-list/load-settings (get-context) options]}))
+ (fn [{:keys [db]} [options]]
+   {:dispatch [:article-list/load-settings
+               (get-context-from-db db) options]}))
 
 (reg-event-fx
  :project-articles/load-preset [trim-v]
- (fn [_ [preset-name]]
-   {:dispatch [:article-list/load-preset (get-context) preset-name]}))
+ (fn [{:keys [db]} [preset-name]]
+   {:dispatch [:article-list/load-preset
+               (get-context-from-db db) preset-name]}))
+
+(reg-event-fx
+ :project-articles/reload-list [trim-v]
+ (fn [{:keys [db]} []]
+   (al/reload-list (get-context-from-db db) :transition)
+   {}))
 
 (defn set-group-status []
   ;; TODO: function

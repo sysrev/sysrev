@@ -5,6 +5,7 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub
               reg-event-db reg-event-fx reg-fx trim-v]]
+            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.loading :as loading]
             [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.state.nav :refer [active-panel project-uri]]
@@ -462,6 +463,11 @@
                            [:fetch [:article project-id article-id]])
                          (when (not on-review-task?)
                            [:review/disable-change-labels article-id])
+                         (when (and use-new-article-list?
+                                    @(subscribe [:project-articles/article-id]))
+                           (dispatch [:project-articles/reload-list])
+                           (dispatch [:project-articles/hide-article])
+                           (util/scroll-top))
                          #_
                          (when @(subscribe [:user-labels/article-id])
                            ;; Use setTimeout here to avoid immediately triggering
@@ -592,7 +598,7 @@
                   :on-click #(do (util/scroll-top) true)
                   :class (if (util/full-size?) "labeled" nil)
                   :tabIndex "-1"}
-                 [:i.sliders.horizontal.icon]
+                 [:i.sliders.icon]
                  (when (util/full-size?) "Definitions")]
                 (when (not= panel [:project :project :articles])
                   [:a.ui.tiny.primary.button
@@ -602,7 +608,7 @@
                      #(do (dispatch-sync [:project-articles/load-preset :self])
                           (nav-scroll-top (project-uri project-id "/articles"))))
                     :tabIndex "-1"}
-                   (when (util/full-size?) [:i.list.horizontal.icon])
+                   (when (util/full-size?) [:i.unordered.list.icon])
                    (if (util/full-size?) "View All Labels" "View Labels")])
                 (when change-set?
                   [:div.ui.tiny.button

@@ -48,13 +48,14 @@
  (fn [[_ context article-id]]
    [(subscribe [::al/get context [:active-article]])
     (subscribe [:article/review-status article-id])
-    (subscribe [:member/resolver?])])
- (fn [[active-id review-status resolver?]
+    (subscribe [:member/resolver?])
+    (subscribe [::al/display-options context])])
+ (fn [[active-id review-status resolver? display]
       [_ context article-id]]
-   (let [{:keys [private-view?]} context]
+   (let [{:keys [self-only]} display]
      (when (= article-id active-id)
        (boolean
-        (and (not private-view?)
+        (and (not self-only)
              (= :conflict review-status)
              resolver?))))))
 
@@ -120,11 +121,11 @@
   (let [editing-allowed? @(subscribe [::editing-allowed? context article-id])
         resolving-allowed? @(subscribe [::resolving-allowed? context article-id])
         editing? @(subscribe [:article-list/editing? context article-id])
-        {:keys [private-view?]} context]
+        {:keys [self-only]} @(subscribe [::al/display-options context])]
     [:div
      [ArticleInfo article-id
       :show-labels? true
-      :private-view? private-view?
+      :private-view? self-only
       :context :article-list]
      (cond editing?
            [LabelEditor article-id]
@@ -439,15 +440,16 @@
      [(subscribe [::al/get context [:active-article]])
       (subscribe [::editing-allowed? context article-id])
       (subscribe [:article/user-status article-id])
-      (subscribe [:review/change-labels? article-id (:panel context)])])
-   (fn [[active-id can-edit? user-status change-labels?]
+      (subscribe [:review/change-labels? article-id (:panel context)])
+      (subscribe [::al/display-options context])])
+   (fn [[active-id can-edit? user-status change-labels? display]
         [_ context article-id]]
-     (let [{:keys [private-view?]} context]
+     (let [{:keys [self-only]} display]
        (when (= article-id active-id)
          (boolean
           (and can-edit?
                (or change-labels?
-                   (and private-view?
+                   (and #_ self-only
                         (= user-status :unconfirmed)))))))))
 
   (reg-sub

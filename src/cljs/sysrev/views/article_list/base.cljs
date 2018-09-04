@@ -24,8 +24,7 @@
              :show-notes false
              :show-unconfirmed false}
    :sort-by :content-updated
-   :sort-dir :desc
-   :private-view? false})
+   :sort-dir :desc})
 
 (defn get-display-count []
   (if (util/mobile?) 10 20))
@@ -431,7 +430,7 @@
 
 (defn reload-list [context & [nav-action]]
   (when nav-action
-    (dispatch-sync [::set-recent-nav-action context nav-action]))
+    (dispatch [::set-recent-nav-action context nav-action]))
   (reload-list-count context)
   (reload-list-data context))
 (reg-fx ::reload-list #(reload-list %))
