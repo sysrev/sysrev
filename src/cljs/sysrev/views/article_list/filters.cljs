@@ -190,12 +190,12 @@
 (defn- sync-filters-input [db context]
   (let [filters (al/get-state db context [:filters])
         new-filters (->> (al/get-state db context [:inputs :filters])
-                         (process-all-filters-input))
-        changed? (not= filters new-filters)]
+                         (process-all-filters-input))]
     (cond-> (-> (al/set-state db context [:filters] new-filters)
                 (al/set-state context [:inputs :filters] nil))
-      changed? (al/set-state context [:display-offset] 0)
-      changed? (al/set-state context [:active-article] nil))))
+      (not= filters new-filters)
+      (-> (al/set-state context [:display-offset] 0)
+          (al/set-state context [:active-article] nil)))))
 
 (reg-event-fx
  ::sync-filters-input [trim-v]
@@ -600,8 +600,9 @@
             (al/set-state context [:sort-by] sort-by)
             (al/set-state context [:sort-dir] sort-dir)
             (al/set-state context [:text-search] text-search)
-            (al/set-state context [:inputs :text-search] nil))
-    :dispatch [::sync-filters-input context]}))
+            (al/set-state context [:inputs :text-search] nil)
+            (sync-filters-input context))
+    ::al/reload-list [context :transition]}))
 
 (reg-event-fx
  :article-list/load-preset [trim-v]
@@ -702,26 +703,30 @@
          [:div.ui.tiny.fluid.buttons
           [:button.ui.button
            {:class (when (= sort-dir :asc) "blue")
-            :on-click #(dispatch [::al/set context [:sort-dir] :asc])}
+            :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :asc])
+                           (al/reload-list context :transition))}
            "Asc"]
           [:button.ui.button
            {:class (when (= sort-dir :desc) "blue")
-            :on-click #(dispatch [::al/set context [:sort-dir] :desc])}
+            :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :desc])
+                           (al/reload-list context :transition))}
            "Desc"]]]]]]]))
 
 (defn ResetReloadForm [context]
   (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
-        any-filters? (not-empty @(subscribe [::filters-input context]))]
+        any-filters? (not-empty @(subscribe [::filters-input context]))
+        display @(subscribe [::al/display-options (al/cached context)])
+        can-reset? (or any-filters? (not= display (:display al/default-options)))]
     [:div.ui.small.form
      [:div.sixteen.wide.field
       [:div.ui.grid
        [:div.thirteen.wide.column
         [:button.ui.tiny.fluid.icon.labeled.button
-         {:on-click (when any-filters?
+         {:on-click (when can-reset?
                       #(do (dispatch [::al/reset-filters context])
                            (al/reload-list context :transition)
                            (dispatch [::reset-filters-input context])))
-          :class (if any-filters? nil "disabled")}
+          :class (if can-reset? nil "disabled")}
          [:i.times.icon]
          "Reset Filters"]]
        [:div.three.wide.column

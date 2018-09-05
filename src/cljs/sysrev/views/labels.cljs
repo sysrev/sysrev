@@ -56,6 +56,12 @@
        [:div.ui.label.user-name
         {:class (if dark-theme? nil "basic")}
         user-name])
+     (doall
+      (->> label-entries
+           (map-indexed
+            (fn [i [label-id answer]]
+              (when (real-answer? answer) ^{:key i}
+                [label-answer-tag label-id answer])))))
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status
@@ -65,12 +71,6 @@
        [:div.ui.basic.purple.label.labels-status
         "Resolved"])
      (doall note-entries)
-     (doall
-      (->> label-entries
-           (map-indexed
-            (fn [i [label-id answer]]
-              (when (real-answer? answer) ^{:key i}
-                [label-answer-tag label-id answer])))))
      #_
      (when (not-empty note-entries)
        (if (empty? label-entries)
@@ -148,6 +148,5 @@
                     @(subscribe [:article/notes article-id user-id "default"])]
                 (when (and (string? note-content)
                            (not-empty (str/trim note-content)))
-                  [:div.notes {:style {:margin-top "5px"
-                                       :margin-left "-6px"}}
+                  [:div.notes
                    [note-content-label "default" note-content]]))])))))))

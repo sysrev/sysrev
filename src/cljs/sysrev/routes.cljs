@@ -78,6 +78,7 @@
               [:data/after-load data-item :project-articles-route
                (list set-panel #(js/setTimeout sync-params 25))])
              (dispatch-sync set-transition)
+             (article-list/require-list context)
              (article-list/reload-list context))
 
          :else (do (dispatch load-params)))))
@@ -89,12 +90,9 @@
            article-id (parse-integer article-id)
            item [:article project-id article-id]
            set-panel [:set-active-panel panel]
-           have-project? @(subscribe [:have? [:project project-id]])
-           ;; load-params [:article-list/load-url-params panel]
-           ]
+           have-project? @(subscribe [:have? [:project project-id]])]
        (dispatch set-panel)
        (dispatch (project-articles/show-article article-id))
-       #_ (dispatch load-params)
        (dispatch [:pdf/init-view-state panel])
        (dispatch [:require item])
        (dispatch [:reload item]))))

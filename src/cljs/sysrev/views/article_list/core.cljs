@@ -41,8 +41,6 @@
               (drop 1)
               first)})))))
 
-;; TODO: do these work?
-
 (reg-sub
  ::resolving-allowed?
  (fn [[_ context article-id]]
@@ -121,7 +119,8 @@
   (let [editing-allowed? @(subscribe [::editing-allowed? context article-id])
         resolving-allowed? @(subscribe [::resolving-allowed? context article-id])
         editing? @(subscribe [:article-list/editing? context article-id])
-        {:keys [self-only]} @(subscribe [::al/display-options context])]
+        {:keys [self-only]}
+        @(subscribe [::al/display-options (al/cached context)])]
     [:div
      [ArticleInfo article-id
       :show-labels? true
@@ -142,7 +141,7 @@
 (defn ArticleLabelsNotes [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
         {:keys [show-labels show-notes self-only show-unconfirmed]}
-        @(subscribe [::al/display-options context])
+        @(subscribe [::al/display-options (al/cached context)])
         {:keys [labels notes]} article
         notes (cond->> notes
                 self-only (filterv #(= (:user-id %) self-id)))
@@ -178,7 +177,7 @@
   [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
         {:keys [show-inclusion show-labels show-notes self-only show-unconfirmed]}
-        @(subscribe [::al/display-options context])
+        @(subscribe [::al/display-options (al/cached context)])
         active-article @(subscribe [::al/get context [:active-article]])
         overall-id @(subscribe [:project/overall-label-id])
         {:keys [article-id primary-title labels notes updated-time]} article
@@ -201,7 +200,8 @@
           :else "conflict")
         labels? (and (not active?)
                      (or (and show-labels (not-empty labels))
-                         (and show-notes (not-empty notes))))]
+                         (and show-notes (not-empty notes))))
+        inclusion-column? (and show-inclusion (not-empty overall-labels))]
     (if full-size?
       ;; non-mobile view
       [:div.ui.row
@@ -209,7 +209,7 @@
         [:div.ui.middle.aligned.grid.article-main
          [:div.row
           [:div.column.article-title
-           {:class (if show-inclusion "thirteen wide" "sixteen wide")}
+           {:class (if inclusion-column? "thirteen wide" "sixteen wide")}
            [:div.ui.middle.aligned.grid
             [:div.row
              [:div.fourteen.wide.column
@@ -228,13 +228,11 @@
               (when (and updated-time (not= updated-time 0))
                 [ui/updated-time-label
                  (util/time-from-epoch updated-time) true])]]]]
-          (when show-inclusion
+          (when inclusion-column?
             [:div.three.wide.center.aligned.middle.aligned.column.article-answers
-             (when (not-empty overall-labels)
-               {:class answer-class})
-             (when (not-empty overall-labels)
-               [:div.ui.middle.aligned.grid>div.row>div.column
-                [AnswerCell article-id overall-labels answer-class]])])]]
+             {:class answer-class}
+             [:div.ui.middle.aligned.grid>div.row>div.column
+              [AnswerCell article-id overall-labels answer-class]]])]]
         (when labels?
           [:div.article-labels
            [ArticleLabelsNotes context article full-size?]])]]
@@ -256,7 +254,7 @@
   (let [{:keys [recent-article active-article]}
         @(subscribe [::al/get (al/cached context)])
         {:keys [show-labels show-notes]}
-        @(subscribe [::al/display-options context])
+        @(subscribe [::al/display-options (al/cached context)])
         project-id @(subscribe [:active-project-id])
         articles @(al/sub-articles (al/cached context))
         recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])

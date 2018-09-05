@@ -112,6 +112,10 @@ div.ui.segment.labeled-notes > div.ui.labeled.button > .ui.basic.label {
     margin-right: 2px;
 }
 
+.article-labels-view > .ui.segment div.notes {
+    margin-top: 5px;
+}
+
 .article-labels-view > .ui.segment .ui.divider {
     margin-top: 7px;
     margin-bottom: 7px;
@@ -146,6 +150,7 @@ div.ui.segment.labeled-notes > div.ui.labeled.button > .ui.basic.label {
     padding-left: 0.75em;
     padding-right: 0.75em;
     font-size: 12px;
+    text-align: justify;
 }
 
 .ui.labeled.button.user-note,
@@ -162,6 +167,15 @@ div.ui.segment.labeled-notes > div.ui.labeled.button > .ui.basic.label {
 
     > .ui.button {
         color: @text;
+    }
+}
+
+.ui.labeled.button.user-note {
+    > .ui.grey.button,
+    > .ui.grey.button:hover {
+        background-color: @greyButtonBackground !important;
+        color: rgba(250, 250, 250, 1.0);
+        .medium-weight;
     }
 }
 

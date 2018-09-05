@@ -399,15 +399,11 @@
           help-element)]))
 
 (defn note-content-label [note-name content]
-  (let [dark-theme? @(subscribe [:self/dark-theme?])]
-    (when (and (string? content)
-               (not-empty (str/trim content)))
-      [:div.ui.tiny.labeled.button.user-note
-       [:div.ui.button
-        {:class (when dark-theme? "basic")}
-        "Notes"]
-       [:div.ui.basic.label {:style {:text-align "justify"}}
-        content]])))
+  (when (and (string? content)
+             (not-empty (str/trim content)))
+    [:div.ui.tiny.labeled.button.user-note
+     [:div.ui.grey.button "Notes"]
+     [:div.ui.basic.label content]]))
 
 (defn ClipboardButton [target child]
   (let [clip (atom nil)

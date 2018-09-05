@@ -319,16 +319,22 @@
  :article-list/load-url-params
  [trim-v]
  (fn [{:keys [db]} [context]]
-   (let [{:keys [filters display offset text-search show-article]}
+   (let [current-filters (get-state db context [:filters])
+         current-text-search (get-state db context [:text-search])
+         {:keys [filters display offset text-search show-article
+                 sort-by sort-dir]}
          (get-params-from-url)]
-     {:db (-> db
-              (set-state context [:active-article] show-article)
-              (set-state context [:filters] filters)
-              (set-state context [:text-search] text-search)
-              (set-state context [:display-offset] (or offset 0))
-              (cond->
-                  (not-empty display)
-                  (set-state context [:display] display)))})))
+     (cond-> {:db (-> (set-state db context [:active-article] show-article)
+                      (set-state context [:filters] filters)
+                      (set-state context [:text-search] text-search)
+                      (set-state context [:display-offset] (or offset 0))
+                      (set-state context [:display] display)
+                      (set-state context [:sort-by] sort-by)
+                      (set-state context [:sort-dir] sort-dir))}
+       (or (not= filters current-filters)
+           (not= (or text-search "")
+                 (or current-text-search "")))
+       (merge {::reload-list [context :transition]})))))
 
 (defn sync-url-params
   "Navigate to full browser URL that corresponds to current state"
@@ -411,13 +417,13 @@
 
 (defn reload-list-count [context]
   (let [item @(subscribe [::count-query context])]
-    (dispatch [:require item])
+    #_ (dispatch [:require item])
     (dispatch [:reload item])))
 (reg-fx ::reload-list-count reload-list-count)
 
 (defn reload-list-data [context]
   (let [item @(subscribe [::articles-query context])]
-    (dispatch [:require item])
+    #_ (dispatch [:require item])
     (dispatch [:reload item])))
 (reg-fx ::reload-list-data reload-list-data)
 
@@ -427,6 +433,12 @@
   (reload-list-count context)
   (reload-list-data context))
 (reg-fx ::reload-list #(apply reload-list %))
+
+(defn require-list [context]
+  (let [count-item @(subscribe [::count-query context])
+        articles-item @(subscribe [::articles-query context])]
+    (dispatch [:require count-item])
+    (dispatch [:require articles-item])))
 
 (reg-event-db
  ::set-ready-state
@@ -442,6 +454,10 @@
         cleaned (-> state (dissoc :ready :inputs :recent-nav-action))
         changed? (not= ready-state cleaned)
 
+        sort-by-now @(subscribe [::sort-by context])
+        sort-by-cached @(subscribe [::sort-by (cached context)])
+        sort-dir-now @(subscribe [::sort-dir context])
+        sort-dir-cached @(subscribe [::sort-dir (cached context)])
         count-now @(subscribe [::count-query context])
         count-cached @(subscribe [::count-query (cached context)])
         article-now @(subscribe [::get context [:active-article]])
@@ -456,7 +472,9 @@
                     (not= (or (:display-offset ready-state) 0)
                           (or (:display-offset state) 0))
                     (not= (:filters ready-state)
-                          (:filters state)))
+                          (:filters state))
+                    (not= sort-by-now sort-by-cached)
+                    (not= sort-dir-now sort-dir-cached))
               false true)
             reset-pager? false
             #_ (and (not-empty ready-state)
