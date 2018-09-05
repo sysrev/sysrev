@@ -62,8 +62,11 @@
                 :show-unconfirmed true}}
 
      :content
-     {:filters [{:has-content {:content nil
-                               :confirmed true}}]
+     {:filters [#_ {:has-content {:content nil
+                                  :confirmed true}}
+                {:has-user {:user nil
+                            :content nil
+                            :confirmed nil}}]
       :display {:self-only false
                 :show-inclusion false
                 :show-labels true
@@ -191,11 +194,14 @@
         changed? (not= filters new-filters)]
     (cond-> (-> (al/set-state db context [:filters] new-filters)
                 (al/set-state context [:inputs :filters] nil))
-      changed? (al/set-state context [:display-offset] 0))))
+      changed? (al/set-state context [:display-offset] 0)
+      changed? (al/set-state context [:active-article] nil))))
 
-(reg-event-db
+(reg-event-fx
  ::sync-filters-input [trim-v]
- (fn [db [context]] (sync-filters-input db context)))
+ (fn [{:keys [db]} [context]]
+   {:db (sync-filters-input db context)
+    ::al/reload-list [context :transition]}))
 
 (reg-event-db
  ::add-filter
@@ -224,7 +230,8 @@
      (cond-> (-> (al/set-state db context [:text-search] value)
                  (al/set-state context [:inputs :text-search] nil))
        (not= value current)
-       (al/set-state context [:display-offset] 0)))))
+       (-> (al/set-state context [:display-offset] 0)
+           (al/set-state context [:active-article] nil))))))
 
 (defn- TextSearchInput [context]
   (let [input (subscribe [::inputs context [:text-search]])
@@ -584,16 +591,17 @@
            (when (not-empty v)
              (dispatch-sync [::add-filter context (keyword v)])))}]])))
 
-(reg-event-db
+(reg-event-fx
  :article-list/load-settings [trim-v]
- (fn [db [context {:keys [filters display sort-by sort-dir text-search]}]]
-   (-> (al/set-state db context [:display] display)
-       (al/set-state context [:inputs :filters] filters)
-       (al/set-state context [:sort-by] sort-by)
-       (al/set-state context [:sort-dir] sort-dir)
-       (al/set-state context [:text-search] text-search)
-       (al/set-state context [:inputs :text-search] nil)
-       (sync-filters-input context))))
+ (fn [{:keys [db]}
+      [context {:keys [filters display sort-by sort-dir text-search]}]]
+   {:db (-> (al/set-state db context [:display] display)
+            (al/set-state context [:inputs :filters] filters)
+            (al/set-state context [:sort-by] sort-by)
+            (al/set-state context [:sort-dir] sort-dir)
+            (al/set-state context [:text-search] text-search)
+            (al/set-state context [:inputs :text-search] nil))
+    :dispatch [::sync-filters-input context]}))
 
 (reg-event-fx
  :article-list/load-preset [trim-v]
@@ -601,19 +609,35 @@
    (let [preset (get (filter-presets) :self)]
      {:dispatch [:article-list/load-settings context preset]})))
 
+(defn- WrapFilterDisabled [content enabled? message width]
+  (if enabled?
+    content
+    (list
+     ^{:key :content}
+     [ui/with-tooltip [:div content]]
+     ^{:key :tooltip}
+     [:div.ui.inverted.popup.transition.hidden.inverted.filters-tooltip
+      {:style {:min-width width}}
+      message])))
+
 (defn- FilterPresetsForm [context]
   (let [filters @(subscribe [::filters-input context])
         text-search @(subscribe [::al/get context [:text-search]])
         presets (filter-presets)
         make-button
-        (fn [pkey text icon-class]
+        (fn [pkey text icon-class enabled?]
           (let [preset (get presets pkey)]
             [:button.ui.tiny.fluid.button
-             {:class (when (= filters (:filters preset)) "primary")
+             {:class (cond-> ""
+                       (and enabled? (= filters (:filters preset)))
+                       (str " primary")
+                       (not enabled?)
+                       (str " disabled"))
               :on-click
-              (util/wrap-user-event
-               #(dispatch-sync [:article-list/load-settings
-                                context (merge preset {:text-search text-search})]))}
+              (when enabled?
+                (util/wrap-user-event
+                 #(dispatch-sync [:article-list/load-settings
+                                  context (merge preset {:text-search text-search})])))}
              #_ [:i {:class (str icon-class " icon")}]
              text]))]
     [:div.ui.segment.filter-presets
@@ -623,11 +647,15 @@
        [:label "Presets"]
        [:div.ui.three.column.grid
         [:div.column
-         [make-button :self "Self" "user"]]
+         (let [enabled? (and @(subscribe [:self/user-id])
+                             @(subscribe [:self/member?]))]
+           (WrapFilterDisabled
+            [make-button :self "Self" "user" enabled?]
+            enabled? "Not a member of this project" "15em"))]
         [:div.column
-         [make-button :content "Labeled" "tags"]]
+         [make-button :content "Labeled" "tags" true]]
         [:div.column
-         [make-button :inclusion "Inclusion" "circle plus"]]]]]]))
+         [make-button :inclusion "Inclusion" "circle plus" true]]]]]]))
 
 (defn- DisplayOptionsForm [context]
   (let [options @(subscribe [::al/display-options context])
@@ -691,6 +719,7 @@
         [:button.ui.tiny.fluid.icon.labeled.button
          {:on-click (when any-filters?
                       #(do (dispatch [::al/reset-filters context])
+                           (al/reload-list context :transition)
                            (dispatch [::reset-filters-input context])))
           :class (if any-filters? nil "disabled")}
          [:i.times.icon]
@@ -743,7 +772,8 @@
          [:i.repeat.icon]]
         [:button.ui.small.icon.button
          {:on-click (util/wrap-user-event
-                     #(dispatch [::al/reset-filters context]))}
+                     #(do (dispatch [::al/reset-filters context])
+                          (al/reload-list context :transition)))}
          [:i.erase.icon]]]]]
      [:div.ui.secondary.segment.no-padding
       [:button.ui.tiny.fluid.icon.button

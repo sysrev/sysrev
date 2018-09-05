@@ -319,23 +319,16 @@
  :article-list/load-url-params
  [trim-v]
  (fn [{:keys [db]} [context]]
-   (let [active-panel (active-panel db)
-         {:keys [filters display offset text-search show-article]}
-         (get-params-from-url)
-         ;; active-filters (get-active-filters db context)
-         new-db
-         (cond->
-             (-> db
-                 (set-state context [:active-article] show-article)
-                 (set-state context [:filters] filters)
-                 (set-state context [:text-search] text-search)
-                 (set-state context [:display-offset] (or offset 0)))
-           (not-empty display)
-           (set-state context [:display] display))]
-     (cond-> {:db new-db}
-       false #_ show-article
-       (merge {:dispatch [::set-display-option context
-                          :expand-filters false]})))))
+   (let [{:keys [filters display offset text-search show-article]}
+         (get-params-from-url)]
+     {:db (-> db
+              (set-state context [:active-article] show-article)
+              (set-state context [:filters] filters)
+              (set-state context [:text-search] text-search)
+              (set-state context [:display-offset] (or offset 0))
+              (cond->
+                  (not-empty display)
+                  (set-state context [:display] display)))})))
 
 (defn sync-url-params
   "Navigate to full browser URL that corresponds to current state"
@@ -433,7 +426,7 @@
     (dispatch [::set-recent-nav-action context nav-action]))
   (reload-list-count context)
   (reload-list-data context))
-(reg-fx ::reload-list #(reload-list %))
+(reg-fx ::reload-list #(apply reload-list %))
 
 (reg-event-db
  ::set-ready-state
