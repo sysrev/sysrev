@@ -11,6 +11,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db
              :refer [do-query do-execute with-transaction
                      sql-now to-sql-array to-jsonb]]
@@ -81,10 +82,11 @@
                     :or {permissions ["user"]}
                     :as opts}]
   (let [test-email?
-        (boolean
-         (or (re-find #"\+test.*\@" email)
-             (re-find #"\@sysrev\.us$" email)
-             (re-find #"\@insilica\.co$" email)))
+        (and (not= (:profile env) :prod)
+             (boolean
+              (or (re-find #"\+test.*\@" email)
+                  (re-find #"\@sysrev\.us$" email)
+                  (re-find #"\@insilica\.co$" email))))
         permissions (cond
                       (:permissions opts) (:permissions opts)
                       test-email? ["admin"]
@@ -101,7 +103,7 @@
              :date-created (sql-now)
              :user-uuid (UUID/randomUUID)
              :api-token (generate-api-token)}
-          user-id (assoc :user-id user-id))]
+            user-id (assoc :user-id user-id))]
     (when project-id
       (assert (-> (q/query-project-by-id project-id [:project-id])
                   :project-id)))

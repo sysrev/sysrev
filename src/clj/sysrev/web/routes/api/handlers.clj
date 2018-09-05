@@ -77,14 +77,17 @@
         {:api-token (:api-token user)}
         (make-error-response 403 :api "User authentication failed")))))
 
+;; TODO: don't return email addresses
+;; TODO: change response format, include markdown description
 (def-webapi
   :project-info :get
-  {:required [:project-id]}
+  {:required [:project-id]
+   :project-role "member"}
   (fn [request]
     (let [{:keys [project-id] :as body}
           (-> request :body)]
       (let [project (q/query-project-by-id project-id [:*])
-            members (-> (select :u.email :u.user-id)
+            members (-> (select :u.user-id)
                         (from [:web-user :u])
                         (q/filter-admin-user false)
                         (q/join-user-member-entries project-id)
@@ -102,6 +105,7 @@
 (def-webapi
   :import-pmids :post
   {:required [:project-id :pmids]
+   :require-admin? true
    :check-answers? true
    :doc (->> ["\"pmids\": array of integer PubMed IDs"
               ""
@@ -125,6 +129,8 @@
               :project-articles
               (project/project-article-count project-id)}})))))
 
+;; outdated, doesn't handle sources, disabled
+#_
 (def-webapi
   :copy-articles :post
   {:required [:project-id :src-project-id :article-ids]
@@ -156,33 +162,8 @@
                    (apply hash-map))]
           {:result result-counts})))))
 
-(def-webapi
-  :import-pmid-nct-arms :post
-  {:required [:project-id :arm-imports]
-   :check-answers? true
-   :doc (->> ["\"arm-imports\": array of article entries to import"
-              "Each entry should have keys: [\"pmid\", \"nct\", \"arm-name\", \"arm-desc\"]"
-              "\"pmid\": integer, PubMed ID"
-              "\"nct\": string, NCT identifier following format: \"NCT12345\""
-              "\"arm-name\": string, name of trial arm"
-              "\"arm-desc\": string, description of trial arm"]
-             (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [api-token project-id arm-imports] :as body}
-          (-> request :body)]
-      (cond
-        (not (s/valid? ::swa/nct-arm-imports arm-imports))
-        (make-error-response
-         500 :api (->> ["invalid value for \"arm-imports\":"
-                        (s/explain-str ::swa/nct-arm-imports arm-imports)]
-                       (str/join "\n")))
-        :else
-        (do (facts/import-pmid-nct-arms-to-project arm-imports project-id)
-            {:result
-             {:success true
-              :project-articles
-              (project/project-article-count project-id)}})))))
-
+;; disabled, let users join on their own, use invite link
+#_
 (def-webapi
   :add-project-member :post
   {:required [:project-id :email]
@@ -208,6 +189,8 @@
         (do (project/add-project-member project-id user-id)
             {:result {:success true}})))))
 
+;; disabled, too dangerous, can be done via web UI
+#_
 (def-webapi
   :delete-project-articles :post
   {:required [:project-id]
@@ -222,6 +205,8 @@
       (project/delete-project-articles project-id)
       {:result {:success true}})))
 
+;; TODO: add a way to do this (or disable account) from web interface
+#_
 (def-webapi
   :delete-user :post
   {:required [:email]
@@ -240,6 +225,8 @@
         (do (users/delete-user user-id)
             {:result {:success true}})))))
 
+;; TODO: remove for now, use web interface
+#_
 (def-webapi
   :create-user :post
   {:required [:email :password]
@@ -259,10 +246,11 @@
         (make-error-response
          500 :api "A user with that email already exists")))))
 
+;; TODO: needed? safe?
 (def-webapi
   :create-project :post
   {:required [:project-name]
-   :require-admin? false}
+   :require-admin? true}
   (fn [request]
     (let [{:keys [api-token project-name add-self?]}
           (-> request :body)
@@ -270,8 +258,8 @@
           (users/get-user-by-api-token api-token)]
       (api/create-project-for-user! project-name user-id))))
 
-;; disabled for now because we don't to actually delete a project,
-;; just mark it as inactive
+;; TODO: does tom need this? disable for now
+#_
 (def-webapi
   :delete-project :post
   {:required [:project-id]
@@ -285,6 +273,7 @@
           (users/get-user-by-api-token api-token)]
       (api/delete-project! project-id user-id))))
 
+;; TODO: allow public project access
 (def-webapi
   :project-labels :get
   {:required [:project-id]
@@ -295,6 +284,8 @@
           (-> request :body)]
       {:result (project/project-labels project-id true)})))
 
+;; TODO: disable for now, not needed, web UI
+#_
 (def-webapi
   :delete-label :post
   {:required [:project-id :name]
@@ -317,6 +308,8 @@
           (do (labels/delete-label-entry project-id label-id)
               {:result {:success true}}))))))
 
+;; TODO: enable if tom/anyone wants
+#_
 (def-webapi
   :define-label-boolean :post
   {:required [:project-id :name :question :short-label :inclusion-value :required]
@@ -346,7 +339,7 @@
                   {:name name :question question :short-label short-label
                    :inclusion-value inclusion-value :required required})]
       {:result result})))
-
+#_
 (def-webapi
   :define-label-categorical :post
   {:required [:project-id :name :question :short-label :all-values :required]
@@ -380,7 +373,7 @@
                    :all-values all-values :inclusion-values inclusion-values
                    :required required :multi? multi?})]
       {:result result})))
-
+#_
 (def-webapi
   :define-label-string :post
   {:required [:project-id :name :question :short-label :max-length :required :multi?]
@@ -418,6 +411,8 @@
                    :entity entity :required required :multi? multi?})]
       {:result result})))
 
+;; not used, predictions stored in db from this project directly
+#_
 (def-webapi
   :create-predict-run :post
   {:required [:project-id :predict-version-id]
@@ -436,7 +431,7 @@
       (let [predict-run-id
             (predict/create-predict-run project-id predict-version-id)]
         {:result {:predict-run-id predict-run-id}}))))
-
+#_
 (def-webapi
   :store-article-predictions :post
   {:required [:project-id :predict-run-id :label-id :article-values]
@@ -470,7 +465,9 @@
 
 (def-webapi
   :project-annotations :get
-  {:require-token? false
+  {:require [:project-id]
+   :require-token? false
+   :allow-public true ; TODO: implement this
    :doc
    "Returns a list of annotations for a project.
 

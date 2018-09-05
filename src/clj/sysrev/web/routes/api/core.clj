@@ -26,6 +26,8 @@
 (defonce web-api-routes (atom {}))
 (defonce web-api-routes-order (atom []))
 
+;; TODO: handle anonymous read access to public projects.
+;;       use :allow-public key
 (defn def-webapi
   [name method opts handler]
   (let [opts (merge {:require-token? true} opts)

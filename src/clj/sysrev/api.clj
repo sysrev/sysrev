@@ -836,7 +836,7 @@
                      (assoc-in result [:context :text-context]
                                text-context)))))
          (mapv #(select-keys % [:selection :annotation :semantic-class
-                                :pmid :article-id :pdf-source :context])))))
+                                :pmid :article-id :pdf-source :context :user-id])))))
 
 (defn project-annotation-status [project-id & {:keys [user-id]}]
   (let [member? (and user-id (project/member-has-permission?

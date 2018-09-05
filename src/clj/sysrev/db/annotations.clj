@@ -227,7 +227,7 @@
               ;; some of these fields are needed to match 'text-context-article-field-match'
               :a.article_id :a.primary_title :a.secondary_title :a.abstract
               :sc.definition :s3.key :s3.filename
-              :an.context)
+              :an.context :au.user-id)
       (from [:annotation :an])
       (join
        ;; annotation article
@@ -248,7 +248,10 @@
        [:= :an.id :as3.annotation_id]
        ;; s3store
        [:s3store :s3]
-       [:= :s3.id :as3.s3store_id])
+       [:= :s3.id :as3.s3store_id]
+       ;; user
+       [:annotation-web-user :au]
+       [:= :au.annotation-id :an.id])
       (where [:= :a.project_id project-id])
       ;;(sql/format)
       do-query))

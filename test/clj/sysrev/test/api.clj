@@ -49,6 +49,7 @@
         (when user-id (users/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
+#_
 (deftest test-copy-articles
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]}
@@ -81,6 +82,7 @@
         (when project-id (project/delete-project project-id))
         (when dest-project (project/delete-project (:project-id dest-project)))))))
 
+#_
 (deftest test-import-pmid-nct-arms
   (let [url (:url (get-selenium-config))
         {:keys [user-id api-token]}
