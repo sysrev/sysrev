@@ -5,53 +5,17 @@
             [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe]]
             [re-frame.db :refer [app-db]]
+            [sysrev.accounting :as accounting]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.views.base :refer [panel-content]]
+            [sysrev.views.semantic :refer [Form FormButton FormField FormGroup FormInput FormRadio Label]]
             [sysrev.stripe :as stripe])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
 (def panel [:project :project :support])
 
 (def state (r/cursor app-db [:state :panels panel]))
-
-(def semantic-ui js/semanticUIReact)
-(def Form (r/adapt-react-class (goog.object/get semantic-ui "Form")))
-(def FormButton (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Button)))
-(def FormField (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Field)))
-(def FormGroup (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Group)))
-(def FormInput (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Input)))
-(def FormRadio (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Radio)))
-(def Label (r/adapt-react-class
-            (goog.object/get semantic-ui "Label")))
-
-;; functions around accounting.js
-(defn unformat
-  "Converts a string to a currency amount (default is in dollar)"
-  [string]
-  ($ js/accounting unformat string))
-
-(defn to-fixed
-  "Converts a number to a fixed value string to n decimal places"
-  [number n]
-  ($ js/accounting toFixed number n))
-
-(defn string->cents
-  "Convert a string to a number in cents"
-  [string]
-  (-> (to-fixed string 2)
-      unformat
-      (* 100)))
-
-(defn cents->string
-  "Convert a number to a USD currency string"
-  [number]
-  ($ js/accounting formatMoney (/ number 100)))
 
 (defn get-user-support-subscriptions
   "Get the current support subscriptions for user"
@@ -78,13 +42,13 @@
                                  %) [500 1000 5000])
                        (do
                          (reset! support-level quantity)
-                         (reset! user-support-level (cents->string 100)))
+                         (reset! user-support-level (accounting/cents->string 100)))
 
                        ;; the support level is at variable amount
                        (not (nil? @current-support-level))
                        (do
                          (reset! support-level :user-defined)
-                         (reset! user-support-level (cents->string quantity)))
+                         (reset! user-support-level (accounting/cents->string quantity)))
                        ;; quantity is nil, but default something for support-level
                        ;; but only if the support-level is currently nil
                        (and (nil? @current-support-level)
@@ -106,11 +70,11 @@
                 (= (-> error :type) "already_supported_at_amount")
                 (reset! (r/cursor state [:error-message])
                         (str "You are already supporting at "
-                             (cents->string (-> error :message :amount))))
+                             (accounting/cents->string (-> error :message :amount))))
                 (= (-> error :type) "amount_too_low")
                 (reset! (r/cursor state [:error-message])
                         (str "Minimum support level is "
-                             (cents->string (-> error :message :minimum))
+                             (accounting/cents->string (-> error :message :minimum))
                              " per month"))
                 :else
                 (reset! (r/cursor state [:error-message]) (-> error :message)))
@@ -151,10 +115,10 @@
        [:h1 "Change Your Level of Support"]
        [:h1 "Support This Project"])
      (when @current-support-level
-       [:h3.support-message (str "You are currently supporting this project at " (cents->string @current-support-level) " per month") ])
+       [:h3.support-message (str "You are currently supporting this project at " (accounting/cents->string @current-support-level) " per month") ])
      [Form {:on-submit
             (fn []
-              (let [cents (string->cents @user-support-level)]
+              (let [cents (accounting/string->cents @user-support-level)]
                 (cond (and (= @support-level
                               :user-defined)
                            (= cents
@@ -191,6 +155,8 @@
                                :user-defined)
                    :on-change #(reset! support-level :user-defined)}]
        [:div
+        ;; this should be replace with accounting/DollarAmountInput
+        ;;
         (let [on-change (fn [event]
                           (let [value ($ event :target.value)
                                 dollar-sign-on-front? (fn [value]
@@ -274,7 +240,7 @@
                    ^{:key (:project-id subscription)}
                    [:tr
                     [:td (:name subscription)]
-                    [:td (cents->string (:quantity subscription))]
+                    [:td (accounting/cents->string (:quantity subscription))]
                     [:td [:a {:href (str "/p/" (:project-id subscription) "/support")}
                           "Change Your Level of Support"]]])
                  @user-support-subscriptions))]]])))

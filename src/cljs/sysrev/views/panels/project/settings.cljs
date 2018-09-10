@@ -11,6 +11,7 @@
              [with-tooltip wrap-dropdown selection-dropdown
               SaveResetForm ConfirmationDialog]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
+            [sysrev.views.semantic :refer [Form FormGroup FormInput]]
             [sysrev.shared.util :refer [parse-integer in?]]))
 
 (def ^:private panel [:project :project :settings])
@@ -519,6 +520,17 @@
              "Delete Project..."
              "Disable Project...")])]])))
 
+(defn ProjectCompensation
+  []
+  (let [state (r/atom {})
+        amount (r/cursor state [:amount])]
+    (fn []
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Project Compensation"
+        [Form {:on-submit (fn []
+                            (.log js/console "Form Submitted"))}
+         [FormInput amount] "per article"]]])))
+
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
     (ensure-state)
@@ -530,7 +542,8 @@
        [:div.ui.two.column.stackable.grid.project-settings
         [:div.ui.row
          [:div.ui.column
-          [ProjectOptionsBox]]
+          [ProjectOptionsBox]
+          [ProjectCompensation]]
          [:div.ui.column
           [ProjectMembersBox]
           [DeleteProject]]]]])))
