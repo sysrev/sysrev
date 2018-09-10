@@ -1,5 +1,6 @@
 (ns sysrev.accounting
-  (:require [cljsjs.accounting]))
+  (:require [cljsjs.accounting])
+  (:require-macros [reagent.interop :refer [$]]))
 
 ;; functions around accounting.js
 (defn unformat

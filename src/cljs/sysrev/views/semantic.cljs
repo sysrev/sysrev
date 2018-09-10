@@ -1,5 +1,7 @@
 (ns sysrev.views.semantic
-  (:require [cljsjs.semantic-ui-react]))
+  (:require [cljsjs.semantic-ui-react]
+            [reagent.core :as r])
+  (:require-macros [reagent.interop :refer [$]]))
 
 (def semantic-ui js/semanticUIReact)
 (def Form (r/adapt-react-class (goog.object/get semantic-ui "Form")))

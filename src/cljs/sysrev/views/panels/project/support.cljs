@@ -155,8 +155,6 @@
                                :user-defined)
                    :on-change #(reset! support-level :user-defined)}]
        [:div
-        ;; this should be replace with accounting/DollarAmountInput
-        ;;
         (let [on-change (fn [event]
                           (let [value ($ event :target.value)
                                 dollar-sign-on-front? (fn [value]
