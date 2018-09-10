@@ -13,6 +13,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.articles :as articles]
             [sysrev.db.annotations :as db-annotations]
+            [sysrev.db.compensation :as compensation]
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
             [sysrev.db.labels :as labels]
@@ -858,14 +859,12 @@
       {:error {:message "Exception in change-project-permissions"
                :exception e}})))
 
-(def project-description (atom ""))
-
 (defn create-project-description!
   "Create a description of project-id with markdown string"
   [project-id markdown]
   (try (markdown/create-project-description! project-id markdown)
        {:result {:success true
-                 :project-description @project-description}}
+                 :project-description markdown}}
        (catch Throwable e
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
@@ -900,6 +899,26 @@
 
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
+
+(defn create-project-compensation!
+  "Create a compensation for project-id with rate"
+  [project-id rate]
+  (try (compensation/create-project-compensation! project-id rate)
+       {:result {:success true
+                 :rate rate}}
+       (catch Throwable e
+         {:error {:state internal-server-error
+                  :message (.getMessage e)}})))
+
+(defn read-project-compensations
+  "Return all project compensations for project-id"
+  [project-id]
+  (try (let [compensations (compensation/read-project-compensations project-id)]
+         {:result {:success true
+                   :compensations compensations}})
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
 
 (defn test-response
   "Server Sanity Check"

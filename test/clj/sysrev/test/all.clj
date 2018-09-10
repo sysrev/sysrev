@@ -12,6 +12,7 @@
             sysrev.test.browser.simple
             sysrev.test.browser.create-project
             sysrev.test.browser.plans
+            sysrev.test.browser.project-compensation
             sysrev.test.browser.review-articles
             sysrev.test.browser.markdown
             sysrev.test.stripe

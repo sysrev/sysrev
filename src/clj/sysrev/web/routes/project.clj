@@ -739,6 +739,18 @@
                  user-id (current-user-id request)]
              (api/delete-project-description! project-id))))
 
+  (POST "/api/project-compensation" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (-> request :body :project-id)
+               rate (-> request :body :rate)]
+           (api/create-project-compensation! project-id rate))))
+
+  (GET "/api/project-compensations" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [project-id (-> request :params :project-id parse-integer)]
+          (api/read-project-compensations project-id))))
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

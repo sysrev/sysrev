@@ -1,6 +1,6 @@
 CREATE TABLE compensation (
        id integer PRIMARY KEY,
-       rate json, {:item "article" "label" "annotation" :amount 100}
+       rate json,
        created timestamp WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
