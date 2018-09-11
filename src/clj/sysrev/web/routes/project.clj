@@ -755,8 +755,8 @@
   (PUT "/api/project-compensation" request
        (wrap-authorize
         request {:roles ["admin"]}
-        (let [project-id (-> request :params :project-id parse-integer)
-              compensation-id (-> request :params :compensation-id parse-integer)
+        (let [project-id (-> request :body :project-id)
+              compensation-id (-> request :body :compensation-id)
               rate (-> request :body :rate)]
           (api/update-project-compensation! project-id compensation-id rate))))
 
