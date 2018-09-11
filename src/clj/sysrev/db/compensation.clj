@@ -21,3 +21,20 @@
   [project-id]
   ;; this will be relying on project_compensation
   (get @state project-id))
+
+;; move this below update-project-compensation! after this is a db call
+(defn delete-project-compensation!
+  [project-id compensation-id]
+  (swap! state assoc project-id (filter #(not= (:id %) compensation-id) (get @state project-id))))
+
+(defn update-project-compensation!
+  [project-id compensation-id rate]
+  (let [current-compensation (->> (get @state project-id)
+                                  (filter #(= (:id %) compensation-id))
+                                  first)
+        new-compensation (assoc current-compensation :rate rate)]
+    (delete-project-compensation! project-id compensation-id)
+    (swap! state assoc project-id (conj (get @state project-id) new-compensation))))
+
+
+

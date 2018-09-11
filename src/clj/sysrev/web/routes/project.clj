@@ -751,6 +751,22 @@
         request {:roles ["admin"]}
         (let [project-id (-> request :params :project-id parse-integer)]
           (api/read-project-compensations project-id))))
+
+  (PUT "/api/project-compensation" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [project-id (-> request :params :project-id parse-integer)
+              compensation-id (-> request :params :compensation-id parse-integer)
+              rate (-> request :body :rate)]
+          (api/update-project-compensation! project-id compensation-id rate))))
+
+  (DELETE "/api/project-compensation" request
+          (wrap-authorize
+           request {:roles ["admin"]}
+           (let [project-id (-> request :body :project-id)
+                 compensation-id (-> request :body :compensation-id)]
+             (api/delete-project-compensation! project-id compensation-id))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

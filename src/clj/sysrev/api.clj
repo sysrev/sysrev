@@ -900,6 +900,16 @@
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
 
+(defn read-project-compensations
+  "Return all project compensations for project-id"
+  [project-id]
+  (try (let [compensations (compensation/read-project-compensations project-id)]
+         {:result {:success true
+                   :compensations compensations}})
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
+
 (defn create-project-compensation!
   "Create a compensation for project-id with rate"
   [project-id rate]
@@ -910,12 +920,20 @@
          {:error {:state internal-server-error
                   :message (.getMessage e)}})))
 
-(defn read-project-compensations
-  "Return all project compensations for project-id"
-  [project-id]
-  (try (let [compensations (compensation/read-project-compensations project-id)]
-         {:result {:success true
-                   :compensations compensations}})
+(defn update-project-compensation!
+  "Update compensation-id associated with project-id"
+  [project-id compensation-id rate]
+  (try (compensation/update-project-compensation! project-id compensation-id rate)
+       {:result {:success true}}
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
+
+(defn delete-project-compensation!
+  "Delete compensaton-id associated with project-id"
+  [project-id compensation-id]
+  (try (compensation/delete-project-compensation! project-id compensation-id)
+       {:result {:success true}}
        (catch Throwable e
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
