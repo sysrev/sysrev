@@ -22,7 +22,7 @@
        :content [:span [:i.tags.icon] "Label Definitions"]
        :action (project-uri project-id "/labels/edit")
        #_ (list [:project :project :labels :edit] action-params)}
-      (when member?
+      (when (or member? @(subscribe [:user/admin?]))
         {:tab-id :invite-link
          :content [:span [:i.mail.outline.icon] "Invite Link"]
          :action (project-uri project-id "/invite-link")
