@@ -9,6 +9,7 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.config.core :refer [env]]
             [sysrev.test.core :refer [default-fixture get-selenium-config wait-until]]
+            [sysrev.db.core :as db]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.shared.util :refer [parse-integer]])
@@ -35,7 +36,7 @@
 (defonce active-webdriver (atom nil))
 
 (defn db-connected? []
-  (= "localhost" (:host (get-selenium-config))))
+  (not= "sysrev.com" (:host (get-selenium-config))))
 
 (defn start-webdriver [& [restart?]]
   (if (and @active-webdriver (not restart?))
@@ -165,12 +166,18 @@
 
 (defn webdriver-fixture-each
   [f]
-  (do (when (:safe (get-selenium-config))
-        (create-test-user))
-      (start-webdriver)
-      (f)
-      (stop-webdriver)
-      (Thread/sleep 25)))
+  (let [local? (= "localhost" (:host (get-selenium-config)))
+        cache? @db/query-cache-enabled]
+    (do (when-not local?
+          (reset! db/query-cache-enabled false))
+        (when (:safe (get-selenium-config))
+          (create-test-user))
+        (start-webdriver)
+        (f)
+        (stop-webdriver)
+        (when-not local?
+          (reset! db/query-cache-enabled cache?))
+        (Thread/sleep 25))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
   (wait-until-exists q)
