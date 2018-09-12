@@ -5,7 +5,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
             [sysrev.util :refer [vector->hash-map]]
-            [sysrev.views.semantic :refer [Form FormGroup FormInput]])
+            [sysrev.views.semantic :refer [Form FormGroup FormInput Button]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:project :project :compensation])
@@ -31,7 +31,7 @@
                            (reset! retrieving-compensations? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
 
-(defn EditCompensationForm
+#_(defn EditCompensationForm
   [compensation]
   (let [project-id @(subscribe [:active-project-id])
         compensation-atom (r/cursor state [:project-compensations (:id compensation)])
@@ -92,23 +92,43 @@
   [compensation]
   (let [project-id @(subscribe [:active-project-id])
         compensation-atom (r/cursor state [:project-compensations (:id compensation)])
-        editing? (r/cursor compensation-atom [:editing?])
-        delete-compensation! (fn []
-                               (DELETE "/api/project-compensation"
-                                       {:params {:compensation-id (:id compensation)
-                                                 :project-id project-id}
-                                        :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                        :handler (fn [response]
-                                                   (get-compensations! state))
-                                        :error-handler (fn [error]
-                                                         ($ js/console log (str "[Error] delete-compensation!")))}))]
-    [:div
-     (if @editing?
-       [:div [EditCompensationForm compensation]
-        [:div.ui.button {:on-click #(reset! editing? false)} "Dismiss"]]
-       [:div (accounting/cents->string (get-in compensation [:rate :amount])) " per Article"
-        [:div.ui.button {:on-click #(reset! editing? true)} "Edit"]])
-     [:div.ui.button {:on-click delete-compensation!} "Delete"]]))
+        active? (r/cursor compensation-atom [:active])
+        updating-compensation? (r/cursor compensation-atom [:updating-compensation?])
+        toggle-active (fn [cents]
+                        (swap! active? not)
+                        (reset! updating-compensation? true)
+                        (PUT "/api/toggle-active-project-compensation"
+                             {:params {:project-id project-id
+                                       :compensation-id (:id compensation)
+                                       :active @active?}
+                              :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                              :handler (fn [response]
+                                         (reset! updating-compensation? false)
+                                         (get-compensations! state)
+                                         (.log js/console "success"))
+                              :error-handler (fn [error]
+                                               ($ js/console log (str "[Error] " "update-compensation!"))
+                                               (reset! updating-compensation? false))}))
+        ;; delete-compensation! (fn []
+        ;;                        (DELETE "/api/project-compensation"
+        ;;                                {:params {:compensation-id (:id compensation)
+        ;;                                          :project-id project-id}
+        ;;                                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+        ;;                                 :handler (fn [response]
+        ;;                                            (get-compensations! state))
+        ;;                                 :error-handler (fn [error]
+        ;;                                                  ($ js/console log (str "[Error] delete-compensation!")))}))
+        ]
+    #_[:div
+     [:div [EditCompensationForm compensation]
+      [:div.ui.button {:on-click #(reset! editing? false)} "Dismiss"]]]
+    [:div (accounting/cents->string (get-in compensation [:rate :amount])) " per Article"
+     [Button {:toggle true
+              :active @active?
+              :disabled @updating-compensation?
+              :on-click toggle-active}
+      (if @active? "Active" "Disabled")]]
+    #_[:div.ui.button {:on-click delete-compensation!} "Delete"]))
 
 (defn CreateCompensationForm
   []

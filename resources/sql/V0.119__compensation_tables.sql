@@ -1,20 +1,20 @@
 CREATE TABLE compensation (
-       id integer PRIMARY KEY,
-       rate json,
+       id serial PRIMARY KEY,
+       rate jsonb,
        created timestamp WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE compensation IS 'Treated as an immutable record of the rates of compensation on SysRev.';
 
 
-CREATE TABLE project_compensation (
-       project_id integer REFERENCES project(project_id),
+CREATE TABLE compensation_project (
        compensation_id integer REFERENCES compensation(id),
+       project_id integer REFERENCES project(project_id),
        active boolean default true,
        created timestamp WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE project_compensation IS 'Compensations that are, or have been, associated with a project';
+COMMENT ON TABLE compensation_project IS 'Compensations that are, or have been, associated with a project';
 
 CREATE TABLE compensation_user_period (
        compensation_id integer REFERENCES project(project_id),

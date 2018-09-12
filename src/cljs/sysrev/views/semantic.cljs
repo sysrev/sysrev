@@ -17,3 +17,5 @@
                 ($ (goog.object/get semantic-ui "Form") :Radio)))
 (def Label (r/adapt-react-class
             (goog.object/get semantic-ui "Label")))
+(def Button (r/adapt-react-class
+             (goog.object/get semantic-ui "Button")))

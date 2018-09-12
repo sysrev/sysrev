@@ -920,10 +920,10 @@
          {:error {:state internal-server-error
                   :message (.getMessage e)}})))
 
-(defn update-project-compensation!
+(defn toggle-active-project-compensation!
   "Update compensation-id associated with project-id"
-  [project-id compensation-id rate]
-  (try (compensation/update-project-compensation! project-id compensation-id rate)
+  [project-id compensation-id active?]
+  (try (compensation/toggle-active-project-compensation! project-id compensation-id active?)
        {:result {:success true}}
        (catch Throwable e
          {:error {:status internal-server-error

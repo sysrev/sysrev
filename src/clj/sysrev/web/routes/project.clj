@@ -752,13 +752,13 @@
         (let [project-id (-> request :params :project-id parse-integer)]
           (api/read-project-compensations project-id))))
 
-  (PUT "/api/project-compensation" request
+  (PUT "/api/toggle-active-project-compensation" request
        (wrap-authorize
         request {:roles ["admin"]}
         (let [project-id (-> request :body :project-id)
               compensation-id (-> request :body :compensation-id)
-              rate (-> request :body :rate)]
-          (api/update-project-compensation! project-id compensation-id rate))))
+              active (-> request :body :active)]
+          (api/toggle-active-project-compensation! project-id compensation-id active))))
 
   (DELETE "/api/project-compensation" request
           (wrap-authorize
