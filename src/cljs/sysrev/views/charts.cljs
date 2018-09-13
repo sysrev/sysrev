@@ -33,19 +33,37 @@
    ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
     "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
 
-(defn animate-duration []
-  (if (mobile?) 0 1000))
+(defn on-graph-hover [items-clickable?]
+  (fn [event elts]
+    (when (-> event .-type (not= "click"))
+      ;; set cursor to pointer if over a clickable item,
+      ;; otherwise reset cursor to default
+      (let [elts (-> elts js->clj)
+            idx (when items-clickable?
+                  (when (and (coll? elts) (not-empty elts))
+                    (-> elts first (aget "_index"))))]
+        (set! (-> event .-target .-style .-cursor)
+              (if (and items-clickable? idx (integer? idx) (>= idx 0))
+                "pointer" "default"))))))
 
-(defn wrap-animate-options [options & [duration]]
-  (let [duration (or duration (animate-duration))]
+(defn on-legend-hover []
+  (fn [event item]
+    (set! (-> event .-target .-style .-cursor) "pointer")))
+
+(defn wrap-default-options
+  [options & {:keys [animate? items-clickable?]
+              :or {animate? true items-clickable? false}}]
+  (let [mobile? (mobile?)
+        duration (cond (not animate?) 0
+                       mobile?        0
+                       :else          1000)]
     (merge-with merge
                 {:animation {:duration duration}
-                 :hover {:animationDuration duration}
-                 :responsiveAnimationDuration duration}
+                 :responsiveAnimationDuration duration
+                 :hover {:animationDuration (if mobile? 0 300)}
+                 :legend {:onHover (on-legend-hover)}
+                 :onHover (on-graph-hover items-clickable?)}
                 options)))
-
-(defn wrap-disable-animation [options]
-  (wrap-animate-options options 0))
 
 (def series-colors ["rgba(29,252,35,0.4)"   ;light green
                     "rgba(252,35,29,0.4)"   ;red
@@ -80,7 +98,7 @@
                  (fn [x1 x2]
                    (if (or (map? x1) (map? x2))
                      (merge x1 x2) x2))
-                 (wrap-animate-options
+                 (wrap-default-options
                   {:scales
                    {:xAxes [{:stacked true
                              :ticks {:fontColor font-color}
@@ -108,7 +126,7 @@
          :backgroundColor colors}
         data {:labels labels
               :datasets [dataset]}
-        options (wrap-animate-options
+        options (wrap-default-options
                  {:legend {:display false}
                   :onClick
                   (when on-click
@@ -116,7 +134,8 @@
                       (let [elts (-> elts js->clj)]
                         (when (and (coll? elts) (not-empty elts))
                           (when-let [idx (-> elts first (aget "_index"))]
-                            (on-click idx))))))})]
+                            (on-click idx))))))}
+                 :items-clickable? (if on-click true false))]
     [chartjs/doughnut {:data data
                        :options options
                        :height 300}]))

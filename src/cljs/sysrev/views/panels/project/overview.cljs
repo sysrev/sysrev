@@ -60,36 +60,42 @@
         bstyle (fn [color]
                  {:border (str "1px solid " color)})]
     [:div.label-status-help
-     [:div.ui.top.attached.small.green.button.grouped-header
-      "Include"]
-     [:div.ui.bottom.attached.small.basic.buttons
-      [:a.ui.button
-       {:on-click #(nav-article-status [true :determined])}
-       (str "Full (" (+ (scount [:consistent true])
-                        (scount [:resolved true])) ")")]
-      [:a.ui.button
-       {:on-click #(nav-article-status [true :single])}
-       (str "Partial (" (scount [:single true]) ")")]]
-     [:div.ui.top.attached.small.orange.button.grouped-header
-      "Exclude"]
-     [:div.ui.bottom.attached.small.basic.buttons
-      [:a.ui.button
-       {:on-click #(nav-article-status [false :determined])}
-       (str "Full (" (+ (scount [:consistent false])
-                        (scount [:resolved false])) ")")]
-      [:a.ui.button
-       {:on-click #(nav-article-status [false :single])}
-       (str "Partial (" (scount [:single false]) ")")]]
-     [:div.ui.small.basic.buttons
-      [:a.ui.button
-       {:style (merge (bstyle (:red colors)))
-        :on-click #(nav-article-status [nil :conflict])}
-       (str "Conflict (" (scount [:conflict nil]) ")")]
-      [:a.ui.button
-       {:style (merge (bstyle (:purple colors)))
-        :on-click #(nav-article-status [nil :resolved])}
-       (str "Resolved (" (+ (scount [:resolved true])
-                            (scount [:resolved false])) ")")]]]))
+     [:div.ui.segments
+      [:div.ui.attached.small.segment.status-header.green
+       "Include"]
+      [:div.ui.attached.segment.status-buttons.with-header
+       [:div.ui.small.basic.fluid.buttons
+        [:a.ui.button
+         {:on-click #(nav-article-status [true :determined])}
+         (str "Full (" (+ (scount [:consistent true])
+                          (scount [:resolved true])) ")")]
+        [:a.ui.button
+         {:on-click #(nav-article-status [true :single])}
+         (str "Partial (" (scount [:single true]) ")")]]]]
+     [:div.ui.segments
+      [:div.ui.attached.small.segment.status-header.orange
+       "Exclude"]
+      [:div.ui.attached.segment.status-buttons.with-header
+       [:div.ui.small.basic.fluid.buttons
+        [:a.ui.button
+         {:on-click #(nav-article-status [false :determined])}
+         (str "Full (" (+ (scount [:consistent false])
+                          (scount [:resolved false])) ")")]
+        [:a.ui.button
+         {:on-click #(nav-article-status [false :single])}
+         (str "Partial (" (scount [:single false]) ")")]]]]
+     [:div.ui.segments
+      [:div.ui.attached.segment.status-buttons
+       [:div.ui.small.basic.fluid.buttons
+        [:a.ui.button
+         {:style (merge (bstyle (:red colors)))
+          :on-click #(nav-article-status [nil :conflict])}
+         (str "Conflict (" (scount [:conflict nil]) ")")]
+        [:a.ui.button
+         {:style (merge (bstyle (:purple colors)))
+          :on-click #(nav-article-status [nil :resolved])}
+         (str "Resolved (" (+ (scount [:resolved true])
+                              (scount [:resolved false])) ")")]]]]]))
 
 (defn- ReviewStatusBox []
   (let [project-id @(subscribe [:active-project-id])
@@ -269,7 +275,7 @@
                      :lineTension 0
                      :data (vec xvals)}]}
         options
-        (charts/wrap-animate-options
+        (charts/wrap-default-options
          {:legend {:display false}
           :scales
           {:xAxes [{:ticks
@@ -465,7 +471,10 @@
                 (filterv #(not (filtered-color? (:color %))) items))
               labels (->> processed-label-counts
                           color-filter-fn
-                          (mapv :value))
+                          (mapv :value)
+                          (mapv str)
+                          (mapv #(if (<= (count %) 27)
+                                   % (str (subs % 0 25) "..."))))
               counts (->> processed-label-counts
                           color-filter-fn
                           (mapv :count))
@@ -490,7 +499,7 @@
                                 :backgroundColor (if (empty? counts)
                                                    ["#000000"]
                                                    background-colors)}]}
-              options (charts/wrap-disable-animation
+              options (charts/wrap-default-options
                        {:scales
                         {:xAxes
                          [{:display true
@@ -521,19 +530,19 @@
                                  (:fillStyle (js->clj legend-item
                                                       :keywordize-keys true))
                                  enabled? (not (filtered-color? current-legend-color))]
-                             #_ (.preventDefault e)
                              (if enabled?
                                ;; filter out the associated data points
                                (swap! color-filter #(conj % current-legend-color))
                                ;; the associated data points should no longer be filtered out
-                               (swap! color-filter #(disj % current-legend-color)))))}})
+                               (swap! color-filter #(disj % current-legend-color)))))}}
+                       :animate? false)
               height (charts/label-count->chart-height (count labels))]
           [:div.ui.segment
            [:h4.ui.dividing.header "Member Label Counts"]
            [chartjs/horizontal-bar
             {:data data
              :height height
-             :options (merge options)}]])))))
+             :options options}]])))))
 
 (defn LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -612,13 +621,14 @@
      [chartjs/bar
       {:data {:labels labels
               :datasets datasets}
-       :options {:scales
-                 {:xAxes [{:stacked true
-                           :ticks {:fontColor font-color}
-                           :scaleLabel {:fontColor font-color}}]
-                  :yAxes [{:ticks {:fontColor font-color}
-                           :scaleLabel {:fontColor font-color}}]}
-                 :legend {:labels {:fontColor font-color}}}
+       :options (charts/wrap-default-options
+                 {:scales
+                  {:xAxes [{:stacked true
+                            :ticks {:fontColor font-color}
+                            :scaleLabel {:fontColor font-color}}]
+                   :yAxes [{:ticks {:fontColor font-color}
+                            :scaleLabel {:fontColor font-color}}]}
+                  :legend {:labels {:fontColor font-color}}})
        :height 170}]]))
 
 (defn PredictionHistogram []

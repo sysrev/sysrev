@@ -57,32 +57,63 @@ div.upload-container {
 
 div.label-status-help {
     text-align: center;
-}
 
-div.label-status-help .ui.basic.button.status-link {
-    box-shadow: none;
-    width: 90%;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 3px;
-    margin-bottom: 3px;
-}
+    > .ui.segments {
+        width: 90% !important;
+        margin-left: auto;
+        margin-right: auto;
+        box-shadow: none !important;
 
-div.label-status-help > .ui.top.attached.button,
-div.label-status-help > .ui.buttons {
-    width: 90% !important;
-    margin-left: auto;
-    margin-right: auto;
-}
+        > .ui.attached.segment {
+            box-shadow: none !important;
+        }
 
-div.label-status-help > .ui.buttons > .ui.button {
-    padding-left: 3px;
-    padding-right: 3px;
-    width: 50%;
-}
+        .ui.basic.buttons > .ui.button {
+            box-shadow: none !important;
+        }
 
-div.label-status-help .ui.bottom.attached.buttons {
-    margin-bottom: 8px;
+        .ui.basic.buttons > .ui.button:hover {
+            background-color: rgba(180,180,180,0.1) !important;
+            color: @text !important;
+        }
+
+        > .ui.attached.segment.status-header {
+            padding: 0.5em;
+            color: rgba(250,250,250,1.0);
+            .noselect;
+        }
+        > .ui.attached.segment.status-header.green {
+            background-color: @green;
+        }
+        > .ui.attached.segment.status-header.orange {
+            background-color: @orange;
+        }
+        > .ui.attached.segment.status-buttons {
+            padding: 0;
+            border-width: 0;
+
+            > .ui.fluid.buttons {
+                border-width: 0;
+                > .ui.button {
+                    padding-left: 3px;
+                    padding-right: 3px;
+                    width: 50%;
+                }
+            }
+        }
+        > .ui.attached.segment.status-buttons.with-header {
+            > .ui.fluid.buttons {
+                border-width: 1px;
+                border-top-width: 0px;
+                border-top-left-radius: 0;
+                border-top-right-radius: 0;
+                > .ui.button {
+                    border-top-left-radius: 0;
+                    border-top-right-radius: 0;
+                }
+            }
+        }
+    }
 }
 
 div.grid.export-data > .column > .ui.segment > h5 {
