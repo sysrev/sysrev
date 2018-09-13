@@ -10,8 +10,8 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
-            [sysrev.util]
-            [sysrev.shared.util :refer [in? map-values]])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:project :project :articles])
@@ -86,18 +86,22 @@
 (defn reset-filters []
   (dispatch [::al/reset-filters (get-context)]))
 
-(defn load-consensus-settings [& {:keys [status inclusion]}]
-  (let [display {:show-inclusion true}
+(defn load-consensus-settings
+  "Handles loading settings corresponding to consensus categories on
+  overview page and navigating to article list page."
+  [& {:keys [status inclusion]}]
+  (let [context (get-context)
+        display {:show-inclusion true}
         filters [{:consensus {:status status
                               :inclusion inclusion}}]]
-    (dispatch-sync [::al/set-recent-nav-action
-                    (get-context) :transition])
-    (dispatch-sync [:article-list/load-settings
-                    (get-context)
-                    {:filters filters
-                     :display display
-                     :sort-by :content-updated
-                     :sort-dir :desc}])))
+    (dispatch [:article-list/load-settings
+               (get-context)
+               {:filters filters
+                :display display
+                :sort-by :content-updated
+                :sort-dir :desc}])
+    (dispatch [::al/navigate context :redirect? false])
+    (util/scroll-top)))
 
 (reg-event-fx
  :project-articles/load-settings [trim-v]

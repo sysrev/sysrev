@@ -77,7 +77,7 @@
          (do (dispatch
               [:data/after-load data-item :project-articles-route
                (list set-panel #(js/setTimeout sync-params 25))])
-             (dispatch-sync set-transition)
+             (dispatch set-transition)
              (article-list/require-list context)
              (article-list/reload-list context))
 

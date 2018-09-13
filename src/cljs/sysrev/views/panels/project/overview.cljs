@@ -46,9 +46,8 @@
 (defn nav-article-status [[inclusion group-status]]
   (when-let [project-id @(subscribe [:active-project-id])]
     (if use-new-article-list?
-      (do (articles/load-consensus-settings :status group-status
-                                            :inclusion inclusion)
-          (nav/nav-scroll-top (project-uri project-id "/articles")))
+      (articles/load-consensus-settings :status group-status
+                                        :inclusion inclusion)
       (do (dispatch [:navigate [:project :project :articles]
                      {:project-id project-id}])
           (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
