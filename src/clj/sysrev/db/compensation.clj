@@ -1,7 +1,7 @@
 (ns sysrev.db.compensation
   (:require [honeysql.helpers :as sqlh :refer [insert-into values left-join select from where sset]]
             [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.db.core :refer [do-query do-execute to-jsonb]]))
+            [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]))
 
 ;; compensation: id, rate (json ex: {:item "article" :amount 100}), created
 ;; project_compensation: project_id, compensation_id, active, created
@@ -24,7 +24,8 @@
         (values [{:project_id project-id
                   :compensation_id compensation-id
                   :active true}])
-        do-execute)))
+        do-execute)
+    compensation-id))
 
 (defn read-project-compensations
   [project-id]
@@ -48,6 +49,47 @@
         new-compensation (assoc current-compensation :rate rate)]
     (delete-project-compensation! project-id compensation-id)
     (swap! state assoc project-id (conj (get @state project-id) new-compensation))))
+
+(defn create-compensation-period-for-user!
+  "Make an entry into compensation_user_period for compensation-id and user-id. The period_end value
+  is nil and represents a currently active compensation period"
+  [compensation-id user-id]
+  (-> (insert-into :compensation_user_period)
+      (values [{:compensation_id compensation-id
+                :web_user_id user-id}])
+      do-execute))
+
+(defn end-compensation-period-for-user!
+  "Mark the period_end as now for compensation-id with user-id. period_end must not already have been set"
+  [compensation-id user-id]
+  (-> (sqlh/update :compensation_user_period)
+      (sset {:period_end (sql-now)})
+      (where [:and
+              [:= :compensation_id compensation-id]
+              [:= :web_user_id user-id]
+              [:= :period_end nil]])
+      do-execute))
+
+(defn project-users
+  "Get all user-id's for project-id"
+  [project-id]
+  (-> (select :user_id)
+      (from :project_member)
+      (where [:= :project-id project-id])
+      do-query))
+
+(defn create-compensation-period-for-all-users!
+  "Begin the compensation period for compensation-id for all users in project-id"
+  [project-id compensation-id]
+  (mapv #(create-compensation-period-for-user! compensation-id (:user-id %))
+        (project-users project-id)))
+
+(defn end-compensation-period-for-all-users!
+  "End the compensation period for compensation-id for all users in project-id"
+  [project-id compensation-id]
+  (mapv #(end-compensation-period-for-user! compensation-id (:user-id %))
+        (project-users project-id)))
+
 (defn toggle-active-project-compensation!
   "Set active to active? on compensation-id for project-id"
   [project-id compensation-id active?]
@@ -57,6 +99,3 @@
               [:= :project_id project-id]
               [:= :compensation_id compensation-id]])
       do-execute))
-
-
-

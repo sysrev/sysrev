@@ -910,23 +910,47 @@
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
 
+(defn toggle-active-project-compensation!
+  "Update compensation-id associated with project-id. Because of current logic, this assumes
+  you are always setting active to true"
+  [project-id compensation-id active?]
+  (try
+    (let [current-compensations (compensation/read-project-compensations project-id)
+          this-compensation (->> current-compensations
+                                 (filterv #(= compensation-id (:id %)))
+                                 first)
+          other-compensations-id (->> current-compensations
+                                      (filterv #(not= compensation-id (:id %)))
+                                      (mapv :id))]
+      ;; is this compensation active already set to true? if so, ignore the rest of this logic
+      (when-not (:active this-compensation)
+        ;; toggle this compensation
+        (compensation/toggle-active-project-compensation! project-id compensation-id true)
+        ;; turn on the compensation period for this compensation
+        (compensation/create-compensation-period-for-all-users! project-id compensation-id)
+        ;; toggle all other compensations off
+        (mapv #(compensation/toggle-active-project-compensation! project-id % false) other-compensations-id)
+        ;; end the compensation period for all other compensations associated with the project
+        (mapv #(compensation/end-compensation-period-for-all-users! project-id %) other-compensations-id))
+      {:result {:success true}})
+    (catch Throwable e
+      {:error {:status internal-server-error
+               :message (.getMessage e)}})))
+
 (defn create-project-compensation!
   "Create a compensation for project-id with rate"
   [project-id rate]
-  (try (compensation/create-project-compensation! project-id rate)
+  (try
+    (let [compensation-id (compensation/create-project-compensation! project-id rate)]
+;;;; below logic is convoluted due to the 'one active compensation per project at a time' rule.
+      ;; toggle the compensation off
+      (compensation/toggle-active-project-compensation! project-id compensation-id false)
+      ;; now turn it back on again, making it the default
+      (toggle-active-project-compensation! project-id compensation-id true))
        {:result {:success true
                  :rate rate}}
        (catch Throwable e
          {:error {:state internal-server-error
-                  :message (.getMessage e)}})))
-
-(defn toggle-active-project-compensation!
-  "Update compensation-id associated with project-id"
-  [project-id compensation-id active?]
-  (try (compensation/toggle-active-project-compensation! project-id compensation-id active?)
-       {:result {:success true}}
-       (catch Throwable e
-         {:error {:status internal-server-error
                   :message (.getMessage e)}})))
 
 (defn delete-project-compensation!

@@ -17,7 +17,7 @@ CREATE TABLE compensation_project (
 COMMENT ON TABLE compensation_project IS 'Compensations that are, or have been, associated with a project';
 
 CREATE TABLE compensation_user_period (
-       compensation_id integer REFERENCES project(project_id),
+       compensation_id integer REFERENCES compensation(id),
        web_user_id integer REFERENCES web_user(user_id),
        period_begin timestamp WITH TIME ZONE NOT NULL DEFAULT now(),
        period_end timestamp WITH TIME ZONE
