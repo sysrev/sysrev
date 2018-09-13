@@ -16,26 +16,21 @@
     [secondary-tabbed-menu
      [{:tab-id :add-articles
        :content [:span [:i.list.icon] "Sources"]
-       :action (project-uri project-id "/add-articles")
-       #_ (list [:project :project :add-articles] action-params)}
+       :action (project-uri project-id "/add-articles")}
       {:tab-id :labels
        :content [:span [:i.tags.icon] "Label Definitions"]
-       :action (project-uri project-id "/labels/edit")
-       #_ (list [:project :project :labels :edit] action-params)}
+       :action (project-uri project-id "/labels/edit")}
       (when (or member? @(subscribe [:user/admin?]))
         {:tab-id :invite-link
          :content [:span [:i.mail.outline.icon] "Invite Link"]
-         :action (project-uri project-id "/invite-link")
-         #_ (list [:project :project :invite-link] action-params)})
+         :action (project-uri project-id "/invite-link")})
       (when (> total 0)
         {:tab-id :export-data
          :content [:span [:i.download.icon] "Export"]
-         :action (project-uri project-id "/export")
-         #_ (list [:project :project :export-data] action-params)})
+         :action (project-uri project-id "/export")})
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
-       :action (project-uri project-id "/settings")
-       #_ (list [:project :project :settings] action-params)}]
+       :action (project-uri project-id "/settings")}]
      [{:tab-id :support
        :content [:span [:i.dollar.sign.icon] "Support"]
        :action (project-uri project-id "/support")}]
@@ -93,65 +88,53 @@
         @(subscribe [:project/article-counts])
         mobile? (mobile?)
         action-params {:project-id project-id}
-        member? @(subscribe [:self/member? project-id])]
+        member? @(subscribe [:self/member? project-id])
+        ready? (and (integer? total) (> total 0))
+        not-ready-msg (when (not ready?) "No articles in project yet")
+        not-member-msg (when (not member?) "Not a member of this project")]
     (when total
       (remove
        nil?
        (list
         ^{:key [:project-primary-menu]}
         [primary-tabbed-menu
-         [(when (> total 0)
-            {:tab-id [:project :overview]
-             :content [:span "Overview"]
-             :action (project-uri project-id "")
-             #_ (list [:project :project :overview] action-params)})
-          (when (> total 0)
-            {:tab-id [:project :articles]
-             :content [:span
-                       (when-not mobile?
-                         [:span
-                          [:i.unordered.list.icon]
-                          #_
-                          [:i.icons
-                           [:i.text.file.outline.icon]
-                           [:i.corner.tag.icon]]
-                          " "])
-                       "Articles"]
-             :action (project-uri project-id "/articles")
-             #_ (list [:project :project :articles] action-params)})
-          (when (and (not use-new-article-list?)
-                     member? (> total 0))
+         [{:tab-id [:project :overview]
+           :content [:span "Overview"]
+           :action (project-uri project-id "")
+           :disabled (not ready?)
+           :tooltip not-ready-msg}
+          {:tab-id [:project :articles]
+           :content [:span
+                     (when-not mobile?
+                       [:span [:i.unordered.list.icon] " "])
+                     "Articles"]
+           :action (project-uri project-id "/articles")
+           :disabled (not ready?)
+           :tooltip not-ready-msg}
+          (when (not use-new-article-list?)
             {:tab-id [:user :labels]
              :content [:span
                        (when-not mobile?
-                         [:span
-                          [:i.user.icon]
-                          #_
-                          [:i.icons
-                           [:i.user.icon]
-                           [:i.corner.tag.icon]]
-                          " "])
+                         [:span [:i.user.icon] " "])
                        (if mobile?
                          "Answers" "Saved Answers")]
              :action (project-uri project-id "/user")
-             #_ (list [:project :user :labels] action-params)})
-          (when (and member? (> total 0))
-            {:tab-id [:review]
-             :content [:span
-                       (when-not mobile?
-                         [:span
-                          #_ [:i.pen.square.icon]
-                          [:i.pencil.alternate.icon]])
-                       "Review"]
-             :action (project-uri project-id "/review")
-             #_ (list [:project :review] action-params)
-             :class "review-articles"})]
+             :disabled (or (not ready?) (not member?))
+             :tooltip (or not-ready-msg not-member-msg)})
+          {:tab-id [:review]
+           :content [:span
+                     (when-not mobile?
+                       [:span [:i.pencil.alternate.icon]])
+                     "Review"]
+           :action (project-uri project-id "/review")
+           :class "review-articles"
+           :disabled (or (not ready?) (not member?))
+           :tooltip (or not-ready-msg not-member-msg)}]
          [{:tab-id :manage
            :content (if mobile?
                       [:span [:i.cog.icon]]
                       [:span [:i.cog.icon] " Manage"])
-           :action (project-uri project-id "/manage")
-           #_ (list [:project :project :add-articles] action-params)}]
+           :action (project-uri project-id "/manage")}]
          active-tab
          (if manage?
            "attached project-menu"

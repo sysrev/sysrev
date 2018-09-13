@@ -4,7 +4,7 @@
             [clojure.test :refer :all]
             [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.create-project :as project]
-            [sysrev.test.browser.navigate :refer [log-in log-out]]
+            [sysrev.test.browser.navigate :as navigate :refer [log-in log-out]]
             [sysrev.test.core :refer [default-fixture]]))
 
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
@@ -36,6 +36,7 @@
                        10000 75)
 ;;; project description
       ;; create project description
+      (navigate/wait-until-overview-ready)
       (browser/click overview-tab)
       (browser/click create-project-description)
       ;; enter markdown

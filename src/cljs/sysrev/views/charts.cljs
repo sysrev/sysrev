@@ -36,15 +36,16 @@
 (defn on-graph-hover [items-clickable?]
   (fn [event elts]
     (when (-> event .-type (not= "click"))
-      ;; set cursor to pointer if over a clickable item,
-      ;; otherwise reset cursor to default
-      (let [elts (-> elts js->clj)
-            idx (when items-clickable?
-                  (when (and (coll? elts) (not-empty elts))
-                    (-> elts first (aget "_index"))))]
-        (set! (-> event .-target .-style .-cursor)
-              (if (and items-clickable? idx (integer? idx) (>= idx 0))
-                "pointer" "default"))))))
+      (let [cursor
+            ;; set cursor to pointer if over a clickable item,
+            ;; otherwise reset cursor to default
+            (if (not items-clickable?) "default"
+                (let [elts (-> elts js->clj)
+                      idx (when (and (coll? elts) (not-empty elts))
+                            (-> elts first (aget "_index")))]
+                  (if (and (integer? idx) (>= idx 0))
+                    "pointer" "default")))]
+        (set! (-> event .-target .-style .-cursor) cursor)))))
 
 (defn on-legend-hover []
   (fn [event item]

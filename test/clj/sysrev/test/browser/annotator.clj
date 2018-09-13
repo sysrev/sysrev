@@ -7,7 +7,7 @@
             [sysrev.db.users :as users]
             [sysrev.test.browser.core :as browser :refer [deftest-browser]]
             [sysrev.test.browser.create-project :as project]
-            [sysrev.test.browser.navigate :refer [log-in log-out]]
+            [sysrev.test.browser.navigate :as navigate :refer [log-in log-out]]
             [sysrev.test.browser.review-articles :as review-articles]
             [sysrev.test.core :refer [default-fixture]]))
 
@@ -46,6 +46,7 @@
         ;; review the single article result
         ;; note: if issues start arising with this part of the test
         ;; check to see that the search-term still returns only one result
+        (navigate/wait-until-overview-ready)
         (browser/click review-articles/review-articles-button)
         (browser/wait-until-exists {:xpath "//div[@id='project_review']"})
         (review-articles/set-article-labels

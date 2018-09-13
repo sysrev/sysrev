@@ -417,6 +417,7 @@
              #(= 1 (count (taxi/find-elements
                            create-project/article-sources-list-xpath)))
              10000 50)
+            (navigate/wait-until-overview-ready)
 
 ;;; create new labels
             ;; for now, this is manually in the db, eventually this whole
