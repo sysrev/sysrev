@@ -1,5 +1,9 @@
 (ns sysrev.db.compensation
-  (:require [honeysql.helpers :as sqlh :refer [insert-into values left-join select from where sset]]
+  (:require [clj-time.coerce :as tc]
+            [clj-time.local :as l]
+            [clj-time.core :as t]
+            [clj-time.format :as f]
+            [honeysql.helpers :as sqlh :refer [insert-into values left-join select from where sset modifiers]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]))
 
@@ -99,3 +103,59 @@
               [:= :project_id project-id]
               [:= :compensation_id compensation-id]])
       do-execute))
+
+;; for now, this is just the article labeled count. Eventually, should use the "item" field of the rate on the compensation
+(defn compensation-articles-for-user
+  "Returns a count of articles associated with a compensation-id for user-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
+  [user-id compensation-id start-date end-date]
+  (let [compensation-amount (-> (select :rate)
+                                (from :compensation)
+                                (where [:= :id compensation-id])
+                                do-query
+                                first
+                                :rate
+                                :amount)
+        compensation-periods (-> (select :period_begin
+                                         :period_end)
+                                 (from :compensation_user_period)
+                                 (where [:and
+                                         [:= :compensation_id compensation-id]
+                                         [:= :web_user_id user-id]])
+                                 do-query)
+        time-period-statement (->> compensation-periods
+                                   (mapv #(vector :and
+                                                  [:>= :al.added_time (:period-begin %)]
+                                                  [:<= :al.added_time (or (:period-end %)
+                                                                          (sql-now))]))
+                                   (cons :or)
+                                   (into []))]
+    ;; check that the there is really a compensation with a time period
+    (if (> (count time-period-statement) 1)
+      (-> (select :%count.%distinct.al.article_id ;; :al.added_time :a.project_id
+                    )
+          (from [:article_label :al])
+          (left-join [:article :a]
+                     [:= :al.article_id :a.article_id])
+          (where [:and
+                  [:= :al.user_id user-id]
+                  [:and
+                   [:>= :al.added_time (->> start-date (f/parse (f/formatters :date)) (tc/to-sql-time))]
+                   [:< :al.added_time (tc/to-sql-time (t/plus (->> end-date (f/parse (f/formatters :date))) (t/days 1)))]]
+                  time-period-statement])
+          do-query
+          first
+          :count)
+      ;; there isn't any time period associated with this compensation for this user
+      0
+      )))
+
+
+(defn project-compensation-for-user
+  "Calculate the total owed to user-id by project-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
+  [project-id user-id start-date end-date]
+  (let [project-compensations (read-project-compensations project-id)]
+    (mapv #(hash-map :articles (compensation-articles-for-user user-id (:id %) start-date end-date)
+                     :compensation-id (:id %)
+                     :rate (:rate %)
+                     :user-id user-id
+                     :project-id project-id) project-compensations)))
