@@ -254,8 +254,10 @@
      (with-loader [[:project project-id]] {:dimmer :fixed}
        [charts/bar-chart (+ 35 (* 15 (count visible-user-ids)))
         user-names ynames yss
-        ["rgba(33,186,69,0.55)"
-         "rgba(242,113,28,0.55)"]])]))
+        :colors ["rgba(33,186,69,0.55)"
+                 "rgba(242,113,28,0.55)"]
+        :on-click #(articles/load-member-label-settings
+                    (nth visible-user-ids %))])]))
 
 (defn RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])
@@ -372,8 +374,8 @@
             labels (mapv :instance-name entries)
             counts (mapv :tfidf entries)]
         [charts/bar-chart height labels ["count"] [counts]
-         ["rgba(33,186,69,0.55)"]
-         {:legend {:display false}}]))))
+         :colors ["rgba(33,186,69,0.55)"]
+         :options {:legend {:display false}}]))))
 
 (defn KeyTerms []
   (let [active-tab (or @important-terms-tab :mesh)
@@ -469,8 +471,9 @@
               color-filter-fn
               (fn [items]
                 (filterv #(not (filtered-color? (:color %))) items))
-              labels (->> processed-label-counts
-                          color-filter-fn
+              entries (->> processed-label-counts
+                           color-filter-fn)
+              labels (->> entries
                           (mapv :value)
                           (mapv str)
                           (mapv #(if (<= (count %) 27)
@@ -534,8 +537,18 @@
                                ;; filter out the associated data points
                                (swap! color-filter #(conj % current-legend-color))
                                ;; the associated data points should no longer be filtered out
-                               (swap! color-filter #(disj % current-legend-color)))))}}
-                       :animate? false)
+                               (swap! color-filter #(disj % current-legend-color)))))}
+                        :onClick
+                        (fn [event elts]
+                          (let [elts (-> elts js->clj)]
+                            (when (and (coll? elts) (not-empty elts))
+                              (when-let [idx (-> elts first (aget "_index"))]
+                                (let [{:keys [label-id value]}
+                                      (nth entries idx)]
+                                  (articles/load-label-value-settings
+                                   label-id value))))))}
+                       :animate? false
+                       :items-clickable? true)
               height (charts/label-count->chart-height (count labels))]
           [:div.ui.segment
            [:h4.ui.dividing.header "Member Label Counts"]

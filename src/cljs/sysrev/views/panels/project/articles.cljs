@@ -86,22 +86,65 @@
 (defn reset-filters []
   (dispatch [::al/reset-filters (get-context)]))
 
+(defn- load-settings-and-navigate [{:keys [filters display sort-by sort-dir]
+                                    :as settings}]
+  (let [context (get-context)]
+    (dispatch [:article-list/load-settings
+               (get-context) settings])
+    (dispatch [::al/navigate context :redirect? false])
+    (util/scroll-top)))
+
 (defn load-consensus-settings
-  "Handles loading settings corresponding to consensus categories on
-  overview page and navigating to article list page."
+  "Loads settings corresponding to a consensus category from graphs on overview
+  page, and navigates to articles page."
   [& {:keys [status inclusion]}]
   (let [context (get-context)
         display {:show-inclusion true}
         filters [{:consensus {:status status
                               :inclusion inclusion}}]]
-    (dispatch [:article-list/load-settings
-               (get-context)
-               {:filters filters
-                :display display
-                :sort-by :content-updated
-                :sort-dir :desc}])
-    (dispatch [::al/navigate context :redirect? false])
-    (util/scroll-top)))
+    (load-settings-and-navigate
+     {:filters filters
+      :display display
+      :sort-by :content-updated
+      :sort-dir :desc})))
+
+(defn load-member-label-settings
+  "Loads settings corresponding to a user's article count from graphs on
+  overview page, and navigates to articles page."
+  [user-id]
+  (let [context (get-context)
+        display {:show-inclusion true
+                 :show-labels false
+                 :show-notes false}
+        filters [{:consensus {:status nil
+                              :inclusion nil}}
+                 {:has-user {:user user-id
+                             :content :labels
+                             :confirmed true}}]]
+    (load-settings-and-navigate
+     {:filters filters
+      :display display
+      :sort-by :content-updated
+      :sort-dir :desc})))
+
+(defn load-label-value-settings
+  "Loads settings corresponding to a label value from graphs on overview page,
+  and navigates to articles page."
+  [label-id value]
+  (let [context (get-context)
+        display {:show-inclusion true
+                 :show-labels false
+                 :show-notes false}
+        filters [{:has-label {:label-id label-id
+                              :users nil
+                              :values [value]
+                              :inclusion nil
+                              :confirmed true}}]]
+    (load-settings-and-navigate
+     {:filters filters
+      :display display
+      :sort-by :content-updated
+      :sort-dir :desc})))
 
 (reg-event-fx
  :project-articles/load-settings [trim-v]

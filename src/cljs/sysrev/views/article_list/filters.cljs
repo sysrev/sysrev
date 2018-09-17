@@ -28,22 +28,14 @@
   {filter-type
    (merge
     (case filter-type
-      :has-content    {:content nil ;; [:label :annotation :note]
-                       :users nil
-                       :search nil ;; for notes
-                       }
-      :has-label      {:label-id nil
-                       :users nil
-                       :values nil
-                       :confirmed true}
-      :has-annotation {:semantic-class nil
-                       :has-value nil
-                       :users nil}
       :has-user       {:user nil
                        :content nil
                        :confirmed nil}
-      :inclusion      {:label-id nil
-                       :values nil}
+      :has-label      {:label-id nil
+                       :users nil
+                       :values nil
+                       :inclusion nil
+                       :confirmed nil}
       :consensus      {:status nil
                        :inclusion nil})
     {:editing? true})})
@@ -62,9 +54,7 @@
                 :show-unconfirmed true}}
 
      :content
-     {:filters [#_ {:has-content {:content nil
-                                  :confirmed true}}
-                {:has-user {:user nil
+     {:filters [{:has-user {:user nil
                             :content nil
                             :confirmed nil}}]
       :display {:self-only false
@@ -167,13 +157,14 @@
            :has-user
            (let [{:keys [user content confirmed]} value]
              {filter-type
-              {:user (if (integer? user) user nil)
-               :content content
-               :confirmed confirmed}})
+              (merge value
+                     {:user (if (integer? user) user nil)})})
 
            :consensus
-           (let [{:keys [status inclusion]} value]
-             {filter-type value})
+           {filter-type value}
+
+           :has-label
+           {filter-type value}
 
            nil)
          (map-values #(dissoc % :editing?)))))
@@ -321,10 +312,33 @@
      #(if (in? label-ids (uuid %))
         (uuid %) nil)]))
 
+(defn- LabelValueDropdown [context label-id value on-change]
+  (let [boolean? @(subscribe [:label/boolean? label-id])
+        categorical? @(subscribe [:label/categorical? label-id])
+        all-values @(subscribe [:label/all-values label-id])
+        entries
+        (cond boolean?      [nil true false]
+              categorical?  (concat [nil] all-values)
+              :else         [nil])]
+    [FilterDropdown
+     entries
+     #(cond (nil? %)   "Any Value"
+            (true? %)  "Yes"
+            (false? %) "No"
+            :else      %)
+     value
+     on-change
+     false
+     (if boolean?
+       #(cond (= % "true")  true
+              (= % "false") false
+              :else         nil)
+       #(if (in? all-values %) % nil))]))
+
 (defn- ContentTypeDropdown [context value on-change]
   [FilterDropdown
    ;; TODO: implement :labels and :annotations options
-   [nil #_ :labels #_ :annotations]
+   [nil :labels :annotations]
    #(case %
       :labels "Labels"
       :annotations "Annotations"
@@ -373,12 +387,18 @@
   (not-empty (process-filter-input ifilter)))
 
 (defn- FilterEditButtons [context filter-idx]
-  (let [valid? (-> @(subscribe [::filters-input context])
-                   (nth filter-idx) ifilter-valid?)]
+  (let [ifilter (-> @(subscribe [::filters-input context])
+                    (nth filter-idx) ifilter-valid?)
+        valid? (-> ifilter ifilter-valid?)
+        filters (vec @(subscribe [::al/filters]))
+        unchanged?
+        (when (contains? filters filter-idx)
+          (= (process-filter-input ifilter)
+             (process-filter-input (nth filters filter-idx))))]
     [:div.field.edit-buttons>div.fields
      [:div.eight.wide.field
       [:button.ui.tiny.fluid.labeled.icon.positive.button
-       {:class (if valid? nil "disabled")
+       {:class (when (or unchanged? (not valid?)) "disabled")
         :on-click
         (when valid?
           (util/wrap-user-event
@@ -416,19 +436,16 @@
         [:label "User"]
         [SelectUserDropdown context user
          (fn [new-value]
-           (update-filter
-            #(assoc % :user new-value)))
+           (update-filter #(assoc % :user new-value)))
          false]]
        [:div.eight.wide.field
         [:label "Content Type"]
         [ContentTypeDropdown context content
          (fn [new-value]
-           (update-filter
-            #(assoc % :content new-value)))]]]]
+           (update-filter #(assoc % :content new-value)))]]]]
      ;; TODO: implement this
-     (when (and false
-                (or (= content :labels)
-                    (in? [true false] confirmed)))
+     (when (or (= content :labels)
+               (in? [true false] confirmed))
        [:div.field
         {:key [:has-user 2]}
         [:div.fields
@@ -437,21 +454,48 @@
           [BooleanDropdown
            context confirmed
            (fn [new-value]
-             (update-filter
-              #(assoc % :confirmed new-value)))]]]]))))
+             (update-filter #(assoc % :confirmed new-value)))]]]]))))
 
-;; TODO: finish this function
 (defmethod FilterEditorFields :has-label [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
-        {:keys [label-id users values confirmed]} value]
+        {:keys [label-id users values inclusion confirmed]} value]
     (list
      [:div.field
       {:key [:has-label 1]}
       [:div.fields
        [:div.eight.wide.field
         [:label "Label"]
-        [SelectLabelDropdown context label-id nil]]
-       [:div.eight.wide.field]]])))
+        [SelectLabelDropdown context label-id
+         (fn [new-value]
+           (update-filter #(assoc % :label-id new-value)))]]
+       [:div.eight.wide.field
+        [:label "User"]
+        [SelectUserDropdown context (first users)
+         (fn [new-value]
+           (update-filter #(assoc % :users
+                                  (if (nil? new-value) nil [new-value]))))]]]]
+     [:div.field
+      {:key [:has-label 2]}
+      [:div.fields
+       [:div.eight.wide.field
+        [:label "Answer Value"]
+        [LabelValueDropdown context label-id (first values)
+         (fn [new-value]
+           (update-filter #(assoc % :values
+                                  (if (nil? new-value) nil [new-value]))))]]
+       [:div.eight.wide.field
+        [:label "Inclusion"]
+        [BooleanDropdown context inclusion
+         (fn [new-value]
+           (update-filter #(assoc % :inclusion new-value)))]]]]
+     [:div.field
+      {:key [:has-label 3]}
+      [:div.fields
+       [:div.eight.wide.field
+        [:label "Confirmed"]
+        [BooleanDropdown context confirmed
+         (fn [new-value]
+           (update-filter #(assoc % :confirmed new-value)))]]]])))
 
 (defmethod FilterEditorFields :consensus [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
@@ -471,17 +515,36 @@
          (fn [new-value]
            (update-filter #(assoc % :inclusion new-value)))]]]])))
 
-;; TODO: break up into multiple functions
+(defn- FilterEditNegationControl [context filter-idx ifilter update-filter]
+  (let [[[_ value]] (vec ifilter)
+        {:keys [negate]} value]
+    [:div.field.filter-negation>div.fields
+     [:div.sixteen.wide.field
+      [:div.ui.fluid.buttons
+       [:button.ui.tiny.fluid.button
+        {:class (if negate nil "primary")
+         :on-click
+         (util/wrap-user-event
+          (fn [] (update-filter #(dissoc % :negate))))}
+        "Match"]
+       [:button.ui.tiny.fluid.button
+        {:class (if negate "primary" nil)
+         :on-click
+         (util/wrap-user-event
+          (fn [] (update-filter #(assoc % :negate true))))}
+        "Exclude"]]]]))
+
 (defn- FilterEditElement
   [context filter-idx]
-  [:div.edit-filter
-   (let [filters @(subscribe [::filters-input context])
-         ifilter (nth filters filter-idx)
-         update-filter #(dispatch [::update-filter-input context filter-idx %])
-         fields (FilterEditorFields context filter-idx ifilter update-filter)]
+  (let [filters @(subscribe [::filters-input context])
+        ifilter (nth filters filter-idx)
+        update-filter #(dispatch [::update-filter-input context filter-idx %])
+        fields (FilterEditorFields context filter-idx ifilter update-filter)]
+    [:div.ui.secondary.segment.edit-filter
      [:div.ui.small.form
+      [FilterEditNegationControl context filter-idx ifilter update-filter]
       (doall (for [field (remove nil? fields)] field))
-      [FilterEditButtons context filter-idx]])])
+      [FilterEditButtons context filter-idx]]]))
 
 (defmulti filter-description (fn [context ftype value] ftype))
 
@@ -490,6 +553,10 @@
 
 (defmethod filter-description :has-user [context ftype value]
   (let [{:keys [user content confirmed]} value
+        confirmed-str (cond (= content :annotations)  nil
+                            (true? confirmed)         "confirmed"
+                            (false? confirmed)        "unconfirmed"
+                            :else                     nil)
         content-str (case content
                       :labels "labels"
                       :annotations "annotations"
@@ -498,12 +565,46 @@
                     @(subscribe [:user/display user]))
         user-str (if (integer? user)
                    (str "user " (pr-str user-name))
-                   "any user")
-        confirmed-str (case confirmed
-                        true "[confirmed only]"
-                        false "[unconfirmed only]"
-                        nil)]
-    (->> ["has" content-str "from" user-str confirmed-str]
+                   "any user")]
+    (->> ["has" confirmed-str content-str "from" user-str]
+         (remove nil?)
+         (str/join " "))))
+
+(defmethod filter-description :has-label [context ftype value]
+  (let [{:keys [label-id users values inclusion confirmed]} value
+        confirmed-str (cond (true? confirmed)  "confirmed"
+                            (false? confirmed) "unconfirmed"
+                            :else              nil)
+        label-str (if (nil? label-id)
+                    (->> ["any" confirmed-str "label"]
+                         (remove nil?)
+                         (str/join " "))
+                    (str (if (nil? confirmed-str)
+                           "" (str confirmed-str " "))
+                         "label ("
+                         (pr-str @(subscribe [:label/display label-id]))
+                         ")"))
+        inclusion-str (case inclusion
+                        true "with positive inclusion"
+                        false "with negative inclusion"
+                        nil)
+        values-str (when (not-empty values)
+                     (str
+                      (if inclusion-str "and" "with")
+                      " value ("
+                      (->> values (map pr-str) (str/join " OR "))
+                      ")"))
+        users-str (if (empty? users)
+                    "any user"
+                    (str
+                     "user ("
+                     (->> users
+                          (map #(pr-str @(subscribe [:user/display %])))
+                          (str/join " OR "))
+                     ")"))]
+    (->> ["has" label-str
+          inclusion-str values-str
+          "from" users-str]
          (remove nil?)
          (str/join " "))))
 
@@ -533,14 +634,17 @@
            fr (nth filters filter-idx)
            [[filter-type value]] (vec fr)
            label-name #(get-in labels [% :short-label])
-           description (filter-description context filter-type value)]
+           description (as-> (filter-description context filter-type value) s
+                         (if (:negate value)
+                           (str "NOT [" s "]")
+                           s))]
        [:div.ui.center.aligned.middle.aligned.grid
         [:div.row
          [:div.middle.aligned.two.wide.column.delete-filter
           [:div.ui.tiny.fluid.icon.button
            {:on-click #(dispatch-sync [::delete-filter context filter-idx])}
            [:i.times.icon]]]
-         [:div.middle.aligned.fourteen.wide.column
+         [:div.middle.aligned.fourteen.wide.column.describe-filter
           [:button.ui.tiny.fluid.button
            {:on-click #(dispatch-sync [::edit-filter context filter-idx])}
            description]]]]))])
@@ -564,11 +668,9 @@
 
 (defn- NewFilterElement [context]
   (when (not @(subscribe [::editing-filter? context]))
-    (let [items [#_ [:has-content "Content" "pencil alternate"]
-                 #_ [:has-label "Label" "tags"]
+    (let [items [[:has-user "User Content" "user"]
+                 [:has-label "Labels" "tags"]
                  #_ [:has-annotation "Annotation" "quote left"]
-                 [:has-user "User" "user"]
-                 #_ [:inclusion "Inclusion" "check circle"]
                  [:consensus "Consensus" "users"]]
           touchscreen? @(subscribe [:touchscreen?])]
       [:div.ui.small.form
@@ -631,7 +733,7 @@
             [:button.ui.tiny.fluid.button
              {:class (cond-> ""
                        (and enabled? (= filters (:filters preset)))
-                       (str " primary")
+                       (str " grey")
                        (not enabled?)
                        (str " disabled"))
               :on-click
@@ -702,12 +804,12 @@
         [:div.seven.wide.field
          [:div.ui.tiny.fluid.buttons
           [:button.ui.button
-           {:class (when (= sort-dir :asc) "blue")
+           {:class (when (= sort-dir :asc) "grey")
             :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :asc])
                            (al/reload-list context :transition))}
            "Asc"]
           [:button.ui.button
-           {:class (when (= sort-dir :desc) "blue")
+           {:class (when (= sort-dir :desc) "grey")
             :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :desc])
                            (al/reload-list context :transition))}
            "Desc"]]]]]]]))

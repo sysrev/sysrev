@@ -650,17 +650,18 @@
                {:keys [selection annotation semantic-class]} annotation-map
                {:keys [class article-id pdf-key]} context
                user-id (current-user-id request)
+               project-id (active-project request)
                result
                (condp = class
                  "abstract"
                  (do (assert (nil? pdf-key))
                      (api/save-article-annotation
-                      article-id user-id selection annotation
+                      project-id article-id user-id selection annotation
                       :context (:context annotation-map)))
                  "pdf"
                  (do (assert pdf-key)
                      (api/save-article-annotation
-                      article-id user-id selection annotation
+                      project-id article-id user-id selection annotation
                       :context (:context annotation-map) :pdf-key pdf-key)))]
            (when (and (string? semantic-class)
                       (not-empty semantic-class)

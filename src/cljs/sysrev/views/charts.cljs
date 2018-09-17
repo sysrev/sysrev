@@ -90,7 +90,7 @@
     "#dddddd" "#282828"))
 
 (defn bar-chart
-  [height xlabels ynames yss & [colors options]]
+  [height xlabels ynames yss & {:keys [colors options on-click]}]
   (let [datasets (get-datasets ynames yss colors)
         font-color (graph-text-color)
         data {:labels xlabels
@@ -107,7 +107,15 @@
                     :yAxes [{:stacked true
                              :ticks {:fontColor font-color}
                              :scaleLabel {:fontColor font-color}}]}
-                   :legend {:labels {:fontColor font-color}}})
+                   :legend {:labels {:fontColor font-color}}
+                   :onClick
+                   (when on-click
+                     (fn [event elts]
+                       (let [elts (-> elts js->clj)]
+                         (when (and (coll? elts) (not-empty elts))
+                           (when-let [idx (-> elts first (aget "_index"))]
+                             (on-click idx))))))}
+                  :items-clickable? (if on-click true false))
                  options)]
     [chartjs/horizontal-bar
      {:data data
