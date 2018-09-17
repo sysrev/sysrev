@@ -6,6 +6,7 @@
             [sysrev.base :refer [active-route]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.nav :refer [nav-scroll-top nav-redirect]]
+            [sysrev.state.nav :refer [project-uri]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.util :refer
@@ -293,48 +294,61 @@
 
 (defn- wrap-join-project [& children]
   [:div.ui.padded.segments.auto-margin.join-project-panel
-   (doall
-    (map-indexed
-     (fn [i e] ^{:key [:join-project i]} e)
-     children))])
+   (doall children)])
 
 (defn join-project-panel []
-  (let [register-hash @(subscribe [:register/register-hash])
-        project-id @(subscribe [:register/project-id])
-        project-name @(subscribe [:register/project-name])
-        member? @(subscribe [:self/member? project-id])]
-    (with-loader [[:register-project register-hash]] {}
-      (cond
-        (nil? project-id)
-        [wrap-join-project
-         [:h3.ui.center.aligned.header.segment
-          "You have been invited to join:"]
-         [:div.ui.center.aligned.segment
-          [:h4.ui.header
-           [:i.grey.list.alternate.outline.icon]
-           [:div.content "< Project not found >"]]]]
+  (let [redirecting? (atom nil)]
+    (fn []
+      (let [register-hash @(subscribe [:register/register-hash])
+            project-id @(subscribe [:register/project-id])
+            project-name @(subscribe [:register/project-name])
+            member? @(subscribe [:self/member? project-id])]
+        (with-loader [[:register-project register-hash]] {}
+          (cond
+            (nil? project-id)
+            [wrap-join-project
+             [:h3.ui.center.aligned.header.segment
+              {:key [1]}
+              "You have been invited to join:"]
+             [:div.ui.center.aligned.segment
+              {:key [2]}
+              [:h4.ui.header
+               [:i.grey.list.alternate.outline.icon]
+               [:div.content "< Project not found >"]]]]
 
-        member?
-        [wrap-join-project
-         [:div.ui.segment
-          [:h4.ui.header
-           [:i.grey.list.alternate.outline.icon]
-           [:div.content project-name]]]
-         [:div.ui.center.aligned.segment
-          [:h4 "You are already a member of this project."]]]
+            member?
+            [wrap-join-project
+             [:div.ui.segment
+              {:key [1]}
+              [:h4.ui.header
+               [:i.grey.list.alternate.outline.icon]
+               [:div.content project-name]]]
+             [:div.ui.center.aligned.segment
+              {:key [2]}
+              (when-not @redirecting?
+                (-> #(nav-scroll-top (project-uri project-id ""))
+                    (js/setTimeout 1000))
+                (reset! redirecting? true))
+              [:h4 "You are already a member of this project."]
+              [:h5 {:style {:margin-top "1em"}}
+               "Redirecting... " nbsp nbsp nbsp
+               [:div.ui.small.active.inline.loader]]]]
 
-        :else
-        [wrap-join-project
-         [:h3.ui.center.aligned.header.segment
-          "You have been invited to join:"]
-         [:div.ui.segment
-          [:h4.ui.header
-           [:i.grey.list.alternate.outline.icon]
-           [:div.content project-name]]]
-         [:div.ui.center.aligned.segment
-          [:button.ui.fluid.primary.button
-           {:on-click #(dispatch [:action [:join-project project-id]])}
-           "Join Project"]]]))))
+            :else
+            [wrap-join-project
+             [:h3.ui.center.aligned.header.segment
+              {:key [1]}
+              "You have been invited to join:"]
+             [:div.ui.segment
+              {:key [2]}
+              [:h4.ui.header
+               [:i.grey.list.alternate.outline.icon]
+               [:div.content project-name]]]
+             [:div.ui.center.aligned.segment
+              {:key [3]}
+              [:button.ui.fluid.primary.button
+               {:on-click #(dispatch [:action [:join-project project-id]])}
+               "Join Project"]]]))))))
 
 (defmethod logged-out-content [:login] []
   [LoginRegisterPanel])
