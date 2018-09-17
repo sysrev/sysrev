@@ -962,6 +962,14 @@
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
 
+(defn amount-owed
+  "Return all compensations owed for project-id using start-date and end-date. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
+  [project-id start-date end-date]
+  (try {:result {:amount-owed (compensation/amount-owed project-id start-date end-date)}}
+       (catch Throwable e
+         {:error {:state internal-server-error
+                  :message (.getMessage e)}})))
+
 (defn test-response
   "Server Sanity Check"
   []

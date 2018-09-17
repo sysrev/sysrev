@@ -767,6 +767,13 @@
                  compensation-id (-> request :body :compensation-id)]
              (api/delete-project-compensation! project-id compensation-id))))
 
+  (GET "/api/amount-owed" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [project-id (-> request :params :project-id parse-integer)
+              start-date (-> request :params :start-date)
+              end-date (-> request :params :end-date)]
+          (api/amount-owed project-id start-date end-date))))
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

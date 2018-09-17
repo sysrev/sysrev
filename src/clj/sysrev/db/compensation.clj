@@ -1,5 +1,6 @@
 (ns sysrev.db.compensation
-  (:require [clj-time.coerce :as tc]
+  (:require [clojure.string :as string]
+            [clj-time.coerce :as tc]
             [clj-time.local :as l]
             [clj-time.core :as t]
             [clj-time.format :as f]
@@ -159,3 +160,22 @@
                      :rate (:rate %)
                      :user-id user-id
                      :project-id project-id) project-compensations)))
+
+(defn amount-owed
+  "Return the amount-owed to users of project-id over start-date and end-date"
+  [project-id start-date end-date]
+  (let [project-users (-> (select :pm.user_id :wu.email)
+                          (from [:project_member :pm])
+                          (left-join [:web_user :wu]
+                                     [:= :pm.user_id :wu.user_id])
+                          (where [:= project-id :project_id])
+                          do-query)
+        email-user-id-map (->> project-users
+                               (map #(hash-map (:user-id %) %))
+                               (apply merge))]
+    (->> project-users
+         (map #(project-compensation-for-user project-id (:user-id %) start-date end-date))
+         flatten
+         (map #(assoc % :name (-> (:email (get email-user-id-map (:user-id %)))
+                                   (string/split #"@")
+                                   first))))))

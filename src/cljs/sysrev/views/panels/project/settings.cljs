@@ -11,7 +11,7 @@
              [with-tooltip wrap-dropdown selection-dropdown
               SaveResetForm ConfirmationDialog]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.panels.project.compensation :refer [ProjectCompensations]]
+            [sysrev.views.panels.project.compensation :refer [ProjectCompensations CompensationSummary]]
             [sysrev.shared.util :refer [parse-integer in?]]))
 
 (def ^:private panel [:project :project :settings])
@@ -535,4 +535,5 @@
           [ProjectCompensations]]
          [:div.ui.column
           [ProjectMembersBox]
-          [DeleteProject]]]]])))
+          [DeleteProject]]]]
+       [CompensationSummary]])))

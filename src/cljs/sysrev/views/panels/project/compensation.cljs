@@ -4,7 +4,9 @@
             [re-frame.core :refer [subscribe]]
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
+            [sysrev.charts.chartjs :as chartjs]
             [sysrev.util :refer [vector->hash-map]]
+            [sysrev.views.charts :as charts]
             [sysrev.views.semantic :refer [Form FormGroup FormInput Button]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -30,6 +32,26 @@
           :error-handler (fn [error-response]
                            (reset! retrieving-compensations? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
+
+(defn amount-owed!
+  "Retrieve what is owed to users from start-date to end-date"
+  [state start-date end-date]
+  (let [project-id @(subscribe [:active-project-id])
+        retrieving-amount-owed? (r/cursor state [:retrieving-amount-owed?])
+        amount-owed (r/cursor state [:amount-owed])]
+    (reset! retrieving-amount-owed? true)
+    (GET "/api/amount-owed"
+         {:params {:project-id project-id
+                   :start-date start-date
+                   :end-date end-date}
+          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :handler (fn [response]
+                     (reset! retrieving-amount-owed? false)
+                     (reset! amount-owed (->> (get-in response [:result :amount-owed])
+                                              (group-by :compensation-id))))
+          :error-handler (fn [error-response]
+                           (reset! retrieving-amount-owed? false)
+                           ($ js/console log "[Error] retrieving amount-owed project-id: " project-id))})))
 
 #_(defn EditCompensationForm
   [compensation]
@@ -216,3 +238,67 @@
       :component-did-mount (fn [this]
                              (get-compensations! state))})))
 
+(defn CompensationSummary
+  []
+  (let [amount-owed (r/cursor state [:amount-owed])
+        all-project-user-ids @(subscribe [:project/member-user-ids nil true])]
+    (amount-owed! state "2018-9-1" "2018-9-30")
+    (when-not (empty? (keys @amount-owed))
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Compensation Summary"]
+       (doall (map
+               (fn [compensation-id]
+                 (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
+                       rate (-> @compensation-owed
+                                first
+                                :rate)
+                       amount-owed (fn [compensation-map]
+                                     (* (get-in compensation-map [:rate :amount])
+                                        ;; note: this will need to be changed for
+                                        ;; items other than articles
+                                        (:articles compensation-map)))
+                       compensation-maps (->> @compensation-owed
+                                              (filter #(> (% :articles) 0))
+                                              (sort-by :name))
+                       total-owed (apply + (map amount-owed compensation-maps))
+                       labels (map :name compensation-maps)
+                       data {:labels labels
+                             :datasets [{:data (mapv amount-owed compensation-maps)
+                                         :backgroundColor (nth charts/paul-tol-colors (count compensation-maps))}]}
+                       font-color (charts/graph-text-color)
+                       options (charts/wrap-disable-animation
+                                {:scales
+                                 {:xAxes
+                                  [{:display true
+                                    :scaleLabel {:fontColor font-color
+                                                 :display false
+                                                 :padding {:top 200
+                                                           :bottom 200}}
+                                    :stacked false
+                                    :ticks {:fontColor font-color
+                                            :suggestedMin 0
+                                            :callback (fn [value index values]
+                                                        (if (or (= index 0)
+                                                                (= (/ (apply max values) 2)
+                                                                   value)
+                                                                (= (apply max values)
+                                                                   value))
+                                                          (accounting/cents->string value)
+                                                          ""))}}]
+                                  :yAxes
+                                  [{:maxBarThickness 10
+                                    :scaleLabel {:fontColor font-color}
+                                    :ticks {:fontColor font-color}}]}
+                                 :legend
+                                 {:display false}
+                                 :tooltips {:callbacks {:label (fn [item]
+                                                                 (accounting/cents->string ($ item :xLabel)))}}})]
+                   (when (> total-owed 0)
+                     ^{:key compensation-id}
+                     [:div
+                      [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
+                      [chartjs/horizontal-bar
+                       {:data data
+                        :height (charts/label-count->chart-height (count labels))
+                        :options options}]])))
+               (keys @amount-owed)))])))
