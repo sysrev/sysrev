@@ -4,6 +4,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
+            [sysrev.cassandra :as cdb]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
             [sysrev.config.core :refer [env]]
@@ -26,6 +27,8 @@
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [clojure.data.xml :as dxml]))
+
+(def use-cassandra-pubmed? false)
 
 (def e-util-api-key (:e-util-api-key env))
 
@@ -68,20 +71,40 @@
                      content)))
          (apply concat)))))
 
+(defn parse-html-text-content [content]
+  (when content
+    (->> content
+         (map
+          (fn [txt]
+            (if (and (map? txt) (:tag txt))
+              ;; Handle embedded HTML
+              (when (:content txt)
+                (str "<" (name (:tag txt)) ">"
+                     (str/join (:content txt))
+                     "</" (name (:tag txt)) ">"))
+              txt)))
+         (filter string?)
+         (map str/trim)
+         (str/join))))
+
 (defn parse-abstract [abstract-texts]
-  (when-not (empty? abstract-texts)
-    (let [sections (map (fn [sec]
-                          {:header  (-> sec :attrs :Label)
-                           :content (:content sec)})
-                        abstract-texts)
-          parse-section (fn [section]
-                          (let [header (:header section)
-                                content (-> section :content first)]
-                            (if-not (empty? header)
+  (try
+    (when (not-empty abstract-texts)
+      (let [sections
+            (map (fn [sec]
+                   {:header  (some-> sec :attrs :Label str/trim)
+                    :content (some-> sec :content parse-html-text-content)})
+                 abstract-texts)
+            parse-section (fn [{:keys [header content]}]
+                            (if (not-empty header)
                               (str header ": " content)
-                              content)))
-          paragraphs (map parse-section sections)]
-      (string/join "\n\n" paragraphs))))
+                              content))
+            paragraphs (map parse-section sections)]
+        (string/join "\n\n" paragraphs)))
+    (catch Throwable e
+      (log/error "parse-abstract error:" (.getMessage e))
+      (log/error "abstract-texts =" (pr-str abstract-texts))
+      (throw e))))
 
 (defn parse-pmid-xml [pxml]
   (let [title (xml-find-value pxml [:MedlineCitation :Article :ArticleTitle])
@@ -108,12 +131,13 @@
      :keywords keywords
      :public-id (str pmid)
      :locations locations
-     :date (str year " " month " " day)
-     }))
+     :date (str year " " month " " day)}))
 
 (defn parse-pmid-xml-insilica [pxml]
-  (let [title (xml-find-value pxml [:Article :ArticleTitle])
-        journal (xml-find-value pxml [:Article :Journal :Title])
+  (let [title (-> (xml-find pxml [:Article :ArticleTitle])
+                  first :content parse-html-text-content)
+        journal (-> (xml-find pxml [:Article :Journal :Title])
+                    first :content parse-html-text-content)
         abstract (-> (xml-find pxml [:Article :Abstract :AbstractText]) parse-abstract)
         authors (-> (xml-find pxml [:Article :AuthorList :Author])
                     parse-pubmed-author-names)
@@ -132,11 +156,10 @@
                     first :content first)
                 (-> (xml-find [pxml] [:DateCompleted :Day])
                     first :content first parse-integer))]
-    {:raw (dxml/emit-str pxml)
-     :remote-database-name "MEDLINE"
-     :primary-title (str/trim title)
-     :secondary-title (str/trim journal)
-     :abstract (str/trim abstract)
+    {:remote-database-name "MEDLINE"
+     :primary-title title
+     :secondary-title journal
+     :abstract abstract
      :authors (mapv str/trim authors)
      :year year
      :keywords keywords
@@ -157,6 +180,7 @@
          :body))
    :fname "fetch-pmids-xml" :throttle-delay 100))
 
+#_
 (defn fetch-pmids-xml-insilica [pmids]
   (-> (http/post "https://api.insilica.co/datasource/pubmed/getEntities"
                  {:query-params {"ids" (str
@@ -171,6 +195,12 @@
   (->> (fetch-pmids-xml pmids)
        parse-xml-str :content
        (mapv parse-pmid-xml)))
+
+(defn fetch-pmid-entries-insilica [pmids]
+  (->> (cdb/get-pmids-xml pmids)
+       (pmap #(some-> % parse-xml-str parse-pmid-xml-insilica
+                      (merge {:raw %})))
+       vec))
 
 (defn fetch-pmid-entry [pmid]
   (first (fetch-pmid-entries [pmid])))
@@ -223,7 +253,6 @@
          :result))
    :fname "get-pmids-summary"))
 
-
 (defn get-all-pmids-for-query
   "Given a search query, return all PMIDs as a vector of integers"
   [query]
@@ -253,8 +282,12 @@
   in the project."
   [pmids project-id source-id]
   (try
-    (doseq [pmids-group (->> pmids (partition-all 40))]
-      (doseq [article (->> pmids-group fetch-pmid-entries (remove nil?))]
+    (doseq [pmids-group (->> pmids (partition-all (if use-cassandra-pubmed? 200 40)))]
+      (doseq [article (->> pmids-group
+                           (#(if use-cassandra-pubmed?
+                               (fetch-pmid-entries-insilica %)
+                               (fetch-pmid-entries %)))
+                           (remove nil?))]
         (try
           (with-transaction
             (let [existing-articles
@@ -291,6 +324,7 @@
     (catch Throwable e
       (log/info (str "error in import-pmids-to-project: "
                      (.getMessage e)))
+      (.printStackTrace e)
       false)
     (finally
       (clear-project-cache project-id))))
@@ -451,18 +485,49 @@
         :else nil))))
 
 ;;(ftp/with-ftp [client "ftp://anonymous:pwd@ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/92/86"] (ftp/client-get client "dddt-12-721.PMC5892952.pdf"))
-
+;;
 ;; when I use {:headers {"User-Agent" "Apache-HttpClient/4.5.5"}}
 ;; I get a "Forbidden" with a message that contains the link
 ;; https://www.ncbi.nlm.nih.gov/pmc/about/copyright/
-
-
+;;
 ;; I can still retrieve the data
 ;; when I use {:headers {"User-Agent" "curl/7.54.0"}}
 ;; as well as {:headers {"User-Agent" "clj-http"}}
-
-
+;;
 ;; (http/get "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id=PMC5892952")
 ;; need to: parse the html
 ;;          retrieve the file with ftp
 
+;;;
+;;; Cassandra/PubMed test queries
+;;;
+
+;;; Compare raw article XML (PubMed, Cassandra)
+#_ (-> (fetch-pmids-xml [22152580]))
+#_ (-> (cdb/get-pmids-xml [22152580]) first)
+
+;;; Compare fetch of ~200 entries (PubMed, Cassandra)
+#_ (-> (fetch-pmid-entries (range 22152580 22152780)) count time)
+#_ (-> (fetch-pmid-entries-insilica (range 22152580 22152780)) count time)
+
+;;; Compare size of total text data
+;;; Note: size difference due in part to :raw values (whitespace, content)
+#_ (-> (fetch-pmid-entries (range 22152580 22152780)) pr-str count time)
+#_ (-> (fetch-pmid-entries-insilica (range 22152580 22152780)) pr-str count time)
+
+;;; Compare parsed articles
+#_ (-> (fetch-pmid-entries [22152580]) first (dissoc :raw))
+#_ (-> (fetch-pmid-entries-insilica [22152580]) first (dissoc :raw))
+
+;;; Compare abstract values
+#_ (= (-> (fetch-pmid-entries [22152580]) first :abstract)
+      (-> (fetch-pmid-entries-insilica [22152580]) first :abstract))
+
+;;; NOTE:
+;;;
+;;; PubMed API returns <PubmedArticle> element containing both
+;;; <MedlineCitation> and <PubmedData>
+;;;
+;;; Cassandra XML includes only <MedlineCitation>, leaving out some dates
+;;; and references to external article IDs ("pubmed", "pii", "doi")
+;;; which are present in <PubmedData>

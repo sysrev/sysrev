@@ -28,7 +28,7 @@
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
 
-;;; Database
+;;; Postgres
                  [org.clojure/java.jdbc "0.7.7"]
                  [org.postgresql/postgresql "42.2.4"]
                  [joda-time "2.10"]
@@ -40,6 +40,10 @@
                                cheshire]]
                  [honeysql "0.9.3"]
                  [nilenso/honeysql-postgres "0.2.4"]
+
+;;; Cassandra
+                 [cc.qbits/alia-all "4.2.2"]
+                 [cc.qbits/hayt "4.0.2"]
 
 ;;; Web server
                  [javax.servlet/servlet-api "2.5"]
