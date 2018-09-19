@@ -7,7 +7,7 @@
             [sysrev.charts.chartjs :as chartjs]
             [sysrev.util :refer [vector->hash-map]]
             [sysrev.views.charts :as charts]
-            [sysrev.views.semantic :refer [Form FormGroup FormInput Button]])
+            [sysrev.views.semantic :refer [Form FormGroup FormInput Button Dropdown]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:project :project :compensation])
@@ -33,6 +33,24 @@
                            (reset! retrieving-compensations? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
 
+(defn get-project-users-current-compensation!
+  "Retrieve the current compensations for project users"
+  [state]
+  (let [project-id @(subscribe [:active-project-id])
+        retrieving-project-users-current-compensation? (r/cursor state [:retrieving-project-users-current-compensation?])
+        project-users-current-compensation (r/cursor state [:project-users-current-compensations])]
+    (reset! retrieving-project-users-current-compensation? true)
+    (GET "/api/project-users-current-compensation"
+         {:params {:project-id project-id}
+          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :handler (fn [response]
+                     (reset! retrieving-project-users-current-compensation? false)
+                     (reset! project-users-current-compensation (vector->hash-map (get-in response [:result :project-users-current-compensation])
+                                                                                   :user-id)))
+          :error-handler (fn [error-response]
+                           (reset! retrieving-project-users-current-compensation? false)
+                           ($ js/console log "[Error] retrieving project-users-current-compensation for project-id: " project-id))})))
+
 (defn amount-owed!
   "Retrieve what is owed to users from start-date to end-date"
   [state start-date end-date]
@@ -52,6 +70,11 @@
           :error-handler (fn [error-response]
                            (reset! retrieving-amount-owed? false)
                            ($ js/console log "[Error] retrieving amount-owed project-id: " project-id))})))
+
+(defn rate->string
+  "Convert a rate to a human readable string"
+  [rate]
+  (str (accounting/cents->string (:amount rate)) " / " (:item rate)))
 
 #_(defn EditCompensationForm
   [compensation]
@@ -237,15 +260,69 @@
            [CreateCompensationForm])])
       :component-did-mount (fn [this]
                              (get-compensations! state))})))
+(defn CompensationGraph
+  "Labels is a list of names, amount-owed is a vector of amounts owed "
+  [labels amount-owed]
+  (let [font-color (charts/graph-text-color)
+        data {:labels labels
+              :datasets [{:data amount-owed
+                          :backgroundColor (nth charts/paul-tol-colors (count labels))}]}
+        options (charts/wrap-disable-animation
+                 {:scales
+                  {:xAxes
+                   [{:display true
+                     :scaleLabel {:fontColor font-color
+                                  :display false
+                                  :padding {:top 200
+                                            :bottom 200}}
+                     :stacked false
+                     :ticks {:fontColor font-color
+                             :suggestedMin 0
+                             :callback (fn [value index values]
+                                         (if (or (= index 0)
+                                                 (= (/ (apply max values) 2)
+                                                    value)
+                                                 (= (apply max values)
+                                                    value))
+                                           (accounting/cents->string value)
+                                           ""))}}]
+                   :yAxes
+                   [{:maxBarThickness 10
+                     :scaleLabel {:fontColor font-color}
+                     :ticks {:fontColor font-color}}]}
+                  :legend
+                  {:display false}
+                  :tooltips {:callbacks {:label (fn [item]
+                                                  (accounting/cents->string ($ item :xLabel)))}}})]
+    [chartjs/horizontal-bar
+     {:data data
+      :height (charts/label-count->chart-height (count labels))
+      :options options}]))
 
 (defn CompensationSummary
   []
-  (let [amount-owed (r/cursor state [:amount-owed])
-        all-project-user-ids @(subscribe [:project/member-user-ids nil true])]
+  (let [amount-owed (r/cursor state [:amount-owed])]
     (amount-owed! state "2018-9-1" "2018-9-30")
     (when-not (empty? (keys @amount-owed))
       [:div.ui.segment
        [:h4.ui.dividing.header "Compensation Summary"]
+       (let [users-owed-map (->> @(r/cursor state [:amount-owed])
+                                 vals
+                                 flatten
+                                 (group-by :name))
+             total-owed (fn [owed-vectors]
+                          (apply +
+                                 (map #(* (:articles %) (get-in % [:rate :amount])) owed-vectors)))
+             total-owed-to-users (zipmap (keys users-owed-map) (->> users-owed-map vals (map total-owed)))
+             total-owed-maps (->> (keys total-owed-to-users)
+                                  (map #(hash-map :name % :owed (get total-owed-to-users %)))
+                                  (filter #(> (% :owed) 0))
+                                  (sort-by :name))
+             labels (map :name total-owed-maps)
+             data (map :owed total-owed-maps)]
+         [:div
+          [:h4 "Total Owed"]
+          [CompensationGraph labels data]])
        (doall (map
                (fn [compensation-id]
                  (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
@@ -261,44 +338,50 @@
                                               (filter #(> (% :articles) 0))
                                               (sort-by :name))
                        total-owed (apply + (map amount-owed compensation-maps))
-                       labels (map :name compensation-maps)
-                       data {:labels labels
-                             :datasets [{:data (mapv amount-owed compensation-maps)
-                                         :backgroundColor (nth charts/paul-tol-colors (count compensation-maps))}]}
-                       font-color (charts/graph-text-color)
-                       options (charts/wrap-disable-animation
-                                {:scales
-                                 {:xAxes
-                                  [{:display true
-                                    :scaleLabel {:fontColor font-color
-                                                 :display false
-                                                 :padding {:top 200
-                                                           :bottom 200}}
-                                    :stacked false
-                                    :ticks {:fontColor font-color
-                                            :suggestedMin 0
-                                            :callback (fn [value index values]
-                                                        (if (or (= index 0)
-                                                                (= (/ (apply max values) 2)
-                                                                   value)
-                                                                (= (apply max values)
-                                                                   value))
-                                                          (accounting/cents->string value)
-                                                          ""))}}]
-                                  :yAxes
-                                  [{:maxBarThickness 10
-                                    :scaleLabel {:fontColor font-color}
-                                    :ticks {:fontColor font-color}}]}
-                                 :legend
-                                 {:display false}
-                                 :tooltips {:callbacks {:label (fn [item]
-                                                                 (accounting/cents->string ($ item :xLabel)))}}})]
+                       labels (map :name compensation-maps)]
                    (when (> total-owed 0)
                      ^{:key compensation-id}
                      [:div
                       [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
-                      [chartjs/horizontal-bar
-                       {:data data
-                        :height (charts/label-count->chart-height (count labels))
-                        :options options}]])))
+                      [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
                (keys @amount-owed)))])))
+
+(defn UserCompensationDropdown [compensation-id]
+  (let [project-compensations (r/cursor state [:project-compensations])
+        current-compensation-id (:compensation-id compensation-id)]
+    [Dropdown {:fluid true
+               :options (->> (vals @project-compensations)
+                             (sort-by #(get-in % [:rate :amount]))
+                             (map (fn [compensation]
+                                    {:text (rate->string (:rate compensation))
+                                     :value (:id compensation)})))
+               :selection current-compensation-id
+               :loading false
+               :defaultValue current-compensation-id
+               :on-change (fn [event data]
+                            (let [value ($ data :value)]
+                              (when-not (= value current-compensation-id)
+                                (.log js/console "I would have done something"))))}]))
+
+(defn UsersCompensations []
+  (let [project-users-current-compensations
+        (r/cursor state [:project-users-current-compensations])]
+    (get-project-users-current-compensation! state)
+    (get-compensations! state)
+    [:div.ui.segment
+     [:div
+      [:h4.ui.dividing.header "User Compensations"]
+      [:div.ui.relaxed.divided.list
+       (doall
+        (map
+         (fn [user-compensation-map]
+           [:div.item {:key (:user-id user-compensation-map)}
+            [:div.right.floated.content
+             [UserCompensationDropdown user-compensation-map]]
+            [:div.content
+             {:style {:padding-top "4px"
+                      :padding-bottom "4px"}}
+             [:i.user.icon]
+             (:email user-compensation-map)]])
+         (->> (vals @project-users-current-compensations))
+         ))]]]))

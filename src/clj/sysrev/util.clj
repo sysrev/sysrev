@@ -262,3 +262,10 @@
                       (Thread/sleep retry-delay)
                       (result-fn (inc retry-count)))))))]
     (result-fn 0)))
+
+(defn vector->hash-map
+  "Convert a vector into a hash-map with keys that correspond to the val of kw in each element"
+  [v kw]
+  (->> v
+       (map #(hash-map (kw %) %))
+       (apply merge)))

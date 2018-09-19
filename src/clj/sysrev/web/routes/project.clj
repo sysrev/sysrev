@@ -752,21 +752,6 @@
         (let [project-id (-> request :params :project-id parse-integer)]
           (api/read-project-compensations project-id))))
 
-  (PUT "/api/toggle-active-project-compensation" request
-       (wrap-authorize
-        request {:roles ["admin"]}
-        (let [project-id (-> request :body :project-id)
-              compensation-id (-> request :body :compensation-id)
-              active (-> request :body :active)]
-          (api/toggle-active-project-compensation! project-id compensation-id active))))
-
-  (DELETE "/api/project-compensation" request
-          (wrap-authorize
-           request {:roles ["admin"]}
-           (let [project-id (-> request :body :project-id)
-                 compensation-id (-> request :body :compensation-id)]
-             (api/delete-project-compensation! project-id compensation-id))))
-
   (GET "/api/amount-owed" request
        (wrap-authorize
         request {:roles ["admin"]}
@@ -774,6 +759,13 @@
               start-date (-> request :params :start-date)
               end-date (-> request :params :end-date)]
           (api/amount-owed project-id start-date end-date))))
+
+  (GET "/api/project-users-current-compensation" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [project-id (-> request :params :project-id parse-integer)]
+          (api/project-users-current-compensation project-id))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

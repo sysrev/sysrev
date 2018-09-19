@@ -19,3 +19,5 @@
             (goog.object/get semantic-ui "Label")))
 (def Button (r/adapt-react-class
              (goog.object/get semantic-ui "Button")))
+(def Dropdown (r/adapt-react-class
+               (goog.object/get semantic-ui "Dropdown")))

@@ -39,9 +39,18 @@
 ;; Error code used
 (def forbidden 403)
 (def not-found 404)
+(def precondition-failed 412)
 (def internal-server-error 500)
 
 (def max-import-articles (:max-import-articles env))
+
+(defmacro try-catch-response
+  [body]
+  `(try
+     ~body
+     (catch Throwable e#
+       {:error {:status internal-server-error
+                :message (.getMessage e#)}})))
 
 (defn create-project-for-user!
   "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
@@ -910,33 +919,6 @@
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
 
-(defn toggle-active-project-compensation!
-  "Update compensation-id associated with project-id. Because of current logic, this assumes
-  you are always setting active to true"
-  [project-id compensation-id active?]
-  (try
-    (let [current-compensations (compensation/read-project-compensations project-id)
-          this-compensation (->> current-compensations
-                                 (filterv #(= compensation-id (:id %)))
-                                 first)
-          other-compensations-id (->> current-compensations
-                                      (filterv #(not= compensation-id (:id %)))
-                                      (mapv :id))]
-      ;; is this compensation active already set to true? if so, ignore the rest of this logic
-      (when-not (:active this-compensation)
-        ;; toggle this compensation
-        (compensation/toggle-active-project-compensation! project-id compensation-id true)
-        ;; turn on the compensation period for this compensation
-        (compensation/create-compensation-period-for-all-users! project-id compensation-id)
-        ;; toggle all other compensations off
-        (mapv #(compensation/toggle-active-project-compensation! project-id % false) other-compensations-id)
-        ;; end the compensation period for all other compensations associated with the project
-        (mapv #(compensation/end-compensation-period-for-all-users! project-id %) other-compensations-id))
-      {:result {:success true}})
-    (catch Throwable e
-      {:error {:status internal-server-error
-               :message (.getMessage e)}})))
-
 (defn create-project-compensation!
   "Create a compensation for project-id with rate"
   [project-id rate]
@@ -944,22 +926,14 @@
     (let [compensation-id (compensation/create-project-compensation! project-id rate)]
 ;;;; below logic is convoluted due to the 'one active compensation per project at a time' rule.
       ;; toggle the compensation off
-      (compensation/toggle-active-project-compensation! project-id compensation-id false)
+      ;;(compensation/toggle-active-project-compensation! project-id compensation-id false)
       ;; now turn it back on again, making it the default
-      (toggle-active-project-compensation! project-id compensation-id true))
+      ;;(toggle-active-project-compensation! project-id compensation-id true)
+      )
        {:result {:success true
                  :rate rate}}
        (catch Throwable e
          {:error {:state internal-server-error
-                  :message (.getMessage e)}})))
-
-(defn delete-project-compensation!
-  "Delete compensaton-id associated with project-id"
-  [project-id compensation-id]
-  (try (compensation/delete-project-compensation! project-id compensation-id)
-       {:result {:success true}}
-       (catch Throwable e
-         {:error {:status internal-server-error
                   :message (.getMessage e)}})))
 
 (defn amount-owed
@@ -967,8 +941,56 @@
   [project-id start-date end-date]
   (try {:result {:amount-owed (compensation/amount-owed project-id start-date end-date)}}
        (catch Throwable e
-         {:error {:state internal-server-error
+         {:error {:status internal-server-error
                   :message (.getMessage e)}})))
+
+(defn project-users-current-compensation
+  "Return the compensation-id for each user"
+  [project-id]
+  (try-catch-response
+   {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
+
+(defn set-project-users-current-compensation!
+  "Set the compensation-id for user-id in project-id"
+  [project-id user-id compensation-id]
+  (try-catch-response
+   (let [project-compensations (->> (compensation/read-project-compensations project-id)
+                                    (filter :active)
+                                    (mapv :id)
+                                    set)
+         current-compensation-id (compensation/user-compensation project-id user-id)]
+     (cond
+       ;; compensation is set to none for user and they don't have a current compensation
+       (and (= compensation-id "none")
+            (nil? (project-compensations compensation-id)))
+       {:error {:status precondition-failed
+                :message "Compensation is already set to none for this user, no changes made"}}
+       ;; compensation is set to none and they have a current compensation
+       (and (= compensation-id "none"))
+       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
+           {:result {:success true}})
+       ;; there wasn't a compensation id found for the project, or it isn't active
+       (nil? (project-compensations compensation-id))
+       {:error {:status not-found
+                :message (str "compensation-id " compensation-id " is not active or doesn't exist for project-id " project-id)}}
+       ;; this is the same compensation-id as the user already has
+       (= current-compensation-id compensation-id)
+       {:error {:status precondition-failed
+                :message "Compensation is already set to this value for the user, no changes made."}}
+       ;; the user is going from having no compensation-id set to having a new one
+       (nil? current-compensation-id)
+       (do
+         (compensation/start-compensation-period-for-user! compensation-id user-id)
+         {:result {:success true}})
+       ;; the user is switching compensations
+       (and (project-compensations compensation-id)
+            current-compensation-id)
+       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
+           (compensation/start-compensation-period-for-user! compensation-id user-id)
+           {:result {:success true}})
+       :else
+       {:error {:status precondition-failed
+                :message "An unknown error occurred"}}))))
 
 (defn test-response
   "Server Sanity Check"
