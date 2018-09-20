@@ -266,50 +266,53 @@
                      "#dddddd" "#222222")
         progress (reverse @(subscribe [:project/progress-counts]))
         n-total (-> @(subscribe [:project/article-counts]) :total)
-        xvals (->> progress (mapv :completed))
-        xlabels (->> progress (mapv :day)
-                     (mapv #(->> (str/split % #"\-") (drop 1) (str/join "-"))))
-        xdiff (js/Math.abs (- (last xvals) (first xvals)))
-        data
-        {:labels xlabels
-         :datasets [{:fill "origin"
-                     :backgroundColor "rgba(30,100,250,0.2)"
-                     :lineTension 0
-                     :data (vec xvals)}]}
-        options
-        (charts/wrap-default-options
-         {:legend {:display false}
-          :scales
-          {:xAxes [{:ticks
-                    {:fontColor font-color
-                     :autoSkip true
-                     :callback
-                     (fn [value idx values]
-                       (if (or (= 0 (mod idx 5))
-                               (= idx (dec (count values))))
-                         value ""))}
-                    :scaleLabel {:fontColor font-color}}]
-           :yAxes [{:scaleLabel {:display true
-                                 :labelString "Articles Completed"
-                                 :fontColor font-color}
-                    :ticks
-                    {:fontColor font-color
-                     :suggestedMin (max 0
-                                        (int (- (first xvals)
-                                                (* xdiff 0.15))))
-                     :suggestedMax (min n-total
-                                        (int (+ (last xvals)
-                                                (* xdiff 0.15))))}}]}
-          :responsive true})]
-    [:div.ui.segment
-     [:h4.ui.dividing.header
-      [:div.ui.two.column.middle.aligned.grid
-       [:div.ui.left.aligned.column
-        "Recent Progress"]]]
-     (with-loader [[:project project-id]] {:dimmer :fixed}
-       [chartjs/line
-        {:data data
-         :options options}])]))
+        ;; xvals (->> progress (mapv :completed))
+        xvals (->> progress (mapv :labeled))]
+    (when (> (last xvals) (->> xvals (drop 4) first))
+      (let [xlabels (->> progress (mapv :day)
+                         (mapv #(->> (str/split % #"\-") (drop 1) (str/join "-"))))
+            xdiff (js/Math.abs (- (last xvals) (first xvals)))
+            data
+            {:labels xlabels
+             :datasets [{:fill "origin"
+                         :backgroundColor "rgba(30,100,250,0.2)"
+                         :lineTension 0
+                         :data (vec xvals)}]}
+            options
+            (charts/wrap-default-options
+             {:legend {:display false}
+              :scales
+              {:xAxes [{:ticks
+                        {:fontColor font-color
+                         :autoSkip true
+                         :callback
+                         (fn [value idx values]
+                           (if (or (= 0 (mod idx 5))
+                                   (= idx (dec (count values))))
+                             value ""))}
+                        :scaleLabel {:fontColor font-color}}]
+               :yAxes [{:scaleLabel {:display true
+                                     ;; :labelString "Articles Completed"
+                                     :labelString "User Articles Labeled"
+                                     :fontColor font-color}
+                        :ticks
+                        {:fontColor font-color
+                         :suggestedMin (max 0
+                                            (int (- (first xvals)
+                                                    (* xdiff 0.15))))
+                         :suggestedMax (min n-total
+                                            (int (+ (last xvals)
+                                                    (* xdiff 0.15))))}}]}
+              :responsive true})]
+        [:div.ui.segment
+         [:h4.ui.dividing.header
+          [:div.ui.two.column.middle.aligned.grid
+           [:div.ui.left.aligned.column
+            "Recent Progress"]]]
+         (with-loader [[:project project-id]] {:dimmer :fixed}
+           [chartjs/line
+            {:data data
+             :options options}])]))))
 
 (defn LabelPredictionsInfo []
   (when (not-empty @(subscribe [:project/predict]))
