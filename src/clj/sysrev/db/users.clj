@@ -333,13 +333,3 @@
               [:= :user-id user-id]
               [:= :project-id project-id]])
       do-execute))
-
-(defn project-users
-  "A list of user for project-id"
-  [project-id]
-  (-> (select :pm.user_id :wu.email)
-      (from [:project_member :pm])
-      (left-join [:web_user :wu]
-                 [:= :pm.user_id :wu.user_id])
-      (where [:= project-id :project_id])
-      do-query))

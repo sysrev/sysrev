@@ -971,14 +971,22 @@
        {:error {:status precondition-failed
                 :message "An unknown error occurred"}}))))
 
-(defn set-compensation-default!
+(defn get-default-compensation
+  "Get the default compensation-id for project-id"
+  [project-id]
+  (try-catch-response
+   {:result {:success true
+             :compensation-id (compensation/get-default-project-compensation project-id)}}))
+
+(defn set-default-compensation!
   "Set the compensation-id to the default for project-id "
   [project-id compensation-id]
-  ;; remove the current default compensation
-
-  ;; set compensation-id for project-id as the default
-  )
-
+  (try-catch-response
+   (do
+     (if (= compensation-id nil)
+       (compensation/delete-default-project-compensation! project-id)
+       (compensation/set-default-project-compensation! project-id compensation-id))
+     {:result {:success true}})))
 
 (defn set-user-compensation!
   "Set the compensation-id for user-id in project-id"

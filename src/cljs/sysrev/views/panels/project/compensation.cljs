@@ -78,6 +78,25 @@
                            (reset! retrieving-amount-owed? false)
                            ($ js/console log "[Error] retrieving amount-owed project-id: " project-id))})))
 
+(defn get-default-compensation!
+  "Get the default current compensation and set it"
+  [state]
+    (let [project-id @(subscribe [:active-project-id])
+          retrieving? (r/cursor state [:project-compensations :retrieving?])
+          default-compensation (r/cursor state [:default-project-compensation])]
+    (reset! retrieving? true)
+    (GET "/api/get-default-compensation"
+         {:params {:project-id project-id}
+          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :handler (fn [response]
+                     (let [compensation-id (get-in response [:result :compensation-id])]
+                       (reset! retrieving? false)
+                       (reset! default-compensation (if (nil? compensation-id)
+                                                      "none"
+                                                      compensation-id))))
+          :error-handler (fn [error-response]
+                           (reset! retrieving? false)
+                           ($ js/console log "[Error] retrieving default-compensation for project-id: " project-id))})))
 (defn rate->string
   "Convert a rate to a human readable string"
   [rate]
@@ -335,6 +354,37 @@
                                                  (get-project-users-current-compensation! state))
                                       :error-handler (fn [error]
                                                        (reset! updating? false))}))))}]))
+(defn DefaultCompensationDropdown []
+  (let [project-id @(subscribe [:active-project-id])
+        project-compensations (r/cursor state [:project-compensations])
+        default-project-compensation (r/cursor state [:default-project-compensation])
+        updating? (r/cursor state [:project-compensations :updating?])]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        [Dropdown {:fluid true
+                   :options (compensation-options @project-compensations)
+                   :selection true
+                   :loading @updating?
+                   :value @default-project-compensation
+                   :on-change (fn [event data]
+                                (let [value ($ data :value)]
+                                  (when-not (= value default-project-compensation)
+                                    (reset! updating? true)
+                                    (PUT "/api/set-default-compensation"
+                                         {:params {:project-id project-id
+                                                   :compensation-id (if (= value "none")
+                                                                      nil
+                                                                      value)}
+                                          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                          :handler (fn [response]
+                                                     (get-default-compensation! state)
+                                                     (reset! updating? false))
+                                          :error-handler (fn [error]
+                                                           (reset! updating? false))}))))}])
+      :component-did-mount
+      (fn [this]
+        (get-default-compensation! state))})))
 
 (defn UsersCompensations []
   (let [project-users-current-compensations
@@ -342,12 +392,18 @@
         project-compensations (r/cursor state [:project-compensations])]
     (get-project-users-current-compensation! state)
     (get-compensations! state)
+    ;;(get-default-compensation! state)
     (when (and @project-compensations
                @project-users-current-compensations)
       [:div.ui.segment
        [:div
         [:h4.ui.dividing.header "User Compensations"]
         [:div.ui.relaxed.divided.list
+         [:div.item {:key "default-compensation"}
+          [:div.right.floated.content
+           [DefaultCompensationDropdown]]
+          [:div.content {:style {:padding-bottom "4px"}}
+           [:i.user.icon] "Default New User Compensation"]]
          (doall
           (map
            (fn [user-compensation-map]
@@ -355,8 +411,7 @@
               [:div.right.floated.content
                [UserCompensationDropdown (:user-id user-compensation-map)]]
               [:div.content
-               {:style {:padding-top "4px"
-                        :padding-bottom "4px"}}
+               {:style {:padding-top "4px"}}
                [:i.user.icon]
                (:email user-compensation-map)]])
            (->> (vals @project-users-current-compensations))

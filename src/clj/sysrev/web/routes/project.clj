@@ -758,6 +758,18 @@
         (let [{:keys [project-id compensation-id active]} (:body request)]
           (api/toggle-compensation-active! project-id compensation-id active))))
 
+  (GET "/api/get-default-compensation" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [project-id (-> request :params :project-id parse-integer)]
+          (api/get-default-compensation project-id))))
+
+  (PUT "/api/set-default-compensation" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [{:keys [project-id compensation-id]} (:body request)]
+          (api/set-default-compensation! project-id compensation-id))))
+
   (GET "/api/amount-owed" request
        (wrap-authorize
         request {:roles ["admin"]}

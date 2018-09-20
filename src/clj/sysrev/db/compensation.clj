@@ -4,10 +4,9 @@
             [clj-time.local :as l]
             [clj-time.core :as t]
             [clj-time.format :as f]
-            [honeysql.helpers :as sqlh :refer [insert-into values left-join join select from where sset modifiers]]
+            [honeysql.helpers :as sqlh :refer [insert-into values left-join join select from where sset modifiers delete-from]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
-            [sysrev.db.users :as users]
             [sysrev.util :as util]))
 
 ;; compensation: id, rate (json ex: {:item "article" :amount 100}), created
@@ -59,17 +58,27 @@
               [:= :period_end nil]])
       do-execute))
 
+(defn project-users
+  "A list of user for project-id"
+  [project-id]
+  (-> (select :pm.user_id :wu.email)
+      (from [:project_member :pm])
+      (left-join [:web_user :wu]
+                 [:= :pm.user_id :wu.user_id])
+      (where [:= project-id :project_id])
+      do-query))
+
 (defn start-compensation-period-for-all-users!
   "Begin the compensation period for compensation-id for all users in project-id"
   [project-id compensation-id]
   (mapv #(start-compensation-period-for-user! compensation-id (:user-id %))
-        (users/project-users project-id)))
+        (project-users project-id)))
 
 (defn end-compensation-period-for-all-users!
   "End the compensation period for compensation-id for all users in project-id"
   [project-id compensation-id]
   (mapv #(end-compensation-period-for-user! compensation-id (:user-id %))
-        (users/project-users project-id)))
+        (project-users project-id)))
 
 (defn toggle-active-project-compensation!
   "Set active to active? on compensation-id for project-id"
@@ -80,6 +89,36 @@
               [:= :project_id project-id]
               [:= :compensation_id compensation-id]])
       do-execute))
+
+(defn create-default-project-compensation!
+  "Create a default project-compensation"
+  [project-id compensation-id]
+  (-> (insert-into :compensation_project_default)
+      (values [{:project_id project-id
+                :compensation_id compensation-id}])
+      do-execute))
+
+(defn get-default-project-compensation
+  "Get the default compensation-id for project-id"
+  [project-id]
+  (-> (select :*)
+      (from :compensation_project_default)
+      (where [:= :project_id project-id])
+      do-query
+      first
+      :compensation-id))
+
+(defn delete-default-project-compensation!
+  [project-id]
+  (-> (delete-from :compensation_project_default)
+      (where [:= :project_id project-id])
+      do-execute))
+
+(defn set-default-project-compensation!
+  "Set the compensation-id for project-id to the default compensation"
+  [project-id compensation-id]
+  (delete-default-project-compensation! project-id)
+  (create-default-project-compensation! project-id compensation-id))
 
 ;; for now, this is just the article labeled count. Eventually, should use the "item" field of the rate on the compensation
 (defn compensation-owed-for-articles-for-user
@@ -126,7 +165,6 @@
       0
       )))
 
-
 (defn project-compensation-for-user
   "Calculate the total owed to user-id by project-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
   [project-id user-id start-date end-date]
@@ -140,7 +178,7 @@
 (defn amount-owed
   "Return the amount-owed to users of project-id over start-date and end-date"
   [project-id start-date end-date]
-  (let [project-users (users/project-users project-id)
+  (let [project-users (project-users project-id)
         email-user-id-map (util/vector->hash-map project-users :user-id)]
     (->> project-users
          (map #(project-compensation-for-user project-id (:user-id %) start-date end-date))
@@ -170,6 +208,6 @@
 (defn project-users-current-compensation
   "Return a list of all user of a project and their current compensation-id for project-id"
   [project-id]
-  (let [project-users (users/project-users project-id)]
+  (let [project-users (project-users project-id)]
     (->> project-users
         (map #(assoc % :compensation-id (user-compensation project-id (:user-id %)))))))

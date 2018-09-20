@@ -14,6 +14,7 @@
      with-transaction]]
    [sysrev.db.articles :refer
     [set-article-flag remove-article-flag article-to-sql]]
+   [sysrev.db.compensation :as compensation]
    [sysrev.db.documents :as docs]
    [sysrev.db.queries :as q]
    [sysrev.files.stores :as files]
@@ -90,6 +91,9 @@
           (values [entry])
           (returning :membership-id)
           do-query first :membership-id)
+      ;; set their compensation to the project default
+      (when-let [default-compensation-id (compensation/get-default-project-compensation project-id)]
+        (compensation/start-compensation-period-for-user! default-compensation-id user-id))
       (finally
         (clear-project-cache project-id)))))
 ;;
