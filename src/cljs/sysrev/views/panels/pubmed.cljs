@@ -224,11 +224,17 @@
      [:div.content
       [:span
        (str (inc global-idx) "." nbsp nbsp)
-       [ui/dangerous
-        :a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
-            :target "_blank"}
-        (util/parse-html-str title)]]
-      [:p.bold (->> authors (mapv :name) (str/join ", "))]
+       (if (nil? title)
+         [:a (when uid {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
+                        :target "_blank"})
+          "[Error]"]
+         [ui/dangerous
+          :a (when uid
+               {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
+                :target "_blank"})
+          (util/parse-html-str title)])]
+      (when authors
+        [:p.bold (->> authors (mapv :name) (str/join ", "))])
       [:p (str source ". " pubdate
                (when-not (empty? volume)
                  (str "; " volume ":" pages))
@@ -236,9 +242,10 @@
       [:p.pmid
        (str "PMID: " uid)
        nbsp nbsp nbsp nbsp
-       [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
-                       "linkname=pubmed_pubmed&from_uid=" uid)
-            :target "_blank"}
+       [:a (when uid
+             {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
+                         "linkname=pubmed_pubmed&from_uid=" uid)
+              :target "_blank"})
         "Similar articles"]]]]))
 
 (defn ImportArticlesButton
@@ -304,7 +311,8 @@
                                         (aget "target")
                                         (aget "value"))))}]
       [:i.search.icon]
-      [:button.ui.button {:type "submit"} "Search"]]]))
+      [:button.ui.button {:type "submit" :tabIndex "-1"}
+       "Search"]]]))
 
 (defn SearchActions []
   (let [current-search-term (r/cursor state [:current-search-term])
