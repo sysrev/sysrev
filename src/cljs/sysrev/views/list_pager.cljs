@@ -175,11 +175,11 @@
     :as config}]
   (let [message-config (merge config message-overrides)]
     (if (util/full-size?)
-      [:div.ui.two.column.middle.aligned.grid.list-pager
+      [:div.ui.middle.aligned.grid.list-pager
        (merge {} props)
-       [:div.left.aligned.column
+       [:div.six.wide.left.aligned.column
         [ListPagerMessage message-config]]
-       [:div.right.aligned.column
+       [:div.ten.wide.right.aligned.column
         [ListPagerNav config]]]
       [:div.ui.middle.aligned.grid.list-pager
        (merge {} props)

@@ -221,42 +221,49 @@
   [article global-idx]
   (let [{:keys [uid title authors source pubdate volume pages elocationid]} article]
     [:div.ui.segment.pubmed-article
-     [:span
-      (str (inc global-idx) "." nbsp nbsp)
-      [ui/dangerous
-       :a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
-           :target "_blank"}
-       (util/parse-html-str title)]]
-     [:p.bold (->> authors (mapv :name) (str/join ", "))]
-     [:p (str source ". " pubdate
-              (when-not (empty? volume)
-                (str "; " volume ":" pages))
-              ". " elocationid ".")]
-     [:p.pmid
-      (str "PMID: " uid)
-      nbsp nbsp nbsp nbsp
-      [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
-                      "linkname=pubmed_pubmed&from_uid=" uid)
-           :target "_blank"}
-       "Similar articles"]]]))
+     [:div.content
+      [:span
+       (str (inc global-idx) "." nbsp nbsp)
+       [ui/dangerous
+        :a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/" uid)
+            :target "_blank"}
+        (util/parse-html-str title)]]
+      [:p.bold (->> authors (mapv :name) (str/join ", "))]
+      [:p (str source ". " pubdate
+               (when-not (empty? volume)
+                 (str "; " volume ":" pages))
+               ". " elocationid ".")]
+      [:p.pmid
+       (str "PMID: " uid)
+       nbsp nbsp nbsp nbsp
+       [:a {:href (str "https://www.ncbi.nlm.nih.gov/pubmed?"
+                       "linkname=pubmed_pubmed&from_uid=" uid)
+            :target "_blank"}
+        "Similar articles"]]]]))
 
 (defn ImportArticlesButton
   "Add articles to a project from a PubMed search"
   []
   (let [current-search-term (r/cursor state [:current-search-term])
-        project-id (subscribe [:active-project-id])]
-    [:div.ui.tiny.primary.icon.button.search-results
+        project-id (subscribe [:active-project-id])
+        search-results @(subscribe [:pubmed/search-term-result
+                                    @current-search-term])
+        n-results (get-in search-results [:count])]
+    [:div.ui.fluid.left.labeled.button.search-results
      {:on-click
       #(do (dispatch [:action [:project/import-articles-from-search
                                @project-id @current-search-term "PubMed"]])
            (reset! state initial-state))}
-     "Import " [:i.download.icon]]))
+     [:a.ui.fluid.right.pointing.label
+      (str "Found " n-results " articles")]
+     [:div.ui.blue.button
+      [:i.download.icon] " Import"]]))
 
 (defn PubMedSearchLink
   "Return a link to PubMed for the current search term"
   []
   (let [on-change-search-term (r/cursor state [:on-change-search-term])]
-    [:a.ui.tiny.icon.button.search-results
+    [:a.ui.fluid.right.labeled.icon.button.search-results
      {:href (str "https://www.ncbi.nlm.nih.gov/pubmed/?"
                  (http-client/generate-query-string
                   {:term @on-change-search-term}))
@@ -265,7 +272,7 @@
 
 (defn CloseSearchResultsButton []
   (let [show-results? (r/cursor state [:show-results?])]
-    [:div.ui.tiny.icon.button.search-results
+    [:a.ui.fluid.right.labeled.icon.button.search-results
      {:on-click #(reset! show-results? false)
       :style {:margin-right "0"}}
      "Close " [:i.times.icon]]))
@@ -299,6 +306,21 @@
       [:i.search.icon]
       [:button.ui.button {:type "submit"} "Search"]]]))
 
+(defn SearchActions []
+  (let [current-search-term (r/cursor state [:current-search-term])
+        search-results @(subscribe [:pubmed/search-term-result
+                                    @current-search-term])
+        n-results (get-in search-results [:count])
+        show-results? (r/cursor state [:show-results?])]
+    (when (and n-results @show-results?)
+      [:div.ui.attached.segment.middle.aligned.stackable.grid
+       [:div.eight.wide.column.results-header
+        [ImportArticlesButton]]
+       [:div.eight.wide.column.results-header.results-buttons
+        [:div.ui.two.column.grid
+         [:div.column [PubMedSearchLink]]
+         [:div.column [CloseSearchResultsButton]]]]])))
+
 (defn SearchResultsView []
   (let [current-search-term (r/cursor state [:current-search-term])
         page-number (r/cursor state [:page-number])
@@ -318,14 +340,6 @@
        [:div.ui.segments.pubmed-articles
         {:style (if have-entries? {}
                     {:min-height "800px"})}
-        [:div.ui.header.segment.middle.aligned.grid
-         [:div.six.wide.column.results-header
-          [:h5.ui.header
-           (str "Found " n-results " articles")]]
-         [:div.ten.wide.right.aligned.column.results-header
-          [ImportArticlesButton]
-          [PubMedSearchLink]
-          [CloseSearchResultsButton]]]
         [SearchResultArticlesPager]
         (if have-entries?
           (doall
@@ -378,6 +392,7 @@
   (ensure-state)
   [:div.search-panel
    [SearchBar]
+   [SearchActions]
    [SearchResultsContainer]])
 
 (defmethod panel-content panel []
