@@ -962,11 +962,12 @@
      (cond
        ;; compensation is set to none for user and they don't have a current compensation
        (and (= compensation-id "none")
-            (nil? (project-compensations compensation-id)))
-       {:error {:status precondition-failed
-                :message "Compensation is already set to none for this user, no changes made"}}
+            (nil? (project-compensations current-compensation-id)))
+       {:result {:success true
+                 :message "Compensation is already set to none for this user, no changes made"}}
        ;; compensation is set to none and they have a current compensation
-       (and (= compensation-id "none"))
+       (and (= compensation-id "none")
+            (not (nil? (project-compensations current-compensation-id))))
        (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
            {:result {:success true}})
        ;; there wasn't a compensation id found for the project, or it isn't active

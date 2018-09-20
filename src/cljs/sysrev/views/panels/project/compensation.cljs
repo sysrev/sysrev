@@ -45,8 +45,15 @@
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-project-users-current-compensation? false)
-                     (reset! project-users-current-compensation (vector->hash-map (get-in response [:result :project-users-current-compensation])
-                                                                                   :user-id)))
+                     (reset! project-users-current-compensation
+                             (vector->hash-map (->> (get-in response [:result :project-users-current-compensation])
+                                                    ;; set compensation-id nil = none
+                                                    (map #(update % :compensation-id
+                                                                  (fn [val]
+                                                                    (if (nil? val)
+                                                                      "none"
+                                                                      val)))))
+                                               :user-id)))
           :error-handler (fn [error-response]
                            (reset! retrieving-project-users-current-compensation? false)
                            ($ js/console log "[Error] retrieving project-users-current-compensation for project-id: " project-id))})))
@@ -353,12 +360,14 @@
         user-id (:user-id compensation-id)
         updating? (r/cursor state [:project-users-current-compensations user-id :updating?])]
     [Dropdown {:fluid true
-               :options (->> (vals @project-compensations)
-                             (sort-by #(get-in % [:rate :amount]))
-                             (filter :active)
-                             (map (fn [compensation]
-                                    {:text (rate->string (:rate compensation))
-                                     :value (:id compensation)})))
+               :options (conj (->> (vals @project-compensations)
+                                   (sort-by #(get-in % [:rate :amount]))
+                                   (filter :active)
+                                   (map (fn [compensation]
+                                          {:text (rate->string (:rate compensation))
+                                            :value (:id compensation)})))
+                              {:text "No Compensation"
+                               :value "none"})
                :selection true
                :loading @updating?
                :defaultValue current-compensation-id
