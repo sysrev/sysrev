@@ -609,8 +609,7 @@
                     :on-click
                     (when use-new-article-list?
                       (util/wrap-user-event
-                       #(do (dispatch-sync [:project-articles/load-preset :self])
-                            (nav-scroll-top (project-uri project-id "/articles")))))
+                       #(dispatch [:project-articles/load-preset :self])))
                     :tabIndex "-1"}
                    (when (util/full-size?) [:i.unordered.list.icon])
                    (if (util/full-size?) "View All Labels" "View Labels")])

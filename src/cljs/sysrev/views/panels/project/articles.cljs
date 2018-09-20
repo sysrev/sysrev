@@ -3,13 +3,14 @@
             [reagent.ratom :refer [reaction]]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-              reg-event-db reg-event-fx trim-v]]
+              reg-event-db reg-event-fx trim-v reg-fx]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
+            [sysrev.views.article-list.filters :as afilter]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -86,8 +87,10 @@
 (defn reset-filters []
   (dispatch [::al/reset-filters (get-context)]))
 
-(defn- load-settings-and-navigate [{:keys [filters display sort-by sort-dir]
-                                    :as settings}]
+(defn- load-settings-and-navigate
+  "Loads article list settings and navigates to the page from another panel,
+  while maintaining clean browser navigation history for Back/Forward."
+  [{:keys [filters display sort-by sort-dir] :as settings}]
   (let [context (get-context)]
     (dispatch [:article-list/load-settings
                (get-context) settings])
@@ -98,8 +101,7 @@
   "Loads settings corresponding to a consensus category from graphs on overview
   page, and navigates to articles page."
   [& {:keys [status inclusion]}]
-  (let [context (get-context)
-        display {:show-inclusion true}
+  (let [display {:show-inclusion true}
         filters [{:consensus {:status status
                               :inclusion inclusion}}]]
     (load-settings-and-navigate
@@ -112,8 +114,7 @@
   "Loads settings corresponding to a user's article count from graphs on
   overview page, and navigates to articles page."
   [user-id]
-  (let [context (get-context)
-        display {:show-inclusion true
+  (let [display {:show-inclusion true
                  :show-labels false
                  :show-notes false}
         filters [{:consensus {:status nil
@@ -131,8 +132,7 @@
   "Loads settings corresponding to a label value from graphs on overview page,
   and navigates to articles page."
   [label-id value]
-  (let [context (get-context)
-        display {:show-inclusion true
+  (let [display {:show-inclusion true
                  :show-labels false
                  :show-notes false}
         filters [{:has-label {:label-id label-id
@@ -146,17 +146,22 @@
       :sort-by :content-updated
       :sort-dir :desc})))
 
-(reg-event-fx
- :project-articles/load-settings [trim-v]
- (fn [{:keys [db]} [options]]
-   {:dispatch [:article-list/load-settings
-               (get-context-from-db db) options]}))
+(defn load-preset-settings
+  "Loads settings corresponding to an article list preset, and navigates to
+  articles page."
+  [preset-name]
+  (when-let [preset (get (afilter/filter-presets) preset-name)]
+    (load-settings-and-navigate
+     (merge {:sort-by :content-updated
+             :sort-dir :desc}
+            preset))))
+
+(reg-fx ::load-preset load-preset-settings)
 
 (reg-event-fx
  :project-articles/load-preset [trim-v]
- (fn [{:keys [db]} [preset-name]]
-   {:dispatch [:article-list/load-preset
-               (get-context-from-db db) preset-name]}))
+ (fn [_ [preset-name]]
+   {::load-preset preset-name}))
 
 (reg-event-fx
  :project-articles/reload-list [trim-v]
