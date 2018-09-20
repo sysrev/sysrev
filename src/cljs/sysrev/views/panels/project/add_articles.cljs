@@ -180,7 +180,7 @@
         {:keys [importing-articles? deleting?]} meta]
     (and (true? importing-articles?)
          (t/within? {:start (t/epoch)
-                     :end (t/minus (t/now) (t/minutes 10))}
+                     :end (t/minus (t/now) (t/minutes 30))}
                     date-created))))
 
 (defonce polling-sources? (r/atom false))
