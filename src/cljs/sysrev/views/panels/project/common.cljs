@@ -7,6 +7,10 @@
             [sysrev.util :refer [full-size? mobile? nbsp]]
             [sysrev.shared.util :refer [in?]]))
 
+(defn admin? []
+  (or @(subscribe [:member/admin?])
+      @(subscribe [:user/admin?])))
+
 (defn project-submenu-full []
   (let [project-id @(subscribe [:active-project-id])
         active-tab (->> @(subscribe [:active-panel]) (drop 2) first)
@@ -36,9 +40,10 @@
        :content [:span [:i.configure.icon] "Settings"]
        :action (project-uri project-id "/settings")
        #_ (list [:project :project :settings] action-params)}
-      {:tab-id :compensations
-       :content "Compensations"
-       :action (project-uri project-id "/compensations")}]
+      (when (admin?)
+        {:tab-id :compensations
+         :content "Compensations"
+         :action (project-uri project-id "/compensations")})]
      [{:tab-id :support
        :content [:span [:i.dollar.sign.icon] "Support"]
        :action (project-uri project-id "/support")}]
@@ -70,9 +75,10 @@
       {:tab-id :settings
        :content [:span #_ [:i.configure.icon] "Settings"]
        :action (list [:project :project :settings] action-params)}
-      {:tab-id :compensations
-       :content "Compensations"
-       :action (project-uri project-id "/compensations")}]
+      (when (admin?)
+        {:tab-id :compensations
+         :content "Compensations"
+         :action (project-uri project-id "/compensations")})]
      []
      active-tab
      "bottom attached project-menu-2"
