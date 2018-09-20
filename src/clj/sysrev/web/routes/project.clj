@@ -752,6 +752,12 @@
         (let [project-id (-> request :params :project-id parse-integer)]
           (api/read-project-compensations project-id))))
 
+  (PUT "/api/toggle-compensation-active" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [{:keys [project-id compensation-id active]} (:body request)]
+          (api/toggle-compensation-active! project-id compensation-id active))))
+
   (GET "/api/amount-owed" request
        (wrap-authorize
         request {:roles ["admin"]}

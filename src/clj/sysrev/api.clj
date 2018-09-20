@@ -923,13 +923,7 @@
   "Create a compensation for project-id with rate"
   [project-id rate]
   (try
-    (let [compensation-id (compensation/create-project-compensation! project-id rate)]
-;;;; below logic is convoluted due to the 'one active compensation per project at a time' rule.
-      ;; toggle the compensation off
-      ;;(compensation/toggle-active-project-compensation! project-id compensation-id false)
-      ;; now turn it back on again, making it the default
-      ;;(toggle-active-project-compensation! project-id compensation-id true)
-      )
+    (let [compensation-id (compensation/create-project-compensation! project-id rate)])
        {:result {:success true
                  :rate rate}}
        (catch Throwable e
@@ -949,6 +943,42 @@
   [project-id]
   (try-catch-response
    {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
+
+(defn toggle-compensation-active!
+  [project-id compensation-id active?]
+  (try-catch-response
+   (let [current-compensation (->> (compensation/read-project-compensations project-id)
+                                   (filterv #(= (:id %) compensation-id))
+                                   first)]
+     (cond
+       ;; this compensation doesn't even exist
+       (nil? current-compensation)
+       {:error {:status not-found}}
+       ;; nothing changed, do nothing
+       (= active? (:active current-compensation))
+       {:result {:success true
+                 :message (str "compensation-id " compensation-id " already has active set to " active?)}}
+       ;; this compensation is being deactivated, so also disable all other compensations for users
+       (= active? false)
+       (do
+         (compensation/toggle-active-project-compensation! project-id compensation-id active?)
+         (compensation/end-compensation-period-for-all-users! project-id compensation-id)
+         {:result {:success true}})
+       (= active? true)
+       (do (compensation/toggle-active-project-compensation! project-id compensation-id active?)
+           {:result {:success true}})
+       :else
+       {:error {:status precondition-failed
+                :message "An unknown error occurred"}}))))
+
+(defn set-compensation-default!
+  "Set the compensation-id to the default for project-id "
+  [project-id compensation-id]
+  ;; remove the current default compensation
+
+  ;; set compensation-id for project-id as the default
+  )
+
 
 (defn set-user-compensation!
   "Set the compensation-id for user-id in project-id"

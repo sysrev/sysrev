@@ -59,25 +59,17 @@
               [:= :period_end nil]])
       do-execute))
 
-(defn project-users
-  "Get all user-id's for project-id"
-  [project-id]
-  (-> (select :user_id)
-      (from :project_member)
-      (where [:= :project-id project-id])
-      do-query))
-
 (defn start-compensation-period-for-all-users!
   "Begin the compensation period for compensation-id for all users in project-id"
   [project-id compensation-id]
   (mapv #(start-compensation-period-for-user! compensation-id (:user-id %))
-        (project-users project-id)))
+        (users/project-users project-id)))
 
 (defn end-compensation-period-for-all-users!
   "End the compensation period for compensation-id for all users in project-id"
   [project-id compensation-id]
   (mapv #(end-compensation-period-for-user! compensation-id (:user-id %))
-        (project-users project-id)))
+        (users/project-users project-id)))
 
 (defn toggle-active-project-compensation!
   "Set active to active? on compensation-id for project-id"

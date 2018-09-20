@@ -83,64 +83,7 @@
   [rate]
   (str (accounting/cents->string (:amount rate)) " / " (:item rate)))
 
-#_(defn EditCompensationForm
-  [compensation]
-  (let [project-id @(subscribe [:active-project-id])
-        compensation-atom (r/cursor state [:project-compensations (:id compensation)])
-        compensation-amount (r/cursor compensation-atom [:rate :amount])
-        updating-compensation? (r/cursor compensation-atom [:updating-compensation?])
-        update-compensation! (fn [cents]
-                               (reset! updating-compensation? true)
-                               (PUT "/api/project-compensation"
-                                    {:params {:project-id project-id
-                                              :compensation-id (:id compensation)
-                                              :rate {:item "article"
-                                                     :amount cents}}
-                                      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                      :handler (fn [response]
-                                                 (reset! updating-compensation? false)
-                                                 (get-compensations! state)
-                                                 (.log js/console "success"))
-                                      :error-handler (fn [error]
-                                                       ($ js/console log (str "[Error] " "update-compensation!"))
-                                                       (reset! updating-compensation? false))}))]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        [Form {:on-submit (fn []
-                            (let [cents (accounting/string->cents @compensation-amount)]
-                              (cond (= cents 0)
-                                    (reset! compensation-amount "$0.00")
-                                    (> cents 0)
-                                    (update-compensation! cents)
-                                    :else
-                                    (reset! compensation-amount (accounting/cents->string cents)))))}
-         [:div
-          [:div {:style {:width "6em"
-                         :display "inline-block"}}
-           (let [on-change (fn [event]
-                             (let [value ($ event :target.value)
-                                   dollar-sign-on-front? (fn [value]
-                                                           (= ($ value indexOf "$")
-                                                              0))
-                                   new-value (cond
-                                               (not (dollar-sign-on-front? value))
-                                               (str "$" ($ event :target.value))
-                                               :else
-                                               value)]
-                               (reset! compensation-amount new-value)))]
-             [FormInput {:value @compensation-amount
-                         :on-change on-change}])]
-          [:div {:style {:display "inline-block"
-                         :margin-left "1em"}} "per Article"]
-          [:button {:style {:margin-left "1em"}
-                    :class (str "ui button primary")}
-           "Update"]]])
-      :component-will-mount (fn [this]
-                              (swap! compensation-amount accounting/cents->string))})))
-
-(defn ProjectCompensation
-  "Display a project compensation"
+(defn ToggleCompensationActive
   [compensation]
   (let [project-id @(subscribe [:active-project-id])
         compensation-atom (r/cursor state [:project-compensations (:id compensation)])
@@ -149,33 +92,32 @@
         toggle-active (fn [cents]
                         (swap! active? not)
                         (reset! updating-compensation? true)
-                        (PUT "/api/toggle-active-project-compensation"
+                        (PUT "/api/toggle-compensation-active"
                              {:params {:project-id project-id
                                        :compensation-id (:id compensation)
                                        :active @active?}
                               :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                               :handler (fn [response]
                                          (reset! updating-compensation? false)
-                                         (get-compensations! state)
-                                         (.log js/console "success"))
+                                         (get-compensations! state))
                               :error-handler (fn [error]
                                                ($ js/console log (str "[Error] " "update-compensation!"))
-                                               (reset! updating-compensation? false))}))
-        ;; delete-compensation! (fn []
-        ;;                        (DELETE "/api/project-compensation"
-        ;;                                {:params {:compensation-id (:id compensation)
-        ;;                                          :project-id project-id}
-        ;;                                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-        ;;                                 :handler (fn [response]
-        ;;                                            (get-compensations! state))
-        ;;                                 :error-handler (fn [error]
-        ;;                                                  ($ js/console log (str "[Error] delete-compensation!")))}))
-        ]
+                                               (reset! updating-compensation? false))}))]
+    [Button {:toggle true
+              :active @active?
+              :disabled @updating-compensation?
+              :on-click toggle-active}
+     (if @active? "Active" "Disabled")]))
+
+#_(defn ProjectCompensation
+  "Display a project compensation"
+  [compensation]
+  (let []
     #_[:div
      [:div [EditCompensationForm compensation]
       [:div.ui.button {:on-click #(reset! editing? false)} "Dismiss"]]]
     [:div (accounting/cents->string (get-in compensation [:rate :amount])) " per Article"
-     [Button {:toggle true
+     #_[Button {:toggle true
               :active @active?
               :disabled @updating-compensation?
               :on-click toggle-active}
@@ -197,8 +139,7 @@
                                       :handler (fn [response]
                                                  (reset! creating-new-compensation? false)
                                                  (get-compensations! state)
-                                                 (reset! compensation-amount "$0.00")
-                                                 (.log js/console "success"))
+                                                 (reset! compensation-amount "$0.00"))
                                       :error-handler (fn [error]
                                                        ($ js/console log (str "[Error] " "create-compensation!"))
                                                        (reset! creating-new-compensation? false))}))]
@@ -206,8 +147,6 @@
      {:reagent-render
       (fn []
         [Form {:on-submit (fn []
-                            (.log js/console "Form Submitted")
-                            (.log js/console "compensation-amount: " @compensation-amount)
                             (let [cents (accounting/string->cents @compensation-amount)]
                               (cond (= cents 0)
                                     (reset! compensation-amount "$0.00")
@@ -242,29 +181,35 @@
 (defn ProjectCompensations
   []
   (let [project-id @(subscribe [:active-project-id])
-        project-compensations (r/cursor state [:project-compensations])
         retrieving-compensations? (r/cursor state [:retrieving-compensations?])
-        creating-new-compensation? (r/cursor state [:creating-new-compensation?])]
+        creating-new-compensation? (r/cursor state [:creating-new-compensation?])
+        ]
     (r/create-class
      {:reagent-render
       (fn []
-        [:div.ui.segment
-         [:h4.ui.dividing.header "Project Compensation"]
-         ;; display the current compensations
-         (when-not (nil? @project-compensations)
-           [:div
-            (map
-             (fn [compensation]
-               ^{:key [:id (:id compensation)]}
-               [ProjectCompensation compensation])
-             (vals @project-compensations))])
-         ;; the form for compensations
-         #_(when (< (count @project-compensations)
-                  1))
-         (if (or @creating-new-compensation?
-                 @retrieving-compensations?)
-           [:div {:class "ui active centered inline loader"}]
-           [CreateCompensationForm])])
+        (let [project-compensations (->> @(r/cursor state [:project-compensations])
+                                         vals
+                                         (sort-by #(get-in % [:rate :amount])))]
+          [:div.ui.segment
+           [:h4.ui.dividing.header "Project Compensation"]
+           ;; display the current compensations
+           (when-not (nil? project-compensations)
+             [:div.ui.relaxed.divided.list
+              (map
+               (fn [compensation]
+                 [:div.item {:key (:id compensation)}
+                  [:div.right.floated.content
+                   [ToggleCompensationActive compensation]]
+                  [:div.content {:style {:padding-top "4px"
+                                         :padding-bottom "4px"}}
+                   [:div (accounting/cents->string (get-in compensation [:rate :amount])) " per Article"]]])
+               project-compensations)])
+           [:h4.ui.dividing.header "Create New Compensation"]
+           ;; the form for compensations
+           (if (or @creating-new-compensation?
+                   @retrieving-compensations?)
+             [:div {:class "ui active centered inline loader"}]
+             [CreateCompensationForm])]))
       :component-did-mount (fn [this]
                              (get-compensations! state))})))
 (defn CompensationGraph
@@ -353,24 +298,29 @@
                       [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
                (keys @amount-owed)))])))
 
-(defn UserCompensationDropdown [compensation-id]
+(defn compensation-options
+  [project-compensations]
+  (conj (->> (vals project-compensations)
+             (sort-by #(get-in % [:rate :amount]))
+             (filter :active)
+             (map (fn [compensation]
+                    {:text (rate->string (:rate compensation))
+                     :value (:id compensation)})))
+        {:text "No Compensation"
+         :value "none"}))
+
+(defn UserCompensationDropdown [user-id]
   (let [project-id @(subscribe [:active-project-id])
         project-compensations (r/cursor state [:project-compensations])
-        current-compensation-id (:compensation-id compensation-id)
-        user-id (:user-id compensation-id)
-        updating? (r/cursor state [:project-users-current-compensations user-id :updating?])]
+        project-users-current-compensation (r/cursor state [:project-users-current-compensations])
+        user-compensation (r/cursor project-users-current-compensation [user-id])
+        current-compensation-id (r/cursor user-compensation [:compensation-id])
+        updating? (r/cursor user-compensation [:updating?])]
     [Dropdown {:fluid true
-               :options (conj (->> (vals @project-compensations)
-                                   (sort-by #(get-in % [:rate :amount]))
-                                   (filter :active)
-                                   (map (fn [compensation]
-                                          {:text (rate->string (:rate compensation))
-                                            :value (:id compensation)})))
-                              {:text "No Compensation"
-                               :value "none"})
+               :options (compensation-options @project-compensations)
                :selection true
                :loading @updating?
-               :defaultValue current-compensation-id
+               :value @current-compensation-id
                :on-change (fn [event data]
                             (let [value ($ data :value)]
                               (when-not (= value current-compensation-id)
@@ -392,7 +342,6 @@
         project-compensations (r/cursor state [:project-compensations])]
     (get-project-users-current-compensation! state)
     (get-compensations! state)
-    (.log js/console "bar")
     (when (and @project-compensations
                @project-users-current-compensations)
       [:div.ui.segment
@@ -404,7 +353,7 @@
            (fn [user-compensation-map]
              [:div.item {:key (:user-id user-compensation-map)}
               [:div.right.floated.content
-               [UserCompensationDropdown user-compensation-map]]
+               [UserCompensationDropdown (:user-id user-compensation-map)]]
               [:div.content
                {:style {:padding-top "4px"
                         :padding-bottom "4px"}}
