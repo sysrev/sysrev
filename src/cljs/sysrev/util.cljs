@@ -242,7 +242,8 @@
 
 (defn input-focused? []
   (let [el js/document.activeElement]
-    (when (and el (-> (js/$ el) (.is "input")))
+    (when (and el (or (-> (js/$ el) (.is "input"))
+                      (-> (js/$ el) (.is "textarea"))))
       el)))
 
 ;; https://stackoverflow.com/questions/3169786/clear-text-selection-with-javascript

@@ -231,6 +231,16 @@
     (clear-project-cache project-id)
     new-settings))
 
+(defn change-project-name [project-id project-name]
+  (let [project-id (q/to-project-id project-id)]
+    (assert (string? project-name))
+    (-> (sqlh/update :project)
+        (sset {:name project-name})
+        (where [:= :project-id project-id])
+        do-execute)
+    (clear-project-cache project-id)
+    project-name))
+
 (defn project-contains-public-id
   "Test if project contains an article with given `public-id` value."
   [public-id project-id]

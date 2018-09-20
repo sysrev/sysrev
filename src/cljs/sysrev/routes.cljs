@@ -37,7 +37,8 @@
        default-project-id (subscribe [:self/default-project-id])]
    (dispatch [:set-active-panel [:root]])
    (dispatch [:require [:identity]])
-   (dispatch [:reload [:identity]])))
+   (dispatch [:reload [:identity]])
+   (dispatch [:reload [:public-projects]])))
 
 ;;
 ;; project routes

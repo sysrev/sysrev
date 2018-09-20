@@ -881,7 +881,7 @@
          {:on-click (util/wrap-user-event
                      #(do (dispatch [::al/reset-filters context])
                           (al/reload-list context :transition)))}
-         [:i.erase.icon]]]]]
+         [:i.times.icon]]]]]
      [:div.ui.secondary.segment.no-padding
       [:button.ui.tiny.fluid.icon.button
        {:style (cond-> {:border-top-left-radius "0"

@@ -329,7 +329,11 @@
        (wrap-authorize
         request {:allow-public true}
         (let [project-id (active-project request)]
-          {:result {:settings (project/project-settings project-id)}})))
+          {:result {:settings (project/project-settings project-id)
+                    :project-name (-> (q/select-project-where
+                                       [:= :project-id project-id]
+                                       [:name])
+                                      do-query first :name)}})))
 
   (POST "/api/change-project-settings" request
         (wrap-authorize
@@ -342,6 +346,16 @@
            {:result
             {:success true
              :settings (project/project-settings project-id)}})))
+
+  (POST "/api/change-project-name" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (active-project request)
+               {:keys [project-name]} (:body request)]
+           (project/change-project-name project-id project-name)
+           {:result
+            {:success true
+             :project-name project-name}})))
 
   (GET "/api/project-sources" request
        (wrap-authorize

@@ -592,21 +592,23 @@
      [:div.ui.red.message error])])
 
 (defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
-  [:div
-   [:button.ui.right.labeled.positive.icon.button
-    {:class (str (if can-save? "" "disabled")
-                 " "
-                 (if saving? "loading" ""))
-     :on-click (util/wrap-user-event
-                #(when (and can-save? on-save (not saving?)) (on-save)))}
-    "Save Changes"
-    [:i.check.circle.outline.icon]]
-   [:button.ui.right.labeled.icon.button
-    {:class (if can-reset? "" "disabled")
-     :on-click (util/wrap-user-event
-                #(when (and can-reset? on-reset) (on-reset)))}
-    "Reset"
-    [:i.eraser.icon]]])
+  [:div.ui.two.column.grid.save-reset-form
+   [:div.column.save
+    [:button.ui.fluid.right.labeled.positive.icon.button
+     {:class (str (if can-save? "" "disabled")
+                  " "
+                  (if saving? "loading" ""))
+      :on-click (util/wrap-user-event
+                 #(when (and can-save? on-save (not saving?)) (on-save)))}
+     "Save Changes"
+     [:i.check.circle.outline.icon]]]
+   [:div.column.reset
+    [:button.ui.fluid.right.labeled.icon.button
+     {:class (if can-reset? "" "disabled")
+      :on-click (util/wrap-user-event
+                 #(when (and can-reset? on-reset) (on-reset)))}
+     "Cancel"
+     [:i.times.icon]]]])
 
 (defn ConfirmationDialog
   "A confirmation dialog for confirming or cancelling an action.
@@ -621,7 +623,7 @@
   }"
   [{:keys [on-cancel on-confirm title message action-color]
     :or {action-color "orange"}}]
-  [:div
+  [:div.confirm-cancel-form
    [:div.ui.icon.warning.message.confirm-warning
     [:i.warning.icon {:class action-color}]
     [:div.content
@@ -630,13 +632,15 @@
        [:p {:style {:font-size "16px"
                     :font-weight "bold"}}
         message])]]
-   [:div
-    [:button.ui.button
-     {:on-click (util/wrap-user-event on-confirm) :class action-color}
-     "Confirm"]
-    [:button.ui.button
-     {:on-click (util/wrap-user-event on-cancel)}
-     "Cancel"]]])
+   [:div.ui.two.column.grid.confirm-cancel-form
+    [:div.column
+     [:button.ui.fluid.button
+      {:on-click (util/wrap-user-event on-confirm) :class action-color}
+      "Confirm"]]
+    [:div.column
+     [:button.ui.fluid.button
+      {:on-click (util/wrap-user-event on-cancel)}
+      "Cancel"]]]])
 
 (defn UploadContainer
   "Create uploader form component."

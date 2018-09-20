@@ -7,7 +7,28 @@ div.user-settings>.top.attached.segment {
     padding: 0.8em;
 }
 
-div.project-settings .form.project-permissions .fluid.button.action {
-    padding-left: 0.7em;
-    padding-right: 0.7em;
+.project-settings {
+    .ui.divider {
+        margin: 0.75em 0;
+    }
+
+    .form.project-permissions {
+        > .fields {
+            margin-bottom: 0.5em;
+        }
+        .ui.fluid.button.action {
+            padding-left: 0.7em;
+            padding-right: 0.7em;
+        }
+    }
+
+    .ui.segment.project-misc {
+        .ui.form {
+            .field.project-name {
+                textarea {
+                    padding: 0.6em;
+                }
+            }
+        }
+    }
 }

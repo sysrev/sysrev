@@ -254,9 +254,9 @@
       #(do (dispatch [:action [:project/import-articles-from-search
                                @project-id @current-search-term "PubMed"]])
            (reset! state initial-state))}
-     [:a.ui.fluid.right.pointing.label
+     [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
-     [:div.ui.blue.button
+     [:button.ui.blue.button
       [:i.download.icon] " Import"]]))
 
 (defn PubMedSearchLink
@@ -272,7 +272,7 @@
 
 (defn CloseSearchResultsButton []
   (let [show-results? (r/cursor state [:show-results?])]
-    [:a.ui.fluid.right.labeled.icon.button.search-results
+    [:button.ui.fluid.right.labeled.icon.button.search-results
      {:on-click #(reset! show-results? false)
       :style {:margin-right "0"}}
      "Close " [:i.times.icon]]))

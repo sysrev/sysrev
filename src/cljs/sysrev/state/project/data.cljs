@@ -62,10 +62,14 @@
   :loaded? project-loaded?
   :uri (fn [project-id] "/api/project-settings")
   :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity]])
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process
-  (fn [{:keys [db]} [project-id] {:keys [settings]}]
-    {:db (assoc-in db [:data :project project-id :settings] settings)}))
+  (fn [{:keys [db]} [project-id] {:keys [settings project-name]}]
+    {:db (cond-> db
+           settings
+           (assoc-in [:data :project project-id :settings] settings)
+           project-name
+           (assoc-in [:data :project project-id :name] project-name))}))
 
 (def-data :project/files
   :loaded? project-loaded?
