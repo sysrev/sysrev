@@ -31,9 +31,7 @@
           (clj->js
            (cond-> {}
              onChange (merge {:onChange onChange})))))
-    :reagent-render
-    (fn [elt]
-      elt)}))
+    :reagent-render (fn [elt] elt)}))
 
 (defn selection-dropdown [selected-item items &
                           [{:keys [id class onChange]

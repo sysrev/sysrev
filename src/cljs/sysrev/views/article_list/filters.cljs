@@ -273,7 +273,6 @@
         true               (str " selection dropdown"))
       :onChange
       (fn [v t]
-        #_ (println (str "v = " (pr-str v)))
         (let [v (cond (= v "any")  nil
                       read-value   (read-value v)
                       :else        v)]
@@ -333,7 +332,7 @@
        #(cond (= % "true")  true
               (= % "false") false
               :else         nil)
-       #(if (in? all-values %) % nil))]))
+       identity)]))
 
 (defn- ContentTypeDropdown [context value on-change]
   [FilterDropdown
@@ -395,23 +394,24 @@
         (when (contains? filters filter-idx)
           (= (process-filter-input ifilter)
              (process-filter-input (nth filters filter-idx))))]
-    [:div.field.edit-buttons>div.fields
-     [:div.eight.wide.field
-      [:button.ui.tiny.fluid.labeled.icon.positive.button
-       {:class (when (or unchanged? (not valid?)) "disabled")
-        :on-click
-        (when valid?
-          (util/wrap-user-event
-           #(dispatch [::sync-filters-input context])))}
-       [:i.circle.check.icon]
-       "Save"]]
-     [:div.eight.wide.field
-      [:button.ui.tiny.fluid.labeled.icon.button
-       {:on-click
-        (util/wrap-user-event
-         #(dispatch [::reset-filters-input context]))}
-       [:i.times.icon]
-       "Cancel"]]]))
+    [:div.ui.small.form
+     [:div.field.edit-buttons>div.fields
+      [:div.eight.wide.field
+       [:button.ui.tiny.fluid.labeled.icon.positive.button
+        {:class (when (or unchanged? (not valid?)) "disabled")
+         :on-click
+         (when valid?
+           (util/wrap-user-event
+            #(dispatch [::sync-filters-input context])))}
+        [:i.circle.check.icon]
+        "Save"]]
+      [:div.eight.wide.field
+       [:button.ui.tiny.fluid.labeled.icon.button
+        {:on-click
+         (util/wrap-user-event
+          #(dispatch [::reset-filters-input context]))}
+        [:i.times.icon]
+        "Cancel"]]]]))
 
 (defmulti FilterEditorFields
   (fn [context filter-idx ifilter update-filter]
@@ -419,18 +419,16 @@
 
 (defmethod FilterEditorFields :default [context filter-idx ifilter update-filter]
   (let [[[ftype value]] (vec ifilter)]
-    (list
+    [:div.ui.small.form
      [:div.sixteen.wide.field
-      {:key [:unknown-filter 1]}
       [:button.ui.tiny.fluid.button
-       (str "editing filter (" (pr-str ftype) ")")]])))
+       (str "editing filter (" (pr-str ftype) ")")]]]))
 
 (defmethod FilterEditorFields :has-user [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [user content confirmed]} value]
-    (list
+    [:div.ui.small.form
      [:div.field
-      {:key [:has-user 1]}
       [:div.fields
        [:div.eight.wide.field
         [:label "User"]
@@ -443,31 +441,29 @@
         [ContentTypeDropdown context content
          (fn [new-value]
            (update-filter #(assoc % :content new-value)))]]]]
-     ;; TODO: implement this
      (when (or (= content :labels)
                (in? [true false] confirmed))
        [:div.field
-        {:key [:has-user 2]}
         [:div.fields
          [:div.eight.wide.field
           [:label "Confirmed"]
           [BooleanDropdown
            context confirmed
            (fn [new-value]
-             (update-filter #(assoc % :confirmed new-value)))]]]]))))
+             (update-filter #(assoc % :confirmed new-value)))]]]])]))
 
 (defmethod FilterEditorFields :has-label [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [label-id users values inclusion confirmed]} value]
-    (list
+    [:div.ui.small.form
      [:div.field
-      {:key [:has-label 1]}
       [:div.fields
        [:div.eight.wide.field
         [:label "Label"]
         [SelectLabelDropdown context label-id
          (fn [new-value]
-           (update-filter #(assoc % :label-id new-value)))]]
+           (update-filter #(merge % {:label-id new-value
+                                     :values nil})))]]
        [:div.eight.wide.field
         [:label "User"]
         [SelectUserDropdown context (first users)
@@ -475,7 +471,6 @@
            (update-filter #(assoc % :users
                                   (if (nil? new-value) nil [new-value]))))]]]]
      [:div.field
-      {:key [:has-label 2]}
       [:div.fields
        [:div.eight.wide.field
         [:label "Answer Value"]
@@ -489,20 +484,18 @@
          (fn [new-value]
            (update-filter #(assoc % :inclusion new-value)))]]]]
      [:div.field
-      {:key [:has-label 3]}
       [:div.fields
        [:div.eight.wide.field
         [:label "Confirmed"]
         [BooleanDropdown context confirmed
          (fn [new-value]
-           (update-filter #(assoc % :confirmed new-value)))]]]])))
+           (update-filter #(assoc % :confirmed new-value)))]]]]]))
 
 (defmethod FilterEditorFields :consensus [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [status inclusion]} value]
-    (list
+    [:div.ui.small.form
      [:div.field
-      {:key [:consensus 1]}
       [:div.fields
        [:div.eight.wide.field
         [:label "Consensus Status"]
@@ -513,38 +506,37 @@
         [:label "Inclusion"]
         [BooleanDropdown context inclusion
          (fn [new-value]
-           (update-filter #(assoc % :inclusion new-value)))]]]])))
+           (update-filter #(assoc % :inclusion new-value)))]]]]]))
 
 (defn- FilterEditNegationControl [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [negate]} value]
-    [:div.field.filter-negation>div.fields
-     [:div.sixteen.wide.field
-      [:div.ui.fluid.buttons
-       [:button.ui.tiny.fluid.button
-        {:class (if negate nil "primary")
-         :on-click
-         (util/wrap-user-event
-          (fn [] (update-filter #(dissoc % :negate))))}
-        "Match"]
-       [:button.ui.tiny.fluid.button
-        {:class (if negate "primary" nil)
-         :on-click
-         (util/wrap-user-event
-          (fn [] (update-filter #(assoc % :negate true))))}
-        "Exclude"]]]]))
+    [:div.ui.small.form
+     [:div.field.filter-negation>div.fields
+      [:div.sixteen.wide.field
+       [:div.ui.fluid.buttons
+        [:button.ui.tiny.fluid.button
+         {:class (if negate nil "primary")
+          :on-click
+          (util/wrap-user-event
+           (fn [] (update-filter #(dissoc % :negate))))}
+         "Match"]
+        [:button.ui.tiny.fluid.button
+         {:class (if negate "primary" nil)
+          :on-click
+          (util/wrap-user-event
+           (fn [] (update-filter #(assoc % :negate true))))}
+         "Exclude"]]]]]))
 
 (defn- FilterEditElement
   [context filter-idx]
   (let [filters @(subscribe [::filters-input context])
         ifilter (nth filters filter-idx)
-        update-filter #(dispatch [::update-filter-input context filter-idx %])
-        fields (FilterEditorFields context filter-idx ifilter update-filter)]
+        update-filter #(dispatch [::update-filter-input context filter-idx %])]
     [:div.ui.secondary.segment.edit-filter
-     [:div.ui.small.form
-      [FilterEditNegationControl context filter-idx ifilter update-filter]
-      (doall (for [field (remove nil? fields)] field))
-      [FilterEditButtons context filter-idx]]]))
+     [FilterEditNegationControl context filter-idx ifilter update-filter]
+     [FilterEditorFields context filter-idx ifilter update-filter]
+     [FilterEditButtons context filter-idx]]))
 
 (defmulti filter-description (fn [context ftype value] ftype))
 
