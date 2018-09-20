@@ -347,41 +347,59 @@
                (keys @amount-owed)))])))
 
 (defn UserCompensationDropdown [compensation-id]
-  (let [project-compensations (r/cursor state [:project-compensations])
-        current-compensation-id (:compensation-id compensation-id)]
+  (let [project-id @(subscribe [:active-project-id])
+        project-compensations (r/cursor state [:project-compensations])
+        current-compensation-id (:compensation-id compensation-id)
+        user-id (:user-id compensation-id)
+        updating? (r/cursor state [:project-users-current-compensations user-id :updating?])]
     [Dropdown {:fluid true
                :options (->> (vals @project-compensations)
                              (sort-by #(get-in % [:rate :amount]))
+                             (filter :active)
                              (map (fn [compensation]
                                     {:text (rate->string (:rate compensation))
                                      :value (:id compensation)})))
-               :selection current-compensation-id
-               :loading false
+               :selection true
+               :loading @updating?
                :defaultValue current-compensation-id
                :on-change (fn [event data]
                             (let [value ($ data :value)]
                               (when-not (= value current-compensation-id)
-                                (.log js/console "I would have done something"))))}]))
+                                (reset! updating? true)
+                                (PUT "/api/set-user-compensation"
+                                     {:params {:project-id project-id
+                                               :compensation-id value
+                                               :user-id user-id}
+                                      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                      :handler (fn [response]
+                                                 (reset! updating? false)
+                                                 (get-project-users-current-compensation! state))
+                                      :error-handler (fn [error]
+                                                       (reset! updating? false))}))))}]))
 
 (defn UsersCompensations []
   (let [project-users-current-compensations
-        (r/cursor state [:project-users-current-compensations])]
+        (r/cursor state [:project-users-current-compensations])
+        project-compensations (r/cursor state [:project-compensations])]
     (get-project-users-current-compensation! state)
     (get-compensations! state)
-    [:div.ui.segment
-     [:div
-      [:h4.ui.dividing.header "User Compensations"]
-      [:div.ui.relaxed.divided.list
-       (doall
-        (map
-         (fn [user-compensation-map]
-           [:div.item {:key (:user-id user-compensation-map)}
-            [:div.right.floated.content
-             [UserCompensationDropdown user-compensation-map]]
-            [:div.content
-             {:style {:padding-top "4px"
-                      :padding-bottom "4px"}}
-             [:i.user.icon]
-             (:email user-compensation-map)]])
-         (->> (vals @project-users-current-compensations))
-         ))]]]))
+    (.log js/console "bar")
+    (when (and @project-compensations
+               @project-users-current-compensations)
+      [:div.ui.segment
+       [:div
+        [:h4.ui.dividing.header "User Compensations"]
+        [:div.ui.relaxed.divided.list
+         (doall
+          (map
+           (fn [user-compensation-map]
+             [:div.item {:key (:user-id user-compensation-map)}
+              [:div.right.floated.content
+               [UserCompensationDropdown user-compensation-map]]
+              [:div.content
+               {:style {:padding-top "4px"
+                        :padding-bottom "4px"}}
+               [:i.user.icon]
+               (:email user-compensation-map)]])
+           (->> (vals @project-users-current-compensations))
+           ))]]])))

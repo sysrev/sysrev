@@ -766,6 +766,12 @@
         (let [project-id (-> request :params :project-id parse-integer)]
           (api/project-users-current-compensation project-id))))
 
+  (PUT "/api/set-user-compensation" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [{:keys [project-id user-id compensation-id]} (:body request)]
+          (api/set-user-compensation! project-id user-id compensation-id))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

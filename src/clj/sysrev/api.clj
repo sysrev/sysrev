@@ -950,7 +950,7 @@
   (try-catch-response
    {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
 
-(defn set-project-users-current-compensation!
+(defn set-user-compensation!
   "Set the compensation-id for user-id in project-id"
   [project-id user-id compensation-id]
   (try-catch-response
@@ -975,8 +975,8 @@
                 :message (str "compensation-id " compensation-id " is not active or doesn't exist for project-id " project-id)}}
        ;; this is the same compensation-id as the user already has
        (= current-compensation-id compensation-id)
-       {:error {:status precondition-failed
-                :message "Compensation is already set to this value for the user, no changes made."}}
+       {:result {:success true
+                 :message "Compensation is already set to this value for the user, no changes made."}}
        ;; the user is going from having no compensation-id set to having a new one
        (nil? current-compensation-id)
        (do
