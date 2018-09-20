@@ -534,7 +534,4 @@
           [ProjectOptionsBox]]
          [:div.ui.column
           [ProjectMembersBox]
-          [DeleteProject]]]]
-       [ProjectCompensations]
-       [UsersCompensations]
-       [CompensationSummary]])))
+          [DeleteProject]]]]])))

@@ -230,6 +230,12 @@
  project-export "/export" [project-id]
  (dispatch [:set-active-panel [:project :project :export-data]]))
 
+(sr-defroute-project
+ project-compensations "/compensations" [project-id]
+ (let [project-id @(subscribe [:active-project-id])]
+   (dispatch [:reload [:project/compensations project-id]])
+   (dispatch [:set-active-panel [:project :project :compensations]])))
+
 ;;
 ;; non-project routes
 ;;
@@ -325,6 +331,9 @@
 
         [[:project :project :settings]
          #(project-uri (:project-id %) "/settings")]
+
+        [[:project :project :compensations]
+         #(project-uri (:project-id %) "/compensations")]
 
         [[:project :project :invite-link]
          #(project-uri (:project-id %) "/invite-link")]

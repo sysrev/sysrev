@@ -6,6 +6,7 @@
             [sysrev.accounting :as accounting]
             [sysrev.charts.chartjs :as chartjs]
             [sysrev.util :refer [vector->hash-map]]
+            [sysrev.views.base :refer [panel-content]]
             [sysrev.views.charts :as charts]
             [sysrev.views.semantic :refer [Form FormGroup FormInput Button Dropdown]])
   (:require-macros [reagent.interop :refer [$]]))
@@ -416,3 +417,12 @@
                (:email user-compensation-map)]])
            (->> (vals @project-users-current-compensations))
            ))]]])))
+
+(defmethod panel-content [:project :project :compensations] []
+  (fn [child]
+    [:div.project-content
+     [:div.ui.two.column.stack.grid
+      [:div.ui.row
+       [:div.ui.column [ProjectCompensations]]
+       [:div.ui.column [UsersCompensations]]]]
+     [CompensationSummary]]))

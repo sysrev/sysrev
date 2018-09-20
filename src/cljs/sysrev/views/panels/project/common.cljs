@@ -35,7 +35,10 @@
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
        :action (project-uri project-id "/settings")
-       #_ (list [:project :project :settings] action-params)}]
+       #_ (list [:project :project :settings] action-params)}
+      {:tab-id :compensations
+       :content "Compensations"
+       :action (project-uri project-id "/compensations")}]
      [{:tab-id :support
        :content [:span [:i.dollar.sign.icon] "Support"]
        :action (project-uri project-id "/support")}]
@@ -66,7 +69,10 @@
          :action (list [:project :project :export-data] action-params)})
       {:tab-id :settings
        :content [:span #_ [:i.configure.icon] "Settings"]
-       :action (list [:project :project :settings] action-params)}]
+       :action (list [:project :project :settings] action-params)}
+      {:tab-id :compensations
+       :content "Compensations"
+       :action (project-uri project-id "/compensations")}]
      []
      active-tab
      "bottom attached project-menu-2"
@@ -85,7 +91,8 @@
                              [:project :invite-link]
                              [:project :export-data]
                              [:project :settings]
-                             [:project :support]]
+                             [:project :support]
+                             [:project :compensations]]
                             active-tab)
                      :manage active-tab)
         manage? (= active-tab :manage)
