@@ -225,7 +225,7 @@
                           :backgroundColor (nth charts/paul-tol-colors (count labels))}]}
         options (charts/wrap-disable-animation
                  {:scales
-                  {:xAxes
+                  {:yAxes
                    [{:display true
                      :scaleLabel {:fontColor font-color
                                   :display false
@@ -239,20 +239,22 @@
                                                  (= (/ (apply max values) 2)
                                                     value)
                                                  (= (apply max values)
-                                                    value))
+                                                    value)
+                                                 (= value 0))
                                            (accounting/cents->string value)
                                            ""))}}]
-                   :yAxes
+                   :xAxes
                    [{:maxBarThickness 10
                      :scaleLabel {:fontColor font-color}
                      :ticks {:fontColor font-color}}]}
                   :legend
                   {:display false}
                   :tooltips {:callbacks {:label (fn [item]
-                                                  (accounting/cents->string ($ item :xLabel)))}}})]
-    [chartjs/horizontal-bar
+                                                  (accounting/cents->string ($ item :yLabel)))}}})]
+    [chartjs/bar
      {:data data
       :height (charts/label-count->chart-height (count labels))
+      :width (* (count labels) 200)
       :options options}]))
 
 (defn CompensationSummary
@@ -281,7 +283,7 @@
              [:div
               [:h4 "Total Owed"]
               [CompensationGraph labels data]])
-           (doall (map
+           #_(doall (map
                    (fn [compensation-id]
                      (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
                            rate (-> @compensation-owed
