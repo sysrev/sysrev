@@ -233,7 +233,6 @@
 (sr-defroute-project
  project-compensations "/compensations" [project-id]
  (let [project-id @(subscribe [:active-project-id])]
-   (dispatch [:reload [:project/compensations project-id]])
    (dispatch [:set-active-panel [:project :project :compensations]])))
 
 ;;

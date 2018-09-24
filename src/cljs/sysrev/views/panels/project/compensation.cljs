@@ -83,7 +83,7 @@
   "Get the default current compensation and set it"
   [state]
     (let [project-id @(subscribe [:active-project-id])
-          retrieving? (r/cursor state [:project-compensations :retrieving?])
+          retrieving? (r/cursor state [:retrieving-project-compensations?])
           default-compensation (r/cursor state [:default-project-compensation])]
     (reset! retrieving? true)
     (GET "/api/get-default-compensation"
@@ -128,21 +128,6 @@
               :disabled @updating-compensation?
               :on-click toggle-active}
      (if @active? "Active" "Disabled")]))
-
-#_(defn ProjectCompensation
-  "Display a project compensation"
-  [compensation]
-  (let []
-    #_[:div
-     [:div [EditCompensationForm compensation]
-      [:div.ui.button {:on-click #(reset! editing? false)} "Dismiss"]]]
-    [:div (accounting/cents->string (get-in compensation [:rate :amount])) " per Article"
-     #_[Button {:toggle true
-              :active @active?
-              :disabled @updating-compensation?
-              :on-click toggle-active}
-      (if @active? "Active" "Disabled")]]
-    #_[:div.ui.button {:on-click delete-compensation!} "Delete"]))
 
 (defn CreateCompensationForm
   []
@@ -202,8 +187,7 @@
   []
   (let [project-id @(subscribe [:active-project-id])
         retrieving-compensations? (r/cursor state [:retrieving-compensations?])
-        creating-new-compensation? (r/cursor state [:creating-new-compensation?])
-        ]
+        creating-new-compensation? (r/cursor state [:creating-new-compensation?])]
     (r/create-class
      {:reagent-render
       (fn []
@@ -213,7 +197,7 @@
           [:div.ui.segment
            [:h4.ui.dividing.header "Project Compensation"]
            ;; display the current compensations
-           (when-not (nil? project-compensations)
+           (when-not (empty? project-compensations)
              [:div.ui.relaxed.divided.list
               (map
                (fn [compensation]
@@ -274,49 +258,53 @@
 (defn CompensationSummary
   []
   (let [amount-owed (r/cursor state [:amount-owed])]
-    (amount-owed! state "2018-9-1" "2018-9-30")
-    (when-not (empty? (keys @amount-owed))
-      [:div.ui.segment
-       [:h4.ui.dividing.header "Compensation Summary"]
-       (let [users-owed-map (->> @(r/cursor state [:amount-owed])
-                                 vals
-                                 flatten
-                                 (group-by :name))
-             total-owed (fn [owed-vectors]
-                          (apply +
-                                 (map #(* (:articles %) (get-in % [:rate :amount])) owed-vectors)))
-             total-owed-to-users (zipmap (keys users-owed-map) (->> users-owed-map vals (map total-owed)))
-             total-owed-maps (->> (keys total-owed-to-users)
-                                  (map #(hash-map :name % :owed (get total-owed-to-users %)))
-                                  (filter #(> (% :owed) 0))
-                                  (sort-by :name))
-             labels (map :name total-owed-maps)
-             data (map :owed total-owed-maps)]
-         [:div
-          [:h4 "Total Owed"]
-          [CompensationGraph labels data]])
-       (doall (map
-               (fn [compensation-id]
-                 (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
-                       rate (-> @compensation-owed
-                                first
-                                :rate)
-                       amount-owed (fn [compensation-map]
-                                     (* (get-in compensation-map [:rate :amount])
-                                        ;; note: this will need to be changed for
-                                        ;; items other than articles
-                                        (:articles compensation-map)))
-                       compensation-maps (->> @compensation-owed
-                                              (filter #(> (% :articles) 0))
-                                              (sort-by :name))
-                       total-owed (apply + (map amount-owed compensation-maps))
-                       labels (map :name compensation-maps)]
-                   (when (> total-owed 0)
-                     ^{:key compensation-id}
-                     [:div
-                      [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
-                      [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
-               (keys @amount-owed)))])))
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (when-not (empty? (keys @amount-owed))
+          [:div.ui.segment
+           [:h4.ui.dividing.header "Compensation Summary"]
+           (let [users-owed-map (->> @(r/cursor state [:amount-owed])
+                                     vals
+                                     flatten
+                                     (group-by :name))
+                 total-owed (fn [owed-vectors]
+                              (apply +
+                                     (map #(* (:articles %) (get-in % [:rate :amount])) owed-vectors)))
+                 total-owed-to-users (zipmap (keys users-owed-map) (->> users-owed-map vals (map total-owed)))
+                 total-owed-maps (->> (keys total-owed-to-users)
+                                      (map #(hash-map :name % :owed (get total-owed-to-users %)))
+                                      (filter #(> (% :owed) 0))
+                                      (sort-by :name))
+                 labels (map :name total-owed-maps)
+                 data (map :owed total-owed-maps)]
+             [:div
+              [:h4 "Total Owed"]
+              [CompensationGraph labels data]])
+           (doall (map
+                   (fn [compensation-id]
+                     (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
+                           rate (-> @compensation-owed
+                                    first
+                                    :rate)
+                           amount-owed (fn [compensation-map]
+                                         (* (get-in compensation-map [:rate :amount])
+                                            ;; note: this will need to be changed for
+                                            ;; items other than articles
+                                            (:articles compensation-map)))
+                           compensation-maps (->> @compensation-owed
+                                                  (filter #(> (% :articles) 0))
+                                                  (sort-by :name))
+                           total-owed (apply + (map amount-owed compensation-maps))
+                           labels (map :name compensation-maps)]
+                       (when (> total-owed 0)
+                         ^{:key compensation-id}
+                         [:div
+                          [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
+                          [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
+                   (keys @amount-owed)))]))
+      :component-did-mount (fn [this]
+                             (amount-owed! state "2018-09-01" "2018-09-30"))})))
 
 (defn compensation-options
   [project-compensations]
@@ -359,7 +347,7 @@
   (let [project-id @(subscribe [:active-project-id])
         project-compensations (r/cursor state [:project-compensations])
         default-project-compensation (r/cursor state [:default-project-compensation])
-        updating? (r/cursor state [:project-compensations :updating?])]
+        updating? (r/cursor state [:updating-project-compensations?])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -391,32 +379,34 @@
   (let [project-users-current-compensations
         (r/cursor state [:project-users-current-compensations])
         project-compensations (r/cursor state [:project-compensations])]
-    (get-project-users-current-compensation! state)
-    (get-compensations! state)
-    ;;(get-default-compensation! state)
-    (when (and @project-compensations
-               @project-users-current-compensations)
-      [:div.ui.segment
-       [:div
-        [:h4.ui.dividing.header "User Compensations"]
-        [:div.ui.relaxed.divided.list
-         [:div.item {:key "default-compensation"}
-          [:div.right.floated.content
-           [DefaultCompensationDropdown]]
-          [:div.content {:style {:padding-bottom "4px"}}
-           [:i.user.icon] "Default New User Compensation"]]
-         (doall
-          (map
-           (fn [user-compensation-map]
-             [:div.item {:key (:user-id user-compensation-map)}
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (when (and @project-compensations
+                   @project-users-current-compensations)
+          [:div.ui.segment
+           [:div
+            [:h4.ui.dividing.header "User Compensations"]
+            [:div.ui.relaxed.divided.list
+             [:div.item {:key "default-compensation"}
               [:div.right.floated.content
-               [UserCompensationDropdown (:user-id user-compensation-map)]]
-              [:div.content
-               {:style {:padding-top "4px"}}
-               [:i.user.icon]
-               (:email user-compensation-map)]])
-           (->> (vals @project-users-current-compensations))
-           ))]]])))
+               [DefaultCompensationDropdown]]
+              [:div.content {:style {:padding-bottom "4px"}}
+               [:i.user.icon] "Default New User Compensation"]]
+             (doall
+              (map
+               (fn [user-compensation-map]
+                 [:div.item {:key (:user-id user-compensation-map)}
+                  [:div.right.floated.content
+                   [UserCompensationDropdown (:user-id user-compensation-map)]]
+                  [:div.content
+                   {:style {:padding-top "4px"}}
+                   [:i.user.icon]
+                   (:email user-compensation-map)]])
+               (->> (vals @project-users-current-compensations))))]]]))
+      :component-did-mount
+      (fn [this]
+        (get-project-users-current-compensation! state))})))
 
 (defmethod panel-content [:project :project :compensations] []
   (fn [child]
