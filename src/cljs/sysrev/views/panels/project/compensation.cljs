@@ -206,7 +206,7 @@
                    [ToggleCompensationActive compensation]]
                   [:div.content {:style {:padding-top "4px"
                                          :padding-bottom "4px"}}
-                   [:div (accounting/cents->string (get-in compensation [:rate :amount])) " per Article"]]])
+                   [:div (str (accounting/cents->string (get-in compensation [:rate :amount])) " per Article")]]])
                project-compensations)])
            [:h4.ui.dividing.header "Create New Compensation"]
            ;; the form for compensations
@@ -264,47 +264,48 @@
      {:reagent-render
       (fn [this]
         (when-not (empty? (keys @amount-owed))
-          [:div.ui.segment
-           [:h4.ui.dividing.header "Compensation Summary"]
-           (let [users-owed-map (->> @(r/cursor state [:amount-owed])
-                                     vals
-                                     flatten
-                                     (group-by :name))
-                 total-owed (fn [owed-vectors]
-                              (apply +
-                                     (map #(* (:articles %) (get-in % [:rate :amount])) owed-vectors)))
-                 total-owed-to-users (zipmap (keys users-owed-map) (->> users-owed-map vals (map total-owed)))
-                 total-owed-maps (->> (keys total-owed-to-users)
-                                      (map #(hash-map :name % :owed (get total-owed-to-users %)))
-                                      (filter #(> (% :owed) 0))
-                                      (sort-by :name))
-                 labels (map :name total-owed-maps)
-                 data (map :owed total-owed-maps)]
-             [:div
-              [:h4 "Total Owed"]
-              [CompensationGraph labels data]])
-           #_(doall (map
-                   (fn [compensation-id]
-                     (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
-                           rate (-> @compensation-owed
-                                    first
-                                    :rate)
-                           amount-owed (fn [compensation-map]
-                                         (* (get-in compensation-map [:rate :amount])
-                                            ;; note: this will need to be changed for
-                                            ;; items other than articles
-                                            (:articles compensation-map)))
-                           compensation-maps (->> @compensation-owed
-                                                  (filter #(> (% :articles) 0))
-                                                  (sort-by :name))
-                           total-owed (apply + (map amount-owed compensation-maps))
-                           labels (map :name compensation-maps)]
-                       (when (> total-owed 0)
-                         ^{:key compensation-id}
-                         [:div
-                          [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
-                          [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
-                   (keys @amount-owed)))]))
+          (let [users-owed-map (->> @(r/cursor state [:amount-owed])
+                                    vals
+                                    flatten
+                                    (group-by :name))
+                total-owed (fn [owed-vectors]
+                             (apply +
+                                    (map #(* (:articles %) (get-in % [:rate :amount])) owed-vectors)))
+                total-owed-to-users (zipmap (keys users-owed-map) (->> users-owed-map vals (map total-owed)))
+                total-owed-maps (->> (keys total-owed-to-users)
+                                     (map #(hash-map :name % :owed (get total-owed-to-users %)))
+                                     (filter #(> (% :owed) 0))
+                                     (sort-by :name))
+                labels (map :name total-owed-maps)
+                data (map :owed total-owed-maps)]
+            (when (> (apply + data) 0)
+              [:div.ui.segment
+               [:h4.ui.dividing.header "Compensation Summary"]
+               [:div
+                [:h4 "Total Owed"]
+                [CompensationGraph labels data]]]))
+          #_(doall (map
+                      (fn [compensation-id]
+                        (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
+                              rate (-> @compensation-owed
+                                       first
+                                       :rate)
+                              amount-owed (fn [compensation-map]
+                                            (* (get-in compensation-map [:rate :amount])
+                                               ;; note: this will need to be changed for
+                                               ;; items other than articles
+                                               (:articles compensation-map)))
+                              compensation-maps (->> @compensation-owed
+                                                     (filter #(> (% :articles) 0))
+                                                     (sort-by :name))
+                              total-owed (apply + (map amount-owed compensation-maps))
+                              labels (map :name compensation-maps)]
+                          (when (> total-owed 0)
+                            ^{:key compensation-id}
+                            [:div
+                             [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
+                             [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
+                      (keys @amount-owed)))))
       :component-did-mount (fn [this]
                              (amount-owed! state "2018-09-01" "2018-09-30"))})))
 

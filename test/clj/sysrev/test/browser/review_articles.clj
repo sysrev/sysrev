@@ -14,6 +14,12 @@
 
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
+;; Note: There are different classes / ids / etc. for elements in mobile versus desktop
+;;       If you are having an issue with not finding elements that should be there,
+;;       try resizing the window to desktop to see if there is a discrepancy and then fix it
+;;       in the element xpath names.
+;;       You should have consistent test behavior wether you are in mobile or desktop!!!
+;;
 ;; helpful manual testing functions:
 ;; There are additional notes in create_project.clj
 ;; (browser/delete-test-user)
@@ -36,7 +42,7 @@
 (def review-articles-button  {:xpath "//span[text()='Review']"})
 (def articles-button  {:xpath "//span[text()='Articles']"})
 (def save-button
-  {:xpath "//button[contains(@class,'labeled') and contains(text(),'Save')]"})
+  {:xpath "//button[contains(text(),'Save')]"})
 (def disabled-save-button
   {:xpath "//button[contains(@class,'disabled') and contains(text(),'Save')]"})
 (def discard-button
@@ -535,17 +541,11 @@
 
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"
-  []
+  [label-definitions]
   (browser/click review-articles-button)
   (browser/wait-until-exists {:xpath "//div[@id='project_review']"})
   (while (not (taxi/exists? no-articles-need-review))
-    (do (randomly-set-article-labels
-         [(merge include-label-definition
-                 {:definition {:all-values [true false]}})
-          (merge boolean-label-definition
-                 {:definition {:all-values [true false]}})
-          string-label-definition
-          categorical-label-definition])
+    (do (randomly-set-article-labels label-definitions)
         (taxi/wait-until #(or (taxi/exists? disabled-save-button)
                               (taxi/exists? no-articles-need-review))
                          5000 200))))
@@ -562,5 +562,5 @@
                             (taxi/exists? no-articles-need-review))
                        5000 200))))
 
-
-;; (randomly-review-n-articles 15 [(merge include-label-definition {:definition {:all-values [true false]}})])
+;; (randomly-review-all-articles [(merge include-label-definition {:all-values [true false]})
+;; (randomly-review-n-articles 15 [(merge include-label-definition {:all-values [true false]})])

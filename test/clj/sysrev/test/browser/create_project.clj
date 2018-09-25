@@ -232,11 +232,24 @@
     (browser/click delete :delay 1000)))
 
 (def project-title-xpath
-  {:xpath "//span[contains(@class,'project-title')]//ancestor::div[contains(@class,'project-header') and contains(@class,'desktop')]"})
+  #_{:xpath "//span[contains(@class,'project-title')]//ancestor::div[contains(@class,'project-header') and contains(@class,'attached')]"}
+  {:xpath "//span[contains(@class,'project-title')]//ancestor::div[@id='project']"})
 (def article-sources-list-xpath
   {:xpath "//div[@id='project-sources']/descendant::div[contains(@class,'project-sources-list')]"})
 (def project-source-xpath
   {:xpath "//div[@class='project-sources-list']//ancestor::div[@id='project-sources']/descendant::div[@class='project-source']"})
+
+(defn create-project
+  [project-name]
+  (browser/go-route "/select-project")
+  (browser/set-input-text {:xpath "//input[@placeholder='Project Name']"}
+                          project-name)
+
+  (log/info "creating project")
+  (browser/click {:xpath "//button[text()='Create']"} :delay 200)
+  (browser/wait-until-displayed project-title-xpath)
+  ;; was the project actually created?
+  (is (str/includes? (taxi/text project-title-xpath) project-name)))
 
 (deftest-browser create-project-and-import-sources
   (try
@@ -247,18 +260,8 @@
           search-term-fourth "foo bar Jones"]
       (log-in)
 ;;; create a project
-
-      (browser/go-route "/select-project")
-      (browser/set-input-text {:xpath "//input[@placeholder='Project Name']"}
-                              project-name)
-
-      (log/info "creating project")
-      (browser/click {:xpath "//button[text()='Create']"} :delay 200)
-      (browser/wait-until-displayed project-title-xpath)
-      ;; was the project actually created?
-      (is (str/includes? (taxi/text project-title-xpath) project-name))
+      (create-project project-name)
       (browser/go-project-route "/add-articles")
-
 ;;; add sources
       ;; create a new source
       (add-articles-from-search-term search-term-first)
