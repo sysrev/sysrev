@@ -138,3 +138,21 @@
         (create-project/delete-current-project)
         (log-out)
         (browser/delete-test-user :email (:email test-user))))))
+
+(deftest-browser multiple-project-compensations
+  (let [first-project "SysRev Compensation Test 1"
+        first-project-first-compensation-amount 100
+        first-project-second-compensation-amount 10
+        ;;first-project-search-term "foo bar"
+        second-project "SysRev Compensation Test 2"
+        second-project-first-compensation-amount 200
+        second-project-second-compensation-amount 20
+        ;;second-project-search-term ""
+        ]
+    (try
+      ;; login
+      (log-in)
+      ;; create a first project
+      (create-project/create-project first-project)
+       ;; impo
+      (finally))))

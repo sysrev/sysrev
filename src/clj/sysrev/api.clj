@@ -923,7 +923,7 @@
   "Create a compensation for project-id with rate"
   [project-id rate]
   (try
-    (let [compensation-id (compensation/create-project-compensation! project-id rate)])
+    (let [compensation-id (compensation/create-project-compensation! project-id (update rate :amount int))])
        {:result {:success true
                  :rate rate}}
        (catch Throwable e

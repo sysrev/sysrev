@@ -134,6 +134,7 @@
   (let [project-id @(subscribe [:active-project-id])
         compensation-amount (r/cursor state [:compensation-amount])
         creating-new-compensation? (r/cursor state [:creating-new-compensation?])
+        retrieving-compensations? (r/cursor state [:retrieving-compensations?])
         create-compensation! (fn [cents]
                                (reset! creating-new-compensation? true)
                                (POST "/api/project-compensation"
@@ -177,7 +178,13 @@
                          :on-change on-change}])]
           [:div {:style {:display "inline-block"
                          :margin-left "1em"}} "per Article"]
-          [:button {:style {:margin-left "1em"}
+          [:div {:style {:margin-left "1em"
+                         :display "inline-block"}}
+           [Button {:disabled (or @creating-new-compensation?
+                                  @retrieving-compensations?)
+                    :color "blue"}
+            "Create"]]
+          #_[:button {:style {:margin-left "1em"}
                     :class (str "ui button primary")}
            "Create"]]])
       :component-will-mount (fn [this]
@@ -209,11 +216,18 @@
                    [:div (str (accounting/cents->string (get-in compensation [:rate :amount])) " per Article")]]])
                project-compensations)])
            [:h4.ui.dividing.header "Create New Compensation"]
+           [:div.ui.relaxed.divided.list
+            [:div.item {:key "create"}
+             [:div.right.floated.content ]]
+            ]
            ;; the form for compensations
-           (if (or @creating-new-compensation?
-                   @retrieving-compensations?)
+           #_(if (or @creating-new-compensation?
+                   @retrieving-compensations?
+                   )
              [:div {:class "ui active centered inline loader"}]
-             [CreateCompensationForm])]))
+             [CreateCompensationForm])
+           [CreateCompensationForm]
+           ]))
       :component-did-mount (fn [this]
                              (get-compensations! state))})))
 (defn CompensationGraph
@@ -326,15 +340,18 @@
         project-users-current-compensation (r/cursor state [:project-users-current-compensations])
         user-compensation (r/cursor project-users-current-compensation [user-id])
         current-compensation-id (r/cursor user-compensation [:compensation-id])
-        updating? (r/cursor user-compensation [:updating?])]
+        updating? (r/cursor user-compensation [:updating?])
+        retrieving-project-users-current-compensation? (r/cursor state [:retrieving-project-users-current-compensation?])]
     [Dropdown {:fluid true
                :options (compensation-options @project-compensations)
                :selection true
+               :disabled (or @updating? @retrieving-project-users-current-compensation?)
                :loading @updating?
                :value @current-compensation-id
                :on-change (fn [event data]
                             (let [value ($ data :value)]
                               (when-not (= value current-compensation-id)
+                                (reset! current-compensation-id value)
                                 (reset! updating? true)
                                 (PUT "/api/set-user-compensation"
                                      {:params {:project-id project-id
@@ -350,7 +367,8 @@
   (let [project-id @(subscribe [:active-project-id])
         project-compensations (r/cursor state [:project-compensations])
         default-project-compensation (r/cursor state [:default-project-compensation])
-        updating? (r/cursor state [:updating-project-compensations?])]
+        updating? (r/cursor state [:updating-project-compensations?])
+        retrieving-default-compensations? (r/cursor state [:retrieving-project-compensations?])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -358,10 +376,12 @@
                    :options (compensation-options @project-compensations)
                    :selection true
                    :loading @updating?
+                   :disabled (or @updating? @retrieving-default-compensations?)
                    :value @default-project-compensation
                    :on-change (fn [event data]
                                 (let [value ($ data :value)]
                                   (when-not (= value default-project-compensation)
+                                    (reset! default-project-compensation value)
                                     (reset! updating? true)
                                     (PUT "/api/set-default-compensation"
                                          {:params {:project-id project-id
