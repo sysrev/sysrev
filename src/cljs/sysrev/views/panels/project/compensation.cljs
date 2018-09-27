@@ -160,33 +160,30 @@
                                     (create-compensation! cents)
                                     :else
                                     (reset! compensation-amount (accounting/cents->string cents)))))}
-         [:div
-          [:div {:style {:width "6em"
-                         :display "inline-block"}}
-           (let [on-change (fn [event]
-                             (let [value ($ event :target.value)
-                                   dollar-sign-on-front? (fn [value]
-                                                           (= ($ value indexOf "$")
-                                                              0))
-                                   new-value (cond
-                                               (not (dollar-sign-on-front? value))
-                                               (str "$" ($ event :target.value))
-                                               :else
-                                               value)]
-                               (reset! compensation-amount new-value)))]
-             [FormInput {:value @compensation-amount
-                         :on-change on-change}])]
-          [:div {:style {:display "inline-block"
-                         :margin-left "1em"}} "per Article"]
-          [:div {:style {:margin-left "1em"
-                         :display "inline-block"}}
-           [Button {:disabled (or @creating-new-compensation?
-                                  @retrieving-compensations?)
-                    :color "blue"}
-            "Create"]]
-          #_[:button {:style {:margin-left "1em"}
-                    :class (str "ui button primary")}
-           "Create"]]])
+         [:div.ui.relaxed.divided.list
+          [:div.item {:key "create"}
+           [:div {:style {:width "6em"
+                          :display "inline-block"}}
+            (let [on-change (fn [event]
+                              (let [value ($ event :target.value)
+                                    dollar-sign-on-front? (fn [value]
+                                                            (= ($ value indexOf "$")
+                                                               0))
+                                    new-value (cond
+                                                (not (dollar-sign-on-front? value))
+                                                (str "$" ($ event :target.value))
+                                                :else
+                                                value)]
+                                (reset! compensation-amount new-value)))]
+              [FormInput {:value @compensation-amount
+                          :on-change on-change}])]
+           [:div {:style {:display "inline-block"
+                          :margin-left "1em"}} "per Article"]
+           [:div.right.floated.content
+            [Button {:disabled (or @creating-new-compensation?
+                                   @retrieving-compensations?)
+                     :color "blue"}
+             "Create"]]]]])
       :component-will-mount (fn [this]
                               (reset! compensation-amount "$0.00"))})))
 
@@ -216,18 +213,7 @@
                    [:div (str (accounting/cents->string (get-in compensation [:rate :amount])) " per Article")]]])
                project-compensations)])
            [:h4.ui.dividing.header "Create New Compensation"]
-           [:div.ui.relaxed.divided.list
-            [:div.item {:key "create"}
-             [:div.right.floated.content ]]
-            ]
-           ;; the form for compensations
-           #_(if (or @creating-new-compensation?
-                   @retrieving-compensations?
-                   )
-             [:div {:class "ui active centered inline loader"}]
-             [CreateCompensationForm])
-           [CreateCompensationForm]
-           ]))
+           [CreateCompensationForm]]))
       :component-did-mount (fn [this]
                              (get-compensations! state))})))
 (defn CompensationGraph
