@@ -7,6 +7,7 @@
             [honeysql.helpers :as sqlh :refer [select from where join delete-from]]
             [sysrev.api :as api]
             [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.test.browser.core :as browser :refer [deftest-browser]]
@@ -193,7 +194,7 @@
       (create-compensation first-project-second-compensation-amount)
       (create-compensation first-project-third-compensation-amount)
       ;; set the first compensation amount to the default
-      (select-compensation-for-user "Default New User Compensation" 100)
+      (select-compensation-for-user "Default New User Compensation" first-project-first-compensation-amount)
       ;; create three additional users
       (browser/create-test-user :email (:email first-test-user)
                                 :password (:password first-test-user)
@@ -239,6 +240,69 @@
                 first-project-first-compensation-amount)
              (amount-owed-user-by-project (browser/current-project-id)
                                           (:name third-test-user))))
+      ;; create a new project
+      (log-out)
+      (log-in)
+      ;; create the second project
+      (create-project/create-project second-project-name)
+      ;; import sources
+      (create-project/add-articles-from-search-term first-project-search-term)
+      ;; create two additional labels
+      (browser/click review-articles/label-definitions-tab)
+      ;; create a boolean label
+      (browser/click review-articles/add-boolean-label-button)
+      (review-articles/set-label-values "//div[contains(@id,'new-label-')]" review-articles/boolean-label-definition)
+      (review-articles/save-label)
+      ;; create a categorical label
+      (browser/click review-articles/add-categorical-label-button)
+      (review-articles/set-label-values "//div[contains(@id,'new-label-')]" review-articles/categorical-label-definition)
+      (review-articles/save-label)
+      ;; create three compensations
+      (create-compensation second-project-first-compensation-amount)
+      (create-compensation second-project-second-compensation-amount)
+      (create-compensation second-project-third-compensation-amount)
+      ;; set the first compensation amount to the default
+      (select-compensation-for-user "Default New User Compensation" second-project-first-compensation-amount)
+      ;; associate the other users with the second project
+      (doall (map (partial project/add-project-member (browser/current-project-id))
+                  [(-> (users/get-user-by-email (:email first-test-user)) :user-id)
+                   (-> (users/get-user-by-email (:email second-test-user)) :user-id)
+                   (-> (users/get-user-by-email (:email third-test-user)) :user-id)]))
+      ;; logout the admin
+      (log-out)
+      ;; ;; first user reviews their articles
+      (log-in (:email first-test-user)
+              (:password first-test-user))
+      (browser/click {:xpath (project-name-xpath-string second-project-name)})
+      (review-articles/randomly-review-n-articles (:article-amount first-test-user)
+                                                  label-definitions)
+      (log-out)
+      ;; second user reviews their articles
+      (log-in (:email second-test-user)
+              (:password second-test-user))
+      (browser/click {:xpath (project-name-xpath-string second-project-name)})
+      (review-articles/randomly-review-n-articles (:article-amount second-test-user)
+                                                  label-definitions)
+      (log-out)
+      ;; third user reviews their articles
+      (log-in (:email third-test-user)
+              (:password third-test-user))
+      (browser/click {:xpath (project-name-xpath-string second-project-name)})
+      (review-articles/randomly-review-n-articles (:article-amount third-test-user)
+                                                  label-definitions)
+      ;; check that the compensation levels add up for all the reviewers
+      (is (= (* (:article-amount first-test-user)
+                second-project-first-compensation-amount)
+             (amount-owed-user-by-project (browser/current-project-id)
+                                          (:name first-test-user))))
+      (is (= (* (:article-amount second-test-user)
+                first-project-first-compensation-amount)
+             (amount-owed-user-by-project (browser/current-project-id)
+                                          (:name second-test-user))))
+      (is (= (* (:article-amount third-test-user)
+                first-project-first-compensation-amount)
+             (amount-owed-user-by-project (browser/current-project-id)
+                                          (:name third-test-user))))
       (finally
         ;; log out whoever was working
         (log-out)
@@ -251,13 +315,25 @@
                     [first-project-first-compensation-amount
                      first-project-second-compensation-amount
                      first-project-third-compensation-amount]))
+        ;; delete all of the second project compensations
+        (browser/click {:xpath "//a[@href='/']"})
+        (browser/wait-until-exists {:xpath (project-name-xpath-string second-project-name)})
+        (browser/click {:xpath (project-name-xpath-string second-project-name)})
+        (doall (map (partial delete-project-compensation! (browser/current-project-id))
+                    [second-project-first-compensation-amount
+                     second-project-second-compensation-amount
+                     second-project-third-compensation-amount]))
         ;; delete all the users
         (doall (map (partial browser/delete-test-user :email)
                     [(:email first-test-user)
                      (:email second-test-user)
                      (:email third-test-user)]))
-        ;; delete the project
+        ;; delete the second project
         (taxi/refresh)
         (browser/go-project-route "/settings")
         (browser/wait-until-exists {:xpath "//button[contains(text(),'Delete Project...')]"})
-        (create-project/delete-current-project)))))
+        (create-project/delete-current-project)
+        ;; delete the first project
+        (browser/click {:xpath (project-name-xpath-string first-project-name)})
+        (create-project/delete-current-project)
+        ))))
