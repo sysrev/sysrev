@@ -278,12 +278,13 @@
                                      (sort-by :name))
                 labels (map :name total-owed-maps)
                 data (map :owed total-owed-maps)]
-            (when (> (apply + data) 0)
+            #_(when (> (apply + data) 0)
               [:div.ui.segment
                [:h4.ui.dividing.header "Compensation Summary"]
                [:div
                 [:h4 "Total Owed"]
-                [CompensationGraph labels data]]]))
+                [CompensationGraph labels data]
+                ]]))
           #_(doall (map
                       (fn [compensation-id]
                         (let [compensation-owed (r/cursor state [:amount-owed compensation-id])

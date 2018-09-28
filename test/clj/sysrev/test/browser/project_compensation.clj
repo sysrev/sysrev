@@ -90,19 +90,28 @@
   (browser/click {:xpath (compensation-select-xpath-string user)})
   (browser/click {:xpath (compensation-option user amount)}))
 
+(defn todays-date
+  []
+  ;; YYYY-MM-DD
+  (f/unparse (f/formatter :date) (l/local-now)))
+
 (defn amount-owed-user-by-project
   [project-id user-name]
         ;; check that they are the compensation is correct
       (let [amount-owed (get-in (api/amount-owed project-id
-                                             (f/unparse (f/formatter :date) (l/local-now)) ;; YYYY-MM-DD
-                                             (f/unparse (f/formatter :date) (l/local-now)))
+                                                 (todays-date)
+                                                 (todays-date))
                                 [:result :amount-owed])
             owed-to-user (->> amount-owed
                               (filter #(= (:name %)
                                           user-name))
-                              first)]
-        (* (:articles owed-to-user)
-           (get-in owed-to-user [:rate :amount]))))
+                              ;;first
+                              (map #(* (:articles %)
+                                       (get-in % [:rate :amount])))
+                              (apply +))]
+        #_(* (:articles owed-to-user)
+           (get-in owed-to-user [:rate :amount]))
+        owed-to-user))
 
 (deftest-browser happy-path-project-compensation
   (let [project-name "SysRev Compensation Test"
@@ -303,6 +312,22 @@
                 first-project-first-compensation-amount)
              (amount-owed-user-by-project (browser/current-project-id)
                                           (:name third-test-user))))
+      ;; change the compensation level of the first test user
+      (log-out)
+      (log-in)
+      (browser/click {:xpath (project-name-xpath-string first-project-name)})
+      (browser/go-project-route "/compensations")
+      (select-compensation-for-user (:email first-test-user) first-project-second-compensation-amount)
+      (log-out)
+      (log-in (:email first-test-user)
+              (:password first-test-user))
+      (browser/click {:xpath (project-name-xpath-string first-project-name)})
+      (review-articles/randomly-review-n-articles (:article-amount first-test-user)
+                                                  label-definitions)
+      (is (= (+ (* (:article-amount first-test-user) first-project-first-compensation-amount)
+                (* (:article-amount first-test-user) first-project-second-compensation-amount))
+             (amount-owed-user-by-project (browser/current-project-id)
+                                          (:name first-test-user))))
       (finally
         ;; log out whoever was working
         (log-out)
