@@ -293,12 +293,14 @@
             (try
               (with-transaction
                 (let [existing-articles
-                      (-> (select :article-id :public-id)
-                          (from :article)
-                          (where [:and
-                                  [:= :project-id project-id]
-                                  [:in :public-id public-ids]])
-                          (->> do-query vec))
+                      (if (empty? public-ids)
+                        []
+                        (-> (select :article-id :public-id)
+                            (from :article)
+                            (where [:and
+                                    [:= :project-id project-id]
+                                    [:in :public-id public-ids]])
+                            (->> do-query vec)))
                       existing-article-ids
                       (->> existing-articles (mapv :article-id))
                       existing-public-ids
