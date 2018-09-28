@@ -1297,3 +1297,40 @@
                  "string" string-definition-validations
                  "categorical" (categorical-definition-validations definition label-id)
                  {})})
+
+;; TODO: do this later maybe
+#_
+(defn migrate-label-uuid-values [label-id]
+  (with-transaction
+    (let [{:keys [value-type definition]}
+          (-> (select :value-type :definition)
+              (from :label)
+              (where [:= :label-id label-id])
+              do-query first)
+          {:keys [all-values inclusion-values]} definition]
+      (when (and (= value-type "categorical") (vector? all-values))
+        (let [new-values (->> all-values
+                              (map (fn [v] {(UUID/randomUUID) {:name v}}))
+                              (apply merge))
+              to-uuid (fn [v]
+                        (->> (keys new-values)
+                             (filter #(= v (get-in new-values [% :name])))
+                             first))
+              new-inclusion (->> inclusion-values (map to-uuid) (remove nil?) vec)
+              al-entries (-> (select :article-label-id :answer)
+                             (from :article-label)
+                             (where [:= :label-id label-id])
+                             do-query)]
+          (doseq [{:keys [article-label-id answer]} al-entries]
+            (-> (sqlh/update :article-label)
+                (sset {:answer (to-jsonb (some->> answer (mapv to-uuid)))})
+                (where [:= :article-label-id article-label-id])
+                do-execute))
+          (-> (sqlh/update :label)
+              (sset {:definition
+                     (to-jsonb
+                      (assoc definition
+                             :all-values new-values
+                             :inclusion-values new-inclusion))})
+              (where [:= :label-id label-id])
+              do-execute))))))
