@@ -149,7 +149,7 @@
      sources
      (map
       (fn [source]
-        (let [entries (get locations source)]
+        (let [entries (get locations (name source))]
           (->>
            entries
            (map

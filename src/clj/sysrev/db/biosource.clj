@@ -9,7 +9,10 @@
 (defn- remote-query-test []
   (time
    (let [local-query (q/select-article-where
-                      103 [:!= :a.public-id nil] [:a.public-id]
+                      103 [:and
+                           [:!= :a.public-id nil]
+                           [:!= :a.public-id ""]]
+                      [:a.public-id]
                       {:include-disabled? true})
          public-ids (->> local-query do-query (mapv :public-id))
          remote-query (-> (select (sql/qualify "G2P" :*)

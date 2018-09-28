@@ -367,6 +367,15 @@
                 :source-id source-id}])
       do-execute))
 
+(defn add-articles-to-source!
+  "Add list of article-id values to source-id"
+  [article-ids source-id]
+  (when (not-empty article-ids)
+    (-> (sqlh/insert-into :article-source)
+        (values (mapv (fn [aid] {:article-id aid :source-id source-id})
+                      article-ids))
+        do-execute)))
+
 (defn source-exists?
   "Does a source with source-id exist?"
   [source-id]

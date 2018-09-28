@@ -55,7 +55,7 @@
         (browser/wait-until-exists review-articles/no-articles-need-review)
         ;; select one article and annotate it
         (browser/click review-articles/articles-button)
-        (browser/click article-title-div)
+        (browser/click article-title-div :delay 100)
         (browser/wait-until-displayed enable-annotator-button)
         (browser/click enable-annotator-button)
         (browser/wait-until-displayed select-text-to-annotate)
