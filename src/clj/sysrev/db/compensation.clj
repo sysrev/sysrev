@@ -183,24 +183,25 @@
 (defn user-compensation
   "Return the current compensation_id associated with user for project-id, or nil if there is none"
   [project-id user-id]
-  (-> (select :cup.compensation_id)
+  (-> (select :cup.compensation_id :cp.project_id)
       (modifiers :distinct)
       (from [:compensation_user_period :cup])
-      (left-join [:compensation_project :cp]
-                 [:= :cp.project_id project-id])
+      (join [:compensation_project :cp]
+            [:= :cup.compensation_id :cp.compensation_id])
       ;; because if period_begin is not nil
       ;; period_end is nil, the compensation is currently
       ;; active
       (where [:and
               [:<> :cup.period_begin nil]
               [:= :cup.period_end nil]
-              [:= :cup.web_user_id user-id]])
+              [:= :cup.web_user_id user-id]
+              [:= :cp.project_id project-id]])
       do-query
       first
       :compensation-id))
 
 (defn project-users-current-compensation
-  "Return a list of all user of a project and their current compensation-id for project-id"
+  "Return a list of all users of a project and their current compensation-id for project-id"
   [project-id]
   (let [project-users (project-users project-id)]
     (->> project-users
