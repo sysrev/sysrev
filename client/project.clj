@@ -19,8 +19,8 @@
                  [cljsjs/stripe "2.0-0"]
                  ;; stripe provided form components
                  [cljsjs/react-stripe-elements "1.4.1-1"]
-                 [org.clojars.jeffwk/semantic-ui "2.3.2-0"]
-                 [cljsjs/semantic-ui-react "0.81.1-0"]
+                 [org.clojars.jeffwk/semantic-ui "2.4.0-0"]
+                 [cljsjs/semantic-ui-react "0.82.2-0"]
                  [cljsjs/chartjs "2.7.0-0"]
                  [cljsjs/dropzone "4.3.0-0"]
                  [cljsjs/clipboard "1.6.1-1"]

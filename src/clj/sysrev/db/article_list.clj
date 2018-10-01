@@ -15,7 +15,8 @@
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.queries :as q]
-            [sysrev.shared.util :as u :refer [in? map-values]]
+            [sysrev.db.annotations :as ann]
+            [sysrev.shared.util :as sutil :refer [in? map-values]]
             [sysrev.shared.article-list :as al]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]))
@@ -60,21 +61,22 @@
                    (map #(-> % (update :updated-time tc/to-epoch)))
                    (group-by :article-id)
                    (map-values #(do {:notes %}))))
-          amap
-          (->> (merge-with merge articles alabels anotes)
-               (map-values
-                (fn [article]
-                  (let [updated-time
-                        (->> [(->> (:labels article)
-                                   (map :updated-time))
-                              (->> (:notes article)
-                                   (map :updated-time))]
-                             (apply concat)
-                             (remove nil?)
-                             (apply max 0))]
-                    (merge article
-                           {:updated-time updated-time})))))]
-      amap)))
+          annotations (->> (ann/project-annotation-articles project-id)
+                           (map-values #(do {:annotations %})))]
+      (->> (merge-with merge articles alabels anotes annotations)
+           (map-values
+            (fn [article]
+              (merge article
+                     {:updated-time
+                      (->> [(->> (:labels article)
+                                 (map :updated-time))
+                            (->> (:notes article)
+                                 (map :updated-time))
+                            [(some-> article :annotations :updated-time
+                                     tc/to-epoch)]]
+                           (apply concat)
+                           (remove nil?)
+                           (apply max 0))})))))))
 
 (defn sort-article-id [sort-dir]
   (let [dir (if (= sort-dir :desc) > <)]
@@ -87,46 +89,89 @@
                      entries)
       (= sort-dir :desc) reverse)))
 
-#_
-(def filter-has-confirmed-labels
-  #(->> % :labels (filter :confirm-time) not-empty))
+(defn filter-labels-confirmed [confirmed? labels]
+  (assert (in? [true false nil] confirmed?))
+  (cond->> labels
+    (boolean? confirmed?)
+    (filter
+     (fn [{:keys [confirm-time]}]
+       (let [entry-confirmed?
+             ((every-pred (comp not nil?)
+                          (comp not zero?))
+              confirm-time)]
+         (= entry-confirmed? confirmed?))))))
 
-(defn filter-has-user [context {:keys [user content confirmed]}]
+(defn filter-labels-by-id [label-id labels]
+  (cond->> labels
+    label-id
+    (filter #(= (:label-id %) label-id))))
+
+(defn filter-labels-by-values [label-id values labels]
+  (cond->> (filter-labels-by-id label-id labels)
+    (not-empty values)
+    (filter
+     (fn [{:keys [answer]}]
+       (->> (if (sequential? answer) answer [answer])
+            (some #(in? values %)))))))
+
+(defn filter-labels-by-inclusion [label-id inclusion labels]
+  (assert (in? [true false nil] inclusion))
+  (cond->> (filter-labels-by-id label-id labels)
+    (boolean? inclusion)
+    (filter
+     (fn [entry]
+       (let [answer-inclusion (labels/label-answer-inclusion
+                               label-id (:answer entry))]
+         (= inclusion answer-inclusion))))))
+
+(defn filter-labels-by-users [user-ids labels]
+  (cond->> labels
+    (not-empty user-ids)
+    (filter #(in? user-ids (:user-id %)))))
+
+;; TODO: include user notes in search
+(defn article-text-filter [context text]
   (fn [article]
-    (let [labels (cond->> (:labels article)
-                   ;; TODO: filter confirmed
-                   user (filter #(= (:user-id %) user)))
-          ;; TODO: search annotations
-          annotations nil]
-      (or (not-empty labels)
-          (not-empty annotations)))))
+    (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))
+          all-article-text (->> [(:primary-title article)
+                                 (:secondary-title article)
+                                 (str/join "\n" (:authors article))
+                                 (:abstract article)]
+                                (str/join "\n")
+                                (str/lower-case))]
+      (every? #(str/includes? all-article-text %) tokens))))
 
-#_
-(defn filter-has-content [{:keys []}]
-  nil)
+(defn article-user-filter [context {:keys [user content confirmed]}]
+  (fn [article]
+    (let [labels (when (in? [nil :labels] content)
+                   (cond->> (:labels article)
+                     user  (filter-labels-by-users [user])
+                     true  (filter-labels-confirmed confirmed)))
+          have-annotations?
+          (when (in? [nil :annotations] content)
+            (boolean
+             (if (nil? user)
+               (contains? article :annotations)
+               (in? (-> article :annotations :users) user))))]
+      (or (not-empty labels) have-annotations?))))
 
-#_
-(defn filter-has-labels [{:keys []}]
-  nil)
+(defn article-labels-filter [context {:keys [label-id users values inclusion confirmed]}]
+  (fn [article]
+    (->> (:labels article)
+         (filter-labels-by-users users)
+         (filter-labels-by-values label-id values)
+         (filter-labels-by-inclusion label-id inclusion)
+         (filter-labels-confirmed confirmed)
+         not-empty)))
 
-#_
-(defn filter-has-annotations [{:keys []}]
-  nil)
-
-#_
-(defn filter-by-inclusion [{:keys []}]
-  nil)
-
-(defn filter-by-consensus [context {:keys [status inclusion]}]
+(defn article-consensus-filter [context {:keys [status inclusion]}]
   (let [{:keys [project-id]} context
         overall-id (project/project-overall-label-id project-id)]
     (fn [{:keys [labels] :as article}]
       (let [overall
             (->> labels
-                 (filter #((every-pred (comp not nil?)
-                                       (comp not zero?))
-                           (:confirm-time %)))
-                 (filter #(= (:label-id %) overall-id)))
+                 (filter-labels-confirmed true)
+                 (filter-labels-by-id overall-id))
             status-test
             (case status
               :single al/is-single?
@@ -151,17 +196,13 @@
              (status-test overall)
              (inclusion-test))))))
 
-;; TODO: include user notes in search
-(defn filter-free-text-search [context text]
-  (fn [article]
-    (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))
-          all-article-text (->> [(:primary-title article)
-                                 (:secondary-title article)
-                                 (str/join "\n" (:authors article))
-                                 (:abstract article)]
-                                (str/join "\n")
-                                (str/lower-case))]
-      (every? #(str/includes? all-article-text %) tokens))))
+#_
+(defn article-content-filter [{:keys []}]
+  nil)
+
+#_
+(defn article-annotation-filter [{:keys []}]
+  nil)
 
 (defn get-sort-fn [sort-by sort-dir]
   (case sort-by
@@ -172,13 +213,16 @@
 (defn get-filter-fn [context]
   (fn [fmap]
     (let [filter-name (first (keys fmap))
+          {:keys [negate]} (first (vals fmap))
           make-filter
           (case filter-name
-            :has-user          filter-has-user
-            :text-search       filter-free-text-search
-            :consensus         filter-by-consensus
+            :text-search       article-text-filter
+            :has-user          article-user-filter
+            :consensus         article-consensus-filter
+            :has-label         article-labels-filter
             (constantly (constantly true)))]
-      (make-filter context (get fmap filter-name)))))
+      (comp (if negate not identity)
+            (make-filter context (get fmap filter-name))))))
 
 (defn project-article-list-filtered
   [{:keys [project-id] :as context} filters sort-by sort-dir]

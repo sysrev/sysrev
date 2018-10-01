@@ -209,7 +209,7 @@
       summary-map)))
 
 (def import-button-xpath
-  {:xpath "//div[contains(@class,'button') and contains(text(),'Import')]"})
+  {:xpath "//button[contains(@class,'button') and contains(text(),'Import')]"})
 
 (defn add-articles-from-search-term
   "Create a new source using search-term"

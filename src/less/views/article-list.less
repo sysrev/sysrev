@@ -282,6 +282,10 @@
 
                 > div.column {
                     padding: 0 0.8em;
+
+                    .item > .content {
+                        text-align: left;
+                    }
                 }
             }
         }
@@ -361,7 +365,7 @@
         margin-top: 0px;
 
         > .ui.segment {
-            padding: 0.3em 0.75em 0.5em 0.75em;
+            padding: 3px 8px 5px 8px;
 
             > .ui.form, > div.inner > .ui.form {
                 > .field {
@@ -376,7 +380,25 @@
             }
         }
 
+        .ui.button {
+            font-size: 11px;
+        }
+
+        .ui.tiny.button {
+            padding: 8px;
+        }
+
+        .ui.icon.button {
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .field > label {
+            margin-bottom: 3px;
+        }
+
         > .ui.segment.filters-content {
+            padding-top: 7px;
             > div.inner {
                 > div.ui.label,
                 > div.ui.fluid.button {
@@ -414,16 +436,29 @@
             padding-bottom: 1.5em;
         }
 
-        div.edit-filter {
+        div.ui.segment.edit-filter {
+            padding: 5px;
+            margin: 8px -2px;
+            background-color: @partialSegmentBackground;
             > .ui.form {
-                padding-top: 5px;
-                margin-top: 7px;
-                margin-bottom: 7px;
-                border-top: 1px solid rgba(128,128,128, 0.75);
-                border-bottom: 1px solid rgba(128,128,128, 0.75);
-
                 > .field, > .field > .fields {
-                    margin-bottom: 8px;
+                    margin-bottom: 3px;
+                }
+
+                .field > label {
+                    margin-bottom: 1px;
+                }
+
+                .field.edit-buttons {
+                    margin-top: 10px;
+                }
+
+                .field.filter-negation {
+                    .ui.fluid.buttons {
+                        > .ui.button {
+                            width: 50%;
+                        }
+                    }
                 }
             }
         }
@@ -435,13 +470,24 @@
             font-size: 12px;
         }
 
-        .ui.dropdown > .menu,
-        .ui.dropdown > .menu > .item {
-            font-size: 12px;
+        .ui.selection.dropdown {
+            padding: 8px 22px 8px 8px;
+            min-height: 2.4em;
+
+            > input {
+                padding: 8px 22px 8px 8px;
+            }
+            > i.icon {
+                padding: 8px 6px 8px 6px;
+            }
         }
 
-        .ui.button {
-            font-size: 11px;
+        .ui.dropdown > .menu {
+            font-size: 12px;
+            > .item {
+                font-size: 12px;
+                padding: 0.7rem 0.9rem !important;
+            }
         }
 
         .ui.labeled.button.toggle {
@@ -519,8 +565,13 @@
 
                 > .column.delete-filter {
                     > .ui.tiny.icon.button {
-                        padding-left: 0;
-                        padding-right: 0;
+                        padding: 7px 0 7px 0;
+                    }
+                }
+
+                > .column.describe-filter {
+                    > .ui.tiny.button {
+                        padding: 7px;
                     }
                 }
             }

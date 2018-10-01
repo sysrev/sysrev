@@ -51,7 +51,6 @@
                            (filter #(contains? labels %))
                            (map #(do [% (get-in labels [% :answer])])))]
     [:div.label-values
-     {:style {:margin-bottom "-3px"}}
      (when user-name
        [:div.ui.label.user-name
         {:class (if dark-theme? nil "basic")}

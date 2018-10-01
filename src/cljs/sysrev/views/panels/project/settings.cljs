@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.project.settings
-  (:require [reagent.core :as r]
+  (:require [clojure.string :as str]
+            [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
@@ -12,7 +13,8 @@
               SaveResetForm ConfirmationDialog]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.compensation :refer [ProjectCompensations CompensationSummary UsersCompensations]]
-            [sysrev.shared.util :refer [parse-integer in?]]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (def ^:private panel [:project :project :settings])
 
@@ -25,7 +27,7 @@
 (defn- parse-input [skey input]
   (case skey
     :second-review-prob
-    (let [n (parse-integer input)]
+    (let [n (sutil/parse-integer input)]
       (when (and (int? n) (>= n 0) (<= n 100))
         (* n 0.01)))
 
@@ -57,6 +59,57 @@
 (defn active-inputs [& [skey]]
   (cond-> (:active-inputs @state)
     skey (get skey)))
+
+(defn misc-active [& [skey]]
+  (cond-> (:misc-active @state)
+    skey (get skey)))
+
+(defn misc-saved [& [skey]]
+  (let [project-name @(subscribe [:project/name])]
+    {:project-name project-name}))
+
+(defn misc-current [& [skey]]
+  (let [active (misc-active)]
+    (cond-> (misc-saved)
+      (editing?) (merge active)
+      skey (get skey))))
+
+(defn misc-inputs [& [skey]]
+  (cond-> (:misc-inputs @state)
+    skey (get skey)))
+
+(defn edit-misc [skey value]
+  (let [inputs (r/cursor state [:misc-inputs])
+        values (r/cursor state [:misc-active])]
+    (swap! values assoc skey value)
+    (swap! inputs assoc skey value)))
+
+(defn misc-modified? []
+  (not= (misc-saved) (misc-current)))
+
+(defn misc-valid? [& [skey]]
+  (let [current (misc-current)]
+    (letfn [(valid? [skey]
+              (let [value (get current skey)]
+                (boolean
+                 (case skey
+                   :project-name
+                   (and (string? value)
+                        (> (count (str/trim value)) 0)
+                        (<= (count (str/trim value)) 200))
+                   false))))]
+      (if skey
+        (valid? skey)
+        (every? valid? (keys current))))))
+
+(defn- misc-field-class [skey]
+  (if (misc-valid? skey) "" "error"))
+
+(defn reset-misc []
+  (let [values (r/cursor state [:misc-active])
+        inputs (r/cursor state [:misc-inputs])]
+    (reset! values {})
+    (reset! inputs {})))
 
 (defn reset-fields []
   (let [values (r/cursor state [:active-values])
@@ -94,18 +147,38 @@
   :process (fn [{:keys [db]} [project-id _] {:keys [settings]}]
              {:db (assoc-in db [:data :project project-id :settings] settings)}))
 
-(defn save-changes []
+(def-action :project/change-name
+  :uri (fn [project-id project-name] "/api/change-project-name")
+  :content (fn [project-id project-name]
+             {:project-id project-id :project-name project-name})
+  :process (fn [_ [project-id _] {:keys [success]}]
+             (when success
+               {:dispatch-n
+                (list [:reload [:identity]]
+                      [:reload [:public-projects]]
+                      [:reload [:project project-id]])})))
+
+(defn save-changes [project-id]
   (let [values (current-values)
         saved (saved-values)
-        changed-keys (filter #(not= (get values %)
-                                    (get saved %))
+        changed-keys (filter #(not= (get values %) (get saved %))
                              (keys values))
         changes (mapv (fn [skey]
                         {:setting skey
                          :value (get values skey)})
-                      changed-keys)
-        project-id @(subscribe [:active-project-id])]
+                      changed-keys)]
     (dispatch [:action [:project/change-settings project-id changes]])))
+
+(defn save-misc [project-id]
+  (let [values (misc-current)
+        saved (misc-saved)
+        changed-keys (filter #(not= (get values %) (get saved %))
+                             (keys values))]
+    (when (in? changed-keys :project-name)
+      (let [project-name (some-> values :project-name str/trim)]
+        (edit-misc :project-name project-name)
+        (when (not= project-name (:project-name saved))
+          (dispatch [:action [:project/change-name project-id project-name]]))))))
 
 (defn- render-setting [skey]
   (if-let [input (active-inputs skey)]
@@ -171,7 +244,7 @@
   (let [skey :second-review-prob]
     [:div.field {:class (input-field-class skey)}
      [:label "Article Review Priority"]
-     [:div.ui.buttons.selection
+     [:div.ui.fluid.buttons.selection
       (doall
        (for [entry review-priority-buttons]
          ^{:key (:key entry)}
@@ -215,7 +288,7 @@
   (let [skey :public-access]
     [:div.field {:class (input-field-class skey)}
      [:label "Project Visibility"]
-     [:div.ui.buttons.selection
+     [:div.ui.fluid.buttons.selection
       (doall
        (for [entry public-access-buttons]
          ^{:key (:key entry)}
@@ -225,29 +298,131 @@
         ^{:key [:tooltip (:key entry)]}
         [PublicAccessButtonTooltip entry]))]))
 
+(defn ProjectNameField []
+  (let [skey :project-name
+        admin? (admin?)
+        current (misc-current skey)
+        saved (misc-saved skey)
+        modified? (not= current saved)]
+    [:div.field.project-name
+     {:class (misc-field-class skey)}
+     [:label "Project Name"]
+     [:textarea
+      {:readOnly (not admin?)
+       :rows 3
+       :value current
+       :on-change (when admin?
+                    (util/wrap-prevent-default
+                     #(edit-misc skey (-> % .-target .-value))))}]]))
+
+(defn- DeleteProjectForm []
+  (let [confirming? (r/cursor state [:confirming?])
+        active-project-id (subscribe [:active-project-id])
+        reviewed (-> @(subscribe [:project/article-counts])
+                     :reviewed)
+        members-count (count @(subscribe [:project/member-user-ids nil true]))
+        delete-action (cond (= reviewed 0)
+                            :delete
+
+                            (and (< reviewed 20) (< members-count 4))
+                            :disable
+
+                            :else nil)
+        enable-button? (not (nil? delete-action))]
+    (when (and (admin?) (or (not @confirming?) delete-action))
+      [:div.ui.segment
+       (if @confirming?
+         (when delete-action
+           (let [[title message action-color]
+                 (case delete-action
+                   :delete
+                   ["Delete this project?"
+                    "All articles/labels/notes will be lost."
+                    "orange"]
+
+                   :disable
+                   ["Disable this project?"
+                    "It will be inaccessible until re-enabled."
+                    "yellow"]
+
+                   nil)]
+             [ConfirmationDialog
+              {:on-cancel #(reset! confirming? false)
+               :on-confirm
+               (fn []
+                 (reset! confirming? false)
+                 (dispatch [:action [:project/delete @active-project-id]]))
+               :title title
+               :message message
+               :action-color action-color}]))
+         [:div.ui.form.delete-project
+          [:div.field
+           [:button.ui.fluid.button
+            {:class (if enable-button? "" "disabled")
+             :on-click
+             (when enable-button? #(reset! confirming? true))}
+            (if (= delete-action :delete)
+              "Delete Project..."
+              "Disable Project...")]]])])))
+
+(defn- ProjectMiscBox []
+  (let [saving? (r/atom false)]
+    (fn []
+      (let [admin? (admin?)
+            modified? (misc-modified?)
+            project-id @(subscribe [:active-project-id])]
+        (when (and @saving?
+                   (not modified?)
+                   (not (loading/any-action-running?)))
+          (reset! saving? false))
+        [:div.ui.segment.project-misc
+         [:h4.ui.dividing.header "Project"]
+         [:div.ui.form
+          [ProjectNameField]]
+         (when admin?
+           [:div
+            [:div.ui.divider]
+            [SaveResetForm
+             :can-save? (and (misc-valid?) modified?)
+             :can-reset? modified?
+             :on-save #(do (reset! saving? true)
+                           (save-misc project-id))
+             :on-reset #(do (reset! saving? false)
+                            (reset-misc))
+             :saving? @saving?]])]))))
+
 (defn- ProjectOptionsBox []
-  (let [admin? (admin?)
-        values (current-values)
-        saved (saved-values)
-        modified? (modified?)
-        valid? (valid-input?)
-        field-class #(if (valid-input? %) "" "error")]
-    [:div.ui.segment
-     [:h4.ui.dividing.header "Options"]
-     [:div.ui.form {:class (if valid? "" "warning")}
-      [PublicAccessField]
-      [DoubleReviewPriorityField]]
-     (when admin?
-       [:div
-        [:div.ui.divider]
-        [SaveResetForm
-         :can-save? (and valid? modified?)
-         :can-reset? modified?
-         :on-save #(save-changes)
-         :on-reset #(reset-fields)
-         :saving?
-         (and modified?
-              (loading/any-action-running? :only :project/change-settings))]])]))
+  (let [saving? (r/atom false)]
+    (fn []
+      (let [admin? (admin?)
+            values (current-values)
+            saved (saved-values)
+            modified? (modified?)
+            valid? (valid-input?)
+            field-class #(if (valid-input? %) "" "error")
+            project-id @(subscribe [:active-project-id])]
+        (when (and @saving?
+                   (not modified?)
+                   (not (loading/any-action-running?
+                         :only :project/change-settings)))
+          (reset! saving? false))
+        [:div.ui.segment
+         [:h4.ui.dividing.header "Options"]
+         [:div.ui.form {:class (if valid? "" "warning")}
+          [:div.two.fields
+           [PublicAccessField]
+           [DoubleReviewPriorityField]]]
+         (when admin?
+           [:div
+            [:div.ui.divider]
+            [SaveResetForm
+             :can-save? (and valid? modified?)
+             :can-reset? modified?
+             :on-save #(do (reset! saving? true)
+                           (save-changes project-id))
+             :on-reset #(do (reset! saving? false)
+                            (reset-fields))
+             :saving? @saving?]])]))))
 
 (defonce members-state (r/cursor state [:members]))
 
@@ -375,7 +550,7 @@
      {:class "ui fluid search selection dropdown"
       :onChange
       (fn [value text item]
-        (let [user-id (parse-integer value)]
+        (let [user-id (sutil/parse-integer value)]
           (swap! members-state
                  assoc :selected-user user-id)))}]))
 
@@ -432,23 +607,14 @@
       "Manage Permissions"]
      [:div.ui.form.project-permissions
       [:div.fields
-       [:div.six.wide.field.user-select
+       [:div.seven.wide.field.user-select
         [UserSelectDropdown]]
-       [:div.five.wide.field.permission-select
+       [:div.six.wide.field.permission-select
         [MemberPermissionDropdown]]
        [:div.three.wide.field
         [:div.ui.fluid.buttons
          [AddPermissionButton]
-         [RemovePermissionButton]]]
-       [:div.two.wide.field
-        {:style {:text-align "right"}}
-        (let [{:keys [selected-user selected-permission]} @members-state
-              fields-set? (not (and (nil? selected-user)
-                                    (nil? selected-permission)))]
-          [:button.ui.icon.button
-           {:class (if fields-set? nil "disabled")
-            :on-click #(reset-permissions-fields)}
-           [:i.eraser.icon]])]]]
+         [RemovePermissionButton]]]]]
      [:div.ui.divider]
      (let [project-id @(subscribe [:active-project-id])
            changed? (permissions-changed?)]
@@ -456,7 +622,8 @@
         :can-save? changed?
         :can-reset? changed?
         :on-save #(save-permissions)
-        :on-reset #(reset-permissions)
+        :on-reset #(do (reset-permissions)
+                       (reset-permissions-fields))
         :saving?
         (and changed?
              (or (loading/any-action-running? :only :project/change-permissions)
@@ -467,58 +634,7 @@
    [ProjectMembersList]
    [ProjectPermissionsForm]])
 
-;; TODO: do not render this unless project can be deleted (i.e. no labels);
-;; currently allows clicking this and then fails server-side
-(defn- DeleteProject
-  "Delete a project"
-  []
-  (let [confirming? (r/cursor state [:confirming?])
-        active-project-id (subscribe [:active-project-id])
-        reviewed (-> @(subscribe [:project/article-counts])
-                     :reviewed)
-        members-count (count @(subscribe [:project/member-user-ids nil true]))
-        delete-action (cond (= reviewed 0)
-                            :delete
 
-                            (and (< reviewed 20) (< members-count 4))
-                            :disable
-
-                            :else nil)
-        enable-button? (not (nil? delete-action))]
-    (when (admin?)
-      [:div.ui.segment
-       [:div.ui.relaxed.divided.list
-        (when (and @confirming? delete-action)
-          (let [[title message action-color]
-                (case delete-action
-                  :delete
-                  ["Delete this project?"
-                   "All articles/labels/notes will be lost."
-                   "orange"]
-
-                  :disable
-                  ["Disable this project?"
-                   "It will be inaccessible until re-enabled."
-                   "yellow"]
-
-                  nil)]
-            [ConfirmationDialog
-             {:on-cancel #(reset! confirming? false)
-              :on-confirm
-              (fn []
-                (reset! confirming? false)
-                (dispatch [:action [:project/delete @active-project-id]]))
-              :title title
-              :message message
-              :action-color action-color}]))
-        (when-not @confirming?
-          [:button.ui.button
-           {:class (if enable-button? "" "disabled")
-            :on-click
-            (when enable-button? #(reset! confirming? true))}
-           (if (= delete-action :delete)
-             "Delete Project..."
-             "Disable Project...")])]])))
 
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
@@ -527,11 +643,13 @@
           admin? (admin?)]
       [:div.project-content
        [ReadOnlyMessage
-        "Changing settings is restricted to project administrators."]
+        "Changing settings is restricted to project administrators."
+        (r/cursor state [:read-only-message-closed?])]
        [:div.ui.two.column.stackable.grid.project-settings
         [:div.ui.row
          [:div.ui.column
-          [ProjectOptionsBox]]
+          [ProjectMiscBox]
+          [ProjectOptionsBox]
+          [DeleteProjectForm]]
          [:div.ui.column
-          [ProjectMembersBox]
-          [DeleteProject]]]]])))
+          [ProjectMembersBox]]]]])))

@@ -329,7 +329,11 @@
        (wrap-authorize
         request {:allow-public true}
         (let [project-id (active-project request)]
-          {:result {:settings (project/project-settings project-id)}})))
+          {:result {:settings (project/project-settings project-id)
+                    :project-name (-> (q/select-project-where
+                                       [:= :project-id project-id]
+                                       [:name])
+                                      do-query first :name)}})))
 
   (POST "/api/change-project-settings" request
         (wrap-authorize
@@ -342,6 +346,16 @@
            {:result
             {:success true
              :settings (project/project-settings project-id)}})))
+
+  (POST "/api/change-project-name" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (active-project request)
+               {:keys [project-name]} (:body request)]
+           (project/change-project-name project-id project-name)
+           {:result
+            {:success true
+             :project-name project-name}})))
 
   (GET "/api/project-sources" request
        (wrap-authorize
@@ -650,17 +664,18 @@
                {:keys [selection annotation semantic-class]} annotation-map
                {:keys [class article-id pdf-key]} context
                user-id (current-user-id request)
+               project-id (active-project request)
                result
                (condp = class
                  "abstract"
                  (do (assert (nil? pdf-key))
                      (api/save-article-annotation
-                      article-id user-id selection annotation
+                      project-id article-id user-id selection annotation
                       :context (:context annotation-map)))
                  "pdf"
                  (do (assert pdf-key)
                      (api/save-article-annotation
-                      article-id user-id selection annotation
+                      project-id article-id user-id selection annotation
                       :context (:context annotation-map) :pdf-key pdf-key)))]
            (when (and (string? semantic-class)
                       (not-empty semantic-class)

@@ -1,32 +1,31 @@
 (ns sysrev.db.project
-  (:require
-   [clojure.spec.alpha :as s]
-   [sysrev.shared.spec.core :as sc]
-   [sysrev.shared.spec.article :as sa]
-   [sysrev.shared.spec.project :as sp]
-   [sysrev.shared.spec.labels :as sl]
-   [sysrev.shared.spec.users :as su]
-   [sysrev.shared.spec.keywords :as skw]
-   [sysrev.shared.spec.notes :as snt]
-   [sysrev.db.core :refer
-    [do-query do-execute to-sql-array sql-cast with-project-cache
-     clear-project-cache clear-query-cache cached-project-ids to-jsonb
-     with-transaction]]
-   [sysrev.db.articles :refer
-    [set-article-flag remove-article-flag article-to-sql]]
-   [sysrev.db.compensation :as compensation]
-   [sysrev.db.documents :as docs]
-   [sysrev.db.queries :as q]
-   [sysrev.files.stores :as files]
-   [sysrev.util]
-   [sysrev.shared.util :refer
-    [map-values in? short-uuid to-uuid parse-number]]
-   [sysrev.shared.keywords :refer [canonical-keyword]]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [honeysql-postgres.format :refer :all]
-   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-   [clojure.string :as str])
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.shared.spec.core :as sc]
+            [sysrev.shared.spec.article :as sa]
+            [sysrev.shared.spec.project :as sp]
+            [sysrev.shared.spec.labels :as sl]
+            [sysrev.shared.spec.users :as su]
+            [sysrev.shared.spec.keywords :as skw]
+            [sysrev.shared.spec.notes :as snt]
+            [sysrev.db.core :refer
+             [do-query do-execute to-sql-array sql-cast with-project-cache
+              clear-project-cache clear-query-cache cached-project-ids to-jsonb
+              with-transaction]]
+            [sysrev.db.compensation :as compensation]
+            [sysrev.db.articles :refer
+             [set-article-flag remove-article-flag article-to-sql]]
+            [sysrev.db.documents :as docs]
+            [sysrev.db.queries :as q]
+            [sysrev.files.stores :as files]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer
+             [map-values in? short-uuid to-uuid parse-number]]
+            [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
 (s/def ::include-disabled? (s/nilable boolean?))
@@ -235,13 +234,25 @@
     (clear-project-cache project-id)
     new-settings))
 
+(defn change-project-name [project-id project-name]
+  (let [project-id (q/to-project-id project-id)]
+    (assert (string? project-name))
+    (-> (sqlh/update :project)
+        (sset {:name project-name})
+        (where [:= :project-id project-id])
+        do-execute)
+    (clear-project-cache project-id)
+    project-name))
+
 (defn project-contains-public-id
   "Test if project contains an article with given `public-id` value."
   [public-id project-id]
-  (let [project-id (q/to-project-id project-id)]
-    (-> (q/select-article-where
-         project-id [:= :a.public-id (str public-id)] [:%count.*])
-        do-query first :count pos?)))
+  (if (nil? (sutil/parse-integer public-id))
+    false
+    (let [project-id (q/to-project-id project-id)]
+      (-> (q/select-article-where
+           project-id [:= :a.public-id (str public-id)] [:%count.*])
+          do-query first :count pos?))))
 ;;
 (s/fdef project-contains-public-id
         :args (s/cat :public-id ::sa/public-id

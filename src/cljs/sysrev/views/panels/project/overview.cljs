@@ -46,9 +46,8 @@
 (defn nav-article-status [[inclusion group-status]]
   (when-let [project-id @(subscribe [:active-project-id])]
     (if use-new-article-list?
-      (do (articles/load-consensus-settings :status group-status
-                                            :inclusion inclusion)
-          (nav/nav-scroll-top (project-uri project-id "/articles")))
+      (articles/load-consensus-settings :status group-status
+                                        :inclusion inclusion)
       (do (dispatch [:navigate [:project :project :articles]
                      {:project-id project-id}])
           (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
@@ -61,36 +60,42 @@
         bstyle (fn [color]
                  {:border (str "1px solid " color)})]
     [:div.label-status-help
-     [:div.ui.top.attached.small.green.button.grouped-header
-      "Include"]
-     [:div.ui.bottom.attached.small.basic.buttons
-      [:a.ui.button
-       {:on-click #(nav-article-status [true :determined])}
-       (str "Full (" (+ (scount [:consistent true])
-                        (scount [:resolved true])) ")")]
-      [:a.ui.button
-       {:on-click #(nav-article-status [true :single])}
-       (str "Partial (" (scount [:single true]) ")")]]
-     [:div.ui.top.attached.small.orange.button.grouped-header
-      "Exclude"]
-     [:div.ui.bottom.attached.small.basic.buttons
-      [:a.ui.button
-       {:on-click #(nav-article-status [false :determined])}
-       (str "Full (" (+ (scount [:consistent false])
-                        (scount [:resolved false])) ")")]
-      [:a.ui.button
-       {:on-click #(nav-article-status [false :single])}
-       (str "Partial (" (scount [:single false]) ")")]]
-     [:div.ui.small.basic.buttons
-      [:a.ui.button
-       {:style (merge (bstyle (:red colors)))
-        :on-click #(nav-article-status [nil :conflict])}
-       (str "Conflict (" (scount [:conflict nil]) ")")]
-      [:a.ui.button
-       {:style (merge (bstyle (:purple colors)))
-        :on-click #(nav-article-status [nil :resolved])}
-       (str "Resolved (" (+ (scount [:resolved true])
-                            (scount [:resolved false])) ")")]]]))
+     [:div.ui.segments
+      [:div.ui.attached.small.segment.status-header.green
+       "Include"]
+      [:div.ui.attached.segment.status-buttons.with-header
+       [:div.ui.small.basic.fluid.buttons
+        [:a.ui.button
+         {:on-click #(nav-article-status [true :determined])}
+         (str "Full (" (+ (scount [:consistent true])
+                          (scount [:resolved true])) ")")]
+        [:a.ui.button
+         {:on-click #(nav-article-status [true :single])}
+         (str "Partial (" (scount [:single true]) ")")]]]]
+     [:div.ui.segments
+      [:div.ui.attached.small.segment.status-header.orange
+       "Exclude"]
+      [:div.ui.attached.segment.status-buttons.with-header
+       [:div.ui.small.basic.fluid.buttons
+        [:a.ui.button
+         {:on-click #(nav-article-status [false :determined])}
+         (str "Full (" (+ (scount [:consistent false])
+                          (scount [:resolved false])) ")")]
+        [:a.ui.button
+         {:on-click #(nav-article-status [false :single])}
+         (str "Partial (" (scount [:single false]) ")")]]]]
+     [:div.ui.segments
+      [:div.ui.attached.segment.status-buttons
+       [:div.ui.small.basic.fluid.buttons
+        [:a.ui.button
+         {:style (merge (bstyle (:red colors)))
+          :on-click #(nav-article-status [nil :conflict])}
+         (str "Conflict (" (scount [:conflict nil]) ")")]
+        [:a.ui.button
+         {:style (merge (bstyle (:purple colors)))
+          :on-click #(nav-article-status [nil :resolved])}
+         (str "Resolved (" (+ (scount [:resolved true])
+                              (scount [:resolved false])) ")")]]]]]))
 
 (defn- ReviewStatusBox []
   (let [project-id @(subscribe [:active-project-id])
@@ -249,8 +254,10 @@
      (with-loader [[:project project-id]] {:dimmer :fixed}
        [charts/bar-chart (+ 35 (* 15 (count visible-user-ids)))
         user-names ynames yss
-        ["rgba(33,186,69,0.55)"
-         "rgba(242,113,28,0.55)"]])]))
+        :colors ["rgba(33,186,69,0.55)"
+                 "rgba(242,113,28,0.55)"]
+        :on-click #(articles/load-member-label-settings
+                    (nth visible-user-ids %))])]))
 
 (defn RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])
@@ -259,50 +266,53 @@
                      "#dddddd" "#222222")
         progress (reverse @(subscribe [:project/progress-counts]))
         n-total (-> @(subscribe [:project/article-counts]) :total)
-        xvals (->> progress (mapv :completed))
-        xlabels (->> progress (mapv :day)
-                     (mapv #(->> (str/split % #"\-") (drop 1) (str/join "-"))))
-        xdiff (js/Math.abs (- (last xvals) (first xvals)))
-        data
-        {:labels xlabels
-         :datasets [{:fill "origin"
-                     :backgroundColor "rgba(30,100,250,0.2)"
-                     :lineTension 0
-                     :data (vec xvals)}]}
-        options
-        (charts/wrap-animate-options
-         {:legend {:display false}
-          :scales
-          {:xAxes [{:ticks
-                    {:fontColor font-color
-                     :autoSkip true
-                     :callback
-                     (fn [value idx values]
-                       (if (or (= 0 (mod idx 5))
-                               (= idx (dec (count values))))
-                         value ""))}
-                    :scaleLabel {:fontColor font-color}}]
-           :yAxes [{:scaleLabel {:display true
-                                 :labelString "Articles Completed"
-                                 :fontColor font-color}
-                    :ticks
-                    {:fontColor font-color
-                     :suggestedMin (max 0
-                                        (int (- (first xvals)
-                                                (* xdiff 0.15))))
-                     :suggestedMax (min n-total
-                                        (int (+ (last xvals)
-                                                (* xdiff 0.15))))}}]}
-          :responsive true})]
-    [:div.ui.segment
-     [:h4.ui.dividing.header
-      [:div.ui.two.column.middle.aligned.grid
-       [:div.ui.left.aligned.column
-        "Recent Progress"]]]
-     (with-loader [[:project project-id]] {:dimmer :fixed}
-       [chartjs/line
-        {:data data
-         :options options}])]))
+        ;; xvals (->> progress (mapv :completed))
+        xvals (->> progress (mapv :labeled))]
+    (when (> (last xvals) (->> xvals (drop 4) first))
+      (let [xlabels (->> progress (mapv :day)
+                         (mapv #(->> (str/split % #"\-") (drop 1) (str/join "-"))))
+            xdiff (js/Math.abs (- (last xvals) (first xvals)))
+            data
+            {:labels xlabels
+             :datasets [{:fill "origin"
+                         :backgroundColor "rgba(30,100,250,0.2)"
+                         :lineTension 0
+                         :data (vec xvals)}]}
+            options
+            (charts/wrap-default-options
+             {:legend {:display false}
+              :scales
+              {:xAxes [{:ticks
+                        {:fontColor font-color
+                         :autoSkip true
+                         :callback
+                         (fn [value idx values]
+                           (if (or (= 0 (mod idx 5))
+                                   (= idx (dec (count values))))
+                             value ""))}
+                        :scaleLabel {:fontColor font-color}}]
+               :yAxes [{:scaleLabel {:display true
+                                     ;; :labelString "Articles Completed"
+                                     :labelString "User Articles Labeled"
+                                     :fontColor font-color}
+                        :ticks
+                        {:fontColor font-color
+                         :suggestedMin (max 0
+                                            (int (- (first xvals)
+                                                    (* xdiff 0.15))))
+                         :suggestedMax (min n-total
+                                            (int (+ (last xvals)
+                                                    (* xdiff 0.15))))}}]}
+              :responsive true})]
+        [:div.ui.segment
+         [:h4.ui.dividing.header
+          [:div.ui.two.column.middle.aligned.grid
+           [:div.ui.left.aligned.column
+            "Recent Progress"]]]
+         (with-loader [[:project project-id]] {:dimmer :fixed}
+           [chartjs/line
+            {:data data
+             :options options}])]))))
 
 (defn LabelPredictionsInfo []
   (when (not-empty @(subscribe [:project/predict]))
@@ -367,8 +377,8 @@
             labels (mapv :instance-name entries)
             counts (mapv :tfidf entries)]
         [charts/bar-chart height labels ["count"] [counts]
-         ["rgba(33,186,69,0.55)"]
-         {:legend {:display false}}]))))
+         :colors ["rgba(33,186,69,0.55)"]
+         :options {:legend {:display false}}]))))
 
 (defn KeyTerms []
   (let [active-tab (or @important-terms-tab :mesh)
@@ -464,9 +474,13 @@
               color-filter-fn
               (fn [items]
                 (filterv #(not (filtered-color? (:color %))) items))
-              labels (->> processed-label-counts
-                          color-filter-fn
-                          (mapv :value))
+              entries (->> processed-label-counts
+                           color-filter-fn)
+              labels (->> entries
+                          (mapv :value)
+                          (mapv str)
+                          (mapv #(if (<= (count %) 27)
+                                   % (str (subs % 0 25) "..."))))
               counts (->> processed-label-counts
                           color-filter-fn
                           (mapv :count))
@@ -491,7 +505,7 @@
                                 :backgroundColor (if (empty? counts)
                                                    ["#000000"]
                                                    background-colors)}]}
-              options (charts/wrap-disable-animation
+              options (charts/wrap-default-options
                        {:scales
                         {:xAxes
                          [{:display true
@@ -522,19 +536,29 @@
                                  (:fillStyle (js->clj legend-item
                                                       :keywordize-keys true))
                                  enabled? (not (filtered-color? current-legend-color))]
-                             #_ (.preventDefault e)
                              (if enabled?
                                ;; filter out the associated data points
                                (swap! color-filter #(conj % current-legend-color))
                                ;; the associated data points should no longer be filtered out
-                               (swap! color-filter #(disj % current-legend-color)))))}})
+                               (swap! color-filter #(disj % current-legend-color)))))}
+                        :onClick
+                        (fn [event elts]
+                          (let [elts (-> elts js->clj)]
+                            (when (and (coll? elts) (not-empty elts))
+                              (when-let [idx (-> elts first (aget "_index"))]
+                                (let [{:keys [label-id value]}
+                                      (nth entries idx)]
+                                  (articles/load-label-value-settings
+                                   label-id value))))))}
+                       :animate? false
+                       :items-clickable? true)
               height (charts/label-count->chart-height (count labels))]
           [:div.ui.segment
            [:h4.ui.dividing.header "Member Label Counts"]
            [chartjs/horizontal-bar
             {:data data
              :height height
-             :options (merge options)}]])))))
+             :options options}]])))))
 
 (defn LabelCounts []
   (when-let [project-id @(subscribe [:active-project-id])]
@@ -613,13 +637,14 @@
      [chartjs/bar
       {:data {:labels labels
               :datasets datasets}
-       :options {:scales
-                 {:xAxes [{:stacked true
-                           :ticks {:fontColor font-color}
-                           :scaleLabel {:fontColor font-color}}]
-                  :yAxes [{:ticks {:fontColor font-color}
-                           :scaleLabel {:fontColor font-color}}]}
-                 :legend {:labels {:fontColor font-color}}}
+       :options (charts/wrap-default-options
+                 {:scales
+                  {:xAxes [{:stacked true
+                            :ticks {:fontColor font-color}
+                            :scaleLabel {:fontColor font-color}}]
+                   :yAxes [{:ticks {:fontColor font-color}
+                            :scaleLabel {:fontColor font-color}}]}
+                  :legend {:labels {:fontColor font-color}}})
        :height 170}]]))
 
 (defn PredictionHistogram []

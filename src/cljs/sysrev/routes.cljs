@@ -37,7 +37,8 @@
        default-project-id (subscribe [:self/default-project-id])]
    (dispatch [:set-active-panel [:root]])
    (dispatch [:require [:identity]])
-   (dispatch [:reload [:identity]])))
+   (dispatch [:reload [:identity]])
+   (dispatch [:reload [:public-projects]])))
 
 ;;
 ;; project routes
@@ -77,7 +78,7 @@
          (do (dispatch
               [:data/after-load data-item :project-articles-route
                (list set-panel #(js/setTimeout sync-params 25))])
-             (dispatch-sync set-transition)
+             (dispatch set-transition)
              (article-list/require-list context)
              (article-list/reload-list context))
 

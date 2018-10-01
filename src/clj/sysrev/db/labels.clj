@@ -802,13 +802,24 @@
   (with-project-cache
     project-id [:public-labels :progress n-days]
     (let [overall-id (project/project-overall-label-id project-id)
-          articles (->> (vals (query-public-article-labels project-id))
-                        (filter
-                         (fn [article]
-                           (let [labels (get-in article [:labels overall-id])]
-                             (and labels
-                                  (or (is-consistent? labels)
-                                      (is-resolved? labels)))))))
+          completed (->> (vals (query-public-article-labels project-id))
+                         (filter
+                          (fn [{:keys [labels]}]
+                            (let [overall (get labels overall-id)]
+                              (and overall
+                                   (or (is-consistent? overall)
+                                       (is-resolved? overall)))))))
+          labeled (->> (vals (query-public-article-labels project-id))
+                       (map
+                        (fn [{:keys [labels updated-time]}]
+                          (let [overall (get labels overall-id)
+                                users (->> (vals labels)
+                                           (apply concat)
+                                           (map :user-id)
+                                           distinct
+                                           count)]
+                            {:updated-time updated-time
+                             :users users}))))
           now (tc/to-epoch (t/now))
           day-seconds (* 60 60 24)
           tformat (tf/formatters :year-month-day)]
@@ -817,9 +828,13 @@
             (fn [day-idx]
               (let [day-epoch (- now (* day-idx day-seconds))]
                 {:day (tf/unparse tformat (tc/from-long (* 1000 day-epoch)))
-                 :completed (->> articles
+                 :completed (->> completed
                                  (filter #(< (:updated-time %) day-epoch))
-                                 count)})))))))
+                                 count)
+                 :labeled (->> labeled
+                               (filter #(< (:updated-time %) day-epoch))
+                               (map :users)
+                               (apply +))})))))))
 
 (defn filter-recent-public-articles [project-id exclude-hours articles]
   (if (nil? exclude-hours)
@@ -1282,3 +1297,40 @@
                  "string" string-definition-validations
                  "categorical" (categorical-definition-validations definition label-id)
                  {})})
+
+;; TODO: do this later maybe
+#_
+(defn migrate-label-uuid-values [label-id]
+  (with-transaction
+    (let [{:keys [value-type definition]}
+          (-> (select :value-type :definition)
+              (from :label)
+              (where [:= :label-id label-id])
+              do-query first)
+          {:keys [all-values inclusion-values]} definition]
+      (when (and (= value-type "categorical") (vector? all-values))
+        (let [new-values (->> all-values
+                              (map (fn [v] {(UUID/randomUUID) {:name v}}))
+                              (apply merge))
+              to-uuid (fn [v]
+                        (->> (keys new-values)
+                             (filter #(= v (get-in new-values [% :name])))
+                             first))
+              new-inclusion (->> inclusion-values (map to-uuid) (remove nil?) vec)
+              al-entries (-> (select :article-label-id :answer)
+                             (from :article-label)
+                             (where [:= :label-id label-id])
+                             do-query)]
+          (doseq [{:keys [article-label-id answer]} al-entries]
+            (-> (sqlh/update :article-label)
+                (sset {:answer (to-jsonb (some->> answer (mapv to-uuid)))})
+                (where [:= :article-label-id article-label-id])
+                do-execute))
+          (-> (sqlh/update :label)
+              (sset {:definition
+                     (to-jsonb
+                      (assoc definition
+                             :all-values new-values
+                             :inclusion-values new-inclusion))})
+              (where [:= :label-id label-id])
+              do-execute))))))

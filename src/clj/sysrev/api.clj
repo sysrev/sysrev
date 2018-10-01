@@ -745,7 +745,7 @@
       true (select-keys [:start-offset :end-offset :text-context]))))
 
 (defn save-article-annotation
-  [article-id user-id selection annotation & {:keys [pdf-key context]}]
+  [project-id article-id user-id selection annotation & {:keys [pdf-key context]}]
   (try
     (let [annotation-id
           (db-annotations/create-annotation!
@@ -761,7 +761,9 @@
                 :annotation-id annotation-id}})
     (catch Throwable e
       {:error {:message "Exception in save-article-annotation"
-               :exception e}})))
+               :exception e}})
+    (finally
+      (db/clear-project-cache project-id))))
 
 (defn user-defined-annotations
   [article-id]
@@ -786,14 +788,18 @@
 
 (defn delete-annotation!
   [annotation-id]
-  (try
-    (do
-      (db-annotations/delete-annotation! annotation-id)
-      {:result {:success true
-                :annotation-id annotation-id}})
-    (catch Throwable e
-      {:error {:message "Exception in delete-annotation!"
-               :exception e}})))
+  (let [project-id (db-annotations/annotation-id->project-id annotation-id)]
+    (try
+      (do
+        (db-annotations/delete-annotation! annotation-id)
+        {:result {:success true
+                  :annotation-id annotation-id}})
+      (catch Throwable e
+        {:error {:message "Exception in delete-annotation!"
+                 :exception e}})
+      (finally
+        (when project-id
+          (db/clear-project-cache project-id))))))
 
 (defn update-annotation!
   "Update the annotation for user-id. Only users can edit their own annotations"
@@ -812,7 +818,10 @@
                 :semantic-class semantic-class}})
     (catch Throwable e
       {:error {:message "Exception in update-annotation!"
-               :exception e}})))
+               :exception e}})
+    (finally
+      (when-let [project-id (db-annotations/annotation-id->project-id annotation-id)]
+        (db/clear-project-cache project-id)))))
 
 (defn pdf-download-url
   [article-id filename key]

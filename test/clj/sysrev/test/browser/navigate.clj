@@ -45,3 +45,10 @@
   (browser/click
    {:xpath "//div[contains(@class,'projects-list')]/descendant::a[contains(@class,'segment')]"}
    :delay 500))
+
+(defn wait-until-overview-ready []
+  (let [overview "//span[contains(text(),'Overview')]"
+        disabled (str overview "/ancestor::a[contains(@class,'item disabled')]")]
+    (taxi/wait-until #(and (taxi/exists? {:xpath overview})
+                           (not (taxi/exists? {:xpath disabled})) )
+                     10000 100)))

@@ -14,6 +14,7 @@
         sysrev.db.sources
         sysrev.db.article_list
         sysrev.db.annotations
+        sysrev.cassandra
         sysrev.clone-project
         sysrev.files.stores
         sysrev.import.pubmed

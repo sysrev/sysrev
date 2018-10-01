@@ -2,6 +2,7 @@
   (:require [re-frame.core :as re-frame :refer
              [subscribe reg-sub reg-sub-raw]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.nav :as nav]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.state.identity :refer [get-self-projects]]
             [sysrev.shared.util :refer [short-uuid]]))
@@ -40,7 +41,7 @@
  (fn [[_ project-id]]
    [(subscribe [:project/hash project-id])])
  (fn [[project-hash]]
-   (str "https://sysrev.com/register/" project-hash)))
+   (str (nav/current-url-base) "/register/" project-hash)))
 
 (defn- project-active-url-id-impl [project-id project self-projects]
   (let [project-url

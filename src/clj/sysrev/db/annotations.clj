@@ -3,7 +3,8 @@
                                                join left-join]]
             [honeysql-postgres.helpers :refer [returning]]
             [clj-time.coerce :as tc]
-            [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
+            [sysrev.db.core :refer
+             [do-query do-execute to-jsonb sql-now with-project-cache with-transaction]]
             [sysrev.util :as util]
             [sysrev.shared.util :refer [in? map-values] :as sutil]))
 
@@ -43,19 +44,20 @@
 
 (defn annotation-semantic-class [annotation-id]
   "Get the semantic-class associated with annotation-id"
-  (let [semantic-class-id
-        (-> (select :*)
-            (from :annotation_semantic_class)
-            (where [:= :annotation-id annotation-id])
-            do-query
-            first
-            :semantic-class-id)]
-    (-> (select :definition)
-        (from :semantic_class)
-        (where [:= :id semantic-class-id])
-        do-query
-        first
-        :definition)))
+  (with-transaction
+    (let [semantic-class-id
+          (-> (select :*)
+              (from :annotation_semantic_class)
+              (where [:= :annotation-id annotation-id])
+              do-query
+              first
+              :semantic-class-id)]
+      (-> (select :definition)
+          (from :semantic_class)
+          (where [:= :id semantic-class-id])
+          do-query
+          first
+          :definition))))
 
 (defn dissociate-semantic-class! [annotation-id semantic-class-id]
   (-> (delete-from :annotation_semantic_class)
@@ -83,27 +85,28 @@
 
 ;; extremely useful graph: https://stackoverflow.com/questions/20602826/sql-server-need-join-but-where-not-equal-to
 (defn user-defined-article-annotations [article-id]
-  (let [annotations-articles (-> (select :*)
-                                 (from :annotation_article)
-                                 (where [:= :article-id
-                                         article-id])
-                                 do-query
-                                 (->> (mapv :annotation-id)))]
-    (if-not (empty? annotations-articles)
-      (let [annotations (-> (select :*)
-                            (from [:annotation :a])
-                            (left-join [:annotation_s3store :as3 ] [:= :a.id :as3.annotation_id])
-                            (where [:and
-                                    [:in :id annotations-articles]
-                                    [:= :as3.annotation_id nil]])
-                            do-query)]
-        (map #(assoc %
-                     :semantic-class
-                     (annotation-semantic-class (:id %))
-                     :user-id
-                     (annotation-id->user-id (:id %)))
-             annotations))
-      [])))
+  (with-transaction
+    (let [annotations-articles (-> (select :*)
+                                   (from :annotation_article)
+                                   (where [:= :article-id
+                                           article-id])
+                                   do-query
+                                   (->> (mapv :annotation-id)))]
+      (if-not (empty? annotations-articles)
+        (let [annotations (-> (select :*)
+                              (from [:annotation :a])
+                              (left-join [:annotation_s3store :as3 ] [:= :a.id :as3.annotation_id])
+                              (where [:and
+                                      [:in :id annotations-articles]
+                                      [:= :as3.annotation_id nil]])
+                              do-query)]
+          (map #(assoc %
+                       :semantic-class
+                       (annotation-semantic-class (:id %))
+                       :user-id
+                       (annotation-id->user-id (:id %)))
+               annotations))
+        []))))
 
 (defn associate-annotation-s3store! [annotation-id s3store-id]
   (-> (insert-into :annotation_s3store)
@@ -112,25 +115,26 @@
       do-execute))
 
 (defn user-defined-article-pdf-annotations [article-id s3store-id]
-  (let [annotations-articles (-> (select :*)
-                                 (from :annotation_article)
-                                 (where [:= :article-id
-                                         article-id])
-                                 do-query
-                                 (->> (mapv :annotation-id)))]
-    (if-not (empty? annotations-articles)
-      (let [annotations (-> (select :*)
-                            (from [:annotation :a])
-                            (join [:annotation_s3store :b] [:= :a.id :b.annotation_id])
-                            (where [:and
-                                    [:in :id annotations-articles]
-                                    [:= :b.s3store-id s3store-id]])
-                            do-query)]
-        (map #(assoc %
-                     :semantic-class (annotation-semantic-class (:id %))
-                     :user-id (annotation-id->user-id (:id %)))
-             annotations))
-      [])))
+  (with-transaction
+    (let [annotations-articles (-> (select :*)
+                                   (from :annotation_article)
+                                   (where [:= :article-id
+                                           article-id])
+                                   do-query
+                                   (->> (mapv :annotation-id)))]
+      (if-not (empty? annotations-articles)
+        (let [annotations (-> (select :*)
+                              (from [:annotation :a])
+                              (join [:annotation_s3store :b] [:= :a.id :b.annotation_id])
+                              (where [:and
+                                      [:in :id annotations-articles]
+                                      [:= :b.s3store-id s3store-id]])
+                              do-query)]
+          (map #(assoc %
+                       :semantic-class (annotation-semantic-class (:id %))
+                       :user-id (annotation-id->user-id (:id %)))
+               annotations))
+        []))))
 
 
 (defn delete-annotation!
@@ -141,84 +145,87 @@
 
 (defn annotation-id->project-id
   [annotation-id]
-  (let [article-id (-> (select :article-id)
-                       (from :annotation_article)
-                       (where [:= :annotation_id annotation-id])
-                       do-query
-                       first
-                       :article-id)]
-    (-> (select :project-id)
-        (from :article)
-        (where [:= :article_id article-id])
-        do-query
-        first
-        :project-id)))
+  (with-transaction
+    (let [article-id (-> (select :article-id)
+                         (from :annotation_article)
+                         (where [:= :annotation_id annotation-id])
+                         do-query
+                         first
+                         :article-id)]
+      (-> (select :project-id)
+          (from :article)
+          (where [:= :article_id article-id])
+          do-query
+          first
+          :project-id))))
 
 (defn project-active-semantic-classes
   "Get the semantic classes associated annotations that are active"
   [project-id]
-  (let [maybe-empty (fn [coll]
-                      (if (empty? coll)
-                        '(nil)
-                        coll))
-        article-ids (map :article-id (-> (select :aa.article-id)
-                                         (from [:annotation_article :aa])
-                                         (join [:article :a] [:= :aa.article-id :a.article-id])
-                                         (where [:= :a.project-id 728])
-                                         do-query))
-        annotation-ids (map :annotation-id (-> (select :annotation-id)
-                                               (from :annotation_article)
-                                               (where [:in :article_id (maybe-empty article-ids)])
-                                               do-query))
-        semantic-class-ids (map :semantic-class-id
-                                (-> (select :semantic-class-id)
-                                    (from :annotation_semantic_class)
-                                    (where [:in :annotation_id (maybe-empty annotation-ids)])
-                                    do-query))
-        semantic-classes (-> (select :*)
-                             (from :semantic_class)
-                             (where [:in :id (maybe-empty semantic-class-ids)])
-                             do-query)]
-    semantic-classes))
+  (with-transaction
+    (let [maybe-empty (fn [coll]
+                        (if (empty? coll)
+                          '(nil)
+                          coll))
+          article-ids (map :article-id (-> (select :aa.article-id)
+                                           (from [:annotation_article :aa])
+                                           (join [:article :a] [:= :aa.article-id :a.article-id])
+                                           (where [:= :a.project-id 728])
+                                           do-query))
+          annotation-ids (map :annotation-id (-> (select :annotation-id)
+                                                 (from :annotation_article)
+                                                 (where [:in :article_id (maybe-empty article-ids)])
+                                                 do-query))
+          semantic-class-ids (map :semantic-class-id
+                                  (-> (select :semantic-class-id)
+                                      (from :annotation_semantic_class)
+                                      (where [:in :annotation_id (maybe-empty annotation-ids)])
+                                      do-query))
+          semantic-classes (-> (select :*)
+                               (from :semantic_class)
+                               (where [:in :id (maybe-empty semantic-class-ids)])
+                               do-query)]
+      semantic-classes)))
 
 (defn update-annotation!
   "Update an annotation, with an optional semantic-class. If semantic-class is empty (blank string) or nil, a semantic-class of null will be associated with the annotation"
   [annotation-id annotation & [semantic-class]]
   ;; update the annotation
-  (-> (sqlh/update :annotation)
-      (sset {:annotation annotation})
-      (where [:= :id annotation-id])
-      do-execute)
-  ;; update the semantic-class
-  (let [semantic-class (if (empty? semantic-class)
-                         nil
-                         semantic-class)
-        current-semantic-class-id (-> (select :semantic_class_id)
-                                      (from :annotation_semantic_class)
-                                      (where [:= :annotation-id annotation-id])
-                                      do-query
-                                      first
-                                      :semantic-class-id)
-        current-semantic-class (-> (select :*)
-                                   (from :semantic_class)
-                                   (where [:= :id current-semantic-class-id])
-                                   do-query
-                                   first)
-        new-semantic-class (-> (select :*)
-                               (from :semantic_class)
-                               (where [:= :definition (to-jsonb semantic-class)])
-                               do-query
-                               first)]
-    ;; create a new semantic-class, if needed
-    (if (nil? new-semantic-class)
-      (let [new-semantic-class-id (create-semantic-class! semantic-class)]
-        (associate-annotation-semantic-class! annotation-id new-semantic-class-id))
-      (associate-annotation-semantic-class! annotation-id (:id new-semantic-class)))
-    ;; dissociate the current-semantic-class, if needed
-    (when (and current-semantic-class
-               (not= new-semantic-class
-                     current-semantic-class))
-      (dissociate-semantic-class! annotation-id (:id current-semantic-class)))))
+  (with-transaction
+    (-> (sqlh/update :annotation)
+        (sset {:annotation annotation})
+        (where [:= :id annotation-id])
+        do-execute)
+    ;; update the semantic-class
+    (let [semantic-class (if (empty? semantic-class)
+                           nil
+                           semantic-class)
+          current-semantic-class-id (-> (select :semantic_class_id)
+                                        (from :annotation_semantic_class)
+                                        (where [:= :annotation-id annotation-id])
+                                        do-query
+                                        first
+                                        :semantic-class-id)
+          current-semantic-class (-> (select :*)
+                                     (from :semantic_class)
+                                     (where [:= :id current-semantic-class-id])
+                                     do-query
+                                     first)
+          new-semantic-class (-> (select :*)
+                                 (from :semantic_class)
+                                 (where [:= :definition (to-jsonb semantic-class)])
+                                 do-query
+                                 first)]
+      ;; create a new semantic-class, if needed
+      (if (nil? new-semantic-class)
+        (let [new-semantic-class-id (create-semantic-class! semantic-class)]
+          (associate-annotation-semantic-class! annotation-id new-semantic-class-id))
+        (associate-annotation-semantic-class! annotation-id (:id new-semantic-class)))
+      ;; dissociate the current-semantic-class, if needed
+      (when (and current-semantic-class
+                 (not= new-semantic-class
+                       current-semantic-class))
+        (dissociate-semantic-class! annotation-id (:id current-semantic-class))))))
 
 (defn project-annotations
   "Retrieve all annotations for project-id"
@@ -292,6 +299,46 @@
                                tc/from-epoch
                                tc/to-sql-time)
                :count (count entries)})))))
+
+(defn project-annotation-articles [project-id]
+  (with-project-cache
+    project-id [:annotations :articles]
+    (-> (select :an.created :aa.article-id :sc.definition :au.user-id)
+        (from [:annotation :an])
+        (join
+         ;; annotation article
+         [:annotation_article :aa]
+         [:= :aa.annotation_id :an.id]
+         ;; article
+         [:article :a]
+         [:= :a.article_id :aa.article_id]
+         ;; user
+         [:annotation-web-user :au]
+         [:= :au.annotation-id :an.id])
+        (left-join
+         ;; annotation semantic class
+         [:annotation_semantic_class :asc]
+         [:= :an.id :asc.annotation_id]
+         ;; semantic class
+         [:semantic_class :sc]
+         [:= :sc.id :asc.semantic_class_id])
+        (where [:= :a.project_id project-id])
+        (->> do-query
+             (group-by :article-id)
+             (map-values
+              (fn [entries]
+                {:updated-time (->> entries
+                                    (map :created)
+                                    (map tc/to-epoch)
+                                    (apply max 0)
+                                    tc/from-epoch
+                                    tc/to-sql-time)
+                 :users (->> entries (map :user-id) distinct)
+                 :count (count entries)
+                 :classes (->> entries
+                               (map :definition)
+                               (remove nil?)
+                               distinct)}))))))
 
 (defn text-context-article-field-match
   "Determine which field of an article text-context matches in article-id."

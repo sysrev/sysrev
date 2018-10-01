@@ -9,7 +9,13 @@
   (if (integer? s) s
       (when (and (string? s) (re-find #"^ *\d+ *$" s))
         #?(:clj
-           (read-string s)
+           (try
+             (Integer/parseInt s)
+             (catch Throwable e
+               (try
+                 (read-string s)
+                 (catch Throwable e2
+                   nil))))
 
            :cljs
            (let [val (js/parseInt s)]

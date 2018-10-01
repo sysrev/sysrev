@@ -27,7 +27,7 @@
     width: 0;
 }
 
-.project-title {
+span.project-title {
     font-size: 14px;
     .medium-weight;
 }
@@ -48,9 +48,15 @@
 
 .ui.secondary.pointing.menu .item {
     color: @mutedText;
+}
+
+.ui.secondary.pointing.menu .item,
+.ui.secondary.pointing.menu .active.item,
+.ui.secondary.pointing.menu .active.item:hover,
+{
     .medium-weight;
-    border-bottom-width: 1.5px;
-    margin-bottom: -1.5px;
+    border-bottom-width: 2px;
+    margin-bottom: -1px;
 }
 
 .ui.secondary.pointing.menu .active.item,
@@ -97,7 +103,7 @@
         padding-right: 8px;
     }
 
-    .project-title {
+    span.project-title {
         font-size: 12px;
         .medium-weight;
     }

@@ -5,7 +5,7 @@
 
 (require '[cljsjs.boot-cljsjs.packaging :refer :all])
 
-(def +lib-version+ "2.3.2")
+(def +lib-version+ "2.4.0")
 (def +version+ (str +lib-version+ "-0"))
 
 (task-options!
@@ -24,7 +24,7 @@
   (comp
    (download
     :url (format "https://github.com/Semantic-Org/Semantic-UI/archive/%s.zip" +lib-version+)
-    :checksum "3370C08F5A90F0E28EE296B68DC73545"
+    :checksum "B99372FC9C0A14A2E12892390F10D38A"
     :unzip true)
    (sift :move {#"^Semantic-UI-.*/dist/semantic.js$"     "cljsjs/semantic-ui/development/semantic.inc.js"
                 #"^Semantic-UI-.*/dist/semantic.min.js$" "cljsjs/semantic-ui/production/semantic.min.inc.js"

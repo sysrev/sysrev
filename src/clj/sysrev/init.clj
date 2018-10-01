@@ -1,5 +1,6 @@
 (ns sysrev.init
   (:require [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
+            [sysrev.cassandra :as cdb]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config.core :refer [env]]
             [clojure.tools.logging :as log])
@@ -28,4 +29,9 @@
 (defn start-app [& [postgres-overrides server-port-override only-if-new]]
   (start-db postgres-overrides only-if-new)
   (start-web server-port-override only-if-new)
+  (when (nil? @cdb/active-session)
+    (try (cdb/connect-db)
+         (log/info "connected to Cassandra DB")
+         (catch Throwable e
+           (log/info "unable to connect to Cassandra DB"))))
   true)

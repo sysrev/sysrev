@@ -194,13 +194,15 @@
       (where [:= :user-id user-id])
       do-execute))
 
-(defn user-password-reset-url [user-id]
+(defn user-password-reset-url
+  [user-id & {:keys [url-base]
+              :or {url-base "https://sysrev.com"}}]
   (when-let [reset-code
              (-> (select :reset-code)
                  (from :web-user)
                  (where [:= :user-id user-id])
                  do-query first :reset-code)]
-    (format "https://sysrev.com/reset-password/%s" reset-code)))
+    (format "%s/reset-password/%s" url-base reset-code)))
 
 (defn user-settings [user-id]
   (into {}

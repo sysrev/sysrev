@@ -31,9 +31,7 @@
           (clj->js
            (cond-> {}
              onChange (merge {:onChange onChange})))))
-    :reagent-render
-    (fn [elt]
-      elt)}))
+    :reagent-render (fn [elt] elt)}))
 
 (defn selection-dropdown [selected-item items &
                           [{:keys [id class onChange]
@@ -89,6 +87,32 @@
   (s/keys :req-un [::tab-id ::content ::action]
           :opt-un [::class]))
 
+(defn with-tooltip [content & [popup-options]]
+  (r/create-class
+   {:component-did-mount
+    #(.popup (js/$ (r/dom-node %))
+             (clj->js
+              (merge
+               {:inline true
+                :hoverable true
+                :position "top center"
+                :delay {:show 400
+                        :hide 0}
+                :transition "fade up"}
+               (or popup-options {}))))
+    :reagent-render
+    (fn [content] content)}))
+
+(defn WrapMenuItemTooltip
+  [content message tab-id & {:keys [width] :or {width "10em"}}]
+  (list
+   ^{:key [tab-id :content]}
+   [with-tooltip [:div content]]
+   ^{:key [tab-id :tooltip]}
+   [:div.ui.inverted.popup.transition.hidden.inverted.filters-tooltip
+    {:style {:min-width width}}
+    message]))
+
 (defn primary-tabbed-menu
   [left-entries right-entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
@@ -97,27 +121,34 @@
         ;; n-tabs (count entries)
         ;; n-tabs-word (sutil/num-to-english n-tabs)
         render-entry
-        (fn [{:keys [tab-id action content class] :as entry}]
-          (when entry
-            [:a {:key tab-id
-                 :class (str (if (= tab-id active-tab-id)
-                               "active item" "item")
-                             " " (if class class ""))
-                 :href (when (string? action) action)
-                 :on-click
-                 (util/wrap-user-event
-                  (cond (and (seq? action)
-                             (= (count action) 2))
-                        #(dispatch [:navigate
-                                    (first action) (second action)])
+        (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
+          (let [active? (= tab-id active-tab-id)
+                item
+                (when entry
+                  [:a {:key tab-id
+                       :class (cond-> ""
+                                active?  (str " active")
+                                true     (str " item")
+                                class    (str " " class)
+                                disabled (str " disabled"))
+                       :href (when (string? action) action)
+                       :on-click
+                       (util/wrap-user-event
+                        (cond (and (seq? action)
+                                   (= (count action) 2))
+                              #(dispatch [:navigate
+                                          (first action) (second action)])
 
-                        (vector? action)
-                        #(dispatch [:navigate action])
+                              (vector? action)
+                              #(dispatch [:navigate action])
 
-                        (string? action) nil
+                              (string? action) nil
 
-                        :else action))}
-             content]))]
+                              :else action))}
+                   content])]
+            (if (and disabled tooltip)
+              (WrapMenuItemTooltip item tooltip tab-id)
+              (list item))))]
     [:div.ui.secondary.pointing.menu.primary-menu
      {:class (str menu-class " " (if mobile? "tiny" ""))}
      (doall
@@ -132,7 +163,7 @@
          [:div.right.menu
           (doall
            (for [entry right-entries]
-             (render-entry entry)))]))]))
+             (doall (render-entry entry))))]))]))
 (s/fdef
  primary-tabbed-menu
  :args (s/cat :entries (s/coll-of ::menu-tab)
@@ -228,22 +259,6 @@
               :active-tab-id ::tab-id
               :menu-class (s/? string?)
               :mobile? (s/? boolean?)))
-
-(defn with-tooltip [content & [popup-options]]
-  (r/create-class
-   {:component-did-mount
-    #(.popup (js/$ (r/dom-node %))
-             (clj->js
-              (merge
-               {:inline true
-                :hoverable true
-                :position "top center"
-                :delay {:show 400
-                        :hide 0}
-                :transition "fade up"}
-               (or popup-options {}))))
-    :reagent-render
-    (fn [content] content)}))
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
@@ -575,21 +590,23 @@
      [:div.ui.red.message error])])
 
 (defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
-  [:div
-   [:button.ui.right.labeled.positive.icon.button
-    {:class (str (if can-save? "" "disabled")
-                 " "
-                 (if saving? "loading" ""))
-     :on-click (util/wrap-user-event
-                #(when (and can-save? on-save (not saving?)) (on-save)))}
-    "Save Changes"
-    [:i.check.circle.outline.icon]]
-   [:button.ui.right.labeled.icon.button
-    {:class (if can-reset? "" "disabled")
-     :on-click (util/wrap-user-event
-                #(when (and can-reset? on-reset) (on-reset)))}
-    "Reset"
-    [:i.eraser.icon]]])
+  [:div.ui.two.column.grid.save-reset-form
+   [:div.column.save
+    [:button.ui.fluid.right.labeled.positive.icon.button
+     {:class (str (if can-save? "" "disabled")
+                  " "
+                  (if saving? "loading" ""))
+      :on-click (util/wrap-user-event
+                 #(when (and can-save? on-save (not saving?)) (on-save)))}
+     "Save Changes"
+     [:i.check.circle.outline.icon]]]
+   [:div.column.reset
+    [:button.ui.fluid.right.labeled.icon.button
+     {:class (if can-reset? "" "disabled")
+      :on-click (util/wrap-user-event
+                 #(when (and can-reset? on-reset) (on-reset)))}
+     "Cancel"
+     [:i.times.icon]]]])
 
 (defn ConfirmationDialog
   "A confirmation dialog for confirming or cancelling an action.
@@ -604,7 +621,7 @@
   }"
   [{:keys [on-cancel on-confirm title message action-color]
     :or {action-color "orange"}}]
-  [:div
+  [:div.confirm-cancel-form
    [:div.ui.icon.warning.message.confirm-warning
     [:i.warning.icon {:class action-color}]
     [:div.content
@@ -613,13 +630,15 @@
        [:p {:style {:font-size "16px"
                     :font-weight "bold"}}
         message])]]
-   [:div
-    [:button.ui.button
-     {:on-click (util/wrap-user-event on-confirm) :class action-color}
-     "Confirm"]
-    [:button.ui.button
-     {:on-click (util/wrap-user-event on-cancel)}
-     "Cancel"]]])
+   [:div.ui.two.column.grid.confirm-cancel-form
+    [:div.column
+     [:button.ui.fluid.button
+      {:on-click (util/wrap-user-event on-confirm) :class action-color}
+      "Confirm"]]
+    [:div.column
+     [:button.ui.fluid.button
+      {:on-click (util/wrap-user-event on-cancel)}
+      "Cancel"]]]])
 
 (defn UploadContainer
   "Create uploader form component."

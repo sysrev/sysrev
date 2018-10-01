@@ -5,6 +5,7 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
+            [sysrev.nav :as nav]
             [sysrev.state.ui :refer [get-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.util :refer [validate wrap-prevent-default]]))
@@ -52,7 +53,8 @@
 
 (def-action :auth/request-password-reset
   :uri (fn [_] "/api/auth/request-password-reset")
-  :content (fn [email] {:email email})
+  :content (fn [email] {:email email
+                        :url-base (nav/current-url-base)})
   :process
   (fn [_ [email] {:keys [success] :as result}]
     (if success

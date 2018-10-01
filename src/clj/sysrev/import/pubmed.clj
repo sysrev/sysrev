@@ -1,15 +1,13 @@
 (ns sysrev.import.pubmed
-  (:require [sysrev.db.core :refer
-             [do-query do-execute with-transaction clear-project-cache to-jsonb *conn*]]
-            [sysrev.db.articles :as articles]
-            [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]
-            [sysrev.biosource.predict :as predict-api]
-            [sysrev.biosource.importance :as importance]
-            [sysrev.config.core :refer [env]]
-            [sysrev.util :as util :refer
-             [parse-xml-str xml-find xml-find-value xml-find-vector]]
-            [sysrev.shared.util :refer [parse-integer]]
+  (:require [clojure.set :as set]
+            [clojure.data.json :as json]
+            [clojure.java.io :as io]
+            [clojure.string :as string]
+            [clojure.tools.logging :as log]
+            [clojure.string :as str]
+            [clojure.data.xml :as dxml]
+            [clojure-csv.core :as csv]
+            [clj-http.client :as http]
             [hickory.core :as hickory]
             [hickory.select :as s]
             [honeysql.core :as sql]
@@ -18,14 +16,21 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [me.raynes.fs :as fs]
             [miner.ftp :as ftp]
-            [clj-http.client :as http]
-            [clojure-csv.core :as csv]
-            [clojure.data.json :as json]
-            [clojure.java.io :as io]
-            [clojure.string :as string]
-            [clojure.tools.logging :as log]
-            [clojure.string :as str]
-            [clojure.data.xml :as dxml]))
+            [sysrev.db.core :refer
+             [do-query do-execute with-transaction clear-project-cache to-jsonb *conn*]]
+            [sysrev.db.articles :as articles]
+            [sysrev.db.project :as project]
+            [sysrev.db.sources :as sources]
+            [sysrev.cassandra :as cdb]
+            [sysrev.biosource.predict :as predict-api]
+            [sysrev.biosource.importance :as importance]
+            [sysrev.config.core :refer [env]]
+            [sysrev.util :as util :refer
+             [parse-xml-str xml-find xml-find-value xml-find-vector]]
+            [sysrev.shared.util :as sutil
+             :refer [in? map-values parse-integer]]))
+
+(def use-cassandra-pubmed? true)
 
 (def e-util-api-key (:e-util-api-key env))
 
@@ -46,12 +51,10 @@
 
 (defn extract-article-location-entries
   "Extracts entries for article_location from parsed PubMed API XML article."
-  [pxml & [insilica?]]
+  [pxml]
   (distinct
    (concat
-    (->> (if insilica?
-           (xml-find pxml [:Article :ELocationID])
-           (xml-find pxml [:MedlineCitation :Article :ELocationID]))
+    (->> (xml-find pxml [:MedlineCitation :Article :ELocationID])
          (map (fn [{tag :tag
                     {source :EIdType} :attrs
                     content :content}]
@@ -68,81 +71,94 @@
                      content)))
          (apply concat)))))
 
+(defn parse-html-text-content [content]
+  (when content
+    (->> content
+         (map
+          (fn [txt]
+            (if (and (map? txt) (:tag txt))
+              ;; Handle embedded HTML
+              (when (:content txt)
+                (str "<" (name (:tag txt)) ">"
+                     (str/join (:content txt))
+                     "</" (name (:tag txt)) ">"))
+              txt)))
+         (filter string?)
+         (map str/trim)
+         (str/join))))
+
 (defn parse-abstract [abstract-texts]
-  (when-not (empty? abstract-texts)
-    (let [sections (map (fn [sec]
-                          {:header  (-> sec :attrs :Label)
-                           :content (:content sec)})
-                        abstract-texts)
-          parse-section (fn [section]
-                          (let [header (:header section)
-                                content (-> section :content first)]
-                            (if-not (empty? header)
+  (try
+    (when (not-empty abstract-texts)
+      (let [sections
+            (map (fn [sec]
+                   {:header  (some-> sec :attrs :Label str/trim)
+                    :content (some-> sec :content parse-html-text-content)})
+                 abstract-texts)
+            parse-section (fn [{:keys [header content]}]
+                            (if (not-empty header)
                               (str header ": " content)
-                              content)))
-          paragraphs (map parse-section sections)]
-      (string/join "\n\n" paragraphs))))
+                              content))
+            paragraphs (map parse-section sections)]
+        (string/join "\n\n" paragraphs)))
+    (catch Throwable e
+      (log/error "parse-abstract error:" (.getMessage e))
+      (log/error "abstract-texts =" (pr-str abstract-texts))
+      (throw e))))
 
-(defn parse-pmid-xml [pxml]
-  (let [title (xml-find-value pxml [:MedlineCitation :Article :ArticleTitle])
-        journal (xml-find-value pxml [:MedlineCitation :Article :Journal :Title])
-        abstract (-> (xml-find pxml [:MedlineCitation :Article :Abstract :AbstractText]) parse-abstract)
-        authors (-> (xml-find pxml [:MedlineCitation :Article :AuthorList :Author])
-                    parse-pubmed-author-names)
-        pmid (xml-find-value pxml [:MedlineCitation :PMID])
-        keywords (xml-find-vector pxml [:MedlineCitation :KeywordList :Keyword])
+(defn parse-pmid-xml
+  [pxml & {:keys [create-raw?] :or {create-raw? true}}]
+  (let [title (->> [:MedlineCitation :Article :ArticleTitle]
+                   (xml-find-value pxml))
+        journal (->> [:MedlineCitation :Article :Journal :Title]
+                     (xml-find-value pxml))
+        abstract (->> [:MedlineCitation :Article :Abstract :AbstractText]
+                      (xml-find pxml) parse-abstract)
+        authors (->> [:MedlineCitation :Article :AuthorList :Author]
+                     (xml-find pxml) parse-pubmed-author-names)
+        pmid (->> [:MedlineCitation :PMID] (xml-find-value pxml))
+        keywords (->> [:MedlineCitation :KeywordList :Keyword]
+                      (xml-find-vector pxml))
         locations (extract-article-location-entries pxml)
-        year (-> (xml-find [pxml] [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Year])
-                 first :content first parse-integer)
-        month (-> (xml-find [pxml] [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Month])
-                  first :content first)
-        day (-> (xml-find [pxml] [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day])
-                first :content first)]
-    {:raw (dxml/emit-str pxml)
-     :remote-database-name "MEDLINE"
-     :primary-title title
-     :secondary-title journal
-     :abstract abstract
-     :authors authors
-     :year year
-     :keywords keywords
-     :public-id (str pmid)
-     :locations locations
-     :date (str year " " month " " day)
-     }))
-
-(defn parse-pmid-xml-insilica [pxml]
-  (let [title (xml-find-value pxml [:Article :ArticleTitle])
-        journal (xml-find-value pxml [:Article :Journal :Title])
-        abstract (-> (xml-find pxml [:Article :Abstract :AbstractText]) parse-abstract)
-        authors (-> (xml-find pxml [:Article :AuthorList :Author])
-                    parse-pubmed-author-names)
-        pmid (xml-find-value pxml [:PMID])
-        keywords (xml-find-vector pxml [:KeywordList :Keyword])
-        locations (extract-article-location-entries pxml true)
-        year (or (-> (xml-find [pxml] [:Article :Journal :JournalIssue :PubDate :Year])
-                     first :content first parse-integer)
-                 (-> (xml-find [pxml] [:DateCompleted :Year])
-                     first :content first parse-integer))
-        month (or (-> (xml-find [pxml] [:Article :Journal :JournalIssue :PubDate :Month])
-                      first :content first)
-                  (-> (xml-find [pxml] [:DateCompleted :Month])
+        year (or (->> [:MedlineCitation :DateCompleted :Year]
+                      (xml-find [pxml])
+                      first :content first parse-integer)
+                 (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Year]
+                      (xml-find [pxml])
                       first :content first parse-integer))
-        day (or (-> (xml-find [pxml] [:Article :Journal :JournalIssue :PubDate :Day])
-                    first :content first)
-                (-> (xml-find [pxml] [:DateCompleted :Day])
-                    first :content first parse-integer))]
-    {:raw (dxml/emit-str pxml)
-     :remote-database-name "MEDLINE"
-     :primary-title (str/trim title)
-     :secondary-title (str/trim journal)
-     :abstract (str/trim abstract)
-     :authors (mapv str/trim authors)
-     :year year
-     :keywords keywords
-     :public-id (str pmid)
-     :locations locations
-     :date (str year " " month " " day)}))
+        month (or (->> [:MedlineCitation :DateCompleted :Month]
+                       (xml-find [pxml])
+                       first :content first parse-integer)
+                  (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Month]
+                       (xml-find [pxml])
+                       first :content first))
+        day (or (->> [:MedlineCitation :DateCompleted :Day]
+                     (xml-find [pxml])
+                     first :content first parse-integer)
+                (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day]
+                     (xml-find [pxml])
+                     first :content first))]
+    (cond->
+        {:remote-database-name "MEDLINE"
+         :primary-title title
+         :secondary-title journal
+         :abstract abstract
+         :authors (mapv str/trim authors)
+         :year year
+         :keywords keywords
+         :public-id (some-> pmid str)
+         :locations locations
+         :date (cond-> (str year)
+                 month           (str "-" (if (and (integer? month)
+                                                   (<= 1 month 9))
+                                            "0" "")
+                                      month)
+                 (and month day) (str "-" (if (and (integer? day)
+                                                   (<= 1 day 9))
+                                            "0" "")
+                                      day))}
+        create-raw?
+        (merge {:raw (dxml/emit-str pxml)}))))
 
 (defn fetch-pmids-xml [pmids]
   (util/wrap-retry
@@ -152,25 +168,43 @@
                                    "id" (str/join "," pmids)
                                    "retmode" "xml"
                                    "api_key" e-util-api-key}})
-         #_(format "?db=pubmed&id=%s&retmode=xml"
-                   (str/join "," pmids))
          :body))
    :fname "fetch-pmids-xml" :throttle-delay 100))
-
-(defn fetch-pmids-xml-insilica [pmids]
-  (-> (http/post "https://api.insilica.co/datasource/pubmed/getEntities"
-                 {:query-params {"ids" (str
-                                        "["
-                                        (str/join "," (->> pmids (map str) (map pr-str)))
-                                        "]")}})
-      #_(format "?db=pubmed&id=%s&retmode=xml"
-                (str/join "," pmids))
-      :body))
 
 (defn fetch-pmid-entries [pmids]
   (->> (fetch-pmids-xml pmids)
        parse-xml-str :content
        (mapv parse-pmid-xml)))
+
+(defn fetch-pmid-entries-cassandra [pmids]
+  (let [result
+        (try (->> (cdb/get-pmids-xml pmids)
+                  (pmap #(some-> % parse-xml-str
+                                 (parse-pmid-xml :create-raw? false)
+                                 (merge {:raw %})))
+                  vec)
+             (catch Throwable e
+               (.printStackTrace e)
+               (log/info "fetch-pmid-entries-cassandra:"
+                         "error while fetching or parsing")
+               nil))]
+    (if (empty? result)
+      (fetch-pmid-entries pmids)
+      (if (< (count result) (count pmids))
+        (let [result-pmids
+              (->> result (map #(some-> % :public-id parse-integer)))
+              diff (set/difference (set pmids) (set result-pmids))
+              have (set/difference (set pmids) (set diff))
+              from-pubmed (fetch-pmid-entries (vec diff))]
+          #_ (log/info "missing" (- (count pmids) (count result))
+                       "PMID articles"
+                       (str "(got " (count result) " of "
+                            (count pmids) ")"))
+          #_ (log/info "Missing:" (vec diff))
+          #_ (log/info "Have:" (->> have (take 25) vec))
+          #_ (log/info "retried from PubMed, got" (count from-pubmed) "articles")
+          (concat result from-pubmed))
+        result))))
 
 (defn fetch-pmid-entry [pmid]
   (first (fetch-pmid-entries [pmid])))
@@ -223,7 +257,6 @@
          :result))
    :fname "get-pmids-summary"))
 
-
 (defn get-all-pmids-for-query
   "Given a search query, return all PMIDs as a vector of integers"
   [query]
@@ -239,58 +272,77 @@
          (apply concat)
          vec)))
 
-(defn- add-article [article project-id]
-  (try
-    (articles/add-article article project-id *conn*)
-    (catch Throwable e
-      (log/info (str "exception in sysrev.import.pubmed/add-article: "
-                     (.getMessage e)))
-      nil)))
-
 (defn- import-pmids-to-project
   "Imports into project all articles referenced in list of PubMed IDs.
   Note that this will not import an article if the PMID already exists
   in the project."
   [pmids project-id source-id]
   (try
-    (doseq [pmids-group (->> pmids (partition-all 40))]
-      (doseq [article (->> pmids-group fetch-pmid-entries (remove nil?))]
-        (try
-          (with-transaction
-            (let [existing-articles
-                  (-> (select :article-id)
-                      (from :article)
-                      (where
-                       [:and
-                        [:= :project-id project-id]
-                        [:= :public-id (:public-id article)]])
-                      do-query)]
-              (if (not-empty existing-articles)
-                ;; if PMID is already present in project, just mark the
-                ;; existing article(s) as contained in this source
-                (doseq [{:keys [article-id]} existing-articles]
-                  (sources/add-article-to-source! article-id source-id))
-                ;; otherwise add new article
-                (when-let [article-id (add-article
-                                       (-> article
-                                           (dissoc :locations)
-                                           (assoc :enabled false))
-                                       project-id)]
-                  (sources/add-article-to-source! article-id source-id)
-                  (when (not-empty (:locations article))
+    (doseq [pmids-group (->> pmids sort
+                             (partition-all (if use-cassandra-pubmed? 300 40)))]
+      (let [group-articles (->> pmids-group
+                                (#(if use-cassandra-pubmed?
+                                    (fetch-pmid-entries-cassandra %)
+                                    (fetch-pmid-entries %)))
+                                (remove nil?))]
+        (doseq [articles (->> group-articles (partition-all 10))]
+          (let [public-ids (->> articles
+                                (map :public-id)
+                                (remove nil?)
+                                (mapv str))]
+            (try
+              (with-transaction
+                (let [existing-articles
+                      (if (empty? public-ids)
+                        []
+                        (-> (select :article-id :public-id)
+                            (from :article)
+                            (where [:and
+                                    [:= :project-id project-id]
+                                    [:in :public-id public-ids]])
+                            (->> do-query vec)))
+                      existing-article-ids
+                      (->> existing-articles (mapv :article-id))
+                      existing-public-ids
+                      (->> existing-articles (mapv :public-id) (filterv not-empty))
+                      new-articles
+                      (->> articles
+                           (filter #(not-empty (:primary-title %)))
+                           (filter :public-id)
+                           (remove #(in? existing-public-ids (:public-id %))))
+                      new-article-ids
+                      (->> (map (fn [id article] {id article})
+                                (articles/add-articles
+                                 (->> new-articles
+                                      (mapv #(-> %
+                                                 (dissoc :locations)
+                                                 (assoc :enabled false))))
+                                 project-id *conn*)
+                                new-articles)
+                           (apply merge))
+                      new-locations
+                      (->> (keys new-article-ids)
+                           (map (fn [article-id]
+                                  (let [article (get new-article-ids article-id)]
+                                    (->> (:locations article)
+                                         (mapv #(assoc % :article-id article-id))))))
+                           (apply concat)
+                           vec)]
+                  (sources/add-articles-to-source!
+                   (concat existing-article-ids (keys new-article-ids))
+                   source-id)
+                  (when (not-empty new-locations)
                     (-> (sqlh/insert-into :article-location)
-                        (values
-                         (->> (:locations article)
-                              (mapv #(assoc % :article-id article-id))))
-                        do-execute))))))
-          (catch Throwable e
-            (log/info (format "error importing pmid #%s"
-                              (:public-id article))
-                      ": " (.getMessage e))))))
+                        (values new-locations)
+                        do-execute))))
+              (catch Throwable e
+                (log/info "error importing pmids group:" (.getMessage e))
+                (throw e)))))))
     true
     (catch Throwable e
       (log/info (str "error in import-pmids-to-project: "
                      (.getMessage e)))
+      (.printStackTrace e)
       false)
     (finally
       (clear-project-cache project-id))))
@@ -320,20 +372,20 @@
                                     (log/info "Error in import-pmids-to-project-with-meta! (inner future)"
                                               (.getMessage e))
                                     false)))))
-                           (mapv deref))
-                      success? (every? true? thread-results)]
-                  (if success?
-                    (sources/update-project-source-metadata!
-                     source-id (assoc meta :importing-articles? false))
-                    (sources/fail-project-source-import! source-id))
-                  success?)
+                           (mapv deref))]
+                  (every? true? thread-results))
                 (catch Throwable e
                   (log/info "Error in import-pmids-to-project-with-meta! (outer future)"
                             (.getMessage e))
-                  (sources/fail-project-source-import! source-id)
                   false))]
-          ;; update the enabled flag for the articles
-          (sources/update-project-articles-enabled! project-id)
+          (with-transaction
+            ;; update source metadata
+            (if success?
+              (sources/update-project-source-metadata!
+               source-id (assoc meta :importing-articles? false))
+              (sources/fail-project-source-import! source-id))
+            ;; update the enabled flag for the articles
+            (sources/update-project-articles-enabled! project-id))
           ;; start threads for updates from api.insilica.co
           (when success?
             (predict-api/schedule-predict-update project-id)
@@ -341,20 +393,19 @@
           success?))
       (let [success?
             (try
-              (let [success?
-                    (import-pmids-to-project pmids project-id source-id)]
-                (if success?
-                  (sources/update-project-source-metadata!
-                   source-id (assoc meta :importing-articles? false))
-                  (sources/fail-project-source-import! source-id))
-                success?)
+              (import-pmids-to-project pmids project-id source-id)
               (catch Throwable e
                 (log/info "Error in import-pmids-to-project-with-meta!"
                           (.getMessage e))
-                (sources/fail-project-source-import! source-id)
                 false))]
-        ;; update the enabled flag for the articles
-        (sources/update-project-articles-enabled! project-id)
+        (with-transaction
+          ;; update source metadata
+          (if success?
+            (sources/update-project-source-metadata!
+             source-id (assoc meta :importing-articles? false))
+            (sources/fail-project-source-import! source-id))
+          ;; update the enabled flag for the articles
+          (sources/update-project-articles-enabled! project-id))
         ;; start threads for updates from api.insilica.co
         (when success?
           (predict-api/schedule-predict-update project-id)
@@ -451,19 +502,72 @@
         filename
         :else nil))))
 
-;;(ftp/with-ftp [client "ftp://anonymous:pwd@ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/92/86"] (ftp/client-get client "dddt-12-721.PMC5892952.pdf"))
+(defn compare-fetched-pmids
+  "Returns list of differences between PubMed entries fetched from PubMed API
+  and Cassandra for a range of PMID values."
+  [start count & [offset]]
+  (let [pmids (range (+ start offset) (+ start offset count))
+        direct (->> (fetch-pmid-entries pmids) (map #(dissoc % :raw)))
+        cdb (->> (fetch-pmid-entries-cassandra pmids) (map #(dissoc % :raw)))]
+    (->> (mapv (fn [d c]
+                 (when (not= d c)
+                   (->> [(keys d) (keys c)]
+                        (apply concat)
+                        distinct
+                        (mapv (fn [k]
+                                (when (not= (get d k) (get c k))
+                                  {k {:direct (get d k)
+                                      :cassandra (get c k)}})))
+                        (remove nil?)
+                        (apply merge))))
+               direct cdb)
+         (remove nil?)
+         vec)))
 
+;;(ftp/with-ftp [client "ftp://anonymous:pwd@ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/92/86"] (ftp/client-get client "dddt-12-721.PMC5892952.pdf"))
+;;
 ;; when I use {:headers {"User-Agent" "Apache-HttpClient/4.5.5"}}
 ;; I get a "Forbidden" with a message that contains the link
 ;; https://www.ncbi.nlm.nih.gov/pmc/about/copyright/
-
-
+;;
 ;; I can still retrieve the data
 ;; when I use {:headers {"User-Agent" "curl/7.54.0"}}
 ;; as well as {:headers {"User-Agent" "clj-http"}}
-
-
+;;
 ;; (http/get "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id=PMC5892952")
 ;; need to: parse the html
 ;;          retrieve the file with ftp
 
+;;;
+;;; Cassandra/PubMed test queries
+;;;
+
+;;; Compare raw article XML (PubMed, Cassandra)
+#_ (-> (fetch-pmids-xml [22152580]))
+#_ (-> (cdb/get-pmids-xml [22152580]) first)
+
+;;; Compare fetch of ~200 entries (PubMed, Cassandra)
+#_ (-> (fetch-pmid-entries (range 22152580 22152780)) count time)
+#_ (-> (fetch-pmid-entries-cassandra (range 22152580 22152780)) count time)
+
+;;; Compare size of total text data
+;;; Note: size difference due in part to :raw values (whitespace, content)
+#_ (-> (fetch-pmid-entries (range 22152580 22152780)) pr-str count time)
+#_ (-> (fetch-pmid-entries-cassandra (range 22152580 22152780)) pr-str count time)
+
+;;; Compare parsed articles
+#_ (-> (fetch-pmid-entries [22152580]) first (dissoc :raw) pr-str)
+#_ (-> (fetch-pmid-entries-cassandra [22152580]) first (dissoc :raw) pr-str)
+
+;;; Compare abstract values
+#_ (= (-> (fetch-pmid-entries [22152580]) first :abstract)
+      (-> (fetch-pmid-entries-cassandra [22152580]) first :abstract))
+
+;;; NOTE:
+;;;
+;;; PubMed API returns <PubmedArticle> element containing both
+;;; <MedlineCitation> and <PubmedData>
+;;;
+;;; Cassandra XML includes only <MedlineCitation>, leaving out some dates
+;;; and references to external article IDs ("pubmed", "pii", "doi")
+;;; which are present in <PubmedData>

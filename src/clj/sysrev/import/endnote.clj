@@ -171,41 +171,39 @@
                                   (println "Error in sysrev.import.endnote/add-articles! (inner future)"
                                            (.getMessage e))
                                   false)))))
-                         (mapv deref))
-                    success? (every? true? thread-results)]
-                (if success?
-                  (sources/update-project-source-metadata!
-                   source-id (assoc meta :importing-articles? false))
-                  (sources/fail-project-source-import! source-id))
-                success?)
+                         (mapv deref))]
+                (every? true? thread-results))
               (catch Throwable e
                 (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
                           (.getMessage e))
-                (sources/fail-project-source-import! source-id)
                 false))]
-        ;; update the enabled flag for the articles
-        (sources/update-project-articles-enabled! project-id)
+        (with-transaction
+          ;; update source metadata
+          (if success?
+            (sources/update-project-source-metadata!
+             source-id (assoc meta :importing-articles? false))
+            (sources/fail-project-source-import! source-id))
+          ;; update the enabled flag for the articles
+          (sources/update-project-articles-enabled! project-id))
         (when success?
           (predict-api/schedule-predict-update project-id)
           (importance/schedule-important-terms-update project-id))
         success?))
     (let [success?
           (try
-            ;; import the data
-            (let [success?
-                  (import-articles-to-project! articles project-id source-id)]
-              (if success?
-                (sources/update-project-source-metadata!
-                 source-id (assoc meta :importing-articles? false))
-                (sources/fail-project-source-import! source-id))
-              success?)
+            (import-articles-to-project! articles project-id source-id)
             (catch Throwable e
               (println "Error in sysrev.import.endnote/add-articles!"
                        (.getMessage e))
-              (sources/fail-project-source-import! source-id)
               false))]
-      ;; update the enabled flag for the articles
-      (sources/update-project-articles-enabled! project-id)
+      (with-transaction
+        ;; update source metadata
+        (if success?
+          (sources/update-project-source-metadata!
+           source-id (assoc meta :importing-articles? false))
+          (sources/fail-project-source-import! source-id))
+        ;; update the enabled flag for the articles
+        (sources/update-project-articles-enabled! project-id))
       (when success?
         (predict-api/schedule-predict-update project-id)
         (importance/schedule-important-terms-update project-id))
@@ -221,9 +219,7 @@
                                                            :or {use-future? false threads 1}}]
   (let [meta (sources/import-articles-from-endnote-file-meta filename)
         source-id (sources/create-project-source-metadata!
-                   project-id
-                   (assoc meta
-                          :importing-articles? true))]
+                   project-id (assoc meta :importing-articles? true))]
     (try (let [articles (endnote-file->articles file)]
            (add-articles! articles project-id source-id meta
                           :use-future? use-future?

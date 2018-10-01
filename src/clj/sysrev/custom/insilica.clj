@@ -5,7 +5,7 @@
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
             [sysrev.clone-project :as clone]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.shared.util :refer [in? parse-integer]]
             [sysrev.shared.article-list :as article-list]))
 
 (defn prostate-clinical-trial? [article-labels overall-id clinical-id preclinical-id]
@@ -97,7 +97,7 @@
       (->> do-query
            (filter
             (fn [{:keys [public-id primary-title]}]
-              (and public-id
+              (and (parse-integer public-id)
                    (re-matches #"^ *\[.*\][ \.]*$" primary-title))))
            (mapv :article-id))))
 

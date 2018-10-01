@@ -457,7 +457,14 @@
 (defn AnnotationMenu
   "Create an annotation menu using state."
   [context class]
-  (let [annotations @(subscribe (annotator-data-item context))
+  (let [self-id @(subscribe [:self/user-id])
+        on-review? (= @(subscribe [:active-panel]) [:project :review])
+        annotations (cond-> @(subscribe (annotator-data-item context))
+                      on-review?
+                      (->> vals
+                           (filter #(= (:user-id %) self-id))
+                           (group-by :id)
+                           (map-values first)))
         enabled? @(subscribe [:annotator/enabled context])
         {:keys [new-annotation]} @(subscribe [::get context])]
     (when enabled?

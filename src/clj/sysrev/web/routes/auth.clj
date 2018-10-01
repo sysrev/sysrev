@@ -77,7 +77,7 @@
          {:email email}))
 
   (POST "/api/auth/request-password-reset" request
-        (let [{{:keys [email] :as body}
+        (let [{{:keys [email url-base] :as body}
                :body} request
               {:keys [user-id]
                :as user} (users/get-user-by-email email)]
@@ -86,7 +86,7 @@
              {:success false
               :exists false}}
             (do
-              (send-password-reset-email user-id)
+              (send-password-reset-email user-id :url-base url-base)
               {:success true
                :exists true}))))
 
@@ -100,13 +100,16 @@
           (users/clear-password-reset-code user-id)
           {:success true})))
 
-(defn send-password-reset-email [user-id]
+(defn send-password-reset-email
+  [user-id & {:keys [url-base]
+              :or {url-base "https://sysrev.com"}}]
   (let [{:keys [email] :as user}
         (users/get-user-by-id user-id)]
     (users/create-password-reset-code user-id)
     (send-email
      email "SysRev Password Reset Requested"
      (with-out-str
-       (printf "A password reset has been requested for email address %s on https://sysrev.com\n\n" email)
+       (printf "A password reset has been requested for email address %s on %s\n\n"
+               email url-base)
        (printf "If you made this request, follow this link to reset your password: %s\n\n"
-               (users/user-password-reset-url user-id))))))
+               (users/user-password-reset-url user-id :url-base url-base))))))

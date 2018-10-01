@@ -1,13 +1,16 @@
 (ns sysrev.views.panels.project.add-articles
-  (:require [cljs-time.core :as t]
+  (:require [clojure.string :as str]
+            [cljs-time.core :as t]
             [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [dispatch subscribe reg-fx reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.nav :as nav]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.views.panels.pubmed :as pubmed :refer [SearchPanel]]
+            [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components :as ui]
             [sysrev.util :as util]))
@@ -180,7 +183,7 @@
         {:keys [importing-articles? deleting?]} meta]
     (and (true? importing-articles?)
          (t/within? {:start (t/epoch)
-                     :end (t/minus (t/now) (t/minutes 10))}
+                     :end (t/minus (t/now) (t/minutes 30))}
                     date-created))))
 
 (defonce polling-sources? (r/atom false))
@@ -190,6 +193,14 @@
     (reset! polling-sources? true)
     (dispatch [:fetch [:project/sources project-id]])
     (let [sources (subscribe [:project/sources])
+          article-counts (subscribe [:project/article-counts])
+          browser-test? (some->
+                         @(subscribe [:user/display])
+                         (str/includes? "browser+test"))
+          first-source?
+          (->> @sources
+               (remove #(-> % :meta :importing-articles?))
+               empty?)
           source-updating?
           (fn [source-id]
             (or (loading/action-running? [:sources/delete project-id source-id])
@@ -208,7 +219,14 @@
        #(dispatch [:fetch [:project/sources project-id]])
        #(not (source-updating? source-id))
        #(do (reset! polling-sources? false)
-            (dispatch [:reload [:project project-id]]))
+            (dispatch [:reload [:project project-id]])
+            (when (and first-source? (not browser-test?))
+              (dispatch [:data/after-load [:project project-id] :poll-source-redirect
+                         (list
+                          (fn []
+                            (when (some-> @article-counts :total (> 0))
+                              (nav/nav-scroll-top
+                               (project-uri project-id "/articles")))))])))
        1500))))
 
 (defn ArticleSource [source]
@@ -375,7 +393,7 @@
      [:h4.ui.large.block.header
       "Import Articles"]
      [:div.ui.segments
-      [:div.ui.segment.import-menu
+      [:div.ui.attached.segment.import-menu
        [ui/tabbed-panel-menu
         [{:tab-id :pubmed
           :content (if full-size? "PubMed Search" "PubMed")
@@ -391,12 +409,14 @@
           :action #(reset! import-tab :zip-file)}]
         active-tab
         "import-source-tabs"]]
-      [:div.ui.bottom.attached.secondary.segment
+      [:div.ui.attached.secondary.segment
        (case active-tab
          :pubmed   [ImportPubMedView]
          :pmid     [ImportPMIDsView]
          :endnote  [ImportEndNoteView]
-         :zip-file [ImportPDFZipsView])]]
+         :zip-file [ImportPDFZipsView])]
+      (when (= active-tab :pubmed)
+        [pubmed/SearchActions])]
      (when (= active-tab :pubmed)
        [pubmed/SearchResultsContainer])]))
 

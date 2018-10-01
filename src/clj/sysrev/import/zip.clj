@@ -1,6 +1,8 @@
 (ns sysrev.import.zip
   (:require [clojure.java.io :as io]
+            [clojure.tools.logging :as log]
             [me.raynes.fs :as fs]
+            [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.articles :as articles]
             [sysrev.db.files :as files]
             [sysrev.files.s3store :as s3store]
@@ -144,16 +146,22 @@
                            {:primary-title (:filename %)}
                            project-id
                            source-id)}
-                         %) zip-file-maps)]
-    (try
-      (when-not (nil? articles)
-        (doall (mapv #(save-article-pdf %)
-                     articles))
+                         %) zip-file-maps)
+        success?
+        (try
+          (if (empty? articles)
+            false
+            (do (doseq [x articles] (save-article-pdf x))
+                true))
+          (catch Throwable e
+            (log/info "Error in sysrev.import.zip/import-pdfs-from-zip-file!:"
+                      (.getMessage e))
+            false))]
+    (with-transaction
+      (if success?
         (sources/update-project-source-metadata!
-         source-id
-         (assoc meta :importing-articles? false)))
-      (catch Throwable e
-        (sources/fail-project-source-import! source-id)
-        (throw (Exception. "Error in sysrev.import.zip/import-pdfs-from-zip-file!: " (.getMessage e))))
-      )))
+         source-id (assoc meta :importing-articles? false))
+        (sources/fail-project-source-import! source-id))
+      (sources/update-project-articles-enabled! project-id))
+    success?))
 

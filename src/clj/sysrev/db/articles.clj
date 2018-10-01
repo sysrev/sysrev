@@ -42,6 +42,18 @@
                      :conn (s/? any?))
         :ret (s/nilable ::sc/article-id))
 
+(defn add-articles [articles project-id & [conn]]
+  (if (empty? articles)
+    []
+    (let [project-id (q/to-project-id project-id)
+          entries (->> articles
+                       (mapv #(merge (article-to-sql % conn)
+                                     {:project-id project-id})))]
+      (-> (insert-into :article)
+          (values entries)
+          (returning :article-id)
+          (->> do-query (mapv :article-id))))))
+
 (defn set-user-article-note [article-id user-id note-name content]
   (let [article-id (q/to-article-id article-id)
         user-id (q/to-user-id user-id)
@@ -374,5 +386,4 @@
   (-> (insert-into :pmcid_s3store)
       (values [{:pmcid pmcid
                 :s3_id s3store-id}])
-      do-query
-      first))
+      do-execute))
