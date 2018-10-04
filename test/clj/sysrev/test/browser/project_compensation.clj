@@ -60,10 +60,10 @@
         create-new-compensation {:xpath "//h4[contains(text(),'Create New Compensation')]"}
         amount-input {:xpath "//input[@type='text']"}
         amount-create {:xpath "//button[contains(text(),'Create')]"}]
-
     (log/info (str "Creating a compensation of " amount " cents"))
     (browser/go-project-route "/compensations")
     (browser/wait-until-exists create-new-compensation)
+    (taxi/clear amount-input)
     (browser/set-input-text-per-char amount-input (cents->string amount))
     (browser/click amount-create)
     (browser/wait-until-exists {:xpath (str "//div[contains(text(),'$" (cents->string amount) " per Article')]")})))
@@ -123,6 +123,8 @@
                      :password "foobar"}
           n 10]
       (try
+        ;; create the test user
+        (browser/create-test-user)
         ;; create a project
         (log-in)
         (create-project/create-project project-name)
@@ -426,6 +428,7 @@
                (amount-owed-user-by-project (browser/current-project-id)
                                             (:name third-test-user))))
         ;; switch projects back to first project
+        (browser/wait-until-exists {:xpath "//a[@href='/']"})
         (browser/click {:xpath "//a[@href='/']"})
         (browser/wait-until-exists {:xpath (project-name-xpath-string first-project-name)})
         (browser/click {:xpath (project-name-xpath-string first-project-name)})

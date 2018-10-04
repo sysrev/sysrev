@@ -10,7 +10,7 @@
             [sysrev.test.core :refer
              [default-fixture wait-until full-tests?]]
             [sysrev.test.browser.core :as browser :refer [deftest-browser]]
-            [sysrev.test.browser.navigate :as navigate]
+            [sysrev.test.browser.navigate :as navigate :refer [log-in log-out]]
             [sysrev.stripe :as stripe]))
 
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
@@ -49,16 +49,6 @@
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 (def no-payment-method "You must provide a valid payment method")
 
-(defn now-supporting-at-string
-  [amount]
-  (str "You are currently supporting this project at " amount " per month"))
-
-(defn support-message-xpath
-  [string]
-  {:xpath (str "//h3[contains(@class,'support-message') and contains(text(),\""
-               string
-               "\")]")})
-
 (deftest-browser register-and-check-basic-plan-subscription
   (log/info "register-and-check-basic-plan-subscription")
   (when (not= :remote-test (-> env :profile))
@@ -94,10 +84,7 @@
 (def update-payment-button {:xpath "//div[contains(@class,'button') and contains(text(),'Update Payment Information')]"})
 (def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card') and not(contains(@class,'disabled'))]"})
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
-(def support-button {:xpath "//a[contains(@class,'item')]/span[contains(text(),'Support')]"})
-(def support-submit-button {:xpath "//button[contains(text(),'Continue')]"})
-(def cancel-support-button {:xpath "//button[contains(text(),'Cancel Support')]"})
-(def stop-support-button {:xpath "//button[contains(text(),'Stop Support')]"})
+
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (def backspace-clear-length 30)
@@ -302,104 +289,3 @@
       (select-plan "Basic")
       (is (subscribed-to? "Basic"))
       (navigate/log-out))))
-
-(defn unsubscribe-user-from-all-support-plans
-  [user]
-  (let [user-subscriptions (plans/user-support-subscriptions user)
-        subscriptions (map :id user-subscriptions)]
-    (when-not (empty? subscriptions)
-      (doall
-       (map #(stripe/cancel-subscription! %) subscriptions)))))
-
-;; if you need need to unsubscribe all plans between tests:
-;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email browser/test-login)))
-(deftest-browser register-and-support-projects
-  (log/info "register-and-support-projects")
-  ;; TODO: fix text input in Stripe payment form
-  (when (and false (not= :remote-test (-> env :profile)))
-    (let [{:keys [email password]} browser/test-login
-          project-name "SysRev Support Project Test"]
-      ;; cancel any previouly create subscriptions
-      (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-      (browser/delete-test-user)
-      (Thread/sleep 200)
-      (navigate/register-user email password)
-      (assert stripe/stripe-secret-key)
-      (assert stripe/stripe-public-key)
-      ;; after registering, does the stripe customer exist?
-      (is (= email
-             (:email (stripe/execute-action
-                      (customers/get-customer
-                       (:stripe-id (users/get-user-by-email email)))))))
-      ;; does stripe think the customer is registered to a basic plan?
-      (is (= api/default-plan
-             (-> (stripe/execute-action
-                  (customers/get-customer
-                   (:stripe-id (users/get-user-by-email email))))
-                 :subscriptions :data first :items :data first :plan :name)))
-;;; go to root project and support it
-      (browser/go-route "/p/100")
-      (browser/go-project-route "/support")
-      (browser/wait-until-displayed support-submit-button)
-      (browser/click support-submit-button)
-      (browser/wait-until-displayed update-payment-button)
-      (is (browser/exists? (error-msg-xpath no-payment-method)))
-;;; update with a valid cc number and see if we can support a project
-      (browser/click update-payment-button)
-      (browser/wait-until-displayed use-card-button)
-      (browser/input-text (label-input "Card Number") valid-visa-cc)
-      (browser/input-text (label-input "Expiration date") "0120")
-      (browser/input-text (label-input "CVC") "123")
-      (browser/input-text (label-input "Postal code") "11111")
-      (browser/click use-card-button)
-      ;; support the project at $10 per month
-      (browser/wait-until-displayed support-submit-button)
-      (taxi/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
-      (browser/click support-submit-button)
-      ;; check that the confirmation message exists
-      (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$10.00")))
-      (is (browser/exists? (support-message-xpath (now-supporting-at-string "$10.00"))))
-      ;; change support to $50 month
-      (taxi/click {:xpath "//label[contains(text(),'$50')]/parent::div"})
-      (browser/click support-submit-button)
-      (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$50.00")))
-      (is (browser/exists? (support-message-xpath (now-supporting-at-string "$50.00"))))
-      ;; is this all the user is paying for?
-      (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
-        (is (= 1
-               (count user-subscriptions)))
-        (is (= 5000
-               (-> user-subscriptions
-                   first
-                   :quantity))))
-      ;; subscribe at a custom amount of $200
-      (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
-      (taxi/clear {:xpath "//input[@type='text']"})
-      (Thread/sleep 250)
-      (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
-      (browser/click support-submit-button)
-      (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$200.00")))
-      (is (browser/exists? (support-message-xpath (now-supporting-at-string "$200.00"))))
-      ;; is this all the user is paying for?
-      (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
-        (is (= 1
-               (count user-subscriptions)))
-        (is (= 20000
-               (-> user-subscriptions
-                   first
-                   :quantity))))
-      ;; is there a minimum support level?
-      (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
-      (taxi/clear {:xpath "//input[@type='text']"})
-      (Thread/sleep 250)
-      (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
-      (browser/click support-submit-button)
-      (is (browser/exists? (error-msg-xpath "Minimum support level is $1.00 per month")))
-      ;; cancel support
-      (browser/click cancel-support-button)
-      (browser/wait-until-displayed stop-support-button)
-      (browser/click stop-support-button)
-      (browser/wait-until-displayed {:xpath "//h1[text()='Support This Project']"})
-      (is (browser/exists? {:xpath "//h1[text()='Support This Project']"}))
-      ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-      (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))))

@@ -115,7 +115,7 @@
        [:h1 "Change Your Level of Support"]
        [:h1 "Support This Project"])
      (when @current-support-level
-       [:h3.support-message (str "You are currently supporting this project at " (accounting/cents->string @current-support-level) " per month") ])
+       [:h3.support-message (str "You are currently supporting this project at " (accounting/cents->string @current-support-level) " per month")])
      [Form {:on-submit
             (fn []
               (let [cents (accounting/string->cents @user-support-level)]
