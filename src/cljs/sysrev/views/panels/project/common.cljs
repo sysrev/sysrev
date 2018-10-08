@@ -36,9 +36,10 @@
        :content [:span [:i.configure.icon] "Settings"]
        :action (project-uri project-id "/settings")
        #_ (list [:project :project :settings] action-params)}
-      (when (admin?)
+      (when (and (admin?)
+                 (not= js/window.location.hostname "sysrev.com"))
         {:tab-id :compensations
-         :content "Compensations"
+         :content "Compensation"
          :action (project-uri project-id "/compensations")})]
      [{:tab-id :support
        :content [:span [:i.dollar.sign.icon] "Support"]
@@ -71,9 +72,10 @@
       {:tab-id :settings
        :content [:span #_ [:i.configure.icon] "Settings"]
        :action (list [:project :project :settings] action-params)}
-      (when (admin?)
+      (when (and (admin?)
+                 (not= js/window.location.hostname "sysrev.com"))
         {:tab-id :compensations
-         :content "Compensations"
+         :content "Compensation"
          :action (project-uri project-id "/compensations")})]
      []
      active-tab
