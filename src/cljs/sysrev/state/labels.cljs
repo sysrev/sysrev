@@ -67,7 +67,7 @@
 (defn sort-project-labels [labels & [include-disabled?]]
   (->> (vals labels)
        (filter #(or include-disabled? (:enabled %)))
-       (#(if (>= (count %) 15)
+       (#(if true #_ (>= (count %) 15)
            (sort-by alpha-label-ordering-key < %)
            (sort-by label-ordering-key %)))
        (mapv :label-id)))
