@@ -78,6 +78,7 @@
     (log/info (str "Creating a compensation of " amount " cents"))
     (browser/go-project-route "/compensations")
     (browser/wait-until-exists create-new-compensation)
+    (taxi/clear amount-input)
     (browser/set-input-text-per-char amount-input (cents->string amount))
     (browser/click amount-create)
     (browser/wait-until-exists

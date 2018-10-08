@@ -41,9 +41,9 @@
         {:tab-id :compensations
          :content "Compensation"
          :action (project-uri project-id "/compensations")})]
-     [{:tab-id :support
-       :content [:span [:i.dollar.sign.icon] "Support"]
-       :action (project-uri project-id "/support")}]
+     [#_[{:tab-id :support
+          :content [:span [:i.dollar.sign.icon] "Support"]
+          :action (project-uri project-id "/support")}]]
      active-tab
      "bottom attached project-menu-2"
      false]))

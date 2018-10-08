@@ -8,7 +8,8 @@
             [clj-stripe.subscriptions :as subscriptions]
             [clojure.data.json :as json]
             [environ.core :refer [env]]
-            [sysrev.db.plans :as db-plans]))
+            [sysrev.db.plans :as db-plans]
+            [sysrev.db.project :as project]))
 
 (def stripe-secret-key (or (System/getProperty "STRIPE_SECRET_KEY")
                            (env :stripe-secret-key)))
@@ -120,7 +121,7 @@
                    (common/customer (:stripe-id user)))))
 ;; https://stripe.com/docs/billing/subscriptions/quantities#setting-quantities
 
-(defn support-project!
+(defn support-project-monthly!
   "User supports a project-id for amount (integer cents). Does not handle overhead of increasing / decreasing already supported projects"
   [user project-id amount]
   (let [stripe-response
@@ -132,11 +133,11 @@
                      "items[0][plan]" (:id
                                        (db-plans/get-support-project-plan))
                      "items[0][quantity]" amount
-                     "metadata[project-id]" (str project-id)}})]
+                     "metadata[project-id]" project-id}})]
     (cond ;; there was some kind of error
-      (= (:status stripe-response)
-         400)
-      {:status 400
+      (not= (:status stripe-response)
+            200)
+      {:status (:status stripe-response)
        :body (-> stripe-response
                  :body
                  (json/read-str :key-fn keyword))}
@@ -161,7 +162,6 @@
   [subscription-id]
   (let [{:keys [project-id user-id]}
         (db-plans/support-subscription subscription-id)
-
         stripe-response
         (http/delete (str stripe-url "/subscriptions/" subscription-id)
                      {:basic-auth stripe-secret-key
@@ -186,3 +186,23 @@
           :quantity quantity
           :status status
           :created created})))))
+
+(defn support-project-once!
+  "Make a one-time contribution to a project for amount"
+  [user project-id amount]
+  (try
+    (let [{:keys [id created] :as stripe-response}
+          (execute-action (merge (charges/create-charge
+                                  (common/money-quantity amount "usd")
+                                  (common/description "one time")
+                                  (common/customer (:stripe-id user)))
+                                 {"metadata" {"project-id" project-id}}))]
+      (if-not (nil? (and id created))
+        ;; charge was a success, insert into the db
+        (do (project/create-payment project-id (:user-id user) id amount created)
+            {:success true})
+        ;; charge was not success, return response
+        stripe-response))
+    (catch Throwable e
+      {:error {:message (.getMessage e)}})))
+

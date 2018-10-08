@@ -196,8 +196,6 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
-  (wait-until-exists q)
-  (when clear? (taxi/clear q))
   (Thread/sleep delay)
   (doall (map (fn [c]
                 (Thread/sleep delay)
