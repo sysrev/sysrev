@@ -183,9 +183,9 @@
   it from the database.  Warning: This fn doesn't care if there are
   labels associated with an article"
   [source-id]
-  (alter-project-source-metadata!
-   source-id #(assoc % :deleting? true))
   (let [project-id (source-id->project-id source-id)]
+    (alter-project-source-metadata!
+     source-id #(assoc % :deleting? true))
     (try (with-transaction
            ;; delete articles that aren't contained in another source
            (delete-project-source-articles! source-id)
@@ -193,16 +193,15 @@
            (-> (delete-from :project-source)
                (where [:= :source-id source-id])
                do-execute)
+           ;; update the article enabled flags
+           (update-project-articles-enabled! project-id)
            true)
          (catch Throwable e
            (log/info "Caught exception in sysrev.db.sources/delete-project-source!: "
                      (.getMessage e))
            (alter-project-source-metadata!
             source-id #(assoc % :deleting? false))
-           false)
-         (finally
-           ;; update the article enabled flags
-           (update-project-articles-enabled! project-id)))))
+           false))))
 ;;
 (s/fdef delete-project-source!
         :args (s/cat :source-id int?))

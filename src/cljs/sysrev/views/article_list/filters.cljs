@@ -656,7 +656,10 @@
           [:div.ui.tiny.fluid.button
            {:on-click
             #(-> (js/$ "#article-search") (.focus))}
-           (str "text contains " (pr-str text-search))]]]]])))
+           (str "text contains "
+                (->> (str/split text-search #"[ \t\r\n]+")
+                     (map pr-str)
+                     (str/join " AND ")))]]]]])))
 
 (defn- NewFilterElement [context]
   (when (not @(subscribe [::editing-filter? context]))

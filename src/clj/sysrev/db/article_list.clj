@@ -2,6 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [clojure.java.jdbc :as j]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -10,8 +11,8 @@
             [clj-time.coerce :as tc]
             [clj-time.format :as tf]
             [sysrev.db.core :as db :refer
-             [do-query do-execute to-sql-array sql-now with-project-cache
-              clear-project-cache to-jsonb]]
+             [active-db do-query do-execute to-sql-array sql-now to-jsonb
+              with-project-cache clear-project-cache]]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.queries :as q]
@@ -26,9 +27,9 @@
     project-id [:full-article-list]
     (let [articles
           (-> (q/select-project-articles
-               project-id [:a.article-id :a.abstract :a.primary-title
-                           :a.secondary-title :a.date :a.year :a.authors
-                           :a.keywords])
+               project-id [:a.article-id :a.primary-title
+                           ;; :a.secondary-title :a.abstract
+                           :a.date :a.year :a.authors :a.keywords])
               (->> do-query
                    (group-by :article-id)
                    (map-values first)))
@@ -77,6 +78,20 @@
                            (apply concat)
                            (remove nil?)
                            (apply max 0))})))))))
+
+(defn article-ids-from-text-search [project-id text]
+  (with-project-cache
+    project-id [:text-search-ids text]
+    (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))]
+      (->> (format "
+SELECT article_id FROM article
+WHERE project_id=%d
+  AND enabled=true
+  AND text_search @@ to_tsquery('%s');"
+                   project-id
+                   (->> tokens (map #(str "(" % ")")) (str/join " & ")))
+           (j/query @active-db)
+           (mapv :article_id)))))
 
 (defn sort-article-id [sort-dir]
   (let [dir (if (= sort-dir :desc) > <)]
@@ -131,15 +146,10 @@
 
 ;; TODO: include user notes in search
 (defn article-text-filter [context text]
-  (fn [article]
-    (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))
-          all-article-text (->> [(:primary-title article)
-                                 (:secondary-title article)
-                                 (str/join "\n" (:authors article))
-                                 (:abstract article)]
-                                (str/join "\n")
-                                (str/lower-case))]
-      (every? #(str/includes? all-article-text %) tokens))))
+  (let [{:keys [project-id]} context
+        article-ids (article-ids-from-text-search project-id text)]
+    (fn [article]
+      (in? article-ids (:article-id article)))))
 
 (defn article-user-filter [context {:keys [user content confirmed]}]
   (fn [article]
