@@ -364,11 +364,12 @@
                     {:status not-found}))
       stripe-response)))
 
-(defn support-project
+(def minimum-support-level 100)
+
+(defn support-project-monthly
   "User supports project"
   [user project-id amount]
-  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)
-        minimum-support-level 100]
+  (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (cond
       (and (not (nil? amount))
            (< amount minimum-support-level))
@@ -377,7 +378,7 @@
                :message {:minimum minimum-support-level}}}
       ;; user is not supporting this project
       (nil? quantity)
-      (stripe/support-project! user project-id amount)
+      (stripe/support-project-monthly! user project-id amount)
       ;; user is already supporting at this amount, do nothing
       (= quantity amount)
       {:error {:status forbidden
@@ -387,10 +388,33 @@
       ;; but not at this amount
       (not (nil? quantity))
       (do (stripe/cancel-subscription! id)
-          (support-project user project-id amount))
+          (support-project-monthly user project-id amount))
       ;; something we hadn't planned for happened
+      ;; there was another error in the request
       :else
       {:error {:message "Unexpected event in support-project"}})))
+
+(defn support-project-once
+  "User supports project-id by amount once"
+  [user project-id amount]
+  (cond
+    (and (not (nil? amount))
+         (< amount minimum-support-level))
+    {:error {:status forbidden
+             :type "amount_too_low"
+             :message {:minimum minimum-support-level}}}
+    (not (nil? amount))
+    (stripe/support-project-once! user project-id amount)
+    ;; something we hadn't planned for happened
+    :else
+    {:error {:message "Unexpected event in support-project"}}))
+
+(defn support-project
+  "User supports project-id by amount for duration of frequency"
+  [user project-id amount frequency]
+  (if (= frequency "monthly")
+    (support-project-monthly user project-id amount)
+    (support-project-once user project-id amount)))
 
 (defn current-project-support-level
   "The current level of support of this user for project-id"
