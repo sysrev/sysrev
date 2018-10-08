@@ -9,7 +9,9 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.config.core :refer [env]]
             [sysrev.test.core :refer [default-fixture get-selenium-config wait-until]]
-            [sysrev.db.core :as db]
+            [sysrev.db.core :as db :refer [do-execute]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.shared.util :refer [parse-integer]])
@@ -80,12 +82,18 @@
 
 (defn delete-test-user [& {:keys [email]
                            :or {email (:email test-login)}}]
-  (try
-    (when-let [user (users/get-user-by-email email)]
-      (stripe/delete-customer! user))
-    (catch Throwable t
-      nil))
-  (users/delete-user-by-email email))
+  (let [{:keys [user-id] :as user}
+        (users/get-user-by-email email)]
+    (try
+      (when user
+        (stripe/delete-customer! user))
+      (catch Throwable t
+        nil))
+    (when user-id
+      (-> (delete-from :compensation-user-period)
+          (where [:= :web-user-id user-id])
+          do-execute))
+    (users/delete-user-by-email email)))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)

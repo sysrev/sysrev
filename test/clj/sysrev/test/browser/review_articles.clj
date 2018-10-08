@@ -120,32 +120,32 @@
 ;;;; end element definitions
 
 ;;;; label definitions
-(def include-label-definition {:short-label "Include"
-                               :value-type "boolean"})
+(def include-label-definition {:value-type "boolean"
+                               :short-label "Include"})
 
 (def boolean-label-definition {:value-type "boolean"
-                               :question "Is this true or false?"
                                :short-label "Boolean Label"
+                               :question "Is this true or false?"
                                :definition {:inclusion-values [true]}
                                :required true})
 
 (def string-label-definition {:value-type "string"
-                              :question "What value is present for Foo?"
                               :short-label "String Label"
+                              :question "What value is present for Foo?"
                               :definition
                               {:max-length 160
                                :examples ["foo" "bar" "baz" "qux"]
                                :multi? true}
                               :required true})
 
-(def categorical-label-definition {:question "Does this label fit within the categories?"
-                                   :value-type "categorical"
-                                   :required true
+(def categorical-label-definition {:value-type "categorical"
                                    :short-label "Categorical Label"
+                                   :question "Does this label fit within the categories?"
                                    :definition
                                    {:all-values ["Foo" "Bar" "Baz" "Qux"]
                                     :inclusion-values ["Foo" "Bar"]
-                                    :multi? false}})
+                                    :multi? false}
+                                   :required true})
 (defn short-label-answer
   "Get label answer for short-label set for article-id in project-id by user-id"
   [project-id article-id user-id short-label]

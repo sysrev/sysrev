@@ -15,7 +15,9 @@
              [set-active-db! make-db-config close-active-db
               with-rollback-transaction]]
             [sysrev.db.users :as users]
-            [sysrev.stripe :as stripe]))
+            [sysrev.db.labels :as labels]
+            [sysrev.stripe :as stripe]
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
@@ -132,9 +134,19 @@
             (is (nil? (users/get-user-by-email email))))))))
 
 (defn full-tests? []
-  (let [{:keys [sysrev-full-tests]} env]
+  (let [{:keys [sysrev-full-tests profile]} env]
     (boolean
-     (and sysrev-full-tests
-          (not= sysrev-full-tests "")
-          (not= sysrev-full-tests "0")
-          (not= sysrev-full-tests 0)))))
+     (or (= profile :dev)
+         (not (in? [nil "" "0" 0] sysrev-full-tests))))))
+
+(defn test-profile? []
+  (in? [:test :remote-test] (-> env :profile)))
+
+(defn add-test-label [project-id entry-values]
+  (let [add-label (case (:value-type entry-values)
+                    "boolean" labels/add-label-entry-boolean
+                    "categorical" labels/add-label-entry-categorical
+                    "string" labels/add-label-entry-string)]
+    (add-label project-id (merge entry-values
+                                 {:name (str (:short-label entry-values)
+                                             "_" (rand-int 1000))}))))

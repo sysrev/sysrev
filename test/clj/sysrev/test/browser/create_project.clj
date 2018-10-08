@@ -137,7 +137,7 @@
   (browser/click {:xpath "//button[text()='Confirm']"})
   (browser/wait-until-exists {:xpath "//h4[contains(text(),'Create a New Project')]"}))
 
-(defn search-term-source-div-xpath
+(defn search-source-xpath
   "Given a search term, return a string of the xpath corresponding to the
   project-source div"
   [search-term]
@@ -148,7 +148,7 @@
 (defn search-term-delete-xpath
   "Given a search term, return the xpath corresponding to its delete button"
   [search-term]
-  (str (search-term-source-div-xpath search-term)
+  (str (search-source-xpath search-term)
        "/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
 
 (defn search-term-articles-summary
@@ -161,21 +161,21 @@
               :source string}]"
   [search-term]
   (let [reviewed
-        (-> {:xpath (str (search-term-source-div-xpath search-term)
+        (-> {:xpath (str (search-source-xpath search-term)
                          "/descendant::span[contains(@class,'reviewed-count')]")}
             taxi/text
             (str/split #",")
             (str/join)
             util/parse-integer)
         unique
-        (-> {:xpath (str (search-term-source-div-xpath search-term)
+        (-> {:xpath (str (search-source-xpath search-term)
                          "/descendant::span[contains(@class,'unique-count')]")}
             taxi/text
             (str/split #",")
             (str/join)
             util/parse-integer)
         total
-        (-> {:xpath (str (search-term-source-div-xpath search-term)
+        (-> {:xpath (str (search-source-xpath search-term)
                          "/descendant::span[contains(@class,'total-count')]")}
             taxi/text
             (str/split #",")
@@ -183,7 +183,7 @@
             util/parse-integer)
         overlap {}
         #_ [reviewed unique & overlap]
-        #_ (-> {:xpath (str (search-term-source-div-xpath search-term)
+        #_ (-> {:xpath (str (search-source-xpath search-term)
                             "/descendant::div[contains(@class,'source-description')]")}
                taxi/text
                (str/split #"\n"))
@@ -218,11 +218,15 @@
   (search-for search-term)
   (log/info "importing articles from search")
   (browser/click import-button-xpath)
+  (browser/wait-until-loading-completes
+   :pre-wait 1500
+   :timeout 15000
+   :interval 50)
   ;; check that they've loaded
   (is (browser/exists?
-       {:xpath (search-term-source-div-xpath search-term)}))
+       {:xpath (search-source-xpath search-term)}))
   (is (browser/exists?
-       {:xpath (str (search-term-source-div-xpath search-term)
+       {:xpath (str (search-source-xpath search-term)
                     "/descendant::span[contains(@class,'reviewed-count')]")})))
 
 (defn delete-search-term-source
