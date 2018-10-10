@@ -141,7 +141,7 @@
                    ;; Try to auto-adjust PDF size to containing element.
                    cwidth ($ (js/$ container) width)
                    ;; this should be 1.0? but result is too big.
-                   pwidth ($ ($ page getViewport 1.4) :width)
+                   pwidth ($ ($ page getViewport 1.35) :width)
                    scale (/ cwidth pwidth)]
                #_
                (do (println (str "[render-page] cwidth = " cwidth))
@@ -241,6 +241,7 @@
             (when page-count
               [:h5.ui.header.page-status
                (str "Page " page-num " of " page-count)])
+            #_
             [annotator/AnnotationToggleButton
              ann-context
              :class "small"
@@ -254,16 +255,18 @@
                  (dispatch-sync [::set [:page-rendering-soon] true])
                  ;; Use setTimeout to wait for CSS update to take effect
                  (js/setTimeout re-render 50)))]
+            #_
             [:div.ui.small.icon.right.labeled.button
              {:on-click #(dispatch-sync [::set [:visible] false])
               :style {:margin-right "1em"}}
              [:i.circle.times.icon] "Close"]]
            [:div.ui.grid.view-pdf-main
+            #_
             (when @ann-enabled?
               [:div.four.wide.column.pdf-annotation
                [annotator/AnnotationMenu ann-context "pdf"]])
-            [:div.column.pdf-content
-             {:class (if @ann-enabled? "twelve wide" "sixteen wide")}
+            [:div.sixteen.wide.column.pdf-content
+             #_ {:class (if @ann-enabled? "twelve wide" "sixteen wide")}
              [annotator/AnnotationCapture ann-context
               [:div.pdf-container {:id container-id}]]]]]))
       :component-will-mount

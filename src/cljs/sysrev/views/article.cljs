@@ -8,9 +8,9 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
-            [sysrev.pdf :as pdf :refer [PDFs]]
+            [sysrev.pdf :as pdf]
             [sysrev.views.annotator :as annotator]
-            [sysrev.views.components :refer [out-link document-link]]
+            [sysrev.views.components :as ui :refer [out-link document-link]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer
              [label-values-component article-labels-view]]
@@ -125,6 +125,7 @@
             urls @(subscribe [:article/urls article-id])
             documents @(subscribe [:article/documents article-id])
             date @(subscribe [:article/date article-id])
+            pdfs @(subscribe [:article/pdfs article-id])
             annotations-raw @(subscribe [::article-annotations article-id])
             annotations (condp = context
                           :article-list
@@ -164,14 +165,33 @@
           (when-not (empty? authors)
             [:h5.header {:style {:margin-top "0px"}}
              (author-names-text 5 authors)])
-          ;; abstract, with annotations
-          (when-not (empty? abstract)
-            (if annotator-enabled?
-              [:div abstract]
-              [annotation/AnnotatedText
-               abstract annotations
-               (when (= context :review)
-                 "underline green")]))
+          (let [{:keys [key filename]} (first pdfs)
+                pdf-url (pdf/view-s3-pdf-url
+                         project-id article-id key filename)
+                visible-url (if (and (not-empty pdfs) (empty? abstract))
+                              nil
+                              @(subscribe [:view-field :article [article-id :visible-pdf]]))]
+            [:div
+             (when (not-empty pdfs)
+               [ui/tabbed-panel-menu
+                [{:tab-id :abstract
+                  :content "Abstract"
+                  :action #(do (dispatch [:set-view-field :article [article-id :visible-pdf] nil]))}
+                 {:tab-id :pdf
+                  :content "PDF"
+                  :action #(dispatch [:set-view-field :article [article-id :visible-pdf] pdf-url])}]
+                (if (nil? visible-url) :abstract :pdf)
+                "article-content-tab"])
+             (if visible-url
+               [pdf/ViewPDF visible-url]
+               ;; abstract, with annotations
+               (when-not (empty? abstract)
+                 (if annotator-enabled?
+                   [:div abstract]
+                   [annotation/AnnotatedText
+                    abstract annotations
+                    (when (= context :review)
+                      "underline green")])))])
           (when-not (empty? documents)
             [:div {:style {:padding-top "0.75em"}}
              [:div.content.ui.horizontal.list
@@ -269,6 +289,6 @@
          [article-info-main-content article-id
           :context context]]
         ^{:key :article-pdfs}
-        [PDFs article-id]))
+        [pdf/PDFs article-id]))
      (when show-labels?
        [article-labels-view article-id :self-only? private-view?])]))

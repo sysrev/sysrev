@@ -6,7 +6,7 @@
              [subscribe dispatch reg-sub reg-event-db]]
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
-            [sysrev.pdf]
+            [sysrev.pdf :as pdf]
             [sysrev.views.article]
             [sysrev.views.annotator :as annotator]
             [sysrev.views.base :refer
@@ -65,9 +65,17 @@
   (if @(subscribe [:initialized?])
     (let [project-id @(subscribe [:active-project-id])
           article-id @(subscribe [:visible-article-id])
-          ann-context {:class "abstract"
-                       :project-id project-id
-                       :article-id article-id}
+          pdf-url (when article-id
+                    @(subscribe [:view-field :article [article-id :visible-pdf]]))
+          pdf-key (some-> pdf-url pdf/pdf-url->key)
+          ann-context (if pdf-key
+                        {:class "pdf"
+                         :project-id project-id
+                         :article-id article-id
+                         :pdf-key pdf-key}
+                        {:class "abstract"
+                         :project-id project-id
+                         :article-id article-id})
           annotator?
           (and project-id article-id
                @(subscribe [:annotator/enabled ann-context])

@@ -55,12 +55,12 @@
 (reg-sub
  :annotator/enabled
  (fn [db [_ {:keys [class] :as context}]]
-   (boolean (get-in db [:state :annotator class :enabled]))))
+   (boolean (get-in db [:state :annotator nil #_ class :enabled]))))
 
 (reg-event-db
  :annotator/enabled
  (fn [db [_ {:keys [class] :as context} enabled?]]
-   (assoc-in db [:state :annotator class :enabled]
+   (assoc-in db [:state :annotator nil #_ class :enabled]
              (boolean enabled?))))
 
 (reg-event-db

@@ -121,7 +121,7 @@
         editing? @(subscribe [:article-list/editing? context article-id])
         {:keys [self-only]}
         @(subscribe [::al/display-options (al/cached context)])]
-    [:div
+    [:div {:style {:width "100%"}}
      [ArticleInfo article-id
       :show-labels? true
       :private-view? self-only
