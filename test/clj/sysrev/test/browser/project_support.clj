@@ -150,9 +150,8 @@
                        first
                        :quantity))))
           ;; subscribe at a custom amount of $200
-          (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
-          (taxi/clear {:xpath "//input[@type='text']"})
-          (Thread/sleep 250)
+          (browser/click {:xpath "//input[@type='text']"})
+          (browser/backspace-clear 5 {:xpath "//input[@type='text']"})
           (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
           (browser/click support-submit-button)
           (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$200.00")))
@@ -166,9 +165,8 @@
                        first
                        :quantity))))
           ;; is there a minimum support level?
-          (taxi/click {:xpath "//div[contains(@class,'fitted')]"})
-          (taxi/clear {:xpath "//input[@type='text']"})
-          (Thread/sleep 250)
+          (browser/click {:xpath "//input[@type='text']"})
+          (browser/backspace-clear 5 {:xpath "//input[@type='text']"})
           (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
           (browser/click support-submit-button)
           (is (browser/exists? (test-plans/error-msg-xpath "Minimum support level is $1.00 per month")))
@@ -179,8 +177,7 @@
           (browser/wait-until-displayed {:xpath "//h1[text()='Support This Project']"})
           (is (browser/exists? {:xpath "//h1[text()='Support This Project']"}))
           ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-          (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email))))
-          ))
+          (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email))))))
       (finally
         ;; delete the project
         (create-project/delete-current-project)

@@ -167,10 +167,12 @@
 
 (defn webdriver-fixture-once
   [f]
-  (do (when (and (= "localhost" (:host (get-selenium-config)))
-                 (not= :test (-> env :profile)))
-        (build-cljs!))
-      (f)))
+  ;; this doesn't work anymore, build cljs manually
+  #_ (do (when (and (= "localhost" (:host (get-selenium-config)))
+                    (not= :test (-> env :profile)))
+           (build-cljs!))
+         (f))
+  (f))
 
 (defn webdriver-fixture-each
   [f]
@@ -248,6 +250,16 @@
     (when id-str
       (parse-integer id-str))))
 
+;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
+(defn backspace-clear
+  "Hit backspace in input-element length times. Always returns true"
+  [length input-element]
+  (wait-until-exists input-element)
+  (doall (repeatedly length
+                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
+                          (Thread/sleep 20))))
+  true)
+
 (defn go-project-route [suburi & [project-id]]
   (Thread/sleep 25)
   (let [project-id (or project-id (current-project-id))]
@@ -260,6 +272,8 @@
        ~@body
        (catch Throwable e#
          (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
+           #_ (log/info "deftest-browser error: " (.getMessage e#))
+           #_ (.printStackTrace e#)
            (taxi/take-screenshot :file filename#)
            (log/info "Saved screenshot:" filename#)
            (throw e#))))))

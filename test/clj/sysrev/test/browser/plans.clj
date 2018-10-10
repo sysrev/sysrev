@@ -9,7 +9,7 @@
             [sysrev.db.users :as users]
             [sysrev.test.core :refer
              [default-fixture wait-until full-tests?]]
-            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
+            [sysrev.test.browser.core :as browser :refer [deftest-browser backspace-clear]]
             [sysrev.test.browser.navigate :as navigate :refer [log-in log-out]]
             [sysrev.stripe :as stripe]))
 
@@ -85,18 +85,7 @@
 (def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card') and not(contains(@class,'disabled'))]"})
 (def use-card-disabled-button {:xpath "//button[contains(@class,'button') and contains(@class,'disabled') and contains(text(),'Use Card')]"})
 
-
-;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (def backspace-clear-length 30)
-;; might be worth it to pull this library in at some point
-(defn backspace-clear
-  "Hit backspace in input-element length times. Always returns true"
-  [length input-element]
-  (browser/wait-until-exists input-element)
-  (doall (repeatedly length
-                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-                          (Thread/sleep 20))))
-  true)
 
 (defn label-input
   "Given a label, return an xpath for its input"
