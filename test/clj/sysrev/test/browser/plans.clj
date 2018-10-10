@@ -227,8 +227,7 @@
         ;; try to subscribe again
         (browser/click subscribe-button)
         ;; card was declined
-        (browser/wait-until-displayed (error-msg-xpath card-declined-error))
-        (is (taxi/exists? (error-msg-xpath card-declined-error)))
+        (is (browser/exists? (error-msg-xpath card-declined-error)))
 
         (browser/click update-payment-button)
         (browser/wait-until-displayed use-card-button))

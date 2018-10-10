@@ -40,7 +40,6 @@
     ;; switch the the proper iframe. note that the name could change if stripe updates their library
     (taxi/switch-to-frame cardnumber-input-iframe)
     ;; clear anything that could be in the form
-    (taxi/clear cardnumber-input)
     (browser/set-input-text-per-char cardnumber-input cardnumber)
     ;; switch back to default
     (taxi/switch-to-default)
@@ -52,13 +51,11 @@
     (taxi/switch-to-default)
     ;; switch to cvc iframe
     (taxi/switch-to-frame cvc-iframe)
-    (taxi/clear cvc-input)
     (browser/set-input-text-per-char cvc-input cvc)
     ;; switch back to default frame
     (taxi/switch-to-default)
     ;; switch to post code frame
     (taxi/switch-to-frame postal-iframe)
-    (taxi/clear postal-input)
     (browser/set-input-text-per-char postal-input postal)
     ;; where done, return back to default
     (taxi/switch-to-default)))
@@ -117,10 +114,8 @@
                      :subscriptions :data first :items :data first :plan :name)))
 ;;; go to root project and support it (default is $5)
           (browser/go-project-route "/support")
-          (browser/wait-until-displayed support-submit-button)
           ;; this shouldn't work as there is no payment method
           (browser/click support-submit-button)
-          (browser/wait-until-displayed test-plans/update-payment-button)
           (is (browser/exists? (test-plans/error-msg-xpath test-plans/no-payment-method)))
 ;;; update with a valid cc number and see if we can support a project
           (browser/click test-plans/update-payment-button)
@@ -130,16 +125,13 @@
                                  :postal "11111"})
           (browser/click test-plans/use-card-button)
           ;; support the project at $10 per month
-          (browser/wait-until-displayed support-submit-button)
-          (taxi/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
+          (browser/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
           (browser/click support-submit-button)
           ;; check that the confirmation message exists
-          (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$10.00")))
           (is (browser/exists? (support-message-xpath (now-supporting-at-string "$10.00"))))
           ;; change support to $50 month
-          (taxi/click {:xpath "//label[contains(text(),'$50')]/parent::div"})
+          (browser/click {:xpath "//label[contains(text(),'$50')]/parent::div"})
           (browser/click support-submit-button)
-          (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$50.00")))
           (is (browser/exists? (support-message-xpath (now-supporting-at-string "$50.00"))))
           ;; is this all the user is paying for?
           (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
@@ -151,10 +143,8 @@
                        :quantity))))
           ;; subscribe at a custom amount of $200
           (browser/click {:xpath "//input[@type='text']"})
-          (browser/backspace-clear 5 {:xpath "//input[@type='text']"})
           (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
           (browser/click support-submit-button)
-          (browser/wait-until-displayed (support-message-xpath (now-supporting-at-string "$200.00")))
           (is (browser/exists? (support-message-xpath (now-supporting-at-string "$200.00"))))
           ;; is this all the user is paying for?
           (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
@@ -166,15 +156,12 @@
                        :quantity))))
           ;; is there a minimum support level?
           (browser/click {:xpath "//input[@type='text']"})
-          (browser/backspace-clear 5 {:xpath "//input[@type='text']"})
           (browser/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
           (browser/click support-submit-button)
           (is (browser/exists? (test-plans/error-msg-xpath "Minimum support level is $1.00 per month")))
           ;; cancel support
           (browser/click cancel-support-button)
-          (browser/wait-until-displayed stop-support-button)
           (browser/click stop-support-button)
-          (browser/wait-until-displayed {:xpath "//h1[text()='Support This Project']"})
           (is (browser/exists? {:xpath "//h1[text()='Support This Project']"}))
           ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
           (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email))))))

@@ -56,15 +56,12 @@
         ;; select one article and annotate it
         (browser/click review-articles/articles-button)
         (browser/click article-title-div :delay 100)
-        (browser/wait-until-displayed enable-annotator-button)
         (browser/click enable-annotator-button)
         (browser/wait-until-displayed select-text-to-annotate)
         (->actions @browser/active-webdriver
                    (double-click (taxi/find-element @browser/active-webdriver selected-text)))
-        (browser/wait-until-exists semantic-class-input)
-        (taxi/input-text semantic-class-input semantic-class)
-        (taxi/input-text annotation-value-input annotation-value)
-        (browser/wait-until-exists submit-button)
+        (browser/input-text semantic-class-input semantic-class)
+        (browser/input-text annotation-value-input annotation-value)
         (browser/click submit-button)
         (browser/wait-until-exists blue-pencil-icon)
         ;;check the annotation
