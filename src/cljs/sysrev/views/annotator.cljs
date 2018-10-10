@@ -564,7 +564,7 @@
   [context & {:keys [on-change class]}]
   (when (util/full-size?)
     (let [enabled? @(subscribe [:annotator/enabled context])]
-      [:div.ui.icon.labeled.button.toggle-annotator
+      [:div.ui.button.toggle-annotator
        {:on-click
         (util/wrap-user-event
          #(do (dispatch-sync [:annotator/init-view-state context])
@@ -574,12 +574,6 @@
                  (and (not (util/annotator-size?))
                       (not enabled?))
                  (str " disabled"))}
-       [:i.quote.left.icon]
-       (if (and @(subscribe [:self/logged-in?])
-                @(subscribe [:self/member?]))
-         (if enabled?
-           "Disable Annotator"
-           "Enable Annotator")
-         (if enabled?
-           "Hide Annotations"
-           "View Annotations"))])))
+       (if enabled?
+         "Disable Sidebar"
+         "Enable Sidebar")])))

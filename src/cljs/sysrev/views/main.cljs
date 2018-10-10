@@ -3,7 +3,7 @@
             [cljsjs.semantic-ui]
             [reagent.core :as r]
             [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-sub reg-event-db]]
+             [subscribe dispatch reg-sub reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
@@ -36,6 +36,7 @@
             [sysrev.views.panels.project.support]
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
+            [sysrev.views.review :as review :refer [LabelsColumns]]
             [sysrev.util :as util]
             [sysrev.shared.components :refer [loading-content]]))
 
@@ -61,12 +62,26 @@
 (defn notifier [entry]
   [:div])
 
+(reg-event-db
+ :set-review-interface
+ [trim-v]
+ (fn [db [interface]]
+   (assoc-in db [:state :review-interface] interface)))
+
+(reg-sub
+ :review-interface
+ (fn [db]
+   (or
+    (get-in db [:state :review-interface])
+    :labels)))
+
 (defn main-content []
   (if @(subscribe [:initialized?])
     (let [project-id @(subscribe [:active-project-id])
           article-id @(subscribe [:visible-article-id])
           pdf-url (when article-id
                     @(subscribe [:view-field :article [article-id :visible-pdf]]))
+          review-interface @(subscribe [:review-interface])
           pdf-key (some-> pdf-url pdf/pdf-url->key)
           ann-context (if pdf-key
                         {:class "pdf"
@@ -75,11 +90,7 @@
                          :pdf-key pdf-key}
                         {:class "abstract"
                          :project-id project-id
-                         :article-id article-id})
-          annotator?
-          (and project-id article-id
-               @(subscribe [:annotator/enabled ann-context])
-               (util/annotator-size?))]
+                         :article-id article-id})]
       [:div.main-content
        {:class (cond-> ""
                  (or (not @(subscribe [:data/ready?]))
@@ -88,15 +99,30 @@
                                     [:pdf/open-access-available?
                                      :pdf/article-pdfs])))
                  (str " loading")
-                 annotator?
+                 (review/display-sidebar?)
                  (str " annotator"))}
        [header-menu]
        [:div.ui.container.panel-content
-        (if annotator?
+        (if (review/display-sidebar?)
           [:div.ui.grid
            [:div.three.wide.column.panel-side-column
             [ui/WrapFixedVisibility 10
-             [annotator/AnnotationMenu ann-context "abstract"]]]
+             [:div
+              [ui/tabbed-panel-menu
+               [{:tab-id :labels
+                 :content "Labels"
+                 :action #(dispatch [:set-review-interface :labels])}
+                {:tab-id :annotations
+                 :content "Annotations"
+                 :action #(dispatch [:set-review-interface :annotations])}]
+               review-interface
+               "review-interface"]
+              (if (= review-interface :labels)
+                [:div
+                 [LabelsColumns article-id 1]
+                 [review/SaveButton article-id]
+                 [review/SkipArticle article-id]]
+                [annotator/AnnotationMenu ann-context "abstract"])]]]
            [:div.thirteen.wide.column
             [active-panel-content]]]
           [active-panel-content])]
