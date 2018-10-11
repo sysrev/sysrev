@@ -24,6 +24,40 @@ div.ui.segments.label-editor-view {
     }
 }
 
+.label-editor-column {
+    > .ui.segments.label-editor-view {
+        height: 700px !important;
+        overflow-y: auto;
+
+        .ui.segment.label-section {
+            border-width: 0;
+
+            > .row:first-child {
+                box-shadow: none;
+                > .ui.column {
+                    border-top-left-radius: 4px;
+                    border-top-right-radius: 4px;
+                }
+            }
+
+            > .row:last-child {
+                > .ui.column {
+                    border-bottom-left-radius: 4px;
+                    border-bottom-right-radius: 4px;
+                }
+            }
+        }
+    }
+
+    > .ui.segment.label-editor-buttons-view {
+        padding: 0.25em;
+
+        > .column {
+            padding: 0.25em;
+        }
+    }
+}
+
 .ui.buttons.three-state {
     .ui.button {
         padding-top: 0.6em;
@@ -31,7 +65,7 @@ div.ui.segments.label-editor-view {
     }
 }
 
-.ui.celled.grid > .row > .column.label-edit {
+.ui.grid > .row > .column.label-edit {
     padding: 0;
 }
 
@@ -163,7 +197,7 @@ div.ui.segments.label-editor-view {
 .column.label-edit.extra {
 }
 
-div.ui.segment.labels-warning {
+.ui.segment.labels-warning {
     padding: 0.5em;
 
     .ui.message {
@@ -171,6 +205,14 @@ div.ui.segment.labels-warning {
         padding-bottom: 0.4em;
         padding-left: 0.75em;
         padding-right: 0.75em;
+    }
+}
+
+.review-menu > .tabbed-panel > .ui.tabbed.menu {
+    // min-height: 2.7em;
+
+    > a.item {
+        padding: 0;
     }
 }
 

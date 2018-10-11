@@ -107,7 +107,7 @@
           [:div.ui.grid
            [:div.three.wide.column.panel-side-column
             [ui/WrapFixedVisibility 10
-             [:div
+             [:div.review-menu
               [ui/tabbed-panel-menu
                [{:tab-id :labels
                  :content "Labels"
@@ -118,10 +118,7 @@
                review-interface
                "review-interface"]
               (if (= review-interface :labels)
-                [:div
-                 [LabelsColumns article-id 1]
-                 [review/SaveButton article-id]
-                 [review/SkipArticle article-id]]
+                [review/LabelEditorColumn article-id]
                 [annotator/AnnotationMenu ann-context "abstract"])]]]
            [:div.thirteen.wide.column
             [active-panel-content]]]
