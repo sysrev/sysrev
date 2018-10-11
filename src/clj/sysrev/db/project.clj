@@ -749,3 +749,13 @@
                 :amount amount
                 :created created}])
       do-execute))
+
+;; this is going to need to be modified to also subtract payments
+(defn project-funds
+  [project-id]
+  (-> (select :*)
+      (from :project-payments)
+      (where [:= :project-id project-id])
+      do-query
+      (->> (map :amount)
+           (apply +))))

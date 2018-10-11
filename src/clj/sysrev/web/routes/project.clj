@@ -806,6 +806,11 @@
         (let [{:keys [project-id user-id compensation-id]} (:body request)]
           (api/set-user-compensation! project-id user-id compensation-id))))
 
+  (GET "/api/project-funds" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (api/project-funds (-> request :params :project-id parse-integer))))
+
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

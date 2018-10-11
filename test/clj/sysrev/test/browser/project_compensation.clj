@@ -72,9 +72,8 @@
   [amount]
   (let [compensations {:xpath "//"}
         create-new-compensation {:xpath "//h4[contains(text(),'Create New Compensation')]"}
-        amount-input {:xpath "//input[@type='text']"}
+        amount-input {:xpath "//input[@type='text' and @id='create-compensation-amount']"}
         amount-create {:xpath "//button[contains(text(),'Create')]"}]
-
     (log/info (str "Creating a compensation of " amount " cents"))
     (browser/go-project-route "/compensations")
     (browser/wait-until-exists create-new-compensation)
@@ -121,13 +120,18 @@
                 (get-in % [:rate :amount])))
        (apply +)))
 
-(defn open-project [{:keys [name]}]
-  (browser/click {:xpath (project-name-xpath-string name)}))
+(defn open-project [project-name]
+  (browser/click {:xpath (project-name-xpath-string project-name)}))
 
-(defn switch-user [{:keys [email password]} & [project]]
+(defn switch-user [{:keys [email password]} & [project-name]]
   (log-in email password false)
-  (when project
-    (open-project project)))
+  (when project-name
+    (open-project project-name)))
+
+(defn review-articles [user project label-definitions]
+  (switch-user user project)
+  (review/randomly-review-n-articles
+   (:n-articles user) label-definitions))
 
 (deftest-browser happy-path-project-compensation
   ;; skip this from `lein test` etc, redundant with larger test
@@ -157,7 +161,7 @@
                                   :password (:password test-user)
                                   :project-id @project-id)
         ;; new user reviews some articles
-        (switch-user test-user)
+        (switch-user (:name test-user))
         (open-project {:name project-name})
         (review/randomly-review-n-articles
          n-articles [(merge review/include-label-definition
@@ -202,11 +206,6 @@
                               [:definition :all-values])})
            (merge review/boolean-label-definition
                   {:all-values [true false]})]
-          review-articles
-          (fn [user project]
-            (switch-user user project)
-            (review/randomly-review-n-articles
-             (:n-articles user) label-definitions))
           create-labels
           (fn [project-id]
             (browser/go-project-route "/labels/edit" project-id)
@@ -240,9 +239,9 @@
         (doseq [{:keys [email password]} test-users]
           (browser/create-test-user :email email :password password
                                     :project-id @(:project-id project1)))
-        (review-articles user1 project1)
-        (review-articles user2 project1)
-        (review-articles user3 project1)
+        (review-articles user1 (:name project1) label-definitions)
+        (review-articles user2 (:name project1) label-definitions)
+        (review-articles user3 (:name project1) label-definitions)
         ;; check that the compensation levels add up for all the reviewers
         (doseq [user test-users]
           (is (= (* (:n-articles user) (-> project1 :amounts (nth 0)))
@@ -265,29 +264,29 @@
           (doseq [{:keys [email]} test-users]
             (let [{:keys [user-id]} (users/get-user-by-email email)]
               (project/add-project-member @(:project-id project2) user-id)))
-          (review-articles user1 project2)
-          (review-articles user2 project2)
-          (review-articles user3 project2)
+          (review-articles user1 (:name project2) label-definitions)
+          (review-articles user2 (:name project2) label-definitions)
+          (review-articles user3 (:name project2) label-definitions)
           ;; check that the compensation levels add up for all the reviewers
           (doseq [user test-users]
             (is (= (* (:n-articles user) (-> project2 :amounts (nth 0)))
                    (user-amount-owed @(:project-id project2) (:name user)))))
           ;; change the compensation level of the first test user
-          (switch-user nil project1)
+          (switch-user nil (:name project1))
           (browser/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project1 :amounts (nth 1)))
-          (review-articles user1 project1)
+          (review-articles user1 (:name project1) label-definitions)
           (is (= (* (:n-articles user1)
                     (+ (-> project1 :amounts (nth 0))
                        (-> project1 :amounts (nth 1))))
                  (user-amount-owed @(:project-id project1) (:name user1))))
           ;; change the compensation level again for the first test user
-          (switch-user nil project1)
+          (switch-user nil (:name project1))
           (browser/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project1 :amounts (nth 2)))
-          (review-articles user1 project1)
+          (review-articles user1 (:name project1) label-definitions)
           (is (= (* (:n-articles user1)
                     (->> project1 :amounts (take 3) (apply +)))
                  (user-amount-owed @(:project-id project1) (:name user1))))
@@ -297,11 +296,11 @@
           (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
                  (user-amount-owed @(:project-id project1) (:name user3))))
           ;; let's change compensations for another user in this project
-          (switch-user nil project1)
+          (switch-user nil (:name project1))
           (browser/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user2) (-> project1 :amounts (nth 2)))
-          (review-articles user2 project1)
+          (review-articles user2 (:name project1) label-definitions)
           ;; are the compensations still correct for this user?
           (is (= (+ (* (:n-articles user2) (-> project1 :amounts (nth 0)))
                     (* (:n-articles user2) (-> project1 :amounts (nth 2))))
@@ -315,18 +314,18 @@
                  (user-amount-owed @(:project-id project1) (:name user1))))
           ;; let's try changing comp rate in another project,
           ;; make sure all other compensations are correct
-          (switch-user nil project2)
+          (switch-user nil (:name project2))
           (browser/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project2 :amounts (nth 1)))
-          (review-articles user1 project2)
+          (review-articles user1 (:name project2) label-definitions)
           ;; let's set the compensation for the second user, have them
           ;; review some more articles
-          (switch-user nil project2)
+          (switch-user nil (:name project2))
           (browser/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user2) (-> project2 :amounts (nth 2)))
-          (review-articles user2 project2)
+          (review-articles user2 (:name project2) label-definitions)
           ;; does everything add up for the second project?
           (is (= (+ (* (:n-articles user1) (-> project2 :amounts (nth 0)))
                     (* (:n-articles user1) (-> project2 :amounts (nth 1))))
@@ -338,7 +337,7 @@
                  (user-amount-owed @(:project-id project2) (:name user3))))
           ;; switch projects back to first project
           (browser/click {:xpath "//a[@href='/']"})
-          (open-project project1)
+          (open-project (:name project1))
           ;; and the amount owed to user to the other project did not
           ;; change
           (is (= (+ (* (:n-articles user1) (-> project1 :amounts (nth 0)))

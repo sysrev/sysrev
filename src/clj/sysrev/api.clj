@@ -1064,6 +1064,11 @@
        {:error {:status precondition-failed
                 :message "An unknown error occurred"}}))))
 
+(defn project-funds
+  [project-id]
+  (try-catch-response
+   {:result {:project-funds (project/project-funds project-id)}}))
+
 (defn test-response
   "Server Sanity Check"
   []
