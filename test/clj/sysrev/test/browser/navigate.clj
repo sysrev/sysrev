@@ -70,10 +70,11 @@
     (go-route "/")
     (log-out)
     (go-route "/register")
-    (b/set-input-text "input[name='email']" email :delay 50)
-    (b/set-input-text "input[name='password']" password :delay 50)
+    (b/set-input-text "input[name='email']" email :delay 100)
+    (b/set-input-text "input[name='password']" password :delay 100)
     (b/click "button[name='submit']" :delay 250)
-    (Thread/sleep 500)
+    (b/wait-until-loading-completes :pre-wait 1500)
+    (Thread/sleep 1000)
     (go-route "/")))
 
 (defn wait-until-overview-ready []

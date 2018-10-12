@@ -197,7 +197,7 @@
                   :or {if-not-exists :wait
                        delay 25
                        displayed? false}}]
-  #_ (Thread/sleep delay)
+  (Thread/sleep delay)
   (wait-until-loading-completes)
   (when (= if-not-exists :wait)
     (if displayed?
