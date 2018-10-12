@@ -80,7 +80,11 @@
   (when (db-connected?)
     (let [config {:dbname test-dbname}]
       (if @db-initialized?
-        (start-app config nil true)
+        (do (start-app config nil true)
+            (let [{:keys [host port dbname]}
+                  (-> @db/active-db :config)]
+              (log/info (format "connected to postgres (%s:%d/%s)"
+                                host port dbname))))
         (do (log/info "Initializing test DB...")
             (db/close-active-db)
             (db/terminate-db-connections config)

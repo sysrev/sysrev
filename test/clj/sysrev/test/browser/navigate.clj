@@ -34,7 +34,7 @@
           (do (b/wait-until-loading-completes :pre-wait 10)
               (log/info "navigating:" path)
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\");" path))
-              (b/wait-until-loading-completes :pre-wait (or wait-ms 50))))
+              (b/wait-until-loading-completes :pre-wait (or wait-ms 75))))
     nil))
 
 (defn current-project-id []
@@ -53,10 +53,9 @@
     (log/info "logging out")
     (b/click "a#log-out-link" :if-not-exists :skip, :delay 100)))
 
-(defn log-in [& [email password initial?]]
+(defn log-in [& [email password]]
   (let [email (or email (:email b/test-login))
-        password (or password (:password b/test-login))
-        initial? (if (nil? initial?) true initial?)]
+        password (or password (:password b/test-login))]
     (go-route "/")
     (log-out)
     (go-route "/login")
@@ -88,10 +87,10 @@
   (log/info "creating project" (pr-str project-name))
   (go-route "/")
   (b/set-input-text "input[placeholder='Project Name']" project-name)
-  (b/click (xpath "//button[text()='Create']") :delay 200)
+  (b/click (xpath "//button[text()='Create']") :delay 500)
   (b/wait-until-displayed (x/project-title-value project-name))
   (is (str/includes? (taxi/text x/project-title) project-name))
-  (b/wait-until-loading-completes))
+  (b/wait-until-loading-completes :pre-wait true))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))

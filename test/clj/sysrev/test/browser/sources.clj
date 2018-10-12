@@ -28,20 +28,24 @@
 ;;; add sources
       ;; create a new source
       (pm/add-articles-from-search-term query1)
+      (nav/go-project-route "/add-articles")
       (when false
         ;; add articles from second search term
         (pm/add-articles-from-search-term query2)
+        (nav/go-project-route "/add-articles")
         ;; check that there is no overlap
         (is (and (empty? (:overlap-maps (pm/search-term-articles-summary query1)))
                  (empty? (:overlap-maps (pm/search-term-articles-summary query2))))))
       ;; add articles from third search term
       (pm/add-articles-from-search-term query3)
+      (nav/go-project-route "/add-articles")
       ;; query3 has no unique article or reviewed articles, only one article and one overlap with "foo bar"
       (is (= {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
               #_ :overlap-maps #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}
              (pm/search-term-articles-summary query3)))
       ;; add articles from fourth search term
       (pm/add-articles-from-search-term query4)
+      (nav/go-project-route "/add-articles")
       ;; query1 has 4 unique articles, 0 reviewed articles, 6 total articles, and have two overalaps
       (is (= (pm/search-term-articles-summary query1)
              {:unique-articles 4, :reviewed-articles 0, :total-articles 6,

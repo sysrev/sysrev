@@ -33,10 +33,7 @@
             submit-button {:xpath "//button[contains(@class,'positive')]"}
             blue-pencil-icon {:xpath "//i[contains(@class,'pencil')]"}]
         (nav/log-in)
-;;;; create a project
         (nav/new-project project-name)
-;;; add sources
-        ;; create a new source
         (pm/add-articles-from-search-term search-term)
 ;;;; start annotating articles
         ;; review the single article result

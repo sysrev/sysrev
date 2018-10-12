@@ -444,7 +444,7 @@
               string-label-value "Baz"
               categorical-label-value "Qux"]
           (log/info "creating label definitions")
-          (b/click label-definitions-tab)
+          (nav/go-project-route "/labels/edit")
           ;; create a new boolean label
           (b/click add-boolean-label-button)
           (save-label)

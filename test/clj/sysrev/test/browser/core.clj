@@ -221,6 +221,7 @@
                           (Thread/sleep 20))))
   true)
 
+;; TODO: take a `cleanup` block so a `finally` inside `body` won't capture screenshot
 (defmacro deftest-browser [name & body]
   `(deftest ~name
      (try
