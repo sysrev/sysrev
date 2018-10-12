@@ -645,29 +645,69 @@
   [childer upload-url on-success & args]
   (let [id (util/random-id)
         csrf-token (subscribe [:csrf-token])
-        opts {:url upload-url
-              :headers (when-let [token @csrf-token]
-                         {"x-csrf-token" token})
-              :addedfile #(dispatch [:notify [:div [:i.ui.large.green.circular.checkmark.icon] "File uploaded"]])
-              :success on-success}]
-    (letfn [(make-uploader [url]
-              (js/Dropzone. (str "div#" id) (clj->js opts)))]
-      (r/create-class {:reagent-render (fn [childer upload-url _ & args]
-                                         (apply childer id args))
-                       :component-did-mount #(make-uploader upload-url)
-                       :display-name "upload-container"}))))
+        opts
+        {:url upload-url
+         :headers (when-let [token @csrf-token]
+                    {"x-csrf-token" token})
+         :maxFilesize 2047
+         :timeout (* 1000 60 60 4)}
+        error-msg (r/atom nil)]
+    (letfn [(init-dropzone [url]
+              (->
+               (js/Dropzone.
+                (str "#" id)
+                (clj->js
+                 (->> {:previewTemplate
+                       (-> js/document
+                           (.querySelector (str "#" id "-template"))
+                           .-innerHTML)
+                       :previewsContainer (str "#" id "-preview")
+                       :clickable (str "#" id "-button")}
+                      (merge opts))))
+               (.on "error"
+                    (fn [file msg _]
+                      (js/console.log (str "Upload error [" file "]: " msg))
+                      (reset! error-msg msg)
+                      true))
+               (.on "success" on-success)))]
+      (r/create-class
+       {:reagent-render (fn [childer upload-url _ & args]
+                          (apply childer id upload-url error-msg args))
+        :component-did-mount #(init-dropzone upload-url)
+        :display-name "upload-container"}))))
 
-(defn- UploadButtonImpl [id & [text class]]
-  [:div.ui.button
-   {:id id
-    :style {:cursor "pointer"}
-    :class (str (cond (util/full-size?) ""
-                      (util/mobile?)    "tiny"
-                      :else             "small")
-                " "
-                (if class class ""))}
-   [:i.green.add.circle.icon]
-   text])
+(defn- UploadButtonImpl [id & [upload-url error-msg text class]]
+  [:div
+   [:div.dropzone {:id id}
+    [:button.ui.button
+     {:id (str id "-button")
+      ;; :type "submit"
+      :style {:cursor "pointer"}
+      :class (str (cond (util/full-size?) ""
+                        (util/mobile?)    "tiny"
+                        :else             "small")
+                  " "
+                  (if class class ""))}
+     [:i.green.add.circle.icon]
+     text]
+    [:div.dropzone-previews {:id (str id "-preview")}]]
+   [:div {:style {:display "none"}}
+    [:div.dz-preview.dz-file-preview
+     {:id (str id "-template")}
+     [:div.ui.center.aligned.segment
+      {:style {:margin-top "1em"}}
+      [:div.dz-details
+       [:div.dz-filename [:span {:data-dz-name ""}]]
+       [:div.dz-size {:data-dz-size ""}]
+       #_ [:img {:data-dz-thumbnail ""}]]
+      [:div.ui.progress.dz-progress {:id (str id "-progress")}
+       [:div.bar {:id (str id "-progress-bar")
+                  :data-dz-uploadprogress ""}]
+       [:div.label {:id (str id "-progress-label")}]]
+      #_ [:div.dz-progress
+          [:span.dz-upload {:data-dz-uploadprogress ""}]]
+      [:div.dz-error-message
+       [:span {:data-dz-errormessage ""}]]]]]])
 
 (defn UploadButton [upload-url on-success text & [class]]
   [UploadContainer UploadButtonImpl upload-url on-success text class])

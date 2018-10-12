@@ -224,15 +224,18 @@
               [])))
           (when member?
             [:div.upload-container
-             [ui/UploadButton
-              (str "/api/files/" project-id "/upload")
-              pull-files
-              "Upload document"]
-             [:div.ui.right.floated.small.icon.button
-              {:on-click toggle-editing
-               :style (when @editing-files {:border "1px solid red"
-                                            :margin "-1px"})}
-              [:i.ui.blue.pencil.icon]]])]]))))
+             [:div.ui.two.column.middle.aligned.grid
+              [:div.left.aligned.column
+               [ui/UploadButton
+                (str "/api/files/" project-id "/upload")
+                pull-files
+                "Upload document"]]
+              [:div.right.aligned.column
+               [:div.ui.right.floated.small.icon.button
+                {:on-click toggle-editing
+                 :style (when @editing-files {:border "1px solid red"
+                                              :margin "-1px"})}
+                [:i.ui.blue.pencil.icon]]]]])]]))))
 
 (defn MemberActivityChart []
   (let [project-id @(subscribe [:active-project-id])

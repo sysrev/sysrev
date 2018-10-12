@@ -22,7 +22,7 @@
                  [org.clojars.jeffwk/semantic-ui "2.4.0-0"]
                  [cljsjs/semantic-ui-react "0.82.2-0"]
                  [cljsjs/chartjs "2.7.0-0"]
-                 [cljsjs/dropzone "4.3.0-0"]
+                 [cljsjs/dropzone "5.5.0-1"]
                  [cljsjs/clipboard "1.6.1-1"]
                  [cljsjs/accounting "0.4.1-1"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]

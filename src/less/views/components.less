@@ -41,6 +41,30 @@ div.ui.grid.list-pager {
     }
 }
 
+.dropzone {
+    background: inherit;
+    border: 0;
+    padding: 0px;
+    min-height: 0px;
+
+    .dz-message {
+        margin-top: 1em;
+        margin-bottom: 0;
+    }
+
+    .dz-default.dz-message {
+        display: none;
+    }
+
+    .ui.progress.dz-progress {
+        margin-bottom: 0.5em;
+
+        .bar {
+            min-width: 0.75em;
+        }
+    }
+}
+
 // TODO: update these CSS paths for new component
 @media only screen and (max-width: 900px) {
     div.ui.grid.list-pager {
