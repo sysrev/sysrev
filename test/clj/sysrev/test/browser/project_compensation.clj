@@ -10,15 +10,15 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
-            [sysrev.test.core :refer
-             [default-fixture full-tests? test-profile? add-test-label]]
-            [sysrev.test.browser.core :as browser :refer [deftest-browser]]
-            [sysrev.test.browser.create-project :as create-project]
-            [sysrev.test.browser.navigate :refer [log-in log-out]]
-            [sysrev.test.browser.review-articles :as review]))
+            [sysrev.test.core :as test]
+            [sysrev.test.browser.core :as b :refer [deftest-browser]]
+            [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.test.browser.navigate :as nav]
+            [sysrev.test.browser.review-articles :as review]
+            [sysrev.test.browser.pubmed :as pm]))
 
-(use-fixtures :once default-fixture browser/webdriver-fixture-once)
-(use-fixtures :each browser/webdriver-fixture-each)
+(use-fixtures :once test/default-fixture b/webdriver-fixture-once)
+(use-fixtures :each b/webdriver-fixture-each)
 
 ;;;
 ;;; NOTE: Compensation entries should not be deleted like this except in testing.
@@ -70,41 +70,35 @@
 (defn create-compensation
   "Create a compensation in an integer amount of cents"
   [amount]
-  (let [compensations {:xpath "//"}
-        create-new-compensation {:xpath "//h4[contains(text(),'Create New Compensation')]"}
+  (let [create-new-compensation {:xpath "//h4[contains(text(),'Create New Compensation')]"}
         amount-input {:xpath "//input[@type='text']"}
         amount-create {:xpath "//button[contains(text(),'Create')]"}]
+    (log/info "creating compensation:" amount "cents")
+    (nav/go-project-route "/compensations")
+    (b/wait-until-exists create-new-compensation)
+    (b/set-input-text-per-char amount-input (cents->string amount))
+    (b/click amount-create)
+    (b/wait-until-exists
+     (xpath "//div[contains(text(),'$" (cents->string amount) " per Article')]"))))
 
-    (log/info (str "Creating a compensation of " amount " cents"))
-    (browser/go-project-route "/compensations")
-    (browser/wait-until-exists create-new-compensation)
-    (browser/set-input-text-per-char amount-input (cents->string amount))
-    (browser/click amount-create)
-    (browser/wait-until-exists
-     {:xpath (str "//div[contains(text(),'$" (cents->string amount)
-                  " per Article')]")})))
-
-(defn compensation-select-xpath-string  [user]
-  (str "//div[contains(text(),'" user "')]"
-       "/ancestor::div[contains(@class,'item')]"
-       "/descendant::div[@role='listbox']"))
+(defn compensation-select [user]
+  (xpath "//div[contains(text(),'" user "')]"
+         "/ancestor::div[contains(@class,'item')]"
+         "/descendant::div[@role='listbox']"))
 
 (defn compensation-option [user amount]
   (let [amount (if (number? amount)
                  (str "$" (cents->string amount) " / article")
                  "No Compensation")]
-    (str (compensation-select-xpath-string user)
-         "/descendant::div[@role='option']"
-         "/span[@class='text' and text()='" amount "']")))
-
-(defn project-name-xpath-string [project-name]
-  (str "//span[contains(@class,'project-title') and text()='" project-name "']"))
+    (xpath (compensation-select user)
+           "/descendant::div[@role='option']"
+           "/span[@class='text' and text()='" amount "']")))
 
 (defn select-compensation-for-user
   "Amount can be 'No Compensation' or integer amount of cents"
   [user amount]
-  (browser/click {:xpath (compensation-select-xpath-string user)})
-  (browser/click {:xpath (compensation-option user amount)}))
+  (b/click (compensation-select user))
+  (b/click (compensation-option user amount)))
 
 (defn todays-date []
   ;; YYYY-MM-DD
@@ -120,18 +114,14 @@
                 (get-in % [:rate :amount])))
        (apply +)))
 
-(defn open-project [{:keys [name]}]
-  (browser/click {:xpath (project-name-xpath-string name)}))
-
 (defn switch-user [{:keys [email password]} & [project]]
-  (log-in email password false)
+  (nav/log-in email password)
   (when project
-    (open-project project)))
+    (nav/open-project (:name project))))
 
 (deftest-browser happy-path-project-compensation
   ;; skip this from `lein test` etc, redundant with larger test
-  (when (and (not (test-profile?))
-             (browser/db-connected?))
+  (when (and (test/db-connected?) (not (test/test-profile?)))
     (let [project-name "SysRev Compensation Test"
           search-term "foo create"
           amount 100
@@ -142,22 +132,22 @@
           project-id (atom nil)]
       (try
         ;; create a project
-        (log-in)
-        (create-project/create-project project-name)
-        (reset! project-id (browser/current-project-id))
+        (nav/log-in)
+        (nav/new-project project-name)
+        (reset! project-id (nav/current-project-id))
         ;; import sources
-        (create-project/add-articles-from-search-term search-term)
+        (pm/add-articles-from-search-term search-term)
         ;; create a compensation level
         (create-compensation amount)
         ;; set it to default
         (select-compensation-for-user "Default New User Compensation" 100)
         ;; create a new user, check that that their compensation level is set to the default
-        (browser/create-test-user :email (:email test-user)
-                                  :password (:password test-user)
-                                  :project-id @project-id)
+        (b/create-test-user :email (:email test-user)
+                            :password (:password test-user)
+                            :project-id @project-id)
         ;; new user reviews some articles
         (switch-user test-user)
-        (open-project {:name project-name})
+        (nav/open-project project-name)
         (review/randomly-review-n-articles
          n-articles [(merge review/include-label-definition
                             {:all-values [true false]})])
@@ -166,10 +156,10 @@
         (finally
           (delete-project-compensations @project-id)
           (project/delete-project @project-id)
-          (browser/delete-test-user :email (:email test-user)))))))
+          (b/delete-test-user :email (:email test-user)))))))
 
 (deftest-browser multiple-project-compensations
-  (when (browser/db-connected?)
+  (when (test/db-connected?)
     (let [projects
           (->> [{:name "SysRev Compensation Test 1"
                  :amounts [100 10 110]
@@ -208,27 +198,27 @@
              (:n-articles user) label-definitions))
           create-labels
           (fn [project-id]
-            (browser/go-project-route "/labels/edit" project-id)
+            (nav/go-project-route "/labels/edit" project-id)
             ;; create a boolean label
             (let [label review/boolean-label-definition]
-              (add-test-label
+              (test/add-test-label
                project-id
                (merge
                 (select-keys label [:value-type :short-label :question :required])
                 {:inclusion-value (-> label :definition :inclusion-values first)})))
             ;; create a categorical label
-            #_ (do (browser/click review/add-categorical-label-button)
+            #_ (do (b/click review/add-categorical-label-button)
                    (review/set-label-values
                     "//div[contains(@id,'new-label-')]" review/categorical-label-definition)
                    (review/save-label))
-            (browser/go-project-route "" project-id))]
+            (nav/go-project-route "" project-id))]
       (try
         ;; login
-        (log-in)
+        (nav/log-in)
         ;; create the first project
-        (create-project/create-project (:name project1))
-        (reset! (:project-id project1) (browser/current-project-id))
-        (create-project/add-articles-from-search-term (:search project1))
+        (nav/new-project (:name project1))
+        (reset! (:project-id project1) (nav/current-project-id))
+        (pm/add-articles-from-search-term (:search project1))
         (create-labels @(:project-id project1))
         ;; create three compensations
         (mapv create-compensation (:amounts project1))
@@ -237,8 +227,8 @@
          "Default New User Compensation" (-> project1 :amounts (nth 0)))
         ;; create users
         (doseq [{:keys [email password]} test-users]
-          (browser/create-test-user :email email :password password
-                                    :project-id @(:project-id project1)))
+          (b/create-test-user :email email :password password
+                              :project-id @(:project-id project1)))
         (review-articles user1 project1)
         (review-articles user2 project1)
         (review-articles user3 project1)
@@ -246,14 +236,14 @@
         (doseq [user test-users]
           (is (= (* (:n-articles user) (-> project1 :amounts (nth 0)))
                  (user-amount-owed @(:project-id project1) (:name user)))))
-        (when (full-tests?)
+        (when (test/full-tests?)
           ;; create a new project
           (switch-user nil)
           ;; create the second project
-          (create-project/create-project (:name project2))
-          (reset! (:project-id project2) (browser/current-project-id))
+          (nav/new-project (:name project2))
+          (reset! (:project-id project2) (nav/current-project-id))
           ;; import sources
-          (create-project/add-articles-from-search-term (:search project2))
+          (pm/add-articles-from-search-term (:search project2))
           (create-labels @(:project-id project2))
           ;; create three compensations
           (mapv create-compensation (:amounts project2))
@@ -273,7 +263,7 @@
                    (user-amount-owed @(:project-id project2) (:name user)))))
           ;; change the compensation level of the first test user
           (switch-user nil project1)
-          (browser/go-project-route "/compensations")
+          (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project1 :amounts (nth 1)))
           (review-articles user1 project1)
@@ -283,7 +273,7 @@
                  (user-amount-owed @(:project-id project1) (:name user1))))
           ;; change the compensation level again for the first test user
           (switch-user nil project1)
-          (browser/go-project-route "/compensations")
+          (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project1 :amounts (nth 2)))
           (review-articles user1 project1)
@@ -297,7 +287,7 @@
                  (user-amount-owed @(:project-id project1) (:name user3))))
           ;; let's change compensations for another user in this project
           (switch-user nil project1)
-          (browser/go-project-route "/compensations")
+          (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user2) (-> project1 :amounts (nth 2)))
           (review-articles user2 project1)
@@ -315,14 +305,14 @@
           ;; let's try changing comp rate in another project,
           ;; make sure all other compensations are correct
           (switch-user nil project2)
-          (browser/go-project-route "/compensations")
+          (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project2 :amounts (nth 1)))
           (review-articles user1 project2)
           ;; let's set the compensation for the second user, have them
           ;; review some more articles
           (switch-user nil project2)
-          (browser/go-project-route "/compensations")
+          (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user2) (-> project2 :amounts (nth 2)))
           (review-articles user2 project2)
@@ -336,8 +326,8 @@
           (is (= (* (:n-articles user3) (-> project2 :amounts (nth 0)))
                  (user-amount-owed @(:project-id project2) (:name user3))))
           ;; switch projects back to first project
-          (browser/click {:xpath "//a[@href='/']"})
-          (open-project project1)
+          (b/click {:xpath "//a[@href='/']"})
+          (nav/open-project (:name project1))
           ;; and the amount owed to user to the other project did not
           ;; change
           (is (= (+ (* (:n-articles user1) (-> project1 :amounts (nth 0)))
@@ -357,4 +347,4 @@
               (project/delete-project @project-id)))
           ;; delete test users
           (doseq [{:keys [email]} test-users]
-            (browser/delete-test-user :email email)))))))
+            (b/delete-test-user :email email)))))))

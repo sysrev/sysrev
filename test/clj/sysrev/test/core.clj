@@ -2,6 +2,7 @@
   (:import [java.util UUID])
   (:require [amazonica.aws.s3 :as s3]
             [clj-time.core :as time]
+            [clojure.string :as str]
             [clojure.java.jdbc :as jdbc]
             [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
@@ -11,18 +12,23 @@
             [sysrev.init :refer [start-app]]
             [sysrev.web.core :refer [stop-web-server]]
             [sysrev.web.index :refer [set-web-asset-path]]
-            [sysrev.db.core :refer
-             [set-active-db! make-db-config close-active-db
-              with-rollback-transaction]]
+            [sysrev.db.core :as db]
             [sysrev.db.users :as users]
             [sysrev.db.labels :as labels]
+            [sysrev.db.migration :as migrate]
             [sysrev.stripe :as stripe]
+            [sysrev.util :as util :refer [shell]]
             [sysrev.shared.util :as sutil :refer [in?]]))
+
+(def test-dbname "sysrev_auto_test")
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
-(defn set-selenium-config [raw-config]
-  (reset! raw-selenium-config raw-config))
+(defonce db-initialized? (atom nil))
+
+(defn db-connected? []
+  (and (not= "sysrev.com" (:host @raw-selenium-config))
+       (not= 5470 (-> env :postgres :port))))
 
 (defn get-selenium-config []
   (let [config (or @raw-selenium-config
@@ -32,7 +38,68 @@
     (let [{:keys [protocol host port]} config]
       (assoc config
              :url (str protocol "://" host (if port (str ":" port) "") "/")
-             :safe (not= host "sysrev.com")))))
+             :safe (db-connected?)))))
+
+(defn set-selenium-config [raw-config]
+  (reset! raw-selenium-config raw-config))
+
+(defn test-db-shell-args [& [postgres-overrides]]
+  (let [{:keys [dbname user host port]}
+        (merge (:postgres env) postgres-overrides)]
+    ["-h" (str host) "-p" (str port) "-U" (str user) (str dbname)]))
+
+(defn db-shell [cmd & [extra-args postgres-overrides]]
+  (let [args (concat [cmd] (test-db-shell-args postgres-overrides) extra-args)]
+    (log/info "db-shell:" (->> args (str/join " ") pr-str))
+    (apply shell args)))
+
+(defn write-flyway-config [& [postgres-overrides]]
+  (let [{:keys [dbname user host port]}
+        (merge (:postgres env) postgres-overrides)]
+    (shell "mv" "-f" "flyway.conf" ".flyway.conf.moved")
+    (spit "flyway.conf"
+          (->> [(format "flyway.url=jdbc:postgresql://%s:%d/%s"
+                        host port dbname)
+                (format "flyway.user=%s" user)
+                "flyway.password="
+                "flyway.locations=filesystem:./resources/sql"
+                ""]
+               (str/join "\n")))))
+
+(defn restore-flyway-config []
+  (shell "mv" "-f" ".flyway.conf.moved" "flyway.conf"))
+
+(defmacro with-flyway-config [postgres-overrides & body]
+  `(try
+     (write-flyway-config ~postgres-overrides)
+     ~@body
+     (finally
+       (restore-flyway-config))))
+
+(defn init-test-db []
+  (when (db-connected?)
+    (let [config {:dbname test-dbname}]
+      (if @db-initialized?
+        (start-app config nil true)
+        (do (log/info "Initializing test DB...")
+            (db/close-active-db)
+            (db/terminate-db-connections config)
+            (try
+              (db-shell "dropdb" [] config)
+              (catch Throwable e
+                nil))
+            (db-shell "createdb" [] config)
+            (log/info "Applying Flyway schema...")
+            (shell "./scripts/install-flyway")
+            (with-flyway-config config
+              (log/info (str "\n" (slurp "flyway.conf")))
+              (-> (shell "./flyway" "migrate")
+                  :out log/info))
+            (start-app config nil true)
+            (log/info "Applying Clojure DB migrations...")
+            (migrate/ensure-updated-db)
+            (reset! db-initialized? true)
+            (log/info "Test DB ready"))))))
 
 (defn default-fixture
   "Validates configuration, tries to ensure we're running
@@ -51,9 +118,14 @@
       (assert (not error) error)
       (t/instrument)
       (set-web-asset-path "/out-production")
-      (start-app nil nil true)
+      #_ (start-app nil nil true)
+      (if (db-connected?)
+        (init-test-db)
+        (db/close-active-db))
       (f)
-      (close-active-db))
+      (when (db-connected?)
+        (db/close-active-db)
+        (db/terminate-db-connections {:dbname test-dbname})))
     :remote-test
     (let [{{postgres-port :port
             dbname :dbname} :postgres
@@ -64,15 +136,22 @@
         (assert (clojure.string/includes? dbname "_test")
                 "Connecting to 'sysrev' db on production server is not allowed"))
       (t/instrument)
-      (set-active-db! (make-db-config (:postgres env)) true)
+      (if (db-connected?)
+        (db/set-active-db! (db/make-db-config (:postgres env)) true)
+        (db/close-active-db))
       (f)
-      (close-active-db))
+      (db/close-active-db))
     :dev
     (do (t/instrument)
-        (set-web-asset-path "/integration")
-        (start-app {:dbname "sysrev_test"} nil true)
+        (set-web-asset-path "/out")
+        #_ (start-app {:dbname "sysrev_test"} nil true)
+        (if (db-connected?)
+          (init-test-db)
+          (db/close-active-db))
         (f)
-        (close-active-db))
+        (when (db-connected?)
+          (db/close-active-db)
+          (db/terminate-db-connections {:dbname test-dbname})))
     (assert false "default-fixture: invalid profile value")))
 
 ;; note: If there is a field (e.g. id) that is auto-incremented
@@ -83,7 +162,7 @@
 ;; https://stackoverflow.com/questions/449346/mysql-auto-increment-does-not-rollback
 ;; https://www.postgresql.org/message-id/501B1494.9040502@ringerc.id.au
 (defn database-rollback-fixture [test]
-  (with-rollback-transaction
+  (db/with-rollback-transaction
     (test)))
 
 (defmacro completes? [form]
@@ -141,6 +220,9 @@
 
 (defn test-profile? []
   (in? [:test :remote-test] (-> env :profile)))
+
+(defn remote-test? []
+  (= :remote-test (-> env :profile)))
 
 (defn add-test-label [project-id entry-values]
   (let [add-label (case (:value-type entry-values)

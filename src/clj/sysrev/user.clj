@@ -48,12 +48,14 @@
         sysrev.shared.transit
         sysrev.shared.article-list
         sysrev.test.core
-        sysrev.test.browser.core)
+        sysrev.test.browser.core
+        sysrev.test.browser.navigate)
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as t]
             [clojure.math.numeric-tower :as math]
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :as log]
+            [clojure.java.shell :as shell :refer [sh]]
             [cljs.env :as env]
             [clj-time.core :as time]
             [clj-time.coerce :as tc]

@@ -692,43 +692,43 @@
 
 (defn open-access-available?
   [article-id]
-  (let [pmcid (-> article-id
-                  articles/article-pmcid)]
+  (let [pmcid (-> article-id articles/article-pmcid)]
     (cond
       ;; the pdf exists in the store already
       (articles/pmcid-in-s3store? pmcid)
-      {:result
-       {:available? true
-        :key (-> pmcid
-                 (articles/pmcid->s3store-id)
-                 (files/s3store-id->key))}}
+      {:result {:available? true
+                :key (-> pmcid
+                         (articles/pmcid->s3store-id)
+                         (files/s3store-id->key))}}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
-      (let [filename (-> article-id
-                         articles/article-pmcid
-                         pubmed/article-pmcid-pdf-filename)
-            file (java.io.File. filename)
-            bytes (util/slurp-bytes file)
-            save-article-result (save-article-pdf
-                                 article-id file filename)
-            key (get-in save-article-result [:result :key])
-            s3store-id (files/id-for-s3-filename-key-pair
-                        filename key)]
-        ;; delete the temporary file
-        (fs/delete filename)
-        ;; associate the pmcid with the s3store item
-        (articles/associate-pmcid-s3store
-         pmcid s3store-id)
-        ;; finally, return the pdf from our own archive
-        {:result
-         {:available? true
-          :key (-> pmcid
-                   (articles/pmcid->s3store-id)
-                   (files/s3store-id->key))}})
+      (try
+        (let [filename (-> article-id
+                           articles/article-pmcid
+                           pubmed/article-pmcid-pdf-filename)
+              file (java.io.File. filename)
+              bytes (util/slurp-bytes file)
+              save-article-result (save-article-pdf article-id file filename)
+              key (get-in save-article-result [:result :key])
+              s3store-id (files/id-for-s3-filename-key-pair filename key)]
+          ;; delete the temporary file
+          (fs/delete filename)
+          ;; associate the pmcid with the s3store item
+          (articles/associate-pmcid-s3store
+           pmcid s3store-id)
+          ;; finally, return the pdf from our own archive
+          {:result {:available? true
+                    :key (-> pmcid
+                             (articles/pmcid->s3store-id)
+                             (files/s3store-id->key))}})
+        (catch Throwable e
+          {:error {:message (str "open-access-available?: " (type e))
+                   ;; :exception e
+                   }}))
+
       ;; there was nothing available
       :else
-      {:result
-       {:available? false}})))
+      {:result {:available? false}})))
 
 (defn article-pdfs
   "Given an article-id, return a vector of maps that correspond to the files
@@ -751,9 +751,8 @@
   (try (do (files/dissociate-file-from-article article-id key filename)
            {:result {:success true}})
        (catch Throwable e
-         {:error
-          {:message "Exception in dissociate-pdf-article"
-           :exception e}})))
+         {:error {:message "Exception in dissociate-pdf-article"
+                  :exception e}})))
 
 (defn process-annotation-context
   "Convert the context annotation to the one saved on the server"

@@ -7,14 +7,14 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.plans :as plans]
             [sysrev.db.users :as users]
-            [sysrev.test.core :refer
-             [default-fixture wait-until full-tests?]]
-            [sysrev.test.browser.core :as browser :refer [deftest-browser backspace-clear]]
-            [sysrev.test.browser.navigate :as navigate :refer [log-in log-out]]
+            [sysrev.test.core :as test]
+            [sysrev.test.browser.core :as b :refer [deftest-browser]]
+            [sysrev.test.browser.xpath :as x :refer [xpath]]
+            [sysrev.test.browser.navigate :as nav]
             [sysrev.stripe :as stripe]))
 
-(use-fixtures :once default-fixture browser/webdriver-fixture-once)
-(use-fixtures :each browser/webdriver-fixture-each)
+(use-fixtures :once test/default-fixture b/webdriver-fixture-once)
+(use-fixtures :each b/webdriver-fixture-each)
 
 ;; for manual testing purposes, this is handy:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
@@ -51,11 +51,12 @@
 
 (deftest-browser register-and-check-basic-plan-subscription
   (log/info "register-and-check-basic-plan-subscription")
-  (when (not= :remote-test (-> env :profile))
-    (let [{:keys [email password]} browser/test-login]
-      (browser/delete-test-user)
+  (when (and (test/db-connected?)
+             (not= :remote-test (-> env :profile)))
+    (let [{:keys [email password]} b/test-login]
+      (b/delete-test-user)
       (Thread/sleep 200)
-      (navigate/register-user email password)
+      (nav/register-user email password)
       ;; after registering, does the stripe customer exist?
       (is (= email
              (:email (stripe/execute-action
@@ -71,12 +72,12 @@
       (is (= api/default-plan
              (:name (plans/get-current-plan (users/get-user-by-email email)))))
       ;; clean up
-      (navigate/log-out)
+      #_ (nav/log-out)
       (let [user (users/get-user-by-email email)]
         (users/delete-user (:user-id user))
         (is (:deleted (stripe/delete-customer! user)))
         ;; make sure this has occurred for the next test
-        (wait-until #(nil? (users/get-user-by-email email)))))))
+        (test/wait-until #(nil? (users/get-user-by-email email)))))))
 
 ;; elements
 (def basic-plan-div {:xpath "//span[contains(text(),'Basic')]/ancestor::div[contains(@class,'plan')]"})
@@ -101,23 +102,27 @@
   "Click the 'Select Plan' button of plan with plan-name"
   [plan-name]
   (log/info "selecting plan" (pr-str plan-name))
-  (browser/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}
+  (b/click {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(@class,'button')]")}
                  :delay 100))
 
 (defn subscribed-to?
   "Is the customer subscribed to plan-name?"
   [plan-name]
-  (browser/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
+  (b/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
+
+(defn input-card-number [cc-num]
+  (let [field (label-input "Card Number")]
+    (b/backspace-clear backspace-clear-length field)
+    (b/input-text field cc-num)))
 
 (deftest-browser register-and-subscribe-to-paid-plans
   (log/info "register-and-subscribe-to-paid-plans")
-  (let [{:keys [email password]} browser/test-login
-        full-tests? (full-tests?)]
+  (let [{:keys [email password]} b/test-login]
     ;; TODO: fix text input in Stripe payment form
     (when (and false (not= :remote-test (-> env :profile)))
-      (browser/delete-test-user)
+      (b/delete-test-user)
       (Thread/sleep 200)
-      (navigate/register-user email password)
+      (nav/register-user email password)
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
       ;; after registering, does the stripe customer exist?
@@ -136,116 +141,107 @@
              (:name (plans/get-current-plan (users/get-user-by-email email)))))
 ;;; plan selection
       ;; go to plans
-      (browser/go-route "/plans")
-      (browser/wait-until-displayed basic-plan-div)
+      (nav/go-route "/plans")
+      (b/wait-until-displayed basic-plan-div)
       ;; select the 'Pro' plan
       (select-plan "Pro")
       ;; Click the subscribe button
-      (browser/click subscribe-button)
+      (b/click subscribe-button)
       ;; No valid payment method
-      (is (browser/exists? (error-msg-xpath no-payment-method-error)))
+      (is (b/exists? (error-msg-xpath no-payment-method-error)))
 
 ;;; payment method
       ;; Let's update our payment method
-      (browser/click update-payment-button)
+      (b/click update-payment-button)
       ;; wait until a card number is available for input
-      (browser/wait-until-exists (label-input "Card Number"))
+      (b/wait-until-exists (label-input "Card Number"))
       ;; just try to 'Use Card', do we have all the error messages we would expect?
-      (browser/click use-card-button)
+      (b/click use-card-button)
       ;; incomplete fields are shown
-      (is (and (browser/exists? (error-msg-xpath incomplete-card-number-error))
-               (browser/exists? (error-msg-xpath incomplete-expiration-date-error)
+      (is (and (b/exists? (error-msg-xpath incomplete-card-number-error))
+               (b/exists? (error-msg-xpath incomplete-expiration-date-error)
                                 :wait? false)
-               (browser/exists? (error-msg-xpath incomplete-security-code-error)
+               (b/exists? (error-msg-xpath incomplete-security-code-error)
                                 :wait? false)))
 
-      (if full-tests?
+      (if (test/full-tests?)
         (log/info "running full stripe tests")
         (log/info "skipping full stripe tests"))
-      (when full-tests?
-        ;; basic failure with Luhn Check
-        (browser/input-text (label-input "Card Number") fail-luhn-check-cc)
-        ;; error message displayed?
-        (is (browser/exists? (error-msg-xpath invalid-card-number-error)))
-        ;; 'Use Card' button disabled?
-        (is (browser/exists? use-card-disabled-button))
 
-        ;; cvc-check-fail-cc
-        ;; why so many backspaces? the exact amount needed, 16,
-        ;; doesn't consistently clear the fields
-        (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (browser/input-text (label-input "Card Number") cvc-check-fail-cc)
-        (browser/input-text (label-input "Expiration date") "0120")
-        (browser/input-text (label-input "CVC") "123")
-        (browser/input-text (label-input "Postal code") "11111")
-        (browser/click use-card-button)
-        (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
+      (when (test/full-tests?)
+        ;; basic failure with Luhn Check
+        (b/input-text (label-input "Card Number") fail-luhn-check-cc)
+        ;; error message displayed?
+        (is (b/exists? (error-msg-xpath invalid-card-number-error)))
+        ;; 'Use Card' button disabled?
+        (is (b/exists? use-card-disabled-button))
+
+        (input-card-number cvc-check-fail-cc)
+        (b/input-text (label-input "Expiration date") "0120")
+        (b/input-text (label-input "CVC") "123")
+        (b/input-text (label-input "Postal code") "11111")
+        (b/click use-card-button)
+        (is (b/exists? (error-msg-xpath invalid-security-code-error)))
 
         ;;  card-declined-cc
-        (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (browser/input-text (label-input "Card Number") card-declined-cc)
-        (browser/click use-card-button)
-        (is (browser/exists? (error-msg-xpath card-declined-error)))
+        (input-card-number card-declined-cc)
+        (b/click use-card-button)
+        (is (b/exists? (error-msg-xpath card-declined-error)))
 
         ;; incorrect-cvc-cc
-        (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (browser/input-text (label-input "Card Number") incorrect-cvc-cc)
-        (browser/click use-card-button)
-        (is (browser/exists? (error-msg-xpath invalid-security-code-error)))
+        (input-card-number incorrect-cvc-cc)
+        (b/click use-card-button)
+        (is (b/exists? (error-msg-xpath invalid-security-code-error)))
 
         ;; expired-card-cc
-        (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (browser/input-text (label-input "Card Number") expired-card-cc)
-        (browser/click use-card-button)
-        (is (browser/exists? (error-msg-xpath card-expired-error)))
+        (input-card-number expired-card-cc)
+        (b/click use-card-button)
+        (is (b/exists? (error-msg-xpath card-expired-error)))
 
         ;; processing-error-cc
-        (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (browser/input-text (label-input "Card Number") processing-error-cc)
-        (browser/click use-card-button)
-        (is (browser/exists? (error-msg-xpath card-processing-error)))
+        (input-card-number processing-error-cc)
+        (b/click use-card-button)
+        (is (b/exists? (error-msg-xpath card-processing-error)))
 
 ;;; attach-success-charge-fail-cc
         ;; in this case, the card is attached to the customer
         ;; but they won't be able to subscribe because the card doesn't go
         ;; through
-        (backspace-clear backspace-clear-length (label-input "Card Number"))
-        (browser/input-text (label-input "Card Number") attach-success-charge-fail-cc)
-        (browser/click use-card-button)
-        (browser/click subscribe-button)
+        (input-card-number attach-success-charge-fail-cc)
+        (b/click use-card-button)
+        (b/click subscribe-button)
         ;; check for the declined card message
-        (is (browser/exists? (error-msg-xpath card-declined-error)))
+        (is (b/exists? (error-msg-xpath card-declined-error)))
 
 ;;; let's update our payment information (again) with a fraudulent card
-        (browser/click update-payment-button)
-        (browser/wait-until-displayed use-card-button)
-        (browser/input-text (label-input "Card Number") highest-risk-fraudulent-cc)
-        (browser/input-text (label-input "Expiration date") "0120")
-        (browser/input-text (label-input "CVC") "123")
-        (browser/input-text (label-input "Postal code") "11111")
-        (browser/click use-card-button)
+        (b/click update-payment-button)
+        (b/wait-until-displayed use-card-button)
+        (input-card-number highest-risk-fraudulent-cc)
+        (b/input-text (label-input "Expiration date") "0120")
+        (b/input-text (label-input "CVC") "123")
+        (b/input-text (label-input "Postal code") "11111")
+        (b/click use-card-button)
         ;; try to subscribe again
-        (browser/click subscribe-button)
+        (b/click subscribe-button)
         ;; card was declined
-        (is (browser/exists? (error-msg-xpath card-declined-error)))
+        (is (b/exists? (error-msg-xpath card-declined-error)))
 
-        (browser/click update-payment-button)
-        (browser/wait-until-displayed use-card-button))
+        (b/click update-payment-button)
+        (b/wait-until-displayed use-card-button))
 
 ;;; finally, update with a valid cc number and see if we can subscribe
 ;;; to plans!
 
-      (backspace-clear backspace-clear-length (label-input "Card Number"))
-      (browser/input-text (label-input "Card Number") valid-visa-cc)
-      (browser/input-text (label-input "Expiration date") "0120")
-      (browser/input-text (label-input "CVC") "123")
-      (browser/input-text (label-input "Postal code") "11111")
-      (browser/click use-card-button)
+      (input-card-number valid-visa-cc)
+      (b/input-text (label-input "Expiration date") "0120")
+      (b/input-text (label-input "CVC") "123")
+      (b/input-text (label-input "Postal code") "11111")
+      (b/click use-card-button)
       ;; try to subscribe again
-      (browser/click subscribe-button)
+      (b/click subscribe-button)
       ;; this time is goes through, confirm we are subscribed to the
       ;; pro plan now
-      (browser/wait-until-displayed basic-plan-div)
+      (b/wait-until-displayed basic-plan-div)
       (is (subscribed-to? "Pro"))
       ;; Let's check to see if our db thinks the customer is subscribed to the Pro plan
       (is (= "Pro"
@@ -261,8 +257,8 @@
       (select-plan "Premium")
       (Thread/sleep 1000)
       ;; Click the subscribe button
-      (browser/click subscribe-button)
-      (browser/wait-until-displayed basic-plan-div)
+      (b/click subscribe-button)
+      (b/wait-until-displayed basic-plan-div)
       (is (subscribed-to? "Premium"))
       ;; Let's check to see if our db thinks the customer is subscribed to the Premium plan
       (is (= "Premium"
@@ -276,4 +272,4 @@
 ;;; Subscribe back down to the Basic Plan
       (select-plan "Basic")
       (is (subscribed-to? "Basic"))
-      (navigate/log-out))))
+      #_ (nav/log-out))))

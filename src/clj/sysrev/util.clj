@@ -9,6 +9,7 @@
             [clj-time.coerce :as tc]
             [clj-time.format :as tformat]
             [clojure.java.io :as io]
+            [clojure.java.shell :refer [sh]]
             [sysrev.shared.util :as shared])
   (:import (javax.xml.parsers SAXParser SAXParserFactory)
            java.util.UUID
@@ -115,6 +116,10 @@
     (doseq [ns (all-project-ns)]
       (doseq [sym syms]
         (ns-unmap ns sym)))))
+
+(defn clear-project-aliases [alias]
+  (doseq [ns (all-project-ns)]
+    (ns-unalias ns alias)))
 
 (defn reload []
   (require 'sysrev.user :reload))
@@ -269,3 +274,15 @@
   (->> v
        (map #(hash-map (kw %) %))
        (apply merge)))
+
+(defn shell
+  "Runs a shell command, throwing exception on non-zero exit."
+  [& args]
+  (let [{:keys [exit out err] :as result}
+        (apply sh args)]
+    (if (zero? exit)
+      result
+      (do (log/error (str (pr-str args) ":") "Got exit code" exit)
+          (log/error (str "stdout\n" out))
+          (log/error (str "stderr\n" err))
+          (throw (Exception. (pr-str result)))))))

@@ -7,12 +7,14 @@
             sysrev.test.db.project
             sysrev.test.db.labels
             sysrev.test.api
-            sysrev.test.browser.annotator
             sysrev.test.browser.core
+            sysrev.test.browser.annotator
             sysrev.test.browser.simple
-            sysrev.test.browser.create-project
+            sysrev.test.browser.sources
             sysrev.test.browser.plans
             sysrev.test.browser.project-compensation
+            sysrev.test.browser.project-support
+            sysrev.test.browser.pubmed
             sysrev.test.browser.review-articles
             sysrev.test.browser.markdown
             sysrev.test.stripe

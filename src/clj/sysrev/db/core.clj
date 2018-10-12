@@ -60,9 +60,10 @@
     nil
     (do (close-active-db)
         (reset! active-db db)
-        (let [{:keys [host port dbname]} (:config db)]
-          (log/info (format "connected to postgres (%s:%d/%s)"
-                            host port dbname)))
+        (when-not (in? [:test :remote-test] (:profile env))
+          (let [{:keys [host port dbname]} (:config db)]
+            (log/info (format "connected to postgres (%s:%d/%s)"
+                              host port dbname))))
         db)))
 
 ;; Add JDBC conversion methods for Postgres jsonb type
@@ -299,3 +300,20 @@
             sql
             (map-indexed (fn [i param] [i param])
                          params))))
+
+(defn terminate-db-connections
+  "Disconnect all clients from named Postgres database"
+  [& [postgres-overrides]]
+  (let [{:keys [dbname]} (merge (:postgres env) postgres-overrides)]
+    (try
+      (set-active-db! (-> postgres-overrides
+                          (merge {:dbname "postgres"})
+                          make-db-config))
+      (try
+        (-> (select (sql/call :pg_terminate_backend :pid))
+            (from :pg_stat_activity)
+            (where [:= :datname dbname])
+            do-query
+            count)
+        (finally
+          (close-active-db))))))

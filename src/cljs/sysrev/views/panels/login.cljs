@@ -9,6 +9,7 @@
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
+            [sysrev.loading :as loading]
             [sysrev.util :refer
              [full-size? mobile? validate wrap-prevent-default nbsp]]
             [sysrev.shared.util :refer [in?]])
@@ -273,7 +274,9 @@
         [field-error :email]
         [field-error :password]
         [:button.ui.fluid.primary.button
-         {:type "submit" :name "submit"}
+         {:type "submit" :name "submit"
+          :class (if (and register? (loading/any-action-running? :only :auth/register))
+                   "loading")}
          (if register? "Register" "Login")]
         (when-let [err @(subscribe [::login-error-msg])]
           [:div.ui.negative.message err])]

@@ -492,15 +492,13 @@
           client (-> pdf-link
                      (clojure.string/replace #"ftp://" "ftp://anonymous:pwd@")
                      (clojure.string/replace (re-pattern filename) ""))]
-      (cond
-        ;; the file already exists, return the filename
-        (fs/exists? filename)
-        filename
-        ;; retrieve the file
+      ;; retrieve file if not already present
+      (when-not (fs/exists? filename)
         (ftp/with-ftp [client client]
-          (ftp/client-get client filename filename))
-        filename
-        :else nil))))
+          (ftp/client-get client filename filename)))
+      ;; return filename if file exists
+      (when (fs/exists? filename)
+        filename))))
 
 (defn compare-fetched-pmids
   "Returns list of differences between PubMed entries fetched from PubMed API

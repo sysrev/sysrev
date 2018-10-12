@@ -5,7 +5,7 @@
             [clojure.test.junit :refer [with-junit-output]]
             [clojure.tools.logging :as log]
             sysrev.test.all
-            [sysrev.test.core :refer [get-selenium-config]]
+            [sysrev.test.core :refer [get-selenium-config db-connected?]]
             [sysrev.test.web.routes.project :refer [test-project-name]]
             [sysrev.db.project :refer [delete-all-projects-with-name]]
             [clojure.pprint :as pprint]
@@ -18,10 +18,11 @@
                  (pprint/write (-> env :postgres) :stream nil)))
   (log/info (str "running browser tests with config:\n"
                  (pprint/write (get-selenium-config) :stream nil)))
-  (init/start-db)
-  (log/info (str "deleting test projects"))
-  (delete-all-projects-with-name test-project-name)
-  (migration/ensure-updated-db)
+  (when (db-connected?)
+    (init/start-db)
+    (log/info (str "deleting test projects"))
+    (delete-all-projects-with-name test-project-name)
+    (migration/ensure-updated-db))
   (let [fname "target/junit-all.xml"
         {:keys [fail error] :as summary}
         (with-open [w (io/writer fname)]
