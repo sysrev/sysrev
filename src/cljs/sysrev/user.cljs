@@ -45,6 +45,7 @@
   (import-vars 'sysrev.shared.spec.article)
   (import-vars 'sysrev.nav)
   (import-vars 'sysrev.loading)
+  (import-vars 'sysrev.pdf)
   true)
 
 (populate-user-ns)

@@ -21,9 +21,6 @@
       (let [project-name "Annotator Test"
             search-term "foo bar enthalpic mesoporous"
             article-title-div {:xpath "//div[contains(@class,'article-title')]"}
-            enable-annotator-button {:xpath "//div[contains(@class,'button') and contains(text(),'Enable Sidebar')]"}
-            review-annotator-tab {:xpath (str "//div[contains(@class,'review-interface')]"
-                                              "//a[contains(text(),'Annotations')]")}
             select-text-to-annotate {:xpath "//div[contains(text(),'Select text to annotate')]"}
             selected-text {:xpath "//span[contains(text(),'Journal of the American Chemical Society')]"}
             semantic-class-input {:xpath "//div[contains(@class,'semantic-class')]//input"}
@@ -48,9 +45,13 @@
         ;; select one article and annotate it
         (b/click review-articles/articles-button)
         (b/click article-title-div :delay 100)
-        (b/click enable-annotator-button)
-        (b/click review-annotator-tab)
+        (b/wait-until-loading-completes :pre-wait 100)
+        (b/click x/enable-sidebar-button
+                 :if-not-exists :skip :delay 100)
+        (Thread/sleep 100)
+        (b/click x/review-annotator-tab)
         (b/wait-until-displayed select-text-to-annotate)
+        (Thread/sleep 100)
         (->actions @b/active-webdriver
                    (double-click (taxi/find-element @b/active-webdriver selected-text)))
         (b/input-text semantic-class-input semantic-class)

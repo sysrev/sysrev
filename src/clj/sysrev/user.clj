@@ -19,6 +19,7 @@
         sysrev.files.stores
         sysrev.import.pubmed
         sysrev.import.endnote
+        sysrev.import.zip
         sysrev.export.endnote
         sysrev.predict.core
         sysrev.predict.report

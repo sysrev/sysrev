@@ -57,3 +57,17 @@
 
 (defn match-text [element text]
   (xpath (format "//%s[text()='%s']" element text)))
+
+(def review-annotator-tab
+  {:xpath (str "//div[contains(@class,'review-interface')]"
+               "//a[contains(text(),'Annotations')]")})
+
+(def review-labels-tab
+  {:xpath (str "//div[contains(@class,'review-interface')]"
+               "//a[contains(text(),'Labels')]")})
+
+(def enable-sidebar-button
+  {:xpath "//div[contains(@class,'button') and contains(text(),'Enable Sidebar')]"})
+
+(def disable-sidebar-button
+  {:xpath "//div[contains(@class,'button') and contains(text(),'Disable Sidebar')]"})

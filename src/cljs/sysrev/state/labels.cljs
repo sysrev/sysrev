@@ -54,8 +54,9 @@
 (defn- alpha-label-ordering-key
   "Sort key function for project label entries. Prioritize alphabetical
    sorting for large numbers of labels."
-  [{:keys [required short-label value-type]}]
-  (let [required (if required 0 1)
+  [{:keys [name required short-label value-type]}]
+  (let [overall (= name "overall include")
+        required (cond overall 0 required 1 :else 2)
         value-type (case value-type
                      "boolean" 0
                      "categorical" 1
@@ -67,9 +68,10 @@
 (defn sort-project-labels [labels & [include-disabled?]]
   (->> (vals labels)
        (filter #(or include-disabled? (:enabled %)))
-       (#(if true #_ (>= (count %) 15)
-           (sort-by alpha-label-ordering-key < %)
-           (sort-by label-ordering-key %)))
+       #_ (#(if true #_ (>= (count %) 15)
+                (sort-by alpha-label-ordering-key < %)
+                (sort-by label-ordering-key %)))
+       (sort-by alpha-label-ordering-key <)
        (mapv :label-id)))
 
 (defn project-label-ids [db & [project-id include-disabled?]]

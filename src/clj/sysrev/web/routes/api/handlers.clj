@@ -21,7 +21,6 @@
             [sysrev.shared.util :refer [parse-integer]]
             [clojure.string :as str]
             [sysrev.config.core :refer [env]]
-            [org.httpkit.client :as client]
             [clojure.data.json :as json]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

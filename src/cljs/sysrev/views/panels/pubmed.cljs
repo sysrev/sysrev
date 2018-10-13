@@ -250,7 +250,7 @@
 
 (defn ImportArticlesButton
   "Add articles to a project from a PubMed search"
-  []
+  [& [disable-import?]]
   (let [current-search-term (r/cursor state [:current-search-term])
         project-id (subscribe [:active-project-id])
         search-results @(subscribe [:pubmed/search-term-result
@@ -264,6 +264,7 @@
      [:div.ui.fluid.right.pointing.label
       (str "Found " n-results " articles")]
      [:button.ui.blue.button
+      {:class (if disable-import? "disabled")}
       [:i.download.icon] " Import"]]))
 
 (defn PubMedSearchLink
@@ -314,7 +315,7 @@
       [:button.ui.button {:type "submit" :tabIndex "-1"}
        "Search"]]]))
 
-(defn SearchActions []
+(defn SearchActions [& [disable-import?]]
   (let [current-search-term (r/cursor state [:current-search-term])
         search-results @(subscribe [:pubmed/search-term-result
                                     @current-search-term])
@@ -323,7 +324,7 @@
     (when (and n-results @show-results?)
       [:div.ui.attached.segment.middle.aligned.stackable.grid
        [:div.eight.wide.column.results-header
-        [ImportArticlesButton]]
+        [ImportArticlesButton disable-import?]]
        [:div.eight.wide.column.results-header.results-buttons
         [:div.ui.two.column.grid
          [:div.column [PubMedSearchLink]]

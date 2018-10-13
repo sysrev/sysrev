@@ -427,15 +427,15 @@
               (dispatch-sync [:review/set-note-content
                               article-id note-name content]))}]]]])))
 
-(defn- activity-report []
+(defn- ActivityReport []
   (when-let [today-count @(subscribe [:review/today-count])]
     (if (util/full-size?)
-      [:div.ui.large.label.activity-report
+      [:div.ui.label.activity-report
        [:span.ui.green.circular.label today-count]
-       [:span nbsp "finished today"]]
-      [:div.ui.large.label.activity-report
+       [:span.text nbsp nbsp "finished today"]]
+      [:div.ui.label.activity-report
        [:span.ui.tiny.green.circular.label today-count]
-       [:span nbsp "today"]])))
+       [:span.text nbsp nbsp "today"]])))
 
 (defn SaveButton
   [article-id & [small?]]
@@ -550,7 +550,7 @@
        [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
         [ui/CenteredColumn
          (when on-review-task?
-           [activity-report])
+           [ActivityReport])
          "left aligned four wide column"]
         [ui/CenteredColumn
          [:div.ui.grid.centered
@@ -565,7 +565,7 @@
        [:div.ui.center.aligned.middle.aligned.grid.label-editor-buttons-view
         [ui/CenteredColumn
          (when on-review-task?
-           [activity-report])
+           [ActivityReport])
          "left aligned four wide column"]
         [ui/CenteredColumn
          [:div.ui.center.aligned.grid
@@ -608,7 +608,35 @@
     [:div.label-section
      {:class (str "ui " (sutil/num-to-english n-cols) " column"
                   " celled grid " class)}
-     (make-label-columns article-id label-ids n-cols)]))
+     (when (some-> article-id (= @(subscribe [:review/editing-id])))
+       (make-label-columns article-id label-ids n-cols))]))
+
+(defn LabelDefinitionsButton []
+  (let [project-id @(subscribe [:active-project-id])]
+    [:a.ui.tiny.icon.button
+     {:href (project-uri project-id "/labels/edit")
+      :on-click #(do (util/scroll-top) true)
+      :class (if (util/full-size?) "labeled" nil)
+      :tabIndex "-1"}
+     [:i.tags.icon]
+     (when (util/full-size?) "Definitions")]))
+
+(defn ViewAllLabelsButton []
+  (let [panel @(subscribe [:active-panel])
+        project-id @(subscribe [:active-project-id])]
+    (when (not= panel [:project :project :articles])
+      [:a.ui.tiny.primary.button
+       {:class (if (util/full-size?) "labeled icon" nil)
+        :href
+        (when (not use-new-article-list?)
+          (project-uri project-id "/user"))
+        :on-click
+        (when use-new-article-list?
+          (util/wrap-user-event
+           #(dispatch [:project-articles/load-preset :self])))
+        :tabIndex "-1"}
+       (when (util/full-size?) [:i.user.icon])
+       (if (util/full-size?) "View All Labels" "View Labels")])))
 
 ;; Top-level component for label editor
 (defn LabelEditor [article-id]
@@ -627,26 +655,8 @@
                  [:div.ui.left.aligned.column
                   [:h3 (if resolving? "Resolve Labels" "Set Labels")]]
                  [:div.ui.right.aligned.column
-                  [:a.ui.tiny.icon.button
-                   {:href (project-uri project-id "/labels/edit")
-                    :on-click #(do (util/scroll-top) true)
-                    :class (if (util/full-size?) "labeled" nil)
-                    :tabIndex "-1"}
-                   [:i.sliders.icon]
-                   (when (util/full-size?) "Definitions")]
-                  (when (not= panel [:project :project :articles])
-                    [:a.ui.tiny.primary.button
-                     {:class (if (util/full-size?) "labeled icon" nil)
-                      :href
-                      (when (not use-new-article-list?)
-                        (project-uri project-id "/user"))
-                      :on-click
-                      (when use-new-article-list?
-                        (util/wrap-user-event
-                         #(dispatch [:project-articles/load-preset :self])))
-                      :tabIndex "-1"}
-                     (when (util/full-size?) [:i.unordered.list.icon])
-                     (if (util/full-size?) "View All Labels" "View Labels")])
+                  [LabelDefinitionsButton]
+                  [ViewAllLabelsButton]
                   (when change-set?
                     [:div.ui.tiny.button
                      {:on-click (util/wrap-user-event
@@ -654,15 +664,33 @@
                      "Cancel"])]]])
              (when-not (display-sidebar?)
                [LabelsColumns article-id])
+             (when (display-sidebar?)
+               [:div.ui.two.column.middle.aligned.grid.segment.no-sidebar
+                [:div.column
+                 [ActivityReport]]
+                [:div.right.aligned.column
+                 [LabelDefinitionsButton]
+                 [ViewAllLabelsButton]]])
              [note-input-element "default"]
              (when-not (display-sidebar?)
                [label-editor-buttons-view article-id])]))))))
 
 (defn LabelEditorColumn [article-id]
-  (when article-id
-    [:div.label-editor-column
-     [:div.ui.segments.label-editor-view
-      [LabelsColumns article-id :n-cols 1 :class "secondary attached segment"]]
-     [:div.ui.secondary.two.column.grid.segment.label-editor-buttons-view
-      [:div.column (SaveButton article-id true)]
-      [:div.column (SkipArticle article-id true)]]]))
+  [:div.label-editor-column
+   [:div.ui.segments.label-editor-view
+    [LabelsColumns article-id
+     :n-cols 1
+     :class "attached segment"]]])
+
+(defn SaveSkipColumnSegment [article-id]
+  (let [review-task? @(subscribe [:review/on-review-task?])
+        editing? @(subscribe [:review/editing?])]
+    (when editing?
+      [:div.label-editor-buttons-view
+       {:class (cond-> "ui"
+                 review-task?       (str " two column")
+                 (not review-task?) (str " one column")
+                 true               (str " grid secondary segment"))}
+       [:div.column (SaveButton article-id true)]
+       (when review-task?
+         [:div.column (SkipArticle article-id true)])])))

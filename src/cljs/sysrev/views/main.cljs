@@ -36,7 +36,7 @@
             [sysrev.views.panels.project.support]
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
-            [sysrev.views.review :as review :refer [LabelsColumns]]
+            [sysrev.views.review :as review]
             [sysrev.util :as util]
             [sysrev.shared.components :refer [loading-content]]))
 
@@ -71,57 +71,66 @@
 (reg-sub
  :review-interface
  (fn [db]
-   (or
-    (get-in db [:state :review-interface])
-    :labels)))
+   (get-in db [:state :review-interface])))
+
+(defn SidebarColumn []
+  (let [project-id @(subscribe [:active-project-id])
+        article-id @(subscribe [:visible-article-id])
+        editing-id @(subscribe [:review/editing-id])
+        pdf-url (when article-id
+                  @(subscribe [:view-field :article [article-id :visible-pdf]]))
+        review-interface @(subscribe [:review-interface])
+        active
+        (cond (not= article-id editing-id) :annotations
+              review-interface             review-interface
+              :else                        :labels)
+        pdf-key (some-> pdf-url pdf/pdf-url->key)
+        ann-context (if pdf-key
+                      {:class "pdf"
+                       :project-id project-id
+                       :article-id article-id
+                       :pdf-key pdf-key}
+                      {:class "abstract"
+                       :project-id project-id
+                       :article-id article-id})]
+    (when active
+      [:div.three.wide.column.panel-side-column
+       [ui/WrapFixedVisibility 10
+        [:div.review-menu
+         [ui/tabbed-panel-menu
+          [{:tab-id :labels
+            :content "Labels"
+            :action #(dispatch [:set-review-interface :labels])
+            :disabled (nil? editing-id)}
+           {:tab-id :annotations
+            :content "Annotations"
+            :action #(dispatch [:set-review-interface :annotations])}]
+          active
+          "review-interface"]
+         (if (= active :labels)
+           [review/LabelEditorColumn article-id]
+           [annotator/AnnotationMenu ann-context "abstract"])
+         [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn main-content []
-  (if @(subscribe [:initialized?])
-    (let [project-id @(subscribe [:active-project-id])
-          article-id @(subscribe [:visible-article-id])
-          pdf-url (when article-id
-                    @(subscribe [:view-field :article [article-id :visible-pdf]]))
-          review-interface @(subscribe [:review-interface])
-          pdf-key (some-> pdf-url pdf/pdf-url->key)
-          ann-context (if pdf-key
-                        {:class "pdf"
-                         :project-id project-id
-                         :article-id article-id
-                         :pdf-key pdf-key}
-                        {:class "abstract"
-                         :project-id project-id
-                         :article-id article-id})]
-      [:div.main-content
-       {:class (cond-> ""
-                 (or (not @(subscribe [:data/ready?]))
-                     (loading/any-loading?
-                      :ignore (into loading/ignore-data-names
-                                    [:pdf/open-access-available?
-                                     :pdf/article-pdfs])))
-                 (str " loading")
-                 (review/display-sidebar?)
-                 (str " annotator"))}
-       [header-menu]
-       [:div.ui.container.panel-content
-        (if (review/display-sidebar?)
-          [:div.ui.grid
-           [:div.three.wide.column.panel-side-column
-            [ui/WrapFixedVisibility 10
-             [:div.review-menu
-              [ui/tabbed-panel-menu
-               [{:tab-id :labels
-                 :content "Labels"
-                 :action #(dispatch [:set-review-interface :labels])}
-                {:tab-id :annotations
-                 :content "Annotations"
-                 :action #(dispatch [:set-review-interface :annotations])}]
-               review-interface
-               "review-interface"]
-              (if (= review-interface :labels)
-                [review/LabelEditorColumn article-id]
-                [annotator/AnnotationMenu ann-context "abstract"])]]]
-           [:div.thirteen.wide.column
-            [active-panel-content]]]
-          [active-panel-content])]
-       [notifier @(subscribe [:active-notification])]])
-    loading-content))
+  (if-not @(subscribe [:initialized?])
+    loading-content
+    [:div.main-content
+     {:class (cond-> ""
+               (or (not @(subscribe [:data/ready?]))
+                   (loading/any-loading?
+                    :ignore (into loading/ignore-data-names
+                                  [:pdf/open-access-available?
+                                   :pdf/article-pdfs])))
+               (str " loading")
+               (review/display-sidebar?)
+               (str " annotator"))}
+     [header-menu]
+     [:div.ui.container.panel-content
+      (if (review/display-sidebar?)
+        [:div.ui.grid
+         [SidebarColumn]
+         [:div.thirteen.wide.column
+          [active-panel-content]]]
+        [active-panel-content])]
+     [notifier @(subscribe [:active-notification])]]))

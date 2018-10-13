@@ -304,7 +304,9 @@
                  (util/wrap-user-event
                   (if active?
                     #(dispatch-sync [::al/set-active-article context nil])
-                    #(dispatch-sync [::al/set-active-article context article-id])))}
+                    #(do (dispatch-sync [::al/set-display-option
+                                         context :expand-filters false])
+                         (dispatch-sync [::al/set-active-article context article-id]))))}
                 [ArticleListEntry (al/cached context) article full-size?]]
                (when active?
                  (doall

@@ -30,20 +30,22 @@
                                  items-per-page
                                  item-name-string]
                           :as config}]
-  (let [end-offset (dec (min total-count
-                             (+ offset items-per-page)))]
-    [:h5.list-pager-message
-     (if (or (nil? total-count) (zero? total-count))
-       (if (util/full-size?)
-         (str "No matching " item-name-string " found")
-         (str "No results found"))
-       (if (util/full-size?)
-         (str "Showing "
-              (inc offset) " to " (inc end-offset)
-              " of " total-count " matching " item-name-string)
-         (str "Showing "
-              (inc offset) "-" (inc end-offset)
-              " of " total-count)))]))
+  (when (and (integer? items-per-page)
+             (> items-per-page 1))
+    (let [end-offset (dec (min total-count
+                               (+ offset items-per-page)))]
+      [:h5.list-pager-message
+       (if (or (nil? total-count) (zero? total-count))
+         (if (util/full-size?)
+           (str "No matching " item-name-string " found")
+           (str "No results found"))
+         (if (util/full-size?)
+           (str "Showing "
+                (inc offset) " to " (inc end-offset)
+                " of " total-count " matching " item-name-string)
+           (str "Showing "
+                (inc offset) "-" (inc end-offset)
+                " of " total-count)))])))
 
 (defn- ListPagerNav [{:keys [panel
                              instance-key
@@ -158,6 +160,8 @@
   message-overrides :
     (Optional) Top-level config map is merged with this for rendering
     status message component
+  show-message? :
+    (Optional) If false, don't show message on left side.
   props :
     (Optional) Hiccup props map for top-level component"
   [{:keys [panel
@@ -171,16 +175,26 @@
            recent-nav-action
            loading?
            message-overrides
+           show-message?
            props]
     :as config}]
   (let [message-config (merge config message-overrides)]
-    (if (util/full-size?)
+    (cond
+      (or (false? show-message?)
+          (= items-per-page 1))
+      [:div.ui.middle.aligned.grid.list-pager
+       [:div.sixteen.wide.right.aligned.column
+        [ListPagerNav config]]]
+
+      (util/full-size?)
       [:div.ui.middle.aligned.grid.list-pager
        (merge {} props)
        [:div.six.wide.left.aligned.column
         [ListPagerMessage message-config]]
        [:div.ten.wide.right.aligned.column
         [ListPagerNav config]]]
+
+      :else
       [:div.ui.middle.aligned.grid.list-pager
        (merge {} props)
        [:div.left.aligned.eight.wide.column

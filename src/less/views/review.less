@@ -22,34 +22,41 @@ div.ui.segments.label-editor-view {
             padding-bottom: 0.6rem;
         }
     }
+
+    .ui.grid.segment.no-sidebar {
+        > .column {
+            padding-top: 0.6em;
+            padding-bottom: 0.6em;
+        }
+    }
 }
 
-.label-editor-column {
-    > .ui.segments.label-editor-view {
-        height: 700px !important;
-        overflow-y: auto;
+.panel-side-column {
+    .label-editor-column {
+        > .ui.segments.label-editor-view {
+            overflow-y: auto;
 
-        .ui.segment.label-section {
-            border-width: 0;
+            .ui.segment.label-section {
+                border-width: 0;
 
-            > .row:first-child {
-                box-shadow: none;
-                > .ui.column {
-                    border-top-left-radius: 4px;
-                    border-top-right-radius: 4px;
+                > .row:first-child {
+                    box-shadow: none;
+                    > .ui.column {
+                        border-top-left-radius: 4px;
+                        border-top-right-radius: 4px;
+                    }
                 }
-            }
 
-            > .row:last-child {
-                > .ui.column {
-                    border-bottom-left-radius: 4px;
-                    border-bottom-right-radius: 4px;
+                > .row:last-child {
+                    > .ui.column {
+                        border-bottom-left-radius: 4px;
+                        border-bottom-right-radius: 4px;
+                    }
                 }
             }
         }
     }
-
-    > .ui.segment.label-editor-buttons-view {
+    .ui.segment.label-editor-buttons-view {
         padding: 0.25em;
 
         > .column {
@@ -213,6 +220,12 @@ div.ui.segments.label-editor-view {
 
     > a.item {
         padding: 0;
+    }
+}
+
+.ui.label.activity-report {
+    > span.text {
+        font-size: 13px;
     }
 }
 

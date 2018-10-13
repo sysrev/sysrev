@@ -15,15 +15,18 @@
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
-      (when-let [api-token (-> request :body :api-token)]
+      (when-let [api-token (and (-> request :body map?)
+                                (-> request :body :api-token))]
         (:user-id (get-user-by-api-token api-token)))))
 
 (defn active-project [request]
-  (if-let [api-token (-> request :body :api-token)]
+  (if-let [api-token (and (-> request :body map?)
+                          (-> request :body :api-token))]
     (when (get-user-by-api-token api-token)
       (-> request :body :project-id))
     (let [project-id (or (-> request :params :project-id)
-                         (-> request :body :project-id)
+                         (and (-> request :body map?)
+                              (-> request :body :project-id))
                          (-> request :session :identity :default-project-id))]
       (cond
         (integer? project-id) project-id

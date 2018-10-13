@@ -55,7 +55,8 @@
 (reg-sub
  :annotator/enabled
  (fn [db [_ {:keys [class] :as context}]]
-   (boolean (get-in db [:state :annotator nil #_ class :enabled]))))
+   (-> (get-in db [:state :annotator nil #_ class :enabled])
+       false? not)))
 
 (reg-event-db
  :annotator/enabled
@@ -466,17 +467,20 @@
                            (group-by :id)
                            (map-values first)))
         enabled? @(subscribe [:annotator/enabled context])
-        {:keys [new-annotation]} @(subscribe [::get context])]
+        {:keys [new-annotation]} @(subscribe [::get context])
+        status-item [:annotator/status (:project-id context)]
+        visible? (and @(subscribe [:have? status-item])
+                      @(subscribe [:have? (annotator-data-item context)]))]
     (when enabled?
-      (with-loader [(annotator-data-item context)
-                    [:annotator/status (:project-id context)]] {}
-        [:div.ui.segments.annotation-menu
-         {:class class}
-         [:div.ui.center.aligned.secondary.segment.menu-header
-          [:div.ui.large.fluid.label
-           "Select text to annotate"]]
-         (when (:id new-annotation)
-           [AnnotationEditor context (:id new-annotation)])
+      (dispatch [:require status-item])
+      [:div.ui.segments.annotation-menu
+       {:class class}
+       [:div.ui.center.aligned.secondary.segment.menu-header
+        [:div.ui.large.fluid.label
+         "Select text to annotate"]]
+       (when (and (:id new-annotation) visible?)
+         [AnnotationEditor context (:id new-annotation)])
+       (when visible?
          (doall (map
                  (fn [{:keys [id]}]
                    ^{:key (str id)}
@@ -484,8 +488,8 @@
                  (->> (vals annotations)
                       (filter #(integer? (:id %)))
                       (sort-by :id)
-                      reverse)))
-         [:div.ui.secondary.segment]]))))
+                      reverse))))
+       [:div.ui.secondary.segment]])))
 
 (defn get-selection
   "Get the current selection, with context, in the dom"

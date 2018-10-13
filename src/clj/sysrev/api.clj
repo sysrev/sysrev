@@ -227,12 +227,8 @@
             ;; there is no import going on for this filename
             (and (empty? filename-sources))
             (do
-              (future (zip/import-pdfs-from-zip-file!
-                       file
-                       filename
-                       project-id
-                       :use-future? true
-                       :threads 3))
+              (zip/import-pdfs-from-zip-file!
+               file filename project-id)
               {:result {:success true}})
             (not (empty? filename-sources))
             {:result {:success true}}

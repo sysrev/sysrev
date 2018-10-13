@@ -62,6 +62,25 @@
   [item-count]
   (plural-or-singular item-count "article"))
 
+(defn- source-import-timed-out? [source]
+  (let [{:keys [meta source-id date-created
+                article-count labeled-article-count]} source
+        {:keys [importing-articles? deleting?]} meta]
+    (and (true? importing-articles?)
+         (t/within? {:start (t/epoch)
+                     :end (t/minus (t/now) (t/minutes 30))}
+                    date-created))))
+
+(defn any-source-processing? []
+  (or (loading/any-action-running? :only :sources/delete)
+      (loading/any-action-running? :only :sources/toggle-source)
+      (->> @(subscribe [:project/sources])
+           (some (fn [source]
+                   (and (or (-> source :meta :importing-articles? true?)
+                            (-> source :meta :deleting? true?))
+                        (not (source-import-timed-out? source)))))
+           boolean)))
+
 (defn ImportEndNoteView []
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.segment.import-upload
@@ -74,7 +93,8 @@
       (str "/api/import-articles-from-endnote-file/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload XML File..."
-      "fluid"]]))
+      (cond-> "fluid"
+        (any-source-processing?) (str " disabled"))]]))
 
 (defn ImportPMIDsView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -85,7 +105,8 @@
       (str "/api/import-articles-from-file/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload Text File..."
-      "fluid"]]))
+      (cond-> "fluid"
+        (any-source-processing?) (str " disabled"))]]))
 
 (defn ImportPDFZipsView []
   (let [project-id @(subscribe [:active-project-id])]
@@ -97,7 +118,8 @@
       (str "/api/import-articles-from-pdf-zip-file/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload Zip File..."
-      "fluid"]]))
+      (cond-> "fluid"
+        (any-source-processing?) (str " disabled"))]]))
 
 (defn ImportPubMedView []
   [pubmed/SearchBar])
@@ -106,7 +128,8 @@
   [source-id]
   (let [project-id @(subscribe [:active-project-id])]
     [:div.ui.tiny.fluid.labeled.icon.button.delete-button
-     {:on-click
+     {:class (when (any-source-processing?) "disabled")
+      :on-click
       #(dispatch [:action [:sources/delete project-id source-id]])}
      "Delete"
      [:i.red.times.circle.icon]]))
@@ -119,7 +142,9 @@
         loading? (loading/action-running? action)]
     [:button.ui.tiny.fluid.labeled.icon.button
      {:on-click #(dispatch [:action action])
-      :class (if loading? "loading" nil)}
+      :class (cond
+               loading?                 "loading"
+               (any-source-processing?) "disabled")}
      (when-not loading?
        (if enabled?
          [:i.green.circle.icon]
@@ -176,15 +201,6 @@
          first
          :meta
          (meta->source-name-vector))))
-
-(defn- source-import-timed-out? [source]
-  (let [{:keys [meta source-id date-created
-                article-count labeled-article-count]} source
-        {:keys [importing-articles? deleting?]} meta]
-    (and (true? importing-articles?)
-         (t/within? {:start (t/epoch)
-                     :end (t/minus (t/now) (t/minutes 30))}
-                    date-created))))
 
 (defonce polling-sources? (r/atom false))
 
@@ -416,7 +432,7 @@
          :endnote  [ImportEndNoteView]
          :zip-file [ImportPDFZipsView])]
       (when (= active-tab :pubmed)
-        [pubmed/SearchActions])]
+        [pubmed/SearchActions (any-source-processing?)])]
      (when (= active-tab :pubmed)
        [pubmed/SearchResultsContainer])]))
 

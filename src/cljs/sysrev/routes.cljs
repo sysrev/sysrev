@@ -66,7 +66,6 @@
            sync-params #(article-list/sync-url-params context)
            set-transition [::article-list/set-recent-nav-action
                            context :transition]]
-       (dispatch [:pdf/init-view-state panel])
        (cond
          (not have-project?)
          (do (dispatch [:require [:project project-id]])
@@ -94,7 +93,6 @@
            have-project? @(subscribe [:have? [:project project-id]])]
        (dispatch set-panel)
        (dispatch (project-articles/show-article article-id))
-       (dispatch [:pdf/init-view-state panel])
        (dispatch [:require item])
        (dispatch [:reload item]))))
   (do
@@ -134,7 +132,6 @@
            have-project? @(subscribe [:have? [:project project-id]])]
        (when (not have-project?)
          (dispatch set-panel))
-       (dispatch [:pdf/init-view-state panel])
        (dispatch
         [:data/after-load item :project-articles-route
          (list set-panel
@@ -171,7 +168,6 @@
            have-project? @(subscribe [:have? [:project project-id]])]
        (when (not have-project?)
          (dispatch set-panel))
-       (dispatch [:pdf/init-view-state panel])
        (dispatch
         [:data/after-load item :user-articles-route
          (list set-panel
@@ -196,7 +192,6 @@
                          [:data/after-load % :review-route set-panel])]
    (when (not have-project?)
      (dispatch set-panel))
-   (dispatch [:pdf/init-view-state panel])
    (let [task-id @(subscribe [:review/task-id])]
      (if (integer? task-id)
        (do (set-panel-after [:article project-id task-id])

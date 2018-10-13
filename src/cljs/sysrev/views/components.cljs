@@ -224,27 +224,30 @@
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
         render-entry
-        (fn [{:keys [tab-id action content class] :as entry}]
-          (when entry
-            [:a {:key tab-id
-                 :class (str (if (= tab-id active-tab-id)
-                               "active item" "item")
-                             " " (if class class ""))
-                 :href (when (string? action) action)
-                 :on-click
-                 (util/wrap-user-event
-                  (cond (and (seq? action)
-                             (= (count action) 2))
-                        #(dispatch [:navigate
-                                    (first action) (second action)])
+        (fn [{:keys [tab-id action content class disabled] :as entry}]
+          (let [active? (= tab-id active-tab-id)]
+            (when entry
+              [:a {:key tab-id
+                   :class (cond-> ""
+                            active?  (str " active")
+                            true     (str " item")
+                            class    (str " " class)
+                            disabled (str " disabled"))
+                   :href (when (string? action) action)
+                   :on-click
+                   (util/wrap-user-event
+                    (cond (and (seq? action)
+                               (= (count action) 2))
+                          #(dispatch [:navigate
+                                      (first action) (second action)])
 
-                        (vector? action)
-                        #(dispatch [:navigate action])
+                          (vector? action)
+                          #(dispatch [:navigate action])
 
-                        (string? action) nil
+                          (string? action) nil
 
-                        :else action))}
-             content]))]
+                          :else action))}
+               content])))]
     [:div.tabbed-panel
      [:div.ui
       {:class
@@ -649,7 +652,7 @@
         {:url upload-url
          :headers (when-let [token @csrf-token]
                     {"x-csrf-token" token})
-         :maxFilesize 2047
+         :maxFilesize (* 1000 10)
          :timeout (* 1000 60 60 4)}
         error-msg (r/atom nil)]
     (letfn [(init-dropzone [url]

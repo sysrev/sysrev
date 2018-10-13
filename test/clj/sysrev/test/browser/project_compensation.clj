@@ -189,8 +189,8 @@
                      {:all-values
                       (get-in review/categorical-label-definition
                               [:definition :all-values])})
-           (merge review/boolean-label-definition
-                  {:all-values [true false]})]
+           #_ (merge review/boolean-label-definition
+                     {:all-values [true false]})]
           review-articles
           (fn [user project]
             (switch-user user project)
@@ -200,12 +200,12 @@
           (fn [project-id]
             (nav/go-project-route "/labels/edit" project-id)
             ;; create a boolean label
-            (let [label review/boolean-label-definition]
-              (test/add-test-label
-               project-id
-               (merge
-                (select-keys label [:value-type :short-label :question :required])
-                {:inclusion-value (-> label :definition :inclusion-values first)})))
+            #_ (let [label review/boolean-label-definition]
+                 (test/add-test-label
+                  project-id
+                  (merge
+                   (select-keys label [:value-type :short-label :question :required])
+                   {:inclusion-value (-> label :definition :inclusion-values first)})))
             ;; create a categorical label
             #_ (do (b/click review/add-categorical-label-button)
                    (review/set-label-values
@@ -219,7 +219,7 @@
         (nav/new-project (:name project1))
         (reset! (:project-id project1) (nav/current-project-id))
         (pm/add-articles-from-search-term (:search project1))
-        (create-labels @(:project-id project1))
+        #_ (create-labels @(:project-id project1))
         ;; create three compensations
         (mapv create-compensation (:amounts project1))
         ;; set the first compensation amount to the default
