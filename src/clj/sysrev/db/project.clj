@@ -740,22 +740,3 @@
   (-> (delete-from :project)
       (where [:= :name project-name])
       do-execute))
-
-(defn create-payment [project-id user-id charge-id amount created]
-  (-> (insert-into :project-payments)
-      (values [{:charge-id charge-id
-                :project-id project-id
-                :user-id user-id
-                :amount amount
-                :created created}])
-      do-execute))
-
-;; this is going to need to be modified to also subtract payments
-(defn project-funds
-  [project-id]
-  (-> (select :*)
-      (from :project-payments)
-      (where [:= :project-id project-id])
-      do-query
-      (->> (map :amount)
-           (apply +))))

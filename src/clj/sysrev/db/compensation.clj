@@ -5,7 +5,7 @@
             [clj-time.core :as t]
             [clj-time.format :as f]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [insert-into values left-join join select from where sset modifiers delete-from]]
+            [honeysql.helpers :as sqlh :refer [insert-into values left-join join select from where sset modifiers delete-from order-by]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
             [sysrev.util :as util]))
@@ -123,9 +123,11 @@
 
 ;; for now, this is just the article labeled count. Eventually, should use the "item" field of the rate on the compensation
 (defn compensation-owed-for-articles-for-user
-  "Returns a count of articles associated with a compensation-id for user-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
-  [user-id project-id compensation-id start-date end-date]
-  (let [compensation-periods (-> (select :period_begin
+  "Returns a count of articles associated with a compensation-id for user-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM). The default start-date is 1970-01-01 and the default end-date is today"
+  [user-id project-id compensation-id & [start-date end-date]]
+  (let [start-date (or start-date "1970-01-01")
+        end-date (or end-date (->> (l/local-now) (f/unparse (f/formatters :date))))
+        compensation-periods (-> (select :period_begin
                                          :period_end)
                                  (from :compensation_user_period)
                                  (where [:and
@@ -161,7 +163,7 @@
 
 (defn project-compensation-for-user
   "Calculate the total owed to user-id by project-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
-  [project-id user-id start-date end-date]
+  [project-id user-id & [start-date end-date]]
   (let [project-compensations (read-project-compensations project-id)]
     (mapv #(hash-map :articles (compensation-owed-for-articles-for-user user-id project-id (:id %) start-date end-date)
                      :compensation-id (:id %)
@@ -169,17 +171,101 @@
                      :user-id user-id
                      :project-id project-id) project-compensations)))
 
-(defn amount-owed
+(defn project-compensation-for-users
   "Return the amount-owed to users of project-id over start-date and end-date"
-  [project-id start-date end-date]
+  [project-id & [start-date end-date]]
   (let [project-users (project-users project-id)
         email-user-id-map (util/vector->hash-map project-users :user-id)]
     (->> project-users
          (map #(project-compensation-for-user project-id (:user-id %) start-date end-date))
          flatten
          (map #(assoc % :name (-> (:email (get email-user-id-map (:user-id %)))
-                                   (string/split #"@")
-                                   first))))))
+                                  (string/split #"@")
+                                  first))))))
+
+(defn project-paid-user
+  "Get the total amount paid to user-id by project-id"
+  [project-id user-id]
+  (-> (select :amount)
+      (from :project_fund)
+      (where [:and
+              [:= :project_id project-id]
+              [:= :user_id user-id]
+              [:< :amount 0]])
+      do-query
+      (->> (map :amount)
+           (apply +))))
+
+(defn project-owes-user
+  "Calculate how much a user is owed by a project"
+  [project-id user-id]
+  (let [compensatable-articles (project-compensation-for-user project-id user-id)
+        total-owed (->> compensatable-articles
+                       (map #(* (:articles %)
+                                (get-in % [:rate :amount])))
+                       (apply +))]
+    total-owed))
+
+(defn last-payment
+  "Return the date of last payment for user-id by project-id"
+  [project-id user-id]
+  (-> (select :created) (from :project_fund)
+      (where [:and [:= :project_id project-id] [:= :user_id user-id]
+              [:< :amount 0]])
+      (order-by [:created :desc]) do-query first :created))
+
+(defn compensation-owed-by-project
+  "Return the name, amount owed and last paid values for each user"
+  [project-id]
+  (let [project-users (project-users project-id)
+        email-user-id-map (util/vector->hash-map project-users :user-id)]
+    (map #(hash-map :amount-owed (+ (project-owes-user project-id (:user-id %))
+                                    (project-paid-user project-id (:user-id %)))
+                    :last-payment (last-payment project-id (:user-id %))
+                    :name (-> (:email (get email-user-id-map (:user-id %)))
+                              (string/split #"@")
+                              first)
+                    :user-id (:user-id %))
+         project-users)))
+
+(defn project-funds
+  [project-id]
+  (-> (select :*)
+      (from :project-fund)
+      (where [:= :project-id project-id])
+      do-query
+      (->> (map :amount)
+           (apply +))))
+
+(defn create-fund [project-id user-id transaction-id transaction-source amount created]
+  (-> (insert-into :project-fund)
+      (values [{:transaction-id transaction-id
+                :transaction-source transaction-source
+                :project-id project-id
+                :user-id user-id
+                :amount amount
+                :created created}])
+      do-execute))
+
+(defn total-paid
+  "Total amount paid out by project-id"
+  [project-id]
+  (-> (select :*)
+      (from :project-fund)
+      (where [:and
+              [:= :project-id project-id]
+              [:< :amount 0]])
+      do-query
+      (->> (map :amount)
+           (apply +))))
+
+(defn total-owed
+  "Total owed by project"
+  [project-id]
+  (->> (compensation-owed-by-project project-id)
+       (map :amount-owed)
+       (apply +)))
+
 (defn user-compensation
   "Return the current compensation_id associated with user for project-id, or nil if there is none"
   [project-id user-id]
@@ -206,3 +292,17 @@
   (let [project-users (project-users project-id)]
     (->> project-users
         (map #(assoc % :compensation-id (user-compensation project-id (:user-id %)))))))
+
+;;;
+;;;;;;;; YOU NEED TO ENABLE CREATED AFTER PAYPAL IS SETUP!!!!!!!!!!! ;;;;;;;
+;;;
+(defn pay-user! [project-id user-id amount transaction-id transaction-source ;;created
+                 ]
+  (-> (insert-into :project_fund)
+      (values [{:user-id user-id
+                :project-id project-id
+                :transaction-id transaction-id
+                :transaction-source transaction-source
+                :amount (- amount)
+                :created (int (/ (tc/to-long (l/local-now)) 1000))}])
+      do-execute))

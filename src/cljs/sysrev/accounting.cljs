@@ -23,5 +23,9 @@
 (defn cents->string
   "Convert a number to a USD currency string"
   [number]
-  ($ js/accounting formatMoney (/ number 100)))
+  ;; accounting.js puts a - sign INSIDE of the amount e.g. $-9.50
+  (str (when (neg? number) "-")
+       ($ js/accounting formatMoney (/ (if (neg? number)
+                                         (- number)
+                                         number) 100))))
 

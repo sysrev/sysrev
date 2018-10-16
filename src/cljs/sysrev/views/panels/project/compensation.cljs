@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.project.compensation
   (:require [ajax.core :refer [POST GET DELETE PUT]]
+            [cljsjs.moment]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [re-frame.db :refer [app-db]]
@@ -60,25 +61,45 @@
                            (reset! retrieving-project-users-current-compensation? false)
                            ($ js/console log "[Error] retrieving project-users-current-compensation for project-id: " project-id))})))
 
-(defn amount-owed!
+(defn compensation-owed!
   "Retrieve what is owed to users from start-date to end-date"
-  [state start-date end-date]
+  [state]
   (let [project-id @(subscribe [:active-project-id])
         retrieving-amount-owed? (r/cursor state [:retrieving-amount-owed?])
-        amount-owed (r/cursor state [:amount-owed])]
+        compensation-owed (r/cursor state [:compensation-owed])]
     (reset! retrieving-amount-owed? true)
-    (GET "/api/amount-owed"
-         {:params {:project-id project-id
-                   :start-date start-date
-                   :end-date end-date}
+    (GET "/api/compensation-owed"
+         {:params {:project-id project-id}
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-amount-owed? false)
-                     (reset! amount-owed (->> (get-in response [:result :amount-owed])
-                                              (group-by :compensation-id))))
+                     (reset! compensation-owed (get-in response [:result :compensation-owed])))
           :error-handler (fn [error-response]
                            (reset! retrieving-amount-owed? false)
-                           ($ js/console log "[Error] retrieving amount-owed project-id: " project-id))})))
+                           ($ js/console log "[Error] retrieving compensation-owed project-id: " project-id))})))
+
+(defn pay-user!
+  "Pay the user the amount owed to them"
+  [state user-id amount]
+  (let [project-id @(subscribe [:active-project-id])
+        retrieving? (r/cursor state [:retrieving-pay? user-id])
+        pay-error (r/cursor state [:pay-error user-id])]
+    (reset! retrieving? true)
+    (reset! pay-error nil)
+    (POST "/api/pay-user"
+          {:params {:project-id project-id
+                    :user-id user-id
+                    :amount amount}
+           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+           :handler (fn [response]
+                      (reset! retrieving? false)
+                      (compensation-owed! state)
+                      (dispatch [:project/get-funds]))
+           :error-handler (fn [error-response]
+                            (reset! retrieving? false)
+                            (compensation-owed! state)
+                            (.log js/console "pay error: " (clj->js error-response))
+                            (reset! pay-error (get-in error-response [:response :error :message])))})))
 
 (defn get-default-compensation!
   "Get the default current compensation and set it"
@@ -125,13 +146,35 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        [:div.ui.segment
-         [:div
-          [:h4.ui.dividing.header "Total Project Funds"]
-          [:h4 (accounting/cents->string @project-funds)]]])
+        (let [{:keys [current-balance compensation-outstanding available-funds]}
+              @project-funds]
+          (.log js/console "compensation-outstanding: " compensation-outstanding)
+          [:div.ui.segment
+           [:div
+            [:h4.ui.dividing.header "Project Funds"]
+            [:div.ui.grid
+             [:div.ui.row
+              [:div.five.wide.column
+               "Current Balance: "]
+              [:div.eight.wide.column]
+              [:div.three.wide.column
+               (accounting/cents->string current-balance)]]
+             [:div.ui.row
+              [:div.five.wide.column
+               "Compensations Outstanding: "]
+              [:div.eight.wide.column]
+              [:div.three.wide.column
+               (accounting/cents->string compensation-outstanding)]]
+             [:div.ui.row
+              [:div.five.wide.column
+               "Available Funds: "]
+              [:div.eight.wide.column]
+              [:div.three.wide.column
+               (accounting/cents->string available-funds)]]]]]))
       :get-initial-state
       (fn [this]
-        (reset! project-funds 0)
+        (when-not (nil? @project-funds)
+          (reset! project-funds nil))
         (dispatch [:project/get-funds]))})))
 
 (defn ToggleCompensationActive
@@ -291,82 +334,48 @@
 
 (defn CompensationSummary
   []
-  (let [amount-owed (r/cursor state [:amount-owed])]
+  (let [compensation-owed (r/cursor state [:compensation-owed])
+        unix-epoch->date-string (fn [unix]
+                                  (-> unix
+                                      (js/moment.unix)
+                                      ($ format "YYYY-MM-DD HH:MM:ss")))]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (when-not (empty? (keys @amount-owed))
-          (let [users-owed-map (->> @(r/cursor state [:amount-owed])
-                                    vals
-                                    flatten
-                                    (group-by :name))
-                total-owed (fn [owed-vectors]
-                             (apply +
-                                    (map #(* (:articles %) (get-in % [:rate :amount])) owed-vectors)))
-                total-owed-to-users (zipmap (keys users-owed-map) (->> users-owed-map vals (map total-owed)))
-                total-owed-maps (->> (keys total-owed-to-users)
-                                     (map #(hash-map :name % :owed (get total-owed-to-users %)))
-                                     (filter #(> (% :owed) 0))
-                                     (sort-by :name))
-                labels (map :name total-owed-maps)
-                data (map :owed total-owed-maps)]
-            [:div.ui.segment
-             [:h4.ui.dividing.header "Compensation Owed"]
-             [:div.ui.relaxed.divided.list
-              (doall (map
-                      (fn [compensation-maps]
-                        (let [user-name (-> compensation-maps
-                                            first
-                                            :name)
-                              total-owed (->> compensation-maps
-                                              (map #(* (get-in % [:rate :amount]) (:articles %)))
-                                              (apply +))]
-                          [:div.item {:key user-name}
-                           [:div.ui.grid
-                            [:div.five.wide.column
-                             [:i.user.icon]
-                             user-name]
-                            [:div.two.wide.column
-                             (accounting/cents->string total-owed)]
-                            [:div.four.wide.column
-                             (str "Last Paid: " "2020-02-20")]
-                            [:div.two.wide.column
-                             (if (> total-owed 0)
-                               [Button {:on-click #(.log js/console (str "paid " total-owed " to " user-name))
-                                        :color "blue"}
-                                "Pay"])]]]))
-                      (vals users-owed-map)))]]
-            ;;[:div [:h1 "foo"]]
-            #_(when (> (apply + data) 0)
-              [:div.ui.segment
-               [:h4.ui.dividing.header "Compensation Summary"]
-               [:div
-                [:h4 "Total Owed"]
-                [CompensationGraph labels data]]]))
-          #_(doall (map
-                      (fn [compensation-id]
-                        (let [compensation-owed (r/cursor state [:amount-owed compensation-id])
-                              rate (-> @compensation-owed
-                                       first
-                                       :rate)
-                              amount-owed (fn [compensation-map]
-                                            (* (get-in compensation-map [:rate :amount])
-                                               ;; note: this will need to be changed for
-                                               ;; items other than articles
-                                               (:articles compensation-map)))
-                              compensation-maps (->> @compensation-owed
-                                                     (filter #(> (% :articles) 0))
-                                                     (sort-by :name))
-                              total-owed (apply + (map amount-owed compensation-maps))
-                              labels (map :name compensation-maps)]
-                          (when (> total-owed 0)
-                            ^{:key compensation-id}
-                            [:div
-                             [:h4 "Total owed at " (accounting/cents->string (:amount rate)) " / " (:item rate) " :    " (accounting/cents->string total-owed)]
-                             [CompensationGraph labels (mapv amount-owed compensation-maps)]])))
-                      (keys @amount-owed)))))
+        (when-not (empty? @compensation-owed)
+          [:div.ui.segment
+           [:h4.ui.dividing.header "Compensation Owed"]
+           [:div.ui.relaxed.divided.list
+            (doall (map
+                    (fn [user-owed]
+                      (let [user-name (:name user-owed)
+                            amount-owed (:amount-owed user-owed)
+                            last-payment (:last-payment user-owed)
+                            user-id (:user-id user-owed)
+                            pay-disabled? @(r/cursor state [:retrieving-pay? user-id])
+                            error-message (r/cursor state [:pay-error user-id])]
+                        [:div.item {:key user-name}
+                         [:div.ui.grid
+                          [:div.five.wide.column
+                           [:i.user.icon]
+                           user-name]
+                          [:div.two.wide.column
+                           (accounting/cents->string amount-owed)]
+                          [:div.six.wide.column
+                           (when last-payment
+                             (str "Last Payment: " (unix-epoch->date-string last-payment)))]
+                          [:div.three.wide.column.right.align
+                           (if (> amount-owed 0)
+                             [Button {:on-click #(pay-user! state user-id amount-owed)
+                                      :color "blue"
+                                      :disabled pay-disabled?}
+                              "Pay"])
+                           (when @error-message
+                             [:div {:class "ui red message"}
+                              @error-message])]]]))
+                    @compensation-owed))]]))
       :component-did-mount (fn [this]
-                             (amount-owed! state "2018-10-10" "2018-10-11"))})))
+                             (compensation-owed! state))})))
 
 (defn compensation-options
   [project-compensations]
@@ -479,12 +488,13 @@
 (defmethod panel-content [:project :project :compensations] []
   (fn [child]
     [:div.project-content
-     [:div.ui.two.column.stack.grid
+     [:div.ui.one.column.stack.grid
       [:div.ui.row
        [:div.ui.column
-        [SupportFormOnce support/state]]
+        [ProjectFunds state]]]
+      [:div.ui.row
        [:div.ui.column
-        [ProjectFunds state]]]]
+        [SupportFormOnce support/state]]]]
      [:div.ui.two.column.stack.grid
       [:div.ui.row
        [:div.ui.column [ProjectCompensations]]

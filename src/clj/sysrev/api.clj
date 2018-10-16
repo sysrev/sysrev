@@ -963,13 +963,19 @@
          {:error {:state internal-server-error
                   :message (.getMessage e)}})))
 
-(defn amount-owed
+(defn project-compensation-for-users
   "Return all compensations owed for project-id using start-date and end-date. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
   [project-id start-date end-date]
-  (try {:result {:amount-owed (compensation/amount-owed project-id start-date end-date)}}
+  (try {:result {:amount-owed (compensation/project-compensation-for-users project-id start-date end-date)}}
        (catch Throwable e
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
+
+(defn compensation-owed
+  "Return compensations owed for all users"
+  [project-id]
+  (try-catch-response
+   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
@@ -1067,7 +1073,16 @@
 (defn project-funds
   [project-id]
   (try-catch-response
-   {:result {:project-funds (project/project-funds project-id)}}))
+   (let [current-balance (compensation/project-funds project-id)
+         compensation-outstanding (compensation/total-owed project-id)
+         available-funds (- current-balance compensation-outstanding)]
+     {:result {:project-funds {:current-balance current-balance
+                               :compensation-outstanding compensation-outstanding
+                               :available-funds available-funds}}})))
+(defn pay-user!
+  [project-id user-id amount]
+  (try-catch-response (do (compensation/pay-user! project-id user-id amount (str (gensym "paypal-id")) "PayPal/payment-id")
+                          {:result {:amount amount}})))
 
 (defn test-response
   "Server Sanity Check"

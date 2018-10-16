@@ -20,6 +20,8 @@
 (use-fixtures :once default-fixture browser/webdriver-fixture-once)
 (use-fixtures :each browser/webdriver-fixture-each)
 
+;; create a stripe user
+;; (users/create-sysrev-stripe-customer! (users/get-user-by-email "browser+test@insilica.co"))
 ;;;
 ;;; NOTE: Compensation entries should not be deleted like this except in testing.
 ;;;
@@ -111,9 +113,9 @@
   (f/unparse (f/formatter :date) (l/local-now)))
 
 (defn user-amount-owed [project-id user-name]
-  (->> (get-in (api/amount-owed project-id
-                                (todays-date)
-                                (todays-date))
+  (->> (get-in (api/project-compensation-for-users project-id
+                                                   (todays-date)
+                                                   (todays-date))
                [:result :amount-owed])
        (filter #(= (:name %) user-name))
        (map #(* (:articles %)

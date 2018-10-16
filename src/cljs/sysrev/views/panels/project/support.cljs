@@ -238,7 +238,7 @@
     (r/create-class {:reagent-render
                      (fn [this]
                        [:div.ui.segment
-                        [:h4.ui.dividing.header "Fund Project"]
+                        [:h4.ui.dividing.header "Add Funds"]
                         [Form {:on-submit
                                (fn []
                                  (let [cents (accounting/string->cents @user-defined-support-level)]
