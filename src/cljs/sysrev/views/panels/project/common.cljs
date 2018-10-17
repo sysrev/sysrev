@@ -37,7 +37,8 @@
        :action (project-uri project-id "/settings")
        #_ (list [:project :project :settings] action-params)}
       (when (and (admin?)
-                 (not= js/window.location.hostname "sysrev.com"))
+                 (not= js/window.location.hostname "sysrev.com")
+                 (re-matches #".*@insilica.co" @(subscribe [:user/email])))
         {:tab-id :compensations
          :content "Compensation"
          :action (project-uri project-id "/compensations")})]

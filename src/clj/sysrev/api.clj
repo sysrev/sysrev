@@ -37,6 +37,7 @@
 
 (def default-plan "Basic")
 ;; Error code used
+(def payment-required 402)
 (def forbidden 403)
 (def not-found 404)
 (def precondition-failed 412)
@@ -1081,8 +1082,14 @@
                                :available-funds available-funds}}})))
 (defn pay-user!
   [project-id user-id amount]
-  (try-catch-response (do (compensation/pay-user! project-id user-id amount (str (gensym "paypal-id")) "PayPal/payment-id")
-                          {:result {:amount amount}})))
+  (try-catch-response
+   (let [current-balance (compensation/project-funds project-id)]
+     (if (>= current-balance amount)
+       (do
+         (compensation/pay-user! project-id user-id amount (str (gensym "paypal-id")) "PayPal/payment-id")
+         {:result {:amount amount}})
+       {:error {:status payment-required
+                :message "Not enough funds to fulfill this payment"}}))))
 
 (defn test-response
   "Server Sanity Check"

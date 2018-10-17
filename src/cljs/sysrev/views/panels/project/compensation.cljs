@@ -89,7 +89,7 @@
     (POST "/api/pay-user"
           {:params {:project-id project-id
                     :user-id user-id
-                    :amount amount}
+                    :amount (int amount)}
            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
            :handler (fn [response]
                       (reset! retrieving? false)
@@ -148,7 +148,6 @@
       (fn [this]
         (let [{:keys [current-balance compensation-outstanding available-funds]}
               @project-funds]
-          (.log js/console "compensation-outstanding: " compensation-outstanding)
           [:div.ui.segment
            [:div
             [:h4.ui.dividing.header "Project Funds"]
@@ -338,7 +337,7 @@
         unix-epoch->date-string (fn [unix]
                                   (-> unix
                                       (js/moment.unix)
-                                      ($ format "YYYY-MM-DD HH:MM:ss")))]
+                                      ($ format "YYYY-MM-DD HH:mm:ss")))]
     (r/create-class
      {:reagent-render
       (fn [this]

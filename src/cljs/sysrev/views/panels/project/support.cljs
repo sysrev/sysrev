@@ -58,7 +58,7 @@
 (def-action :support/support-plan
   :uri (fn [] "/api/support-project")
   :content (fn [amount frequency]
-             {:amount amount
+             {:amount (int amount)
               :project-id @(subscribe [:active-project-id])
               :frequency frequency})
   :on-error (fn [{:keys [db error]} [amount frequency] _]
@@ -92,7 +92,9 @@
   :process
   (fn [{:keys [db]} _ {:keys [success] :as result}]
     (let [support-level (r/cursor state [:support-level])
-          user-support-level (r/cursor state [:user-support-level])]
+          user-support-level (r/cursor state [:user-support-level])
+          user-defined-support-level (r/cursor state [:user-defined-support-level])]
+      (reset! user-defined-support-level "$1.00")
       (reset! (r/cursor state [:loading?]) false)
       (reset! (r/cursor state [:error-message]) nil)
       (get-current-support)

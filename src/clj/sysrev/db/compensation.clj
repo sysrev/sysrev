@@ -209,7 +209,8 @@
 (defn last-payment
   "Return the date of last payment for user-id by project-id"
   [project-id user-id]
-  (-> (select :created) (from :project_fund)
+  (-> (select :created)
+      (from :project_fund)
       (where [:and [:= :project_id project-id] [:= :user_id user-id]
               [:< :amount 0]])
       (order-by [:created :desc]) do-query first :created))
