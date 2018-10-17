@@ -107,24 +107,31 @@
           (dispatch [:review/reset-saving])))
     (route-fn)))
 
+(defmacro defroute-app-id
+  [name uri params app-id & body]
+  `(when (= ~app-id @(subscribe [:app-id]))
+     (defroute ~name ~uri ~params
+       ~@body)))
+
 (defmacro sr-defroute
   [name uri params & body]
-  `(defroute ~name ~uri ~params
-     (let [clear-text# true
-           use-timeout# false
-           route-fn#
-           (fn []
-             (go-route-sync-data
-              #(do (dispatch [:set-active-panel nil])
-                   (dispatch [:set-active-project-url nil])
-                   (when clear-text#
-                     (sysrev.util/clear-text-selection))
-                   ~@body
-                   (when clear-text#
-                     (sysrev.util/clear-text-selection-soon)))))]
-       (if use-timeout#
-         (js/setTimeout route-fn# 20)
-         (route-fn#)))))
+  `(when (= :main @(subscribe [:app-id]))
+     (defroute ~name ~uri ~params
+       (let [clear-text# true
+             use-timeout# false
+             route-fn#
+             (fn []
+               (go-route-sync-data
+                #(do (dispatch [:set-active-panel nil])
+                     (dispatch [:set-active-project-url nil])
+                     (when clear-text#
+                       (sysrev.util/clear-text-selection))
+                     ~@body
+                     (when clear-text#
+                       (sysrev.util/clear-text-selection-soon)))))]
+         (if use-timeout#
+           (js/setTimeout route-fn# 20)
+           (route-fn#))))))
 
 (defn lookup-project-url-id [url-id]
   (cond (integer? url-id)

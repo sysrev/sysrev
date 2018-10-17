@@ -95,10 +95,10 @@
                 s)]
     (hc/parse-query-params query)))
 
-(reg-fx
- :set-page-title
- (fn [title]
-   (set! (-> js/document .-title)
-         (if (string? title)
-           (str "SysRev - " title)
-           "SysRev"))))
+(defn set-page-title [title]
+  (set! (-> js/document .-title)
+        (if (string? title)
+          (str "SysRev - " title)
+          "SysRev")))
+
+(reg-fx :set-page-title set-page-title)

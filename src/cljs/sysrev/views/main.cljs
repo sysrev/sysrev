@@ -7,6 +7,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
+            [sysrev.blog :as blog]
             [sysrev.views.article]
             [sysrev.views.annotator :as annotator]
             [sysrev.views.base :refer
@@ -113,24 +114,30 @@
          [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn main-content []
-  (if-not @(subscribe [:initialized?])
-    loading-content
+  (case @(subscribe [:app-id])
+    :blog
     [:div.main-content
-     {:class (cond-> ""
-               (or (not @(subscribe [:data/ready?]))
-                   (loading/any-loading?
-                    :ignore (into loading/ignore-data-names
-                                  [:pdf/open-access-available?
-                                   :pdf/article-pdfs])))
-               (str " loading")
-               (review/display-sidebar?)
-               (str " annotator"))}
-     [header-menu]
-     [:div.ui.container.panel-content
-      (if (review/display-sidebar?)
-        [:div.ui.grid
-         [SidebarColumn]
-         [:div.thirteen.wide.column
-          [active-panel-content]]]
-        [active-panel-content])]
-     [notifier @(subscribe [:active-notification])]]))
+     [blog/blog-header-menu]
+     [:div.ui.container.blog-content
+      [active-panel-content]]]
+    (if-not @(subscribe [:initialized?])
+      (loading-content)
+      [:div.main-content
+       {:class (cond-> ""
+                 (or (not @(subscribe [:data/ready?]))
+                     (loading/any-loading?
+                      :ignore (into loading/ignore-data-names
+                                    [:pdf/open-access-available?
+                                     :pdf/article-pdfs])))
+                 (str " loading")
+                 (review/display-sidebar?)
+                 (str " annotator"))}
+       [header-menu]
+       [:div.ui.container.panel-content
+        (if (review/display-sidebar?)
+          [:div.ui.grid
+           [SidebarColumn]
+           [:div.thirteen.wide.column
+            [active-panel-content]]]
+          [active-panel-content])]
+       [notifier @(subscribe [:active-notification])]])))

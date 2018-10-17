@@ -67,7 +67,7 @@
     [:div {:style "display: none;"
            :id "stripe-public-key"
            :data-stripe-public-key stripe-public-key}]
-    [:div {:id "app"} loading-content]
+    [:div {:id "app"} (loading-content)]
     (let [js-name (if (= (:profile env) :prod)
                     (str "sysrev-" res/build-id ".js")
                     "sysrev.js")]

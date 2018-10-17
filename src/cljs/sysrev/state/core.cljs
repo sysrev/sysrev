@@ -55,10 +55,13 @@
 
 (reg-sub
  :initialized?
+ :<- [:app-id]
  :<- [:have-identity?]
  :<- [:active-panel]
- (fn [[have-identity? active-panel]]
-   (boolean (and have-identity? active-panel))))
+ (fn [[app-id have-identity? active-panel]]
+   (case app-id
+     :blog true
+     (boolean (and have-identity? active-panel)))))
 
 (reg-event-db
  :ga-event

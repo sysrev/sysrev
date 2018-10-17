@@ -15,6 +15,7 @@
             [clojure.pprint :refer [pprint]]
             [sysrev.web.session :refer [sysrev-session-store]]
             [sysrev.web.index :as index]
+            [sysrev.web.blog :as blog]
             [sysrev.web.routes.auth :refer [auth-routes]]
             [sysrev.web.routes.site :refer [site-routes]]
             [sysrev.web.routes.project :refer [project-routes]]
@@ -47,7 +48,7 @@
 
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
-  [handler & [reloadable?]]
+  [handler]
   (let [config
         (-> default/site-defaults
             (assoc-in [:session :store] (sysrev-session-store)))]
@@ -56,16 +57,13 @@
         wrap-add-anti-forgery-token
         (wrap-transit-response {:encoding :json, :opts {}})
         wrap-multipart-params
-        (#(if reloadable?
-            (wrap-reload % {:dirs ["src/clj"]})
-            (identity %)))
         wrap-no-cache
         (default/wrap-defaults config)
         (wrap-transit-body {:opts {}}))))
 
 (defn wrap-sysrev-api
   "Ring handler wrapper for JSON API (non-browser) routes"
-  [handler & [reloadable?]]
+  [handler]
   (let [config
         (-> default/site-defaults
             ;; (assoc-in [:session :store] (sysrev-session-store))
@@ -75,48 +73,63 @@
         wrap-sysrev-response
         (wrap-json-response {:pretty true})
         wrap-multipart-params
-        (#(if reloadable?
-            (wrap-reload % {:dirs ["src/clj"]})
-            (identity %)))
         wrap-no-cache
         (default/wrap-defaults config)
         (wrap-json-body {:keywords? true}))))
 
 (defn wrap-sysrev-html
   "Ring handler wrapper for web HTML responses"
-  [handler & [reloadable?]]
+  [handler]
   (let [config
         (-> default/site-defaults
             (assoc-in [:session :store] (sysrev-session-store))
             (assoc-in [:security :anti-forgery] false))]
     (-> handler
-        (#(if reloadable?
-            (wrap-reload % {:dirs ["src/clj"]})
-            (identity %)))
         wrap-no-cache
         (default/wrap-defaults config))))
 
 (defn sysrev-handler
   "Root handler for web server"
-  [& [reloadable?]]
+  []
   (->>
    (routes
     (ANY "/web-api/*" []
-         (wrap-routes (api-routes) wrap-sysrev-api reloadable?))
+         (wrap-routes (api-routes) wrap-sysrev-api))
     (ANY "/api/*" []
-         (wrap-routes app-routes wrap-sysrev-app reloadable?))
+         (wrap-routes app-routes wrap-sysrev-app))
     (compojure.route/resources "/")
     (GET "*" []
-         (wrap-routes html-routes wrap-sysrev-html reloadable?)))
+         (wrap-routes html-routes wrap-sysrev-html)))
    (#(if (= :dev (-> env :profile))
        (wrap-no-cache %)
        %))))
 
-(defonce web-server (atom nil))
+(defn blog-handler
+  "Root handler for blog web server"
+  []
+  (->>
+   (routes
+    (ANY "/api/*" []
+         (wrap-routes blog/blog-routes wrap-sysrev-app))
+    (compojure.route/resources "/")
+    (GET "*" []
+         (wrap-routes blog/blog-html-routes wrap-sysrev-html)))
+   (#(if (= :dev (-> env :profile))
+       (wrap-no-cache %)
+       %))))
+
+(defonce web-servers (atom {}))
 (defonce web-port (atom nil))
 (defonce web-server-config (atom nil))
 
 (defn stop-web-server []
+  (let [active @web-servers]
+    (doseq [id (keys active)]
+      (let [server (get active id)]
+        (when-not (nil? server)
+          (.close server)
+          (swap! web-servers assoc id nil)))))
+  #_
   (when-not (nil? @web-server)
     (.close @web-server)
     #_ (@web-server :timeout 100)
@@ -132,21 +145,16 @@
       (do (reset! web-port port)
           (reset! web-server-config config)
           (stop-web-server)
-          (reset! web-server
-                  (aleph/start-server (sysrev-handler false)
-                                      {:port port})
+          (reset! web-servers
+                  {:main (aleph/start-server
+                          (sysrev-handler) {:port port})
+                   :blog (aleph/start-server
+                          (blog-handler) {:port (inc port)})}
                   #_ (http-kit/run-server
                       (sysrev-handler false)
                       {:port port
                        :join? (if prod? true false)
                        :max-body (dec (* 1024 1024 1024 2))}))
-          (log/info (format "web server started (port %s)" port))
-          @web-server))))
-
-;; if web server is running, restart it when this file is reloaded
-;; ---
-;; disabled for now - wrap-reload seems to conflict with this by triggering the
-;; server to restart while processing a request
-#_
-(when @web-server
-  (run-web))
+          (log/info (format "web server started (port %d)" port))
+          (log/info (format "web server started (port %d) (blog)" (inc port)))
+          @web-servers))))

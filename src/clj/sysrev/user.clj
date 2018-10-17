@@ -36,6 +36,7 @@
         sysrev.web.routes.project
         sysrev.web.routes.api.core
         sysrev.web.routes.api.handlers
+        sysrev.web.blog
         sysrev.mail.core
         sysrev.custom.immuno
         sysrev.custom.facts

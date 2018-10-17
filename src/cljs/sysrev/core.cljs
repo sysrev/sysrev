@@ -12,6 +12,7 @@
             [sysrev.action.core]
             [sysrev.loading]
             [sysrev.routes :as routes]
+            [sysrev.blog :as blog]
             [sysrev.views.article]
             [sysrev.views.main :refer [main-content]]
             [sysrev.spec.core]
@@ -46,8 +47,9 @@
 
 (defn mount-root []
   (re-frame/clear-subscription-cache!)
-  (reagent/render [main-content]
-                  (.getElementById js/document "app"))
+  (let [el (or (.getElementById js/document "blog-app")
+               (.getElementById js/document "app"))]
+    (reagent/render [main-content] el))
   (-> js/window (.addEventListener
                  "resize"
                  force-update-soon)))
@@ -93,12 +95,20 @@
   (-> js/window (.addEventListener "mousedown" on-mousedown)))
 
 (defn ^:export init []
-  (when base/debug?
-    (enable-console-print!))
-  (pushy/start! base/history)
-  (re-frame/dispatch-sync [:initialize-db])
-  (data/init-data)
-  (mount-root))
+  (case (base/app-id)
+    :main (do (when base/debug?
+                (enable-console-print!))
+              (pushy/start! base/history)
+              (re-frame/dispatch-sync [:initialize-db])
+              (data/init-data)
+              (mount-root))
+    :blog (do (when base/debug?
+                (enable-console-print!))
+              (pushy/start! base/history)
+              (re-frame/dispatch-sync [:initialize-db])
+              (blog/init-blog)
+              #_ (data/init-data)
+              (mount-root))))
 
 (defonce started
   (do (init)

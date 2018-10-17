@@ -19,8 +19,8 @@
     (reset! state initial-state)))
 
 (def stripe-public-key
-  (-> (.getElementById js/document "stripe-public-key")
-      (.getAttribute "data-stripe-public-key")))
+  (some-> (.getElementById js/document "stripe-public-key")
+          (.getAttribute "data-stripe-public-key")))
 
 ;; Stripe elements
 (def Elements (r/adapt-react-class js/ReactStripeElements.Elements))
