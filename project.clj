@@ -76,7 +76,6 @@
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-Xms800m"
              "-Xmx1500m"
-             "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
   :source-paths ["src/clj" "src/cljc"]
@@ -97,7 +96,7 @@
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
   :profiles {:prod
-             {:jvm-opts ["-Xms800m" "-Xmx1500m"]
+             {:jvm-opts ["-Xms800m" "-Xmx1500m" "-server"]
               :resource-paths ["config/prod"]
               :main sysrev.web-main
               :aot [sysrev.web-main]}
@@ -116,7 +115,9 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Xms800m" "-Xmx1500m"]
+             {:jvm-opts ["-Xms800m" "-Xmx1500m" "-client"
+                         "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"
+                         "-XX:+CMSClassUnloadingEnabled" "-Xverify:none"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]

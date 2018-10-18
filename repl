@@ -1,2 +1,6 @@
 #!/bin/bash
+set -eu
+
+source vars.sh
+
 lein with-profile +dev,+dev-jvm,+repl,+local-repl repl
