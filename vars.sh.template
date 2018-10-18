@@ -1,0 +1,3 @@
+# Required
+export STRIPE_SECRET_KEY=
+export STRIPE_PUBLIC_KEY=
