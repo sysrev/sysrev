@@ -58,40 +58,47 @@
 (def-action :support/support-plan
   :uri (fn [] "/api/support-project")
   :content (fn [amount frequency]
-             {:amount amount
+             {:amount (int amount)
               :project-id @(subscribe [:active-project-id])
               :frequency frequency})
   :on-error (fn [{:keys [db error]} [amount frequency] _]
-              ;; do we need a card?
-              (when (some (partial = (-> error :message))
-                          ["This customer has no attached payment source"
-                           "Your card was declined"])
-                (reset! (r/cursor stripe/state [:need-card?]) true))
-              (cond
-                (= (-> error :message) "This customer has no attached payment source")
-                (reset! (r/cursor state [:error-message frequency])
-                        "You must provide a valid payment method")
-                (= (-> error :type) "already_supported_at_amount")
-                (reset! (r/cursor state [:error-message frequency])
-                        (str "You are already supporting at "
-                             (accounting/cents->string (-> error :message :amount))))
-                (= (-> error :type) "amount_too_low")
-                (reset! (r/cursor state [:error-message frequency])
-                        (str "Minimum support level is "
-                             (accounting/cents->string (-> error :message :minimum))
-                             (when (= frequency "monthly")
-                               " per month")))
-                :else
-                (reset! (r/cursor state [:error-message frequency]) (-> error :message)))
+              (let [error-message (-> error :message)]
+                ;; do we need a card?
+                (when (some (partial = error-message)
+                            ["This customer has no attached payment source"
+                             "Your card was declined"
+                             "Cannot charge a customer that has no active card"])
+                  (reset! (r/cursor stripe/state [:need-card?]) true))
+                (cond
+                  (some (partial =  error-message)
+                        ["This customer has no attached payment source"
+                         "Cannot charge a customer that has no active card"])
+                  (reset! (r/cursor state [:error-message frequency])
+                          "You must provide a valid payment method")
+                  (= (-> error :type) "already_supported_at_amount")
+                  (reset! (r/cursor state [:error-message frequency])
+                          (str "You are already supporting at "
+                               (accounting/cents->string (-> error :message :amount))))
+                  (= (-> error :type) "amount_too_low")
+                  (reset! (r/cursor state [:error-message frequency])
+                          (str "Minimum support level is "
+                               (accounting/cents->string (-> error :message :minimum))
+                               (when (= frequency "monthly")
+                                 " per month")))
+                  :else
+                  (reset! (r/cursor state [:error-message frequency]) (-> error :message))))
               (reset! (r/cursor state [:loading?]) false)
               {})
   :process
   (fn [{:keys [db]} _ {:keys [success] :as result}]
     (let [support-level (r/cursor state [:support-level])
-          user-support-level (r/cursor state [:user-support-level])]
+          user-support-level (r/cursor state [:user-support-level])
+          user-defined-support-level (r/cursor state [:user-defined-support-level])]
+      (reset! user-defined-support-level "$1.00")
       (reset! (r/cursor state [:loading?]) false)
       (reset! (r/cursor state [:error-message]) nil)
       (get-current-support)
+      (dispatch [:project/get-funds])
       {})))
 
 (def-action :support/cancel
@@ -224,27 +231,24 @@
 (defn SupportFormOnce
   [state]
   (let [support-level (r/cursor state [:support-level "once"])
-        user-support-level (r/cursor state [:user-support-level])
+        user-defined-support-level (r/cursor state [:user-defined-support-level])
         error-message (r/cursor state [:error-message "once"])
         need-card? (r/cursor stripe/state [:need-card?])
         loading? (r/cursor state [:loading?])
         ;; current-support-level (r/cursor state [:current-support-level])
-        confirming-cancel? (r/cursor state [:confirming-cancel?])
         frequency "once"]
     (r/create-class {:reagent-render
                      (fn [this]
                        [:div.ui.segment
-                        [:h1 "Make a One-Time Contribution"]
-                        #_(when @current-support-level
-                            [:h3.support-message (str "You are currently supporting this project at " (accounting/cents->string @current-support-level) " per month")])
+                        [:h4.ui.dividing.header "Add Funds"]
                         [Form {:on-submit
                                (fn []
-                                 (let [cents (accounting/string->cents @user-support-level)]
+                                 (let [cents (accounting/string->cents @user-defined-support-level)]
                                    (cond (and (= @support-level
                                                  :user-defined)
                                               (= cents
                                                  0))
-                                         (reset! user-support-level "$0.00")
+                                         (reset! user-defined-support-level "$0.00")
                                          (and (= @support-level
                                                  :user-defined)
                                               (> cents
@@ -257,87 +261,44 @@
                                            (reset! loading? true)
                                            (dispatch [:action [:support/support-plan @support-level frequency]])))))}
                          [FormGroup
-                          [FormRadio {:label "$5"
-                                      :checked (= @support-level
-                                                  500)
-                                      :on-change #(reset! support-level 500)}]]
-                         [FormGroup
-                          [FormRadio {:label "$10"
-                                      :checked (= @support-level
-                                                  1000)
-                                      :on-change #(reset! support-level 1000)}]]
-                         [FormGroup
-                          [FormRadio {:label "$50"
-                                      :checked (= @support-level
-                                                  5000)
-                                      :on-change #(reset! support-level 5000)}]]
-                         [FormGroup
-                          [FormRadio {:checked (= @support-level
-                                                  :user-defined)
-                                      :on-change #(reset! support-level :user-defined)}]
-                          [:div
-                           (let [on-change (fn [event]
-                                             (let [value ($ event :target.value)
-                                                   dollar-sign-on-front? (fn [value]
-                                                                           (= ($ value indexOf "$")
-                                                                              0))
-                                                   new-value (cond
-                                                               (not (dollar-sign-on-front? value))
-                                                               (str "$" ($ event :target.value))
-                                                               :else
-                                                               value)]
-                                               (reset! user-support-level new-value)))]
-                             [FormInput {:value @user-support-level
-                                         :on-change on-change
-                                         :on-click #(reset! support-level :user-defined)}])]]
-                         (when-not @confirming-cancel?
-                           [:div.field
-                            (when-not @need-card?
-                              [:button {:class (str "ui button primary "
-                                                    (when @loading?
-                                                      " disabled"))}
-                               "Continue"])
-                            (when @need-card?
-                              [:div {:class "ui button primary"
-                                     :on-click (fn [e]
-                                                 (.preventDefault e)
-                                                 (dispatch [:payment/set-calling-route! (str "/p/" @(subscribe [:active-project-id]) "/support")])
-                                                 (dispatch [:navigate [:payment]]))}
-                               "Update Payment Information"])
-                            #_(when-not (nil? @current-support-level)
-                                [:button {:class (str "ui button "
-                                                      (when @loading?
-                                                        " disabled"))
-                                          :on-click (fn [e]
-                                                      (reset! error-message nil)
-                                                      (.preventDefault e)
-                                                      (reset! confirming-cancel? true))}
-                                 "Cancel Support"])])
-                         #_(when @confirming-cancel?
-                             [:div
-                              [:h3.ui.red.header
-                               "Are you sure want to end your support for this project?"]
-                              [:div.field
-                               [:button {:class (str "ui button green"
-                                                     (when @loading?
-                                                       " disabled"))
-                                         :on-click (fn [e]
-                                                     (.preventDefault e)
-                                                     (reset! confirming-cancel? false))}
-                                "Continue to Support"]
-                               [:button {:class (str "ui button red"
-                                                     (when @loading?
-                                                       " disabled"))
-                                         :on-click (fn [e]
-                                                     (.preventDefault e)
-                                                     (reset! loading? true)
-                                                     (dispatch [:action [:support/cancel]]))}
-                                "Stop Support"]]])
+                          (let [on-change (fn [event]
+                                            (let [value ($ event :target.value)
+                                                  dollar-sign-on-front? (fn [value]
+                                                                          (= ($ value indexOf "$")
+                                                                             0))
+                                                  new-value (cond
+                                                              (not (dollar-sign-on-front? value))
+                                                              (str "$" ($ event :target.value))
+                                                              :else
+                                                              value)]
+                                              (reset! user-defined-support-level new-value)))]
+                            [FormInput {:value @user-defined-support-level
+                                        :on-change on-change
+                                        :id "create-user-defined-support-level"
+                                        :on-click #(reset! support-level :user-defined)}])]
+                         [:div.field
+                          (when-not @need-card?
+                            [:button {:class (str "ui button primary "
+                                                  (when @loading?
+                                                    " disabled"))}
+                             "Continue"])
+                          (when @need-card?
+                            [:div {:class "ui button primary"
+                                   :on-click (fn [e]
+                                               (.preventDefault e)
+                                               (dispatch [:payment/set-calling-route! (str "/p/" @(subscribe [:active-project-id]) "/compensations")])
+                                               (dispatch [:navigate [:payment]]))}
+                             "Update Payment Information"])]
                          (when @error-message
                            [:div.ui.red.header @error-message])]])
-                     :component-did-mount
+                     :get-initial-state
                      (fn [this]
-                       (reset! support-level 500))})))
+                       (reset! support-level :user-defined)
+                       (reset! user-defined-support-level "$1.00")
+                       (reset! loading? false)
+                       (reset! need-card? false)
+                       (reset! error-message "")
+                       {})})))
 
 (defn Support
   []
@@ -373,7 +334,6 @@
       (reset! (r/cursor state [:user-support-level-monthly]) "$1.00"))
     (reset! (r/cursor state [:error-message "monthly"]) "")
     (reset! (r/cursor state [:error-message "once"]) "")
-    (reset! (r/cursor state [:confirm-message]) "")
     (reset! (r/cursor state [:loading?]) false)
     (reset! (r/cursor state [:confirming-cancel?]) false)
     [Support]))

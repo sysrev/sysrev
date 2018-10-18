@@ -402,7 +402,8 @@
   "Given a vector of label-settings maps, set the labels for an article in the browser."
   [label-settings]
   (log/info "setting article labels")
-  (b/click x/review-labels-tab)
+  (when (taxi/exists? x/review-labels-tab)
+    (b/click x/review-labels-tab))
   (mapv #(set-article-label %) label-settings)
   (Thread/sleep 100)
   (b/click save-button :delay 100))

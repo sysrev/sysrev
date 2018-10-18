@@ -89,7 +89,7 @@
   (go-route "/")
   (b/set-input-text "input[placeholder='Project Name']" project-name)
   (b/click (xpath "//button[text()='Create']") :delay 500)
-  (b/wait-until-displayed (x/project-title-value project-name))
+  (b/wait-until-exists (x/project-title-value project-name))
   (is (str/includes? (taxi/text x/project-title) project-name))
   (b/wait-until-loading-completes :pre-wait true))
 

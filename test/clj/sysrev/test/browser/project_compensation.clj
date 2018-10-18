@@ -71,7 +71,7 @@
   "Create a compensation in an integer amount of cents"
   [amount]
   (let [create-new-compensation {:xpath "//h4[contains(text(),'Create New Compensation')]"}
-        amount-input {:xpath "//input[@type='text']"}
+        amount-input {:xpath "//input[@id='create-compensation-amount' and @type='text']"}
         amount-create {:xpath "//button[contains(text(),'Create')]"}]
     (log/info "creating compensation:" amount "cents")
     (nav/go-project-route "/compensations")
@@ -105,9 +105,9 @@
   (f/unparse (f/formatter :date) (l/local-now)))
 
 (defn user-amount-owed [project-id user-name]
-  (->> (get-in (api/amount-owed project-id
-                                (todays-date)
-                                (todays-date))
+  (->> (get-in (api/project-compensation-for-users project-id
+                                                   (todays-date)
+                                                   (todays-date))
                [:result :amount-owed])
        (filter #(= (:name %) user-name))
        (map #(* (:articles %)

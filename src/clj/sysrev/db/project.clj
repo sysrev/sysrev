@@ -740,12 +740,3 @@
   (-> (delete-from :project)
       (where [:= :name project-name])
       do-execute))
-
-(defn create-payment [project-id user-id charge-id amount created]
-  (-> (insert-into :project-payments)
-      (values [{:charge-id charge-id
-                :project-id project-id
-                :user-id user-id
-                :amount amount
-                :created created}])
-      do-execute))
