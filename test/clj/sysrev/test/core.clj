@@ -38,8 +38,11 @@
     (let [{:keys [protocol host port]} config]
       (assoc config
              :url (str protocol "://" host (if port (str ":" port) "") "/")
-             :blog-url (when (and port (= host "localhost"))
-                         (str protocol "://" host ":" (inc port) "/"))
+             :blog-url
+             (if (and port (= host "localhost"))
+               (str protocol "://" host ":" (inc port) "/")
+               (let [host (str "blog." host)]
+                 (str protocol "://" host (if port (str ":" port) "") "/")))
              :safe (db-connected?)))))
 
 (defn set-selenium-config [raw-config]
