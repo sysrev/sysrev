@@ -178,16 +178,16 @@
 
 (defn fetch-pmid-entries-cassandra [pmids]
   (let [result
-        (try (->> (cdb/get-pmids-xml pmids)
-                  (pmap #(some-> % parse-xml-str
-                                 (parse-pmid-xml :create-raw? false)
-                                 (merge {:raw %})))
-                  vec)
-             (catch Throwable e
-               (.printStackTrace e)
-               (log/info "fetch-pmid-entries-cassandra:"
-                         "error while fetching or parsing")
-               nil))]
+        (when @cdb/active-session
+          (try (->> (cdb/get-pmids-xml pmids)
+                    (pmap #(some-> % parse-xml-str
+                                   (parse-pmid-xml :create-raw? false)
+                                   (merge {:raw %})))
+                    vec)
+               (catch Throwable e
+                 (log/warn "fetch-pmid-entries-cassandra:"
+                           "error while fetching or parsing")
+                 nil)))]
     (if (empty? result)
       (fetch-pmid-entries pmids)
       (if (< (count result) (count pmids))

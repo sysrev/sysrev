@@ -20,6 +20,7 @@
                  (pprint/write (get-selenium-config) :stream nil)))
   (when (db-connected?)
     (init/start-db)
+    (init/start-cassandra-db)
     (log/info (str "deleting test projects"))
     (delete-all-projects-with-name test-project-name)
     (migration/ensure-updated-db))
