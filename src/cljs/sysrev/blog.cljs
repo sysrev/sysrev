@@ -19,12 +19,20 @@
 
 (defn init-blog []
   (dispatch [:blog/load-default-panels])
-  (dispatch [:fetch [:blog/entries]]))
+  (dispatch [:require [:blog/entries]]))
+
+(defn main-site-url []
+  (let [[_ main-host] (re-matches #"blog\.(.*)$" js/window.location.host)]
+    (if (empty? main-host)
+      "https://sysrev.com/"
+      (str js/window.location.protocol
+           "//"
+           main-host))))
 
 (defn blog-header-menu []
   [:div.ui.menu.site-menu
    [:div.ui.container
-    [:a.header.item {:href "https://sysrev.com/"}
+    [:a.header.item {:href (main-site-url)}
      [:img.ui.middle.aligned.image
       {:src "/SysRev_header.png" :alt "SysRev"
        :width "65" :height "20"}]]
@@ -57,6 +65,7 @@
 (defroute-app-id blog-root "/" [] :blog
   (dispatch [:set-active-panel [:blog :list]])
   (dispatch [:blog/active-entry nil])
+  (dispatch [:reload [:blog/entries]])
   (set! (-> js/document .-title)
         "SysRev Blog"))
 
@@ -112,11 +121,11 @@
 
 (defmethod panel-content [:blog :entry] []
   (fn [child]
-    (with-loader [[:blog/entries]] {}
-      [:div
-       [:a.ui.large.fluid.labeled.icon.button {:href "/"}
-        [:i.left.arrow.icon]
-        "All Blog Entries"]
+    [:div
+     [:a.ui.large.fluid.labeled.icon.button {:href "/"}
+      [:i.left.arrow.icon]
+      "All Blog Entries"]
+     (with-loader [[:blog/entries]] {}
        [:div.blog-entry
         (let [entries @(subscribe [:blog/entries])
               active-filename @(subscribe [:blog/active-entry])]
@@ -138,17 +147,14 @@
                             (-> el (.css "overflow" "hidden"))
                             (-> el (.attr "scrolling" "no")))))))))
              25)
-            [BlogEntryContent entry]))]])))
+            [BlogEntryContent entry]))])]))
 
 (defn- load-default-panels [db]
-  (->> [[[]
-         "/"]
-
-        [[:blog :list]
+  (->> [[[:blog :list]
          "/"]
 
         [[:blog :entry]
-         "/entry"]]
+         "/posts"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))

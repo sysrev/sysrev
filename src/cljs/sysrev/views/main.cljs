@@ -114,14 +114,14 @@
          [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn main-content []
-  (case @(subscribe [:app-id])
-    :blog
-    [:div.main-content
-     [blog/blog-header-menu]
-     [:div.ui.container.blog-content
-      [active-panel-content]]]
-    (if-not @(subscribe [:initialized?])
-      (loading-content)
+  (if-not @(subscribe [:initialized?])
+    (loading-content)
+    (case @(subscribe [:app-id])
+      :blog
+      [:div.main-content
+       [blog/blog-header-menu]
+       [:div.ui.container.blog-content
+        [active-panel-content]]]
       [:div.main-content
        {:class (cond-> ""
                  (or (not @(subscribe [:data/ready?]))

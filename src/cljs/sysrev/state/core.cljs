@@ -57,10 +57,11 @@
  :initialized?
  :<- [:app-id]
  :<- [:have-identity?]
+ :<- [:have? [:blog/entries]]
  :<- [:active-panel]
- (fn [[app-id have-identity? active-panel]]
+ (fn [[app-id have-identity? have-blog-entries? active-panel]]
    (case app-id
-     :blog true
+     :blog (boolean (and have-blog-entries? active-panel))
      (boolean (and have-identity? active-panel)))))
 
 (reg-event-db

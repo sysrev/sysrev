@@ -4,6 +4,7 @@
             [reagent.core :as r]
             [re-frame.core :refer
              [subscribe dispatch dispatch-sync reg-sub reg-event-db trim-v]]
+            [sysrev.base :as base]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
@@ -103,10 +104,11 @@
 (def Modal (r/adapt-react-class (goog.object/get semantic-ui "Modal")))
 
 ;; this in lieu of an externs file
-(def pdfjsViewer js/pdfjsViewer)
-(def PDFPageView ($ pdfjsViewer :PDFPageView))
-(def DefaultTextLayerFactory ($ pdfjsViewer :DefaultTextLayerFactory))
-(def DefaultAnnotationLayerFactory ($ pdfjsViewer :DefaultAnnotationLayerFactory))
+(when (= (base/app-id) :main)
+  (def pdfjsViewer js/pdfjsViewer)
+  (def PDFPageView ($ pdfjsViewer :PDFPageView))
+  (def DefaultTextLayerFactory ($ pdfjsViewer :DefaultTextLayerFactory))
+  (def DefaultAnnotationLayerFactory ($ pdfjsViewer :DefaultAnnotationLayerFactory)))
 
 (def-data :pdf/open-access-available?
   :loaded? (fn [db project-id article-id]
