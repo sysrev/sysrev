@@ -66,8 +66,8 @@
      [:div.ui.container
       [:a.header.item {:href "/"}
        [:img.ui.middle.aligned.image
-        {:src "/SysRev_header.png" :alt "SysRev"
-         :width "65" :height "20"}]]
+        {:src "/SysRev_header_2.png" :alt "SysRev"
+         :width "90" :height "28"}]]
       (when-not full? dev-menu)
       [loading-indicator]
       (if logged-in?
