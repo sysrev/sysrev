@@ -78,6 +78,7 @@
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     (b/wait-until-loading-completes :pre-wait 1000)
+    (b/wait-until-loading-completes :pre-wait 500)
     (go-route "/")))
 
 (defn wait-until-overview-ready []
