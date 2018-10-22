@@ -119,100 +119,98 @@
   (when project
     (nav/open-project (:name project))))
 
-(deftest-browser happy-path-project-compensation
-  ;; skip this from `lein test` etc, redundant with larger test
-  (when (and (test/db-connected?) (not (test/test-profile?)))
-    (let [project-name "SysRev Compensation Test"
-          search-term "foo create"
-          amount 100
-          test-user {:name "foo"
-                     :email "foo@bar.com"
-                     :password "foobar"}
-          n-articles 3
-          project-id (atom nil)]
-      (try
-        ;; create a project
-        (nav/log-in)
-        (nav/new-project project-name)
-        (reset! project-id (nav/current-project-id))
-        ;; import sources
-        (pm/add-articles-from-search-term search-term)
-        ;; create a compensation level
-        (create-compensation amount)
-        ;; set it to default
-        (select-compensation-for-user "Default New User Compensation" 100)
-        ;; create a new user, check that that their compensation level is set to the default
-        (b/create-test-user :email (:email test-user)
-                            :password (:password test-user)
-                            :project-id @project-id)
-        ;; new user reviews some articles
-        (switch-user test-user)
-        (nav/open-project project-name)
-        (review/randomly-review-n-articles
-         n-articles [(merge review/include-label-definition
-                            {:all-values [true false]})])
-        (is (= (* n-articles amount)
-               (user-amount-owed @project-id (:name test-user))))
-        (finally
-          (delete-project-compensations @project-id)
-          (project/delete-project @project-id)
-          (b/delete-test-user :email (:email test-user)))))))
+(let [project-id (atom nil)
+      project-name "SysRev Compensation Test"
+      search-term "foo create"
+      amount 100
+      test-user {:name "foo"
+                 :email "foo@bar.com"
+                 :password "foobar"}
+      n-articles 3]
+  (deftest-browser happy-path-project-compensation
+    ;; skip this from `lein test` etc, redundant with larger test
+    (when (and (test/db-connected?) (not (test/test-profile?)))
+      (reset! project-id nil)
+      (nav/log-in)
+      (nav/new-project project-name)
+      (reset! project-id (nav/current-project-id))
+      ;; import sources
+      (pm/add-articles-from-search-term search-term)
+      ;; create a compensation level
+      (create-compensation amount)
+      ;; set it to default
+      (select-compensation-for-user "Default New User Compensation" 100)
+      ;; create a new user, check that that their compensation level is set to the default
+      (b/create-test-user :email (:email test-user)
+                          :password (:password test-user)
+                          :project-id @project-id)
+      ;; new user reviews some articles
+      (switch-user test-user)
+      (nav/open-project project-name)
+      (review/randomly-review-n-articles
+       n-articles [(merge review/include-label-definition
+                          {:all-values [true false]})])
+      (is (= (* n-articles amount)
+             (user-amount-owed @project-id (:name test-user)))))
+    :cleanup (when (and (test/db-connected?) (not (test/test-profile?)))
+               (delete-project-compensations @project-id)
+               (project/delete-project @project-id)
+               (b/delete-test-user :email (:email test-user)))))
 
-(deftest-browser multiple-project-compensations
-  (when (test/db-connected?)
-    (let [projects
-          (->> [{:name "SysRev Compensation Test 1"
-                 :amounts [100 10 110]
-                 :search "foo create"}
-                {:name "SysRev Compensation Test 2"
-                 :amounts [100 20 330]
-                 :search "foo create"}]
-               (mapv #(assoc % :project-id (atom nil))))
-          [project1 project2] projects
-          test-users [{:name "foo"
-                       :email "foo@bar.com"
-                       :password "foobar"
-                       :n-articles 2}
-                      {:name "baz"
-                       :email "baz@qux.com"
-                       :password "bazqux"
-                       :n-articles 1}
-                      {:name "corge"
-                       :email "corge@grault.com"
-                       :password "corgegrault"
-                       :n-articles 3}]
-          [user1 user2 user3] test-users
-          label-definitions
-          [(merge review/include-label-definition
-                  {:all-values [true false]})
-           #_ (merge review/categorical-label-definition
-                     {:all-values
-                      (get-in review/categorical-label-definition
-                              [:definition :all-values])})
-           #_ (merge review/boolean-label-definition
-                     {:all-values [true false]})]
-          review-articles
-          (fn [user project]
-            (switch-user user project)
-            (review/randomly-review-n-articles
-             (:n-articles user) label-definitions))
-          create-labels
-          (fn [project-id]
-            (nav/go-project-route "/labels/edit" project-id)
-            ;; create a boolean label
-            #_ (let [label review/boolean-label-definition]
-                 (test/add-test-label
-                  project-id
-                  (merge
-                   (select-keys label [:value-type :short-label :question :required])
-                   {:inclusion-value (-> label :definition :inclusion-values first)})))
-            ;; create a categorical label
-            #_ (do (b/click review/add-categorical-label-button)
-                   (review/set-label-values
-                    "//div[contains(@id,'new-label-')]" review/categorical-label-definition)
-                   (review/save-label))
-            (nav/go-project-route "" project-id))]
-      (try
+(let [projects
+      (->> [{:name "SysRev Compensation Test 1"
+             :amounts [100 10 110]
+             :search "foo create"}
+            {:name "SysRev Compensation Test 2"
+             :amounts [100 20 330]
+             :search "foo create"}]
+           (mapv #(assoc % :project-id (atom nil))))
+      [project1 project2] projects
+      test-users [{:name "foo"
+                   :email "foo@bar.com"
+                   :password "foobar"
+                   :n-articles 2}
+                  {:name "baz"
+                   :email "baz@qux.com"
+                   :password "bazqux"
+                   :n-articles 1}
+                  {:name "corge"
+                   :email "corge@grault.com"
+                   :password "corgegrault"
+                   :n-articles 3}]
+      [user1 user2 user3] test-users]
+  (deftest-browser multiple-project-compensations
+    (when (test/db-connected?)
+      (let [label-definitions
+            [(merge review/include-label-definition
+                    {:all-values [true false]})
+             #_ (merge review/categorical-label-definition
+                       {:all-values
+                        (get-in review/categorical-label-definition
+                                [:definition :all-values])})
+             #_ (merge review/boolean-label-definition
+                       {:all-values [true false]})]
+            review-articles
+            (fn [user project]
+              (switch-user user project)
+              (review/randomly-review-n-articles
+               (:n-articles user) label-definitions))
+            create-labels
+            (fn [project-id]
+              (nav/go-project-route "/labels/edit" project-id)
+              ;; create a boolean label
+              #_ (let [label review/boolean-label-definition]
+                   (test/add-test-label
+                    project-id
+                    (merge
+                     (select-keys label [:value-type :short-label :question :required])
+                     {:inclusion-value (-> label :definition :inclusion-values first)})))
+              ;; create a categorical label
+              #_ (do (b/click review/add-categorical-label-button)
+                     (review/set-label-values
+                      "//div[contains(@id,'new-label-')]" review/categorical-label-definition)
+                     (review/save-label))
+              (nav/go-project-route "" project-id))]
         ;; login
         (nav/log-in)
         ;; create the first project
@@ -338,13 +336,14 @@
                     (* (:n-articles user2) (-> project1 :amounts (nth 2))))
                  (user-amount-owed @(:project-id project1) (:name user2))))
           (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-                 (user-amount-owed @(:project-id project1) (:name user3)))))
-        (finally
-          ;; delete projects
-          (doseq [{:keys [project-id]} projects]
-            (when @project-id
-              (delete-project-compensations @project-id)
-              (project/delete-project @project-id)))
-          ;; delete test users
-          (doseq [{:keys [email]} test-users]
-            (b/delete-test-user :email email)))))))
+                 (user-amount-owed @(:project-id project1) (:name user3)))))))
+    :cleanup (when (test/db-connected?)
+               ;; delete projects
+               (doseq [{:keys [project-id]} projects]
+                 (when @project-id
+                   (delete-project-compensations @project-id)
+                   (project/delete-project @project-id)))
+               ;; delete test users
+               (doseq [{:keys [email]} test-users]
+                 (b/delete-test-user :email email)))))
+

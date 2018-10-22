@@ -108,9 +108,9 @@
   "Given a query q, wait until the element it represents exists"
   [q & [timeout interval]]
   (let [timeout (or timeout 10000)
-        interval (or interval 25)]
+        interval (or interval 20)]
     (when-not (taxi/exists? q)
-      (Thread/sleep 25)
+      (Thread/sleep 20)
       (taxi/wait-until
        #(taxi/exists? q)
        timeout interval))))
@@ -120,7 +120,7 @@
   and is displayed"
   [q & [timeout interval]]
   (let [timeout (or timeout 10000)
-        interval (or interval 25)]
+        interval (or interval 20)]
     (wait-until-exists q timeout interval)
     (Thread/sleep 25)
     (when-not (and (taxi/exists? q) (taxi/displayed? q))
@@ -131,7 +131,7 @@
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait]
       :or {timeout 10000
-           interval 25
+           interval 20
            pre-wait false}}]
   (when pre-wait
     (if (integer? pre-wait)
@@ -161,10 +161,9 @@
         (start-webdriver true)
         (f)
         (when-not local?
-          (reset! db/query-cache-enabled cache?))
-        (Thread/sleep 25))))
+          (reset! db/query-cache-enabled cache?)))))
 
-(defn set-input-text [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
+(defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
   (wait-until-exists q)
   (when clear? (taxi/clear q))
   (Thread/sleep delay)
@@ -172,14 +171,14 @@
   (Thread/sleep delay))
 
 (defn set-input-text-per-char
-  [q text & {:keys [delay clear?] :or {delay 25 clear? true}}]
+  [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
   (wait-until-exists q)
   (when clear? (taxi/clear q))
   (Thread/sleep delay)
   (doall (map (fn [c]
                 (taxi/input-text q (str c))
                 (Thread/sleep 20)) text))
-  #_ (Thread/sleep delay))
+  (Thread/sleep delay))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
   (apply set-input-text q text
@@ -197,19 +196,20 @@
                   :or {if-not-exists :wait
                        delay 25
                        displayed? false}}]
-  (Thread/sleep delay)
-  (wait-until-loading-completes)
-  (when (= if-not-exists :wait)
-    (if displayed?
-      (wait-until-displayed q)
-      (wait-until-exists q)))
-  (if (and (= if-not-exists :skip)
-           (not (taxi/exists? q)))
-    nil
-    (do (taxi/click q)
-        (Thread/sleep delay)
-        (wait-until-loading-completes
-         :pre-wait (if (<= delay 100) 50 false)))))
+  (letfn [(go []
+              (when (= if-not-exists :wait)
+                (if displayed?
+                  (wait-until-displayed q)
+                  (wait-until-exists q)))
+              (when-not (and (= if-not-exists :skip)
+                             (not (taxi/exists? q)))
+                (taxi/click q)))]
+    (try
+      (go)
+      (catch Throwable e
+        (wait-until-loading-completes :pre-wait (+ delay 50))
+        (go)))
+    (Thread/sleep 20)))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -221,15 +221,14 @@
                           (Thread/sleep 20))))
   true)
 
-;; TODO: take a `cleanup` block so a `finally` inside `body` won't capture screenshot
-(defmacro deftest-browser [name & body]
+(defmacro deftest-browser [name body & {:keys [cleanup]}]
   `(deftest ~name
      (try
-       ~@body
+       ~body
        (catch Throwable e#
          (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-           #_ (log/info "deftest-browser error: " (.getMessage e#))
-           #_ (.printStackTrace e#)
+           (log/info "Saving screenshot:" filename#)
            (taxi/take-screenshot :file filename#)
-           (log/info "Saved screenshot:" filename#)
-           (throw e#))))))
+           (throw e#)))
+       (finally
+         ~cleanup))))

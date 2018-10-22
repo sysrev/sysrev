@@ -357,7 +357,7 @@
      #(= (taxi/value (label-text-input-xpath
                       xpath "Categories (comma separated options)"))
          (str/join "," all-values))
-     5000 50)
+     5000 25)
     ;; set the inclusion values
     (mapv #(let [inclusion-checkbox (value-for-inclusion-checkbox xpath %)
                  included? (contains? (set inclusion-values)
@@ -405,8 +405,9 @@
   (when (taxi/exists? x/review-labels-tab)
     (b/click x/review-labels-tab))
   (mapv #(set-article-label %) label-settings)
-  (Thread/sleep 100)
-  (b/click save-button :delay 100))
+  (Thread/sleep 50)
+  (b/click save-button)
+  (Thread/sleep 50))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
@@ -419,23 +420,23 @@
                            (nth all-values (rand-int (count all-values)))})))
          label-settings)))
 
-(deftest-browser create-project-and-review-article
-  (when (test/db-connected?)
-    (let [project-name "Sysrev Browser Test"
-          search-term-first "foo bar"
-          no-display "Display name must be provided"
-          no-question "Question text must be provided"
-          no-max-length "Max length must be provided"
-          no-options "Category options must be provided"
-          have-errors? #(= (set (get-all-error-messages))
-                           (set %))
-          {:keys [user-id]} (users/get-user-by-email (:email b/test-login))
-          _ (nav/log-in)
-          _ (nav/new-project project-name)
-          new-label "//div[contains(@id,'new-label-')]"
-          project-id (nav/current-project-id)]
-      (try
-        (assert (integer? project-id))
+(let [project-id (atom nil)]
+  (deftest-browser create-project-and-review-article
+    (when (test/db-connected?)
+      (let [project-name "Sysrev Browser Test"
+            search-term-first "foo bar"
+            no-display "Display name must be provided"
+            no-question "Question text must be provided"
+            no-max-length "Max length must be provided"
+            no-options "Category options must be provided"
+            have-errors? #(= (set (get-all-error-messages))
+                             (set %))
+            {:keys [user-id]} (users/get-user-by-email (:email b/test-login))
+            _ (nav/log-in)
+            _ (nav/new-project project-name)
+            new-label "//div[contains(@id,'new-label-')]"]
+        (reset! project-id (nav/current-project-id))
+        (assert (integer? @project-id))
 
         (nav/go-project-route "/add-articles")
         (pm/add-articles-from-search-term search-term-first)
@@ -452,21 +453,21 @@
           (save-label)
           ;; there should be some errors
           (taxi/wait-until #(have-errors? [no-display no-question])
-                           5000 50)
+                           5000 25)
           (is (have-errors? [no-display no-question]))
           (discard-label)
           ;; change the type of the label to string, check error messages
           (b/click add-string-label-button)
           (save-label)
           (taxi/wait-until #(have-errors? [no-display no-question no-max-length])
-                           5000 50)
+                           5000 25)
           (is (have-errors? [no-display no-question no-max-length]))
           (discard-label)
           ;; change the type of the label to categorical, check error message
           (b/click add-categorical-label-button)
           (save-label)
           (taxi/wait-until #(have-errors? [no-display no-question no-options])
-                           5000 50)
+                           5000 25)
           (is (have-errors? [no-display no-question no-options]))
           (discard-label)
           ;; create a boolean label
@@ -500,7 +501,7 @@
           (b/wait-until-displayed
            (label-div-with-name (:short-label include-label-definition)))
           ;; We shouldn't have any labels for this project
-          (is (empty? (labels/query-public-article-labels project-id)))
+          (is (empty? (labels/query-public-article-labels @project-id)))
           ;; set the labels
           (set-article-labels [(merge include-label-definition
                                       {:value include-label-value})
@@ -514,26 +515,26 @@
           (is (b/exists? disabled-save-button))
 ;;;; check in the database for the labels
           ;; we have labels for just one article
-          (is (= 1 (count (labels/query-public-article-labels project-id))))
+          (is (= 1 (count (labels/query-public-article-labels @project-id))))
           (log/info "checking label values from db")
           (let [ ;; this is not yet generalized
                 article-id (-> (labels/query-public-article-labels
-                                project-id) keys first)
+                                @project-id) keys first)
                 article-title (-> (labels/query-public-article-labels
-                                   project-id) vals first :title)]
+                                   @project-id) vals first :title)]
             ;; these are just checks in the database
             (is (= include-label-value
-                   (short-label-answer project-id article-id user-id
+                   (short-label-answer @project-id article-id user-id
                                        (:short-label include-label-definition))))
             #_ (is (= boolean-label-value
-                      (short-label-answer project-id article-id user-id
+                      (short-label-answer @project-id article-id user-id
                                           (:short-label boolean-label-definition))))
             (is (= string-label-value
-                   (-> (short-label-answer project-id article-id user-id
+                   (-> (short-label-answer @project-id article-id user-id
                                            (:short-label string-label-definition))
                        first)))
             (is (= categorical-label-value
-                   (-> (short-label-answer project-id article-id user-id
+                   (-> (short-label-answer @project-id article-id user-id
                                            (:short-label categorical-label-definition))
                        first)))
             (log/info "checking label values from editor")
@@ -558,11 +559,9 @@
                    (label-button-value (:short-label string-label-definition))))
             ;; check a categorical value
             (is (= categorical-label-value
-                   (label-button-value (:short-label categorical-label-definition))))))
-        (finally
-          #_ (nav/log-out)
-          (when project-id
-            (project/delete-project project-id)))))))
+                   (label-button-value (:short-label categorical-label-definition))))))))
+    :cleanup (when (test/db-connected?)
+               (when @project-id (project/delete-project @project-id)))))
 
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"
@@ -573,7 +572,7 @@
     (do (randomly-set-article-labels label-definitions)
         (taxi/wait-until #(or (taxi/exists? disabled-save-button)
                               (taxi/exists? no-articles-need-review))
-                         5000 200))))
+                         5000 50))))
 
 (defn randomly-review-n-articles
   "Randomly sets labels for n articles using a vector of label-definitions"
@@ -585,7 +584,7 @@
       (randomly-set-article-labels label-definitions)
       (taxi/wait-until #(or (taxi/exists? disabled-save-button)
                             (taxi/exists? no-articles-need-review))
-                       5000 200))))
+                       5000 50))))
 
 ;; (randomly-review-all-articles [(merge include-label-definition {:all-values [true false]})
 ;; (randomly-review-n-articles 15 [(merge include-label-definition {:all-values [true false]})])

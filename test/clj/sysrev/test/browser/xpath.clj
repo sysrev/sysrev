@@ -30,10 +30,6 @@
    search-term
    "/descendant::div[contains(@class,'button') and contains(text(),'Delete')]"))
 
-(def project-title
-  (xpath "//span[contains(@class,'project-title')]"
-         "//ancestor::div[@id='project']"))
-
 (defn project-title-value [name]
   (xpath "//span[contains(@class,'project-title') and text()='" name "']"))
 

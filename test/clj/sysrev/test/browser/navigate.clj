@@ -18,23 +18,25 @@
   (let [full-url (path->full-url path)]
     (log/info "loading:" full-url)
     (taxi/to full-url)
-    (b/wait-until-loading-completes :pre-wait 250)
+    (b/wait-until-loading-completes :pre-wait 100)
     (b/wait-until-loading-completes :pre-wait 100)
     (taxi/execute-script "sysrev.base.toggle_analytics(false);"))
   nil)
 
 (defn go-route [& [path wait-ms]]
   (let [current (taxi/current-url)
-        path (if (empty? path) "/" path)]
+        path (if (empty? path) "/" path)
+        timeout (if (and (test/remote-test?) (= path ""))
+                  20000 10000)]
     (cond (or (not (string? current))
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (init-route path)
 
           (not= current (path->full-url path))
-          (do (b/wait-until-loading-completes :pre-wait 10)
+          (do (b/wait-until-loading-completes :pre-wait 10 :timeout timeout)
               (log/info "navigating:" path)
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\");" path))
-              (b/wait-until-loading-completes :pre-wait (or wait-ms 75))))
+              (b/wait-until-loading-completes :pre-wait (or wait-ms 50) :timeout timeout)))
     nil))
 
 (defn current-project-id []
@@ -51,7 +53,8 @@
 (defn log-out []
   (when (taxi/exists? "a#log-out-link")
     (log/info "logging out")
-    (b/click "a#log-out-link" :if-not-exists :skip, :delay 100)))
+    (b/click "a#log-out-link" :if-not-exists :skip)
+    (Thread/sleep 100)))
 
 (defn log-in [& [email password]]
   (let [email (or email (:email b/test-login))
@@ -59,9 +62,10 @@
     (go-route "/")
     (log-out)
     (go-route "/login")
-    (b/set-input-text "input[name='email']" email :delay 25)
-    (b/set-input-text "input[name='password']" password :delay 25)
-    (b/click "button[name='submit']" :delay 100)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    (Thread/sleep 100)
     (go-route "/")))
 
 (defn register-user [& [email password]]
@@ -70,11 +74,10 @@
     (go-route "/")
     (log-out)
     (go-route "/register")
-    (b/set-input-text "input[name='email']" email :delay 100)
-    (b/set-input-text "input[name='password']" password :delay 100)
-    (b/click "button[name='submit']" :delay 250)
-    (b/wait-until-loading-completes :pre-wait 1500)
-    (Thread/sleep 1000)
+    (b/set-input-text "input[name='email']" email)
+    (b/set-input-text "input[name='password']" password)
+    (b/click "button[name='submit']")
+    (b/wait-until-loading-completes :pre-wait 1000)
     (go-route "/")))
 
 (defn wait-until-overview-ready []
@@ -82,15 +85,18 @@
         disabled (xpath overview "/ancestor::a[contains(@class,'item disabled')]")]
     (taxi/wait-until #(and (taxi/exists? overview)
                            (not (taxi/exists? disabled)))
-                     10000 50)))
+                     10000 25)))
 
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/")
   (b/set-input-text "input[placeholder='Project Name']" project-name)
-  (b/click (xpath "//button[text()='Create']") :delay 500)
-  (b/wait-until-exists (x/project-title-value project-name))
-  (is (str/includes? (taxi/text x/project-title) project-name))
+  (b/click (xpath "//button[text()='Create']"))
+  (Thread/sleep 100)
+  (b/wait-until-exists
+   (xpath (format "//span[contains(@class,'project-title') and text()='%s']"
+                  project-name)
+          "//ancestor::div[@id='project']"))
   (b/wait-until-loading-completes :pre-wait true))
 
 (defn open-project [name]

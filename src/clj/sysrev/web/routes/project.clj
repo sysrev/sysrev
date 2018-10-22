@@ -728,32 +728,18 @@
         request {}
         (api/public-projects)))
 
-  (POST "/api/project-description" request
-        (wrap-authorize
-         request {:roles ["admin"]}
-         (let [project-id (-> request :body :project-id)
-               markdown (-> request :body :markdown)]
-           (api/create-project-description! project-id markdown))))
-
   (GET "/api/project-description" request
        (wrap-authorize
         request {:allow-public true}
         (let [project-id (-> request :params :project-id parse-integer)]
           (api/read-project-description project-id))))
 
-  (PUT "/api/project-description" request
-       (wrap-authorize
-        request {:roles ["admin"]}
-        (let [project-id (-> request :body :project-id)
-              markdown (-> request :body :markdown)]
-          (api/update-project-description! project-id markdown))))
-
-  (DELETE "/api/project-description" request
-          (wrap-authorize
-           request {:roles ["admin"]}
-           (let [project-id (-> request :body :project-id)
-                 user-id (current-user-id request)]
-             (api/delete-project-description! project-id))))
+  (POST "/api/project-description" request
+        (wrap-authorize
+         request {:roles ["admin"]}
+         (let [project-id (-> request :body :project-id)
+               markdown (-> request :body :markdown)]
+           (api/set-project-description! project-id markdown))))
 
   (POST "/api/project-compensation" request
         (wrap-authorize

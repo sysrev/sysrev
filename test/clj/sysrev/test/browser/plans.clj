@@ -50,9 +50,9 @@
 (def no-payment-method "You must provide a valid payment method")
 
 (deftest-browser register-and-check-basic-plan-subscription
-  (log/info "register-and-check-basic-plan-subscription")
   (when (and (test/db-connected?)
              (not= :remote-test (-> env :profile)))
+    (log/info "register-and-check-basic-plan-subscription")
     (let [{:keys [email password]} b/test-login]
       (b/delete-test-user)
       (Thread/sleep 200)
@@ -116,8 +116,8 @@
     (b/input-text field cc-num)))
 
 (deftest-browser register-and-subscribe-to-paid-plans
-  (log/info "register-and-subscribe-to-paid-plans")
   (let [{:keys [email password]} b/test-login]
+    (log/info "register-and-subscribe-to-paid-plans")
     ;; TODO: fix text input in Stripe payment form
     (when (and false (not= :remote-test (-> env :profile)))
       (b/delete-test-user)
@@ -160,9 +160,9 @@
       ;; incomplete fields are shown
       (is (and (b/exists? (error-msg-xpath incomplete-card-number-error))
                (b/exists? (error-msg-xpath incomplete-expiration-date-error)
-                                :wait? false)
+                          :wait? false)
                (b/exists? (error-msg-xpath incomplete-security-code-error)
-                                :wait? false)))
+                          :wait? false)))
 
       (if (test/full-tests?)
         (log/info "running full stripe tests")

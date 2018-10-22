@@ -79,95 +79,89 @@
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email b/test-login)))
 
-;; This is testing a feature that is not used anymore
-(deftest-browser register-and-support-projects
-  (when (and (test/db-connected?)
-             (not (test/remote-test?)))
-    (let [{:keys [email password]} b/test-login
-          project-name "SysRev Support Project Test"
-          project-id (atom nil)]
+(let [{:keys [email password]} b/test-login
+      project-name "SysRev Support Project Test"
+      project-id (atom nil)]
+  ;; This is testing a feature that is not used anymore
+  (deftest-browser register-and-support-projects
+    (when (and (test/db-connected?) (not (test/remote-test?)))
       (log/info "register-and-support-projects")
-      (try
-        ;; cancel any previouly created subscriptions
-        (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-        ;; delete any test user that currently exists
-        (b/delete-test-user :email email)
-        ;; register manually to create stripe account
-        (nav/register-user email password)
-        ;; create the new project
-        (nav/new-project project-name)
-        (reset! project-id (nav/current-project-id))
-        (assert stripe/stripe-secret-key)
-        (assert stripe/stripe-public-key)
-        ;; after registering, does the stripe customer exist?
-        (is (= email
-               (:email (stripe/execute-action
-                        (customers/get-customer
-                         (:stripe-id (users/get-user-by-email email)))))))
-        ;; does stripe think the customer is registered to a basic plan?
-        (is (= api/default-plan
-               (-> (stripe/execute-action
-                    (customers/get-customer
-                     (:stripe-id (users/get-user-by-email email))))
-                   :subscriptions :data first :items :data first :plan :name)))
+      ;; cancel any previouly created subscriptions
+      (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
+      ;; delete any test user that currently exists
+      (b/delete-test-user :email email)
+      ;; register manually to create stripe account
+      (nav/register-user email password)
+      ;; create the new project
+      (nav/new-project project-name)
+      (reset! project-id (nav/current-project-id))
+      (assert stripe/stripe-secret-key)
+      (assert stripe/stripe-public-key)
+      ;; after registering, does the stripe customer exist?
+      (is (= email
+             (:email (stripe/execute-action
+                      (customers/get-customer
+                       (:stripe-id (users/get-user-by-email email)))))))
+      ;; does stripe think the customer is registered to a basic plan?
+      (is (= api/default-plan
+             (-> (stripe/execute-action
+                  (customers/get-customer
+                   (:stripe-id (users/get-user-by-email email))))
+                 :subscriptions :data first :items :data first :plan :name)))
 ;;; go to root project and support it (default is $5)
-        (nav/go-project-route "/support")
-        ;; this shouldn't work as there is no payment method
-        (b/click support-submit-button)
-        (is (b/exists? (test-plans/error-msg-xpath test-plans/no-payment-method)))
+      (nav/go-project-route "/support")
+      ;; this shouldn't work as there is no payment method
+      (b/click support-submit-button)
+      (is (b/exists? (test-plans/error-msg-xpath test-plans/no-payment-method)))
 ;;; update with a valid cc number and see if we can support a project
-        (b/click test-plans/update-payment-button)
-        (enter-cc-information {:cardnumber test-plans/valid-visa-cc
-                               :exp-date "0120"
-                               :cvc "123"
-                               :postal "11111"})
-        (b/click test-plans/use-card-button)
-        ;; support the project at $10 per month
-        (b/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
-        (b/click support-submit-button)
-        ;; check that the confirmation message exists
-        (is (b/exists? (support-message-xpath (now-supporting-at-string "$10.00"))))
-        ;; change support to $50 month
-        (b/click {:xpath "//label[contains(text(),'$50')]/parent::div"})
-        (b/click support-submit-button)
-        (is (b/exists? (support-message-xpath (now-supporting-at-string "$50.00"))))
-        ;; is this all the user is paying for?
-        (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
-          (is (= 1
-                 (count user-subscriptions)))
-          (is (= 5000
-                 (-> user-subscriptions
-                     first
-                     :quantity))))
-        ;; subscribe at a custom amount of $200
-        (b/click {:xpath "//input[@type='text']"})
-        (b/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
-        (b/click support-submit-button)
-        (is (b/exists? (support-message-xpath (now-supporting-at-string "$200.00"))))
-        ;; is this all the user is paying for?
-        (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
-          (is (= 1
-                 (count user-subscriptions)))
-          (is (= 20000
-                 (-> user-subscriptions
-                     first
-                     :quantity))))
-        ;; is there a minimum support level?
-        (b/click {:xpath "//input[@type='text']"})
-        (b/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
-        (b/click support-submit-button)
-        (is (b/exists? (test-plans/error-msg-xpath "Minimum support level is $1.00 per month")))
-        ;; cancel support
-        (b/click cancel-support-button)
-        (b/click stop-support-button)
-        (is (b/exists? {:xpath "//h1[text()='Support This Project']"}))
-        ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
-        (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email))))
-        (finally
-          ;; delete the project
-          #_ (nav/delete-current-project)
-          (when @project-id (project/delete-project @project-id))
-          ;; log out
-          #_ (nav/log-out)
-          ;; delete the user
-          (b/delete-test-user))))))
+      (b/click test-plans/update-payment-button)
+      (enter-cc-information {:cardnumber test-plans/valid-visa-cc
+                             :exp-date "0120"
+                             :cvc "123"
+                             :postal "11111"})
+      (b/click test-plans/use-card-button)
+      ;; support the project at $10 per month
+      (b/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
+      (b/click support-submit-button)
+      ;; check that the confirmation message exists
+      (is (b/exists? (support-message-xpath (now-supporting-at-string "$10.00"))))
+      ;; change support to $50 month
+      (b/click {:xpath "//label[contains(text(),'$50')]/parent::div"})
+      (b/click support-submit-button)
+      (is (b/exists? (support-message-xpath (now-supporting-at-string "$50.00"))))
+      ;; is this all the user is paying for?
+      (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
+        (is (= 1
+               (count user-subscriptions)))
+        (is (= 5000
+               (-> user-subscriptions
+                   first
+                   :quantity))))
+      ;; subscribe at a custom amount of $200
+      (b/click {:xpath "//input[@type='text']"})
+      (b/set-input-text-per-char {:xpath "//input[@type='text']"} "200")
+      (b/click support-submit-button)
+      (is (b/exists? (support-message-xpath (now-supporting-at-string "$200.00"))))
+      ;; is this all the user is paying for?
+      (let [user-subscriptions (plans/user-support-subscriptions (users/get-user-by-email email))]
+        (is (= 1
+               (count user-subscriptions)))
+        (is (= 20000
+               (-> user-subscriptions
+                   first
+                   :quantity))))
+      ;; is there a minimum support level?
+      (b/click {:xpath "//input[@type='text']"})
+      (b/set-input-text-per-char {:xpath "//input[@type='text']"} "0.99")
+      (b/click support-submit-button)
+      (is (b/exists? (test-plans/error-msg-xpath "Minimum support level is $1.00 per month")))
+      ;; cancel support
+      (b/click cancel-support-button)
+      (b/click stop-support-button)
+      (is (b/exists? {:xpath "//h1[text()='Support This Project']"}))
+      ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
+      (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))
+    :cleanup (when (and (test/db-connected?)
+                        (not (test/remote-test?)))
+               (when @project-id (project/delete-project @project-id))
+               (b/delete-test-user))))

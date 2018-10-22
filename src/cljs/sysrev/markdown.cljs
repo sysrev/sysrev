@@ -1,12 +1,13 @@
 (ns sysrev.markdown
   (:require [clojure.string :as str]
-            [ajax.core :refer [GET POST PUT DELETE]]
             [cljsjs.semantic-ui-react]
             [cljsjs.showdown]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.data.core :refer [def-data]]
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.state.ui :as ui-state]
             [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]
@@ -22,7 +23,6 @@
 
 (def initial-state {:editing? false
                     :draft-description ""
-                    :retrieving? false
                     :ignore-create-description-warning? false})
 
 (defn ensure-state [context]
@@ -81,7 +81,7 @@
               @(subscribe [:user/admin?]))
       [:div.ui.tiny.icon.button.edit-markdown
        {:on-click (fn [event]
-                    (reset! draft-description @current-description)
+                    (reset! draft-description (or @current-description ""))
                     (reset! editing? true))
         :style {:position "absolute"
                 :top "0.5em"
@@ -97,35 +97,14 @@
         editing? (r/cursor state [:editing?])
         current-description (subscribe [:project/markdown-description])
         draft-description (r/cursor state [:draft-description])
-        retrieving? (r/cursor state [:retrieving?])
-        csrf-header {"x-csrf-token" @(subscribe [:csrf-token])}
-        handle-response #(dispatch [:reload [:project/markdown-description
-                                             project-id context]])
-        handle-error (fn [message]
-                       #(do ($ js/console log (str "[Error] " message))
-                            (reset! retrieving? false)
-                            (reset! editing? false)))
-        request-options (fn [request-name params]
-                          {:params (merge {:project-id project-id} params)
-                           :headers csrf-header
-                           :handler handle-response
-                           :error-handler (handle-error request-name)})
-        create-description!
-        (fn [markdown]
-          (reset! retrieving? true)
-          (POST "/api/project-description"
-                (request-options "create-description!" {:markdown markdown})))
-        update-description!
-        (fn [markdown]
-          (reset! retrieving? true)
-          (if-not (str/blank? markdown)
-            ;; was updated
-            (PUT "/api/project-description"
-                 (request-options "update-description" {:markdown markdown}))
-            ;; was deleted
-            (DELETE "/api/project-description"
-                    (request-options "delete-description" {}))))
-        changed? (not= @current-description @draft-description)]
+        set-description!
+        #(dispatch [:action [:project/markdown-description project-id context %]])
+        changed? (not= (or @current-description "")
+                       (or @draft-description ""))
+        loading? (or (loading/any-loading?
+                      :only :project/markdown-description)
+                     (loading/any-action-running?
+                      :only :project/markdown-description))]
     [:div.ui.segment.markdown-component
      {:style {:position "relative"}}
      [:div.ui.panel {:id id}
@@ -137,11 +116,11 @@
           [:div.ui.form.secondary.segment
            [TextArea {:fluid "true"
                       :autoHeight true
-                      :disabled @retrieving?
+                      :disabled loading?
                       :placeholder "Enter a Markdown description"
                       :on-change #(reset! draft-description
                                           (-> ($ % :target) ($ :value)))
-                      :default-value @draft-description}]]
+                      :default-value (or @draft-description "")}]]
           [:div.ui.secondary.middle.aligned.grid.segment
            [:div.eight.wide.left.aligned.column
             [:a.markdown-link
@@ -153,15 +132,13 @@
             [:button.ui.tiny.positive.icon.labeled.button
              {:class (cond-> ""
                        (not changed?) (str " disabled")
-                       @retrieving?   (str " loading"))
-              :on-click #(if (str/blank? @current-description)
-                           (create-description! @draft-description)
-                           (update-description! @draft-description))}
+                       loading?       (str " loading"))
+              :on-click #(set-description! @draft-description)}
              [:i.circle.check.icon]
              "Save"]
             [:button.ui.tiny.icon.labeled.button
              {:on-click #(reset! editing? false)
-              :class (when @retrieving? "disabled")
+              :class (when loading? "disabled")
               :style {:margin-right "0"}}
              [:i.times.icon]
              "Cancel"]]]]
@@ -172,23 +149,31 @@
            [RenderMarkdown @draft-description]]]]
         [:div [RenderMarkdown @current-description]])]]))
 
-(letfn [(reset-state [db context]
-          (-> (set-state db context [:retrieving?] false)
-              (set-state context [:editing?] false)))]
-  (def-data :project/markdown-description
-    :loaded? (fn [db project-id _]
-               (-> (get-in db [:data :project project-id ])
-                   (contains? :markdown-description)))
-    :uri (fn [_ _] "/api/project-description")
-    :content (fn [project-id _] {:project-id project-id})
-    :prereqs (fn [project-id _] [[:identity] [:project project-id]])
-    :process (fn [{:keys [db]} [project-id context] result]
-               {:db (-> (assoc-in db [:data :project project-id :markdown-description]
-                                  (-> result :project-description))
-                        (reset-state context))})
-    :on-error (fn [{:keys [db error]} [project-id context] _]
-                ($ js/console log "[Error] get-description!")
-                {:db (reset-state db context)})))
+(def-data :project/markdown-description
+  :loaded? (fn [db project-id _]
+             (-> (get-in db [:data :project project-id])
+                 (contains? :markdown-description)))
+  :uri (fn [_ _] "/api/project-description")
+  :content (fn [project-id _] {:project-id project-id})
+  :prereqs (fn [project-id _] [[:identity] [:project project-id]])
+  :process (fn [{:keys [db]} [project-id context] result]
+             {:db (-> (assoc-in db [:data :project project-id :markdown-description]
+                                (-> result :project-description))
+                      (set-state context [:editing?] false))})
+  :on-error (fn [{:keys [db error]} [project-id context] _]
+              ($ js/console log "[Error] get-description!")
+              {:db (set-state db context [:editing?] false)}))
+
+(def-action :project/markdown-description
+  :uri (fn [project-id context value] "/api/project-description")
+  :content (fn [project-id context value]
+             {:project-id project-id :markdown value})
+  :process (fn [{:keys [db]} [project-id context value] result]
+             {:dispatch [:reload [:project/markdown-description
+                                  project-id context]]})
+  :on-error (fn [{:keys [db error]} [project-id context value] _]
+              ($ js/console log "[Error] set-description!")
+              {:db (set-state db context [:editing?] false)}))
 
 (reg-sub
  :project/markdown-description

@@ -24,14 +24,13 @@
   (b/set-input-text x/pubmed-search-input query)
   (taxi/submit x/pubmed-search-form)
   (b/wait-until-loading-completes
-   :pre-wait 200 :timeout 20000))
+   :pre-wait 100 :timeout 20000))
 
 (defn search-count
   "Return an integer item count of search results"
   []
   (let [pager-message {:xpath "//h5[contains(@class,'list-pager-message')]"}
         pubmed-article {:xpath "//div[contains(@class,'pubmed-article')]"}]
-    (Thread/sleep 100)
     (b/wait-until-exists pager-message)
     (b/wait-until-exists pubmed-article)
     (->> (taxi/find-elements pager-message)
@@ -149,7 +148,7 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (taxi/wait-until #(= n (get-source-count)) 15000 50)
+  (taxi/wait-until #(= n (get-source-count)) 15000 25)
   (is (= n (get-source-count))))
 
 (defn add-articles-from-search-term [search-term]
@@ -158,10 +157,10 @@
     (search-pubmed search-term)
     (log/info "importing articles from search")
     (b/click import-button-xpath)
-    (Thread/sleep 1000)
+    (Thread/sleep 500)
     (check-source-count (inc initial-count))
     (b/wait-until-loading-completes :pre-wait 500)
-    (b/wait-until-loading-completes :pre-wait 500)
+    #_ (b/wait-until-loading-completes :pre-wait 500)
     #_ (is (b/exists? (x/search-source search-term)))
     #_ (is (b/exists?
             (x/search-source
@@ -171,36 +170,37 @@
 
 (defn delete-search-term-source [search-term]
   (log/info "deleting article source")
-  (b/click (x/search-term-delete search-term) :delay 1000))
+  (b/click (x/search-term-delete search-term))
+  (b/wait-until-loading-completes :pre-wait 1000))
 
 (deftest-browser pubmed-search
-  (nav/log-in)
-  (nav/go-route "/pubmed-search")
-  (is (nav/panel-exists? [:pubmed-search]))
-  (testing "Various search terms will yield the correct pmid count"
-    (search-term-count-matches? "foo bar"))
-  (testing "A search term with no documents"
-    (search-pubmed "foo bar baz qux quux")
-    (is (b/exists?
-         {:xpath "//h3[contains(text(),'No documents match your search terms')]"})))
-  (testing "Pager works properly"
-    (search-pubmed "dangerous statistics three")
-    ;; (is (disabled-pager-link? "First"))
-    (is (disabled-pager-link? "Previous"))
-    ;; Go to next page
-    (click-pager "Next")
-    (is (= 2 (get-current-page-number)))
-    ;; Go to last page
-    (click-button-class "nav-last")
-    (is (disabled-pager-link? "Next"))
-    ;; (is (disabled-pager-link? "Last"))
-    (is (= (max-pages)
-           (get-current-page-number)))
-    ;; Go back one page
-    (click-pager "Previous")
-    (is (= (- (max-pages) 1)
-           (get-current-page-number)))
-    ;; Go to first page
-    (click-button-class "nav-first")
-    (is (= 1 (get-current-page-number)))
-    (nav/log-out)))
+  (do (nav/log-in)
+      (nav/go-route "/pubmed-search")
+      (is (nav/panel-exists? [:pubmed-search]))
+      (testing "Various search terms will yield the correct pmid count"
+        (search-term-count-matches? "foo bar"))
+      (testing "A search term with no documents"
+        (search-pubmed "foo bar baz qux quux")
+        (is (b/exists?
+             {:xpath "//h3[contains(text(),'No documents match your search terms')]"})))
+      (testing "Pager works properly"
+        (search-pubmed "dangerous statistics three")
+        ;; (is (disabled-pager-link? "First"))
+        (is (disabled-pager-link? "Previous"))
+        ;; Go to next page
+        (click-pager "Next")
+        (is (= 2 (get-current-page-number)))
+        ;; Go to last page
+        (click-button-class "nav-last")
+        (is (disabled-pager-link? "Next"))
+        ;; (is (disabled-pager-link? "Last"))
+        (is (= (max-pages)
+               (get-current-page-number)))
+        ;; Go back one page
+        (click-pager "Previous")
+        (is (= (- (max-pages) 1)
+               (get-current-page-number)))
+        ;; Go to first page
+        (click-button-class "nav-first")
+        (is (= 1 (get-current-page-number)))
+        (nav/log-out))))
