@@ -4,9 +4,10 @@
             [clj-time.format :as f]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
-            [honeysql.helpers :as sqlh :refer [select from where join delete-from]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
-            [sysrev.db.core :refer [do-query do-execute]]
+            [sysrev.db.core :refer
+             [do-query do-execute with-transaction to-jsonb clear-project-cache]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
@@ -40,7 +41,7 @@
   (-> (delete-from :compensation)
       (where [:= :id compensation-id])
       do-execute))
-;;;
+
 (defn delete-compensation-by-amount [project-id amount]
   (delete-compensation-by-id
    project-id
@@ -54,7 +55,7 @@
        (->> (filterv #(= (get-in % [:rate :amount]) amount)))
        first
        :id)))
-;;;
+
 (defn delete-project-compensations [project-id]
   (mapv #(delete-compensation-by-id project-id %)
         (-> (select :compensation-id)
@@ -119,18 +120,78 @@
   (when project
     (nav/open-project (:name project))))
 
-(let [project-id (atom nil)
-      project-name "SysRev Compensation Test"
+(defn articles-reviewed-by-user
+  [project-id user-id]
+  (-> (select :al.article_id)
+      (from [:article_label :al])
+      (join [:article :a] [:= :a.article_id :al.article_id])
+      (where [:and [:= :a.project-id project-id] [:= :al.user_id user-id]])
+      do-query))
+
+(defn articles-unreviewed-by-user
+  [project-id user-id]
+  (let [review-articles (->> (articles-reviewed-by-user project-id user-id)
+                             (map :article-id))]
+    (-> (select :article_id)
+        (from :article)
+        (where [:and
+                (when-not (empty? review-articles)
+                  [:not-in :article_id review-articles])
+                [:= :project_id project-id]])
+        do-query
+        (->> (map :article-id)))))
+
+;; this function is incomplete as it only handles the case of boolean labels
+;; this can only create, not update labels
+(defn randomly-set-labels
+  [project-id user-id article-id]
+  (try
+    (with-transaction
+      (let [project-labels (-> (select :label_id :value_type :definition :label_id_local)
+                               (from :label)
+                               (where [:= :project_id project-id])
+                               do-query)]
+        (doall (map (fn [label]
+                      (condp = (:value-type label)
+                        "boolean"
+                        ;;
+                        (-> (insert-into :article_label)
+                            (values [{:article_label_local_id (:label-id-local label)
+                                      :article_id article-id
+                                      :label_id (:label-id label)
+                                      :user_id user-id
+                                      :answer (-> [true false]
+                                                  (nth (rand-int 2))
+                                                  to-jsonb)
+                                      :imported false}])
+                            do-execute)))
+                    project-labels))))
+    (finally
+      (clear-project-cache project-id))))
+
+;; this does not check to see if n unreviewed articles really exist
+(defn randomly-set-n-unreviewed-articles
+  [project-id user-id n]
+  (let [unreviewed-articles (take n (articles-unreviewed-by-user project-id user-id))]
+    (doall (map (partial randomly-set-labels project-id user-id) unreviewed-articles))))
+
+(defn get-user-id
+  "Given an email address return the user-id"
+  [email]
+  (-> email (users/get-user-by-email) :user-id))
+
+(let [project-name "SysRev Compensation Test"
       search-term "foo create"
       amount 100
       test-user {:name "foo"
                  :email "foo@bar.com"
                  :password "foobar"}
-      n-articles 3]
+      n-articles 3
+      project-id (atom nil)]
   (deftest-browser happy-path-project-compensation
     ;; skip this from `lein test` etc, redundant with larger test
     (when (and (test/db-connected?) (not (test/test-profile?)))
-      (reset! project-id nil)
+      ;; create a project
       (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (nav/current-project-id))
@@ -144,12 +205,14 @@
       (b/create-test-user :email (:email test-user)
                           :password (:password test-user)
                           :project-id @project-id)
+      (randomly-set-n-unreviewed-articles
+       @project-id (get-user-id (:email test-user)) n-articles)
       ;; new user reviews some articles
-      (switch-user test-user)
-      (nav/open-project project-name)
-      (review/randomly-review-n-articles
-       n-articles [(merge review/include-label-definition
-                          {:all-values [true false]})])
+      ;; (switch-user test-user)
+      ;; (nav/open-project project-name)
+      ;; (review/randomly-review-n-articles
+      ;;  n-articles [(merge review/include-label-definition
+      ;;                     {:all-values [true false]})])
       (is (= (* n-articles amount)
              (user-amount-owed @project-id (:name test-user)))))
     :cleanup (when (and (test/db-connected?) (not (test/test-profile?)))
@@ -195,6 +258,11 @@
               (switch-user user project)
               (review/randomly-review-n-articles
                (:n-articles user) label-definitions))
+            db-review-articles (fn [user project]
+                                 (randomly-set-n-unreviewed-articles
+                                  @(:project-id project)
+                                  (get-user-id (:email user))
+                                  (:n-articles user)))
             create-labels
             (fn [project-id]
               (nav/go-project-route "/labels/edit" project-id)
@@ -227,9 +295,12 @@
         (doseq [{:keys [email password]} test-users]
           (b/create-test-user :email email :password password
                               :project-id @(:project-id project1)))
-        (review-articles user1 project1)
-        (review-articles user2 project1)
-        (review-articles user3 project1)
+        (db-review-articles user1 project1)
+        (db-review-articles user2 project1)
+        (db-review-articles user3 project1)
+        #_(review-articles user1 project1)
+        #_(review-articles user2 project1)
+        #_(review-articles user3 project1)
         ;; check that the compensation levels add up for all the reviewers
         (doseq [user test-users]
           (is (= (* (:n-articles user) (-> project1 :amounts (nth 0)))
@@ -252,9 +323,12 @@
           (doseq [{:keys [email]} test-users]
             (let [{:keys [user-id]} (users/get-user-by-email email)]
               (project/add-project-member @(:project-id project2) user-id)))
-          (review-articles user1 project2)
-          (review-articles user2 project2)
-          (review-articles user3 project2)
+          (db-review-articles user1 project2)
+          (db-review-articles user2 project2)
+          (db-review-articles user3 project2)
+          ;; (review-articles user1 project2)
+          ;; (review-articles user2 project2)
+          ;; (review-articles user3 project2)
           ;; check that the compensation levels add up for all the reviewers
           (doseq [user test-users]
             (is (= (* (:n-articles user) (-> project2 :amounts (nth 0)))
@@ -264,7 +338,8 @@
           (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project1 :amounts (nth 1)))
-          (review-articles user1 project1)
+          #_(review-articles user1 project1)
+          (db-review-articles user1 project1)
           (is (= (* (:n-articles user1)
                     (+ (-> project1 :amounts (nth 0))
                        (-> project1 :amounts (nth 1))))
@@ -274,7 +349,8 @@
           (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project1 :amounts (nth 2)))
-          (review-articles user1 project1)
+          ;;(review-articles user1 project1)
+          (db-review-articles user1 project1)
           (is (= (* (:n-articles user1)
                     (->> project1 :amounts (take 3) (apply +)))
                  (user-amount-owed @(:project-id project1) (:name user1))))
@@ -288,7 +364,8 @@
           (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user2) (-> project1 :amounts (nth 2)))
-          (review-articles user2 project1)
+          ;;(review-articles user2 project1)
+          (db-review-articles user2 project1)
           ;; are the compensations still correct for this user?
           (is (= (+ (* (:n-articles user2) (-> project1 :amounts (nth 0)))
                     (* (:n-articles user2) (-> project1 :amounts (nth 2))))
@@ -303,17 +380,20 @@
           ;; let's try changing comp rate in another project,
           ;; make sure all other compensations are correct
           (switch-user nil project2)
+          (nav/open-project (:name project2))
           (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user1) (-> project2 :amounts (nth 1)))
-          (review-articles user1 project2)
+          ;;(review-articles user1 project2)
+          (db-review-articles user1 project2)
           ;; let's set the compensation for the second user, have them
           ;; review some more articles
-          (switch-user nil project2)
+          ;;(switch-user nil project2)
           (nav/go-project-route "/compensations")
           (select-compensation-for-user
            (:email user2) (-> project2 :amounts (nth 2)))
-          (review-articles user2 project2)
+          ;;(review-articles user2 project2)
+          (db-review-articles user2 project2)
           ;; does everything add up for the second project?
           (is (= (+ (* (:n-articles user1) (-> project2 :amounts (nth 0)))
                     (* (:n-articles user1) (-> project2 :amounts (nth 1))))
@@ -336,14 +416,13 @@
                     (* (:n-articles user2) (-> project1 :amounts (nth 2))))
                  (user-amount-owed @(:project-id project1) (:name user2))))
           (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-                 (user-amount-owed @(:project-id project1) (:name user3)))))))
-    :cleanup (when (test/db-connected?)
-               ;; delete projects
-               (doseq [{:keys [project-id]} projects]
-                 (when @project-id
-                   (delete-project-compensations @project-id)
-                   (project/delete-project @project-id)))
-               ;; delete test users
-               (doseq [{:keys [email]} test-users]
-                 (b/delete-test-user :email email)))))
-
+                 (user-amount-owed @(:project-id project1) (:name user3))))))
+      :cleanup (when (test/db-connected?)
+                 ;; delete projects
+                 (doseq [{:keys [project-id]} projects]
+                   (when @project-id
+                     (delete-project-compensations @project-id)
+                     (project/delete-project @project-id)))
+                 ;; delete test users
+                 (doseq [{:keys [email]} test-users]
+                   (b/delete-test-user :email email))))))
