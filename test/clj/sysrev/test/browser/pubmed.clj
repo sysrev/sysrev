@@ -169,9 +169,10 @@
     (nav/wait-until-overview-ready)))
 
 (defn delete-search-term-source [search-term]
-  (b/wait-until-loading-completes :pre-wait 100)
+  (b/wait-until-loading-completes :pre-wait 200)
   (log/info "deleting article source")
   (b/click (x/search-term-delete search-term))
+  (b/wait-until-loading-completes :pre-wait 500)
   (b/wait-until-loading-completes :pre-wait 500))
 
 (deftest-browser pubmed-search
