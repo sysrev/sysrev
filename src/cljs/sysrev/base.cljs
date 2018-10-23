@@ -32,7 +32,7 @@
   (dispatch [:toggle-analytics enable?]))
 
 (defn run-analytics? []
-  (and js/ga
+  (and (aget js/window "ga")
        (or (= js/window.location.host sysrev-hostname)
            (= js/window.location.host sysrev-blog-hostname))
        (not (:disable-analytics @app-db))))
