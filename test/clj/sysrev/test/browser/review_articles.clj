@@ -88,8 +88,7 @@
   (b/click
    (xpath (label-div-with-name name)
           "/descendant::div[contains(text(),'"
-          (if select? "Yes" "No") "')]")
-   :delay 50))
+          (if select? "Yes" "No") "')]")))
 
 (defn input-string-with-label-name
   "Input string into label with name"
@@ -97,7 +96,7 @@
   (b/set-input-text
    (xpath (label-div-with-name name)
           "/descendant::input[@type='text']")
-   string :delay 50))
+   string))
 
 (defn select-with-text-label-name
   "select text from the dropdown for label with name"
@@ -106,8 +105,10 @@
                             "/descendant::div[contains(@class,'dropdown')]")
         entry-div (xpath (label-div-with-name name)
                          "/descendant::div[contains(text(),'" text "')]")]
-    (b/click dropdown-div :delay 500 :displayed? true)
-    (b/click entry-div :delay 500 :displayed? true)))
+    (b/click dropdown-div :displayed? true)
+    (Thread/sleep 200)
+    (b/click entry-div :displayed? true)
+    (Thread/sleep 100)))
 
 (defn article-title-div
   [title]
@@ -403,11 +404,12 @@
   [label-settings]
   (log/info "setting article labels")
   (when (taxi/exists? x/review-labels-tab)
-    (b/click x/review-labels-tab))
+    (b/click x/review-labels-tab)
+    (Thread/sleep 25))
   (mapv #(set-article-label %) label-settings)
   (Thread/sleep 50)
   (b/click save-button)
-  (Thread/sleep 50))
+  (b/wait-until-loading-completes :pre-wait true))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
@@ -435,7 +437,7 @@
             _ (nav/log-in)
             _ (nav/new-project project-name)
             new-label "//div[contains(@id,'new-label-')]"]
-        (reset! project-id (nav/current-project-id))
+        (reset! project-id (b/current-project-id))
         (assert (integer? @project-id))
 
         (nav/go-project-route "/add-articles")

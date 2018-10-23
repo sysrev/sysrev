@@ -10,10 +10,11 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.core :as db :refer [do-execute]]
+            [sysrev.db.core :as db :refer [do-execute with-transaction]]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
-            [sysrev.test.core :as test])
+            [sysrev.test.core :as test]
+            [sysrev.shared.util :as sutil :refer [parse-integer]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -84,25 +85,38 @@
 
 (defn delete-test-user [& {:keys [email]
                            :or {email (:email test-login)}}]
-  (let [{:keys [user-id] :as user}
-        (users/get-user-by-email email)]
-    (try
-      (when user
-        (stripe/delete-customer! user))
-      (catch Throwable t
-        nil))
-    (when user-id
-      (-> (delete-from :compensation-user-period)
-          (where [:= :web-user-id user-id])
-          do-execute))
-    (users/delete-user-by-email email)))
+  (with-transaction
+    (let [{:keys [user-id] :as user}
+          (users/get-user-by-email email)]
+      (try
+        (when user
+          (stripe/delete-customer! user))
+        (catch Throwable t
+          nil))
+      (when user-id
+        (-> (delete-from :compensation-user-period)
+            (where [:= :web-user-id user-id])
+            do-execute))
+      (users/delete-user-by-email email))))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)
                                 password (:password test-login)
                                 project-id nil}}]
-  (delete-test-user :email email)
-  (users/create-user email password :project-id project-id))
+  (with-transaction
+    (delete-test-user :email email)
+    (users/create-user email password :project-id project-id)))
+
+(defn current-project-id []
+  (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
+    (some-> id-str parse-integer)))
+
+(defn current-project-route []
+  (when-let [project-id (current-project-id)]
+    (-> (re-matches (re-pattern
+                     (format ".*/p/%d(.*)$" project-id))
+                    (taxi/current-url))
+        second)))
 
 (defn wait-until-exists
   "Given a query q, wait until the element it represents exists"
@@ -130,22 +144,21 @@
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait]
-      :or {timeout 10000
-           interval 20
-           pre-wait false}}]
-  (when pre-wait
-    (if (integer? pre-wait)
-      (Thread/sleep pre-wait)
-      (Thread/sleep 75)))
-  (taxi/wait-until
-   #(and
-     (not (taxi/exists?
-           {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
-     (not (taxi/exists?
-           {:xpath "//div[contains(@class,'dimmer') and contains(@class,'active')]"}))
-     (not (taxi/exists?
-           {:xpath "//div[contains(@class,'button') and contains(@class,'loading')]"})))
-   timeout interval))
+      :or {timeout 10000, interval 20, pre-wait false}}]
+  (let [timeout (if (test/remote-test?) 30000 timeout)]
+    (when pre-wait
+      (if (integer? pre-wait)
+        (Thread/sleep pre-wait)
+        (Thread/sleep 75)))
+    (taxi/wait-until
+     #(and
+       (not (taxi/exists?
+             {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
+       (not (taxi/exists?
+             {:xpath "//div[contains(@class,'dimmer') and contains(@class,'active')]"}))
+       (not (taxi/exists?
+             {:xpath "//div[contains(@class,'button') and contains(@class,'loading')]"})))
+     timeout interval)))
 
 (defn webdriver-fixture-once [f]
   (f)

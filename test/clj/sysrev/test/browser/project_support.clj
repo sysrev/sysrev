@@ -94,7 +94,7 @@
       (nav/register-user email password)
       ;; create the new project
       (nav/new-project project-name)
-      (reset! project-id (nav/current-project-id))
+      (reset! project-id (b/current-project-id))
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
       ;; after registering, does the stripe customer exist?

@@ -157,7 +157,7 @@
     (search-pubmed search-term)
     (log/info "importing articles from search")
     (b/click import-button-xpath)
-    (Thread/sleep 500)
+    (Thread/sleep 250)
     (check-source-count (inc initial-count))
     (b/wait-until-loading-completes :pre-wait 500)
     #_ (b/wait-until-loading-completes :pre-wait 500)
@@ -169,9 +169,10 @@
     (nav/wait-until-overview-ready)))
 
 (defn delete-search-term-source [search-term]
+  (b/wait-until-loading-completes :pre-wait 100)
   (log/info "deleting article source")
   (b/click (x/search-term-delete search-term))
-  (b/wait-until-loading-completes :pre-wait 1000))
+  (b/wait-until-loading-completes :pre-wait 500))
 
 (deftest-browser pubmed-search
   (do (nav/log-in)

@@ -1,6 +1,4 @@
 #!/bin/bash
 set -eu
 
-source vars.sh
-
-SYSREV_FULL_TESTS=1 lein test
+SYSREV_FULL_TESTS=1 ./scripts/test

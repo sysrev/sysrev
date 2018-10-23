@@ -25,28 +25,22 @@
 
 (defn go-route [& [path wait-ms]]
   (let [current (taxi/current-url)
-        path (if (empty? path) "/" path)
-        timeout (if (and (test/remote-test?) (= path ""))
-                  20000 10000)]
+        path (if (empty? path) "/" path)]
     (cond (or (not (string? current))
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (init-route path)
 
           (not= current (path->full-url path))
-          (do (b/wait-until-loading-completes :pre-wait 10 :timeout timeout)
+          (do (b/wait-until-loading-completes :pre-wait 10)
               (log/info "navigating:" path)
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\");" path))
-              (b/wait-until-loading-completes :pre-wait (or wait-ms 50) :timeout timeout)))
+              (b/wait-until-loading-completes :pre-wait (or wait-ms 50))))
     nil))
-
-(defn current-project-id []
-  (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
-    (some-> id-str parse-integer)))
 
 (defn go-project-route [suburi & [project-id]]
   (when (nil? project-id)
-    (taxi/wait-until #(integer? (current-project-id)) 2000 25))
-  (let [project-id (or project-id (current-project-id))]
+    (taxi/wait-until #(integer? (b/current-project-id)) 2000 25))
+  (let [project-id (or project-id (b/current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))
 
@@ -106,7 +100,7 @@
   (b/click (x/project-title-value name)))
 
 (defn delete-current-project []
-  (when (current-project-id)
+  (when (b/current-project-id)
     (log/info "deleting current project")
     (go-project-route "/settings")
     (b/click (xpath "//button[contains(text(),'Project...')]"))

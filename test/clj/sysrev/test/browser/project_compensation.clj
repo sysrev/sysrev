@@ -194,7 +194,7 @@
       ;; create a project
       (nav/log-in)
       (nav/new-project project-name)
-      (reset! project-id (nav/current-project-id))
+      (reset! project-id (b/current-project-id))
       ;; import sources
       (pm/add-articles-from-search-term search-term)
       ;; create a compensation level
@@ -283,7 +283,7 @@
         (nav/log-in)
         ;; create the first project
         (nav/new-project (:name project1))
-        (reset! (:project-id project1) (nav/current-project-id))
+        (reset! (:project-id project1) (b/current-project-id))
         (pm/add-articles-from-search-term (:search project1))
         #_ (create-labels @(:project-id project1))
         ;; create three compensations
@@ -310,7 +310,7 @@
           (switch-user nil)
           ;; create the second project
           (nav/new-project (:name project2))
-          (reset! (:project-id project2) (nav/current-project-id))
+          (reset! (:project-id project2) (b/current-project-id))
           ;; import sources
           (pm/add-articles-from-search-term (:search project2))
           (create-labels @(:project-id project2))
