@@ -27,8 +27,7 @@ cd ./resources/public
 rm -rf ./tmp
 mkdir tmp
 cp -R ./out-production ./tmp/out
-cp ./ga.js ./tmp/ga.js
-cp ./lo.js ./tmp/lo.js
+cp *.js ./tmp
 cp -R ./css/ ./tmp/
 cp -R ./semantic ./tmp
 

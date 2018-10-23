@@ -10,6 +10,7 @@
   (:require-macros [secretary.core :refer [defroute]]))
 
 (defonce sysrev-hostname "sysrev.com")
+(defonce sysrev-blog-hostname "blog.sysrev.com")
 
 (def debug?
   ^boolean js/goog.DEBUG)
@@ -32,7 +33,8 @@
 
 (defn run-analytics? []
   (and js/ga
-       (= js/window.location.host sysrev-hostname)
+       (or (= js/window.location.host sysrev-hostname)
+           (= js/window.location.host sysrev-blog-hostname))
        (not (:disable-analytics @app-db))))
 
 (defn ga
@@ -60,10 +62,11 @@
      (let [route (first (str/split url #"\?"))]
        (if (secretary/locate-route route)
          (do (when (not= url @active-route)
-               (when-let [user-uuid (subscribe [:user/uuid])]
+               (let [user-uuid (subscribe [:user/uuid])]
                  (ga "set" "location" (str js/window.location.origin))
                  (ga "set" "page" (str route))
-                 (ga "set" "userId" (str @user-uuid))
+                 (when @user-uuid
+                   (ga "set" "userId" (str @user-uuid)))
                  (ga "send" "pageview")))
              (reset! active-route url)
              url)

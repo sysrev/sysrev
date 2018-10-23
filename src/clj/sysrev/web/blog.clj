@@ -41,7 +41,9 @@
     [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"}]
     (index/favicon-headers)
     (apply page/include-css (index/css-paths :theme "default"))
-    (page/include-js "/ga.js")]
+    (page/include-js "/ga-blog.js")
+    (when @index/lucky-orange-enabled
+      (page/include-js "/lo-blog.js"))]
    [:body
     [:div {:id "blog-app"} (loading-content :logo-url "https://sysrev.com/")]
     (let [js-name (if (= (:profile env) :prod)
