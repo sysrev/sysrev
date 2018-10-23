@@ -105,14 +105,15 @@
   "Deletes all article-source entries for source-id, and their associated
   article entries unless contained in another source."
   [source-id]
-  (try
-    (with-transaction
-      (-> (delete-from [:article :a])
-          (where (let [asources
-                       (-> (select :*)
-                           (from [:article-source :asrc])
-                           (where [:= :asrc.article-id :a.article-id]))]
-                   [:and
+  (with-transaction
+    (try
+      (let [project-id (source-id->project-id source-id)
+            asources (-> (select :*)
+                         (from [:article-source :asrc])
+                         (where [:= :asrc.article-id :a.article-id]))]
+        (-> (delete-from [:article :a])
+            (where [:and
+                    [:= :a.project-id project-id]
                     [:exists
                      (-> asources
                          (merge-where
@@ -121,13 +122,13 @@
                      [:exists
                       (-> asources
                           (merge-where
-                           [:!= :asrc.source-id source-id]))]]]))
-          do-execute)
-      (-> (delete-from :article-source)
-          (where [:= :source-id source-id])
-          do-execute))
-    (finally
-      (clear-project-cache (source-id->project-id source-id)))))
+                           [:!= :asrc.source-id source-id]))]]])
+            do-execute)
+        (-> (delete-from :article-source)
+            (where [:= :source-id source-id])
+            do-execute))
+      (finally
+        (clear-project-cache (source-id->project-id source-id))))))
 
 (defn fail-project-source-import!
   "Update database in response to an error during the import process
@@ -151,26 +152,30 @@
       ;; that is enabled
       (-> (sqlh/update :article)
           (sset {:enabled true})
-          (where [:exists
-                  (-> (select :*)
-                      (from [:article-source :ars])
-                      (left-join [:project-source :ps]
-                                 [:= :ars.source-id :ps.source-id])
-                      (where [:and
-                              [:= :ps.project-id project-id]
-                              [:= :article.article-id :ars.article-id]
-                              [:= :ps.enabled true]]))])
+          (where [:and
+                  [:= :project-id project-id]
+                  [:exists
+                   (-> (select :*)
+                       (from [:article-source :ars])
+                       (left-join [:project-source :ps]
+                                  [:= :ars.source-id :ps.source-id])
+                       (where [:and
+                               [:= :ps.project-id project-id]
+                               [:= :article.article-id :ars.article-id]
+                               [:= :ps.enabled true]]))]])
           do-execute)
       ;; check the article_flags table as the ultimate truth
       ;; for the enabled setting
       (-> (sqlh/update :article)
           (sset {:enabled false})
-          (where [:exists
-                  (-> (select :*)
-                      (from [:article-flag :af])
-                      (where [:and
-                              [:= :af.article-id :article.article-id]
-                              [:= :af.disable true]]))])
+          (where [:and
+                  [:= :project-id project-id]
+                  [:exists
+                   (-> (select :*)
+                       (from [:article-flag :af])
+                       (where [:and
+                               [:= :af.article-id :article.article-id]
+                               [:= :af.disable true]]))]])
           do-execute))
     (finally
       (clear-project-cache project-id))))
