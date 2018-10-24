@@ -43,7 +43,8 @@
     (apply page/include-css (index/css-paths :theme "default"))
     (page/include-js "/ga-blog.js")
     (when @index/lucky-orange-enabled
-      (page/include-js "/lo-blog.js"))]
+      #_ (page/include-js "/lo-blog.js")
+      (page/include-js "/lo.js"))]
    [:body
     [:div {:id "blog-app"} (loading-content :logo-url "https://sysrev.com/")]
     (let [js-name (if (= (:profile env) :prod)
