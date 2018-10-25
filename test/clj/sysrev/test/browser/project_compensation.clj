@@ -180,7 +180,7 @@
   [email]
   (-> email (users/get-user-by-email) :user-id))
 
-(let [project-name "SysRev Compensation Test"
+(let [project-name "Sysrev Compensation Test"
       search-term "foo create"
       amount 100
       test-user {:name "foo"
@@ -221,10 +221,10 @@
                (b/delete-test-user :email (:email test-user)))))
 
 (let [projects
-      (->> [{:name "SysRev Compensation Test 1"
+      (->> [{:name "Sysrev Compensation Test 1"
              :amounts [100 10 110]
              :search "foo create"}
-            {:name "SysRev Compensation Test 2"
+            {:name "Sysrev Compensation Test 2"
              :amounts [100 20 330]
              :search "foo create"}]
            (mapv #(assoc % :project-id (atom nil))))

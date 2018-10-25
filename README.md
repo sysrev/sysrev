@@ -1,6 +1,6 @@
-# SysRev web
+# Sysrev web
 
-This repository holds the full SysRev web app (Clojure/ClojureScript project and all other files).
+This repository holds the full Sysrev web app (Clojure/ClojureScript project and all other files).
 
 * [Initial Setup](#markdown-header-initial-setup)
 * [Database Connection](#markdown-header-database-connection)
@@ -85,7 +85,7 @@ This repository holds the full SysRev web app (Clojure/ClojureScript project and
 
 ## Database Connection
 
-You will need a connection to a copy of the SysRev Postgres database in order to run the server app for development. The default configuration uses port 5432 on localhost. If that port is available, you can run the web app connecting to the database via an SSH tunnel to a database machine (builds.insilica.co) on port 5432.
+You will need a connection to a copy of the Sysrev Postgres database in order to run the server app for development. The default configuration uses port 5432 on localhost. If that port is available, you can run the web app connecting to the database via an SSH tunnel to a database machine (builds.insilica.co) on port 5432.
 
 There is a script included that can do this:
 

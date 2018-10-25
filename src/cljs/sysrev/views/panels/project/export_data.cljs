@@ -17,7 +17,7 @@
            "Export Articles (EndNote XML)"]
           [:h5 "Download EndNote XML file of all project articles"]
           [:div
-           (let [filename (str "SysRev_Articles_" project-id "_"
+           (let [filename (str "Sysrev_Articles_" project-id "_"
                                (today-string) ".xml")]
              [:a.medium-weight
               {:style {:font-size "16px"}
@@ -32,7 +32,7 @@
            "Export User Answers (CSV)"]
           [:h5 "Download CSV file of all user answers and notes"]
           [:div
-           (let [filename (str "SysRev_Answers_" project-id "_" (today-string) ".csv")]
+           (let [filename (str "Sysrev_Answers_" project-id "_" (today-string) ".csv")]
              [:a.medium-weight
               {:style {:font-size "16px"}
                :href (str "/api/export-answers-csv/" project-id "/" filename)
@@ -47,7 +47,7 @@
           [:h5 "Download raw dump of project data in internal custom format"]
           [:div
            (let [filename
-                 (str "SysRev_Raw_" project-id "_" (today-string) ".json")]
+                 (str "Sysrev_Raw_" project-id "_" (today-string) ".json")]
              [:a.medium-weight
               {:style {:font-size "16px"}
                :href (str "/api/export-project/" project-id "/" filename)

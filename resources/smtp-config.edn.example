@@ -1,5 +1,5 @@
 {:host "smtp.gmail.com"
  :ssl true
  :user "sysrev.mailer@gmail.com"
- :name "SysRev Mailer"
+ :name "Sysrev Mailer"
  :pass "passwordhere"}

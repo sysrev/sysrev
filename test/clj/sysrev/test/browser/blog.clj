@@ -20,7 +20,7 @@
       (if (test/db-connected?)
         (let [entry {:url "https://s3.amazonaws.com/sysrev-blog/browser-test.html"
                      :title "Browser Test Entry"
-                     :description "Test entry for [SysRev](http://sysrev.com/) blog."}]
+                     :description "Test entry for [Sysrev](http://sysrev.com/) blog."}]
           (try
             (blog/add-blog-entry entry)
             (log/info "added blog entry")

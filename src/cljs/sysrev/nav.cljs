@@ -98,7 +98,7 @@
 (defn set-page-title [title]
   (set! (-> js/document .-title)
         (if (string? title)
-          (str "SysRev - " title)
-          "SysRev")))
+          (str "Sysrev - " title)
+          "Sysrev")))
 
 (reg-fx :set-page-title set-page-title)

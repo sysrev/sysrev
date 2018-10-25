@@ -67,7 +67,7 @@
   (dispatch [:blog/active-entry nil])
   (dispatch [:reload [:blog/entries]])
   (set! (-> js/document .-title)
-        "SysRev Blog"))
+        "Sysrev Blog"))
 
 (defroute-app-id blog-entry "/posts/:filename" [filename] :blog
   (if (empty? filename)
@@ -95,7 +95,7 @@
   [{:keys [blog-entry-id url title description date-published]
     :as entry}]
   (set! (-> js/document .-title)
-        (str "SysRev Blog - " title))
+        (str "Sysrev Blog - " title))
   [:div
    [:iframe {:id (str "blog-entry-" blog-entry-id)
              :title title

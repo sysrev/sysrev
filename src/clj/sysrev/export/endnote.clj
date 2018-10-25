@@ -156,7 +156,7 @@
             article-ids))]])))
 
 (defn project-to-endnote-xml [project-id]
-  (let [filename (str "SysRev_Articles_"
+  (let [filename (str "Sysrev_Articles_"
                       project-id
                       "_"
                       (today-string))
@@ -165,7 +165,7 @@
     (article-ids-to-endnote-xml article-ids filename)))
 
 (defn project-included-to-endnote-xml [project-id]
-  (let [filename (str "SysRev_Included_"
+  (let [filename (str "Sysrev_Included_"
                       project-id
                       "_"
                       (today-string))

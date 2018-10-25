@@ -107,7 +107,7 @@
         (users/get-user-by-id user-id)]
     (users/create-password-reset-code user-id)
     (send-email
-     email "SysRev Password Reset Requested"
+     email "Sysrev Password Reset Requested"
      (with-out-str
        (printf "A password reset has been requested for email address %s on %s\n\n"
                email url-base)

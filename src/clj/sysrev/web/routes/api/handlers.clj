@@ -475,9 +475,9 @@
      selection: <string> // the selection of text being annotated,
      annotation: <string> // the annotation associated with a selection,
      semantic-class: <string> // the semantic class this annotation belongs to,
-     article-id: <number> // the internal SysRev id associated with the article,
+     article-id: <number> // the internal Sysrev id associated with the article,
      pmid: <number> // optional, the integer pmid value associated with the article, when available
-     pdf-source: <string> // optional, the string description of the SysRev url where a pdf can be found.}]}
+     pdf-source: <string> // optional, the string description of the Sysrev url where a pdf can be found.}]}
 
     There are currently only two types of annotations for article, those which label an abstract or label a pdf. If an annotation has a pdf-source, it can be assumed the selection comes from a pdf. Otherwise, if there is no pdf-source the selection is associated with just the title, author or abstract of an article"}
   (fn [request]

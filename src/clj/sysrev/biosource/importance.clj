@@ -157,7 +157,7 @@
           (clojure.string/join "\n")))))
 
 (defn extract-pmids-from-sysrev-raw-json-export
-  "Given a string file descriptor for a SysRev_Raw_*.json file, return a vector of PMIDs"
+  "Given a string file descriptor for a Sysrev_Raw_*.json file, return a vector of PMIDs"
   [f]
   (let [get-pmid (fn [article-json] (->> article-json
                                          :locations
@@ -175,15 +175,3 @@
      (mapv get-pmid)
      ;; remove any nil vals
      (filterv (comp not nil?)))))
-
-;; create a terms map
-;;  (def project-terms (important-terms (extract-pmids-from-sysrev-raw-json-export "/Users/james/Downloads/SysRev_Raw_269_20180315.json")))
-
-;; create the chemicalCounts csv, with the top 100 terms
-;;(spit "chemical-counts.csv" (map-coll->csv-string (reverse (sort-by :count (:chemicalCounts project-terms)))))
-;; create the meshCounts csv
-;;(spit "mesh-counts.csv" (map-coll->csv-string (reverse (sort-by :count (:meshCounts project-terms)))))
-;; create the geneCounts csv
-;;(spit "gene-counts.csv" (map-coll->csv-string (mapv (fn [gene-map] (merge (:gene gene-map) {:count (:count gene-map)})) (reverse (sort-by :count (:geneCounts project-terms))))))
-
-

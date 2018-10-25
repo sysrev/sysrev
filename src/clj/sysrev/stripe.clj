@@ -31,7 +31,7 @@
   (execute-action
    (customers/create-customer
     (customers/email email)
-    (common/description (str "SysRev UUID: " uuid)))))
+    (common/description (str "Sysrev UUID: " uuid)))))
 
 (defn get-customer
   "Get customer associated with stripe customer id"
@@ -52,7 +52,7 @@
   [stripe-customer-id])
 
 (defn delete-customer!
-  "Delete user as a SysRev stripe customer"
+  "Delete stripe customer entry for user"
   [user]
   (execute-action (customers/delete-customer (:stripe-id user))))
 
@@ -82,7 +82,7 @@
                (mapv :id)))))
 
 (defn get-plans
-  "Get all plans that SysRev offers"
+  "Get all site plans"
   []
   (execute-action (plans/get-all-plans)))
 
@@ -98,7 +98,7 @@
 ;; it is not prorated at the time of upgrade/downgrade
 ;; https://stripe.com/docs/subscriptions/upgrading-downgrading
 (defn subscribe-customer!
-  "Subscribe SysRev user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
+  "Subscribe user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
   [user plan-name]
   (let [{:keys [created id] :as stripe-response}
         (execute-action (subscriptions/subscribe-customer
