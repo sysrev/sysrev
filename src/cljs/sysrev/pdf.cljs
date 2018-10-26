@@ -1,5 +1,5 @@
 (ns sysrev.pdf
-  (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+  (:require [cljsjs.semantic-ui-react]
             [goog.dom :as dom]
             [reagent.core :as r]
             [re-frame.core :refer

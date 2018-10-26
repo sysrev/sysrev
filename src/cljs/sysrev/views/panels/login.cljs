@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.login
-  (:require [re-frame.core :as re-frame :refer
+  (:require [reagent.core :as r]
+            [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
@@ -13,7 +14,8 @@
             [sysrev.util :refer
              [full-size? mobile? validate wrap-prevent-default nbsp]]
             [sysrev.shared.util :refer [in?]])
-  (:require-macros [sysrev.macros :refer [with-loader]]))
+  (:require-macros [sysrev.macros :refer [with-loader]]
+                   [reagent.interop :refer [$ $!]]))
 
 (def ^:private login-panel [:login])
 (def ^:private register-panel [:register])
@@ -224,6 +226,51 @@
  (fn [_ [fields]]
    {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
 
+(defonce gapi js/gapi)
+
+(defn ^:export on-google-sign-in [google-user]
+  (let [profile ($ google-user getBasicProfile)]
+    (js/console.log (str "ID: " ($ profile getId)))
+    (js/console.log (str "Name: " ($ profile getName)))
+    (js/console.log (str "Email: " ($ profile getEmail)))
+    (js/console.log (str "ID Token: " (-> ($ google-user getAuthResponse)
+                                          ($ :id_token))))
+    profile))
+
+(defn ^:export on-google-sign-in-failure [msg]
+  (js/console.log (str "Google login failed: " msg)))
+
+(defn ^:export log-out-google []
+  (-> ($ gapi :auth2)
+      ($ getAuthInstance)
+      ($ signOut)
+      ($ then
+         #(js/console "Google logout successful"))))
+
+(defn ^:export render-google-sign-in []
+  (js/console.log "Rendering Google signin button")
+  (some-> ($ gapi :signin2)
+          ($ render
+             "my-signin2"
+             (clj->js
+              {:scope "profile email"
+               :width "200"
+               ;; :height "40"
+               :longtitle true
+               ;; :theme "dark"
+               :onsuccess on-google-sign-in
+               :onfailure on-google-sign-in-failure}))))
+
+(defn GoogleSignInButton []
+  (r/create-class
+   {:component-did-mount
+    (fn [] (render-google-sign-in))
+    :reagent-render
+    (fn []
+      [:div.google-signin-wrapper
+       [:div#my-signin2.g-signin2
+        {:data-onsuccess "on-google-sign-in"}]])}))
+
 (defn LoginRegisterPanel []
   (let [register? @(subscribe [::register?])
         project-id @(subscribe [:register/project-id])
@@ -279,7 +326,8 @@
                    "loading")}
          (if register? "Register" "Login")]
         (when-let [err @(subscribe [::login-error-msg])]
-          [:div.ui.negative.message err])]
+          [:div.ui.negative.message err])
+        [GoogleSignInButton]]
        (if register?
          [:div.ui.center.aligned.grid
           [:div.column

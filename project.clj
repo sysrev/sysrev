@@ -67,6 +67,7 @@
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
+                 [com.google.api-client/google-api-client "1.23.0"]
                  [abengoa/clj-stripe "1.0.4"]
                  [environ "1.1.0"]
                  [bouncer "1.0.1"] ;; validation

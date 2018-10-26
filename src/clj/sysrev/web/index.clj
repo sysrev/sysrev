@@ -47,6 +47,9 @@
         [:meta {:name "theme-color"
                 :content "#ffffff"}]))
 
+(def google-oauth-id-browser
+  "663198182926-2scj6i34qibj3fjfrtkmphktk9vo23u5.apps.googleusercontent.com")
+
 (defn index [& [request]]
   (page/html5
    [:head
@@ -54,6 +57,10 @@
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
+    [:meta {:name "google-signin-scope" :content "profile email"}]
+    [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
+    [:script {;; :async true ;; :defer true
+              :src "https://apis.google.com/js/platform.js"}]
     [:script {:src "https://js.stripe.com/v3/"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
