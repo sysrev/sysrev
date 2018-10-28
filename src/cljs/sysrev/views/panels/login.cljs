@@ -327,7 +327,7 @@
          (if register? "Register" "Login")]
         (when-let [err @(subscribe [::login-error-msg])]
           [:div.ui.negative.message err])
-        [GoogleSignInButton]]
+        #_ [GoogleSignInButton]]
        (if register?
          [:div.ui.center.aligned.grid
           [:div.column
