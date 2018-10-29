@@ -18,7 +18,7 @@
     [:h4.ui.header
      "Example Projects"]]
    (doall
-    (for [project-id [100 269 2026 2283 3144]]
+    (for [project-id [100 269 2026 844 3144]]
       (when-let [project (get @(subscribe [:public-projects]) project-id)]
         ^{:key [:public-project project-id]}
         [select/ProjectListItem
