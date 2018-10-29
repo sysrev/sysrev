@@ -1,6 +1,12 @@
 node {
   checkout scm
 
+  jenkinsHost = "builds.insilica.co"
+  jenkinsJob = "sysrev-prod-monitor"
+  jenkinsBuildUrl = "https://${jenkinsHost}/blue/organizations/jenkins/${jenkinsJob}/detail/${jenkinsJob}/${env.BUILD_NUMBER}/pipeline"
+  jenkinsConsoleUrl = "https://${jenkinsHost}/job/${jenkinsJob}/${env.BUILD_NUMBER}/console"
+  jenkinsSlackLinks = "(<${jenkinsBuildUrl}|Open>) (<${jenkinsConsoleUrl}|Console>)"
+
   def sendFlowdockMsgFull = {
     msg,status,color ->
       cmd = "./scripts/flowdock-msg pipeline"
@@ -43,7 +49,7 @@ node {
         colorVal = 'good'
       }
     }
-    msgContent = "[${env.JOB_NAME}] ${msg}"
+    msgContent = "[${env.JOB_NAME} #${env.BUILD_NUMBER}] ${msg} | ${jenkinsSlackLinks}"
     if (colorVal != null) {
       slackSend color: colorVal, message: msgContent
     } else {

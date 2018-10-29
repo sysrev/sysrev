@@ -1,0 +1,57 @@
+node {
+  checkout scm
+
+  jenkinsHost = "builds.insilica.co"
+  jenkinsJob = "sysrev-db-backup"
+  jenkinsBuildUrl = "https://${jenkinsHost}/blue/organizations/jenkins/${jenkinsJob}/detail/${jenkinsJob}/${env.BUILD_NUMBER}/pipeline"
+  jenkinsConsoleUrl = "https://${jenkinsHost}/job/${jenkinsJob}/${env.BUILD_NUMBER}/console"
+  jenkinsSlackLinks = "(<${jenkinsBuildUrl}|Open>) (<${jenkinsConsoleUrl}|Console>)"
+
+  def sendSlackMsgFull = {
+    msg,color ->
+    if (color == 'blue') {
+      colorVal = '#4071bf'
+    } else if (color != null) {
+      colorVal = color
+    } else {
+      if (currentBuild.result == 'FAILURE') {
+        colorVal = 'danger'
+      } else if (currentBuild.result == 'UNSTABLE') {
+        colorVal = 'warning'
+      } else if (currentBuild.result == 'SUCCESS') {
+        colorVal = 'good'
+      }
+    }
+    msgContent = "[${env.JOB_NAME} #${env.BUILD_NUMBER}] ${msg} | ${jenkinsSlackLinks}"
+    if (colorVal != null) {
+      slackSend color: colorVal, message: msgContent
+    } else {
+      slackSend message: msgContent
+    }
+  }
+
+  def sendSlackMsg = {
+    msg ->
+    sendSlackMsgFull (msg, null)
+  }
+
+  stage('Init') {
+    echo 'Initializing...'
+    sendSlackMsgFull ('Backup started','blue')
+  }
+
+  stage('Backup') {
+    echo 'Running backup...'
+    try {
+      sshagent(['sysrev-admin']) {
+        sh './scripts/server/backup-data'
+      }
+      currentBuild.result = 'SUCCESS'
+      sendSlackMsg ('Backup saved and copied')
+    } catch (exc) {
+      currentBuild.result = 'FAILURE'
+      sendSlackMsg ('Backup failed')
+      throw exc
+    }
+  }
+}
