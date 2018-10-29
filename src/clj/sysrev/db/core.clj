@@ -268,11 +268,11 @@
                           #(dissoc % (last field-path)))))))
   nil)
 
-(defn clear-labels-cache []
+(defn clear-global-cache []
   (clear-query-cache [:all-labels]))
 
 (defn clear-project-cache [& [project-id field-path clear-protected?]]
-  (clear-labels-cache)
+  (clear-global-cache)
   (cond
     (and project-id field-path)
     (clear-query-cache (concat [:project project-id] field-path))

@@ -1,21 +1,89 @@
 (ns sysrev.web.routes.site
   (:require [compojure.core :refer :all]
+            [clj-time.core :as time]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
-             [do-query clear-query-cache]]
+             [do-query clear-query-cache with-query-cache sql-now]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [should-never-happen-exception]]
-            [sysrev.web.app :refer [wrap-authorize current-user-id]]))
+            [sysrev.web.app :refer [wrap-authorize current-user-id]]
+            [sysrev.db.queries :as q]))
 
 ;; Functions defined after defroutes form
 (declare public-project-summaries)
 
+(defonce global-stats-cache (atom {:value nil, :updated nil}))
+
+(defn sysrev-global-stats-impl []
+  (let [labeled-articles
+        (-> (q/select-project-articles nil [:%count.*])
+            (merge-join [:project :p] [:= :p.project-id :a.project-id])
+            (merge-where
+             [:and
+              [:= :p.enabled true]
+              [:exists
+               (-> (select :*)
+                   (from [:article-label :al])
+                   (where [:= :al.article-id :a.article-id])
+                   (q/filter-valid-article-label true))]])
+            do-query first :count)
+        label-entries
+        (-> (q/select-project-article-labels nil true [:%count.*])
+            (merge-join [:project :p] [:= :p.project-id :a.project-id])
+            (merge-where [:= :p.enabled true])
+            (q/filter-valid-article-label true)
+            do-query first :count)
+        real-users
+        (-> (select :%count.*)
+            (from [:web-user :u])
+            (q/filter-admin-user false)
+            (merge-where
+             [:and
+              [:not [:like :u.email "%insilica%"]]
+              [:not [:like :u.email "%sysrev%"]]
+              [:not [:like :u.email "%+test%"]]])
+            do-query first :count)
+        real-projects
+        (-> (select :pm.project-id :pm.user-id :u.email :u.permissions)
+            (from [:project-member :pm])
+            (join [:web-user :u] [:= :u.user-id :pm.user-id])
+            (->> do-query
+                 (group-by :project-id)
+                 (map-values
+                  (fn [entries]
+                    (filter #(and (not (in? (:permissions %) "admin"))
+                                  (not (re-matches #".*insilica.*" (:email %)))
+                                  (not (re-matches #".*sysrev.*" (:email %)))
+                                  (not (re-matches #".*\+test.*" (:email %)))
+                                  (not (re-matches #".*tomluec.*" (:email %))))
+                            entries)))
+                 vals
+                 (filter not-empty)
+                 count))]
+    {:labeled-articles labeled-articles
+     :label-entries label-entries
+     :real-users real-users
+     :real-projects real-projects}))
+
+(defn sysrev-global-stats []
+  (let [now (time/now)
+        timeout (time/hours 4)
+        {:keys [value updated]} @global-stats-cache]
+    (if (or (nil? updated) (time/before? updated (time/minus now timeout)))
+      (let [result (sysrev-global-stats-impl)]
+        (reset! global-stats-cache {:value result, :updated (time/now)})
+        result)
+      value)))
+
 (defroutes site-routes
+  (GET "/api/global-stats" request
+       {:result {:stats (sysrev-global-stats)}})
+
   (POST "/api/delete-user" request
         (wrap-authorize
          request {:developer true}
