@@ -18,6 +18,10 @@
 (def stripe-public-key (or (System/getProperty "STRIPE_PUBLIC_KEY")
                            (env :stripe-public-key)))
 
+;; https://dashboard.stripe.com/account/applications/settings
+(def stripe-client-id (or (System/getProperty "STRIPE_CLIENT_ID")
+                          (env :stripe-client-id)))
+
 (def stripe-url "https://api.stripe.com/v1")
 
 (defn execute-action
@@ -207,3 +211,26 @@
     (catch Throwable e
       {:error {:message (.getMessage e)}})))
 
+;;https://stripe.com/docs/connect/quickstart?code=ac_Dqv4kl5grW1R7eRtNRQHahcuO6TGcQIq&state=state#express-account-creation
+(defn finalize-stripe-user!
+  "finalize the stripe user on stripe, return the stripe customer-id"
+  [stripe-code]
+  (-> (http/post "https://connect.stripe.com/oauth/token"
+                 {:form-params {"client_secret" stripe-secret-key
+                                "code" stripe-code
+                                "grant_type" "authorization_code"}
+                  :throw-exceptions false
+                  :as :json
+                  :coerce :always})))
+
+;;https://api.stripe.com/v1/charges
+(defn pay-stripe-user!
+  [stripe-account-id amount]
+  (http/post (str stripe-url "/charges")
+             {:basic-auth stripe-secret-key
+              :throw-exceptions false
+              :as :json
+              :coerce :always
+              :form-params {"amount" amount
+                            "currency" "usd"
+                            "destination[account]" stripe-account-id}}))

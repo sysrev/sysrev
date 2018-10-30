@@ -431,6 +431,27 @@
     (stripe/cancel-subscription! id)
     {:result {:success true}}))
 
+(defn finalize-stripe-user!
+  "Save a stripe user in our database for payouts"
+  [user-id stripe-code]
+  (let [{:keys [body] :as finalize-response} (stripe/finalize-stripe-user! stripe-code)]
+    (if-let [stripe-user-id (:stripe_user_id body)]
+      ;; save the user information
+      (try (users/create-web-user-stripe-acct stripe-user-id user-id)
+           {:result {:success true}}
+           (catch Throwable e
+             {:error {:status internal-server-error
+                      :message (.getMessage e)}}))
+      ;; return an error
+      {:error {:status (:status finalize-response)
+               :message (:error_description body)}})))
+
+(defn user-has-stripe-account?
+  "Does the user have a stripe account associated with the platform?"
+  [user-id]
+  {:connected
+   (boolean (users/user-has-stripe-account? user-id))})
+
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
   [project-id labels-map]

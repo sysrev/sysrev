@@ -335,3 +335,17 @@
               [:= :user-id user-id]
               [:= :project-id project-id]])
       do-execute))
+
+(defn create-web-user-stripe-acct [stripe-acct user-id]
+  (-> (insert-into :web_user_stripe_acct)
+      (values [{:stripe-acct stripe-acct
+                :user-id user-id}])
+      do-execute))
+
+(defn user-has-stripe-account?
+  [user-id]
+  (-> (select :*)
+      (from :web_user_stripe_acct)
+      (where [:= :user-id user-id])
+      do-query
+      first))
