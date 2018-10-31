@@ -82,7 +82,7 @@ node {
     echo "branch = ${branch}"
     echo "CHANGE_TARGET = ${env.CHANGE_TARGET}"
     echo "BRANCH_NAME = ${env.BRANCH_NAME}"
-    sendFlowdockMsg ('Build started')
+    // sendFlowdockMsg ('Build started')
     sendSlackMsgFull ('Build started','blue')
     echo 'Setting up workspace...'
     try {
@@ -93,7 +93,7 @@ node {
       }
     } catch (exc) {
       currentBuild.result = 'FAILURE'
-      sendFlowdockMsg ('Init stage failed')
+      // sendFlowdockMsg ('Init stage failed')
       sendSlackMsg ('Init stage failed')
       throw exc
     }
@@ -106,15 +106,15 @@ node {
         currentBuild.result = 'SUCCESS'
         if (branch == 'staging' ||
             branch == 'production') {
-          sendFlowdockMsgFull ('Tests passed','running','blue')
+          // sendFlowdockMsgFull ('Tests passed','running','blue')
           sendSlackMsgFull ('Tests passed','blue')
         } else {
-          sendFlowdockMsg ('Tests passed')
+          // sendFlowdockMsg ('Tests passed')
           sendSlackMsg ('Tests passed')
         }
       } catch (exc) {
         currentBuild.result = 'UNSTABLE'
-        sendFlowdockMsg ('Tests failed')
+        // sendFlowdockMsg ('Tests failed')
         sendSlackMsg ('Tests failed')
         sh 'cat target/junit-all.xml'
         try {
@@ -135,7 +135,7 @@ node {
           sh './jenkins/build'
         } catch (exc) {
           currentBuild.result = 'FAILURE'
-          sendFlowdockMsg ('Build stage failed')
+          // sendFlowdockMsg ('Build stage failed')
           sendSlackMsg ('Build stage failed')
           throw exc
         }
@@ -167,11 +167,11 @@ node {
           currentBuild.result = 'UNSTABLE'
         } finally {
           if (currentBuild.result == 'SUCCESS') {
-            sendFlowdockMsgFull ('PreDeployTest passed','running','blue')
+            // sendFlowdockMsgFull ('PreDeployTest passed','running','blue')
             sendSlackMsgFull ('PreDeployTest passed','blue')
           }
           if (currentBuild.result == 'UNSTABLE') {
-            sendFlowdockMsg ('PreDeployTest failed')
+            // sendFlowdockMsg ('PreDeployTest failed')
             sendSlackMsg ('PreDeployTest failed')
           }
         }
@@ -206,10 +206,10 @@ node {
           throw exc
         } finally {
           if (currentBuild.result == 'SUCCESS') {
-            sendFlowdockMsg ('Deployed to AWS')
+            // sendFlowdockMsg ('Deployed to AWS')
             sendSlackMsgFull ('Deployed to AWS', 'blue')
           } else {
-            sendFlowdockMsg ('Deploy failed')
+            // sendFlowdockMsg ('Deploy failed')
             sendSlackMsg ('Deploy failed')
           }
         }
@@ -217,8 +217,7 @@ node {
     }
   }
   stage('GitPublish') {
-    if (branch == 'staging' ||
-        branch == 'production') {
+    if (branch == 'production') {
       if (currentBuild.result == 'SUCCESS') {
         try {
           sshagent(['sysrev-admin']) {
@@ -226,7 +225,7 @@ node {
           }
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
-          sendFlowdockMsg ('GitPublish failed')
+          // sendFlowdockMsg ('GitPublish failed')
           sendSlackMsg ('GitPublish failed')
         }
       }
@@ -248,7 +247,7 @@ node {
           sendSlackMsg ('PostDeployTest passed')
         } catch (exc) {
           currentBuild.result = 'UNSTABLE'
-          sendFlowdockMsg ('PostDeployTest failed')
+          // sendFlowdockMsg ('PostDeployTest failed')
           sendSlackMsg ('PostDeployTest failed')
           if (branch == 'staging') {
             sh 'cat target/junit-all.xml'
