@@ -1,9 +1,14 @@
 (ns sysrev.stripe
-  (:require [cljsjs.react-stripe-elements]
+  (:require [ajax.core :refer [POST GET]]
+            [cljs-http.client :refer [generate-query-string]]
+            [cljsjs.react-stripe-elements]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
-            [sysrev.action.core :refer [def-action]]))
+            [sysrev.action.core :refer [def-action]]
+            [sysrev.nav :refer [nav-redirect]]
+            [sysrev.views.semantic :refer [Button]])
+  (:require-macros [reagent.interop :refer [$]]))
 
 ;; based on: https://github.com/stripe/react-stripe-elements
 ;;           https://jsfiddle.net/g9rm5qkt/
@@ -12,8 +17,12 @@
 
 (def initial-state {:error-message nil
                     :need-card? false
-                    :updating-card? false})
+                    :updating-card? false
+                    :connected? false
+                    :retrieving-connected? false})
+
 (defonce state (r/cursor app-db [:state :panels panel]))
+
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
@@ -21,6 +30,10 @@
 (def stripe-public-key
   (some-> (.getElementById js/document "stripe-public-key")
           (.getAttribute "data-stripe-public-key")))
+
+(def stripe-client-id
+  (some-> (.getElementById js/document "stripe-client-id")
+          (.getAttribute "data-stripe-client-id")))
 
 ;; Stripe elements
 (def Elements (r/adapt-react-class js/ReactStripeElements.Elements))
@@ -147,3 +160,68 @@
   [StripeProvider {:apiKey stripe-public-key}
    [Elements
     [StripeForm]]])
+
+;; https://stripe.com/docs/connect/quickstart
+;; use: phone number: 000-000-0000
+;;      text confirm number: 000 000
+;;      use debit card:  4000 0566 5566 5556
+(defn ConnectWithStripe
+  []
+  (let [params {"client_id" stripe-client-id
+                "response_type" "code"
+                "redirect_uri" (str js/window.location.origin "/user/settings")
+                "state" @(subscribe [:csrf-token])}]
+    [Button {:href (str "https://connect.stripe.com/express/oauth/authorize?" (generate-query-string params))}
+     "Connect with Stripe"]))
+
+(defn check-if-stripe-user!
+  []
+  (let [user-id @(subscribe [:self/user-id])
+        connected? (r/cursor state [:connected?])
+        retrieving-connected? (r/cursor state [:retrieving-connected?])]
+    (reset! retrieving-connected? true)
+    (GET (str "/api/stripe/connected/" user-id)
+         {:response :json
+          :handler (fn [response]
+                     (reset! retrieving-connected? false)
+                     (reset! connected?
+                             (get-in response [:result :connected])))
+          :error-handler (fn [error]
+                           (reset! retrieving-connected? false)
+                           ($ js/console log "[[sysrev.strip/check-if-stripe-user!]] error"))})))
+
+(defn save-stripe-user!
+  [user-id stripe-code]
+  (POST "/api/stripe/finalize-user"
+        {:params {:user-id user-id
+                  :stripe-code stripe-code}
+         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+         :handler (fn [] (check-if-stripe-user!))
+         :error-handler (fn [error] ($ js/console log "[[sysrev.stripe/save-stripe-user]] error"))}))
+
+(defn StripeConnect
+  []
+  (r/create-class
+   {:reagent-render
+    (fn []
+      (let [stripe-code ($ (goog.Uri. js/window.location) getParameterValue "code")
+            connected? (r/cursor state [:connected?])
+            retrieving-connected? (r/cursor state [:retrieving-connected?])]
+        (cond @retrieving-connected?
+              [:div.ui.small.active.inline.loader
+               {:style {:margin-right "1em"
+                        :margin-left "1em"}}]
+              stripe-code
+              (do (save-stripe-user! @(subscribe [:self/user-id]) stripe-code)
+                  (nav-redirect "/user/settings"))
+              @connected?
+              [Button {:href ""
+                       :disabled true
+                       :color "blue"}
+               "Connected with Stripe"]
+              :else [ConnectWithStripe])))
+    :get-initial-state
+    (fn [this]
+      (ensure-state)
+      (check-if-stripe-user!))}))
+

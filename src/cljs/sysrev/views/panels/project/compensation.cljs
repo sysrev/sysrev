@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.project.compensation
   (:require [ajax.core :refer [POST GET DELETE PUT]]
             [cljsjs.moment]
+            [clojure.string :as string]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [re-frame.db :refer [app-db]]
@@ -154,7 +155,7 @@
             [:div.ui.grid
              [:div.ui.row
               [:div.five.wide.column
-               "Current Balance: "]
+               "Available Funds: "]
               [:div.eight.wide.column]
               [:div.three.wide.column
                (accounting/cents->string current-balance)]]
@@ -166,7 +167,7 @@
                (accounting/cents->string compensation-outstanding)]]
              [:div.ui.row
               [:div.five.wide.column
-               "Available Funds: "]
+               "Current Balance: "]
               [:div.eight.wide.column]
               [:div.three.wide.column
                (accounting/cents->string available-funds)]]]]]))
@@ -347,9 +348,13 @@
            [:div.ui.relaxed.divided.list
             (doall (map
                     (fn [user-owed]
-                      (let [user-name (:name user-owed)
+                      (let [user-name (-> (:email user-owed)
+                                          (string/split #"@")
+                                          first)
+                            email (:email user-owed)
                             amount-owed (:amount-owed user-owed)
                             last-payment (:last-payment user-owed)
+                            connected? (:connected user-owed)
                             user-id (:user-id user-owed)
                             pay-disabled? @(r/cursor state [:retrieving-pay? user-id])
                             error-message (r/cursor state [:pay-error user-id])]
@@ -357,14 +362,20 @@
                          [:div.ui.grid
                           [:div.five.wide.column
                            [:i.user.icon]
-                           user-name]
+                           email]
                           [:div.two.wide.column
                            (accounting/cents->string amount-owed)]
-                          [:div.six.wide.column
+                          [:div.four.wide.column
                            (when last-payment
                              (str "Last Payment: " (unix-epoch->date-string last-payment)))]
-                          [:div.three.wide.column.right.align
-                           (if (> amount-owed 0)
+                          [:div.five.wide.column.right.align
+                           (cond
+                             (and (> amount-owed 0)
+                                  (not connected?))
+                             [Button {:disabled true
+                                      :color "blue"}
+                              "No Payment Destination"]
+                             (> amount-owed 0)
                              [Button {:on-click #(pay-user! state user-id amount-owed)
                                       :color "blue"
                                       :disabled pay-disabled?}

@@ -801,6 +801,17 @@
          (let [{:keys [project-id user-id amount]} (-> request :body)]
            (api/pay-user! project-id user-id amount))))
 
+  (POST "/api/stripe/finalize-user" request
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [user-id stripe-code]} (-> request :body)]
+           (api/finalize-stripe-user! user-id stripe-code))))
+
+  (GET "/api/stripe/connected/:user-id" request
+       (wrap-authorize
+        request {:logged-in true}
+        (let [user-id (-> request :params :user-id Integer/parseInt)]
+          (api/user-has-stripe-account? user-id))))
   ;;  we are still getting sane responses from the server?
   (GET "/api/test" request
        (wrap-authorize

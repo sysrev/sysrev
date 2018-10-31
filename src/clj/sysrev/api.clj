@@ -42,6 +42,7 @@
 (def not-found 404)
 (def precondition-failed 412)
 (def internal-server-error 500)
+(def bad-request 400)
 
 (def max-import-articles (:max-import-articles env))
 
@@ -430,6 +431,27 @@
   (let [{:keys [quantity id]} (plans/user-current-project-support user project-id)]
     (stripe/cancel-subscription! id)
     {:result {:success true}}))
+
+(defn finalize-stripe-user!
+  "Save a stripe user in our database for payouts"
+  [user-id stripe-code]
+  (let [{:keys [body] :as finalize-response} (stripe/finalize-stripe-user! stripe-code)]
+    (if-let [stripe-user-id (:stripe_user_id body)]
+      ;; save the user information
+      (try (users/create-web-user-stripe-acct stripe-user-id user-id)
+           {:result {:success true}}
+           (catch Throwable e
+             {:error {:status internal-server-error
+                      :message (.getMessage e)}}))
+      ;; return an error
+      {:error {:status (:status finalize-response)
+               :message (:error_description body)}})))
+
+(defn user-has-stripe-account?
+  "Does the user have a stripe account associated with the platform?"
+  [user-id]
+  {:connected
+   (boolean (users/user-stripe-account user-id))})
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
@@ -947,7 +969,8 @@
   "Return compensations owed for all users"
   [project-id]
   (try-catch-response
-   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
+   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id)
+                                     (map #(merge % (user-has-stripe-account? (:user-id %)))))}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
@@ -1054,13 +1077,23 @@
 (defn pay-user!
   [project-id user-id amount]
   (try-catch-response
-   (let [current-balance (compensation/project-funds project-id)]
-     (if (>= current-balance amount)
-       (do
-         (compensation/pay-user! project-id user-id amount (str (gensym "paypal-id")) "PayPal/payment-id")
-         {:result {:amount amount}})
+   (let [current-balance (compensation/project-funds project-id)
+         user-stripe-account (:stripe-acct (users/user-stripe-account user-id))]
+     (cond
+       (> amount current-balance)
        {:error {:status payment-required
-                :message "Not enough funds to fulfill this payment"}}))))
+                :message "Not enough funds to fulfill this payment"}}
+       (nil? user-stripe-account)
+       {:error {:status not-found
+                :message "User does not have a connected stripe account"}}
+       (<= amount current-balance)
+       (let [{:keys [body] :as stripe-response} (stripe/pay-stripe-user! user-stripe-account amount)]
+         (if (:error body)
+           {:error {:status bad-request
+                    :message (get-in body [:error :message])}}
+           (let [{:keys [id created]} body]
+             (compensation/pay-user! project-id user-id (- amount) id "Stripe Charge" created)
+             {:result "success"})))))))
 
 (defn test-response
   "Server Sanity Check"

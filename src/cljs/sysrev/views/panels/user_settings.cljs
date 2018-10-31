@@ -6,6 +6,7 @@
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.stripe :refer [StripeConnect]]
             [sysrev.util :refer [full-size?]]))
 
 (def ^:private panel [:user-settings])
@@ -156,4 +157,9 @@
      [:div.ui.two.column.stackable.grid
       [:div.column [user-options-box]]
       [:div.column [user-dev-tools-box]]]
+     [:div.ui.one.column.stackable.grid
+      [:div.column
+       [StripeConnect]]]
      [UserSupportSubscriptions]]))
+
+;; http://localhost:4061/user/settings?code=ac_Dqvg8XWDSp8lB1fyrCviNnusF5YBe19D&state=state
