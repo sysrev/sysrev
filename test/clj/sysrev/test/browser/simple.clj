@@ -28,40 +28,44 @@
 (deftest-browser project-routes
   (do (nav/log-in)
       (nav/new-project "Simple Test")
-      (pm/add-articles-from-search-term "foo bar")
-      (is (nav/panel-exists? [:project]))
-      (is (root-panel-exists?))
-      (is (not (nav/panel-exists? [:project :project :fake-panel]
-                                  :wait? false)))
+      (let [project-id (b/current-project-id)]
+        (pm/add-articles-from-search-term "foo bar")
+        (is (nav/panel-exists? [:project]))
+        (is (root-panel-exists?))
+        (is (not (nav/panel-exists? [:project :project :fake-panel]
+                                    :wait? false)))
 
-      (nav/go-project-route "/labels/edit")
-      (is (nav/panel-exists? [:project :project :labels :edit]))
+        (nav/go-project-route "/labels/edit")
+        (is (nav/panel-exists? [:project :project :labels :edit]))
 
-      (nav/go-project-route "/settings")
-      (is (nav/panel-exists? [:project :project :settings]))
+        (nav/go-project-route "/settings")
+        (is (nav/panel-exists? [:project :project :settings]))
 
-      (nav/go-project-route "/invite-link")
-      (is (nav/panel-exists? [:project :project :invite-link]))
+        (nav/go-project-route "/invite-link")
+        (is (nav/panel-exists? [:project :project :invite-link]))
 
-      (nav/go-project-route "/export")
-      (is (nav/panel-exists? [:project :project :export-data]))
+        (nav/go-project-route "/export")
+        (is (nav/panel-exists? [:project :project :export-data]))
 
-      #_ (nav/go-project-route "/user")
-      #_ (is (nav/panel-exists? [:project :user :labels]))
+        #_ (nav/go-project-route "/user")
+        #_ (is (nav/panel-exists? [:project :user :labels]))
 
-      (nav/go-project-route "/review")
-      (is (nav/panel-exists? [:project :review]))
+        (nav/go-project-route "/review")
+        (is (nav/panel-exists? [:project :review]))
 
-      (nav/go-project-route "/articles")
-      (is (nav/panel-exists? [:project :project :articles]))
+        (nav/go-project-route "/articles")
+        (is (nav/panel-exists? [:project :project :articles]))
 
-      (nav/go-project-route "")
-      (is (root-panel-exists?))
+        (nav/go-project-route "")
+        (is (root-panel-exists?))
 
-      (nav/go-route "/user/settings")
-      (is (nav/panel-exists? [:user-settings]))
+        (nav/go-route "/user/settings")
+        (is (nav/panel-exists? [:user-settings]))
 
-      (is (b/exists? {:css "a#log-out-link"})))
+        (when project-id
+          (nav/go-project-route "/settings" project-id))
+
+        (is (b/exists? {:css "a#log-out-link"}))))
   :cleanup (do (nav/delete-current-project)
                (nav/log-out)
                (is (b/exists? {:css "div#login-register-panel"}))))

@@ -12,6 +12,7 @@
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [do-execute with-transaction]]
             [sysrev.db.users :as users]
+            [sysrev.db.project :as project]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test]
             [sysrev.shared.util :as sutil :refer [parse-integer]])
@@ -245,3 +246,9 @@
            (throw e#)))
        (finally
          ~cleanup))))
+
+(defn cleanup-browser-test-projects []
+  (project/delete-all-projects-with-name "Sysrev Browser Test")
+  (when-let [test-user-id (:user-id (users/get-user-by-email
+                                     "browser+test@insilica.co"))]
+    (project/delete-solo-projects-from-user test-user-id)))

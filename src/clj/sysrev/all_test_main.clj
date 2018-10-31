@@ -4,11 +4,10 @@
             [clojure.java.io :as io]
             [clojure.test.junit :refer [with-junit-output]]
             [clojure.tools.logging :as log]
+            [clojure.pprint :as pprint]
             sysrev.test.all
             [sysrev.test.core :as test]
-            [sysrev.test.web.routes.project :refer [test-project-name]]
-            [sysrev.db.project :refer [delete-all-projects-with-name]]
-            [clojure.pprint :as pprint]
+            [sysrev.test.browser.core :as browser]
             [sysrev.config.core :refer [env]]
             [sysrev.db.migration :as migration]
             [sysrev.init :as init]))
@@ -20,8 +19,7 @@
                  (pprint/write (test/get-selenium-config) :stream nil)))
   (when (and (test/db-connected?) (= (-> env :profile) :remote-test))
     (init/start-db)
-    (log/info (str "deleting test projects"))
-    (delete-all-projects-with-name test-project-name)
+    (browser/cleanup-browser-test-projects)
     (migration/ensure-updated-db)
     (init/start-cassandra-db))
   (let [fname "target/junit-all.xml"

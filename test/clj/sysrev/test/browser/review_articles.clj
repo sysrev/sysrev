@@ -426,7 +426,7 @@
 (let [project-id (atom nil)]
   (deftest-browser create-project-and-review-article
     (when (test/db-connected?)
-      (let [project-name "Sysrev Browser Test"
+      (let [project-name "Sysrev Browser Test (create-project-and-review-article)"
             search-term-first "foo bar"
             no-display "Display name must be provided"
             no-question "Question text must be provided"

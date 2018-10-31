@@ -15,7 +15,7 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (deftest-browser import-pubmed-sources
-  (let [project-name "Sysrev Browser Test"
+  (let [project-name "Sysrev Browser Test (import-pubmed-sources)"
         query1 "foo bar"
         query2 "grault"
         query3 "foo bar Aung"
