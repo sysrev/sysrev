@@ -6,7 +6,7 @@
             [re-frame.core :refer [subscribe dispatch reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.nav :refer [nav-redirect]]
+            [sysrev.nav :refer [nav-redirect get-url-params]]
             [sysrev.views.semantic :refer [Button]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -204,7 +204,8 @@
   (r/create-class
    {:reagent-render
     (fn []
-      (let [stripe-code ($ (goog.Uri. js/window.location) getParameterValue "code")
+      (let [stripe-code (-> (get-url-params)
+                            :code)
             connected? (r/cursor state [:connected?])
             retrieving-connected? (r/cursor state [:retrieving-connected?])]
         (cond @retrieving-connected?
