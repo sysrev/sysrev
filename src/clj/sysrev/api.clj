@@ -42,6 +42,7 @@
 (def not-found 404)
 (def precondition-failed 412)
 (def internal-server-error 500)
+(def bad-request 400)
 
 (def max-import-articles (:max-import-articles env))
 
@@ -450,7 +451,7 @@
   "Does the user have a stripe account associated with the platform?"
   [user-id]
   {:connected
-   (boolean (users/user-has-stripe-account? user-id))})
+   (boolean (users/user-stripe-account user-id))})
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
@@ -992,7 +993,8 @@
   "Return compensations owed for all users"
   [project-id]
   (try-catch-response
-   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
+   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id)
+                                     (map #(merge % (user-has-stripe-account? (:user-id %)))))}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
@@ -1099,13 +1101,23 @@
 (defn pay-user!
   [project-id user-id amount]
   (try-catch-response
-   (let [current-balance (compensation/project-funds project-id)]
-     (if (>= current-balance amount)
-       (do
-         (compensation/pay-user! project-id user-id amount (str (gensym "paypal-id")) "PayPal/payment-id")
-         {:result {:amount amount}})
+   (let [current-balance (compensation/project-funds project-id)
+         user-stripe-account (:stripe-acct (users/user-stripe-account user-id))]
+     (cond
+       (> amount current-balance)
        {:error {:status payment-required
-                :message "Not enough funds to fulfill this payment"}}))))
+                :message "Not enough funds to fulfill this payment"}}
+       (nil? user-stripe-account)
+       {:error {:status not-found
+                :message "User does not have a connected stripe account"}}
+       (<= amount current-balance)
+       (let [{:keys [body] :as stripe-response} (stripe/pay-stripe-user! user-stripe-account amount)]
+         (if (:error body)
+           {:error {:status bad-request
+                    :message (get-in body [:error :message])}}
+           (let [{:keys [id created]} body]
+             (compensation/pay-user! project-id user-id (- amount) id "Stripe Charge" created)
+             {:result "success"})))))))
 
 (defn test-response
   "Server Sanity Check"

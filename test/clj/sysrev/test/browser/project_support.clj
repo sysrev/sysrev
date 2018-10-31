@@ -14,6 +14,8 @@
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.plans :as test-plans]))
 
+;; if a user is created in the db, they won't have a stripe customer associated with them
+;; to add them: (users/create-sysrev-stripe-customer! (users/get-user-by-email "browser+test@insilica.co"))
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 

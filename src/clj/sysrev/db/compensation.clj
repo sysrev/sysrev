@@ -223,9 +223,7 @@
     (map #(hash-map :amount-owed (+ (project-owes-user project-id (:user-id %))
                                     (project-paid-user project-id (:user-id %)))
                     :last-payment (last-payment project-id (:user-id %))
-                    :name (-> (:email (get email-user-id-map (:user-id %)))
-                              (string/split #"@")
-                              first)
+                    :email (:email (get email-user-id-map (:user-id %)))
                     :user-id (:user-id %))
          project-users)))
 
@@ -294,16 +292,12 @@
     (->> project-users
         (map #(assoc % :compensation-id (user-compensation project-id (:user-id %)))))))
 
-;;;
-;;;;;;;; YOU NEED TO ENABLE CREATED AFTER PAYPAL IS SETUP!!!!!!!!!!! ;;;;;;;
-;;;
-(defn pay-user! [project-id user-id amount transaction-id transaction-source ;;created
-                 ]
+(defn pay-user! [project-id user-id amount transaction-id transaction-source created]
   (-> (insert-into :project_fund)
       (values [{:user-id user-id
                 :project-id project-id
                 :transaction-id transaction-id
                 :transaction-source transaction-source
-                :amount (- amount)
-                :created (int (/ (tc/to-long (l/local-now)) 1000))}])
+                :amount amount
+                :created created}])
       do-execute))

@@ -223,14 +223,14 @@
                   :as :json
                   :coerce :always})))
 
-;;https://api.stripe.com/v1/charges
+;; https://stripe.com/docs/api/transfers/create
 (defn pay-stripe-user!
   [stripe-account-id amount]
-  (http/post (str stripe-url "/charges")
+  (http/post (str stripe-url "/transfers")
              {:basic-auth stripe-secret-key
               :throw-exceptions false
               :as :json
               :coerce :always
               :form-params {"amount" amount
                             "currency" "usd"
-                            "destination[account]" stripe-account-id}}))
+                            "destination" stripe-account-id}}))

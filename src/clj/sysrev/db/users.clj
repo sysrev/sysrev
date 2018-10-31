@@ -342,7 +342,7 @@
                 :user-id user-id}])
       do-execute))
 
-(defn user-has-stripe-account?
+(defn user-stripe-account
   [user-id]
   (-> (select :*)
       (from :web_user_stripe_acct)
