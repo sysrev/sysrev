@@ -226,7 +226,7 @@
  (fn [_ [fields]]
    {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
 
-(defonce gapi js/gapi)
+(defn gapi [] (aget js/window "gapi"))
 
 (defn ^:export on-google-sign-in [google-user]
   (let [profile ($ google-user getBasicProfile)]
@@ -241,25 +241,27 @@
   (js/console.log (str "Google login failed: " msg)))
 
 (defn ^:export log-out-google []
-  (-> ($ gapi :auth2)
-      ($ getAuthInstance)
-      ($ signOut)
-      ($ then
-         #(js/console "Google logout successful"))))
+  (when (gapi)
+    (-> ($ (gapi) :auth2)
+        ($ getAuthInstance)
+        ($ signOut)
+        ($ then
+           #(js/console "Google logout successful")))))
 
 (defn ^:export render-google-sign-in []
-  (js/console.log "Rendering Google signin button")
-  (some-> ($ gapi :signin2)
-          ($ render
-             "my-signin2"
-             (clj->js
-              {:scope "profile email"
-               :width "200"
-               ;; :height "40"
-               :longtitle true
-               ;; :theme "dark"
-               :onsuccess on-google-sign-in
-               :onfailure on-google-sign-in-failure}))))
+  (when (gapi)
+    (js/console.log "Rendering Google signin button")
+    (some-> ($ (gapi) :signin2)
+            ($ render
+               "my-signin2"
+               (clj->js
+                {:scope "profile email"
+                 :width "200"
+                 ;; :height "40"
+                 :longtitle true
+                 ;; :theme "dark"
+                 :onsuccess on-google-sign-in
+                 :onfailure on-google-sign-in-failure})))))
 
 (defn GoogleSignInButton []
   (r/create-class
@@ -267,9 +269,11 @@
     (fn [] (render-google-sign-in))
     :reagent-render
     (fn []
-      [:div.google-signin-wrapper
-       [:div#my-signin2.g-signin2
-        {:data-onsuccess "on-google-sign-in"}]])}))
+      (if (gapi)
+        [:div.google-signin-wrapper
+         [:div#my-signin2.g-signin2
+          {:data-onsuccess "on-google-sign-in"}]]
+        [:div]))}))
 
 (defn LoginRegisterPanel []
   (let [register? @(subscribe [::register?])
