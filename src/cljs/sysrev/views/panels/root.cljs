@@ -7,7 +7,8 @@
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.select-project :as select]
             [sysrev.views.panels.create-project :as create]
-            [sysrev.shared.util :as util])
+            [sysrev.shared.util :as util]
+            [sysrev.shared.text :as text])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:root])
@@ -38,6 +39,15 @@
           :name (:name project)
           :member? true}])))])
 
+(defn IntroSegment []
+  [:div.ui.segments>div.ui.segment.welcome-msg
+   [:div.description.wrapper.open-sans
+    [:p {:style {:font-size "14px"}}
+      [:span.bold {:style {:font-size "17px"}} "sysrev"]
+      (first text/site-intro-text)]
+    [:p {:style {:font-size "14px"}}
+     "Create a project to get started or explore the public example projects below."]]])
+
 (defn GlobalStatsReport []
   [:div.ui.segments
    [:div.ui.segment
@@ -62,10 +72,13 @@
       [:div.row {:style {:padding-bottom "0"}}
        [:div.sixteen.wide.column
         [GlobalStatsReport]]]
+      [:div.row {:style {:padding-bottom "0"}}
+       [:div.sixteen.wide.column
+        [IntroSegment]]]
       [:div.row
-       [:div.ten.wide.column
+       [:div.nine.wide.column
         [PublicProjectsList]]
-       [:div.six.wide.column
+       [:div.seven.wide.column
         [:div
          [LoginRegisterPanel]]]]]]))
 

@@ -7,23 +7,31 @@
     // border-bottom-width: 2px;
     // box-shadow: none;
     background-color: @menuBackground;
-    min-height: 3.1em;
+    min-height: 3em;
+
+    .header {
+        font-size: 21px;
+    }
+
+    .item {
+        padding-top: 2px;
+        padding-bottom: 2px;
+        font-size: 13px;
+        color: @text;
+        .open-sans;
+        .medium-weight;
+    }
+    a.header.item {
+        padding-top: 1px;
+        padding-bottom: 2px;
+    }
 }
 
-.ui.menu.site-menu .header {
-    font-size: 21px;
-}
-
-.ui.menu.site-menu .item {
-    padding-top: 2px;
-    padding-bottom: 2px;
-    font-size: 14px;
-    color: @text;
-    .medium-weight;
-}
-
-.ui.menu.site-menu a.header.item {
-    padding-top: 1px;
+@media only screen and (max-width: 900px) {
+    .ui.menu.site-menu {
+        .header { font-size: 18px; }
+        .item { font-size: 12px; }
+    }
 }
 
 .ui.menu div.item.loading-indicator:before,
@@ -33,6 +41,7 @@
 
 span.project-title {
     font-size: 14px;
+    .open-sans;
     .medium-weight;
 }
 
@@ -40,14 +49,19 @@ span.project-title {
     margin-bottom: 1em;
 }
 
+.ui.secondary.pointing.menu {
+    .open-sans;
+}
+
 .ui.secondary.pointing.menu.primary-menu {
     margin-left: -1px;
     background-color: @background;
 }
 
-.ui.secondary.pointing.menu.primary-menu a.item {
-    padding-top: 1em;
-    padding-bottom: 1em;
+.ui.secondary.pointing.menu.primary-menu a.item,
+.ui.secondary.pointing.menu.secondary-menu a.item{
+    padding-top: 0.9em;
+    padding-bottom: 0.9em;
 }
 
 .ui.secondary.pointing.menu .item {
@@ -66,7 +80,7 @@ span.project-title {
 .ui.secondary.pointing.menu .active.item,
 .ui.secondary.pointing.menu .active.item:hover
 {
-    color: @menuActiveBorder;
+    color: @blue;
     border-color: @menuActiveBorder;
     .medium-weight;
 }
@@ -89,18 +103,12 @@ span.project-title {
     margin-bottom: 1em;
 }
 
+a.disabled, a.disabled:hover {
+    pointer-events: none;
+    color: #e1e1e1;
+}
+
 @media only screen and (max-width: 900px) {
-    .ui.menu.site-menu {
-    }
-
-    .ui.menu.site-menu .header {
-        font-size: 18px;
-    }
-
-    .ui.menu.site-menu .item {
-        font-size: 12px;
-    }
-
     .ui.menu .item,
     .ui.menu .menu .item {
         padding-left: 8px;
@@ -129,9 +137,4 @@ span.project-title {
     .ui.secondary.pointing.menu.secondary-menu .item {
         font-size: 12px;
     }
-}
-
-a.disabled, a.disabled:hover {
-   pointer-events: none;
-   color: #e1e1e1;
 }

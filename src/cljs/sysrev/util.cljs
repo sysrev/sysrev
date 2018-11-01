@@ -64,6 +64,9 @@
 (defn viewport-width []
   (-> (js/$ js/window) (.width)))
 
+(defn viewport-height []
+  (-> (js/$ js/window) (.height)))
+
 (defn mobile? []
   (< (viewport-width) 768))
 
@@ -405,3 +408,13 @@
 
 (defn write-transit-str [x]
   (transit/write (transit/writer :json) x))
+
+;; Still using CSS rules for this, JS on window resize would be better
+#_
+(defn update-sidebar-height []
+  (let [height (viewport-height)
+        sidebar-max-height (- height 150)]
+    (for [selector [".ui.segments.annotation-menu.abstract"
+                    ".panel-side-column .ui.segments.label-editor-view"]]
+      (-> (js/$ selector)
+          (.css "max-height" (str sidebar-max-height "px"))))))

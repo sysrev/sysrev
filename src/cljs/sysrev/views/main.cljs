@@ -113,31 +113,50 @@
            [annotator/AnnotationMenu ann-context "abstract"])
          [review/SaveSkipColumnSegment article-id]]]])))
 
+(defn GlobalFooter []
+  [:div#footer
+   [:div.ui.container.two.column.middle.aligned.grid
+    [:div.left.aligned.column
+     [:span.medium-weight "Sysrev "]
+     "© 2018 Insilica LLC"]
+    [:div.right.aligned.column
+     [:div.wrapper
+      [:span "info@insilica.co"]
+      [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
+      [:a {:target "_blank" :href "https:/twitter.com/sysrev1"} "Twitter"]
+      [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"} "LinkedIn"]
+      [:a {:target "_blank" :href "https://www.facebook.com/insilica/"} "Facebook"]
+      [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"} "Reddit"]]]]])
+
 (defn main-content []
   (if-not @(subscribe [:initialized?])
     (loading-content)
     (case @(subscribe [:app-id])
       :blog
-      [:div.main-content
-       [blog/blog-header-menu]
-       [:div.ui.container.blog-content
-        [active-panel-content]]]
-      [:div.main-content
-       {:class (cond-> ""
-                 (or (not @(subscribe [:data/ready?]))
-                     (loading/any-loading?
-                      :ignore (into loading/ignore-data-names
-                                    [:pdf/open-access-available?
-                                     :pdf/article-pdfs])))
-                 (str " loading")
-                 (review/display-sidebar?)
-                 (str " annotator"))}
-       [header-menu]
-       [:div.ui.container.panel-content
-        (if (review/display-sidebar?)
-          [:div.ui.grid
-           [SidebarColumn]
-           [:div.thirteen.wide.column
-            [active-panel-content]]]
-          [active-panel-content])]
+      [:div#toplevel
+       [:div#main-content
+        [blog/blog-header-menu]
+        [:div.ui.container.blog-content
+         [active-panel-content]]]
+       [GlobalFooter]]
+      [:div#toplevel
+       [:div#main-content
+        {:class (cond-> ""
+                  (or (not @(subscribe [:data/ready?]))
+                      (loading/any-loading?
+                       :ignore (into loading/ignore-data-names
+                                     [:pdf/open-access-available?
+                                      :pdf/article-pdfs])))
+                  (str " loading")
+                  (review/display-sidebar?)
+                  (str " annotator"))}
+        [header-menu]
+        [:div.ui.container.panel-content
+         (if (review/display-sidebar?)
+           [:div.ui.grid
+            [SidebarColumn]
+            [:div.thirteen.wide.column
+             [active-panel-content]]]
+           [active-panel-content])]]
+       [GlobalFooter]
        [notifier @(subscribe [:active-notification])]])))

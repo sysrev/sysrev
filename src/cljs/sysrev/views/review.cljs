@@ -349,7 +349,7 @@
          :else           "")))
 
 ;; Component for label column in inputs grid
-(defn- label-column [article-id label-id row-position]
+(defn- label-column [article-id label-id row-position n-cols label-position n-labels]
   (let [value-type @(subscribe [:label/value-type label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display label-id])
@@ -383,14 +383,18 @@
         :delay {:show 400, :hide 0}
         :hoverable false
         :inline true
-        :position (cond
-                    (= row-position :left)
-                    "top left"
-                    (= row-position :right)
-                    "top right"
-                    :else
-                    "top center")
-        :distanceAway 8}]
+        :position (if (= n-cols 1)
+                    (if (>= label-position (- n-labels 1))
+                      "top center"
+                      "bottom center")
+                    (cond
+                      (= row-position :left)
+                      "top left"
+                      (= row-position :right)
+                      "top right"
+                      :else
+                      "top center"))
+        :distanceAway 1}]
       [label-help-popup {:category @(subscribe [:label/category label-id])
                          :required @(subscribe [:label/required? label-id])
                          :question @(subscribe [:label/question label-id])
@@ -592,7 +596,10 @@
             article-id label-id
             (cond (= i 0) :left
                   (= i (dec n-cols)) :right
-                  :else :middle)))
+                  :else :middle)
+            n-cols
+            (->> label-ids (take-while #(not= % label-id)) count)
+            (count label-ids)))
          row)
         (when (< (count row) n-cols)
           [^{:key {:label-row-end (last row)}}
