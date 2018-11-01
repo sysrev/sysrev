@@ -1092,7 +1092,7 @@
            {:error {:status bad-request
                     :message (get-in body [:error :message])}}
            (let [{:keys [id created]} body]
-             (compensation/pay-user! project-id user-id (- amount) id "Stripe Charge" created)
+             (compensation/pay-user! project-id user-id (- amount) id "Stripe/transfer-id" created)
              {:result "success"})))))))
 
 (defn test-response
