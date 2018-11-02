@@ -13,6 +13,7 @@
             [sysrev.views.menu :refer [loading-indicator]]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.shared.util :refer [parse-integer]]
+            [sysrev.util :as util]
             [sysrev.macros])
   (:require-macros [secretary.core :refer [defroute]]
                    [sysrev.macros :refer [defroute-app-id with-loader]]))
@@ -34,8 +35,11 @@
    [:div.ui.container
     [:a.header.item {:href (main-site-url)}
      [:img.ui.middle.aligned.image
-      {:src "/SysRev_header_2.png" :alt "SysRev"
-       :width "90" :height "28"}]]
+      (-> {:src "/SysRev_header_2.png" :alt "SysRev"}
+          (merge
+           (if (util/mobile?)
+             {:width "80" :height "25"}
+             {:width "90" :height "28"})))]]
     [:a.item {:href "/"} "Blog"]
     [loading-indicator]
     [:div.right.menu

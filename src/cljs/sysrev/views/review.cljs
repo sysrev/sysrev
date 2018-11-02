@@ -384,9 +384,9 @@
         :hoverable false
         :inline true
         :position (if (= n-cols 1)
-                    (if (>= label-position (- n-labels 1))
-                      "top center"
-                      "bottom center")
+                    (if (<= label-position 1)
+                      "bottom center"
+                      "top center")
                     (cond
                       (= row-position :left)
                       "top left"
@@ -394,7 +394,7 @@
                       "top right"
                       :else
                       "top center"))
-        :distanceAway 1}]
+        :distanceAway 8}]
       [label-help-popup {:category @(subscribe [:label/category label-id])
                          :required @(subscribe [:label/required? label-id])
                          :question @(subscribe [:label/question label-id])
@@ -442,7 +442,7 @@
        [:span.text nbsp nbsp "today"]])))
 
 (defn SaveButton
-  [article-id & [small?]]
+  [article-id & [small? fluid?]]
   (let [project-id @(subscribe [:active-project-id])
         resolving? @(subscribe [:review/resolving?])
         on-review-task? @(subscribe [:review/on-review-task?])
@@ -459,7 +459,8 @@
                      resolving?       (str " purple")
                      (not resolving?) (str " primary")
                      ;; (not small?)     (str " labeled icon")
-                     small?           (str " tiny fluid"))
+                     small?           (str " tiny")
+                     fluid?           (str " fluid"))
         on-save
         (util/wrap-user-event
          (fn []
@@ -508,7 +509,7 @@
            "Answer missing for a required label"])))
 
 (defn SkipArticle
-  [article-id & [small?]]
+  [article-id & [small? fluid?]]
   (let [saving? (and @(subscribe [:review/saving? article-id])
                      (or (loading/any-action-running? :only :review/send-labels)
                          (loading/any-loading? :only :article)
@@ -534,7 +535,8 @@
      [:button.ui.right.labeled.icon.button.skip-article
       {:class (cond-> ""
                 loading-task? (str " loading")
-                small?        (str " tiny fluid"))
+                small?        (str " tiny")
+                fluid?        (str " fluid"))
        :on-click on-next}
       (if (and (util/full-size?) (not small?))
         "Skip Article"
@@ -574,9 +576,9 @@
         [ui/CenteredColumn
          [:div.ui.center.aligned.grid
           [:div.ui.row
-           (SaveButton article-id)
+           (SaveButton article-id true)
            (when on-review-task?
-             (SkipArticle article-id))]]
+             (SkipArticle article-id true))]]
          "center aligned eight wide column"]
         [ui/CenteredColumn
          [:span]
@@ -698,6 +700,6 @@
                  review-task?       (str " two column")
                  (not review-task?) (str " one column")
                  true               (str " grid secondary segment"))}
-       [:div.column (SaveButton article-id true)]
+       [:div.column (SaveButton article-id true true)]
        (when review-task?
-         [:div.column (SkipArticle article-id true)])])))
+         [:div.column (SkipArticle article-id true true)])])))

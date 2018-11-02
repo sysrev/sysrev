@@ -7,8 +7,8 @@
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.select-project :as select]
             [sysrev.views.panels.create-project :as create]
-            [sysrev.shared.util :as util]
-            [sysrev.shared.text :as text])
+            [sysrev.shared.text :as text]
+            [sysrev.util :as util])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def ^:private panel [:root])
@@ -42,26 +42,22 @@
 (defn IntroSegment []
   [:div.ui.segments>div.ui.segment.welcome-msg
    [:div.description.wrapper.open-sans
-    [:p {:style {:font-size "14px"}}
-      [:span.bold {:style {:font-size "17px"}} "sysrev"]
-      (first text/site-intro-text)]
-    [:p {:style {:font-size "14px"}}
-     "Create a project to get started or explore the public example projects below."]]])
+    [:p [:span.site-name "sysrev"]
+     (first text/site-intro-text)]
+    [:p "Create a project to get started or explore the public example projects below."]]])
 
 (defn GlobalStatsReport []
-  [:div.ui.segments
-   [:div.ui.segment
-    #_ [:h4.ui.dividing.header "Site Totals"]
-    (with-loader [[:global-stats]] {:dimmer :fixed}
-      (let [{:keys [labeled-articles label-entries real-users real-projects]}
-            @(subscribe [:global-stats])]
-        [:div.ui.three.column.middle.aligned.center.aligned.stackable.grid
-         [:div.column
-          [:p [:span.bold (str real-projects)] " user projects"]]
-         [:div.column
-          [:p [:span.bold (str labeled-articles)] " total articles labeled"]]
-         [:div.column
-          [:p [:span.bold (str label-entries)] " user labels on articles"]]]))]])
+  [:div.ui.segments>div.ui.segment.global-stats
+   (with-loader [[:global-stats]] {:dimmer :fixed}
+     (let [{:keys [labeled-articles label-entries real-users real-projects]}
+           @(subscribe [:global-stats])]
+       [:div.ui.three.column.middle.aligned.center.aligned.stackable.grid
+        [:div.column
+         [:p [:span.bold (str real-projects)] " user projects"]]
+        [:div.column
+         [:p [:span.bold (str labeled-articles)] " total articles labeled"]]
+        [:div.column
+         [:p [:span.bold (str label-entries)] " user labels on articles"]]]))])
 
 (defn RootFullPanelPublic []
   (with-loader [[:identity]
@@ -69,9 +65,10 @@
                 [:global-stats]] {}
     [:div.landing-page
      [:div.ui.stackable.grid
-      [:div.row {:style {:padding-bottom "0"}}
-       [:div.sixteen.wide.column
-        [GlobalStatsReport]]]
+      (when-not (util/mobile?)
+        [:div.row {:style {:padding-bottom "0"}}
+         [:div.sixteen.wide.column
+          [GlobalStatsReport]]])
       [:div.row {:style {:padding-bottom "0"}}
        [:div.sixteen.wide.column
         [IntroSegment]]]
@@ -97,11 +94,11 @@
            [:div.sixteen.wide.column
             [create/CreateProject select/state]]]
           [:div.row
-           [:div.nine.wide.column
+           [:div.nine.wide.column.user-projects
             {:style {:margin-top "-1em"}}
             [select/ProjectsListSegment "Your Projects" member-projects true]
             [select/ProjectsListSegment "Available Projects" available-projects false]]
-           [:div.seven.wide.column
+           [:div.seven.wide.column.public-projects
             [PublicProjectsList]]]]]))))
 
 (defmethod panel-content [:root] []

@@ -208,7 +208,7 @@ div.projects-list {
     div.landing-page {
         .ui.segments.projects-list {
             margin-top: 0;
-            margin-bottom: 0;
+            margin-bottom: 1em;
         }
 
         > .ui.stackable.grid {
@@ -216,6 +216,15 @@ div.projects-list {
                 padding-left: 0 !important;
                 padding-right: 0 !important;
                 padding-bottom: 0 !important;
+            }
+        }
+    }
+
+    .ui.segments > .ui.grid.segment.project-list-project {
+        > .row {
+            padding: 0.6em 0;
+            > .sixteen.wide.column {
+                padding: 0 0.6em;
             }
         }
     }

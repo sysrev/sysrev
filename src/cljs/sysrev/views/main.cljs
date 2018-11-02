@@ -114,19 +114,28 @@
          [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn GlobalFooter []
-  [:div#footer
-   [:div.ui.container.two.column.middle.aligned.grid
-    [:div.left.aligned.column
-     [:span.medium-weight "Sysrev "]
-     "© 2018 Insilica LLC"]
-    [:div.right.aligned.column
-     [:div.wrapper
-      [:span "info@insilica.co"]
-      [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
-      [:a {:target "_blank" :href "https:/twitter.com/sysrev1"} "Twitter"]
-      [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"} "LinkedIn"]
-      [:a {:target "_blank" :href "https://www.facebook.com/insilica/"} "Facebook"]
-      [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"} "Reddit"]]]]])
+  (let [sysrev-links
+        [:span.links
+         [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
+         [:a {:target "_blank" :href "https:/twitter.com/sysrev1"} "Twitter"]
+         [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"} "LinkedIn"]
+         [:a {:target "_blank" :href "https://www.facebook.com/insilica/"} "Facebook"]
+         [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"} "Reddit"]]
+        contact-email
+        [:span.email "info@insilica.co"]
+        copyright-notice
+        [:span [:span.medium-weight "Sysrev "] "© 2018 Insilica LLC"]]
+    [:div#footer
+     (if (util/mobile?)
+       [:div.ui.container
+        [:div.ui.middle.aligned.grid
+         [:div.left.aligned.four.wide.column contact-email]
+         [:div.right.aligned.twelve.wide.column
+          [:div.wrapper sysrev-links]]]]
+       [:div.ui.container.middle.aligned.stackable.grid
+        [:div.left.aligned.four.wide.column copyright-notice]
+        [:div.right.aligned.twelve.wide.column
+         [:div.wrapper contact-email sysrev-links]]])]))
 
 (defn main-content []
   (if-not @(subscribe [:initialized?])
@@ -158,5 +167,5 @@
             [:div.thirteen.wide.column
              [active-panel-content]]]
            [active-panel-content])]]
-       [GlobalFooter]
-       [notifier @(subscribe [:active-notification])]])))
+       [notifier @(subscribe [:active-notification])]
+       [GlobalFooter]])))
