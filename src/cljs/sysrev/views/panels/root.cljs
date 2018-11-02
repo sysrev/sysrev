@@ -76,7 +76,7 @@
        [:div.nine.wide.column
         [PublicProjectsList]]
        [:div.seven.wide.column
-        [:div
+        [:div.ui.segments
          [LoginRegisterPanel]]]]]]))
 
 (defn RootFullPanelUser []
