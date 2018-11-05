@@ -26,6 +26,8 @@ a:hover { color: darken(@blue, 8); }
     background-color: @footerBackground;
     margin-top: auto;
 
+    i { font-size: 14px; }
+
     .ui.container {
         height: 100%;
     }
@@ -44,8 +46,7 @@ a:hover { color: darken(@blue, 8); }
                 margin-right: -0.6em;
 
                 a, span {
-                    padding-left: 0.6em;
-                    padding-right: 0.6em;
+                    padding: 0 0.7em;
                 }
 
                 span.links { padding: 0; }
@@ -103,10 +104,19 @@ a:hover { color: darken(@blue, 8); }
         font-size: 12px;
         height: 32px;
 
+        i { display: none; }
+
         .ui.grid {
             margin: 0 -0.5em;
             > .column {
-                padding: 0.4em 0.6em !important;
+                padding: 0.4em 0.5em !important;
+            }
+            > .right.aligned.column {
+                > div.wrapper {
+                    a, span {
+                        padding: 0 0.4em;
+                    }
+                }
             }
         }
     }

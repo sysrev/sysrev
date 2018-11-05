@@ -117,10 +117,14 @@
   (let [sysrev-links
         [:span.links
          [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
-         [:a {:target "_blank" :href "https:/twitter.com/sysrev1"} "Twitter"]
-         [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"} "LinkedIn"]
-         [:a {:target "_blank" :href "https://www.facebook.com/insilica/"} "Facebook"]
-         [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"} "Reddit"]]
+         [:a {:target "_blank" :href "https://twitter.com/sysrev1"}
+          [:i.twitter.icon] "Twitter"]
+         [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"}
+          [:i.linkedin.icon] "LinkedIn"]
+         [:a {:target "_blank" :href "https://www.facebook.com/insilica/"}
+          [:i.facebook.icon] "Facebook"]
+         [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"}
+          [:i.reddit.alien.icon] "Reddit"]]
         contact-email
         [:span.email "info@insilica.co"]
         copyright-notice
