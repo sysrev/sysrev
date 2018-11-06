@@ -236,7 +236,7 @@
       (->> (map :amount)
            (apply +))))
 
-(defn create-fund [project-id user-id transaction-id transaction-source amount created]
+(defn create-fund [{:keys [project-id user-id transaction-id transaction-source amount created]}]
   (-> (insert-into :project-fund)
       (values [{:transaction-id transaction-id
                 :transaction-source transaction-source
@@ -292,7 +292,7 @@
     (->> project-users
         (map #(assoc % :compensation-id (user-compensation project-id (:user-id %)))))))
 
-(defn pay-user! [project-id user-id amount transaction-id transaction-source created]
+(defn pay-user! [{:keys [project-id user-id amount transaction-id transaction-source created]}]
   (-> (insert-into :project_fund)
       (values [{:user-id user-id
                 :project-id project-id

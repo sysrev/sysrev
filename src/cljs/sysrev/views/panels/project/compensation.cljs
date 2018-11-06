@@ -370,11 +370,11 @@
                              (str "Last Payment: " (unix-epoch->date-string last-payment)))]
                           [:div.five.wide.column.right.align
                            (cond
-                             (and (> amount-owed 0)
-                                  (not connected?))
-                             [Button {:disabled true
-                                      :color "blue"}
-                              "No Payment Destination"]
+                             ;; (and (> amount-owed 0)
+                             ;;      (not connected?))
+                             ;; [Button {:disabled true
+                             ;;          :color "blue"}
+                             ;;  "No Payment Destination"]
                              (> amount-owed 0)
                              [Button {:on-click #(pay-user! state user-id amount-owed)
                                       :color "blue"
@@ -502,7 +502,7 @@
       [:div.ui.row
        [:div.ui.column
         [ProjectFunds state]]]
-      [:div.ui.row
+      #_[:div.ui.row
        [:div.ui.column
         [SupportFormOnce support/state]]]]
      [:div.ui.two.column.stack.grid

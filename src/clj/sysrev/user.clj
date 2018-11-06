@@ -21,6 +21,7 @@
         sysrev.import.endnote
         sysrev.import.zip
         sysrev.export.endnote
+        sysrev.paypal
         sysrev.predict.core
         sysrev.predict.report
         sysrev.biosource.predict

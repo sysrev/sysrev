@@ -204,7 +204,12 @@
                                  {"metadata" {"project-id" project-id}}))]
       (if-not (nil? (and id created))
         ;; charge was a success, insert into the db
-        (do (compensation/create-fund project-id (:user-id user) id "Stripe/charge-id" amount created)
+        (do (compensation/create-fund {:project-id project-id
+                                       :user-id (:user-id user)
+                                       :transaction-id id
+                                       :transaction-source "Stripe/charge-id"
+                                       :amount amount
+                                       :created created})
             {:success true})
         ;; charge was not success, return response
         stripe-response))
@@ -234,3 +239,41 @@
               :form-params {"amount" amount
                             "currency" "usd"
                             "destination" stripe-account-id}}))
+;;https://stripe.com/docs/api/balance/balance_retrieve
+(defn current-balance
+  []
+  (http/get (str stripe-url "/balance")
+            {:basic-auth stripe-secret-key
+             :throw-exceptions false
+             :as :json
+             :coerce :always}))
+
+;;; charge for payments: (- 1000 (* (/ 2.9 100) 1000) 30)
+
+;; https://stripe.com/docs/api/transfers/retrieve
+(defn retrieve-transfer
+  [transfer-id]
+  (http/get (str stripe-url "/transfers/" transfer-id)
+            {:basic-auth stripe-secret-key
+             :throw-excetions false
+             :as :json
+             :coerce :always}))
+
+(defn retrieve-charge
+  [charge-id]
+  (http/get (str stripe-url "/charges/" charge-id)
+            {:basic-auth stripe-secret-key
+             :throw-exceptions false
+             :as :json
+             :coerce :always}))
+
+(defn transaction-history
+  "Given a charge-id (ch_*), return the balance history"
+  [charge-id]
+  (let [{:keys [body]} (retrieve-charge charge-id)
+        balance-transaction (:balance_transaction body)]
+    (http/get (str stripe-url "/balance/history/" balance-transaction)
+              {:basic-auth stripe-secret-key
+               :throw-exceptions false
+               :as :json
+               :coerce :always})))

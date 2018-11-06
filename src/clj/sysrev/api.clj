@@ -26,6 +26,7 @@
             [sysrev.import.endnote :as endnote]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.import.zip :as zip]
+            [sysrev.paypal :as paypal]
             [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
@@ -969,8 +970,7 @@
   "Return compensations owed for all users"
   [project-id]
   (try-catch-response
-   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id)
-                                     (map #(merge % (user-has-stripe-account? (:user-id %)))))}}))
+   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id))}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
@@ -1074,25 +1074,34 @@
      {:result {:project-funds {:current-balance current-balance
                                :compensation-outstanding compensation-outstanding
                                :available-funds available-funds}}})))
+
+;; to manually add funds:
+;; (compensation/create-fund {:project-id <project-id> :user-id <project-admin> :transaction-id "manual-entry" :transaction-source "PayPal manual transfer" :amount <amount> :created (util/now-unix-seconds)})
+;; in the database:
+;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
+
 (defn pay-user!
   [project-id user-id amount]
   (try-catch-response
    (let [current-balance (compensation/project-funds project-id)
-         user-stripe-account (:stripe-acct (users/user-stripe-account user-id))]
+         user (users/get-user-by-id user-id)]
      (cond
        (> amount current-balance)
        {:error {:status payment-required
                 :message "Not enough funds to fulfill this payment"}}
-       (nil? user-stripe-account)
-       {:error {:status not-found
-                :message "User does not have a connected stripe account"}}
        (<= amount current-balance)
-       (let [{:keys [body] :as stripe-response} (stripe/pay-stripe-user! user-stripe-account amount)]
-         (if (:error body)
+       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user amount))]
+         (if-not (= status 201)
            {:error {:status bad-request
-                    :message (get-in body [:error :message])}}
-           (let [{:keys [id created]} body]
-             (compensation/pay-user! project-id user-id (- amount) id "Stripe/transfer-id" created)
+                    :message (get-in body [:message])}}
+           (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
+                 created (util/now-unix-seconds)]
+             (compensation/pay-user! {:project-id project-id
+                                      :user-id user-id
+                                      :amount (- amount)
+                                      :transaction-id payout-batch-id
+                                      :transaction-source "PayPal/payout-batch-id"
+                                      :created created})
              {:result "success"})))))))
 
 (defn test-response
