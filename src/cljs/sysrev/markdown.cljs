@@ -192,13 +192,12 @@
      [:i.close.icon
       {:on-click #(reset! ignore-create-description-warning? true)}]
      [:div.content
-      [:div.header "Create a project description, your users will thank you!"]
-      [:p "This project does not currently have a description. It's easy to create a description using " [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" :target "_blank" :rel "noopener noreferrer"} "Markdown"] " and will help visitors better understand your project."]
-      [:div.ui.two.column.middle.aligned.grid
-       [:div.ui.left.aligned.column
-        [:div.ui.button
-         {:on-click #(reset! editing? true)}
-         "Create Project Description"]]]]]))
+      #_ [:div.header "Create a project description, your users will thank you!"]
+      [:p {:style {:margin-top "0"}}
+       "This project does not currently have a description. It's easy to create a description using " [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" :target "_blank" :rel "noopener noreferrer"} "Markdown"] " and will help visitors better understand your project."]
+      [:div.ui.fluid.button
+       {:on-click #(reset! editing? true)}
+       "Create Project Description"]]]))
 
 (defn ProjectDescription
   [context]

@@ -66,8 +66,11 @@
      [:div.ui.container
       [:a.header.item {:href "/"}
        [:img.ui.middle.aligned.image
-        {:src "/SysRev_header_2.png" :alt "SysRev"
-         :width "90" :height "28"}]]
+        (-> {:src "/SysRev_header_2.png" :alt "SysRev"}
+            (merge
+             (if (util/mobile?)
+               {:width "80" :height "25"}
+               {:width "90" :height "28"})))]]
       (when-not full? dev-menu)
       [loading-indicator]
       (if logged-in?

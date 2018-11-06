@@ -2,7 +2,7 @@
 
 (defn loading-content
   [& {:keys [logo-url] :or {logo-url "/'"}}]
-  [:div.main-content
+  [:div#main-content
    [:div.ui.menu.site-menu
     [:div.ui.container
      [:a.header.item {:href logo-url}

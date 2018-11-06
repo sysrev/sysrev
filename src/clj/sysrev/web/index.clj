@@ -1,11 +1,12 @@
 (ns sysrev.web.index
-  (:require [hiccup.page :as page]
+  (:require [clojure.string :as str]
+            [hiccup.page :as page]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
             [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
             [sysrev.resources :as res]
             [sysrev.db.users :as users]
-            [clojure.string :as str]))
+            [sysrev.shared.text :as text]))
 
 (defonce web-asset-path (atom "/out"))
 
@@ -30,7 +31,7 @@
   [(format "/semantic/%s/semantic.min.css" theme)
    "/css/dropzone.min.css"
    (format "/css/style.%s.css" theme)
-   "https://fonts.googleapis.com/css?family=Open+Sans"])
+   "https://fonts.googleapis.com/css?family=Open+Sans:400,600,700"])
 
 (defn favicon-headers []
   (list [:link {:rel "apple-touch-icon"
@@ -57,6 +58,9 @@
     [:meta {:charset "utf-8"}]
     [:meta {:http-equiv "X-UA-Compatible" :content "IE=edge,chrome=1"}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1.0"}]
+    (when (= (:uri request) "/")
+      [:meta {:name "Description"
+              :content (str "Sysrev" (first text/site-intro-text))}])
     [:meta {:name "google-signin-scope" :content "profile email"}]
     [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
     [:script {;; :async true ;; :defer true

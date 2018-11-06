@@ -27,7 +27,7 @@
               [:div.ui.label [:i.globe.icon] "Public"]
               [:div.ui.label [:i.lock.icon] "Private"])]
         [:div
-         [:div.ui.top.attached.grid.segment.project-header.desktop
+         [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
            [:div.fourteen.wide.column
             [:h4.ui.header.title-header

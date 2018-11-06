@@ -349,7 +349,7 @@
          :else           "")))
 
 ;; Component for label column in inputs grid
-(defn- label-column [article-id label-id row-position]
+(defn- label-column [article-id label-id row-position n-cols label-position n-labels]
   (let [value-type @(subscribe [:label/value-type label-id])
         label-css-class @(subscribe [::label-css-class article-id label-id])
         label-string @(subscribe [:label/display label-id])
@@ -383,13 +383,17 @@
         :delay {:show 400, :hide 0}
         :hoverable false
         :inline true
-        :position (cond
-                    (= row-position :left)
-                    "top left"
-                    (= row-position :right)
-                    "top right"
-                    :else
-                    "top center")
+        :position (if (= n-cols 1)
+                    (if (<= label-position 1)
+                      "bottom center"
+                      "top center")
+                    (cond
+                      (= row-position :left)
+                      "top left"
+                      (= row-position :right)
+                      "top right"
+                      :else
+                      "top center"))
         :distanceAway 8}]
       [label-help-popup {:category @(subscribe [:label/category label-id])
                          :required @(subscribe [:label/required? label-id])
@@ -438,7 +442,7 @@
        [:span.text nbsp nbsp "today"]])))
 
 (defn SaveButton
-  [article-id & [small?]]
+  [article-id & [small? fluid?]]
   (let [project-id @(subscribe [:active-project-id])
         resolving? @(subscribe [:review/resolving?])
         on-review-task? @(subscribe [:review/on-review-task?])
@@ -455,7 +459,8 @@
                      resolving?       (str " purple")
                      (not resolving?) (str " primary")
                      ;; (not small?)     (str " labeled icon")
-                     small?           (str " tiny fluid"))
+                     small?           (str " tiny")
+                     fluid?           (str " fluid"))
         on-save
         (util/wrap-user-event
          (fn []
@@ -504,7 +509,7 @@
            "Answer missing for a required label"])))
 
 (defn SkipArticle
-  [article-id & [small?]]
+  [article-id & [small? fluid?]]
   (let [saving? (and @(subscribe [:review/saving? article-id])
                      (or (loading/any-action-running? :only :review/send-labels)
                          (loading/any-loading? :only :article)
@@ -530,7 +535,8 @@
      [:button.ui.right.labeled.icon.button.skip-article
       {:class (cond-> ""
                 loading-task? (str " loading")
-                small?        (str " tiny fluid"))
+                small?        (str " tiny")
+                fluid?        (str " fluid"))
        :on-click on-next}
       (if (and (util/full-size?) (not small?))
         "Skip Article"
@@ -570,9 +576,9 @@
         [ui/CenteredColumn
          [:div.ui.center.aligned.grid
           [:div.ui.row
-           (SaveButton article-id)
+           (SaveButton article-id true)
            (when on-review-task?
-             (SkipArticle article-id))]]
+             (SkipArticle article-id true))]]
          "center aligned eight wide column"]
         [ui/CenteredColumn
          [:span]
@@ -592,7 +598,10 @@
             article-id label-id
             (cond (= i 0) :left
                   (= i (dec n-cols)) :right
-                  :else :middle)))
+                  :else :middle)
+            n-cols
+            (->> label-ids (take-while #(not= % label-id)) count)
+            (count label-ids)))
          row)
         (when (< (count row) n-cols)
           [^{:key {:label-row-end (last row)}}
@@ -691,6 +700,6 @@
                  review-task?       (str " two column")
                  (not review-task?) (str " one column")
                  true               (str " grid secondary segment"))}
-       [:div.column (SaveButton article-id true)]
+       [:div.column (SaveButton article-id true true)]
        (when review-task?
-         [:div.column (SkipArticle article-id true)])])))
+         [:div.column (SkipArticle article-id true true)])])))

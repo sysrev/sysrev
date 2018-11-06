@@ -113,31 +113,63 @@
            [annotator/AnnotationMenu ann-context "abstract"])
          [review/SaveSkipColumnSegment article-id]]]])))
 
+(defn GlobalFooter []
+  (let [sysrev-links
+        [:span.links
+         [:a {:target "_blank" :href "https://blog.sysrev.com"} "Blog"]
+         [:a {:target "_blank" :href "https://twitter.com/sysrev1"}
+          [:i.twitter.icon] "Twitter"]
+         [:a {:target "_blank" :href "https://www.linkedin.com/company/sysrev"}
+          [:i.linkedin.icon] "LinkedIn"]
+         [:a {:target "_blank" :href "https://www.facebook.com/insilica/"}
+          [:i.facebook.icon] "Facebook"]
+         [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"}
+          [:i.reddit.alien.icon] "Reddit"]]
+        contact-email
+        [:span.email "info@insilica.co"]
+        copyright-notice
+        [:span [:span.medium-weight "Sysrev "] "© 2018 Insilica LLC"]]
+    [:div#footer
+     (if (util/mobile?)
+       [:div.ui.container
+        [:div.ui.middle.aligned.grid
+         [:div.left.aligned.four.wide.column contact-email]
+         [:div.right.aligned.twelve.wide.column
+          [:div.wrapper sysrev-links]]]]
+       [:div.ui.container.middle.aligned.stackable.grid
+        [:div.left.aligned.four.wide.column copyright-notice]
+        [:div.right.aligned.twelve.wide.column
+         [:div.wrapper contact-email sysrev-links]]])]))
+
 (defn main-content []
   (if-not @(subscribe [:initialized?])
     (loading-content)
     (case @(subscribe [:app-id])
       :blog
-      [:div.main-content
-       [blog/blog-header-menu]
-       [:div.ui.container.blog-content
-        [active-panel-content]]]
-      [:div.main-content
-       {:class (cond-> ""
-                 (or (not @(subscribe [:data/ready?]))
-                     (loading/any-loading?
-                      :ignore (into loading/ignore-data-names
-                                    [:pdf/open-access-available?
-                                     :pdf/article-pdfs])))
-                 (str " loading")
-                 (review/display-sidebar?)
-                 (str " annotator"))}
-       [header-menu]
-       [:div.ui.container.panel-content
-        (if (review/display-sidebar?)
-          [:div.ui.grid
-           [SidebarColumn]
-           [:div.thirteen.wide.column
-            [active-panel-content]]]
-          [active-panel-content])]
-       [notifier @(subscribe [:active-notification])]])))
+      [:div#toplevel
+       [:div#main-content
+        [blog/blog-header-menu]
+        [:div.ui.container.blog-content
+         [active-panel-content]]]
+       [GlobalFooter]]
+      [:div#toplevel
+       [:div#main-content
+        {:class (cond-> ""
+                  (or (not @(subscribe [:data/ready?]))
+                      (loading/any-loading?
+                       :ignore (into loading/ignore-data-names
+                                     [:pdf/open-access-available?
+                                      :pdf/article-pdfs])))
+                  (str " loading")
+                  (review/display-sidebar?)
+                  (str " annotator"))}
+        [header-menu]
+        [:div.ui.container.panel-content
+         (if (review/display-sidebar?)
+           [:div.ui.grid
+            [SidebarColumn]
+            [:div.thirteen.wide.column
+             [active-panel-content]]]
+           [active-panel-content])]]
+       [notifier @(subscribe [:active-notification])]
+       [GlobalFooter]])))

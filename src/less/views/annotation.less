@@ -27,49 +27,49 @@
 
 .ui.segments.annotation-menu.abstract,
 .panel-side-column .ui.segments.label-editor-view {
-    height: 500px !important;
+    min-height: 500px;
 }
 
 @media only screen and (min-height: 775px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 600px !important;
+        max-height: 600px !important;
     }
 }
 @media only screen and (min-height: 875px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 700px !important;
+        max-height: 700px !important;
     }
 }
 @media only screen and (min-height: 975px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 800px !important;
+        max-height: 800px !important;
     }
 }
 @media only screen and (min-height: 1075px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 900px !important;
+        max-height: 900px !important;
     }
 }
 @media only screen and (min-height: 1175px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 1000px !important;
+        max-height: 1000px !important;
     }
 }
 @media only screen and (min-height: 1275px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 1100px !important;
+        max-height: 1100px !important;
     }
 }
 @media only screen and (min-height: 1375px) {
     .ui.segments.annotation-menu.abstract,
     .panel-side-column .ui.segments.label-editor-view {
-        height: 1200px !important;
+        max-height: 1200px !important;
     }
 }
 
@@ -80,7 +80,7 @@
 }
 
 @media only screen and (min-width: 1440px) {
-    .main-content.annotator {
+    #main-content.annotator {
         .ui.container {
             width: 1430px;
             margin-left: auto !important;
@@ -90,7 +90,7 @@
 }
 
 @media only screen and (min-width: 1100px) and (max-width: 1439px) {
-    .main-content.annotator {
+    #main-content.annotator {
         .ui.container {
             width: 100%;
             padding-left: 5px;
@@ -99,7 +99,7 @@
     }
 }
 
-.main-content.annotator {
+#main-content.annotator {
     > .ui.container.panel-content {
         > .ui.grid {
             margin-left: 0;

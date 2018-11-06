@@ -28,12 +28,18 @@ div.project-content {
 }
 
 .ui.segment.project-header {
-    padding: 0.7em;
-}
+    padding: 8px 10px;
 
-.ui.segment.project-header .ui.header {
-    margin: 0;
-    line-height: 1.15em;
+    .ui.header {
+        margin: 0;
+        line-height: 1.15em;
+    }
+
+    .ui.label {
+        .open-sans;
+        .medium-weight;
+        font-size: 13px;
+    }
 }
 
 div.project-files > .ui.celled.list {
@@ -202,7 +208,7 @@ div.projects-list {
     div.landing-page {
         .ui.segments.projects-list {
             margin-top: 0;
-            margin-bottom: 0;
+            margin-bottom: 1em;
         }
 
         > .ui.stackable.grid {
@@ -210,6 +216,15 @@ div.projects-list {
                 padding-left: 0 !important;
                 padding-right: 0 !important;
                 padding-bottom: 0 !important;
+            }
+        }
+    }
+
+    .ui.segments > .ui.grid.segment.project-list-project {
+        > .row {
+            padding: 0.6em 0;
+            > .sixteen.wide.column {
+                padding: 0 0.6em;
             }
         }
     }

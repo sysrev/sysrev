@@ -1,3 +1,127 @@
+.open-sans {
+    font-family: 'Open Sans',Lato,'Helvetica Neue',Arial,Helvetica,sans-serif;
+    font-style: normal;
+}
+
+a { color: @blue; }
+a:hover { color: darken(@blue, 8); }
+
+#toplevel {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+}
+
+#main-content {
+    padding-bottom: 30px;
+}
+
+#footer {
+    .open-sans;
+    font-size: 13px;
+    margin: 0;
+    height: 36px;
+    border-top: 1px solid @footerBorder;
+    background-color: @footerBackground;
+    margin-top: auto;
+
+    i { font-size: 14px; }
+
+    .ui.container {
+        height: 100%;
+    }
+
+    .ui.grid {
+        margin: 0;
+        height: 100%;
+
+        > .column {
+            padding-top: 0.3em !important;
+            padding-bottom: 0.3em !important;
+        }
+
+        > .right.aligned.column {
+            > div.wrapper {
+                margin-right: -0.6em;
+
+                a, span {
+                    padding: 0 0.7em;
+                }
+
+                span.links { padding: 0; }
+            }
+        }
+    }
+}
+
+.ui.segment.welcome-msg {
+    text-align: center;
+    padding: 1.5em 1em;
+    > div.wrapper {
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: left;
+
+        p {
+            font-size: 14px;
+            span.site-name {
+                font-size: 17px;
+                .bold;
+            }
+        }
+        p:first-child { margin-top: 0; }
+        p:last-child { margin-bottom: 0; }
+    }
+}
+
+@media only screen and (max-width: 767px) {
+    .landing-page {
+        .ui.stackable.grid {
+            > .row {
+                > .column.public-projects {
+                    padding-top: 0 !important;
+                }
+            }
+        }
+
+        .ui.segment.welcome-msg {
+            padding: 0.8em;
+            > div.wrapper {
+                p {
+                    margin: 0 0 0.5em;
+                    font-size: 13px;
+                    span.site-name {
+                        font-size: 16px;
+                    }
+                }
+            }
+        }
+    }
+
+    #footer {
+        font-size: 12px;
+        height: 32px;
+
+        i { display: none; }
+
+        .ui.grid {
+            margin: 0 -0.5em;
+            > .column {
+                padding: 0.4em 0.5em !important;
+            }
+            > .right.aligned.column {
+                > div.wrapper {
+                    a, span {
+                        padding: 0 0.4em;
+                    }
+                }
+            }
+        }
+    }
+}
+
 .no-margin {
     margin: 0 !important;
 }
@@ -44,10 +168,6 @@
     -webkit-justify-content: center;
     -ms-flex-pack: center;
     justify-content: center;
-}
-
-.main-content {
-    padding-bottom: 80px;
 }
 
 h4 {
