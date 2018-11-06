@@ -1,5 +1,8 @@
 (ns sysrev.paypal
   (:require [clj-http.client :as client]
+            [clj-time.core :as t]
+            [clj-time.format :as f]
+            [clj-time.local :as l]
             [environ.core :refer [env]]
             [sysrev.util :as util]))
 
@@ -10,7 +13,7 @@
 
 ;; when the application runs out of money in sandbox mode, clone the account
 ;; https://developer.paypal.com/developer/accounts/
-;; delete the current sysrev_test app / create a new sysrev_test:
+
 ;; https://developer.paypal.com/developer/applications/
 ;; note: you WILL have to udpate paypal-client-id and paypal-secret for the app
 
@@ -50,10 +53,10 @@
            (do (reset! current-access-token (get-access-token))
                (recur))
            ;; need to handle the case where the token has expired,
-           (= "invalid_token"
-              (get-in ~response [:body :error]))
-           (do (reset! current-access-token (get-access-token))
-               (recur))
+           ;; (= "invalid_token"
+           ;;    (get-in ~response [:body :error]))
+           ;; (do (reset! current-access-token (get-access-token))
+           ;;     (recur))
            :else ~response)))))
 
 (defn default-headers
@@ -85,3 +88,33 @@
                     :throw-exceptions false
                     :as :json
                     :coerce :always})))
+
+(defn date->paypal-start-date
+  [date]
+  (->> date (f/parse (f/formatters :date)) .toString))
+
+(defn date->paypal-end-date
+  [date]
+  (-> (f/parse (f/formatter :date) date) (t/plus (t/hours 23)) (t/plus (t/minutes 59)) (t/plus (t/seconds 59)) .toString))
+
+;; this won't show direct deposits
+(defn get-transactions
+  "Get the transactions for the account from start-date to end-date in the format of YYYY-MM-dd"
+  [& {:keys [start-date end-date]
+      :or {start-date "2018-01-01"
+           end-date "2018-05-11"}}]
+  (-> (client/get (str paypal-url "/v1/reporting/transactions")
+                  {:content-type :json
+                   :headers (default-headers (:access_token @current-access-token))
+                   :query-params {"start_date" (date->paypal-start-date start-date)
+                                  "end_date" (date->paypal-end-date end-date)}
+                   :throw-exceptions false
+                   :as :json
+                   :coerce :always})))
+
+(defn get-transactions-max
+  []
+  (let [today (f/unparse (f/formatter :year-month-day) (t/now))
+        thirty-one-days-ago (-> (t/now) (t/minus (t/days 31))
+                                (->> (f/unparse (f/formatter :year-month-day))))]
+    (get-transactions :start-date thirty-one-days-ago :end-date today)))

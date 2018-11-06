@@ -66,6 +66,7 @@
     [:script {;; :async true ;; :defer true
               :src "https://apis.google.com/js/platform.js"}]
     [:script {:src "https://js.stripe.com/v3/"}]
+    [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
     [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"}]
