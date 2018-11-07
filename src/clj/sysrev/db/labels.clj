@@ -316,6 +316,14 @@
                        (not (in? (:users %) self-id))))
          (map #(dissoc % :users)))))
 
+(defn unlimited-articles [project-id self-id & [predict-run-id articles]]
+  (with-project-cache
+    project-id [:label-values :saved :unlimited-articles self-id predict-run-id]
+    (->> (or articles (get-articles-with-label-users project-id predict-run-id))
+         vals
+         (filter #(and (not (in? (:users %) self-id))))
+         (map #(dissoc % :users)))))
+
 (defn- pick-ideal-article
   "Used by the classify task functions to select an article from the candidates.
 
@@ -367,6 +375,16 @@
      #(math/abs (- (:score %) 0.5))
      predict-run-id)))
 
+(defn ideal-unlimited-article
+  "Selects an article to assign to a user from any the user has not labeled."
+  [project-id self-id & [predict-run-id articles]]
+  (let [predict-run-id
+        (or predict-run-id (q/project-latest-predict-run-id project-id))]
+    (pick-ideal-article
+     (unlimited-articles project-id self-id predict-run-id articles)
+     #(math/abs (- (:score %) 0.5))
+     predict-run-id)))
+
 (defn user-confirmed-today-count [project-id user-id]
   (-> (q/select-project-article-labels project-id true [:al.article-id])
       (q/filter-label-user user-id)
@@ -376,16 +394,21 @@
       (->> do-query (map :article-id) distinct count)))
 
 (defn get-user-label-task [project-id user-id]
-  (let [{:keys [second-review-prob]
-         :or {second-review-prob 0.5}} (project/project-settings project-id)
+  (let [{:keys [second-review-prob unlimited-reviews]
+         :or {second-review-prob 0.5
+              unlimited-reviews false}}
+        (project/project-settings project-id)
         articles (get-articles-with-label-users project-id)
-        [pending unlabeled today-count]
+        [unlimited pending unlabeled today-count]
         (pvalues
+         (when unlimited-reviews
+           (ideal-unlimited-article project-id user-id nil articles))
          (ideal-single-labeled-article project-id user-id nil articles)
          (ideal-unlabeled-article project-id nil articles)
          (user-confirmed-today-count project-id user-id))
         [article status]
         (cond
+          unlimited-reviews [unlimited :unlimited]
           (and pending unlabeled)
           (if (<= (crypto-rand) second-review-prob)
             [pending :single] [unlabeled :unreviewed])

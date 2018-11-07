@@ -12,7 +12,8 @@
              [with-tooltip wrap-dropdown selection-dropdown
               SaveResetForm ConfirmationDialog]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.views.panels.project.compensation :refer [ProjectCompensations CompensationSummary UsersCompensations]]
+            [sysrev.views.panels.project.compensation
+             :refer [ProjectCompensations CompensationSummary UsersCompensations]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
@@ -26,14 +27,7 @@
 
 (defn- parse-input [skey input]
   (case skey
-    :second-review-prob
-    (let [n (sutil/parse-integer input)]
-      (when (and (int? n) (>= n 0) (<= n 100))
-        (* n 0.01)))
-
-    :public-access input
-
-    nil))
+    input))
 
 (defn admin? []
   (or @(subscribe [:member/admin?])
@@ -180,18 +174,20 @@
         (when (not= project-name (:project-name saved))
           (dispatch [:action [:project/change-name project-id project-name]]))))))
 
+(defn- render-setting-value [skey value]
+  (case skey
+    :second-review-prob
+    (cond (float? value)  (int (+ 0.5 (* value 100)))
+          :else           value)
+
+    :public-access (boolean value)
+
+    :unlimited-reviews (boolean value)
+
+    nil))
+
 (defn- render-setting [skey]
-  (if-let [input (active-inputs skey)]
-    input
-    (when-let [value (current-values skey)]
-      (case skey
-        :second-review-prob
-        (when (float? value)
-          (str (int (+ 0.5 (* value 100)))))
-
-        :public-access value
-
-        nil))))
+  (render-setting-value skey (current-values skey)))
 
 (def-action :project/delete
   :uri (fn [] "/api/delete-project")
@@ -213,46 +209,50 @@
     :tooltip "Prioritize single-user review of articles"}
    {:key :balanced
     :label "Balanced"
-    :value 50
+    :value 0.5
     :tooltip "Assign mix of unreviewed and partially-reviewed articles"}
    {:key :full
     :label "Full"
-    :value 100
+    :value 1.0
     :tooltip "Prioritize fully reviewed articles"}])
 
-(defn- ReviewPriorityButtonTooltip [{:keys [key tooltip]}]
-  (let [tooltip-key (str "review-priority--" (name key))]
-    [:div.ui.flowing.popup.transition.hidden.tooltip
+(defn- SettingsButtonTooltip [{:keys [setting key tooltip]}]
+  (let [tooltip-key (str (name setting) "--" (name key))]
+    [:div.ui.flowing.popup.transition.hidden.tooltip.project-settings
      {:id tooltip-key}
      [:p tooltip]]))
 
-(defn- ReviewPriorityButton [{:keys [key label value tooltip]}]
-  (let [skey :second-review-prob
-        active-value (int (render-setting skey))
-        active? (= value active-value)
-        tooltip-key (str "review-priority--" (name key))
+(defn- SettingsButton [{:keys [setting key label value tooltip]}]
+  (let [active? (= (render-setting setting)
+                   (render-setting-value setting value))
+        tooltip-key (str (name setting) "--" (name key))
         admin? (admin?)]
     [with-tooltip
      [:button.ui.button
       {:class (if active? "active" "")
-       :on-click (if admin? #(edit-setting skey value) nil)}
+       :on-click (if admin? #(edit-setting setting value) nil)}
       label]
      {:inline false
       :popup (str "#" tooltip-key)}]))
 
+(defn- SettingsField [{:keys [setting label entries]} entries]
+  [:div.field {:class (input-field-class setting)}
+   [:label label]
+   [:div.ui.fluid.buttons.selection
+    (doall
+     (for [entry entries]
+       ^{:key (:key entry)}
+       [SettingsButton (merge entry {:setting setting})]))]
+   (doall
+    (for [entry entries]
+      ^{:key [:tooltip (:key entry)]}
+      [SettingsButtonTooltip (merge entry {:setting setting})]))])
+
 (defn- DoubleReviewPriorityField []
-  (let [skey :second-review-prob]
-    [:div.field {:class (input-field-class skey)}
-     [:label "Article Review Priority"]
-     [:div.ui.fluid.buttons.selection
-      (doall
-       (for [entry review-priority-buttons]
-         ^{:key (:key entry)}
-         [ReviewPriorityButton entry]))]
-     (doall
-      (for [entry review-priority-buttons]
-        ^{:key [:tooltip (:key entry)]}
-        [ReviewPriorityButtonTooltip entry]))]))
+  [SettingsField
+   {:setting :second-review-prob
+    :label "Article Review Priority"
+    :entries review-priority-buttons}])
 
 (def public-access-buttons
   [{:key :public
@@ -264,39 +264,27 @@
     :value false
     :tooltip "Allow access only for project members"}])
 
-(defn- PublicAccessButtonTooltip [{:keys [key tooltip]}]
-  (let [tooltip-key (str "public-access--" (name key))]
-    [:div.ui.flowing.popup.transition.hidden.tooltip
-     {:id tooltip-key}
-     [:p tooltip]]))
-
-(defn- PublicAccessButton [{:keys [key label value tooltip]}]
-  (let [skey :public-access
-        active-value (or (current-values skey) false)
-        active? (= value active-value)
-        tooltip-key (str "public-access--" (name key))
-        admin? (admin?)]
-    [with-tooltip
-     [:button.ui.button
-      {:class (if active? "active" "")
-       :on-click (if admin? #(edit-setting skey value) nil)}
-      label]
-     {:inline false
-      :popup (str "#" tooltip-key)}]))
-
 (defn- PublicAccessField []
-  (let [skey :public-access]
-    [:div.field {:class (input-field-class skey)}
-     [:label "Project Visibility"]
-     [:div.ui.fluid.buttons.selection
-      (doall
-       (for [entry public-access-buttons]
-         ^{:key (:key entry)}
-         [PublicAccessButton entry]))]
-     (doall
-      (for [entry public-access-buttons]
-        ^{:key [:tooltip (:key entry)]}
-        [PublicAccessButtonTooltip entry]))]))
+  [SettingsField
+   {:setting :public-access
+    :label "Project Visibility"
+    :entries public-access-buttons}])
+
+(def unlimited-reviews-buttons
+  [{:key :false
+    :label [:span "No"]
+    :value false
+    :tooltip "Limit of two users assigned per article"}
+   {:key :true
+    :label [:span "Yes"]
+    :value true
+    :tooltip "Users may be assigned any article they have not yet reviewed"}])
+
+(defn- UnlimitedReviewsField []
+  [SettingsField
+   {:setting :unlimited-reviews
+    :label "Allow Unlimited Reviews"
+    :entries unlimited-reviews-buttons}])
 
 (defn ProjectNameField []
   (let [skey :project-name
@@ -411,7 +399,10 @@
          [:div.ui.form {:class (if valid? "" "warning")}
           [:div.two.fields
            [PublicAccessField]
-           [DoubleReviewPriorityField]]]
+           [DoubleReviewPriorityField]]
+          #_
+          [:div.two.fields
+           [UnlimitedReviewsField]]]
          (when admin?
            [:div
             [:div.ui.divider]
@@ -633,8 +624,6 @@
   [:div.ui.segment.project-members
    [ProjectMembersList]
    [ProjectPermissionsForm]])
-
-
 
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
