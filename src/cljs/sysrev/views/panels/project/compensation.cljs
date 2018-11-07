@@ -10,7 +10,7 @@
             [sysrev.util :refer [vector->hash-map]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.charts :as charts]
-            [sysrev.paypal :refer [PayPalButton]]
+            [sysrev.paypal :as paypal :refer [PayPalButton]]
             [sysrev.views.semantic :refer [Form FormGroup FormInput Button Dropdown]]
             [sysrev.views.panels.project.support :as support :refer [SupportFormOnce]])
   (:require-macros [reagent.interop :refer [$]]))
@@ -506,7 +506,7 @@
       [:div.ui.row
        [:div.ui.column
         ;;[SupportFormOnce support/state]
-        [PayPalButton]
+        [PayPalButton paypal/state]
         ]]]
      [:div.ui.two.column.stack.grid
       [:div.ui.row

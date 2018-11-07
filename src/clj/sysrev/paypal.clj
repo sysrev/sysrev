@@ -44,23 +44,17 @@
 
 (defmacro paypal-oauth-request
   [body]
-  (let [response (gensym)]
-    `(loop []
-       (let [~response ~body]
-         (cond
-           ;; we probably just need to get the access token
-           (empty? (:access_token @current-access-token))
-           (do (reset! current-access-token (get-access-token))
-               (recur))
-           ;; need to handle the case where the token has expired
-           (and (= "invalid_token"
-                   (get-in ~response [:body :error]))
-                ;; note: this error_description could possibly change
-                (= "Access Token not found in cache"
-                   (get-in ~response [:body :error_description])))
-           (do (reset! current-access-token (get-access-token))
-               (recur))
-           :else ~response)))))
+  `(do (when (empty? (:access_token @current-access-token))
+         (reset! current-access-token (get-access-token)))
+       (let [response# ~body]
+         (cond (and (= "invalid_token"
+                       (get-in response# [:body :error]))
+                    ;; note: this error_description could possibly change
+                    (= "Access Token not found in cache"
+                       (get-in response# [:body :error_description])))
+               (do (reset! current-access-token (get-access-token))
+                   ~body)
+               :else response#))))
 
 (defn default-headers
   [access-token]
