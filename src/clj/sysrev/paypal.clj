@@ -52,11 +52,14 @@
            (empty? (:access_token @current-access-token))
            (do (reset! current-access-token (get-access-token))
                (recur))
-           ;; need to handle the case where the token has expired,
-           ;; (= "invalid_token"
-           ;;    (get-in ~response [:body :error]))
-           ;; (do (reset! current-access-token (get-access-token))
-           ;;     (recur))
+           ;; need to handle the case where the token has expired
+           (and (= "invalid_token"
+                   (get-in ~response [:body :error]))
+                ;; note: this error_description could possibly change
+                (= "Access Token not found in cache"
+                   (get-in ~response [:body :error_description])))
+           (do (reset! current-access-token (get-access-token))
+               (recur))
            :else ~response)))))
 
 (defn default-headers
