@@ -102,6 +102,7 @@
         {:keys [reviewed unreviewed total]}
         @(subscribe [:project/article-counts])
         scounts @(subscribe [:project/status-counts])
+        {:keys [unlimited-reviews]} @(subscribe [:project/settings])
         scount #(get scounts % 0)
         colors {:grey "rgba(160,160,160,0.5)"
                 :green "rgba(33,186,69,0.55)"
@@ -112,44 +113,45 @@
                 :blue "rgba(30,100,230,0.5)"
                 :purple "rgba(146,29,252,0.5)"}
         statuses [:single :consistent :conflict :resolved]]
-    [:div.project-summary
-     [:div.ui.segment
-      [:h4.ui.dividing.header
-       "Review Status"]
-      (with-loader [[:project project-id]]
-        {:dimmer :fixed}
-        [:div
-         [:h4.ui.center.aligned.header
-          (str reviewed " articles reviewed of " total " total")]
-         [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
-          [:div.row
-           [:div.column.pie-chart
-            [charts/pie-chart
-             [["Include (Full)"
-               (+ (scount [:consistent true])
-                  (scount [:resolved true]))
-               (:green colors)]
-              ["Include (Partial)"
-               (scount [:single true])
-               (:dim-green colors)]
-              ["Exclude (Full)"
-               (+ (scount [:consistent false])
-                  (scount [:resolved false]))
-               (:orange colors)]
-              ["Exclude (Partial)"
-               (scount [:single false])
-               (:dim-orange colors)]
-              ["Conflicting"
-               (scount [:conflict nil])
-               (:red colors)]]
-             #(nav-article-status
-               (nth [[true :determined]
-                     [true :single]
-                     [false :determined]
-                     [false :single]
-                     [nil :conflict]] %))]]
-           [:div.column.pie-chart-help
-            [label-status-help-column colors]]]]])]]))
+    (when-not unlimited-reviews
+      [:div.project-summary
+       [:div.ui.segment
+        [:h4.ui.dividing.header
+         "Review Status"]
+        (with-loader [[:project project-id]]
+          {:dimmer :fixed}
+          [:div
+           [:h4.ui.center.aligned.header
+            (str reviewed " articles reviewed of " total " total")]
+           [:div.ui.two.column.stackable.middle.aligned.grid.pie-charts
+            [:div.row
+             [:div.column.pie-chart
+              [charts/pie-chart
+               [["Include (Full)"
+                 (+ (scount [:consistent true])
+                    (scount [:resolved true]))
+                 (:green colors)]
+                ["Include (Partial)"
+                 (scount [:single true])
+                 (:dim-green colors)]
+                ["Exclude (Full)"
+                 (+ (scount [:consistent false])
+                    (scount [:resolved false]))
+                 (:orange colors)]
+                ["Exclude (Partial)"
+                 (scount [:single false])
+                 (:dim-orange colors)]
+                ["Conflicting"
+                 (scount [:conflict nil])
+                 (:red colors)]]
+               #(nav-article-status
+                 (nth [[true :determined]
+                       [true :single]
+                       [false :determined]
+                       [false :single]
+                       [nil :conflict]] %))]]
+             [:div.column.pie-chart-help
+              [label-status-help-column colors]]]]])]])))
 
 (def file-types {"doc" "word"
                  "docx" "word"

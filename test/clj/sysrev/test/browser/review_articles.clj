@@ -408,17 +408,20 @@
     (b/click x/review-labels-tab)
     (Thread/sleep 50))
   (mapv #(set-article-label %) label-settings)
-  (Thread/sleep 100)
+  (Thread/sleep 50)
   (b/click save-button)
-  (b/wait-until-loading-completes :pre-wait 200))
+  (b/wait-until-loading-completes :pre-wait 100))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
   [label-settings]
   (set-article-labels
    (mapv (fn [label]
-           (let [all-values (or (get-in label [:definition :all-values])
-                                (get-in label [:definition :examples]))]
+           (let [all-values (if (= (:value-type label) "boolean")
+                              [true false]
+                              (or (get-in label [:all-values])
+                                  (get-in label [:definition :all-values])
+                                  (get-in label [:definition :examples])))]
              (merge label {:value
                            (nth all-values (rand-int (count all-values)))})))
          label-settings)))
@@ -563,8 +566,10 @@
             ;; check a categorical value
             (is (= categorical-label-value
                    (label-button-value (:short-label categorical-label-definition))))))))
-    :cleanup (when (test/db-connected?)
-               (when @project-id (project/delete-project @project-id)))))
+
+    :cleanup
+    (when (test/db-connected?)
+      (when @project-id (project/delete-project @project-id)))))
 
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"
@@ -580,8 +585,8 @@
 (defn randomly-review-n-articles
   "Randomly sets labels for n articles using a vector of label-definitions"
   [n label-definitions]
-  (b/click review-articles-button)
-  (b/wait-until-exists {:xpath "//div[@id='project_review']"})
+  (nav/go-project-route "/review")
+  (b/wait-until-exists "#project_review")
   (dotimes [i n]
     (do
       (randomly-set-article-labels label-definitions)

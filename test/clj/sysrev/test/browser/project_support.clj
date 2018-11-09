@@ -163,7 +163,8 @@
       (is (b/exists? {:xpath "//h1[text()='Support This Project']"}))
       ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
       (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))
-    :cleanup (when (and (test/db-connected?)
-                        (not (test/remote-test?)))
-               (when @project-id (project/delete-project @project-id))
-               (b/delete-test-user))))
+
+    :cleanup
+    (when (and (test/db-connected?) (not (test/remote-test?)))
+      (when @project-id (project/delete-project @project-id))
+      (b/delete-test-user))))

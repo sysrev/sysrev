@@ -15,7 +15,7 @@
       (if (= article-id :none)
         [:div.project-content
          [:div.ui.segment
-          [:h4.header "No articles found needing review"]]]
+          [:h4.header.no-review-articles "No articles found needing review"]]]
         [:div.project-content
          (with-loader [[:review/task project-id]] {}
            [ArticleInfo article-id

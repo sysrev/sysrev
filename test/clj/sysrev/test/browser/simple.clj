@@ -66,6 +66,8 @@
           (nav/go-project-route "/settings" project-id))
 
         (is (b/exists? {:css "a#log-out-link"}))))
-  :cleanup (do (nav/delete-current-project)
-               (nav/log-out)
-               (is (b/exists? {:css "div#login-register-panel"}))))
+
+  :cleanup
+  (do (nav/delete-current-project)
+      (nav/log-out)
+      (is (b/exists? "div#login-register-panel"))))

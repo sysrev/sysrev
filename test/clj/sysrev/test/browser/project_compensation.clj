@@ -211,14 +211,15 @@
       ;; (switch-user test-user)
       ;; (nav/open-project project-name)
       ;; (review/randomly-review-n-articles
-      ;;  n-articles [(merge review/include-label-definition
-      ;;                     {:all-values [true false]})])
+      ;;  n-articles [review/include-label-definition])
       (is (= (* n-articles amount)
              (user-amount-owed @project-id (:name test-user)))))
-    :cleanup (when (and (test/db-connected?) (not (test/test-profile?)))
-               (delete-project-compensations @project-id)
-               (project/delete-project @project-id)
-               (b/delete-test-user :email (:email test-user)))))
+
+    :cleanup
+    (when (and (test/db-connected?) (not (test/test-profile?)))
+      (delete-project-compensations @project-id)
+      (project/delete-project @project-id)
+      (b/delete-test-user :email (:email test-user)))))
 
 (let [projects
       (->> [{:name "Sysrev Compensation Test 1"
@@ -245,14 +246,12 @@
   (deftest-browser multiple-project-compensations
     (when (test/db-connected?)
       (let [label-definitions
-            [(merge review/include-label-definition
-                    {:all-values [true false]})
+            [review/include-label-definition
              #_ (merge review/categorical-label-definition
                        {:all-values
                         (get-in review/categorical-label-definition
                                 [:definition :all-values])})
-             #_ (merge review/boolean-label-definition
-                       {:all-values [true false]})]
+             #_ (merge review/boolean-label-definition)]
             review-articles
             (fn [user project]
               (switch-user user project)
@@ -416,13 +415,15 @@
                     (* (:n-articles user2) (-> project1 :amounts (nth 2))))
                  (user-amount-owed @(:project-id project1) (:name user2))))
           (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-                 (user-amount-owed @(:project-id project1) (:name user3))))))
-      :cleanup (when (test/db-connected?)
-                 ;; delete projects
-                 (doseq [{:keys [project-id]} projects]
-                   (when @project-id
-                     (delete-project-compensations @project-id)
-                     (project/delete-project @project-id)))
-                 ;; delete test users
-                 (doseq [{:keys [email]} test-users]
-                   (b/delete-test-user :email email))))))
+                 (user-amount-owed @(:project-id project1) (:name user3)))))))
+
+    :cleanup
+    (when (test/db-connected?)
+      ;; delete projects
+      (doseq [{:keys [project-id]} projects]
+        (when @project-id
+          (delete-project-compensations @project-id)
+          (project/delete-project @project-id)))
+      ;; delete test users
+      (doseq [{:keys [email]} test-users]
+        (b/delete-test-user :email email)))))
