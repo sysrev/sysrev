@@ -61,10 +61,10 @@
     (when (= (:uri request) "/")
       [:meta {:name "Description"
               :content (str "Sysrev" (first text/site-intro-text))}])
-    [:meta {:name "google-signin-scope" :content "profile email"}]
-    [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
-    [:script {;; :async true ;; :defer true
-              :src "https://apis.google.com/js/platform.js"}]
+    #_ [:meta {:name "google-signin-scope" :content "profile email"}]
+    #_ [:meta {:name "google-signin-client_id" :content google-oauth-id-browser}]
+    #_ [:script { ;; :async true ;; :defer true
+                 :src "https://apis.google.com/js/platform.js"}]
     [:script {:src "https://js.stripe.com/v3/"}]
     [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
     [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]

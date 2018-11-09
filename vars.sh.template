@@ -4,3 +4,4 @@ export STRIPE_PUBLIC_KEY=
 export PAYPAL_URL="https://api.sandbox.paypal.com"
 export PAYPAL_CLIENT_ID=
 export PAYPAL_SECRET=
+export GOOGLE_CLIENT_SECRET=

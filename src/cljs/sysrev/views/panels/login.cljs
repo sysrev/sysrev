@@ -4,9 +4,9 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v]]
             [reagent.ratom :refer [reaction]]
-            [sysrev.base :refer [active-route]]
+            [sysrev.base :as base :refer [active-route]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.nav :refer [nav-scroll-top nav-redirect]]
+            [sysrev.nav :as nav]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.ui :refer [get-panel-field]]
@@ -32,6 +32,19 @@
     {:dispatch-n
      (list [:register/project-id register-hash (:project-id project)]
            [:register/project-name register-hash (:name project)])}))
+
+(def-data :nav-google-login
+  :loaded? false
+  :uri (fn [] "/api/auth/google-oauth-url")
+  :prereqs (fn [] nil)
+  :content (fn [] {:base-url (nav/current-url-base)})
+  :process
+  (fn [_ _ oauth-url]
+    (when (string? oauth-url)
+      (nav/load-url oauth-url))))
+
+(defn nav-google-login []
+  (dispatch [:fetch [:nav-google-login]]))
 
 (def login-validation
   {:email [not-empty "Must enter an email address"]
@@ -226,8 +239,10 @@
  (fn [_ [fields]]
    {:dispatch [:set-view-field :login [:submitted-fields] fields]}))
 
+#_
 (defn gapi [] (aget js/window "gapi"))
 
+#_
 (defn ^:export on-google-sign-in [google-user]
   (let [profile ($ google-user getBasicProfile)]
     (js/console.log (str "ID: " ($ profile getId)))
@@ -237,9 +252,11 @@
                                           ($ :id_token))))
     profile))
 
+#_
 (defn ^:export on-google-sign-in-failure [msg]
   (js/console.log (str "Google login failed: " msg)))
 
+#_
 (defn ^:export log-out-google []
   (when (gapi)
     (-> ($ (gapi) :auth2)
@@ -248,6 +265,7 @@
         ($ then
            #(js/console "Google logout successful")))))
 
+#_
 (defn ^:export render-google-sign-in []
   (when (gapi)
     (js/console.log "Rendering Google signin button")
@@ -263,6 +281,7 @@
                  :onsuccess on-google-sign-in
                  :onfailure on-google-sign-in-failure})))))
 
+#_
 (defn GoogleSignInButton []
   (r/create-class
    {:component-did-mount
@@ -274,6 +293,12 @@
          [:div#my-signin2.g-signin2
           {:data-onsuccess "on-google-sign-in"}]]
         [:div]))}))
+
+(defn GoogleLogInButton []
+  [:a.ui.fluid.button {:href "#"
+                       :on-click nav-google-login
+                       :style {:margin-top "0.5em"}}
+   "Log in with Google"])
 
 (defn LoginRegisterPanel []
   (let [register? @(subscribe [::register?])
@@ -331,6 +356,8 @@
          (if register? "Register" "Login")]
         (when-let [err @(subscribe [::login-error-msg])]
           [:div.ui.negative.message err])
+        (when (not= js/window.location.host "sysrev.com")
+          [GoogleLogInButton])
         #_ [GoogleSignInButton]]
        (if register?
          [:div.ui.center.aligned.grid
@@ -381,7 +408,7 @@
              [:div.ui.center.aligned.segment
               {:key [2]}
               (when-not @redirecting?
-                (-> #(nav-scroll-top (project-uri project-id ""))
+                (-> #(nav/nav-scroll-top (project-uri project-id ""))
                     (js/setTimeout 1000))
                 (reset! redirecting? true))
               [:h4 "You are already a member of this project."]
@@ -413,13 +440,13 @@
 
 (defmethod panel-content [:login] []
   (fn [child]
-    (nav-redirect "/" :scroll-top? true)
+    (nav/nav-redirect "/" :scroll-top? true)
     [:div]))
 
 (defmethod panel-content [:register] []
   (fn [child]
     (if (and (nil? @(subscribe [:register/project-id]))
              (nil? @(subscribe [:register/register-hash])))
-      (do (nav-redirect "/" :scroll-top? true)
+      (do (nav/nav-redirect "/" :scroll-top? true)
           [:div])
       [join-project-panel])))
