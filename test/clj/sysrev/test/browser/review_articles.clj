@@ -150,7 +150,8 @@
 
 ;;;; label definitions
 (def include-label-definition {:value-type "boolean"
-                               :short-label "Include"})
+                               :short-label "Include"
+                               :required true})
 
 (def boolean-label-definition {:value-type "boolean"
                                :short-label "Boolean Label"
@@ -404,13 +405,15 @@
   "Given a vector of label-settings maps, set the labels for an article in the browser."
   [label-settings]
   (log/info "setting article labels")
-  (when (taxi/exists? x/review-labels-tab)
-    (b/click x/review-labels-tab)
-    (Thread/sleep 50))
-  (mapv #(set-article-label %) label-settings)
+  (nav/go-project-route "/review")
   (Thread/sleep 50)
-  (b/click save-button)
-  (b/wait-until-loading-completes :pre-wait 100))
+  (mapv #(set-article-label %) label-settings)
+  (Thread/sleep 100)
+  (taxi/wait-until #(and (taxi/displayed? "button.save-labels")
+                         (not (taxi/displayed? "button.save-labels.disabled")))
+                   2000 25)
+  (b/click "button.save-labels")
+  (b/wait-until-loading-completes :pre-wait 200))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."
