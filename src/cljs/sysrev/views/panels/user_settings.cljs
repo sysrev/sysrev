@@ -157,7 +157,7 @@
      [:div.ui.two.column.stackable.grid
       [:div.column [user-options-box]]
       [:div.column [user-dev-tools-box]]]
-     [:div.ui.one.column.stackable.grid
+     #_[:div.ui.one.column.stackable.grid
       [:div.column
        [StripeConnect]]]
      [UserSupportSubscriptions]]))
