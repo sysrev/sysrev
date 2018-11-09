@@ -92,8 +92,7 @@
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']"
                   project-name)
           "//ancestor::div[@id='project']"))
-  (b/wait-until-loading-completes :pre-wait true)
-  (go-project-route ""))
+  (b/wait-until-loading-completes :pre-wait 100))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
