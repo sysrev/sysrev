@@ -76,5 +76,7 @@
                (get-in  annotation [:context :text-context])))
         (is (= 15 (get-in annotation [:context :start-offset])))
         (is (= 23 (get-in annotation [:context :end-offset]))))))
-  :cleanup (when (test/db-connected?)
-             (nav/delete-current-project)))
+
+  :cleanup
+  (when (test/db-connected?)
+    (nav/delete-current-project)))

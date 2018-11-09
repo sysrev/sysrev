@@ -321,15 +321,15 @@
     project-id [:label-values :saved :unlimited-articles self-id predict-run-id]
     (->> (or articles (get-articles-with-label-users project-id predict-run-id))
          vals
-         (filter #(and (not (in? (:users %) self-id))))
-         (map #(dissoc % :users)))))
+         (filter #(not (in? (:users %) self-id))))))
 
 (defn- pick-ideal-article
   "Used by the classify task functions to select an article from the candidates.
 
   Randomly picks from the top 5% of article entries sorted by `sort-keyfn`."
-  [articles sort-keyfn & [predict-run-id]]
-  (let [n-closest (max 100 (quot (count articles) 20))]
+  [articles sort-keyfn & [predict-run-id min-random-set]]
+  (let [min-random-set (or min-random-set 100)
+        n-closest (max min-random-set (quot (count articles) 20))]
     (when-let [article-id
                (->> articles
                     (sort-by sort-keyfn <)
@@ -382,8 +382,9 @@
         (or predict-run-id (q/project-latest-predict-run-id project-id))]
     (pick-ideal-article
      (unlimited-articles project-id self-id predict-run-id articles)
-     #(math/abs (- (:score %) 0.5))
-     predict-run-id)))
+     #(count (:users %))
+     predict-run-id
+     50)))
 
 (defn user-confirmed-today-count [project-id user-id]
   (-> (q/select-project-article-labels project-id true [:al.article-id])
@@ -403,8 +404,10 @@
         (pvalues
          (when unlimited-reviews
            (ideal-unlimited-article project-id user-id nil articles))
-         (ideal-single-labeled-article project-id user-id nil articles)
-         (ideal-unlabeled-article project-id nil articles)
+         (when-not unlimited-reviews
+           (ideal-single-labeled-article project-id user-id nil articles))
+         (when-not unlimited-reviews
+           (ideal-unlabeled-article project-id nil articles))
          (user-confirmed-today-count project-id user-id))
         [article status]
         (cond

@@ -229,14 +229,16 @@
         admin? (admin?)]
     [with-tooltip
      [:button.ui.button
-      {:class (if active? "active" "")
+      {:id (str (name setting) "_" (name key))
+       :class (if active? "active" "")
        :on-click (if admin? #(edit-setting setting value) nil)}
       label]
      {:inline false
       :popup (str "#" tooltip-key)}]))
 
 (defn- SettingsField [{:keys [setting label entries]} entries]
-  [:div.field {:class (input-field-class setting)}
+  [:div.field {:id (str "project-setting_" (name setting))
+               :class (input-field-class setting)}
    [:label label]
    [:div.ui.fluid.buttons.selection
     (doall
@@ -394,13 +396,12 @@
                    (not (loading/any-action-running?
                          :only :project/change-settings)))
           (reset! saving? false))
-        [:div.ui.segment
+        [:div.ui.segment.project-options
          [:h4.ui.dividing.header "Options"]
          [:div.ui.form {:class (if valid? "" "warning")}
           [:div.two.fields
            [PublicAccessField]
            [DoubleReviewPriorityField]]
-          #_
           [:div.two.fields
            [UnlimitedReviewsField]]]
          (when admin?

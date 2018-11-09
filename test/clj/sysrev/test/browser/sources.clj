@@ -79,5 +79,7 @@
            {:unique-articles 6, :reviewed-articles 0, :total-articles 6}))
     (pm/delete-search-term-source query1)
     (pm/check-source-count 0))
-  :cleanup (do (nav/delete-current-project)
-               (nav/log-out)))
+
+  :cleanup
+  (do (nav/delete-current-project)
+      (nav/log-out)))

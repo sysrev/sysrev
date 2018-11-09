@@ -257,8 +257,7 @@
              (str "#" article-id)]]))]])))
 
 (defn ArticleInfo
-  [article-id & {:keys [show-labels? private-view? show-score?
-                        context]
+  [article-id & {:keys [show-labels? private-view? show-score? context]
                  :or {show-score? true}}]
   (let [project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
@@ -267,7 +266,8 @@
         duplicates @(subscribe [:article/duplicates article-id])
         annotator-context {:class "abstract"
                            :project-id project-id
-                           :article-id article-id}]
+                           :article-id article-id}
+        {:keys [unlimited-reviews]} @(subscribe [:project/settings])]
     (dispatch [:require (annotator/annotator-data-item annotator-context)])
     [:div
      (with-loader [[:article project-id article-id]]
@@ -284,7 +284,8 @@
             [article-disabled-label])
           (when (and score show-score? (not= status :single))
             [article-score-label score])
-          [review-status-label (if private-view? :user status)]]]
+          (when-not (and (= context :review) (true? unlimited-reviews))
+            [review-status-label (if private-view? :user status)])]]
         (article-duplicates-segment article-id)
         (when-not full-size? (article-flags-view article-id "ui segment"))
         [:div.ui.segment.article-content

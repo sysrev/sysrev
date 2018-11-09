@@ -595,7 +595,7 @@
 (defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
   [:div.ui.two.column.grid.save-reset-form
    [:div.column.save
-    [:button.ui.fluid.right.labeled.positive.icon.button
+    [:button.ui.fluid.right.labeled.positive.icon.button.save-changes
      {:class (str (if can-save? "" "disabled")
                   " "
                   (if saving? "loading" ""))
@@ -604,7 +604,7 @@
      "Save Changes"
      [:i.check.circle.outline.icon]]]
    [:div.column.reset
-    [:button.ui.fluid.right.labeled.icon.button
+    [:button.ui.fluid.right.labeled.icon.button.cancel-changes
      {:class (if can-reset? "" "disabled")
       :on-click (util/wrap-user-event
                  #(when (and can-reset? on-reset) (on-reset)))}

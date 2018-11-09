@@ -72,5 +72,7 @@
     ;; a prompt for creating a project description
     (b/wait-until-exists create-project-description)
     (is (b/exists? create-project-description :wait? false)))
-  :cleanup (do (nav/delete-current-project)
-               (nav/log-out)))
+
+  :cleanup
+  (do (nav/delete-current-project)
+      (nav/log-out)))
