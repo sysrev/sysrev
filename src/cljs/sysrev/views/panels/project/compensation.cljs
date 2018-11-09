@@ -357,7 +357,8 @@
                             last-payment (:last-payment user-owed)
                             connected? (:connected user-owed)
                             user-id (:user-id user-owed)
-                            pay-disabled? @(r/cursor state [:retrieving-pay? user-id])
+                            retrieving-amount-owed? @(r/cursor state [:retrieving-amount-owed?])
+                            retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
                             error-message (r/cursor state [:pay-error user-id])]
                         [:div.item {:key user-name}
                          [:div.ui.grid
@@ -379,7 +380,8 @@
                              (> amount-owed 0)
                              [Button {:on-click #(pay-user! state user-id amount-owed)
                                       :color "blue"
-                                      :disabled pay-disabled?}
+                                      :disabled (or retrieving-pay?
+                                                    retrieving-amount-owed?)}
                               "Pay"])
                            (when @error-message
                              [:div {:class "ui red message"}
@@ -503,7 +505,7 @@
       [:div.ui.row
        [:div.ui.column
         [ProjectFunds state]]]
-      [:div.ui.row
+      #_[:div.ui.row
        [:div.ui.column
         ;;[SupportFormOnce support/state]
         [PayPalButton paypal/state]
