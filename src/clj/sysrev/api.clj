@@ -34,7 +34,8 @@
             [sysrev.util :as util]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.biosource.predict :as predict-api])
-  (:import [java.io ByteArrayInputStream]))
+  (:import [java.io ByteArrayInputStream]
+           [java.util UUID]))
 
 (def default-plan "Basic")
 ;; Error code used
@@ -1065,15 +1066,20 @@
        {:error {:status precondition-failed
                 :message "An unknown error occurred"}}))))
 
+(defn calculate-project-funds
+  [project-id]
+  (let [available-funds (compensation/project-funds project-id)
+        compensation-outstanding (compensation/total-owed project-id)
+        admin-fees (compensation/total-admin-fees project-id)
+        current-balance (- available-funds compensation-outstanding admin-fees)]
+    {:current-balance current-balance
+     :admin-fees admin-fees
+     :compensation-outstanding compensation-outstanding
+     :available-funds available-funds}))
+
 (defn project-funds
   [project-id]
-  (try-catch-response
-   (let [current-balance (compensation/project-funds project-id)
-         compensation-outstanding (compensation/total-owed project-id)
-         available-funds (- current-balance compensation-outstanding)]
-     {:result {:project-funds {:current-balance current-balance
-                               :compensation-outstanding compensation-outstanding
-                               :available-funds available-funds}}})))
+  {:result {:project-funds (calculate-project-funds project-id)}})
 
 ;; to manually add funds:
 ;; (compensation/create-fund {:project-id <project-id> :user-id <project-admin> :transaction-id "manual-entry" :transaction-source "PayPal manual transfer" :amount <amount> :created (util/now-unix-seconds)})
@@ -1081,27 +1087,36 @@
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 
 (defn pay-user!
-  [project-id user-id amount]
+  [project-id user-id compensation admin-fee]
   (try-catch-response
-   (let [current-balance (compensation/project-funds project-id)
-         user (users/get-user-by-id user-id)]
+   (let [available-funds (:available-funds (calculate-project-funds project-id))
+         user (users/get-user-by-id user-id)
+         total-amount (+ compensation admin-fee)]
      (cond
-       (> amount current-balance)
+       (> total-amount available-funds)
        {:error {:status payment-required
-                :message "Not enough funds to fulfill this payment"}}
-       (<= amount current-balance)
-       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user amount))]
+                :message "Not enough available funds to fulfill this payment"}}
+       (<= total-amount available-funds)
+       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
          (if-not (= status 201)
            {:error {:status bad-request
                     :message (get-in body [:message])}}
            (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
                  created (util/now-unix-seconds)]
-             (compensation/pay-user! {:project-id project-id
-                                      :user-id user-id
-                                      :amount (- amount)
-                                      :transaction-id payout-batch-id
-                                      :transaction-source "PayPal/payout-batch-id"
-                                      :created created})
+             ;; deduct for funds to the user
+             (compensation/create-project-fund-entry {:project-id project-id
+                                                      :user-id user-id
+                                                      :amount (- compensation)
+                                                      :transaction-id payout-batch-id
+                                                      :transaction-source "PayPal/payout-batch-id"
+                                                      :created created})
+             ;; deduct admin fee
+             (compensation/create-project-fund-entry {:project-id project-id
+                                                      :user-id user-id
+                                                      :amount (- admin-fee)
+                                                      :transaction-id (str (UUID/randomUUID))
+                                                      :transaction-source "SysRev/admin-fee"
+                                                      :created created})
              {:result "success"})))))))
 
 (defn test-response

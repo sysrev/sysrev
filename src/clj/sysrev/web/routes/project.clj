@@ -798,8 +798,8 @@
   (POST "/api/pay-user" request
         (wrap-authorize
          request {:roles ["admin"]}
-         (let [{:keys [project-id user-id amount]} (-> request :body)]
-           (api/pay-user! project-id user-id amount))))
+         (let [{:keys [project-id user-id compensation admin-fee]} (-> request :body)]
+           (api/pay-user! project-id user-id compensation admin-fee))))
 
   (POST "/api/stripe/finalize-user" request
         (wrap-authorize

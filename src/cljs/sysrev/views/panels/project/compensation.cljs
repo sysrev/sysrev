@@ -82,7 +82,7 @@
 
 (defn pay-user!
   "Pay the user the amount owed to them"
-  [state user-id amount]
+  [state user-id compensation admin-fee]
   (let [project-id @(subscribe [:active-project-id])
         retrieving? (r/cursor state [:retrieving-pay? user-id])
         pay-error (r/cursor state [:pay-error user-id])]
@@ -91,7 +91,8 @@
     (POST "/api/pay-user"
           {:params {:project-id project-id
                     :user-id user-id
-                    :amount (int amount)}
+                    :compensation compensation
+                    :admin-fee admin-fee}
            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
            :handler (fn [response]
                       (reset! retrieving? false)
@@ -100,7 +101,6 @@
            :error-handler (fn [error-response]
                             (reset! retrieving? false)
                             (compensation-owed! state)
-                            (.log js/console "pay error: " (clj->js error-response))
                             (reset! pay-error (get-in error-response [:response :error :message])))})))
 
 (defn get-default-compensation!
@@ -148,7 +148,7 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [current-balance compensation-outstanding available-funds]}
+        (let [{:keys [current-balance compensation-outstanding available-funds admin-fees]}
               @project-funds]
           [:div.ui.segment
            [:div
@@ -159,19 +159,25 @@
                "Available Funds: "]
               [:div.eight.wide.column]
               [:div.three.wide.column
-               (accounting/cents->string current-balance)]]
+               (accounting/cents->string available-funds)]]
              [:div.ui.row
               [:div.five.wide.column
-               "Compensations Outstanding: "]
+               "Outstanding Compensations: "]
               [:div.eight.wide.column]
               [:div.three.wide.column
                (accounting/cents->string compensation-outstanding)]]
              [:div.ui.row
               [:div.five.wide.column
+               "Outstanding Admin Fees: "]
+              [:div.eight.wide.column]
+              [:div.three.wide.column
+               (accounting/cents->string admin-fees)]]
+             [:div.ui.row
+              [:div.five.wide.column
                "Current Balance: "]
               [:div.eight.wide.column]
               [:div.three.wide.column
-               (accounting/cents->string available-funds)]]]]]))
+               (accounting/cents->string current-balance)]]]]]))
       :get-initial-state
       (fn [this]
         (when-not (nil? @project-funds)
@@ -347,45 +353,72 @@
           [:div.ui.segment
            [:h4.ui.dividing.header "Compensation Owed"]
            [:div.ui.relaxed.divided.list
-            (doall (map
-                    (fn [user-owed]
-                      (let [user-name (-> (:email user-owed)
-                                          (string/split #"@")
-                                          first)
-                            email (:email user-owed)
-                            amount-owed (:amount-owed user-owed)
-                            last-payment (:last-payment user-owed)
-                            connected? (:connected user-owed)
-                            user-id (:user-id user-owed)
-                            retrieving-amount-owed? @(r/cursor state [:retrieving-amount-owed?])
-                            retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
-                            error-message (r/cursor state [:pay-error user-id])]
-                        [:div.item {:key user-name}
-                         [:div.ui.grid
-                          [:div.five.wide.column
-                           [:i.user.icon]
-                           email]
-                          [:div.two.wide.column
-                           (accounting/cents->string amount-owed)]
-                          [:div.four.wide.column
-                           (when last-payment
-                             (str "Last Payment: " (unix-epoch->date-string last-payment)))]
-                          [:div.five.wide.column.right.align
-                           (cond
-                             ;; (and (> amount-owed 0)
-                             ;;      (not connected?))
-                             ;; [Button {:disabled true
-                             ;;          :color "blue"}
-                             ;;  "No Payment Destination"]
-                             (> amount-owed 0)
-                             [Button {:on-click #(pay-user! state user-id amount-owed)
-                                      :color "blue"
-                                      :disabled (or retrieving-pay?
-                                                    retrieving-amount-owed?)}
-                              "Pay"])
-                           (when @error-message
-                             [:div {:class "ui red message"}
-                              @error-message])]]]))
+            (doall
+             (map
+              (fn [user-owed]
+                (let [user-name (-> (:email user-owed)
+                                    (string/split #"@")
+                                    first)
+                      {:keys [email compensation-owed last-payment connected user-id admin-fee]} user-owed
+                      retrieving-amount-owed? @(r/cursor state [:retrieving-amount-owed?])
+                      confirming? (r/cursor state [:confirming? user-id])
+                      retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
+                      error-message (r/cursor state [:pay-error user-id])]
+                  [:div.item {:key user-name}
+                   (when @confirming?
+                     [:div.ui.message {:position "absolute"}
+                      [:div.ui.grid
+                       [:div.ui.row
+                        [:div.five.wide.column
+                         "Compensation: "]
+                        [:div.eight.wide.column]
+                        [:div.three.wide.column (accounting/cents->string compensation-owed)]]
+                       [:div.ui.row
+                        [:div.five.wide.column
+                         "Admin Fees: "]
+                        [:div.eight.wide.column]
+                        [:div.three.wide.column (accounting/cents->string admin-fee)]]
+                       [:div.ui.row
+                        [:div.five.wide.column
+                         "Total to be Deducted: "]
+                        [:div.eight.wide.column]
+                        [:div.three.wide.column
+                         [:span {:style {:font-weight "bold"
+                                         :text-align "right"}}
+                          (accounting/cents->string (+ compensation-owed admin-fee))]]]
+                       [:div.ui.row
+                        [:div.eleven.wide.column]
+                        [:div.five.wide.column
+                         [:div.ui
+                          [Button {:on-click #(pay-user! state user-id compensation-owed admin-fee)
+                                   :disabled (or retrieving-pay?
+                                                 retrieving-amount-owed?)
+                                   :color "blue"}
+                           "Confirm"]
+                          [Button {:on-click #(do (reset! confirming? false)
+                                                  (reset! error-message nil))}
+                           "Cancel"]]]]
+                       (when @error-message
+                         [:div {:class "ui red message"}
+                          @error-message])]])
+                   [:div.ui.grid
+                    [:div.five.wide.column
+                     [:i.user.icon]
+                     email]
+                    [:div.two.wide.column
+                     (accounting/cents->string compensation-owed)]
+                    [:div.four.wide.column
+                     (when last-payment
+                       (str "Last Payment: " (unix-epoch->date-string last-payment)))]
+                    [:div.five.wide.column.right.align
+                     (cond
+                       (and (> compensation-owed 0)
+                            (not @confirming?))
+                       [Button {:on-click #(reset! confirming? true)
+                                :color "blue"
+                                :disabled (or retrieving-pay?
+                                              retrieving-amount-owed?)}
+                        "Pay"])]]]))
                     @compensation-owed))]]))
       :component-did-mount (fn [this]
                              (compensation-owed! state))})))

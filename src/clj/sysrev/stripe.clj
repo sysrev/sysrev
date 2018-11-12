@@ -204,12 +204,12 @@
                                  {"metadata" {"project-id" project-id}}))]
       (if-not (nil? (and id created))
         ;; charge was a success, insert into the db
-        (do (compensation/create-fund {:project-id project-id
-                                       :user-id (:user-id user)
-                                       :transaction-id id
-                                       :transaction-source "Stripe/charge-id"
-                                       :amount amount
-                                       :created created})
+        (do (compensation/create-project-fund-entry {:project-id project-id
+                                                     :user-id (:user-id user)
+                                                     :transaction-id id
+                                                     :transaction-source "Stripe/charge-id"
+                                                     :amount amount
+                                                     :created created})
             {:success true})
         ;; charge was not success, return response
         stripe-response))

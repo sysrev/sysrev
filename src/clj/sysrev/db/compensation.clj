@@ -10,9 +10,7 @@
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
             [sysrev.util :as util]))
 
-;; compensation: id, rate (json ex: {:item "article" :amount 100}), created
-;; project_compensation: project_id, compensation_id, active, created
-;; compensation_user_period: compensation_id, web_user_id, period_begin, period_end
+(def admin-fee 0.20)
 
 (defn create-project-compensation!
   "Create a compensation for project-id, where rate is a map of the form
@@ -191,7 +189,8 @@
       (where [:and
               [:= :project_id project-id]
               [:= :user_id user-id]
-              [:< :amount 0]])
+              [:< :amount 0]
+              [:= :transaction_source "PayPal/payout-batch-id"]])
       do-query
       (->> (map :amount)
            (apply +))))
@@ -215,16 +214,24 @@
               [:< :amount 0]])
       (order-by [:created :desc]) do-query first :created))
 
+(defn compensation-owed-to-user-by-project
+  "The amount owed to user-id by project-id"
+  [project-id user-id]
+  (+ (project-owes-user project-id user-id)
+     (project-paid-user project-id user-id)))
+
 (defn compensation-owed-by-project
   "Return the name, amount owed and last paid values for each user"
   [project-id]
   (let [project-users (project-users project-id)
         email-user-id-map (util/vector->hash-map project-users :user-id)]
-    (map #(hash-map :amount-owed (+ (project-owes-user project-id (:user-id %))
-                                    (project-paid-user project-id (:user-id %)))
-                    :last-payment (last-payment project-id (:user-id %))
-                    :email (:email (get email-user-id-map (:user-id %)))
-                    :user-id (:user-id %))
+    (map #(let [compensation-owed (compensation-owed-to-user-by-project project-id (:user-id %))
+                admin-fee (Math/round (* admin-fee compensation-owed))]
+            (hash-map :compensation-owed compensation-owed
+                      :admin-fee admin-fee
+                      :last-payment (last-payment project-id (:user-id %))
+                      :email (:email (get email-user-id-map (:user-id %)))
+                      :user-id (:user-id %)))
          project-users)))
 
 (defn project-funds
@@ -235,16 +242,6 @@
       do-query
       (->> (map :amount)
            (apply +))))
-
-(defn create-fund [{:keys [project-id user-id transaction-id transaction-source amount created]}]
-  (-> (insert-into :project-fund)
-      (values [{:transaction-id transaction-id
-                :transaction-source transaction-source
-                :project-id project-id
-                :user-id user-id
-                :amount amount
-                :created created}])
-      do-execute))
 
 (defn total-paid
   "Total amount paid out by project-id"
@@ -262,7 +259,14 @@
   "Total owed by project"
   [project-id]
   (->> (compensation-owed-by-project project-id)
-       (map :amount-owed)
+       (map :compensation-owed)
+       (apply +)))
+
+(defn total-admin-fees
+  "Total amount of admin fees owed by project"
+  [project-id]
+  (->> (compensation-owed-by-project project-id)
+       (map :admin-fee)
        (apply +)))
 
 (defn user-compensation
@@ -292,12 +296,13 @@
     (->> project-users
         (map #(assoc % :compensation-id (user-compensation project-id (:user-id %)))))))
 
-(defn pay-user! [{:keys [project-id user-id amount transaction-id transaction-source created]}]
-  (-> (insert-into :project_fund)
-      (values [{:user-id user-id
-                :project-id project-id
-                :transaction-id transaction-id
+(defn create-project-fund-entry [{:keys [project-id user-id transaction-id transaction-source amount created]}]
+  (-> (insert-into :project-fund)
+      (values [{:transaction-id transaction-id
                 :transaction-source transaction-source
+                :project-id project-id
+                :user-id user-id
                 :amount amount
                 :created created}])
       do-execute))
+

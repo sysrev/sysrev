@@ -170,7 +170,8 @@
       (clear-project-cache project-id))))
 
 ;; this does not check to see if n unreviewed articles really exist
-(defn randomly-set-n-unreviewed-articles
+(defn randomly-set-unreviewed-articles
+  "Randomly set n labels for user-id in project-id"
   [project-id user-id n]
   (let [unreviewed-articles (take n (articles-unreviewed-by-user project-id user-id))]
     (doall (map (partial randomly-set-labels project-id user-id) unreviewed-articles))))
@@ -205,7 +206,7 @@
       (b/create-test-user :email (:email test-user)
                           :password (:password test-user)
                           :project-id @project-id)
-      (randomly-set-n-unreviewed-articles
+      (randomly-set-unreviewed-articles
        @project-id (get-user-id (:email test-user)) n-articles)
       ;; new user reviews some articles
       ;; (switch-user test-user)
@@ -258,7 +259,7 @@
               (review/randomly-review-n-articles
                (:n-articles user) label-definitions))
             db-review-articles (fn [user project]
-                                 (randomly-set-n-unreviewed-articles
+                                 (randomly-set-unreviewed-articles
                                   @(:project-id project)
                                   (get-user-id (:email user))
                                   (:n-articles user)))
