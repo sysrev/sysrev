@@ -26,6 +26,9 @@
   (set! js/window.location.href
         (str (current-url-base) route)))
 
+(defn load-url [url]
+  (set! js/window.location.href url))
+
 (reg-fx :nav-reload #(when % (nav-reload %)))
 
 (defn nav

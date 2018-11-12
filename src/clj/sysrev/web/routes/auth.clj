@@ -1,5 +1,7 @@
 (ns sysrev.web.routes.auth
-  (:require [compojure.core :refer :all]
+  (:require [clojure.tools.logging :as log]
+            [compojure.core :refer :all]
+            [ring.util.response :as response]
             [sysrev.api :as api]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
@@ -7,11 +9,89 @@
             [sysrev.shared.util :refer [in?]]
             [sysrev.mail.core :refer [send-email]]
             [sysrev.db.core :as db]
-            [sysrev.config.core :refer [env]]))
+            [sysrev.config.core :refer [env]])
+  (:import com.google.api.client.http.javanet.NetHttpTransport
+           com.google.api.client.json.jackson2.JacksonFactory
+           com.google.api.client.auth.oauth2.TokenResponseException
+           (com.google.api.client.googleapis.auth.oauth2
+            GoogleTokenResponse GoogleCredential
+            GoogleAuthorizationCodeRequestUrl
+            GoogleAuthorizationCodeTokenRequest)
+           (com.google.api.client.googleapis.auth.oauth2
+            GoogleIdToken GoogleIdTokenVerifier
+            GoogleIdTokenVerifier$Builder GoogleIdToken$Payload)))
 
 (declare send-password-reset-email)
 
+(defonce google-oauth-client-id-server
+  "663198182926-l4p6ac774titl403dhr2q3ij00u1qlhl.apps.googleusercontent.com")
+
+(defn google-redirect-url [base-url]
+  (str base-url "/api/auth/login/google"))
+
+(defn get-google-oauth-url [base-url]
+  (-> (GoogleAuthorizationCodeRequestUrl.
+       google-oauth-client-id-server
+       (google-redirect-url base-url)
+       ["openid" "email" "profile"])
+      (.build)))
+
+(defn google-client-secret [] (:google-client-secret env))
+
+(defn parse-google-id-token [id-token-str]
+  (let [verifier (-> (GoogleIdTokenVerifier$Builder.
+                      (NetHttpTransport.)
+                      (JacksonFactory.))
+                     (.setAudience [google-oauth-client-id-server])
+                     (.build))
+        id-token (-> verifier (.verify id-token-str))]
+    (when id-token
+      (let [payload (.getPayload id-token)]
+        {:google-user-id (.getSubject payload)
+         :email (.getEmail payload)
+         :name (.get payload "name")}))))
+
+(defn get-google-user-info [base-url auth-code]
+  (let [response
+        (-> (GoogleAuthorizationCodeTokenRequest.
+             (NetHttpTransport.)
+             (JacksonFactory.)
+             google-oauth-client-id-server
+             (google-client-secret)
+             auth-code
+             (google-redirect-url base-url))
+            (.execute))
+        id-token-str (.getIdToken response)]
+    (parse-google-id-token id-token-str)))
+
 (defroutes auth-routes
+  (GET "/api/auth/google-oauth-url" request
+       (let [{:keys [base-url]} (:params request)]
+         {:result (get-google-oauth-url base-url)}))
+
+  (GET "/api/auth/login/google" request
+       (let [{:keys [params scheme server-name session]} request
+             {:keys [code]} params
+             base-url (str (name scheme) "://" server-name)
+             {:keys [email google-user-id] :as user-info}
+             (try
+               (get-google-user-info base-url code)
+               (catch Throwable e
+                 (log/warn "get-google-user-info login failure")
+                 (log/warn (.getMessage e))
+                 nil))
+             user (when user-info (users/get-user-by-email email))
+             {verified :verified :or {verified false}} user
+             success (not-empty user)
+             session-identity (select-keys user [:user-id
+                                                 :user-uuid
+                                                 :email
+                                                 :default-project-id])]
+         (with-meta
+           (response/redirect base-url)
+           {:session
+            (assoc session :identity session-identity)})))
+
   (POST "/api/auth/login" request
         (let [{session :session
                {:keys [email password] :as body} :body} request
