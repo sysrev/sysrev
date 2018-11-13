@@ -1,5 +1,6 @@
 (ns sysrev.paypal
   (:require [clj-http.client :as client]
+            [clj-time.coerce :as c]
             [clj-time.core :as t]
             [clj-time.format :as f]
             [clj-time.local :as l]
@@ -94,6 +95,12 @@
   [date]
   (-> (f/parse (f/formatter :date) date) (t/plus (t/hours 23)) (t/plus (t/minutes 59)) (t/plus (t/seconds 59)) .toString))
 
+(defn paypal-date->unix-epoch
+  [paypal-date]
+  (-> (f/parse (f/formatter :date-time-no-ms) paypal-date)
+      c/to-long
+      (/ 1000)))
+
 ;; this won't show direct deposits
 (defn get-transactions
   "Get the transactions for the account from start-date to end-date in the format of YYYY-MM-dd"
@@ -115,3 +122,13 @@
         thirty-one-days-ago (-> (t/now) (t/minus (t/days 31))
                                 (->> (f/unparse (f/formatter :year-month-day))))]
     (get-transactions :start-date thirty-one-days-ago :end-date today)))
+
+;;https://developer.paypal.com/docs/api/payments/v1/#payment_get
+(defn get-payment
+  [payment-id]
+  (-> (client/get (str paypal-url "/v1/payments/payment/" payment-id)
+                  {:content-type :json
+                   :headers (default-headers (:access_token @current-access-token))
+                   :throw-exceptions false
+                   :as :json
+                   :coerce :always})))

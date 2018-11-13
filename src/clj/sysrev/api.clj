@@ -1,9 +1,11 @@
 (ns sysrev.api
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require [bouncer.core :as b]
+            [clojure.data.json :as json]
             [clojure.set :refer [rename-keys difference]]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
+            [clojure.walk :refer [keywordize-keys]]
             [me.raynes.fs :as fs]
             [ring.util.response :as response]
             [sysrev.biosource.annotations :as annotations]
@@ -416,6 +418,28 @@
     (support-project-monthly user project-id amount)
     (support-project-once user project-id amount)))
 
+(defonce paypal-response (atom nil))
+
+;;https://developer.paypal.com/docs/checkout/how-to/customize-flow/#manage-funding-source-failure
+;; response.error = 'INSTRUMENT_DECLINED'
+(defn add-funds-paypal
+  [project-id user-id response]
+  ;; best way to check for now
+  (let [response (keywordize-keys response)]
+    (cond (:id response)
+          (let [amount (-> response :transactions first (get-in [:amount :total]) read-string (* 100) (Math/round))
+                transaction-id (:id response)
+                created (-> response :transactions first :related_resources first :sale :create_time paypal/paypal-date->unix-epoch)]
+            (compensation/create-project-fund-entry {:project-id project-id
+                                                     :user-id user-id
+                                                     :amount amount
+                                                     :transaction-id transaction-id
+                                                     :transaction-source "PayPal/payment-id"
+                                                     :created created})
+            {:result {:success true}})
+          :else {:error {:status internal-server-error
+                         :message "The paypal response has an error"}})))
+
 (defn current-project-support-level
   "The current level of support of this user for project-id"
   [user project-id]
@@ -454,6 +478,187 @@
   [user-id]
   {:connected
    (boolean (users/user-stripe-account user-id))})
+
+(defn read-project-compensations
+  "Return all project compensations for project-id"
+  [project-id]
+  (try (let [compensations (compensation/read-project-compensations project-id)]
+         {:result {:success true
+                   :compensations compensations}})
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
+
+(defn create-project-compensation!
+  "Create a compensation for project-id with rate"
+  [project-id rate]
+  (try
+    (let [compensation-id (compensation/create-project-compensation! project-id (update rate :amount int))])
+       {:result {:success true
+                 :rate rate}}
+       (catch Throwable e
+         {:error {:state internal-server-error
+                  :message (.getMessage e)}})))
+
+(defn project-compensation-for-users
+  "Return all compensations owed for project-id using start-date and end-date. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
+  [project-id start-date end-date]
+  (try {:result {:amount-owed (compensation/project-compensation-for-users project-id start-date end-date)}}
+       (catch Throwable e
+         {:error {:status internal-server-error
+                  :message (.getMessage e)}})))
+
+(defn compensation-owed
+  "Return compensations owed for all users"
+  [project-id]
+  (try-catch-response
+   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id))}}))
+
+(defn project-users-current-compensation
+  "Return the compensation-id for each user"
+  [project-id]
+  (try-catch-response
+   {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
+
+(defn toggle-compensation-active!
+  [project-id compensation-id active?]
+  (try-catch-response
+   (let [current-compensation (->> (compensation/read-project-compensations project-id)
+                                   (filterv #(= (:id %) compensation-id))
+                                   first)]
+     (cond
+       ;; this compensation doesn't even exist
+       (nil? current-compensation)
+       {:error {:status not-found}}
+       ;; nothing changed, do nothing
+       (= active? (:active current-compensation))
+       {:result {:success true
+                 :message (str "compensation-id " compensation-id " already has active set to " active?)}}
+       ;; this compensation is being deactivated, so also disable all other compensations for users
+       (= active? false)
+       (do
+         (compensation/toggle-active-project-compensation! project-id compensation-id active?)
+         (compensation/end-compensation-period-for-all-users! project-id compensation-id)
+         {:result {:success true}})
+       (= active? true)
+       (do (compensation/toggle-active-project-compensation! project-id compensation-id active?)
+           {:result {:success true}})
+       :else
+       {:error {:status precondition-failed
+                :message "An unknown error occurred"}}))))
+
+(defn get-default-compensation
+  "Get the default compensation-id for project-id"
+  [project-id]
+  (try-catch-response
+   {:result {:success true
+             :compensation-id (compensation/get-default-project-compensation project-id)}}))
+
+(defn set-default-compensation!
+  "Set the compensation-id to the default for project-id "
+  [project-id compensation-id]
+  (try-catch-response
+   (do
+     (if (= compensation-id nil)
+       (compensation/delete-default-project-compensation! project-id)
+       (compensation/set-default-project-compensation! project-id compensation-id))
+     {:result {:success true}})))
+
+(defn set-user-compensation!
+  "Set the compensation-id for user-id in project-id"
+  [project-id user-id compensation-id]
+  (try-catch-response
+   (let [project-compensations (->> (compensation/read-project-compensations project-id)
+                                    (filter :active)
+                                    (mapv :id)
+                                    set)
+         current-compensation-id (compensation/user-compensation project-id user-id)]
+     (cond
+       ;; compensation is set to none for user and they don't have a current compensation
+       (and (= compensation-id "none")
+            (nil? (project-compensations current-compensation-id)))
+       {:result {:success true
+                 :message "Compensation is already set to none for this user, no changes made"}}
+       ;; compensation is set to none and they have a current compensation
+       (and (= compensation-id "none")
+            (not (nil? (project-compensations current-compensation-id))))
+       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
+           {:result {:success true}})
+       ;; there wasn't a compensation id found for the project, or it isn't active
+       (nil? (project-compensations compensation-id))
+       {:error {:status not-found
+                :message (str "compensation-id " compensation-id " is not active or doesn't exist for project-id " project-id)}}
+       ;; this is the same compensation-id as the user already has
+       (= current-compensation-id compensation-id)
+       {:result {:success true
+                 :message "Compensation is already set to this value for the user, no changes made."}}
+       ;; the user is going from having no compensation-id set to having a new one
+       (nil? current-compensation-id)
+       (do
+         (compensation/start-compensation-period-for-user! compensation-id user-id)
+         {:result {:success true}})
+       ;; the user is switching compensations
+       (and (project-compensations compensation-id)
+            current-compensation-id)
+       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
+           (compensation/start-compensation-period-for-user! compensation-id user-id)
+           {:result {:success true}})
+       :else
+       {:error {:status precondition-failed
+                :message "An unknown error occurred"}}))))
+
+(defn calculate-project-funds
+  [project-id]
+  (let [available-funds (compensation/project-funds project-id)
+        compensation-outstanding (compensation/total-owed project-id)
+        admin-fees (compensation/total-admin-fees project-id)
+        current-balance (- available-funds compensation-outstanding admin-fees)]
+    {:current-balance current-balance
+     :admin-fees admin-fees
+     :compensation-outstanding compensation-outstanding
+     :available-funds available-funds}))
+
+(defn project-funds
+  [project-id]
+  {:result {:project-funds (calculate-project-funds project-id)}})
+
+;; to manually add funds:
+;; (compensation/create-fund {:project-id <project-id> :user-id <project-admin> :transaction-id "manual-entry" :transaction-source "PayPal manual transfer" :amount <amount> :created (util/now-unix-seconds)})
+;; in the database:
+;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
+
+(defn pay-user!
+  [project-id user-id compensation admin-fee]
+  (try-catch-response
+   (let [available-funds (:available-funds (calculate-project-funds project-id))
+         user (users/get-user-by-id user-id)
+         total-amount (+ compensation admin-fee)]
+     (cond
+       (> total-amount available-funds)
+       {:error {:status payment-required
+                :message "Not enough available funds to fulfill this payment"}}
+       (<= total-amount available-funds)
+       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
+         (if-not (= status 201)
+           {:error {:status bad-request
+                    :message (get-in body [:message])}}
+           (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
+                 created (util/now-unix-seconds)]
+             ;; deduct for funds to the user
+             (compensation/create-project-fund-entry {:project-id project-id
+                                                      :user-id user-id
+                                                      :amount (- compensation)
+                                                      :transaction-id payout-batch-id
+                                                      :transaction-source "PayPal/payout-batch-id"
+                                                      :created created})
+             ;; deduct admin fee
+             (compensation/create-project-fund-entry {:project-id project-id
+                                                      :user-id user-id
+                                                      :amount (- admin-fee)
+                                                      :transaction-id (str (UUID/randomUUID))
+                                                      :transaction-source "SysRev/admin-fee"
+                                                      :created created})
+             {:result "success"})))))))
 
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
@@ -937,187 +1142,6 @@
 
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
-
-(defn read-project-compensations
-  "Return all project compensations for project-id"
-  [project-id]
-  (try (let [compensations (compensation/read-project-compensations project-id)]
-         {:result {:success true
-                   :compensations compensations}})
-       (catch Throwable e
-         {:error {:status internal-server-error
-                  :message (.getMessage e)}})))
-
-(defn create-project-compensation!
-  "Create a compensation for project-id with rate"
-  [project-id rate]
-  (try
-    (let [compensation-id (compensation/create-project-compensation! project-id (update rate :amount int))])
-       {:result {:success true
-                 :rate rate}}
-       (catch Throwable e
-         {:error {:state internal-server-error
-                  :message (.getMessage e)}})))
-
-(defn project-compensation-for-users
-  "Return all compensations owed for project-id using start-date and end-date. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
-  [project-id start-date end-date]
-  (try {:result {:amount-owed (compensation/project-compensation-for-users project-id start-date end-date)}}
-       (catch Throwable e
-         {:error {:status internal-server-error
-                  :message (.getMessage e)}})))
-
-(defn compensation-owed
-  "Return compensations owed for all users"
-  [project-id]
-  (try-catch-response
-   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id))}}))
-
-(defn project-users-current-compensation
-  "Return the compensation-id for each user"
-  [project-id]
-  (try-catch-response
-   {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
-
-(defn toggle-compensation-active!
-  [project-id compensation-id active?]
-  (try-catch-response
-   (let [current-compensation (->> (compensation/read-project-compensations project-id)
-                                   (filterv #(= (:id %) compensation-id))
-                                   first)]
-     (cond
-       ;; this compensation doesn't even exist
-       (nil? current-compensation)
-       {:error {:status not-found}}
-       ;; nothing changed, do nothing
-       (= active? (:active current-compensation))
-       {:result {:success true
-                 :message (str "compensation-id " compensation-id " already has active set to " active?)}}
-       ;; this compensation is being deactivated, so also disable all other compensations for users
-       (= active? false)
-       (do
-         (compensation/toggle-active-project-compensation! project-id compensation-id active?)
-         (compensation/end-compensation-period-for-all-users! project-id compensation-id)
-         {:result {:success true}})
-       (= active? true)
-       (do (compensation/toggle-active-project-compensation! project-id compensation-id active?)
-           {:result {:success true}})
-       :else
-       {:error {:status precondition-failed
-                :message "An unknown error occurred"}}))))
-
-(defn get-default-compensation
-  "Get the default compensation-id for project-id"
-  [project-id]
-  (try-catch-response
-   {:result {:success true
-             :compensation-id (compensation/get-default-project-compensation project-id)}}))
-
-(defn set-default-compensation!
-  "Set the compensation-id to the default for project-id "
-  [project-id compensation-id]
-  (try-catch-response
-   (do
-     (if (= compensation-id nil)
-       (compensation/delete-default-project-compensation! project-id)
-       (compensation/set-default-project-compensation! project-id compensation-id))
-     {:result {:success true}})))
-
-(defn set-user-compensation!
-  "Set the compensation-id for user-id in project-id"
-  [project-id user-id compensation-id]
-  (try-catch-response
-   (let [project-compensations (->> (compensation/read-project-compensations project-id)
-                                    (filter :active)
-                                    (mapv :id)
-                                    set)
-         current-compensation-id (compensation/user-compensation project-id user-id)]
-     (cond
-       ;; compensation is set to none for user and they don't have a current compensation
-       (and (= compensation-id "none")
-            (nil? (project-compensations current-compensation-id)))
-       {:result {:success true
-                 :message "Compensation is already set to none for this user, no changes made"}}
-       ;; compensation is set to none and they have a current compensation
-       (and (= compensation-id "none")
-            (not (nil? (project-compensations current-compensation-id))))
-       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
-           {:result {:success true}})
-       ;; there wasn't a compensation id found for the project, or it isn't active
-       (nil? (project-compensations compensation-id))
-       {:error {:status not-found
-                :message (str "compensation-id " compensation-id " is not active or doesn't exist for project-id " project-id)}}
-       ;; this is the same compensation-id as the user already has
-       (= current-compensation-id compensation-id)
-       {:result {:success true
-                 :message "Compensation is already set to this value for the user, no changes made."}}
-       ;; the user is going from having no compensation-id set to having a new one
-       (nil? current-compensation-id)
-       (do
-         (compensation/start-compensation-period-for-user! compensation-id user-id)
-         {:result {:success true}})
-       ;; the user is switching compensations
-       (and (project-compensations compensation-id)
-            current-compensation-id)
-       (do (compensation/end-compensation-period-for-user! current-compensation-id user-id)
-           (compensation/start-compensation-period-for-user! compensation-id user-id)
-           {:result {:success true}})
-       :else
-       {:error {:status precondition-failed
-                :message "An unknown error occurred"}}))))
-
-(defn calculate-project-funds
-  [project-id]
-  (let [available-funds (compensation/project-funds project-id)
-        compensation-outstanding (compensation/total-owed project-id)
-        admin-fees (compensation/total-admin-fees project-id)
-        current-balance (- available-funds compensation-outstanding admin-fees)]
-    {:current-balance current-balance
-     :admin-fees admin-fees
-     :compensation-outstanding compensation-outstanding
-     :available-funds available-funds}))
-
-(defn project-funds
-  [project-id]
-  {:result {:project-funds (calculate-project-funds project-id)}})
-
-;; to manually add funds:
-;; (compensation/create-fund {:project-id <project-id> :user-id <project-admin> :transaction-id "manual-entry" :transaction-source "PayPal manual transfer" :amount <amount> :created (util/now-unix-seconds)})
-;; in the database:
-;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
-
-(defn pay-user!
-  [project-id user-id compensation admin-fee]
-  (try-catch-response
-   (let [available-funds (:available-funds (calculate-project-funds project-id))
-         user (users/get-user-by-id user-id)
-         total-amount (+ compensation admin-fee)]
-     (cond
-       (> total-amount available-funds)
-       {:error {:status payment-required
-                :message "Not enough available funds to fulfill this payment"}}
-       (<= total-amount available-funds)
-       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
-         (if-not (= status 201)
-           {:error {:status bad-request
-                    :message (get-in body [:message])}}
-           (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
-                 created (util/now-unix-seconds)]
-             ;; deduct for funds to the user
-             (compensation/create-project-fund-entry {:project-id project-id
-                                                      :user-id user-id
-                                                      :amount (- compensation)
-                                                      :transaction-id payout-batch-id
-                                                      :transaction-source "PayPal/payout-batch-id"
-                                                      :created created})
-             ;; deduct admin fee
-             (compensation/create-project-fund-entry {:project-id project-id
-                                                      :user-id user-id
-                                                      :amount (- admin-fee)
-                                                      :transaction-id (str (UUID/randomUUID))
-                                                      :transaction-source "SysRev/admin-fee"
-                                                      :created created})
-             {:result "success"})))))))
 
 (defn test-response
   "Server Sanity Check"

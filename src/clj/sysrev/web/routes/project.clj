@@ -566,6 +566,12 @@
                                 amount
                                 frequency))))
 
+  (POST "/api/paypal/add-funds" request
+        (wrap-authorize
+         request {:logged-in true}
+         (let [{:keys [project-id user-id response]} (:body request)]
+           (api/add-funds-paypal project-id user-id response))))
+
   (GET "/api/user-support-subscriptions" request
        (wrap-authorize
         request {:logged-in true}

@@ -21,3 +21,7 @@
              (goog.object/get semantic-ui "Button")))
 (def Dropdown (r/adapt-react-class
                (goog.object/get semantic-ui "Dropdown")))
+(def Message (r/adapt-react-class
+              (goog.object/get semantic-ui "Message")))
+(def MessageHeader (r/adapt-react-class
+                    ($ (goog.object/get semantic-ui "Message") :Header)))
