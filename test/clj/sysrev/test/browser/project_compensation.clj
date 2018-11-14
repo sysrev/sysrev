@@ -292,6 +292,7 @@
         ;; set the first compensation amount to the default
         (select-compensation-for-user
          "Default New User Compensation" (-> project1 :amounts (nth 0)))
+        (Thread/sleep 200)
         ;; create users
         (doseq [{:keys [email password]} test-users]
           (b/create-test-user :email email :password password
