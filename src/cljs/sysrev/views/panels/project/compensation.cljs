@@ -258,7 +258,8 @@
                                 (reset! compensation-amount new-value)))]
               [FormInput {:value @compensation-amount
                           :id "create-compensation-amount"
-                          :on-change on-change}])]
+                          :on-change on-change
+                          :aria-label "compensation-amount"}])]
            [:div {:style {:display "inline-block"
                           :margin-left "1em"}} "per Article"]
            [:div.right.floated.content
@@ -372,32 +373,33 @@
                         [:div.five.wide.column
                          "Compensation: "]
                         [:div.eight.wide.column]
-                        [:div.three.wide.column (accounting/cents->string compensation-owed)]]
+                        [:div.three.wide.column.right.aligned (accounting/cents->string compensation-owed)]]
                        [:div.ui.row
                         [:div.five.wide.column
                          "Admin Fees: "]
                         [:div.eight.wide.column]
-                        [:div.three.wide.column (accounting/cents->string admin-fee)]]
+                        [:div.three.wide.column.right.aligned (accounting/cents->string admin-fee)]]
                        [:div.ui.row
                         [:div.five.wide.column
                          "Total to be Deducted: "]
                         [:div.eight.wide.column]
-                        [:div.three.wide.column
-                         [:span {:style {:font-weight "bold"
-                                         :text-align "right"}}
+                        [:div.three.wide.column.right.aligned
+                         [:span {:style {:font-weight "bold"}}
                           (accounting/cents->string (+ compensation-owed admin-fee))]]]
                        [:div.ui.row
-                        [:div.eleven.wide.column]
-                        [:div.five.wide.column
-                         [:div.ui
-                          [Button {:on-click #(pay-user! state user-id compensation-owed admin-fee)
-                                   :disabled (or retrieving-pay?
-                                                 retrieving-amount-owed?)
-                                   :color "blue"}
-                           "Confirm"]
-                          [Button {:on-click #(do (reset! confirming? false)
-                                                  (reset! error-message nil))}
-                           "Cancel"]]]]
+                        [:div.eight.wide.column]
+                        [:div.four.wide.column
+                         [Button {:on-click #(pay-user! state user-id compensation-owed admin-fee)
+                                  :disabled (or retrieving-pay?
+                                                retrieving-amount-owed?)
+                                  :color "blue"
+                                  :class "fluid"}
+                          "Confirm"]]
+                        [:div.four.wide.column
+                         [Button {:on-click #(do (reset! confirming? false)
+                                                 (reset! error-message nil))
+                                  :class "fluid"}
+                          "Cancel"]]]
                        (when @error-message
                          [:div {:class "ui red message"}
                           @error-message])]])
@@ -538,7 +540,7 @@
       [:div.ui.row
        [:div.ui.column
         [ProjectFunds state]]]
-      #_[:div.ui.row
+      [:div.ui.row
        [:div.ui.column
         ;;[SupportFormOnce support/state]
         [AddFunds paypal/state]

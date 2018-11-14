@@ -599,6 +599,10 @@
 
 ;; TODO: check that all required labels are answered
 (defn set-user-article-labels
+  "Set article-id for user-id with a map of label-values. imported? is vestigal, confirm? set to true will set the confirm_time to now, change? set to true will set the updated_time to now, resolve will be set to resolve? The format of label-values is
+  {<label-id-1> <value-1>, <label-id-2> <value-2>, ... , <label-id-n> <value-n>}.
+
+  It should be noted that a label's confirm value must be set to true in order to be recognized as a labeled article in the rest of the app. This includes article summary graphs, compensations, etc. e.g. If confirm? is not to set true, then a user would not be compensated for that article."
   [user-id article-id label-values &
    {:keys [imported? confirm? change? resolve?]}]
   (assert (integer? user-id))

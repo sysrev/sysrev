@@ -150,7 +150,8 @@
                   [:= :al.user_id user-id]
                   [:and
                    [:>= :al.added_time (->> start-date (f/parse (f/formatters :date)) (tc/to-sql-time))]
-                   [:< :al.added_time (tc/to-sql-time (t/plus (->> end-date (f/parse (f/formatters :date))) (t/days 1)))]]
+                   [:< :al.added_time (tc/to-sql-time (t/plus (->> end-date (f/parse (f/formatters :date))) (t/days 1)))]
+                   [:!= :al.confirm_time nil]]
                   time-period-statement
                   [:= :a.project_id project-id]])
           do-query

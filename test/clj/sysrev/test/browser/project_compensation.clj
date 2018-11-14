@@ -7,7 +7,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
             [sysrev.db.core :refer
-             [do-query do-execute with-transaction to-jsonb clear-project-cache]]
+             [do-query do-execute with-transaction to-jsonb clear-project-cache sql-now]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
@@ -163,7 +163,8 @@
                                       :answer (-> [true false]
                                                   (nth (rand-int 2))
                                                   to-jsonb)
-                                      :imported false}])
+                                      :imported false
+                                      :confirm_time (sql-now)}])
                             do-execute)))
                     project-labels))))
     (finally

@@ -39,6 +39,13 @@
                             (reset! loading? false)
                             (reset! error-message (get-in error [:response :error :message])))})))
 
+(defn on-authorize-default
+  "Default function for PayPalButton on-authorize. data and actions are default values that are required by PayPal"
+  [data actions]
+  (-> ($ actions payment.execute)
+      ($ then (fn []
+                ($ js/window alert "Payment Complete!")))))
+
 ;; https://developer.paypal.com/docs/checkout/quick-start/
 ;; this also depends on [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
 ;; being in index.clj
@@ -48,12 +55,14 @@
 ;; exp: 11/2023
 ;; everything else you can make up, except the city must match the zip code
 (defn PayPalButton
-  "Create a PayPalButton. amount-atom derefs to an integer amount of cents"
-  [amount-atom]
+  "Create a PayPalButton where amount-atom derefs to an integer amount of cents. Optional on-authorize is a fn
+  of data and actions (fn [data actions] ...) to pass to onAuthorize"
+  [amount-atom & {:keys [on-authorize]
+                  :or {on-authorize on-authorize-default}}]
   (r/create-class
    {:reagent-render
     (fn [this]
-      [:div {:id "paypal-button-container"}])
+      [:div {:id "paypal-button"}])
     :component-did-mount
     (fn [this]
       (-> ($ js/paypal :Button)
@@ -61,7 +70,7 @@
              (clj->js
               {:env "sandbox"
                :style {:layout "vertical"
-                       :size "medium"
+                       :size "responsive"
                        :shape "rect"
                        :color "gold"}
                :funding {:allowed [($ js/paypal :FUNDING.CARD)
@@ -77,13 +86,12 @@
                                                          :currency "USD"}}]}
                                ;; what other experience fields can we set?
                                :experience {:input_fields {:no_shipping 1}}})))
-               :onAuthorize (fn [data actions]
-                              (-> ($ actions payment.execute)
-                                  ($ then (fn [response]
-                                            ;; we're just going to pass the response to the server
-                                            (add-funds state response)
-                                            nil))))})
-             "#paypal-button-container")))}))
+               ;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#show-a-confirmation-page
+               :onAuthorize on-authorize
+               :onError (fn [err]
+                          ($ js/console log "")
+                          ($ js/console log (clj->js err)))})
+             "#paypal-button")))}))
 
 (defn AddFunds
   [state]
@@ -128,6 +136,8 @@
                                (reset! user-defined-support-level new-value)))]
              [FormInput {:value @user-defined-support-level
                          :on-change on-change
+                         ;; :on-key-up (fn [event] ($ js/console log "key up!")
+                         ;;              ($ js/console log ($ event :target.value)))
                          :id "create-user-defined-support-level"
                          :on-click #(reset! support-level :user-defined)}])]
           (when @error-message
@@ -140,7 +150,13 @@
                       :positive true}
              [MessageHeader "Transfer Successful"]
              @success-message])
-          [PayPalButton user-defined-support-level]]])
+          [PayPalButton user-defined-support-level
+           :on-authorize  (fn [data actions]
+                            (-> ($ actions payment.execute)
+                                ($ then (fn [response]
+                                          ;; we're just going to pass the response to the server
+                                          (add-funds state response)
+                                          nil))))]]])
       :get-initial-state
       (fn [this]
         (reset! support-level :user-defined)
