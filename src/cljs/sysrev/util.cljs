@@ -409,12 +409,33 @@
 (defn write-transit-str [x]
   (transit/write (transit/writer :json) x))
 
-;; Still using CSS rules for this, JS on window resize would be better
-#_
+(defn parse-css-px [px-str]
+  (-> (second (re-matches #"(\d+)px" px-str))
+      (parse-integer)))
+
 (defn update-sidebar-height []
-  (let [height (viewport-height)
-        sidebar-max-height (- height 150)]
-    (for [selector [".ui.segments.annotation-menu.abstract"
-                    ".panel-side-column .ui.segments.label-editor-view"]]
-      (-> (js/$ selector)
-          (.css "max-height" (str sidebar-max-height "px"))))))
+  (when (pos? (-> (js/$ ".column.panel-side-column") .-length))
+    (let [total-height (viewport-height)
+          header-height (or (some-> (js/$ "div.menu.site-menu") (.height)) 0)
+          footer-height (or (some-> (js/$ "div#footer") (.height)) 0)
+          body-font (or (some-> (js/$ "body") (.css "font-size") parse-css-px) 14)
+          max-height-px (- total-height
+                           (+ header-height footer-height
+                              ;; "Labels / Annotations" menu
+                              (* 4 body-font)
+                              ;; "Save / Skip" buttons
+                              (* 5 body-font)
+                              ;; Extra space
+                              (* 4 body-font)))
+          label-css ".panel-side-column .ui.segments.label-editor-view"
+          annotate-css ".ui.segments.annotation-menu.abstract"
+          label-font (or (some-> (js/$ label-css) (.css "font-size") parse-css-px)
+                         body-font)
+          annotate-font (or (some-> (js/$ annotate-css) (.css "font-size") parse-css-px)
+                            body-font)
+          label-height-em (/ (* 1.0 max-height-px) label-font)
+          annotate-height-em (/ (* 1.0 max-height-px) annotate-font)]
+      (-> (js/$ label-css)
+          (.css "max-height" (str label-height-em "em")))
+      (-> (js/$ annotate-css)
+          (.css "max-height" (str annotate-height-em "em"))))))

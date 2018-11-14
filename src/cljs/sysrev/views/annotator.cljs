@@ -489,7 +489,7 @@
                       (filter #(integer? (:id %)))
                       (sort-by :id)
                       reverse))))
-       [:div.ui.secondary.segment]])))
+       #_ [:div.ui.secondary.segment]])))
 
 (defn get-selection
   "Get the current selection, with context, in the dom"
