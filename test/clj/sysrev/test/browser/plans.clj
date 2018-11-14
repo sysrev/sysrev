@@ -49,6 +49,20 @@
 (def card-processing-error "An error occurred while processing your card. Try again in a little bit")
 (def no-payment-method "You must provide a valid payment method")
 
+(defn wait-until-stripe-id
+  [email]
+  (test/wait-until #(not (nil? (:email (stripe/execute-action
+                                        (customers/get-customer
+                                         (:stripe-id (users/get-user-by-email email)))))))))
+
+(defn wait-until-plan
+  [email plan]
+  (test/wait-until #(= plan
+                       (-> (stripe/execute-action
+                            (customers/get-customer
+                             (:stripe-id (users/get-user-by-email email))))
+                           :subscriptions :data first :items :data first :plan :name))))
+
 (deftest-browser register-and-check-basic-plan-subscription
   (when (and (test/db-connected?)
              (not= :remote-test (-> env :profile)))
@@ -58,11 +72,13 @@
       (Thread/sleep 200)
       (nav/register-user email password)
       ;; after registering, does the stripe customer exist?
+      (wait-until-stripe-id email)
       (is (= email
              (:email (stripe/execute-action
                       (customers/get-customer
                        (:stripe-id (users/get-user-by-email email)))))))
       ;; does stripe think the customer is registered to a basic plan?
+      (wait-until-plan email api/default-plan)
       (is (= api/default-plan
              (-> (stripe/execute-action
                   (customers/get-customer
@@ -125,12 +141,14 @@
       (nav/register-user email password)
       (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
+      (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
       (is (= email
              (:email (stripe/execute-action
                       (customers/get-customer
                        (:stripe-id (users/get-user-by-email email)))))))
       ;; does stripe think the customer is registered to a basic plan?
+      (wait-until-plan email api/default-plan)
       (is (= api/default-plan
              (-> (stripe/execute-action
                   (customers/get-customer
@@ -259,6 +277,7 @@
       ;; Click the subscribe button
       (b/click subscribe-button)
       (b/wait-until-displayed basic-plan-div)
+      (wait-until-plan email "Premimum")
       (is (subscribed-to? "Premium"))
       ;; Let's check to see if our db thinks the customer is subscribed to the Premium plan
       (is (= "Premium"
