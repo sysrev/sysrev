@@ -1,5 +1,6 @@
 (ns sysrev.web.routes.site
-  (:require [compojure.core :refer :all]
+  (:require [clojure.tools.logging :as log]
+            [compojure.core :refer :all]
             [clj-time.core :as time]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -18,8 +19,11 @@
 (declare public-project-summaries)
 
 (defonce global-stats-cache (atom {:value nil, :updated nil}))
+(defonce global-stats-agent (agent nil))
 
-(defn sysrev-global-stats-impl []
+(defn sysrev-global-stats-impl
+  "Queries database to return map of values representing site-wide metrics."
+  []
   (let [labeled-articles
         (-> (q/select-project-articles nil [:%count.*])
             (merge-join [:project :p] [:= :p.project-id :a.project-id])
@@ -70,14 +74,51 @@
      :real-users real-users
      :real-projects real-projects}))
 
-(defn sysrev-global-stats []
+(defn update-global-stats
+  "Updates value of `global-stats-cache` by querying from database."
+  []
+  (reset! global-stats-cache
+          {:value (sysrev-global-stats-impl) :updated (time/now)}))
+
+(defn- loop-update-global-stats
+  "Runs `update-global-stats` using agent, recursing to run again after
+  the update iteration (with time delay) completes."
+  [& [curval]]
+  (send global-stats-agent
+        (fn [_]
+          (log/info "running global-stats update")
+          (try
+            (update-global-stats)
+            ;; Delay before next update (2 hours)
+            (Thread/sleep (* 1000 60 60 2))
+            (catch Throwable e
+              (log/warn "exception in loop-update-global-stats -- continuing")
+              (log/warn (.getMessage e)))
+            (finally
+              (send global-stats-agent loop-update-global-stats)))
+          true)))
+
+(defn init-global-stats
+  "Loads initial value for `global-stats-cache` and start update loop using
+  background threads (agent)."
+  []
+  (when (nil? (:value @global-stats-cache))
+    (log/info "Initializing global-stats-cache")
+    (update-global-stats)
+    (future (Thread/sleep (* 1000 60 15))
+            (loop-update-global-stats))))
+
+(defn sysrev-global-stats
+  "Gets value of global-stats map. This should normally return immediately with
+  the cached value updated periodically via `loop-update-global-stats`; however
+  if the value is outdated, this will calculate and update it before returning."
+  []
   (let [now (time/now)
         timeout (time/hours 4)
         {:keys [value updated]} @global-stats-cache]
     (if (or (nil? updated) (time/before? updated (time/minus now timeout)))
-      (let [result (sysrev-global-stats-impl)]
-        (reset! global-stats-cache {:value result, :updated (time/now)})
-        result)
+      (do (update-global-stats)
+          (:value @global-stats-cache))
       value)))
 
 (defroutes site-routes

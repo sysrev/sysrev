@@ -146,7 +146,7 @@
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait]
       :or {timeout 10000, interval 20, pre-wait false}}]
-  (let [timeout (if (test/remote-test?) 30000 timeout)]
+  (let [timeout (if (test/remote-test?) 45000 timeout)]
     (when pre-wait
       (if (integer? pre-wait)
         (Thread/sleep pre-wait)

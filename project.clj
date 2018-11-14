@@ -116,9 +116,9 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Xms800m" "-Xmx1500m" "-client"
+             {:jvm-opts ["-Xms800m" "-Xmx1500m" #_ "-client"
                          "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"
-                         "-XX:+CMSClassUnloadingEnabled" "-Xverify:none"]
+                         #_ "-XX:+CMSClassUnloadingEnabled" "-Xverify:none"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]

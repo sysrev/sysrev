@@ -3,6 +3,7 @@
             [sysrev.cassandra :as cdb]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config.core :refer [env]]
+            [sysrev.web.routes.site :as site]
             [clojure.tools.logging :as log])
   (:import [org.slf4j.bridge SLF4JBridgeHandler]))
 
@@ -17,8 +18,10 @@
 
 (defn start-db [& [postgres-overrides only-if-new]]
   (let [db-config (make-db-config
-                   (merge (:postgres env) postgres-overrides))]
-    (set-active-db! db-config only-if-new)))
+                   (merge (:postgres env) postgres-overrides))
+        db (set-active-db! db-config only-if-new)]
+    (site/init-global-stats)
+    db))
 
 (defn start-web [& [server-port-override only-if-new]]
   (let [prod? (= (:profile env) :prod)
