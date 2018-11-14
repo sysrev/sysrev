@@ -685,11 +685,16 @@
                [label-editor-buttons-view article-id])]))))))
 
 (defn LabelEditorColumn [article-id]
-  [:div.label-editor-column
-   [:div.ui.segments.label-editor-view
-    [LabelsColumns article-id
-     :n-cols 1
-     :class "attached segment"]]])
+  (r/create-class
+   {:component-did-mount
+    (fn [] (util/update-sidebar-height))
+    :reagent-render
+    (fn [article-id]
+      [:div.label-editor-column
+       [:div.ui.segments.label-editor-view
+        [LabelsColumns article-id
+         :n-cols 1
+         :class "attached segment"]]])}))
 
 (defn SaveSkipColumnSegment [article-id]
   (let [review-task? @(subscribe [:review/on-review-task?])

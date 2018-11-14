@@ -74,6 +74,14 @@
  (fn [db]
    (get-in db [:state :review-interface])))
 
+(defn SidebarAnnotationMenu [ann-context]
+  (r/create-class
+   {:component-did-mount
+    (fn [] (util/update-sidebar-height))
+    :reagent-render
+    (fn [ann-context]
+      [annotator/AnnotationMenu ann-context "abstract"])}))
+
 (defn SidebarColumn []
   (let [project-id @(subscribe [:active-project-id])
         article-id @(subscribe [:visible-article-id])
@@ -110,7 +118,7 @@
           "review-interface"]
          (if (= active :labels)
            [review/LabelEditorColumn article-id]
-           [annotator/AnnotationMenu ann-context "abstract"])
+           [SidebarAnnotationMenu ann-context])
          [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn GlobalFooter []
