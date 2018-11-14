@@ -23,14 +23,14 @@
         disabled-save {:xpath "//button[contains(text(),'Save') and contains(@class,'disabled')]"}
         loading-save {:xpath "//button[contains(text(),'Save') and contains(@class,'loading')]"}
         click-save (fn []
-                     (Thread/sleep 100)
+                     (Thread/sleep 200)
                      (taxi/wait-until #(and (taxi/exists? save-button)
                                             (taxi/displayed? save-button)
                                             (not (taxi/exists? disabled-save))
                                             (not (taxi/exists? loading-save)))
                                       2000 25)
                      (b/click save-button)
-                     (b/wait-until-loading-completes :pre-wait true))
+                     (b/wait-until-loading-completes :pre-wait 200))
         markdown-description "#foo bar\n##baz qux"
         edited-markdown-description (str markdown-description "\nquxx quzz corge")
         overview-tab {:xpath "//span[contains(text(),'Overview')]"}]
@@ -39,8 +39,10 @@
     (nav/log-in)
     (nav/new-project project-name)
     (pm/add-articles-from-search-term search-term)
+    (Thread/sleep 250)
 ;;; project description
     (b/click overview-tab)
+    (b/wait-until-loading-completes :pre-wait 250)
     (b/click create-project-description)
     ;; enter markdown
     (b/wait-until-displayed input)
@@ -61,13 +63,13 @@
     (Thread/sleep 100)
     ;; clear the text area
     (b/wait-until-displayed input)
-    (Thread/sleep 50)
+    (Thread/sleep 100)
     (taxi/clear input)
-    (Thread/sleep 50)
+    (Thread/sleep 100)
     (taxi/send-keys input org.openqa.selenium.Keys/ENTER)
-    (Thread/sleep 50)
+    (Thread/sleep 100)
     (taxi/send-keys input org.openqa.selenium.Keys/BACK_SPACE)
-    (Thread/sleep 50)
+    (Thread/sleep 100)
     (click-save)
     ;; a prompt for creating a project description
     (b/wait-until-exists create-project-description)

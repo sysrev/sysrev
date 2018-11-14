@@ -160,11 +160,6 @@
     (Thread/sleep 250)
     (check-source-count (inc initial-count))
     (b/wait-until-loading-completes :pre-wait 500)
-    #_ (b/wait-until-loading-completes :pre-wait 500)
-    #_ (is (b/exists? (x/search-source search-term)))
-    #_ (is (b/exists?
-            (x/search-source
-             search-term "/descendant::span[contains(@class,'reviewed-count')]")))
     (nav/go-project-route "")
     (nav/wait-until-overview-ready)))
 
