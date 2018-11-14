@@ -29,7 +29,7 @@
    {:style {:margin-top "0"}}
    [:div.ui.segment.projects-list-header
     [:h4.ui.header
-     "Example Projects"]]
+     "Featured Projects"]]
    (doall
     (for [project-id [100 269 2026 844 3144]]
       (when-let [project (get @(subscribe [:public-projects]) project-id)]
@@ -44,7 +44,7 @@
    [:div.description.wrapper.open-sans
     [:p [:span.site-name "sysrev"]
      (first text/site-intro-text)]
-    [:p "Create a project to get started or explore the public example projects below."]]])
+    [:p "Create a project to get started or explore the featured public projects below."]]])
 
 (defn GlobalStatsReport []
   [:div.ui.segments>div.ui.segment.global-stats
