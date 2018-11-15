@@ -30,6 +30,13 @@
 (def paypal-url (or (System/getProperty "PAYPAL_URL")
                     (env :paypal-url)))
 
+;; this is for client code
+(def paypal-env (condp = paypal-url
+                  "https://api.sandbox.paypal.com"
+                  "sandbox"
+                  "https://api.paypal.com"
+                  "production"))
+
 (defonce current-access-token (atom nil))
 
 (defn get-access-token

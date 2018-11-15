@@ -14,6 +14,13 @@
 
 (def minimum-amount "10.00")
 
+(def paypal-env
+  (some-> (.getElementById js/document "paypal-env")
+          (.getAttribute "data-paypal-env")))
+
+(def paypal-client-id
+  (some-> (.getElementById js/document "paypal-client-id")
+          (.getAttribute "data-paypal-client-id")))
 ;; https://developer.paypal.com/docs/checkout/how-to/customize-flow/#interactive-code-demo
 
 (defn add-funds
@@ -77,7 +84,7 @@
       (-> ($ js/paypal :Button)
           ($ render
              (clj->js
-              {:env "sandbox"
+              {:env paypal-env
                :style {:label "pay"
                        :layout "vertical"
                        :size "responsive"
@@ -88,8 +95,11 @@
                :funding {:allowed [($ js/paypal :FUNDING.CARD)
                                    ($ js/paypal :FUNDING.CREDIT)]
                          :disallowed []}
-               :client {:sandbox "AYwD1bq9SVBK1fscFav9zfKkU6DDiPLM648f-9DvX-tuvmiGfh6ItkvQEZE-x6ugT2iSQvZf5ToGv8rj"
-                        :production "Ac4_oBSNUAPpYAQgAjGgoeI8T3V6VitePP5KoMJMK-07whbcYzUZa_4FTy2YwTJoZgNIyIWhH-QbOveD"}
+               :client (condp = paypal-env
+                         "sandbox"
+                         {:sandbox paypal-client-id}
+                         "production"
+                         {:production paypal-client-id})
                :payment (fn [data actions]
                           ($ actions payment.create
                              (clj->js

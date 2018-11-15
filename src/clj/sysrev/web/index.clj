@@ -3,6 +3,7 @@
             [hiccup.page :as page]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
+            [sysrev.paypal :refer [paypal-env paypal-client-id]]
             [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
             [sysrev.resources :as res]
             [sysrev.db.users :as users]
@@ -82,6 +83,12 @@
     [:div {:style "display: none;"
            :id "stripe-client-id"
            :data-stripe-client-id stripe-client-id}]
+    [:div {:style "display: none;"
+           :id "paypal-env"
+           :data-paypal-env paypal-env}]
+    [:div {:style "display: none;"
+           :id "paypal-client-id"
+           :data-paypal-client-id paypal-client-id}]
     [:div {:id "app"} (loading-content)]
     (let [js-name (if (= (:profile env) :prod)
                     (str "sysrev-" res/build-id ".js")
