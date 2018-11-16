@@ -30,9 +30,14 @@
 (defonce current-width (atom nil))
 (defonce current-height (atom nil))
 
-(defn force-update-soon
-  "Force full render update, with js/setTimeout delay to avoid spamming
-  updates while window is being resized."
+(defn on-window-resize
+  "Global handler for js/window resize event, attached in `mount-root`.
+
+  1) Handle change in site layout (desktop, mobile, etc) by running
+     `reagent/force-update-all` when window width changes. Uses
+     `js/setTimeout` to avoid spamming action during stream of resize
+     events.
+  2) Adjust height of sidebar when window height changes."
   []
   (let [[cur-width cur-height] [@current-width @current-height]
         [start-width start-height] [(util/viewport-width)
@@ -57,7 +62,7 @@
     (reagent/render [main-content] el))
   (-> js/window (.addEventListener
                  "resize"
-                 force-update-soon)))
+                 on-window-resize)))
 
 (reg-sub
  :touch-event-time
