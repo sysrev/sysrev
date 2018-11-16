@@ -31,8 +31,7 @@
               (let [{:keys [article-id today-count] :as result}
                     (l/get-user-label-task project-id user-id)
                     {:keys [review-status] :as article}
-                    (when article-id
-                      (a/query-article-by-id-full article-id))]
+                    (some-> article-id (a/get-article))]
                 (if (and (empty? unlabeled)
                          (empty? single-labeled)
                          (empty? fallback))

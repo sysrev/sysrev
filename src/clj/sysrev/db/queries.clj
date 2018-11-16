@@ -10,7 +10,7 @@
              [do-query do-execute sql-now to-sql-array to-jsonb
               sql-field with-project-cache clear-project-cache
               clear-query-cache sql-array-contains]]
-            [sysrev.shared.util :refer [in?]])
+            [sysrev.shared.util :as u :refer [in?]])
   (:import java.util.UUID))
 
 ;;;
@@ -318,6 +318,10 @@
   (-> m (merge-join [:label :l]
                     [:= :l.label-id :al.label-id])))
 
+(defn join-article-flags [m]
+  (-> m (merge-join [:article-flag :aflag]
+                    [:= :aflag.article-id :a.article-id])))
+
 (defn filter-valid-article-label [m confirmed?]
   (-> m (merge-where [:and
                       (label-confirmed-test confirmed?)
@@ -447,6 +451,16 @@
                        [:= :lp.stage 1]
                        [:= :lp.stage nil]])))
 
+(defn with-article-predict-score [m predict-run-id]
+  (-> m
+      (join-article-predict-values predict-run-id)
+      (merge-left-join [:label :l]
+                       [:= :l.label-id :lp.label-id])
+      (merge-where [:or
+                    [:= :l.name nil]
+                    [:= :l.name "overall include"]])
+      (merge-select [:lp.val :score])))
+
 (defn select-latest-predict-run [fields]
   (-> (apply select fields)
       (from [:predict-run :pr])
@@ -491,17 +505,3 @@
                       [:= :pn.project-note-id :an.project-note-id]))
     note-name (merge-where [:= :pn.name note-name])
     user-id (merge-where [:= :an.user-id user-id])))
-
-;;;
-;;; combined
-;;;
-
-(defn with-article-predict-score [m predict-run-id]
-  (-> m
-      (join-article-predict-values predict-run-id)
-      (merge-left-join [:label :l]
-                       [:= :l.label-id :lp.label-id])
-      (merge-where [:or
-                    [:= :l.name nil]
-                    [:= :l.name "overall include"]])
-      (merge-select [:lp.val :score])))

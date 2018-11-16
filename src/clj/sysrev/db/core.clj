@@ -291,6 +291,9 @@
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))
 
+(defn table-fields [table-name field-names]
+  (mapv #(sql-field table-name %) field-names))
+
 (defn to-sql-string [sql]
   (let [[sql & params] (sql/format sql :quoting :ansi :parameterizer :postgresql)
         n-params (count params)]

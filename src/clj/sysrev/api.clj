@@ -831,7 +831,7 @@
   articles abstract"
   [article-id]
   {:result {:annotations (-> article-id
-                             articles/query-article-by-id-full
+                             articles/get-article
                              :abstract
                              annotations-wrapper!)}})
 

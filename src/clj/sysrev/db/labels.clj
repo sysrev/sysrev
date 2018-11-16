@@ -8,7 +8,7 @@
               with-query-cache with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
-            [sysrev.db.articles :refer [query-article-by-id-full]]
+            [sysrev.db.articles :as articles]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.shared.article-list :refer
@@ -336,8 +336,8 @@
                     (take n-closest)
                     (#(when-not (empty? %) (crypto-rand-nth %)))
                     :article-id)]
-      (-> (query-article-by-id-full
-           article-id {:predict-run-id predict-run-id})
+      (-> (articles/get-article
+           article-id :predict-run-id predict-run-id)
           (dissoc :raw)))))
 
 (defn ideal-unlabeled-article

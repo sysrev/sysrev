@@ -1,27 +1,26 @@
 (ns sysrev.db.articles
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
-            [sysrev.shared.util :as u]
+            [sysrev.db.core :as db :refer
+             [do-query do-execute with-project-cache clear-project-cache]]
+            [sysrev.db.queries :as q]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.db.core :as db :refer
-             [do-query do-execute to-sql-array sql-now with-project-cache
-              clear-project-cache to-jsonb]]
+            [sysrev.shared.util :as u :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.queries :as q]))
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
 
 (defn article-to-sql
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
   [article & [conn]]
   (-> article
-      (update :authors #(to-sql-array "text" % conn))
-      (update :keywords #(to-sql-array "text" % conn))
-      (update :urls #(to-sql-array "text" % conn))
-      (update :document-ids #(to-sql-array "text" % conn))))
+      (update :authors #(db/to-sql-array "text" % conn))
+      (update :keywords #(db/to-sql-array "text" % conn))
+      (update :urls #(db/to-sql-array "text" % conn))
+      (update :document-ids #(db/to-sql-array "text" % conn))))
 ;;
 (s/fdef article-to-sql
         :args (s/cat :article ::sa/article-partial
@@ -72,7 +71,7 @@
                     :user-id user-id
                     :project-note-id (:project-note-id pnote)
                     :content content
-                    :updated-time (sql-now)}]
+                    :updated-time (db/sql-now)}]
         (if (nil? anote)
           (-> (sqlh/insert-into :article-note)
               (values [fields])
@@ -106,11 +105,11 @@
            (q/with-article-note)
            do-query)
        (group-by :user-id)
-       (u/map-values
+       (map-values
         #(->> %
               (group-by :name)
-              (u/map-values first)
-              (u/map-values :content)))))))
+              (map-values first)
+              (map-values :content)))))))
 ;;
 (s/fdef article-user-notes-map
         :args (s/cat :project-id ::sc/project-id
@@ -135,7 +134,7 @@
       (values [{:article-id article-id
                 :flag-name flag-name
                 :disable disable?
-                :meta (when meta (to-jsonb meta))}])
+                :meta (when meta (db/to-jsonb meta))}])
       (returning :*)
       do-query first))
 ;;
@@ -162,41 +161,62 @@
       (= 1 (->> entries (map :answer) distinct count)) :consistent
       :else :conflict)))
 
-(defn find-article-flags-by-id [article-id]
-  (->> (-> (select :flag-name :disable :date-created :meta)
-           (from [:article-flag :aflag])
-           (where [:= :article-id article-id])
-           do-query)
-       (group-by :flag-name)
-       (u/map-values first)
-       (u/map-values #(dissoc % :flag-name))))
+(defn article-locations-map [article-id]
+  (->> (q/query-article-locations-by-id
+        article-id [:al.source :al.external-id])
+       (group-by :source)))
 
-(defn query-article-by-id-full
-  "Queries for an article ID with data from other tables included."
-  [article-id & [{:keys [predict-run-id include-disabled?]
-                  :or {include-disabled? true}}]]
-  (let [[article score locations review-status flags]
-        (pvalues
-         (-> (q/select-article-by-id
-              article-id [:a.*] {:include-disabled? include-disabled?})
-             do-query first)
-         (-> (q/select-article-by-id
-              article-id [:a.article-id] {:include-disabled? include-disabled?})
-             (q/with-article-predict-score
-               (or predict-run-id
-                   (q/article-latest-predict-run-id article-id)))
-             do-query first :score)
-         (->> (q/query-article-locations-by-id
-               article-id [:al.source :al.external-id])
-              (group-by :source))
-         (article-review-status article-id)
-         (find-article-flags-by-id article-id))]
+(defn article-flags-map [article-id]
+  (-> (q/select-article-by-id
+       article-id
+       (db/table-fields :aflag [:flag-name :disable :date-created :meta]))
+      (q/join-article-flags)
+      (->> do-query
+           (group-by :flag-name)
+           (map-values first)
+           (map-values #(dissoc % :flag-name)))))
+
+(defn article-score
+  [article-id & {:keys [predict-run-id] :as opts}]
+  (-> (q/select-article-by-id article-id [:a.article-id])
+      (q/with-article-predict-score
+        (or predict-run-id (q/article-latest-predict-run-id article-id)))
+      do-query first :score))
+
+(defn get-article
+  "Queries for article data by id, with data from other tables included.
+
+  `items` is an optional sequence of keywords configuring which values
+  to include, defaulting to all possible values.
+
+  `predict-run-id` allows for specifying a non-default prediction run to
+  use for the prediction score."
+  [article-id & {:keys [items predict-run-id]
+                 :or {items [:locations :score :review-status :flags]}
+                 :as opts}]
+  (assert (->> items (every? #(in? [:locations :score :review-status :flags] %))))
+  (let [article (-> (q/query-article-by-id article-id [:a.*])
+                    (dissoc :text-search))
+        get-item (fn [item-key f] (when (in? items item-key)
+                                    (fn [] {item-key (f)})))
+        item-values
+        (when (not-empty article)
+          ;; For each key in `items` run function to get corresponding value,
+          ;; then merge all together into a single map.
+          ;; (load items in parallel using `pcalls`)
+          (->> [(get-item :locations
+                          #(article-locations-map article-id))
+                (get-item :score
+                          #(or (article-score
+                                article-id :predict-run-id predict-run-id)
+                               0.0))
+                (get-item :review-status
+                          #(article-review-status article-id))
+                (get-item :flags
+                          #(article-flags-map article-id))]
+               (remove nil?) (apply pcalls) doall (apply merge {})))]
     (when (not-empty article)
-      (-> article
-          (assoc :locations locations)
-          (assoc :score (or score 0.0))
-          (assoc :review-status review-status)
-          (assoc :flags flags)))))
+      (merge article item-values))))
 
 (defn find-project-article-by-uuid
   "Query for an article entry in a project by matching on either
@@ -236,7 +256,7 @@
         (cond
           (= t :map) v
           (= t :id) (let [[_ id] v]
-                      (->> (query-article-by-id-full id)
+                      (->> (get-article id)
                            (s/assert (s/nilable ::sa/article))))
           :else nil)))))
 ;;
@@ -246,7 +266,7 @@
 
 (defn copy-project-article [src-project-id dest-project-id article-id]
   (try
-    (if-let [article (query-article-by-id-full article-id)]
+    (if-let [article (get-article article-id)]
       (if (= (:project-id article) src-project-id)
         (if-let [new-article-id
                  (add-article (-> article (dissoc :article-id

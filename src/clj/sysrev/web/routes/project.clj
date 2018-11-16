@@ -33,6 +33,7 @@
             [compojure.core :refer :all]
             [ring.util.response :as response]
             [clojure.string :as str]
+            [clojure.java.io :as io]
             [clojure.data.json :as json]
             [clojure-csv.core :as csv]
             [clojure.tools.logging :as log])
@@ -71,7 +72,7 @@
 (defn article-info-full [project-id article-id]
   (let [[article user-labels user-notes article-pdfs]
         (pvalues
-         (articles/query-article-by-id-full article-id)
+         (articles/get-article article-id)
          (labels/article-user-labels-map project-id article-id)
          (articles/article-user-notes-map project-id article-id)
          (api/article-pdfs article-id))]

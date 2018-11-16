@@ -5,9 +5,8 @@
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query]]
-            [sysrev.util :refer
-             [xml-find-value parse-xml-str today-string]]
-            [sysrev.shared.util :refer [in? map-values]]
+            [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
+            [sysrev.shared.util :as u :refer [in? map-values]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
             [sysrev.db.articles :as articles]
@@ -80,10 +79,8 @@
          content))
 
 (defn article-to-endnote-xml
-  [article-id {:keys [filename]
-               :or {filename "Sysrev_Articles"}}]
-  (let [article (articles/query-article-by-id-full
-                 article-id {:include-disabled? true})]
+  [article-id {:keys [filename] :or {filename "Sysrev_Articles"}}]
+  (let [article (articles/get-article article-id :items [:locations])]
     [:record
      [:database {:name (str filename ".enl")}
       (str filename ".enl")]
