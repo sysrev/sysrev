@@ -186,38 +186,26 @@
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
-               file-data (get-in request [:params :file])
-               file (:tempfile file-data)
-               filename (:filename file-data)
-               user-id (current-user-id request)]
-           (assert (integer? project-id))
+               {:keys [tempfile filename]} (get-in request [:params :file])]
            (api/import-articles-from-file
-            project-id file filename
+            project-id tempfile filename
             :threads 3))))
 
   (POST "/api/import-articles/endnote-xml/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
-               file-data (get-in request [:params :file])
-               file (:tempfile file-data)
-               filename (:filename file-data)
-               user-id (current-user-id request)]
-           (assert (integer? project-id))
+               {:keys [tempfile filename]} (get-in request [:params :file])]
            (api/import-articles-from-endnote-file
-            project-id file filename))))
+            project-id tempfile filename))))
 
   (POST "/api/import-articles/pdf-zip/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
-               file-data (get-in request [:params :file])
-               file (:tempfile file-data)
-               filename (:filename file-data)
-               user-id (current-user-id request)]
-           (assert (integer? project-id))
+               {:keys [tempfile filename]} (get-in request [:params :file])]
            (api/import-articles-from-pdf-zip-file
-            file filename project-id
+            tempfile filename project-id
             :threads 3))))
 
   ;; Returns an article for user to label
