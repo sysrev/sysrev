@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]))
 
 (def all-source-types
-  [:pubmed :pmid-file :pmid-vector :endnote-xml :pdf-zip
+  [:pubmed :pmid-vector :pmid-file :endnote-xml :pdf-zip
    :legacy :custom])
 
 (defn source-id->project-id
@@ -55,19 +55,19 @@
   {:source "PMID vector"})
 
 (defmethod make-source-meta :pmid-file [_ {:keys [filename]}]
-  {:source "EndNote file"
-   :filename filename})
+  {:source "PMID file" :filename filename})
+
+(defmethod make-source-meta :endnote-xml [_ {:keys [filename]}]
+  {:source "EndNote file" :filename filename})
 
 (defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
-  {:source "PDF Zip file"
-   :filename filename})
+  {:source "PDF Zip file" :filename filename})
 
 (defmethod make-source-meta :legacy [_ {:keys []}]
   {:source "legacy"})
 
 (defmethod make-source-meta :custom [_ {:keys [description]}]
-  {:source "Custom import"
-   :custom description})
+  {:source "Custom import" :custom description})
 
 (defn update-source-meta
   "Replace the metadata for source-id"
