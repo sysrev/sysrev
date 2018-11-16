@@ -104,7 +104,7 @@
             search-term page-number response])}))
 
 (def-action :project/import-articles-from-search
-  :uri (fn [] "/api/import-articles-from-search")
+  :uri (fn [] "/api/import-articles/pubmed")
   :content (fn [project-id search-term source]
              {:project-id project-id
               :search-term search-term

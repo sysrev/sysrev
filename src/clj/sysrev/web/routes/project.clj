@@ -173,7 +173,7 @@
                user-id (current-user-id request)]
            (api/delete-project! project-id user-id))))
 
-  (POST "/api/import-articles-from-search" request
+  (POST "/api/import-articles/pubmed" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [{:keys [search-term source]} (:body request)
@@ -182,7 +182,7 @@
             project-id search-term source
             :threads 3))))
 
-  (POST "/api/import-articles-from-file/:project-id" request
+  (POST "/api/import-articles/pmid-file/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
@@ -195,7 +195,7 @@
             project-id file filename
             :threads 3))))
 
-  (POST "/api/import-articles-from-endnote-file/:project-id" request
+  (POST "/api/import-articles/endnote-xml/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
@@ -207,7 +207,7 @@
            (api/import-articles-from-endnote-file
             project-id file filename))))
 
-  (POST "/api/import-articles-from-pdf-zip-file/:project-id" request
+  (POST "/api/import-articles/pdf-zip/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)

@@ -90,7 +90,7 @@
       "To create from EndNote, go to File > Export,"
       " and under \"Save file as type\" select \"XML\"."]
      [ui/UploadButton
-      (str "/api/import-articles-from-endnote-file/" project-id)
+      (str "/api/import-articles/endnote-xml/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload XML File..."
       (cond-> "fluid"
@@ -102,7 +102,7 @@
      [:h5
       "Upload a plain text file containing a list of PubMed IDs (one per line)."]
      [ui/UploadButton
-      (str "/api/import-articles-from-file/" project-id)
+      (str "/api/import-articles/pmid-file/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload Text File..."
       (cond-> "fluid"
@@ -115,7 +115,7 @@
       "Upload a zip file containing PDFs."
       " An article entry will be created for each PDF."]
      [ui/UploadButton
-      (str "/api/import-articles-from-pdf-zip-file/" project-id)
+      (str "/api/import-articles/pdf-zip/" project-id)
       #(dispatch [:reload [:project/sources project-id]])
       "Upload Zip File..."
       (cond-> "fluid"

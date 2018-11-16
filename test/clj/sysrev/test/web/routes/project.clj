@@ -174,7 +174,7 @@
                        [:result :project-id])))
         ;; that member can't add articles to a project
         (is (= "Not authorized (project member)"
-               (get-in (route-response :post "/api/import-articles-from-search"
+               (get-in (route-response :post "/api/import-articles/pubmed"
                                        {:project-id project-id
                                         :search-term search-term :source "PubMed"})
                        [:error :message]))))
@@ -183,7 +183,7 @@
                                   {:email email :password password})
                   [:result :valid]))
       ;; user can add articles from a short search
-      (is (get-in (route-response :post "/api/import-articles-from-search"
+      (is (get-in (route-response :post "/api/import-articles/pubmed"
                                   {:project-id project-id
                                    :search-term search-term :source "PubMed"})
                   [:result :success]))
@@ -196,7 +196,7 @@
                               [:result :sources])))))
       ;; repeat search, check to see that the import is not happening over and over
       (dotimes [n 10]
-        (route-response :post "/api/import-articles-from-search"
+        (route-response :post "/api/import-articles/pubmed"
                         {:project-id project-id
                          :search-term search-term :source "PubMed"}))
       ;; sources would be added multiple times if the same import was being run
@@ -209,7 +209,7 @@
                               [:result :sources])))))
       ;; let's do another search, multiple times and see that only one import occurred
       (dotimes [n 10]
-        (route-response :post "/api/import-articles-from-search"
+        (route-response :post "/api/import-articles/pubmed"
                         {:project-id project-id
                          :search-term "grault" :source "PubMed"}))
       (is (= 2
@@ -229,7 +229,7 @@
                                                 {:project-name test-project-name})
         project-id (get-in create-project-response [:result :project :project-id])
         ;; add articles to the project
-        import-articles-response (route-response :post "/api/import-articles-from-search"
+        import-articles-response (route-response :post "/api/import-articles/pubmed"
                                                  {:project-id project-id
                                                   :search-term "foo bar" :source "PubMed"})
         project-info (route-response :get "/api/project-info"
@@ -267,7 +267,7 @@
                                    {:project-id project-id
                                     :source-id foo-bar-search-source-id})
                    [:error :message])))
-    (let [import-articles-response (route-response :post "/api/import-articles-from-search"
+    (let [import-articles-response (route-response :post "/api/import-articles/pubmed"
                                                    {:project-id project-id
                                                     :search-term "grault" :source "PubMed"})
           project-sources-response (route-response :get "/api/project-sources"
