@@ -121,11 +121,26 @@
   (doseq [ns (all-project-ns)]
     (ns-unalias ns alias)))
 
-(defn reload []
+(defn reload
+  "Reload sysrev.user namespace to update referred symbols."
+  []
   (require 'sysrev.user :reload))
 
-(defn reload-all []
-  (require 'sysrev.user :reload-all))
+(defn reload-all
+  "Reload code for all project namespaces."
+  []
+  (let [ ;; Reload project namespaces
+        failed (->> (all-project-ns)
+                    (mapv #(try
+                             (do (require (ns-name %) :reload) nil)
+                             (catch Throwable e %)))
+                    (remove nil?))]
+    ;; Try again for any that failed
+    ;; (may have depended on changes from another namespace)
+    (doseq [ns failed]
+      (require (ns-name ns) :reload))
+    ;; Update sysrev.user symbols
+    (reload)))
 
 (defn map-to-arglist
   "Converts a map to a vector of function keyword arguments."
