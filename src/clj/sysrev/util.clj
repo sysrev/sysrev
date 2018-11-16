@@ -16,7 +16,8 @@
            (java.io ByteArrayOutputStream)
            (java.io ByteArrayInputStream)
            java.security.MessageDigest
-           java.math.BigInteger))
+           java.math.BigInteger
+           java.io.File))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
@@ -304,3 +305,8 @@
           (log/error (str "stdout\n" out))
           (log/error (str "stderr\n" err))
           (throw (Exception. (pr-str result)))))))
+
+(defn create-tempfile [& {:keys [suffix]}]
+  (let [file (File/createTempFile "sysrev-" suffix)]
+    (.deleteOnExit file)
+    file))

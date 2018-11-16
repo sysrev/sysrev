@@ -142,29 +142,32 @@
      [:custom4 (-> article-id str)]
      [:custom5 (-> article :article-uuid str)]]))
 
-(defn- article-ids-to-endnote-xml [article-ids & [filename]]
-  (dxml/emit-str
-   (dxml/sexp-as-element
-    [:xml
-     [:records
-      (doall
-       (map #(article-to-endnote-xml
-              % {:filename filename})
-            article-ids))]])))
+(defn- article-ids-to-endnote-xml [article-ids filename & {:keys [file]}]
+  (let [entries (->> article-ids
+                     (pmap #(article-to-endnote-xml % {:filename filename})))]
+    (-> [:xml [:records entries]]
+        (dxml/sexp-as-element)
+        (#(if file
+            (do (dxml/emit % (io/writer file))
+                file)
+            (dxml/emit-str %))))))
 
-(defn project-to-endnote-xml [project-id]
-  (let [filename (str "Sysrev_Articles_"
-                      project-id
-                      "_"
-                      (today-string))
+(defn- make-out-file [to-file]
+  (cond (nil? to-file)   nil
+        (true? to-file)  (util/create-tempfile :suffix ".xml")
+        :else            (io/file to-file)))
+
+(defn project-to-endnote-xml
+  [project-id & {:keys [to-file]}]
+  (let [filename (str "Sysrev_Articles_" project-id "_" (util/today-string))
         article-ids (-> (q/select-project-articles project-id [:article-id])
-                        (->> do-query (map :article-id)))]
-    (article-ids-to-endnote-xml article-ids filename)))
+                        (->> do-query (map :article-id)))
+        file (some-> to-file make-out-file)]
+    (article-ids-to-endnote-xml article-ids filename :file file)))
 
-(defn project-included-to-endnote-xml [project-id]
-  (let [filename (str "Sysrev_Included_"
-                      project-id
-                      "_"
-                      (today-string))
-        article-ids (keys (labels/project-included-articles project-id))]
-    (article-ids-to-endnote-xml article-ids filename)))
+(defn project-included-to-endnote-xml
+  [project-id & {:keys [to-file]}]
+  (let [filename (str "Sysrev_Included_" project-id "_" (util/today-string))
+        article-ids (keys (labels/project-included-articles project-id))
+        file (some-> to-file make-out-file)]
+    (article-ids-to-endnote-xml article-ids filename :file file)))

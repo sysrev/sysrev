@@ -455,14 +455,11 @@
         (let [filename (-> request :params :filename)
               project-id (-> request :params :project-id Integer/parseInt)
               ;; project-id (active-project request)
-              data (endnote-out/project-to-endnote-xml project-id)]
-          (-> (response/response data)
-              (response/header "Content-Type"
-                               "text/xml; charset=utf-8")
-              (response/header
-               "Content-Disposition"
-               (format "attachment; filename=\"%s\""
-                       filename))))))
+              file (endnote-out/project-to-endnote-xml project-id :to-file true)]
+          (-> (response/response (io/reader file))
+              (response/header "Content-Type" "text/xml; charset=utf-8")
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename))))))
 
   (GET "/api/public-labels" request
        (wrap-authorize
