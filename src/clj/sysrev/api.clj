@@ -119,8 +119,9 @@
                (= source "PubMed"))
           (try
             (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (sources/import-pmids-search-term-meta
-                        search-term (count pmids))
+                  meta (sources/make-source-meta
+                        :pubmed {:search-term search-term
+                                 :search-count (count pmids)})
                   success?
                   (pubmed/import-pmids-to-project-with-meta!
                    pmids project-id meta
@@ -170,7 +171,7 @@
               ;; there is no import going on for this filename
               (and (empty? filename-sources))
               (try
-                (let [meta (sources/import-pmids-from-filename-meta filename)
+                (let [meta (sources/make-source-meta :pmid-file {:filename filename})
                       success?
                       (pubmed/import-pmids-to-project-with-meta!
                        pmid-vector project-id meta
@@ -267,7 +268,7 @@
         {:error {:status not-found
                  :message (str "source-id " source-id " does not exist")}}
         :else (let [project-id (sources/source-id->project-id source-id)]
-                (sources/delete-project-source! source-id)
+                (sources/delete-source source-id)
                 (predict-api/schedule-predict-update project-id)
                 (importance/schedule-important-terms-update project-id)
                 {:result {:success true}})))
@@ -276,19 +277,19 @@
         :args (s/cat :source-id int?)
         :ret map?)
 
-(defn toggle-source!
+(defn toggle-source
   "Toggle a source as being enabled or disabled."
   [source-id enabled?]
   (if (sources/source-exists? source-id)
     (let [project-id (sources/source-id->project-id source-id)]
-      (sources/toggle-source! source-id enabled?)
+      (sources/toggle-source source-id enabled?)
       (predict-api/schedule-predict-update project-id)
       (importance/schedule-important-terms-update project-id)
       {:result {:success true}})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
 
-(s/fdef toggle-source!
+(s/fdef toggle-source
         :args (s/cat :source-id int?
                      :enabled? boolean?)
         :ret map?)

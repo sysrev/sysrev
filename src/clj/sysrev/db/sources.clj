@@ -9,6 +9,10 @@
              [do-query do-execute clear-project-cache with-transaction with-project-cache]]
             [sysrev.db.queries :as q]))
 
+(def all-source-types
+  [:pubmed :pmid-file :pmid-vector :endnote-xml :pdf-zip
+   :legacy :custom])
+
 (defn source-id->project-id
   [source-id]
   (-> (select :project-id)
@@ -20,8 +24,8 @@
         :args (s/cat :source-id int?)
         :ret int?)
 
-(defn create-project-source-metadata!
-  "Create a project_source table entry with a metadata map for project-id"
+(defn create-source
+  "Create an entry in project_source table"
   [project-id metadata]
   (try
     (-> (insert-into :project-source)
@@ -32,47 +36,40 @@
     (finally
       (clear-project-cache project-id))))
 ;;
-(s/fdef create-project-source-metadata!
+(s/fdef create-source
         :args (s/cat :project-id int?
                      :metadata map?)
         :ret int?)
 
-(def import-pmids-meta
-  {:source "PMID vector"})
+(defmulti make-source-meta (fn [source-type values] source-type))
 
-(defn import-pmids-from-filename-meta
-  [filename]
-  {:source "PMID file"
-   :filename filename})
+(defmethod make-source-meta :default [source-type values]
+  (throw (Exception. "invalid source-type")))
 
-(defn import-articles-from-endnote-file-meta
-  [filename]
-  {:source "EndNote file"
-   :filename filename})
-
-(defn import-pmids-search-term-meta
-  [search-term search-count]
+(defmethod make-source-meta :pubmed [_ {:keys [search-term search-count]}]
   {:source "PubMed search"
    :search-term search-term
    :search-count search-count})
-;;
-(s/fdef import-pmids-search-term-meta
-        :args (s/cat :search-term string?
-                     :search-count int?)
-        :ret map?)
 
-(defn import-articles-from-zip-file-meta
-  [filename]
+(defmethod make-source-meta :pmid-vector [_ {:keys []}]
+  {:source "PMID vector"})
+
+(defmethod make-source-meta :pmid-file [_ {:keys [filename]}]
+  {:source "EndNote file"
+   :filename filename})
+
+(defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
   {:source "PDF Zip file"
    :filename filename})
 
-(def import-facts-meta
-  {:source "facts"})
-
-(def legacy-source-meta
+(defmethod make-source-meta :legacy [_ {:keys []}]
   {:source "legacy"})
 
-(defn update-project-source-metadata!
+(defmethod make-source-meta :custom [_ {:keys [description]}]
+  {:source "Custom import"
+   :custom description})
+
+(defn update-source-meta
   "Replace the metadata for source-id"
   [source-id metadata]
   (try
@@ -83,11 +80,11 @@
     (finally
       (clear-project-cache (source-id->project-id source-id)))))
 ;;
-(s/fdef update-project-source-metadata!
+(s/fdef update-source-meta
         :args (s/cat :source-id int?
                      :metadata map?))
 
-(defn alter-project-source-metadata!
+(defn alter-source-meta
   "Replaces the meta field for source-id with the result of
   applying function f to the existing value."
   [source-id f]
@@ -95,13 +92,13 @@
                       (from :project-source)
                       (where [:= :source-id source-id])
                       do-query first :meta)]
-    (update-project-source-metadata! source-id (f meta))))
+    (update-source-meta source-id (f meta))))
 ;;
-(s/fdef alter-project-source-metadata!
+(s/fdef alter-source-meta
         :args (s/cat :source-id int?
                      :f ifn?))
 
-(defn delete-project-source-articles!
+(defn delete-source-articles
   "Deletes all article-source entries for source-id, and their associated
   article entries unless contained in another source."
   [source-id]
@@ -130,15 +127,15 @@
       (finally
         (clear-project-cache (source-id->project-id source-id))))))
 
-(defn fail-project-source-import!
+(defn fail-source-import
   "Update database in response to an error during the import process
   for a project-source."
   [source-id]
-  (alter-project-source-metadata!
+  (alter-source-meta
    source-id #(assoc % :importing-articles? :error))
-  (delete-project-source-articles! source-id))
+  (delete-source-articles source-id))
 
-(defn update-project-articles-enabled!
+(defn update-project-articles-enabled
   "Update the enabled fields of articles associated with project-id."
   [project-id]
   (try
@@ -180,35 +177,35 @@
     (finally
       (clear-project-cache project-id))))
 ;;
-(s/fdef update-project-articles-enabled!
+(s/fdef update-project-articles-enabled
         :args (s/cat :project-id int?))
 
-(defn delete-project-source!
+(defn delete-source
   "Given a source-id, delete it and remove the articles associated with
   it from the database.  Warning: This fn doesn't care if there are
   labels associated with an article"
   [source-id]
   (let [project-id (source-id->project-id source-id)]
-    (alter-project-source-metadata!
+    (alter-source-meta
      source-id #(assoc % :deleting? true))
     (try (with-transaction
            ;; delete articles that aren't contained in another source
-           (delete-project-source-articles! source-id)
+           (delete-source-articles source-id)
            ;; delete entries for project source
            (-> (delete-from :project-source)
                (where [:= :source-id source-id])
                do-execute)
            ;; update the article enabled flags
-           (update-project-articles-enabled! project-id)
+           (update-project-articles-enabled project-id)
            true)
          (catch Throwable e
-           (log/info "Caught exception in sysrev.db.sources/delete-project-source!: "
+           (log/info "Caught exception in sysrev.db.sources/delete-source: "
                      (.getMessage e))
-           (alter-project-source-metadata!
+           (alter-source-meta
             source-id #(assoc % :deleting? false))
            false))))
 ;;
-(s/fdef delete-project-source!
+(s/fdef delete-source
         :args (s/cat :source-id int?))
 
 (defn source-articles-with-labels
@@ -240,26 +237,28 @@
 (defn source-unique-articles-count
   "Given a project-id, return the amount of articles that are unique to a source"
   [project-id]
-  (let [sources (-> (select :source-id)
-                    (from :project-source)
-                    (where [:and
-                            [:= :project-id project-id]
-                            [:= :enabled true]]))
-        project-sources (-> sources
-                            do-query)
+  (let [source-query (-> (select :source-id)
+                         (from :project-source)
+                         (where [:and
+                                 [:= :project-id project-id]
+                                 [:= :enabled true]]))
+        sources (-> source-query do-query)
         articles (-> (select :*)
                      (from [:article-source :ars])
-                     (where [:in :source-id sources])
+                     (where [:in :source-id source-query])
                      do-query)]
-    (map (fn [project-source]
-           {:source-id (:source-id project-source)
-            :unique-articles-count (->> articles
-                                        (group-by :article-id)
-                                        (into '())
-                                        (filter #(= (count (second %)) 1))
-                                        (filter #(= (-> % second first :source-id) (:source-id project-source)))
-                                        count)})
-         project-sources)))
+    (->> source-query
+         do-query
+         (map (fn [project-source]
+                {:source-id (:source-id project-source)
+                 :unique-articles-count
+                 (->> articles
+                      (group-by :article-id)
+                      (into '())
+                      (filter #(= (count (second %)) 1))
+                      (filter #(= (-> % second first :source-id)
+                                  (:source-id project-source)))
+                      count)})))))
 
 (defn project-source-overlap
   "Given a project-id and base-source-id, determine the amount of articles that overlap with source-id.
@@ -324,7 +323,8 @@
              (mapv
               (fn [{:keys [source-id] :as psource}]
                 (let [article-count
-                      (-> (q/select-project-articles project-id [:%count.*] {:include-disabled-source? true})
+                      (-> (q/select-project-articles
+                           project-id [:%count.*] {:include-disabled-source? true})
                           (merge-where
                            [:exists
                             (-> (select :*)
@@ -338,18 +338,20 @@
                       (assoc :article-count article-count
                              :labeled-article-count labeled-count)))))
              ;; include the amount of overlap between sources
-             (mapv (fn [source]
-                     (assoc source :overlap (->> overlap-coll
-                                                 (filter #(= (:source-id %)
-                                                             (:source-id source)))
-                                                 (mapv #(select-keys % [:overlap-source-id :count]))))))
+             (mapv
+              (fn [source]
+                (assoc source :overlap
+                       (->> overlap-coll
+                            (filter #(= (:source-id %)
+                                        (:source-id source)))
+                            (mapv #(select-keys % [:overlap-source-id :count]))))))
              ;; include the unique sources in each
-             (mapv (fn [source]
-                     (assoc source :unique-articles-count (->> unique-coll
-                                                               (filter #(= (:source-id %)
-                                                                           (:source-id source)))
-                                                               first
-                                                               :unique-articles-count))))))))
+             (mapv
+              (fn [source]
+                (assoc source :unique-articles-count
+                       (->> unique-coll
+                            (filter #(= (:source-id %) (:source-id source)))
+                            first :unique-articles-count))))))))
 ;;
 (s/fdef project-sources
         :args (s/cat :project-id int?)
@@ -363,7 +365,7 @@
         :args (s/cat :source-id int?)
         :ret boolean?)
 
-(defn add-article-to-source!
+(defn add-article-to-source
   "Add article-id to source-id"
   [article-id source-id]
   (-> (sqlh/insert-into :article-source)
@@ -371,7 +373,7 @@
                 :source-id source-id}])
       do-execute))
 
-(defn add-articles-to-source!
+(defn add-articles-to-source
   "Add list of article-id values to source-id"
   [article-ids source-id]
   (when (not-empty article-ids)
@@ -395,7 +397,7 @@
         :args (s/cat :project-id int?)
         :ret boolean?)
 
-(defn toggle-source!
+(defn toggle-source
   "Toggle a source has enabled?"
   [source-id enabled?]
   (with-transaction
@@ -404,8 +406,8 @@
         (where [:= :source-id source-id])
         do-execute)
     ;; logic for updating enabled in article
-    (update-project-articles-enabled! (source-id->project-id source-id))))
+    (update-project-articles-enabled (source-id->project-id source-id))))
 ;;
-(s/fdef toggle-source!
+(s/fdef toggle-source
         :args (s/cat :source-id int?
                      :enabled? boolean?))

@@ -35,9 +35,11 @@ Corge")
         search-term "foo bar"
         ;; import articles to this project
         pmids (pubmed/get-all-pmids-for-query search-term)
-        _ (pubmed/import-pmids-to-project-with-meta! pmids project-id
-                                                     (sources/import-pmids-search-term-meta search-term
-                                                                                            (count pmids)))
+        _ (pubmed/import-pmids-to-project-with-meta!
+           pmids project-id
+           (sources/make-source-meta
+            :pubmed {:search-term search-term
+                     :search-count (count pmids)}))
         _ (api/import-articles-from-search (:project-id new-project)
                                            search-term
                                            "PubMed")
@@ -66,7 +68,7 @@ Corge")
                       do-query))))
     ;; When the project is deleted, entries in the article / project_source tables are deleted
     ;; as well
-    (sources/delete-project-source! source-id)
+    (sources/delete-source source-id)
     (is (= 0
            (count (-> (select :article_id)
                       (from :article_source)

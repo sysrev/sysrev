@@ -72,7 +72,7 @@
                              [:= :a.article-id :af.article-id]
                              [:= :a.project-id project-id]]))]])
         do-execute)
-    (sources/update-project-articles-enabled! project-id)
+    (sources/update-project-articles-enabled project-id)
     (let [entries
           (->> (get-project-duplicates project-id)
                (merge-duplicate-pairs)
@@ -93,6 +93,6 @@
         (-> (insert-into :article-flag)
             (values (vec entry-group))
             do-execute)))
-    (sources/update-project-articles-enabled! project-id)
+    (sources/update-project-articles-enabled project-id)
     (clear-project-cache project-id)
     nil))

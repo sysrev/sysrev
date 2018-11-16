@@ -199,14 +199,15 @@
                                project-id [:a.article-id]
                                {:include-disabled? true})
                               (->> do-query (mapv :article-id)))
-              source-id (sources/create-project-source-metadata!
-                         project-id sources/legacy-source-meta)]
+              source-id (sources/create-source
+                         project-id
+                         (sources/make-source-meta :legacy {}))]
           (when (not-empty article-ids)
             (log/info (str "Creating " (count article-ids)
                            " article source entries for project #"
                            project-id)))
           (doseq [article-id article-ids]
-            (sources/add-article-to-source! article-id source-id)))))))
+            (sources/add-article-to-source article-id source-id)))))))
 
 (defn ensure-article-flag-disable-entries []
   (with-transaction

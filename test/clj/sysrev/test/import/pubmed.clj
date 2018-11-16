@@ -68,8 +68,8 @@
     (let [result-count (fn [result] (-> result first :count))
           search-term "foo bar"
           pmids (:pmids (pubmed/get-search-query-response search-term 1))
-          meta (sources/import-pmids-search-term-meta search-term
-                                                      (count pmids))
+          meta (sources/make-source-meta :pubmed {:search-term search-term
+                                                  :search-count (count pmids)})
           new-project (project/create-project "test project")
           new-project-id (:project-id new-project)
           article-summaries (pubmed/get-pmids-summary pmids)]

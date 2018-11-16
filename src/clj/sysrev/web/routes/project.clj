@@ -376,7 +376,7 @@
          request {:roles ["admin"]}
          (let [{:keys [source-id enabled?]} (-> request :body)
                user-id (current-user-id request)]
-           (api/toggle-source! source-id enabled?))))
+           (api/toggle-source source-id enabled?))))
 
   (GET "/api/files/:project-id" request
        (wrap-authorize

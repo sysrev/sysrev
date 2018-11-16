@@ -133,7 +133,7 @@
                                        (assoc :enabled false))
                                    project-id)]
               ;; associate this article with a project-source-id
-              (sources/add-article-to-source! article-id project-source-id)
+              (sources/add-article-to-source article-id project-source-id)
               (when (not-empty (:locations article))
                 (-> (sqlh/insert-into :article-location)
                     (values
@@ -180,11 +180,11 @@
         (with-transaction
           ;; update source metadata
           (if success?
-            (sources/update-project-source-metadata!
+            (sources/update-source-meta
              source-id (assoc meta :importing-articles? false))
-            (sources/fail-project-source-import! source-id))
+            (sources/fail-source-import source-id))
           ;; update the enabled flag for the articles
-          (sources/update-project-articles-enabled! project-id))
+          (sources/update-project-articles-enabled project-id))
         (when success?
           (predict-api/schedule-predict-update project-id)
           (importance/schedule-important-terms-update project-id))
@@ -199,11 +199,11 @@
       (with-transaction
         ;; update source metadata
         (if success?
-          (sources/update-project-source-metadata!
+          (sources/update-source-meta
            source-id (assoc meta :importing-articles? false))
-          (sources/fail-project-source-import! source-id))
+          (sources/fail-source-import source-id))
         ;; update the enabled flag for the articles
-        (sources/update-project-articles-enabled! project-id))
+        (sources/update-project-articles-enabled project-id))
       (when success?
         (predict-api/schedule-predict-update project-id)
         (importance/schedule-important-terms-update project-id))
@@ -217,13 +217,13 @@
 
 (defn import-endnote-library! [file filename project-id & {:keys [use-future? threads]
                                                            :or {use-future? false threads 1}}]
-  (let [meta (sources/import-articles-from-endnote-file-meta filename)
-        source-id (sources/create-project-source-metadata!
+  (let [meta (sources/make-source-meta :endnote-xml {:filename filename})
+        source-id (sources/create-source
                    project-id (assoc meta :importing-articles? true))]
     (try (let [articles (endnote-file->articles file)]
            (add-articles! articles project-id source-id meta
                           :use-future? use-future?
                           :threads threads))
          (catch Throwable e
-           (sources/fail-project-source-import! source-id)
+           (sources/fail-source-import source-id)
            (throw (Exception. "Error in sysrev.import.endnote/import-endnote-library!: " (.getMessage e)))))))

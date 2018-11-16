@@ -328,7 +328,7 @@
                                          (mapv #(assoc % :article-id article-id))))))
                            (apply concat)
                            vec)]
-                  (sources/add-articles-to-source!
+                  (sources/add-articles-to-source
                    (concat existing-article-ids (keys new-article-ids))
                    source-id)
                   (when (not-empty new-locations)
@@ -351,7 +351,7 @@
   "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
   [pmids project-id meta & {:keys [use-future? threads]
                             :or {use-future? false threads 1}}]
-  (let [source-id (sources/create-project-source-metadata!
+  (let [source-id (sources/create-source
                    project-id (assoc meta :importing-articles? true))]
     (if (and use-future? (nil? *conn*))
       (future
@@ -381,11 +381,11 @@
           (with-transaction
             ;; update source metadata
             (if success?
-              (sources/update-project-source-metadata!
+              (sources/update-source-meta
                source-id (assoc meta :importing-articles? false))
-              (sources/fail-project-source-import! source-id))
+              (sources/fail-source-import source-id))
             ;; update the enabled flag for the articles
-            (sources/update-project-articles-enabled! project-id))
+            (sources/update-project-articles-enabled project-id))
           ;; start threads for updates from api.insilica.co
           (when success?
             (predict-api/schedule-predict-update project-id)
@@ -401,11 +401,11 @@
         (with-transaction
           ;; update source metadata
           (if success?
-            (sources/update-project-source-metadata!
+            (sources/update-source-meta
              source-id (assoc meta :importing-articles? false))
-            (sources/fail-project-source-import! source-id))
+            (sources/fail-source-import source-id))
           ;; update the enabled flag for the articles
-          (sources/update-project-articles-enabled! project-id))
+          (sources/update-project-articles-enabled project-id))
         ;; start threads for updates from api.insilica.co
         (when success?
           (predict-api/schedule-predict-update project-id)

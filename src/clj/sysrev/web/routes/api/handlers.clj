@@ -121,7 +121,9 @@
         (make-error-response
          500 :api "pmids must be an array of integers")
         :else
-        (do (pubmed/import-pmids-to-project-with-meta! pmids project-id sources/import-pmids-meta)
+        (do (pubmed/import-pmids-to-project-with-meta!
+             pmids project-id
+             (sources/make-source-meta :pmid-vector {}))
             {:result
              {:success true
               :attempted (count pmids)
@@ -486,3 +488,6 @@
               :query-params
               walk/keywordize-keys)]
       {:result (api/project-annotations (parse-integer project-id))})))
+
+;; Prevent Cider compile command from returning a huge def-webapi map
+nil

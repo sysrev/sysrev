@@ -39,7 +39,9 @@
               (json/read-str :key-fn keyword))
           new-project-id (get-in create-project-response [:result :project :project-id])
           search-query-result (pubmed/get-search-query-response search-term 1)
-          meta (sources/import-pmids-search-term-meta search-term (count (:pmids search-query-result)))]
+          meta (sources/make-source-meta
+                :pubmed {:search-term search-term
+                         :search-count (count (:pmids search-query-result))})]
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0

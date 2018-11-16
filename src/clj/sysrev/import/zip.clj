@@ -96,7 +96,7 @@
 (defn- add-article [article project-id source-id]
   (try
     (let [article-id (articles/add-article article project-id)]
-      (sources/add-article-to-source! article-id source-id)
+      (sources/add-article-to-source article-id source-id)
       article-id)
     (catch Throwable e
       (throw (Exception.
@@ -107,8 +107,8 @@
 
 (defn import-pdfs-from-zip-file!
   [file filename project-id & {:keys []}]
-  (let [meta (sources/import-articles-from-zip-file-meta filename)
-        source-id (sources/create-project-source-metadata!
+  (let [meta (sources/make-source-meta :pdf-zip {:filename filename})
+        source-id (sources/create-source
                    project-id (assoc meta :importing-articles? true))]
     (future
       (try
@@ -136,17 +136,17 @@
                   false))]
           (with-transaction
             (if success?
-              (sources/update-project-source-metadata!
+              (sources/update-source-meta
                source-id (assoc meta :importing-articles? false))
-              (sources/fail-project-source-import! source-id))
-            (sources/update-project-articles-enabled! project-id))
+              (sources/fail-source-import source-id))
+            (sources/update-project-articles-enabled project-id))
           success?)
         (catch Throwable e
           (log/error "import-pdfs-from-zip-file! exception:"
                      (.getMessage e))
           (.printStackTrace e)
           (with-transaction
-            (sources/fail-project-source-import! source-id)
-            (sources/update-project-articles-enabled! project-id))
+            (sources/fail-source-import source-id)
+            (sources/update-project-articles-enabled project-id))
           false)))
     true))
