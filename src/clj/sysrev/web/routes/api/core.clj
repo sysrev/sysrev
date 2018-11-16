@@ -180,13 +180,10 @@
         request-map (condp = method
                       :get (conj base-request {:query-params body})
                       :post (conj base-request {:body (json/write-str body)}))
-        result
-        (-> @(client/request
-              request-map)
-            :body)]
-    (try (json/read-str result :key-fn keyword)
-         (catch Throwable e
-           result))))
+        {:keys [body]} @(client/request request-map)]
+    (try (json/read-str body :key-fn keyword)
+         (catch Throwable e body))))
+
 (defn webapi-get [route body & opts]
   (apply webapi-request :get route body opts))
 (defn webapi-post [route body & opts]

@@ -9,7 +9,6 @@
             [ring.middleware.multipart-params :refer [wrap-multipart-params]]
             [ring.middleware.transit :refer
              [wrap-transit-response wrap-transit-body]]
-            [org.httpkit.server :as http-kit]
             [aleph.http :as aleph]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
@@ -128,12 +127,8 @@
       (let [server (get active id)]
         (when-not (nil? server)
           (.close server)
-          (swap! web-servers assoc id nil)))))
-  #_
-  (when-not (nil? @web-server)
-    (.close @web-server)
-    #_ (@web-server :timeout 100)
-    (reset! web-server nil)))
+          (Thread/sleep 1000)
+          (swap! web-servers assoc id nil))))))
 
 (defn run-web [& [port prod? only-if-new]]
   (let [port (or port @web-port 4041)
@@ -146,15 +141,8 @@
           (reset! web-server-config config)
           (stop-web-server)
           (reset! web-servers
-                  {:main (aleph/start-server
-                          (sysrev-handler) {:port port})
-                   :blog (aleph/start-server
-                          (blog-handler) {:port (inc port)})}
-                  #_ (http-kit/run-server
-                      (sysrev-handler false)
-                      {:port port
-                       :join? (if prod? true false)
-                       :max-body (dec (* 1024 1024 1024 2))}))
+                  {:main (aleph/start-server (sysrev-handler) {:port port})
+                   :blog (aleph/start-server (blog-handler) {:port (inc port)})})
           (log/info (format "web server started (port %d)" port))
           (log/info (format "web server started (port %d) (blog)" (inc port)))
           @web-servers))))
