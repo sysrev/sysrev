@@ -118,12 +118,12 @@
   [amount]
   (cond
     ;; appears to not be a valid amount
-    ;; https://stackoverflow.com/questions/2227370/currency-validation
-    (not (re-matches #"^\$[1-9]\d*(((,\d{3}){1})?(\.\d{0,2})?)$" amount))
-    "Amount is not a valid"
+    (not (re-matches accounting/valid-usd-regex amount))
+    "Amount is not valid"
     (< (accounting/string->cents amount) (accounting/string->cents minimum-amount))
     (str "Minimum payment is " ($ js/accounting formatMoney minimum-amount "$"))
     :else nil))
+
 (defn AddFunds
   [state]
   (let [support-level (r/cursor state [:support-level])
@@ -206,4 +206,5 @@
         (reset! user-defined-support-level ($ js/accounting formatMoney minimum-amount "$"))
         (reset! loading? false)
         (reset! error-message nil)
+        (reset! success-message nil)
         {})})))

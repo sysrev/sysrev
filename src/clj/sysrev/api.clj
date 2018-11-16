@@ -482,23 +482,30 @@
 (defn read-project-compensations
   "Return all project compensations for project-id"
   [project-id]
-  (try (let [compensations (compensation/read-project-compensations project-id)]
-         {:result {:success true
-                   :compensations compensations}})
-       (catch Throwable e
-         {:error {:status internal-server-error
-                  :message (.getMessage e)}})))
+  (let [compensations (compensation/read-project-compensations project-id)]
+    {:result {:success true
+              :compensations compensations}}))
+
+(defn compensation-amount-exists?
+  [project-id rate]
+  (->> (compensation/read-project-compensations project-id)
+       (map #(get-in % [:rate]))
+       (filter #(= % rate))
+       empty?
+       not))
+
+(defonce rate-atom (atom nil))
 
 (defn create-project-compensation!
   "Create a compensation for project-id with rate"
   [project-id rate]
-  (try
-    (let [compensation-id (compensation/create-project-compensation! project-id (update rate :amount int))])
-       {:result {:success true
-                 :rate rate}}
-       (catch Throwable e
-         {:error {:state internal-server-error
-                  :message (.getMessage e)}})))
+  (reset! rate-atom rate)
+  (if (compensation-amount-exists? project-id rate)
+    {:error {:status bad-request
+             :message "That compensation already exists"}}
+    (do (compensation/create-project-compensation! project-id rate)
+        {:result {:success true
+                  :rate rate}})))
 
 (defn project-compensation-for-users
   "Return all compensations owed for project-id using start-date and end-date. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."

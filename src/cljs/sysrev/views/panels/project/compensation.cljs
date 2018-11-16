@@ -11,7 +11,7 @@
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.charts :as charts]
             [sysrev.paypal :as paypal :refer [AddFunds]]
-            [sysrev.views.semantic :refer [Form FormGroup FormInput Button Dropdown]]
+            [sysrev.views.semantic :refer [Form FormGroup FormInput Button Dropdown Message MessageHeader]]
             [sysrev.views.panels.project.support :as support :refer [SupportFormOnce]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -19,6 +19,18 @@
 
 ;; set this to defonce when done developing
 (def state (r/cursor app-db [:state :panels panel]))
+
+(def admin-fee 0.20)
+
+(defn admin-fee-text
+  "amount is an integer amount in cents"
+  [amount admin-fee]
+  (str (accounting/cents->string (* amount admin-fee)) " admin fee"))
+
+(defn compensation-text
+  "Show the compensation text related to a compensation"
+  [amount admin-fee]
+  (str " per Article + " (admin-fee-text amount admin-fee)))
 
 (defn get-compensations!
   "Retrieve the current compensations"
@@ -140,7 +152,7 @@
 (defn rate->string
   "Convert a rate to a human readable string"
   [rate]
-  (str (accounting/cents->string (:amount rate)) " / " (:item rate)))
+  (str (accounting/cents->string (:amount rate)) " / " (:item rate) " + " (admin-fee-text (:amount rate) admin-fee)))
 
 (defn ProjectFunds
   [state]
@@ -216,8 +228,10 @@
         compensation-amount (r/cursor state [:compensation-amount])
         creating-new-compensation? (r/cursor state [:creating-new-compensation?])
         retrieving-compensations? (r/cursor state [:retrieving-compensations?])
+        error-message (r/cursor state [:create-compensation-error])
         create-compensation! (fn [cents]
                                (reset! creating-new-compensation? true)
+                               (reset! error-message nil)
                                (POST "/api/project-compensation"
                                      {:params {:project-id project-id
                                                :rate {:item "article"
@@ -228,20 +242,27 @@
                                                  (get-compensations! state)
                                                  (reset! compensation-amount "$0.00"))
                                       :error-handler (fn [error]
-                                                       ($ js/console log (str "[Error] " "create-compensation!"))
+                                                       (reset! error-message (get-in error [:response :error :message]))
                                                        (reset! creating-new-compensation? false))}))]
     (r/create-class
      {:reagent-render
       (fn []
         [Form {:on-submit (fn []
                             (let [cents (accounting/string->cents @compensation-amount)]
-                              (cond (= cents 0)
+                              (cond (not (re-matches accounting/valid-usd-regex @compensation-amount))
+                                    (reset! error-message "Amount is not valid")
+                                    (= cents 0)
                                     (reset! compensation-amount "$0.00")
                                     (> cents 0)
                                     (create-compensation! cents)
                                     :else
                                     (reset! compensation-amount (accounting/cents->string cents)))))}
          [:div.ui.relaxed.divided.list
+          (when @error-message
+            [Message {:onDismiss #(reset! error-message nil)
+                      :negative true}
+             [MessageHeader "Creation Compensation Error"]
+             @error-message])
           [:div.item {:key "create"}
            [:div {:style {:width "6em"
                           :display "inline-block"}}
@@ -255,20 +276,27 @@
                                                 (str "$" ($ event :target.value))
                                                 :else
                                                 value)]
+                                (reset! error-message nil)
                                 (reset! compensation-amount new-value)))]
               [FormInput {:value @compensation-amount
                           :id "create-compensation-amount"
                           :on-change on-change
                           :aria-label "compensation-amount"}])]
            [:div {:style {:display "inline-block"
-                          :margin-left "1em"}} "per Article"]
+                          :margin-left "1em"}}
+            [:span {:style {:font-style "bold"
+                            :font-color "red"}}
+             (let [integer-compensation-amount (accounting/string->cents @compensation-amount)]
+               (when-not (= 0 integer-compensation-amount)
+                 (compensation-text integer-compensation-amount admin-fee)))]]
            [:div.right.floated.content
             [Button {:disabled (or @creating-new-compensation?
                                    @retrieving-compensations?)
                      :color "blue"}
              "Create"]]]]])
       :component-will-mount (fn [this]
-                              (reset! compensation-amount "$0.00"))})))
+                              (reset! compensation-amount "$0.00")
+                              (reset! error-message nil))})))
 
 (defn ProjectCompensations
   []
@@ -293,7 +321,9 @@
                    [ToggleCompensationActive compensation]]
                   [:div.content {:style {:padding-top "4px"
                                          :padding-bottom "4px"}}
-                   [:div (str (accounting/cents->string (get-in compensation [:rate :amount])) " per Article")]]])
+                   (let [compensation-amount (get-in compensation [:rate :amount])]
+                     [:div (str (accounting/cents->string (get-in compensation [:rate :amount]))
+                                (compensation-text compensation-amount admin-fee))])]])
                project-compensations)])
            [:h4.ui.dividing.header "Create New Compensation"]
            [CreateCompensationForm]]))
