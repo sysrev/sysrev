@@ -144,11 +144,14 @@
 
 (defn- article-ids-to-endnote-xml [article-ids filename & {:keys [file]}]
   (let [entries (->> article-ids
-                     (pmap #(article-to-endnote-xml % {:filename filename})))]
+                     (pmap #(article-to-endnote-xml % {:filename filename})))
+        writer (io/writer file)]
     (-> [:xml [:records entries]]
         (dxml/sexp-as-element)
         (#(if file
-            (do (dxml/emit % (io/writer file))
+            (do (dxml/emit % writer)
+                (.flush writer)
+                (.close writer)
                 file)
             (dxml/emit-str %))))))
 

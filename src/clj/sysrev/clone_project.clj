@@ -1,5 +1,6 @@
 (ns sysrev.clone-project
-  (:require [honeysql.core :as sql]
+  (:require [clojure.java.io :as io]
+            [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
@@ -270,7 +271,8 @@
   fields `parent-project-id` and `parent-article-uuid`."
   [project-name parent-id endnote-path pdfs-path]
   (with-transaction
-    (let [article-doc-ids (endnote/load-endnote-doc-ids endnote-path)
+    (let [article-doc-ids (-> endnote-path io/file io/reader
+                              endnote/load-endnote-doc-ids)
           article-uuids (keys article-doc-ids)
           child-id
           (:project-id (project/create-project

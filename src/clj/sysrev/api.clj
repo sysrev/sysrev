@@ -202,22 +202,15 @@
       (cond (not (project/project-exists? project-id))
             {:error {:status not-found
                      :message "Project not found"}}
-            ;; there is no import going on for this filename
-            (and (empty? filename-sources))
-            (do
-              (future (endnote/import-endnote-library!
-                       file
-                       filename
-                       project-id
-                       :use-future? true
-                       :threads 3))
-              {:result {:success true}})
-            (not (empty? filename-sources))
-            (do (log/warn "got (not (empty? filename-sources))")
-                (log/warn "filename-sources =" filename-sources)
+
+            (not-empty filename-sources)
+            (do (log/warn "got (not-empty filename-sources): " filename-sources)
                 {:result {:success true}})
+
             :else
-            {:error {:message "Error (unexpected event)"}})
+            (endnote/import-endnote-library!
+             file filename project-id
+             :use-future? true :threads 3))
       (catch Throwable e
         {:error {:message "Exception during import"
                  :exception e}}))))

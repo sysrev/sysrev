@@ -28,72 +28,79 @@
   (second (re-matches #"^internal-pdf://(\d+)/.*" url)))
 
 (defn load-endnote-record [e]
-  (-> (merge
-       (->>
-        {:primary-title [:titles :title]
-         :secondary-title [:titles :secondary-title]
-         ;; :periodical [:periodical :full-title]
-         :abstract [:abstract]
-         :remote-database-name [:remote-database-name]
-         :year [:dates :year]
-         :rec-number [:rec-number]
-         :custom4 [:custom4]
-         :custom5 [:custom5]
-         :pubdate [:dates :pub-dates :date]}
-        (map-values
-         (fn [path]
-           (-> (xml-find [e] (concat path [:style]))
-               first :content first))))
-       (->>
-        {:rec-number [:rec-number]
-         :custom4 [:custom4]
-         :custom5 [:custom5]}
-        (map-values
-         (fn [path]
-           (or (-> (xml-find [e] (concat path [:style]))
-                   first :content first)
-               (-> (xml-find [e] path)
-                   first :content first)))))
-       (->>
-        {:urls [:urls :related-urls :url]
-         :authors [:contributors :authors :author]
-         :keywords [:keywords :keyword]}
-        (map-values
-         (fn [path]
-           (->> (xml-find-vector [e] path)
-                (map #(-> % :content))
-                (apply concat)
-                vec))))
-       (->>
-        {:document-ids [:urls :pdf-urls :url]}
-        (map-values
-         (fn [path]
-           (->> (xml-find-vector [e] path)
-                (map document-id-from-url)
-                (remove nil?)
-                vec)))))
-      (update :year parse-integer)
-      ((fn [parsed-xml]
-         (assoc parsed-xml :date (str (:year parsed-xml) " " (:pubdate parsed-xml)))))
-      (dissoc :pubdate)
-      (assoc :raw (dxml/emit-str e))))
+  (if (nil? e)
+    (do (log/info "load-endnote-record: null record entry") nil)
+    (try
+      (-> (merge
+           (->>
+            {:primary-title [:titles :title]
+             :secondary-title [:titles :secondary-title]
+             ;; :periodical [:periodical :full-title]
+             :abstract [:abstract]
+             :remote-database-name [:remote-database-name]
+             :year [:dates :year]
+             :rec-number [:rec-number]
+             :custom4 [:custom4]
+             :custom5 [:custom5]
+             :pubdate [:dates :pub-dates :date]}
+            (map-values
+             (fn [path]
+               (try
+                 (-> (xml-find [e] (concat path [:style]))
+                     first :content first)
+                 (catch Throwable e
+                   (log/info "load-endnote-record: missed path " path)
+                   nil)))))
+           (->>
+            {:rec-number [:rec-number]
+             :custom4 [:custom4]
+             :custom5 [:custom5]}
+            (map-values
+             (fn [path]
+               (or (-> (xml-find [e] (concat path [:style]))
+                       first :content first)
+                   (-> (xml-find [e] path)
+                       first :content first)))))
+           (->>
+            {:urls [:urls :related-urls :url]
+             :authors [:contributors :authors :author]
+             :keywords [:keywords :keyword]}
+            (map-values
+             (fn [path]
+               (->> (xml-find-vector [e] path)
+                    (map #(-> % :content))
+                    (apply concat)
+                    vec))))
+           (->>
+            {:document-ids [:urls :pdf-urls :url]}
+            (map-values
+             (fn [path]
+               (->> (xml-find-vector [e] path)
+                    (map document-id-from-url)
+                    (remove nil?)
+                    vec)))))
+          (update :year parse-integer)
+          ((fn [parsed-xml]
+             (assoc parsed-xml :date
+                    (str (:year parsed-xml) " " (:pubdate parsed-xml)))))
+          (dissoc :pubdate)
+          (assoc :raw (dxml/emit-str e)))
+      (catch Throwable exc
+        (log/info "load-endnote-record:" (type exc) "-" (.getMessage exc))
+        nil))))
 
 (defn load-endnote-library-xml
-  "Parse an Endnote XML file into a vector of article maps."
-  [file]
-  (let [x (cond (string? file)
-                (parse-endnote-file file)
-                (= java.io.File (type file))
-                (-> file slurp dxml/parse-str)
-                :else file)]
-    (->> (-> x :content first :content)
-         (mapv load-endnote-record))))
+  "Parse Endnote XML from a Reader into a vector of article maps."
+  [reader]
+  (some->> (dxml/parse reader)
+           :content first :content
+           (map load-endnote-record)))
 
 (defn load-endnote-doc-ids
   "Parse an Endnote XML file mapping `article-uuid` values (`custom5` field) to
    `document-id` values."
-  [file]
-  (->> (load-endnote-library-xml file)
+  [reader]
+  (->> (load-endnote-library-xml reader)
        (map (fn [entry]
               (let [entry
                     (-> entry
@@ -110,9 +117,10 @@
     (articles/add-article article project-id *conn*)
     (catch Throwable e
       (throw (Exception.
-              (str "exception in sysrev.import.endnote/add-article "
-                   "article:" (:primary-title article) " "
-                   "message: " (.getMessage e))))
+              (format "%s: %s"
+                      "sysrev.import.endnote/add-article"
+                      (pr-str {:article (:primary-title article)
+                               :message (.getMessage e)}))))
       nil)))
 
 (defn- import-articles-to-project!
@@ -126,7 +134,10 @@
             (doseq [[k v] article]
               (when (or (nil? v)
                         (and (coll? v) (empty? v)))
-                (log/debug (format "sysrev.import.endnote/import-articles-to-project!: * field `%s` is empty" (pr-str k)))))
+                (log/debug
+                 (format "%s: * field `%s` is empty"
+                         "sysrev.import.endnote/import-articles-to-project!"
+                         (pr-str k)))))
             (when-let [article-id (add-article
                                    (-> article
                                        (dissoc :locations)
@@ -141,16 +152,20 @@
                           (mapv #(assoc % :article-id article-id))))
                     do-execute))))
           (catch Throwable e
-            (throw (Exception. (str (format "sysrev.import.endnote/import-articles-to-project!: error importing article #%s"
-                                            (:public-id article))
-                                    ": " (.getMessage e))))))))
+            (let [message
+                  (format "%s: error importing article #%s [%s]"
+                          "sysrev.import.endnote/import-articles-to-project!"
+                          (:public-id article)
+                          (.getMessage e))]
+              (log/warn message)
+              (throw (Exception. message)))))))
     (finally
       (clear-project-cache project-id))))
 
 (defn add-articles!
   "Import articles into project-id using the meta map as a source description. If the optional keyword :use-future? true is used, then the importing is wrapped in a future"
-  [articles project-id source-id meta & {:keys [use-future? threads]
-                                         :or {use-future? false threads 1}}]
+  [articles project-id source-id & {:keys [use-future? threads]
+                                    :or {use-future? false threads 1}}]
   (if (and use-future? (nil? *conn*))
     (future
       (let [success?
@@ -168,20 +183,20 @@
                                  thread-articles project-id source-id)
                                 true
                                 (catch Throwable e
-                                  (println "Error in sysrev.import.endnote/add-articles! (inner future)"
-                                           (.getMessage e))
+                                  (log/warn "Error in sysrev.import.endnote/add-articles! (inner future)"
+                                            (.getMessage e))
                                   false)))))
                          (mapv deref))]
                 (every? true? thread-results))
               (catch Throwable e
-                (log/info "Error in sysrev.import.endnote/add-articles! (outer future)"
+                (log/warn "Error in sysrev.import.endnote/add-articles! (outer future)"
                           (.getMessage e))
                 false))]
         (with-transaction
           ;; update source metadata
           (if success?
-            (sources/update-source-meta
-             source-id (assoc meta :importing-articles? false))
+            (sources/alter-source-meta
+             source-id #(assoc % :importing-articles? false))
             (sources/fail-source-import source-id))
           ;; update the enabled flag for the articles
           (sources/update-project-articles-enabled project-id))
@@ -193,14 +208,14 @@
           (try
             (import-articles-to-project! articles project-id source-id)
             (catch Throwable e
-              (println "Error in sysrev.import.endnote/add-articles!"
-                       (.getMessage e))
+              (log/warn "Error in sysrev.import.endnote/add-articles!"
+                        (.getMessage e))
               false))]
       (with-transaction
         ;; update source metadata
         (if success?
-          (sources/update-source-meta
-           source-id (assoc meta :importing-articles? false))
+          (sources/alter-source-meta
+           source-id #(assoc % :importing-articles? false))
           (sources/fail-source-import source-id))
         ;; update the enabled flag for the articles
         (sources/update-project-articles-enabled project-id))
@@ -209,21 +224,33 @@
         (importance/schedule-important-terms-update project-id))
       success?)))
 
-(defn endnote-file->articles
-  [file]
-  (try (mapv #(dissoc % :custom4 :custom5 :rec-number) (load-endnote-library-xml file))
-       (catch Throwable e
-         (throw (Exception. "Error parsing file")))))
+(defn endnote-file->articles [reader]
+  (->> (load-endnote-library-xml reader)
+       (map #(dissoc % :custom4 :custom5 :rec-number))))
 
-(defn import-endnote-library! [file filename project-id & {:keys [use-future? threads]
-                                                           :or {use-future? false threads 1}}]
-  (let [meta (sources/make-source-meta :endnote-xml {:filename filename})
-        source-id (sources/create-source
-                   project-id (assoc meta :importing-articles? true))]
-    (try (let [articles (endnote-file->articles file)]
-           (add-articles! articles project-id source-id meta
-                          :use-future? use-future?
-                          :threads threads))
-         (catch Throwable e
-           (sources/fail-source-import source-id)
-           (throw (Exception. "Error in sysrev.import.endnote/import-endnote-library!: " (.getMessage e)))))))
+(defn import-endnote-library!
+  [file filename project-id & {:keys [use-future? threads]
+                               :or {use-future? false threads 1}}]
+  (let [source-id (sources/create-source
+                   project-id
+                   (-> (sources/make-source-meta :endnote-xml {:filename filename})
+                       (assoc :importing-articles? true)))
+        do-import
+        (fn []
+          (try (let [articles (doall (endnote-file->articles (io/reader file)))]
+                 (add-articles! articles project-id source-id
+                                :use-future? use-future?
+                                :threads threads))
+               (catch Throwable e
+                 (let [message
+                       (format "%s: %s"
+                               "sysrev.import.endnote/import-endnote-library!"
+                               (.getMessage e))]
+                   (log/warn message)
+                   (sources/fail-source-import source-id)
+                   (throw e)))))]
+    (if use-future?
+      (do (future (do-import))
+          {:result {:success true}})
+      (do (do-import)
+          {:result {:success true}}))))
