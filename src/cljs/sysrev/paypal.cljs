@@ -43,7 +43,7 @@
                       (dispatch [:project/get-funds])
                       (reset! success-message
                               (str "You've added " @user-defined-support-level " to your project funds!"))
-                      (reset! user-defined-support-level "$1.00"))
+                      (reset! user-defined-support-level ($ js/accounting formatMoney minimum-amount "$")))
            :error-handler (fn [error]
                             (reset! loading? false)
                             (reset! error-message (get-in error [:response :error :message])))})))

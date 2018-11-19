@@ -27,10 +27,21 @@
   [amount admin-fee]
   (str (accounting/cents->string (* amount admin-fee)) " admin fee"))
 
-(defn compensation-text
-  "Show the compensation text related to a compensation"
+(defn AdminFee
   [amount admin-fee]
-  (str " per Article + " (admin-fee-text amount admin-fee)))
+  [:span {:style {:font-size "0.8em"
+                  :color "red"
+                  :font-weight "bold"}}
+   (str "(+" (accounting/cents->string (* amount admin-fee)) " admin fee)")])
+
+(defn CompensationAmount
+  "Show the compensation text related to a compensation"
+  [compensation admin-fee]
+  (let [amount (get-in compensation [:rate :amount])
+        item (get-in compensation [:rate :item])]
+    [:div [:span {:style {:font-size "1.3em"}} (accounting/cents->string amount)]
+     " " [AdminFee amount admin-fee]
+     [:span {:style {:font-size "1.3em"}} (str " / " item)]]))
 
 (defn get-compensations!
   "Retrieve the current compensations"
@@ -152,7 +163,8 @@
 (defn rate->string
   "Convert a rate to a human readable string"
   [rate]
-  (str (accounting/cents->string (:amount rate)) " / " (:item rate) " + " (admin-fee-text (:amount rate) admin-fee)))
+  (str (accounting/cents->string (:amount rate)) " / " (:item rate))
+  #_(str (accounting/cents->string (:amount rate)) " / " (:item rate) " + " (admin-fee-text (:amount rate) admin-fee)))
 
 (defn ProjectFunds
   [state]
@@ -283,12 +295,10 @@
                           :on-change on-change
                           :aria-label "compensation-amount"}])]
            [:div {:style {:display "inline-block"
-                          :margin-left "1em"}}
-            [:span {:style {:font-style "bold"
-                            :font-color "red"}}
-             (let [integer-compensation-amount (accounting/string->cents @compensation-amount)]
-               (when-not (= 0 integer-compensation-amount)
-                 (compensation-text integer-compensation-amount admin-fee)))]]
+                          :margin-left "0.5em"}}
+            (let [integer-compensation-amount (accounting/string->cents @compensation-amount)]
+              (when-not (= 0 integer-compensation-amount)
+                [:div [AdminFee integer-compensation-amount admin-fee] [:span {:style {:font-size "1.3em"}} " / article"]]))]
            [:div.right.floated.content
             [Button {:disabled (or @creating-new-compensation?
                                    @retrieving-compensations?)
@@ -309,7 +319,7 @@
         (let [project-compensations (->> @(r/cursor state [:project-compensations])
                                          vals
                                          (sort-by #(get-in % [:rate :amount])))]
-          [:div.ui.segment
+          [:div#project-compensations.ui.segment
            [:h4.ui.dividing.header "Project Compensation"]
            ;; display the current compensations
            (when-not (empty? project-compensations)
@@ -322,8 +332,7 @@
                   [:div.content {:style {:padding-top "4px"
                                          :padding-bottom "4px"}}
                    (let [compensation-amount (get-in compensation [:rate :amount])]
-                     [:div (str (accounting/cents->string (get-in compensation [:rate :amount]))
-                                (compensation-text compensation-amount admin-fee))])]])
+                     [CompensationAmount compensation admin-fee])]])
                project-compensations)])
            [:h4.ui.dividing.header "Create New Compensation"]
            [CreateCompensationForm]]))

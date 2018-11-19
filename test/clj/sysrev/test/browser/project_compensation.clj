@@ -80,7 +80,7 @@
     (b/set-input-text-per-char amount-input (cents->string amount))
     (b/click amount-create)
     (b/wait-until-exists
-     (xpath "//div[contains(text(),'$" (cents->string amount) " per Article')]"))))
+     (xpath (str "//div[@id='project-compensations']/descendant::span[contains(text(),'$" (cents->string amount) "')]")))))
 
 (defn compensation-select [user]
   (xpath "//div[contains(text(),'" user "')]"

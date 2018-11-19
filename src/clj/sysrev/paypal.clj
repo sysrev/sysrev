@@ -130,7 +130,18 @@
                                 (->> (f/unparse (f/formatter :year-month-day))))]
     (get-transactions :start-date thirty-one-days-ago :end-date today)))
 
-;;https://developer.paypal.com/docs/api/payments/v1/#payment_get
+;; https://developer.paypal.com/docs/api/payments/v1/#payment_get
+;; returns an object of the form: https://developer.paypal.com/docs/api/payments/v1/#definition-payment
+;; this will have more info contained in the related resource sale object
+
+;; https://developer.paypal.com/docs/api/payments/v1/#definition-sale
+;; e.g. a payment-response from get-payment
+;; (def payment-response (-> (get-payment "PAY-7EP79122MX509154MLPZOESQ") (paypal-oauth-request)))
+;; (-> (get-in payment-response [:body :transactions]) first :related_resources first) ; this is the sale object
+
+;; the sale object contains the state related to the payment
+;; (-> (get-in payment-response [:body :transactions]) first :related_resources first :sale :state)
+
 (defn get-payment
   [payment-id]
   (-> (client/get (str paypal-url "/v1/payments/payment/" payment-id)
