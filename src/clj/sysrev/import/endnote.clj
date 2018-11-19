@@ -116,11 +116,10 @@
   (try
     (articles/add-article article project-id *conn*)
     (catch Throwable e
-      (throw (Exception.
-              (format "%s: %s"
-                      "sysrev.import.endnote/add-article"
-                      (pr-str {:article (:primary-title article)
-                               :message (.getMessage e)}))))
+      (log/warn (format "%s: %s"
+                        "sysrev.import.endnote/add-article"
+                        (pr-str {:article article
+                                 :message (.getMessage e)})))
       nil)))
 
 (defn- import-articles-to-project!
