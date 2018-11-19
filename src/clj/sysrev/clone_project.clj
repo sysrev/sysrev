@@ -15,7 +15,8 @@
             [sysrev.import.endnote :as endnote]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
-            [sysrev.shared.util :refer [in?]]))
+            [sysrev.shared.util :refer [in?]]
+            [clojure.tools.logging :as log]))
 
 (defn copy-project-members [src-project-id dest-project-id &
                             {:keys [user-ids-only admin-members-only]}]
@@ -117,12 +118,12 @@
                               (assoc :article-id (convert-article-id article-id)
                                      :project-note-id note-id)
                               (dissoc :article-note-id))))))]
-      (println (str "copying " (count note-entries) " article-note entries"))
+      (log/info (str "copying " (count note-entries) " article-note entries"))
       (doseq [entry-group (partition-all 500 note-entries)]
         (-> (insert-into :article-note)
             (values (vec entry-group))
             do-execute))
-      (println (str "copying " (count label-entries) " article-label entries"))
+      (log/info (str "copying " (count label-entries) " article-label entries"))
       (doseq [entry-group (partition-all 500 label-entries)]
         (-> (insert-into :article-label)
             (values (vec entry-group))
@@ -189,38 +190,53 @@
   "Creates a copy of a project.
 
   Copies most project definition entries over from the parent project
-  (eg. project members, label definitions, keywords)."
+  (eg. project members, label definitions, keywords).
+
+  `articles`, `labels`, `answers`, `members` control whether to copy
+  those entries from the source project.
+
+  `admin-members-only` if true will skip copying non-admin members to
+  new project.
+
+  `user-ids-only` (optional) explicitly lists which users to add as members
+  of new project."
   [project-name src-id &
-   {:keys [user-ids-only admin-members-only labels? answers?]
-    :or {labels? false answers? false}}]
+   {:keys [articles labels answers members
+           user-ids-only admin-members-only]
+    :or {labels false, answers false, articles false, members true}}]
   (with-transaction
     (let [dest-id
           (:project-id (project/create-project
                         project-name :parent-project-id src-id))
           article-uuids
-          (-> (q/select-project-articles src-id [:a.article-uuid])
-              (->> do-query (map :article-uuid)))]
+          (when articles
+            (-> (q/select-project-articles src-id [:a.article-uuid])
+                (->> do-query (map :article-uuid))))]
       (project/add-project-note dest-id {})
-      (println (format "created project (#%d, '%s')"
-                       dest-id project-name))
-      (populate-child-project-articles
-       src-id dest-id article-uuids)
-      (println (format "loaded %d articles"
-                       (project/project-article-count dest-id)))
-      (copy-project-members src-id dest-id
-                            :user-ids-only user-ids-only
-                            :admin-members-only admin-members-only)
-      (if labels?
+      (log/info (format "created project (#%d, '%s')"
+                        dest-id project-name))
+      (when articles
+        (populate-child-project-articles
+         src-id dest-id article-uuids)
+        (log/info (format "loaded %d articles"
+                          (project/project-article-count dest-id))))
+      (when members
+        (copy-project-members src-id dest-id
+                              :user-ids-only user-ids-only
+                              :admin-members-only admin-members-only))
+      (if labels
         (copy-project-label-defs src-id dest-id)
         (labels/add-label-overall-include dest-id))
-      (when labels?
+      (when labels
         (copy-project-keywords src-id dest-id))
-      (when (and labels? answers?)
+      (when (and labels answers articles)
         (copy-project-article-labels src-id dest-id))
-      (println "clone-project done")
+      (log/info "clone-project done")
       (migrate/ensure-project-sources-exist)
-      (predict-api/schedule-predict-update dest-id)
-      (importance-api/schedule-important-terms-update dest-id)))
+      (when articles
+        (importance-api/schedule-important-terms-update dest-id))
+      (when (and articles answers)
+        (predict-api/schedule-predict-update dest-id))))
   nil)
 
 (defn clone-subproject-articles
@@ -236,12 +252,12 @@
           (:project-id (project/create-project
                         project-name :parent-project-id src-id))]
       (project/add-project-note dest-id {})
-      (println (format "created project (#%d, '%s')"
-                       dest-id project-name))
+      (log/info (format "created project (#%d, '%s')"
+                        dest-id project-name))
       (populate-child-project-articles
        src-id dest-id article-uuids)
-      (println (format "loaded %d articles"
-                       (project/project-article-count dest-id)))
+      (log/info (format "loaded %d articles"
+                        (project/project-article-count dest-id)))
       (copy-project-members src-id dest-id
                             :user-ids-only user-ids-only
                             :admin-members-only admin-members-only)
@@ -252,7 +268,7 @@
         (copy-project-keywords src-id dest-id))
       (when (and labels? answers?)
         (copy-project-article-labels src-id dest-id))))
-  (println "clone-subproject-articles done"))
+  (log/info "clone-subproject-articles done"))
 
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
@@ -278,15 +294,15 @@
           (:project-id (project/create-project
                         project-name :parent-project-id parent-id))]
       (project/add-project-note child-id {})
-      (println (format "created child project (#%d, '%s')"
-                       child-id project-name))
+      (log/info (format "created child project (#%d, '%s')"
+                        child-id project-name))
       (populate-child-project-articles
        parent-id child-id article-uuids)
-      (println (format "loaded %d articles"
-                       (project/project-article-count child-id)))
+      (log/info (format "loaded %d articles"
+                        (project/project-article-count child-id)))
       (copy-project-members parent-id child-id)
       (docs/load-article-documents child-id pdfs-path)
       (docs/load-project-document-ids child-id article-doc-ids)
       (copy-project-label-defs parent-id child-id)
       (copy-project-keywords parent-id child-id)
-      (println "clone-subproject-endnote done"))))
+      (log/info "clone-subproject-endnote done"))))
