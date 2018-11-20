@@ -94,7 +94,7 @@
   [reader]
   (some->> (dxml/parse reader)
            :content first :content
-           (map load-endnote-record)))
+           (pmap load-endnote-record)))
 
 (defn load-endnote-doc-ids
   "Parse an Endnote XML file mapping `article-uuid` values (`custom5` field) to
