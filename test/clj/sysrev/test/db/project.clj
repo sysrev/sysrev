@@ -10,7 +10,8 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
-            [sysrev.import.pubmed :as pubmed]
+            [sysrev.pubmed :as pubmed]
+            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]
             [sysrev.test.db.core :refer [test-project-ids]]))
 
@@ -35,7 +36,7 @@ Corge")
         search-term "foo bar"
         ;; import articles to this project
         pmids (pubmed/get-all-pmids-for-query search-term)
-        _ (pubmed/import-pmids-to-project-with-meta!
+        _ (i-pubmed/import-pmids-to-project-with-meta!
            pmids project-id
            (sources/make-source-meta
             :pubmed {:search-term search-term

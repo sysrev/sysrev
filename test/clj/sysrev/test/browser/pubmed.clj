@@ -4,7 +4,7 @@
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.test.core :refer [default-fixture]]
-            [sysrev.import.pubmed :as import]
+            [sysrev.pubmed :as pubmed]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -59,7 +59,7 @@
   "Does the search-term result in the browser match the remote call?"
   [search-term]
   (search-pubmed search-term)
-  (is (= (:count (import/get-search-query-response search-term 1))
+  (is (= (:count (pubmed/get-search-query-response search-term 1))
          (search-count))))
 
 (defn click-pager

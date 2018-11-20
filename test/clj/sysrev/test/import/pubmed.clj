@@ -6,7 +6,8 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.test.core :refer
              [default-fixture database-rollback-fixture full-tests?]]
-            [sysrev.import.pubmed :as pubmed]
+            [sysrev.pubmed :as pubmed]
+            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.util :refer [parse-xml-str xml-find]]
             [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
             [sysrev.db.project :as project]
@@ -74,7 +75,7 @@
           new-project-id (:project-id new-project)
           article-summaries (pubmed/get-pmids-summary pmids)]
       #_ (is (not (importing-articles? new-project-id)))
-      (pubmed/import-pmids-to-project-with-meta!
+      (i-pubmed/import-pmids-to-project-with-meta!
        (pubmed/get-all-pmids-for-query search-term)
        new-project-id meta)
       #_ (is (not (importing-articles? new-project-id)))

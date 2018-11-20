@@ -20,8 +20,8 @@
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
             [sysrev.import.endnote :refer [load-endnote-record]]
-            [sysrev.import.pubmed :refer [extract-article-location-entries
-                                          parse-pmid-xml]]
+            [sysrev.pubmed :refer
+             [extract-article-location-entries parse-pmid-xml]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
             [sysrev.db.sources :as sources]

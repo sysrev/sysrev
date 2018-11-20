@@ -4,7 +4,8 @@
             [sysrev.db.project :as project]
             [sysrev.db.sources :as sources]
             [sysrev.db.users :as users]
-            [sysrev.import.pubmed :as pubmed]
+            [sysrev.pubmed :as pubmed]
+            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :refer [test-login create-test-user]]
@@ -48,7 +49,7 @@
       (is (= 0
              (project/project-article-count new-project-id)))
       ;; add articles to this project
-      (pubmed/import-pmids-to-project-with-meta! (:pmids search-query-result) new-project-id meta)
+      (i-pubmed/import-pmids-to-project-with-meta! (:pmids search-query-result) new-project-id meta)
       ;; Does the new project have the correct amount of articles?
       ;; I would like a 'get-project' route
       ;; delete this project

@@ -27,7 +27,8 @@
             [sysrev.db.users :as users]
             [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]
-            [sysrev.import.pubmed :as pubmed]
+            [sysrev.pubmed :as pubmed]
+            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.import.zip :as zip]
             [sysrev.paypal :as paypal]
             [sysrev.stripe :as stripe]
@@ -124,7 +125,7 @@
                         :pubmed {:search-term search-term
                                  :search-count (count pmids)})
                   success?
-                  (pubmed/import-pmids-to-project-with-meta!
+                  (i-pubmed/import-pmids-to-project-with-meta!
                    pmids project-id meta
                    :use-future? true
                    :threads threads)]
@@ -156,7 +157,7 @@
         filename-sources (filter #(= (get-in % [:meta :filename]) filename)
                                  project-sources)]
     (try
-      (let [pmid-vector (pubmed/parse-pmid-file file)]
+      (let [pmid-vector (i-pubmed/parse-pmid-file file)]
         (cond (and (sequential? pmid-vector)
                    (> (count pmid-vector) max-import-articles))
               {:error {:message (format "Too many PMIDs from file (max %d; got %d)"
@@ -174,7 +175,7 @@
               (try
                 (let [meta (sources/make-source-meta :pmid-file {:filename filename})
                       success?
-                      (pubmed/import-pmids-to-project-with-meta!
+                      (i-pubmed/import-pmids-to-project-with-meta!
                        pmid-vector project-id meta
                        :use-future? true
                        :threads threads)]

@@ -22,7 +22,7 @@
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
             [sysrev.shared.transit :as sr-transit]
-            [sysrev.import.pubmed :as pubmed]
+            [sysrev.pubmed :as pubmed]
             [sysrev.config.core :refer [env]]
             [sysrev.util :refer :all]
             [sysrev.shared.util :refer [map-values in? parse-integer to-uuid]]
