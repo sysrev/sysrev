@@ -235,15 +235,6 @@
                       :user-id (:user-id %)))
          project-users)))
 
-(defn project-funds
-  [project-id]
-  (-> (select :*)
-      (from :project-fund)
-      (where [:= :project-id project-id])
-      do-query
-      (->> (map :amount)
-           (apply +))))
-
 (defn total-paid
   "Total amount paid out by project-id"
   [project-id]
@@ -261,13 +252,6 @@
   [project-id]
   (->> (compensation-owed-by-project project-id)
        (map :compensation-owed)
-       (apply +)))
-
-(defn total-admin-fees
-  "Total amount of admin fees owed by project"
-  [project-id]
-  (->> (compensation-owed-by-project project-id)
-       (map :admin-fee)
        (apply +)))
 
 (defn user-compensation
@@ -297,13 +281,9 @@
     (->> project-users
         (map #(assoc % :compensation-id (user-compensation project-id (:user-id %)))))))
 
-(defn create-project-fund-entry [{:keys [project-id user-id transaction-id transaction-source amount created]}]
-  (-> (insert-into :project-fund)
-      (values [{:transaction-id transaction-id
-                :transaction-source transaction-source
-                :project-id project-id
-                :user-id user-id
-                :amount amount
-                :created created}])
-      do-execute))
-
+(defn total-admin-fees
+  "Total amount of admin fees owed by project"
+  [project-id]
+  (->> (compensation-owed-by-project project-id)
+       (map :admin-fee)
+       (apply +)))

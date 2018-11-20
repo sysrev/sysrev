@@ -8,7 +8,7 @@
             [clj-stripe.subscriptions :as subscriptions]
             [clojure.data.json :as json]
             [environ.core :refer [env]]
-            [sysrev.db.compensation :as compensation]
+            [sysrev.db.funds :as funds]
             [sysrev.db.plans :as db-plans]
             [sysrev.db.project :as project]))
 
@@ -204,12 +204,12 @@
                                  {"metadata" {"project-id" project-id}}))]
       (if-not (nil? (and id created))
         ;; charge was a success, insert into the db
-        (do (compensation/create-project-fund-entry {:project-id project-id
-                                                     :user-id (:user-id user)
-                                                     :transaction-id id
-                                                     :transaction-source "Stripe/charge-id"
-                                                     :amount amount
-                                                     :created created})
+        (do (funds/create-project-fund-entry! {:project-id project-id
+                                               :user-id (:user-id user)
+                                               :transaction-id id
+                                               :transaction-source (:stripe-charge funds/transaction-source-descriptor)
+                                               :amount amount
+                                               :created created})
             {:success true})
         ;; charge was not success, return response
         stripe-response))

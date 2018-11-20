@@ -7,7 +7,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
             [sysrev.charts.chartjs :as chartjs]
-            [sysrev.util :refer [vector->hash-map]]
+            [sysrev.util :refer [vector->hash-map continuous-update-until]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.charts :as charts]
             [sysrev.paypal :as paypal :refer [AddFunds]]
@@ -21,6 +21,8 @@
 (def state (r/cursor app-db [:state :panels panel]))
 
 (def admin-fee 0.20)
+
+(def pending-transaction-check-interval 600000)
 
 (defn admin-fee-text
   "amount is an integer amount in cents"
@@ -160,6 +162,16 @@
                            ($ js/console log "[Error] retrieving get-project-funds"))}))
    {}))
 
+(defn check-pending-transactions
+  "Check the pending transactions on the server"
+  []
+  (PUT "/api/check-pending-transaction"
+       {:params {:project-id @(subscribe [:active-project-id])}
+        :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+        :handler (fn [response]
+                   (dispatch [:project/get-funds]))
+        :error-handler (fn [response]
+                         ($ js/console log "[[check-pending-transaction]]: error " response))}))
 (defn rate->string
   "Convert a rate to a human readable string"
   [rate]
@@ -172,41 +184,60 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [current-balance compensation-outstanding available-funds admin-fees]}
+        (let [{:keys [current-balance compensation-outstanding available-funds admin-fees pending-funds]}
               @project-funds]
-          [:div.ui.segment
-           [:div
-            [:h4.ui.dividing.header "Project Funds"]
-            [:div.ui.grid
-             [:div.ui.row
-              [:div.five.wide.column
-               "Available Funds: "]
-              [:div.eight.wide.column]
-              [:div.three.wide.column
-               (accounting/cents->string available-funds)]]
-             [:div.ui.row
-              [:div.five.wide.column
-               "Outstanding Compensations: "]
-              [:div.eight.wide.column]
-              [:div.three.wide.column
-               (accounting/cents->string compensation-outstanding)]]
-             [:div.ui.row
-              [:div.five.wide.column
-               "Outstanding Admin Fees: "]
-              [:div.eight.wide.column]
-              [:div.three.wide.column
-               (accounting/cents->string admin-fees)]]
-             [:div.ui.row
-              [:div.five.wide.column
-               "Current Balance: "]
-              [:div.eight.wide.column]
-              [:div.three.wide.column
-               (accounting/cents->string current-balance)]]]]]))
+          [:div
+           [:div.ui.segment
+            [:div
+             [:h4.ui.dividing.header "Project Funds"]
+             [:div.ui.grid
+              [:div.ui.row
+               [:div.five.wide.column
+                "Available Funds: "]
+               [:div.eight.wide.column]
+               [:div.three.wide.column
+                (accounting/cents->string available-funds)]]
+              [:div.ui.row
+               [:div.five.wide.column
+                "Outstanding Compensations: "]
+               [:div.eight.wide.column]
+               [:div.three.wide.column
+                (accounting/cents->string compensation-outstanding)]]
+              [:div.ui.row
+               [:div.five.wide.column
+                "Outstanding Admin Fees: "]
+               [:div.eight.wide.column]
+               [:div.three.wide.column
+                (accounting/cents->string admin-fees)]]
+              [:div.ui.row
+               [:div.five.wide.column
+                "Current Balance: "]
+               [:div.eight.wide.column]
+               [:div.three.wide.column
+                (accounting/cents->string current-balance)]]]]]
+           (when (> pending-funds 0))
+           [:div.ui.segment
+            [:div
+             [:h4.ui.dividing.header "Awaiting Approval"]
+             [:div.ui.grid
+              [:div.ui.row
+               {:style {:color "red"}}
+               [:div.five.wide.column
+                "Funds Pending: "]
+               [:div.eight.wide.column]
+               [:div.three.wide.column
+                (accounting/cents->string pending-funds)]]]]]]))
       :get-initial-state
       (fn [this]
         (when-not (nil? @project-funds)
           (reset! project-funds nil))
-        (dispatch [:project/get-funds]))})))
+        (dispatch [:project/get-funds]))
+      :component-did-update (fn [this old-argv]
+                              (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
+                                (continuous-update-until check-pending-transactions
+                                                         #(= @pending-funds 0)
+                                                         (constantly nil)
+                                                         pending-transaction-check-interval)))})))
 
 (defn ToggleCompensationActive
   [compensation]
@@ -582,8 +613,7 @@
       [:div.ui.row
        [:div.ui.column
         ;;[SupportFormOnce support/state]
-        [AddFunds paypal/state]
-        ]]]
+        [AddFunds paypal/state]]]]
      [:div.ui.two.column.stack.grid
       [:div.ui.row
        [:div.ui.column [ProjectCompensations]]

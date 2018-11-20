@@ -5,6 +5,7 @@
             [clj-time.format :as f]
             [clj-time.local :as l]
             [environ.core :refer [env]]
+            [sysrev.db.funds :as funds]
             [sysrev.util :as util]))
 
 ;; entrypoint for dashboard:
@@ -130,18 +131,22 @@
                                 (->> (f/unparse (f/formatter :year-month-day))))]
     (get-transactions :start-date thirty-one-days-ago :end-date today)))
 
-;; https://developer.paypal.com/docs/api/payments/v1/#payment_get
-;; returns an object of the form: https://developer.paypal.com/docs/api/payments/v1/#definition-payment
-;; this will have more info contained in the related resource sale object
+
+;; a payment-response from get-payment
+;; (def payment-response (-> (get-payment "PAY-7EP79122MX509154MLPZOESQ") (paypal-oauth-request)))
+
+;; https://developer.paypal.com/docs/api/payments/v1/#definition-payment
+;; (-> (get-in payment-response [:body]))
+;; the payment object contains info about the state of the payment (see definition-payment for more info)
+;; (-> (get-in payment-response [:body :state]))
 
 ;; https://developer.paypal.com/docs/api/payments/v1/#definition-sale
-;; e.g. a payment-response from get-payment
-;; (def payment-response (-> (get-payment "PAY-7EP79122MX509154MLPZOESQ") (paypal-oauth-request)))
 ;; (-> (get-in payment-response [:body :transactions]) first :related_resources first) ; this is the sale object
-
-;; the sale object contains the state related to the payment
+;; possible states: completed, partially_refunded, pending, refunded, denied.
+;; the sale object contains the state related to the payment (see definition-sale for more info)
 ;; (-> (get-in payment-response [:body :transactions]) first :related_resources first :sale :state)
 
+;; https://developer.paypal.com/docs/api/payments/v1/#payment_get
 (defn get-payment
   [payment-id]
   (-> (client/get (str paypal-url "/v1/payments/payment/" payment-id)
@@ -150,3 +155,28 @@
                    :throw-exceptions false
                    :as :json
                    :coerce :always})))
+
+(defn check-transaction!
+  "Given a payment-id, check to see what the current status of the sale is. Update its status if it has changed, if it has changed to complete, insert it into the project-fund"
+  [payment-id]
+  (let [{:keys [status project-id user-id amount transaction-id transaction-source] :as pending-transaction} (funds/get-pending-payment payment-id)
+        payment-response (paypal-oauth-request (get-payment payment-id))
+        sale-state (-> (get-in payment-response [:body :transactions]) first :related_resources first :sale :state)]
+    (cond (= sale-state "completed")
+          (do (funds/update-project-fund-pending-entry! {:transaction-id payment-id
+                                                         :status sale-state})
+              (funds/create-project-fund-entry! {:project-id project-id
+                                                 :user-id user-id
+                                                 :amount amount
+                                                 :transaction-id transaction-id
+                                                 :transaction-source transaction-source
+                                                 :created (util/now-unix-seconds)}))
+          ;; nothing has changed, do nothing
+          (= sale-state status)
+          nil
+          ;; status has changed, update it
+          (not= sale-state status)
+          (funds/update-project-fund-pending-entry! {:transaction-id transaction-id
+                                                     :status sale-state})
+          :else
+          (throw (Exception. (str "Something unexpected occured in " (util/current-function-name)))))))

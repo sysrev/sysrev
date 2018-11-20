@@ -42,7 +42,7 @@
                       (reset! loading? false)
                       (dispatch [:project/get-funds])
                       (reset! success-message
-                              (str "You've added " @user-defined-support-level " to your project funds!"))
+                              (str "Your payment of " @user-defined-support-level " has been received and will be available after it has been processed"))
                       (reset! user-defined-support-level ($ js/accounting formatMoney minimum-amount "$")))
            :error-handler (fn [error]
                             (reset! loading? false)
@@ -186,7 +186,7 @@
           (when @success-message
             [Message {:onDismiss #(reset! success-message nil)
                       :positive true}
-             [MessageHeader "Payment Successful"]
+             [MessageHeader "Payment Processed"]
              @success-message])
           ;; the built-in PayPal disabled button is weird, the buttons
           ;; simply aren't cickable. This reproduces the same effect much simpler

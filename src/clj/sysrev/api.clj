@@ -18,6 +18,7 @@
             [sysrev.db.compensation :as compensation]
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
+            [sysrev.db.funds :as funds]
             [sysrev.db.labels :as labels]
             [sysrev.db.markdown :as markdown]
             [sysrev.db.plans :as plans]
@@ -424,15 +425,17 @@
           (let [amount (-> response :transactions first (get-in [:amount :total]) read-string (* 100) (Math/round))
                 transaction-id (:id response)
                 created (-> response :transactions first :related_resources first :sale :create_time paypal/paypal-date->unix-epoch)]
-            (compensation/create-project-fund-entry {:project-id project-id
-                                                     :user-id user-id
-                                                     :amount amount
-                                                     :transaction-id transaction-id
-                                                     :transaction-source "PayPal/payment-id"
-                                                     :created created})
+            ;; all paypal transactions will be considered pending
+            (funds/create-project-fund-pending-entry! {:project-id project-id
+                                                       :user-id user-id
+                                                       :amount amount
+                                                       :transaction-id transaction-id
+                                                       :transaction-source (:paypal-payment funds/transaction-source-descriptor)
+                                                       :status "pending"
+                                                       :created created})
             {:result {:success true}})
           :else {:error {:status internal-server-error
-                         :message "The paypal response has an error"}})))
+                         :message "The PayPal response has an error"}})))
 
 (defn current-project-support-level
   "The current level of support of this user for project-id"
@@ -488,12 +491,9 @@
        empty?
        not))
 
-(defonce rate-atom (atom nil))
-
 (defn create-project-compensation!
   "Create a compensation for project-id with rate"
   [project-id rate]
-  (reset! rate-atom rate)
   (if (compensation-amount-exists? project-id rate)
     {:error {:status bad-request
              :message "That compensation already exists"}}
@@ -610,24 +610,36 @@
 
 (defn calculate-project-funds
   [project-id]
-  (let [available-funds (compensation/project-funds project-id)
+  (let [available-funds (funds/project-funds project-id)
         compensation-outstanding (compensation/total-owed project-id)
         admin-fees (compensation/total-admin-fees project-id)
-        current-balance (- available-funds compensation-outstanding admin-fees)]
+        current-balance (- available-funds compensation-outstanding admin-fees)
+        pending-funds (->> (funds/pending-funds project-id)
+                           (map :amount)
+                           (apply +))]
     {:current-balance current-balance
      :admin-fees admin-fees
      :compensation-outstanding compensation-outstanding
-     :available-funds available-funds}))
+     :available-funds available-funds
+     :pending-funds pending-funds}))
 
 (defn project-funds
   [project-id]
   {:result {:project-funds (calculate-project-funds project-id)}})
 
+
+(defn check-pending-project-transactions!
+  "Check the pending project transactions and update them accordingly"
+  [project-id]
+  (let [pending-funds (funds/pending-funds project-id)]
+    (doall (map #(paypal/check-transaction! (:transaction-id %))
+                pending-funds))
+    {:result {:success true}}))
+
 ;; to manually add funds:
 ;; (compensation/create-fund {:project-id <project-id> :user-id <project-admin> :transaction-id "manual-entry" :transaction-source "PayPal manual transfer" :amount <amount> :created (util/now-unix-seconds)})
 ;; in the database:
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
-
 (defn pay-user!
   [project-id user-id compensation admin-fee]
   (try-catch-response
@@ -646,18 +658,18 @@
            (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
                  created (util/now-unix-seconds)]
              ;; deduct for funds to the user
-             (compensation/create-project-fund-entry {:project-id project-id
-                                                      :user-id user-id
-                                                      :amount (- compensation)
-                                                      :transaction-id payout-batch-id
-                                                      :transaction-source "PayPal/payout-batch-id"
-                                                      :created created})
+             (funds/create-project-fund-entry! {:project-id project-id
+                                                :user-id user-id
+                                                :amount (- compensation)
+                                                :transaction-id payout-batch-id
+                                                :transaction-source (:paypal-payout funds/transaction-source-descriptor)
+                                                :created created})
              ;; deduct admin fee
-             (compensation/create-project-fund-entry {:project-id project-id
+             (funds/create-project-fund-entry! {:project-id project-id
                                                       :user-id user-id
                                                       :amount (- admin-fee)
                                                       :transaction-id (str (UUID/randomUUID))
-                                                      :transaction-source "SysRev/admin-fee"
+                                                      :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
                                                       :created created})
              {:result "success"})))))))
 

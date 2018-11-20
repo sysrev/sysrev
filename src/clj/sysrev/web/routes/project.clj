@@ -787,6 +787,12 @@
         request {:roles ["admin"]}
         (api/project-funds (-> request :params :project-id parse-integer))))
 
+  (PUT "/api/check-pending-transaction" request
+       (wrap-authorize
+        request {:roles ["admin"]}
+        (let [{:keys [project-id]} (:body request)]
+          (api/check-pending-project-transactions! project-id))))
+
   (POST "/api/pay-user" request
         (wrap-authorize
          request {:roles ["admin"]}
