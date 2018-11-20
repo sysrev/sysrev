@@ -763,3 +763,11 @@
 (defn delete-solo-projects-from-user [user-id]
   (doseq [project-id (get-single-user-project-ids user-id)]
     (delete-project project-id)))
+
+(defn project-article-ids
+  "Returns list of all article ids in project."
+  [project-id]
+  (-> (select :article-id)
+      (from :article)
+      (where [:= :project-id project-id])
+      (->> do-query (mapv :article-id))))

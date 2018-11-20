@@ -8,7 +8,8 @@
              [do-query do-execute with-transaction to-jsonb
               clear-project-cache with-project-cache]]
             [sysrev.db.queries :as q]
-            [sysrev.db.project :as project]
+            [sysrev.db.project :as p]
+            [sysrev.db.articles :as a]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
 (def all-source-types
@@ -137,45 +138,77 @@
    source-id #(assoc % :importing-articles? :error))
   (delete-source-articles source-id))
 
+(defn project-article-sources-map
+  "Returns map of {article-id -> [source-id]} representing the sources each
+  article is contained in."
+  [project-id & {:keys [enabled] :or {enabled nil}}]
+  (-> (select :ars.article-id :ars.source-id :a.enabled)
+      (from [:project-source :ps])
+      (join [:article-source :ars]
+            [:= :ars.source-id :ps.source-id]
+            [:article :a]
+            [:= :a.article-id :ars.article-id])
+      (where [:and
+              [:= :ps.project-id project-id]
+              (cond (true? enabled)   [:= :ps.enabled true]
+                    (false? enabled)  [:= :ps.enabled false]
+                    :else             true)])
+      (->> do-query
+           (group-by :article-id)
+           (map-values #(mapv :source-id %)))))
+
+(defn project-articles-disable-flagged
+  "Returns set of ids for project articles disabled by flag."
+  [project-id]
+  (-> (select :af.article-id)
+      (from [:article :a])
+      (join [:article-flag :af]
+            [:= :af.article-id :a.article-id])
+      (where [:and
+              [:= :a.project-id project-id]
+              [:= :af.disable true]])
+      (->> do-query (map :article-id) set)))
+
+(defn project-articles-enabled-state
+  "Returns map of {article-id -> enabled} representing current values of
+  cached \"enabled\" state for articles in project."
+  [project-id]
+  (-> (select :article-id :enabled)
+      (from :article)
+      (where [:= :project-id project-id])
+      (->> do-query
+           (group-by :article-id)
+           (map-values #(-> % first :enabled)))))
+
 (defn update-project-articles-enabled
   "Update the enabled fields of articles associated with project-id."
   [project-id]
   (try
     (with-transaction
-      ;; set all articles enabled to false
-      (-> (sqlh/update :article)
-          (sset {:enabled false})
-          (where [:= :project-id project-id])
-          do-execute)
-      ;; set all articles enabled to true for which they have a source
-      ;; that is enabled
-      (-> (sqlh/update :article)
-          (sset {:enabled true})
-          (where [:and
-                  [:= :project-id project-id]
-                  [:exists
-                   (-> (select :*)
-                       (from [:article-source :ars])
-                       (left-join [:project-source :ps]
-                                  [:= :ars.source-id :ps.source-id])
-                       (where [:and
-                               [:= :ps.project-id project-id]
-                               [:= :article.article-id :ars.article-id]
-                               [:= :ps.enabled true]]))]])
-          do-execute)
-      ;; check the article_flags table as the ultimate truth
-      ;; for the enabled setting
-      (-> (sqlh/update :article)
-          (sset {:enabled false})
-          (where [:and
-                  [:= :project-id project-id]
-                  [:exists
-                   (-> (select :*)
-                       (from [:article-flag :af])
-                       (where [:and
-                               [:= :af.article-id :article.article-id]
-                               [:= :af.disable true]]))]])
-          do-execute))
+      (let [ ;; get id for all articles in project
+            article-ids (p/project-article-ids project-id)
+            ;; get list of enabled sources for each article
+            a-sources (project-article-sources-map project-id :enabled true)
+            ;; get current state to check against new computed value
+            a-enabled (project-articles-enabled-state project-id)
+            ;; get flag entries that force-disable specific articles by id
+            a-flagged (project-articles-disable-flagged project-id)
+            ;; list of articles that should be enabled
+            enabled-ids (->> article-ids
+                             (filter #(and (not-empty (get a-sources %))
+                                           (not (contains? a-flagged %)))))
+            ;; list of articles that should be disabled
+            disabled-ids (->> article-ids
+                              (filter #(or (empty? (get a-sources %))
+                                           (contains? a-flagged %))))
+            ;; list of articles we need to change to enabled
+            update-enable-ids (->> enabled-ids (filter #(false? (get a-enabled %))))
+            ;; list of articles we need to change to disabled
+            update-disable-ids (->> disabled-ids (filter #(true? (get a-enabled %))))]
+        ;; apply db updates for changed articles
+        (a/modify-articles-by-id update-enable-ids {:enabled true})
+        (a/modify-articles-by-id update-disable-ids {:enabled false})
+        nil))
     (finally
       (clear-project-cache project-id))))
 ;;
@@ -214,7 +247,7 @@
   "Given a source-id, return the amount of articles that have labels"
   [source-id]
   (let [project-id (source-id->project-id source-id)
-        overall-id (project/project-overall-label-id project-id)]
+        overall-id (p/project-overall-label-id project-id)]
     (-> (select :%count.%distinct.al.article-id)
         (from [:article-source :asrc])
         (join [:article :a] [:= :a.article-id :asrc.article-id]
@@ -312,8 +345,7 @@
         :ret coll?)
 
 (defn project-sources
-  "Given a project-id, return the corresponding vectors of
-  project-source data or nil if it does not exist"
+  "Returns vector of source information maps for project-id."
   [project-id]
   (let [overlap-coll (project-sources-overlap project-id)
         unique-coll (source-unique-articles-count project-id)]
@@ -324,7 +356,6 @@
                 :ps.date-created)
         (from [:project-source :ps])
         (where [:= :ps.project-id project-id])
-        ;; associate article-count and labeled counts
         (->> do-query
              (mapv
               (fn [{:keys [source-id] :as psource}]

@@ -412,3 +412,21 @@
       (values [{:pmcid pmcid
                 :s3_id s3store-id}])
       do-execute))
+
+(defn modify-project-articles
+  "Runs SQL update setting `values` on all project articles"
+  [project-id values]
+  (-> (sqlh/update :article)
+      (sset values)
+      (where [:= :project-id project-id])
+      do-execute))
+
+(defn modify-articles-by-id
+  "Runs SQL update setting `values` on articles in `article-ids`."
+  [article-ids values]
+  (doseq [id-group (partition-all 100 article-ids)]
+    (when-not (empty? id-group)
+      (-> (sqlh/update :article)
+          (sset values)
+          (where [:in :article-id (vec id-group)])
+          do-execute))))
