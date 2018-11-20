@@ -16,11 +16,16 @@
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."
   [article & [conn]]
-  (-> article
-      (update :authors #(db/to-sql-array "text" % conn))
-      (update :keywords #(db/to-sql-array "text" % conn))
-      (update :urls #(db/to-sql-array "text" % conn))
-      (update :document-ids #(db/to-sql-array "text" % conn))))
+  (try
+    (-> article
+        (update :authors #(db/to-sql-array "text" % conn))
+        (update :keywords #(db/to-sql-array "text" % conn))
+        (update :urls #(db/to-sql-array "text" % conn))
+        (update :document-ids #(db/to-sql-array "text" % conn)))
+    (catch Throwable e
+      (log/warn "article-to-sql: error converting article")
+      (log/warn "article =" (pr-str article))
+      (throw e))))
 ;;
 (s/fdef article-to-sql
         :args (s/cat :article ::sa/article-partial

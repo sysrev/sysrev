@@ -106,59 +106,79 @@
       (log/error "abstract-texts =" (pr-str abstract-texts))
       (throw e))))
 
+(defn extract-wrapped-text [x]
+  (cond (string? x) x
+
+        (and (map? x) (contains? x :tag) (contains? x :content)
+             (-> x :content first string?))
+        (-> x :content first)
+
+        :else nil))
+
 (defn parse-pmid-xml
   [pxml & {:keys [create-raw?] :or {create-raw? true}}]
-  (let [title (->> [:MedlineCitation :Article :ArticleTitle]
-                   (xml-find-value pxml))
-        journal (->> [:MedlineCitation :Article :Journal :Title]
+  (try
+    (let [title (->> [:MedlineCitation :Article :ArticleTitle]
                      (xml-find-value pxml))
-        abstract (->> [:MedlineCitation :Article :Abstract :AbstractText]
-                      (xml-find pxml) parse-abstract)
-        authors (->> [:MedlineCitation :Article :AuthorList :Author]
-                     (xml-find pxml) parse-pubmed-author-names)
-        pmid (->> [:MedlineCitation :PMID] (xml-find-value pxml))
-        keywords (->> [:MedlineCitation :KeywordList :Keyword]
-                      (xml-find-vector pxml))
-        locations (extract-article-location-entries pxml)
-        year (or (->> [:MedlineCitation :DateCompleted :Year]
-                      (xml-find [pxml])
-                      first :content first parse-integer)
-                 (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Year]
-                      (xml-find [pxml])
-                      first :content first parse-integer))
-        month (or (->> [:MedlineCitation :DateCompleted :Month]
+          journal (->> [:MedlineCitation :Article :Journal :Title]
+                       (xml-find-value pxml))
+          abstract (->> [:MedlineCitation :Article :Abstract :AbstractText]
+                        (xml-find pxml) parse-abstract)
+          authors (->> [:MedlineCitation :Article :AuthorList :Author]
+                       (xml-find pxml) parse-pubmed-author-names)
+          pmid (->> [:MedlineCitation :PMID] (xml-find-value pxml))
+          keywords (->> [:MedlineCitation :KeywordList :Keyword]
+                        (xml-find-vector pxml)
+                        (mapv extract-wrapped-text)
+                        (filterv identity))
+          locations (extract-article-location-entries pxml)
+          year (or (->> [:MedlineCitation :DateCompleted :Year]
+                        (xml-find [pxml])
+                        first :content first parse-integer)
+                   (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Year]
+                        (xml-find [pxml])
+                        first :content first parse-integer))
+          month (or (->> [:MedlineCitation :DateCompleted :Month]
+                         (xml-find [pxml])
+                         first :content first parse-integer)
+                    (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Month]
+                         (xml-find [pxml])
+                         first :content first))
+          day (or (->> [:MedlineCitation :DateCompleted :Day]
                        (xml-find [pxml])
                        first :content first parse-integer)
-                  (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Month]
+                  (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day]
                        (xml-find [pxml])
-                       first :content first))
-        day (or (->> [:MedlineCitation :DateCompleted :Day]
-                     (xml-find [pxml])
-                     first :content first parse-integer)
-                (->> [:MedlineCitation :Article :Journal :JournalIssue :PubDate :Day]
-                     (xml-find [pxml])
-                     first :content first))]
-    (cond->
-        {:remote-database-name "MEDLINE"
-         :primary-title title
-         :secondary-title journal
-         :abstract abstract
-         :authors (mapv str/trim authors)
-         :year year
-         :keywords keywords
-         :public-id (some-> pmid str)
-         :locations locations
-         :date (cond-> (str year)
-                 month           (str "-" (if (and (integer? month)
-                                                   (<= 1 month 9))
-                                            "0" "")
-                                      month)
-                 (and month day) (str "-" (if (and (integer? day)
-                                                   (<= 1 day 9))
-                                            "0" "")
-                                      day))}
-        create-raw?
-        (merge {:raw (dxml/emit-str pxml)}))))
+                       first :content first))]
+      (cond->
+          {:remote-database-name "MEDLINE"
+           :primary-title title
+           :secondary-title journal
+           :abstract abstract
+           :authors (mapv str/trim authors)
+           :year year
+           :keywords keywords
+           :public-id (some-> pmid str)
+           :locations locations
+           :date (cond-> (str year)
+                   month           (str "-" (if (and (integer? month)
+                                                     (<= 1 month 9))
+                                              "0" "")
+                                        month)
+                   (and month day) (str "-" (if (and (integer? day)
+                                                     (<= 1 day 9))
+                                              "0" "")
+                                        day))}
+          create-raw?
+          (merge {:raw (dxml/emit-str pxml)})))
+    (catch Throwable e
+      (log/warn "parse-pmid-xml:"
+                "error while parsing article -"
+                (.getMessage e))
+      (try
+        (log/warn "xml =" (dxml/emit-str pxml))
+        (catch Throwable e1 nil))
+      nil)))
 
 (defn fetch-pmids-xml [pmids]
   (util/wrap-retry
