@@ -1,7 +1,7 @@
 (ns sysrev.test.web.routes.project
   (:require [clojure.test :refer :all]
             [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.db.users :as users]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]

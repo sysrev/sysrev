@@ -24,7 +24,7 @@
              [extract-article-location-entries parse-pmid-xml]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.stripe :as stripe])
   (:import java.util.UUID))
 

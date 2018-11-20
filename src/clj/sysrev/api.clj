@@ -23,7 +23,7 @@
             [sysrev.db.markdown :as markdown]
             [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.db.users :as users]
             [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]

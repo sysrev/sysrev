@@ -11,7 +11,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.documents :as docs]
             [sysrev.db.labels :as labels]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.db.files :as files]
             [sysrev.db.article_list :as alist]
             [sysrev.db.annotations :as annotations]

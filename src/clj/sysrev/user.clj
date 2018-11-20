@@ -10,6 +10,7 @@
         sysrev.db.migration
         sysrev.db.export
         sysrev.db.files
+        #_ sysrev.source.core
         sysrev.db.sources
         sysrev.db.article_list
         sysrev.db.annotations

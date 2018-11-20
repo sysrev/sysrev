@@ -179,7 +179,8 @@
 (defn fetch-pmid-entries [pmids]
   (->> (fetch-pmids-xml pmids)
        parse-xml-str :content
-       (mapv parse-pmid-xml)))
+       (mapv parse-pmid-xml)
+       (remove nil?)))
 
 (defn fetch-pmid-entries-cassandra [pmids]
   (let [result
@@ -195,21 +196,15 @@
                  nil)))]
     (if (empty? result)
       (fetch-pmid-entries pmids)
-      (if (< (count result) (count pmids))
-        (let [result-pmids
-              (->> result (map #(some-> % :public-id parse-integer)))
-              diff (set/difference (set pmids) (set result-pmids))
-              have (set/difference (set pmids) (set diff))
-              from-pubmed (fetch-pmid-entries (vec diff))]
-          #_ (log/info "missing" (- (count pmids) (count result))
-                       "PMID articles"
-                       (str "(got " (count result) " of "
-                            (count pmids) ")"))
-          #_ (log/info "Missing:" (vec diff))
-          #_ (log/info "Have:" (->> have (take 25) vec))
-          #_ (log/info "retried from PubMed, got" (count from-pubmed) "articles")
-          (concat result from-pubmed))
-        result))))
+      (->> (if (< (count result) (count pmids))
+             (let [result-pmids
+                   (->> result (map #(some-> % :public-id parse-integer)))
+                   diff (set/difference (set pmids) (set result-pmids))
+                   have (set/difference (set pmids) (set diff))
+                   from-pubmed (fetch-pmid-entries (vec diff))]
+               (concat result from-pubmed))
+             result)
+           (remove nil?)))))
 
 (defn fetch-pmid-entry [pmid]
   (first (fetch-pmid-entries [pmid])))

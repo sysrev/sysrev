@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.predict.core :as predict]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.web.app :refer

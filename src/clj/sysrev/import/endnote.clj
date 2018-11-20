@@ -13,7 +13,7 @@
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
             [sysrev.db.queries :as q]

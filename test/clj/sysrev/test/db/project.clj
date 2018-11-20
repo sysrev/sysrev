@@ -9,7 +9,7 @@
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.pubmed :as pubmed]
             [sysrev.import.pubmed :as i-pubmed]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]

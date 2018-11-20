@@ -2,7 +2,7 @@
   (:require [clojure.data.json :as json]
             [clojure.test :refer :all]
             [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.db.users :as users]
             [sysrev.pubmed :as pubmed]
             [sysrev.import.pubmed :as i-pubmed]

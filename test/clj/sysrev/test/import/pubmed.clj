@@ -11,7 +11,7 @@
             [sysrev.util :refer [parse-xml-str xml-find]]
             [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
             [sysrev.db.project :as project]
-            [sysrev.db.sources :as sources]))
+            [sysrev.source.core :as sources]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)

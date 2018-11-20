@@ -1,4 +1,4 @@
-(ns sysrev.db.sources
+(ns sysrev.source.core
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
@@ -233,7 +233,7 @@
            (update-project-articles-enabled project-id)
            true)
          (catch Throwable e
-           (log/info "Caught exception in sysrev.db.sources/delete-source: "
+           (log/info "Caught exception in sysrev.source.core/delete-source: "
                      (.getMessage e))
            (alter-source-meta
             source-id #(assoc % :deleting? false))

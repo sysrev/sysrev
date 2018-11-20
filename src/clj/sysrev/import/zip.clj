@@ -6,7 +6,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.files :as files]
             [sysrev.files.s3store :as s3store]
-            [sysrev.db.sources :as sources]
+            [sysrev.source.core :as sources]
             [sysrev.util :as util :refer [shell]]
             [clojure.string :as str])
   (:import [java.util.zip ZipFile ZipInputStream]))
