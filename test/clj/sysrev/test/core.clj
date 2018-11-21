@@ -208,19 +208,6 @@
   [pred]
   `(wait-until* ~(pr-str pred) ~pred))
 
-(defn delete-user-fixture
-  [email]
-  (fn [test]
-    (do (test)
-        (let [user (users/get-user-by-email email)
-              user-id (:user-id user)]
-          (when (int? user-id)
-            (users/delete-user (:user-id user))
-            (is (:deleted (stripe/delete-customer! user)))
-            ;; make sure this has occurred for the next test
-            (wait-until #(nil? (users/get-user-by-email email)))
-            (is (nil? (users/get-user-by-email email))))))))
-
 (defn full-tests? []
   (let [{:keys [sysrev-full-tests profile]} env]
     (boolean

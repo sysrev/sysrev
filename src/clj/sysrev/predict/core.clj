@@ -17,14 +17,6 @@
       (values [{:note note}])
       do-execute))
 
-(defn update-predict-version
-  "Marks a predict-version entry as being updated at current time."
-  [predict-version-id]
-  (-> (sqlh/update :predict-version)
-      (sset {:update-time (sql-now)})
-      (where [:= :predict-version-id predict-version-id])
-      do-execute))
-
 (defn create-predict-run
   "Adds a new predict-run entry to the database, and returns the entry."
   [project-id predict-version-id]

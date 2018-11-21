@@ -21,21 +21,6 @@
            [org.openqa.selenium.logging LoggingPreferences LogType]
            [java.util.logging Level]))
 
-(defn build-cljs!
-  "Builds CLJS project for integration testing."
-  []
-  (cljs/build
-   (cljs/inputs "src/cljs" "src/cljc")
-   {:main "sysrev.core"
-    :output-to "resources/public/integration/sysrev.js"
-    :output-dir "resources/public/integration"
-    :asset-path "/integration"
-    :optimizations :none
-    :pretty-print true
-    :source-map true
-    :source-map-timestamp true
-    :static-fns true}))
-
 (defonce active-webdriver (atom nil))
 
 (defn start-webdriver [& [restart?]]

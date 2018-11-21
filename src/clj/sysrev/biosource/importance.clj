@@ -142,36 +142,3 @@
       (load-project-important-terms project-id))
     (log/info "Finished updating predictions for"
               (count project-ids) "projects")))
-
-(defn map-coll->csv-string
-  "Given a coll of maps of the same form, return a csv string"
-  [coll]
-  (let [headers (keys (first coll))]
-    (str
-     ;; headers
-     (clojure.string/join "|" (map name headers)) "\n"
-     ;; data
-     (->> coll
-          (map #(map % headers))
-          (map (partial clojure.string/join "|"))
-          (clojure.string/join "\n")))))
-
-(defn extract-pmids-from-sysrev-raw-json-export
-  "Given a string file descriptor for a Sysrev_Raw_*.json file, return a vector of PMIDs"
-  [f]
-  (let [get-pmid (fn [article-json] (->> article-json
-                                         :locations
-                                         (filter #(= "pubmed" (:source %)))
-                                         first
-                                         :external-id
-                                         parse-number))]
-    (->>
-     ;; extract the articles json
-     (-> f
-         (slurp)
-         (json/read-str :key-fn keyword)
-         :articles)
-     ;; extract the pmids
-     (mapv get-pmid)
-     ;; remove any nil vals
-     (filterv (comp not nil?)))))

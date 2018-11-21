@@ -50,8 +50,6 @@
   (xpath "//button[contains(@class,'disabled') and contains(text(),'Save')]"))
 (def discard-button
   (xpath "//button[contains(@class,'labeled') and contains(text(),'Discard')]"))
-(def label-definitions-tab
-  (xpath "//span[contains(text(),'Label Definitions')]"))
 ;; create new labels buttons
 (def add-boolean-label-button
   (xpath "//button[contains(text(),'Add Boolean Label')]"))
@@ -59,21 +57,10 @@
   (xpath "//button[contains(text(),'Add String Label')]"))
 (def add-categorical-label-button
   (xpath "//button[contains(text(),'Add Categorical Label')]"))
-;; editing label inputs
-(def display-label-input
-  (xpath "//label[contains(text(),'Display Name')]"
-         "/descendant::input[@type='text']"))
-(def must-be-answered-input
-  (xpath "//label[contains(text(),'Must be answered?')]"
-         "/descendant::input[@type='radio']"))
-(def question-input
-  (xpath "//label[contains(text(),'Question')]"
-         "/descendant::input[@type='text']"))
-(def label-item-div-with-errors
-  (xpath "//div[contains(@class,'error')]"
-         "/ancestor::div[contains(@class,'label-item')]"))
+
 (def no-articles-need-review
   (xpath "//h4[text()='No articles found needing review']"))
+
 (defn label-div-with-name
   [name]
   (xpath "//span[contains(@class,'name')]"
@@ -128,14 +115,6 @@
   "Given a label-name, return the xpath for it"
   [label-name]
   (xpath "label[contains(text(),'" label-name "')]"))
-
-(defn get-label-error-message
-  "Get the error message associated with a displayed name of label-name"
-  [label-name]
-  (taxi/text
-   (xpath "//" (label-name-xpath label-name)
-          "/parent::div"
-          "/descendant::div[contains(@class,'message') and contains(@class,'red')]")))
 
 (defn get-all-error-messages
   "Get all error messages"
@@ -202,17 +181,11 @@
      (x/xpath "//div[@id='" div-id "']"
               "/descendant::div[contains(@class,'remove')]"))))
 
-(defn click-edit
-  "Click the Edit button on a label describe by a string xpath"
-  [xpath]
-  (b/click (x/xpath xpath "/descendant::i[contains(@class,'edit')]")))
-
 (defn save-label []
   (log/info "saving label definition")
   (b/click save-button :delay 50))
 
 (defn discard-label []
-  #_ (log/info "discarding label definition")
   (b/click discard-button :delay 50))
 
 (defn label-text-input-xpath
@@ -221,20 +194,6 @@
   (x/xpath xpath
            "/descendant::" (label-name-xpath label-name)
            "/parent::div/descendant::input[@type='text']"))
-
-(defn label-radio-input-xpath
-  "Given an xpath, get the radio button for label-name under xpath"
-  [xpath label-name]
-  (x/xpath xpath
-           "/descendant::" (label-name-xpath label-name)
-           "/parent::div/descendant::input[@type='radio']"))
-
-(defn set-radio-button
-  "When selected? is true, set radio input defined by xpath to 'on',
-  otherwise if selected? is false, set radio input to 'off'"
-  [xpath selected?]
-  (when-not (= selected? (taxi/selected? (x/xpath xpath)))
-    (b/click (x/xpath xpath))))
 
 (defn label-checkbox-input-xpath
   "Given an xpath, get the check box for label-name under xpath"

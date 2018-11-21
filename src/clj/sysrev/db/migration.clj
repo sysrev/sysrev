@@ -29,8 +29,8 @@
   (:import java.util.UUID))
 
 (defn ensure-user-default-project-ids
-  "Ensures that a default-project-id value is set for all users which belong to
-  at least one project."
+  "Ensures that a default-project-id value is set for all users which
+  belong to at least one project."
   []
   (let [user-ids
         (->>
@@ -263,7 +263,10 @@
 
 ;; TODO: this doesn't work for replacing existing stripe_plan entries
 (defn update-stripe-plans-table
-  "Update the stripe_plans table based upon what is stored on stripe. We never delete plans, even though they may no longer exist on stripe so that there is a record of their existence. If a plan is changed on the stripe, it is updated here."
+  "Update the stripe_plans table based upon what is stored on stripe. We
+  never delete plans, even though they may no longer exist on stripe
+  so that there is a record of their existence. If a plan is changed
+  on the stripe, it is updated here."
   []
   (let [plans (->> (stripe/get-plans)
                    :data
@@ -274,39 +277,34 @@
                     (do-update-set :product :amount :id :created)))
         do-execute)))
 
+;; TODO: has this been run? should it be?
 (defn update-dates-from-article-raw
-  "Extract the date from the raw column of the article and then update the corresponding date field"
+  "Extract the date from the raw column of the article and then update
+  the corresponding date field"
   []
-  (let [pubmed-extract-date (fn [article-xml]
-                              (->> article-xml
-                                   parse-xml-str
-                                   parse-pmid-xml
-                                   :date))
-        endnote-extract-date (fn [article-xml]
-                               (->  article-xml
-                                    dxml/parse-str
-                                    load-endnote-record
-                                    :date))
-        article-xml-extract-date (fn [article-xml]
-                                   (cond (clojure.string/blank? article-xml)
-                                         nil
-                                         (not (clojure.string/blank? (pubmed-extract-date article-xml)))
-                                         (pubmed-extract-date article-xml)
-                                         (not (clojure.string/blank? (endnote-extract-date article-xml)))
-                                         (endnote-extract-date article-xml)
-                                         :else nil))]
+  (let [pubmed-extract-date
+        #(->> % parse-xml-str parse-pmid-xml :date)
+        endnote-extract-date
+        #(-> % dxml/parse-str load-endnote-record :date)
+        article-xml-extract-date
+        #(cond (clojure.string/blank? %)
+               nil
+               (not (clojure.string/blank? (pubmed-extract-date %)))
+               (pubmed-extract-date %)
+               (not (clojure.string/blank? (endnote-extract-date %)))
+               (endnote-extract-date %)
+               :else nil)]
     (log/info "Started Converting dates... ")
-    (doall (map (fn [article]
-                  (let [date (article-xml-extract-date (:raw article))]
-                    (when-not (clojure.string/blank? date)
-                      (-> (sqlh/update :article)
-                          (sset {:date date})
-                          (where [:= :article-id (:article-id article)])
-                          do-execute))))
-                (-> (select :raw :article_id)
-                    (from [:article :a])
-                    (order-by [:a.article_id :desc])
-                    do-query)))
+    (doseq [article (-> (select :raw :article_id)
+                        (from [:article :a])
+                        (order-by [:a.article_id :desc])
+                        do-query)]
+      (let [date (article-xml-extract-date (:raw article))]
+        (when-not (clojure.string/blank? date)
+          (-> (sqlh/update :article)
+              (sset {:date date})
+              (where [:= :article-id (:article-id article)])
+              do-execute))))
     (log/info "Finished Converting Dates. ")))
 
 (defn ensure-updated-db

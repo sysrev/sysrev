@@ -393,19 +393,6 @@
                    (s/valid?
                     (s/map-of ::sc/article-id ::sa/article-partial)))))
 
-;; TODO - finish/use this?
-(defn project-email-domains
-  [project-id]
-  (let [emails (->>
-                (-> (select :u.email)
-                    (from [:web-user :u])
-                    (join [:project-member :m]
-                          [:= :m.user-id :u.user-id])
-                    (where [:= :m.project-id project-id])
-                    do-query)
-                (mapv :email))]
-    emails))
-
 (defn delete-member-labels-notes
   "Deletes all labels and notes saved in `project-id` by `user-id`."
   [project-id user-id]
@@ -710,6 +697,7 @@
       do-query first :project-id))
 
 (defn add-project-url-id
+  "Adds a project-url-id entry (custom URL)"
   [project-id url-id & {:keys [user-id]}]
   (try
     (with-transaction

@@ -29,9 +29,7 @@
 (def valid-label-categories
   ["inclusion criteria" "extra"])
 (def valid-label-value-types
-  ["boolean" "categorical" "numeric" "string"])
-(def valid-numeric-types
-  ["integer" "percent" "ratio" "real"])
+  ["boolean" "categorical" "string"])
 
 (defn all-labels-cached []
   (with-query-cache [:all-labels]
@@ -152,49 +150,6 @@
                :short-label "Include"
                :inclusion-value true
                :required true}))
-
-(defn define-numeric-label-unit
-  [name numeric-type & [{:keys [min-bound max-bound]}]]
-  (let [[min-val min-inclusive?] min-bound
-        [max-val max-inclusive?] max-bound]
-    (assert (or (nil? name) (string? name)))
-    (assert (in? valid-numeric-types numeric-type))
-    (assert (= (nil? min-val) (nil? min-inclusive?)))
-    (assert (= (nil? max-val) (nil? max-inclusive?)))
-    (when (= numeric-type "integer")
-      (assert (or (nil? min-val) (integer? min-val)))
-      (assert (or (nil? max-val) (integer? max-val))))
-    (assert (in? [nil "inclusive" "exclusive"] min-inclusive?))
-    (assert (in? [nil "inclusive" "exclusive"] max-inclusive?))
-    (cond->
-        {:name name :numeric-type numeric-type
-         :unit-id (UUID/randomUUID)}
-      min-bound (assoc :min-bound min-bound)
-      max-bound (assoc :max-bound max-bound))))
-
-;; *TODO*
-;; finish adding numeric label type
-(defn add-label-entry-numeric
-  "Creates an entry for a numeric label definition, with one or more choices
-  of unit selectable by user when providing answer.
-
-  `integer-only?` if true will disallow non-integer values as answer."
-  [project-id
-   {:keys [name question short-label required custom-category units]
-    :as entry-values}]
-  (assert (sequential? units))
-  (assert (not= 0 (count units)))
-  (assert (every? (some-fn nil? string?) (map :name units)))
-  (assert (in? [0 1] (->> units (map :name) (filter nil?) count)))
-  (assert (every? map? units))
-  (add-label-entry
-   project-id
-   (merge
-    (->> [:name :question :short-label :required]
-         (select-keys entry-values))
-    {:value-type "numeric"
-     :category (or custom-category "extra")
-     :definition {:units units}})))
 
 (defn add-label-entry-string
   "Creates an entry for a string label definition. Value is provided by user
@@ -423,31 +378,6 @@
     (when (and article status)
       {:article-id (:article-id article)
        :today-count today-count})))
-
-(defn- user-all-labels-map [project-id user-id]
-  (-> (q/select-project-articles project-id [:al.*])
-      (q/join-article-labels)
-      (q/filter-label-user user-id)
-      (->> do-query
-           (group-by :article-id))))
-
-(defn- copy-project-user-labels [project-id src-user-id dest-user-id]
-  (let [articles (user-all-labels-map project-id src-user-id)]
-    (with-transaction
-      (doseq [[article-id article-entries] articles]
-        (-> (delete-from [:article-label :al])
-            (merge-where [:and
-                          [:= :al.article-id article-id]
-                          [:= :al.user-id dest-user-id]])
-            do-execute)
-        (doseq [entry article-entries]
-          (let [new-entry (-> entry
-                              (assoc :user-id dest-user-id)
-                              (dissoc :article-label-local-id :article-label-id)
-                              (update :answer to-jsonb))]
-            (-> (insert-into :article-label)
-                (values [new-entry])
-                do-execute)))))))
 
 (defn article-user-labels-map [project-id article-id]
   (->>
@@ -684,16 +614,9 @@
       (db/clear-project-cache project-id)
       true)))
 
-(defn delete-project-user-labels [project-id]
-  (-> (delete-from [:article-label :al])
-      (where [:exists
-              (-> (select :*)
-                  (from [:article :a])
-                  (where [:and
-                          [:= :a.article-id :al.article-id]
-                          [:= :a.project-id project-id]]))])
-      do-execute))
-
+;; TODO: can inclusion-values be changed with existing answers?
+;;       if yes, need to run this.
+;;       if no, can delete this.
 (defn update-label-answer-inclusion [label-id]
   (with-transaction
     (let [entries (-> (select :article-label-id :answer)
@@ -709,37 +632,6 @@
                     (where [:= :article-label-id article-label-id])
                     do-execute))))
            doall))))
-
-(defn invert-boolean-label-answers [label-id]
-  (with-transaction
-    (let [true-ids
-          (-> (select :article-label-id)
-              (from :article-label)
-              (where [:and
-                      [:= :label-id label-id]
-                      [:= :answer (to-jsonb true)]])
-              (->> do-query (map :article-label-id)))
-          false-ids
-          (-> (select :article-label-id)
-              (from :article-label)
-              (where [:and
-                      [:= :label-id label-id]
-                      [:= :answer (to-jsonb false)]])
-              (->> do-query (map :article-label-id)))]
-      (doseq [true-id true-ids]
-        (-> (sqlh/update :article-label)
-            (sset {:answer (to-jsonb false)})
-            (where [:= :article-label-id true-id])
-            do-execute))
-      (doseq [false-id false-ids]
-        (-> (sqlh/update :article-label)
-            (sset {:answer (to-jsonb true)})
-            (where [:= :article-label-id false-id])
-            do-execute))
-      (update-label-answer-inclusion label-id)
-      (log/info (format "inverted %d boolean answers"
-                        (+ (count true-ids) (count false-ids))))
-      true)))
 
 (defn set-label-enabled [label-id enabled?]
   (let [label-id (q/to-label-id label-id)]
@@ -961,47 +853,6 @@
             (fn [entries]
               (->> entries (sort-by :article-label-local-id >)))))))))
 
-(defn fix-duplicate-answers
-  "Queries for any multiple entries in article-label for a single (article_id, user_id, label_id)
-   and deletes all but the newest if they exist.
-   Duplicates should be prevented now by a Postgres unique constraint, but this is needed
-   for migration before the constraint can be added."
-  []
-  (let [entries
-        (-> (q/select-project-articles nil [:al.article-id :al.user-id :al.label-id :al.answer])
-            (q/join-article-labels)
-            (->> do-query
-                 (group-by (fn [{:keys [article-id user-id label-id]}]
-                             [article-id user-id label-id]))
-                 (filter (fn [[key answers]]
-                           (> (count answers) 1)))
-                 (apply concat)
-                 (apply hash-map)))
-        answers (->> entries (map-values #(map :answer %)))
-        article-ids (->> entries vals (map #(map :article-id %)) (apply concat) distinct)]
-    (when-not (empty? article-ids)
-      (doseq [article-id article-ids]
-        (when-let [multi-labels (article-user-multi-labels article-id)]
-          (doseq [user-id (keys multi-labels)]
-            (let [umap (get multi-labels user-id)]
-              (doseq [label-id (keys umap)]
-                (let [entries (get umap label-id)]
-                  (when (> (count entries) 1)
-                    (let [keep-id (->> entries (map :article-label-local-id) (apply max))]
-                      (doseq [entry entries]
-                        (when (not= keep-id (:article-label-local-id entry))
-                          (let [deleted
-                                (-> (delete-from :article-label)
-                                    (where [:and
-                                            [:= :article-id article-id]
-                                            [:= :user-id user-id]
-                                            [:= :label-id label-id]
-                                            [:= :article-label-id (:article-label-id entry)]])
-                                    do-execute)]
-                            (println (str "deleted " deleted " from article-id=" article-id)))))))))))))
-      (println (str "fixed duplicate answers for " (count article-ids) " articles")))
-    true))
-
 (defn project-included-articles [project-id]
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]
@@ -1035,26 +886,6 @@
          (q/filter-overall-label)
          do-query)
      (group-by :article-id))))
-
-(defn project-include-label-conflicts [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-label-conflicts]
-    (->> (project-include-labels project-id)
-         (filter (fn [[aid labels]]
-                   (< 1 (->> labels (map :answer) distinct count))))
-         (filter (fn [[aid labels]]
-                   (= 0 (->> labels (filter :resolve) count))))
-         (apply concat)
-         (apply hash-map))))
-
-(defn project-include-label-resolved [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-label-resolved]
-    (->> (project-include-labels project-id)
-         (filter (fn [[aid labels]]
-                   (not= 0 (->> labels (filter :resolve) count))))
-         (apply concat)
-         (apply hash-map))))
 
 (defn project-user-inclusions [project-id]
   (with-project-cache
@@ -1329,6 +1160,9 @@
                  {})})
 
 ;; TODO: do this later maybe
+;;
+;; note: this was related to identifying categorical label values
+;;       using a uuid rather than directly by their text value
 #_
 (defn migrate-label-uuid-values [label-id]
   (with-transaction

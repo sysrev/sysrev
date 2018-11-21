@@ -21,5 +21,4 @@
   <logger name="com.google.javascript.jscomp" level="ERROR" />
   <logger name="org.openqa.selenium" level="WARN" />
   <logger name="sysrev.import.pubmed" level="WARN" />
-  <logger name="sysrev.custom.facts" level="WARN" />
 </configuration>

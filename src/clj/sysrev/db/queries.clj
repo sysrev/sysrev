@@ -190,28 +190,6 @@
       disabled? (merge-where exists)
       (not disabled?) (merge-where [:not exists]))))
 
-(defn filter-article-by-location [m source external-id]
-  (-> m
-      (merge-where
-       [:exists
-        (-> (select :*)
-            (from [:article-location :al-f])
-            (where [:and
-                    [:= :a.article-id :al-f.article-id]
-                    [:= :al-f.source source]
-                    [:= :al-f.external-id external-id]]))])))
-
-(defn select-article-by-external-id
-  [source external-id
-   fields & [{:keys [include-disabled? project-id]
-              :or {include-disabled? true
-                   project-id nil}
-              :as opts}]]
-  (-> (select-article-where
-       project-id true fields
-       {:include-disabled? include-disabled?})
-      (filter-article-by-location source external-id)))
-
 (defn query-article-by-id [article-id fields & [opts]]
   (-> (select-article-by-id article-id fields opts)
       do-query first))
@@ -256,14 +234,6 @@
     (merge-where [:= :label-id label-id])
     (not include-disabled?)
     (merge-where [:= :enabled true])))
-
-(defn delete-label-by-id [label-id]
-  (assert (or (in? [UUID String] (type label-id))
-              (integer? label-id)))
-  (-> (delete-from :label)
-      (where (if (integer? label-id)
-               [:= :label-id-local label-id]
-               [:= :label-id label-id]))))
 
 (defn select-label-where
   [project-id where-clause fields & [{:keys [include-disabled?]
@@ -368,10 +338,6 @@
 (defn query-project-by-id [project-id fields]
   (-> (select-project-where [:= :p.project-id project-id] fields)
       do-query first))
-
-(defn query-project-by-uuid [project-uuid fields & [conn]]
-  (-> (select-project-where [:= :p.project-uuid project-uuid] fields)
-      (do-query conn)))
 
 ;;;
 ;;; keywords

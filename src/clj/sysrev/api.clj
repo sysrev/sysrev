@@ -751,22 +751,27 @@
   [project-id]
   (db/with-project-cache
     project-id [:prediction-histogram]
-    (let [all-score-vals (->> (range 0 1 0.02) (mapv #(util/truncate-to 0.02 2 %)))
-          prediction-scores (->> (articles/project-prediction-scores project-id)
-                                 (mapv #(assoc % :rounded-score (->> (:val %) (util/truncate-to 0.02 2)))))
+    (let [all-score-vals (->> (range 0 1 0.02)
+                              (mapv #(util/round-to 0.02 2 % :op :floor)))
+          prediction-scores
+          (->> (articles/project-prediction-scores project-id)
+               (mapv #(assoc % :rounded-score
+                             (->> (:val %) (util/round-to 0.02 2 :op :floor)))))
           predictions-map (zipmap (mapv :article-id prediction-scores)
                                   (mapv :rounded-score prediction-scores))
           project-article-statuses (labels/project-article-statuses project-id)
-          reviewed-articles-no-conflicts (->> project-article-statuses
-                                              (group-by :group-status)
-                                              ((fn [reviewed-articles]
-                                                 (concat
-                                                  (:consistent reviewed-articles)
-                                                  (:single reviewed-articles)
-                                                  (:resolved reviewed-articles)))))
-          unreviewed-articles (let [all-article-ids (set (mapv :article-id prediction-scores))
-                                    reviewed-article-ids (set (mapv :article-id project-article-statuses))]
-                                (clojure.set/difference all-article-ids reviewed-article-ids))
+          reviewed-articles-no-conflicts
+          (->> project-article-statuses
+               (group-by :group-status)
+               ((fn [reviewed-articles]
+                  (concat
+                   (:consistent reviewed-articles)
+                   (:single reviewed-articles)
+                   (:resolved reviewed-articles)))))
+          unreviewed-articles
+          (let [all-article-ids (set (mapv :article-id prediction-scores))
+                reviewed-article-ids (set (mapv :article-id project-article-statuses))]
+            (clojure.set/difference all-article-ids reviewed-article-ids))
           get-rounded-score-fn (fn [article-id]
                                  (get predictions-map article-id))
           reviewed-articles-scores (mapv #(assoc % :rounded-score
@@ -825,8 +830,8 @@
   "Returns the annotations for string using a hash wrapper"
   [string]
   (let [hash (util/string->md5-hash (if (string? string)
-                         string
-                         (pr-str string)))
+                                      string
+                                      (pr-str string)))
         _ (swap! annotations-atom assoc hash string)
         annotations (db-annotations-by-hash! hash)]
     (swap! annotations-atom dissoc hash)

@@ -42,20 +42,6 @@
       (where [:= :id compensation-id])
       do-execute))
 
-(defn delete-compensation-by-amount [project-id amount]
-  (delete-compensation-by-id
-   project-id
-   (-> (select :*)
-       (from [:compensation_project :cp])
-       (join [:compensation :c]
-             [:= :c.id :cp.compensation_id])
-       (where [:and
-               [:= :cp.project_id project-id]])
-       do-query
-       (->> (filterv #(= (get-in % [:rate :amount]) amount)))
-       first
-       :id)))
-
 (defn delete-project-compensations [project-id]
   (mapv #(delete-compensation-by-id project-id %)
         (-> (select :compensation-id)

@@ -8,7 +8,6 @@
         sysrev.db.labels
         sysrev.db.project
         sysrev.db.migration
-        sysrev.db.transfer
         sysrev.db.export
         sysrev.db.files
         sysrev.db.sources
@@ -40,7 +39,6 @@
         sysrev.web.blog
         sysrev.mail.core
         sysrev.custom.immuno
-        sysrev.custom.facts
         sysrev.custom.ebtc
         sysrev.custom.insilica
         sysrev.misc

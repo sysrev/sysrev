@@ -13,8 +13,7 @@
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
 (def all-source-types
-  [:pubmed :pmid-vector :pmid-file :endnote-xml :pdf-zip
-   :legacy :custom])
+  [:pubmed :pmid-vector :pmid-file :endnote-xml :pdf-zip :legacy :custom])
 
 (defn source-id->project-id
   [source-id]

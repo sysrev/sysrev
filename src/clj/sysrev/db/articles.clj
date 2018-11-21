@@ -240,17 +240,6 @@
       do-query
       first))
 
-(defn flag-project-articles-by-uuid
-  [project-id article-uuids flag-name disable? & [meta]]
-  (doseq [article-uuid article-uuids]
-    (let [{:keys [article-id]}
-          (find-project-article-by-uuid
-           project-id article-uuid :fields [:a.article-id])]
-      (if (nil? article-id)
-        (log/warn (format "article not found: %s" article-uuid))
-        (set-article-flag
-         article-id flag-name disable? meta)))))
-
 (defn to-article
   "Queries by id argument or returns article map argument unmodified."
   [article-or-id]

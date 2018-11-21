@@ -168,6 +168,7 @@
         file (some-> to-file make-out-file)]
     (article-ids-to-endnote-xml article-ids filename :file file)))
 
+;; TODO: add export functionality in web Articles interface, delete this
 (defn project-included-to-endnote-xml
   [project-id & {:keys [to-file]}]
   (let [filename (str "Sysrev_Included_" project-id "_" (util/today-string))

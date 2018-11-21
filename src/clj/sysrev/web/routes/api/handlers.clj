@@ -13,7 +13,6 @@
             [sysrev.db.sources :as sources]
             [sysrev.predict.core :as predict]
             [sysrev.import.pubmed :as pubmed]
-            [sysrev.custom.facts :as facts]
             [sysrev.web.app :refer
              [current-user-id active-project make-error-response]]
             [sysrev.util :refer

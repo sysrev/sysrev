@@ -159,34 +159,6 @@
           first
           :project-id))))
 
-(defn project-active-semantic-classes
-  "Get the semantic classes associated annotations that are active"
-  [project-id]
-  (with-transaction
-    (let [maybe-empty (fn [coll]
-                        (if (empty? coll)
-                          '(nil)
-                          coll))
-          article-ids (map :article-id (-> (select :aa.article-id)
-                                           (from [:annotation_article :aa])
-                                           (join [:article :a] [:= :aa.article-id :a.article-id])
-                                           (where [:= :a.project-id 728])
-                                           do-query))
-          annotation-ids (map :annotation-id (-> (select :annotation-id)
-                                                 (from :annotation_article)
-                                                 (where [:in :article_id (maybe-empty article-ids)])
-                                                 do-query))
-          semantic-class-ids (map :semantic-class-id
-                                  (-> (select :semantic-class-id)
-                                      (from :annotation_semantic_class)
-                                      (where [:in :annotation_id (maybe-empty annotation-ids)])
-                                      do-query))
-          semantic-classes (-> (select :*)
-                               (from :semantic_class)
-                               (where [:in :id (maybe-empty semantic-class-ids)])
-                               do-query)]
-      semantic-classes)))
-
 (defn update-annotation!
   "Update an annotation, with an optional semantic-class. If semantic-class is empty (blank string) or nil, a semantic-class of null will be associated with the annotation"
   [annotation-id annotation & [semantic-class]]

@@ -169,18 +169,12 @@
     (finally
       (db/clear-query-cache))))
 
+;; TODO: implement email verification
 (defn verify-user-email [verify-code]
   (-> (sqlh/update :web-user)
       (sset {:verified true})
       (where [:= :verify-code verify-code])
       do-execute))
-
-(defn change-user-id [current-id new-id]
-  (-> (sqlh/update :web-user)
-      (sset {:user-id new-id})
-      (where [:= :user-id current-id])
-      do-execute)
-  (db/clear-query-cache))
 
 (defn create-password-reset-code [user-id]
   (-> (sqlh/update :web-user)
