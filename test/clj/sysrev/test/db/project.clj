@@ -9,7 +9,7 @@
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.pubmed :as pubmed]
             [sysrev.import.pubmed :as i-pubmed]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]
@@ -38,14 +38,14 @@ Corge")
         pmids (pubmed/get-all-pmids-for-query search-term)
         _ (i-pubmed/import-pmids-to-project-with-meta!
            pmids project-id
-           (sources/make-source-meta
+           (source/make-source-meta
             :pubmed {:search-term search-term
                      :search-count (count pmids)}))
         _ (api/import-articles-from-search (:project-id new-project)
                                            search-term
                                            "PubMed")
         article-count (count (:pmids (pubmed/get-search-query-response search-term 1)))
-        project-sources (sources/project-sources project-id)
+        project-sources (source/project-sources project-id)
         {:keys [source-id]}  (first (filter #(= (get-in % [:meta :search-term]) search-term) project-sources))
         source-article-ids (map :article-id (-> (select :article_id)
                                                 (from :article_source)
@@ -69,7 +69,7 @@ Corge")
                       do-query))))
     ;; When the project is deleted, entries in the article / project_source tables are deleted
     ;; as well
-    (sources/delete-source source-id)
+    (source/delete-source source-id)
     (is (= 0
            (count (-> (select :article_id)
                       (from :article_source)

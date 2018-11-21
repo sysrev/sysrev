@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.predict.core :as predict]
             [sysrev.import.pubmed :as pubmed]
             [sysrev.web.app :refer
@@ -122,7 +122,7 @@
         :else
         (do (pubmed/import-pmids-to-project-with-meta!
              pmids project-id
-             (sources/make-source-meta :pmid-vector {}))
+             (source/make-source-meta :pmid-vector {}))
             {:result
              {:success true
               :attempted (count pmids)

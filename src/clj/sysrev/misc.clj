@@ -7,7 +7,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db :refer [do-query do-execute to-sql-array]]
             [sysrev.db.queries :as q]
-            [sysrev.import.pubmed :as pubmed]
+            [sysrev.pubmed :as pubmed]
             [sysrev.util :as u]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 

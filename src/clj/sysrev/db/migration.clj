@@ -24,7 +24,7 @@
              [extract-article-location-entries parse-pmid-xml]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.stripe :as stripe])
   (:import java.util.UUID))
 
@@ -199,15 +199,15 @@
                                project-id [:a.article-id]
                                {:include-disabled? true})
                               (->> do-query (mapv :article-id)))
-              source-id (sources/create-source
+              source-id (source/create-source
                          project-id
-                         (sources/make-source-meta :legacy {}))]
+                         (source/make-source-meta :legacy {}))]
           (when (not-empty article-ids)
             (log/info (str "Creating " (count article-ids)
                            " article source entries for project #"
                            project-id)))
           (doseq [article-id article-ids]
-            (sources/add-article-to-source article-id source-id)))))))
+            (source/add-article-to-source article-id source-id)))))))
 
 (defn ensure-article-flag-disable-entries []
   (with-transaction

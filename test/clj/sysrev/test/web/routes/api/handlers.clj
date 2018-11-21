@@ -2,7 +2,7 @@
   (:require [clojure.data.json :as json]
             [clojure.test :refer :all]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.db.users :as users]
             [sysrev.pubmed :as pubmed]
             [sysrev.import.pubmed :as i-pubmed]
@@ -40,7 +40,7 @@
               (json/read-str :key-fn keyword))
           new-project-id (get-in create-project-response [:result :project :project-id])
           search-query-result (pubmed/get-search-query-response search-term 1)
-          meta (sources/make-source-meta
+          meta (source/make-source-meta
                 :pubmed {:search-term search-term
                          :search-count (count (:pmids search-query-result))})]
       ;; create a project for this user

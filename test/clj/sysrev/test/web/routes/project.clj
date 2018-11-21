@@ -1,7 +1,7 @@
 (ns sysrev.test.web.routes.project
   (:require [clojure.test :refer :all]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.db.users :as users]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
@@ -60,7 +60,7 @@
                           {:project-name test-project-name})
           new-project-id (get-in create-project-response [:result :project :project-id])
           search-query-result (pubmed/get-search-query-response search-term 1)
-          meta (sources/make-source-meta
+          meta (source/make-source-meta
                 :pubmed {:search-term search-term
                          :search-count (count (:pmids search-query-result))})]
       ;; create a project for this user
@@ -261,7 +261,7 @@
                                 {:project-id project-id})
                 [:result :success]))
     ;; the project source has labeled articles as well
-    (is (sources/source-has-labeled-articles? foo-bar-search-source-id))
+    (is (source/source-has-labeled-articles? foo-bar-search-source-id))
     ;; the project source can not be deleted
     (is (= "Source contains reviewed articles"
            (get-in (route-response :post "/api/delete-source"

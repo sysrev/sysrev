@@ -13,7 +13,7 @@
             [sysrev.db.project :as project]
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
             [sysrev.db.queries :as q]
@@ -143,7 +143,7 @@
                                        (assoc :enabled false))
                                    project-id)]
               ;; associate this article with a project-source-id
-              (sources/add-article-to-source article-id project-source-id)
+              (source/add-article-to-source article-id project-source-id)
               (when (not-empty (:locations article))
                 (-> (sqlh/insert-into :article-location)
                     (values
@@ -194,11 +194,11 @@
         (with-transaction
           ;; update source metadata
           (if success?
-            (sources/alter-source-meta
+            (source/alter-source-meta
              source-id #(assoc % :importing-articles? false))
-            (sources/fail-source-import source-id))
+            (source/fail-source-import source-id))
           ;; update the enabled flag for the articles
-          (sources/update-project-articles-enabled project-id))
+          (source/update-project-articles-enabled project-id))
         (when success?
           (predict-api/schedule-predict-update project-id)
           (importance/schedule-important-terms-update project-id))
@@ -213,11 +213,11 @@
       (with-transaction
         ;; update source metadata
         (if success?
-          (sources/alter-source-meta
+          (source/alter-source-meta
            source-id #(assoc % :importing-articles? false))
-          (sources/fail-source-import source-id))
+          (source/fail-source-import source-id))
         ;; update the enabled flag for the articles
-        (sources/update-project-articles-enabled project-id))
+        (source/update-project-articles-enabled project-id))
       (when success?
         (predict-api/schedule-predict-update project-id)
         (importance/schedule-important-terms-update project-id))
@@ -230,9 +230,9 @@
 (defn import-endnote-library!
   [file filename project-id & {:keys [use-future? threads]
                                :or {use-future? false threads 1}}]
-  (let [source-id (sources/create-source
+  (let [source-id (source/create-source
                    project-id
-                   (-> (sources/make-source-meta :endnote-xml {:filename filename})
+                   (-> (source/make-source-meta :endnote-xml {:filename filename})
                        (assoc :importing-articles? true)))
         do-import
         (fn []
@@ -246,7 +246,7 @@
                                "sysrev.import.endnote/import-endnote-library!"
                                (.getMessage e))]
                    (log/warn message)
-                   (sources/fail-source-import source-id)
+                   (source/fail-source-import source-id)
                    (throw e)))))]
     (if use-future?
       (do (future (do-import))

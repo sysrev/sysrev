@@ -11,7 +11,7 @@
             [sysrev.db.articles :as articles]
             [sysrev.db.documents :as docs]
             [sysrev.db.labels :as labels]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.db.files :as files]
             [sysrev.db.article_list :as alist]
             [sysrev.db.annotations :as annotations]
@@ -99,7 +99,7 @@
                    (fstore/project-files project-id)
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
-                   (sources/project-sources project-id)
+                   (source/project-sources project-id)
                    (:result (api/important-terms project-id))
                    (try
                      (project/project-url-ids project-id)

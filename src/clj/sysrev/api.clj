@@ -23,7 +23,7 @@
             [sysrev.db.markdown :as markdown]
             [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as sources]
+            [sysrev.source.core :as source]
             [sysrev.db.users :as users]
             [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]
@@ -104,7 +104,7 @@
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
   [project-id search-term source & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (sources/project-sources project-id)
+  (let [project-sources (source/project-sources project-id)
         search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)
         pmids-count (:count (pubmed/get-search-query-response search-term 1)) ]
     (cond (> pmids-count max-import-articles)
@@ -121,7 +121,7 @@
                (= source "PubMed"))
           (try
             (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (sources/make-source-meta
+                  meta (source/make-source-meta
                         :pubmed {:search-term search-term
                                  :search-count (count pmids)})
                   success?
@@ -132,8 +132,8 @@
               (if success?
                 {:result {:success true}}
                 {:error {:message "Error during import (1)"}}))
-            (catch Throwable e
-              {:error {:message "Error during import (2)"}}))
+            #_ (catch Throwable e
+                 {:error {:message "Error during import (2)"}}))
 
           (not (empty? search-term-sources))
           {:result {:success true}}
@@ -153,7 +153,7 @@
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (sources/project-sources project-id)
+  (let [project-sources (source/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename)
                                  project-sources)]
     (try
@@ -173,7 +173,7 @@
               ;; there is no import going on for this filename
               (and (empty? filename-sources))
               (try
-                (let [meta (sources/make-source-meta :pmid-file {:filename filename})
+                (let [meta (source/make-source-meta :pmid-file {:filename filename})
                       success?
                       (i-pubmed/import-pmids-to-project-with-meta!
                        pmid-vector project-id meta
@@ -198,7 +198,7 @@
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
   (assert (integer? project-id))
-  (let [project-sources (sources/project-sources project-id)
+  (let [project-sources (source/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
       (cond (not (project/project-exists? project-id))
@@ -220,7 +220,7 @@
 (defn import-articles-from-pdf-zip-file
   "Import PDFs from pdf zip file. A pdf zip file is a file which contains pdfs. Each pdf will create its own article entry with the simply the name of the pdf as a title."
   [file filename project-id & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (sources/project-sources project-id)
+  (let [project-sources (source/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
       (cond (not (project/project-exists? project-id))
@@ -245,7 +245,7 @@
   [project-id]
   (if (project/project-exists? project-id)
     {:result {:success true
-              :sources (sources/project-sources project-id)}}
+              :sources (source/project-sources project-id)}}
     {:error {:status not-found
              :message (str "project-id " project-id  " not found")}}))
 
@@ -256,14 +256,14 @@
 (defn delete-source!
   "Delete a source with source-id by user-id."
   [source-id]
-  (cond (sources/source-has-labeled-articles? source-id)
+  (cond (source/source-has-labeled-articles? source-id)
         {:error {:status forbidden
                  :message "Source contains reviewed articles"}}
-        (not (sources/source-exists? source-id))
+        (not (source/source-exists? source-id))
         {:error {:status not-found
                  :message (str "source-id " source-id " does not exist")}}
-        :else (let [project-id (sources/source-id->project-id source-id)]
-                (sources/delete-source source-id)
+        :else (let [project-id (source/source-id->project-id source-id)]
+                (source/delete-source source-id)
                 (predict-api/schedule-predict-update project-id)
                 (importance/schedule-important-terms-update project-id)
                 {:result {:success true}})))
@@ -275,9 +275,9 @@
 (defn toggle-source
   "Toggle a source as being enabled or disabled."
   [source-id enabled?]
-  (if (sources/source-exists? source-id)
-    (let [project-id (sources/source-id->project-id source-id)]
-      (sources/toggle-source source-id enabled?)
+  (if (source/source-exists? source-id)
+    (let [project-id (source/source-id->project-id source-id)]
+      (source/toggle-source source-id enabled?)
       (predict-api/schedule-predict-update project-id)
       (importance/schedule-important-terms-update project-id)
       {:result {:success true}})

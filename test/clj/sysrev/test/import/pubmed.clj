@@ -11,7 +11,7 @@
             [sysrev.util :refer [parse-xml-str xml-find]]
             [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as sources]))
+            [sysrev.source.core :as source]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -69,7 +69,7 @@
     (let [result-count (fn [result] (-> result first :count))
           search-term "foo bar"
           pmids (:pmids (pubmed/get-search-query-response search-term 1))
-          meta (sources/make-source-meta :pubmed {:search-term search-term
+          meta (source/make-source-meta :pubmed {:search-term search-term
                                                   :search-count (count pmids)})
           new-project (project/create-project "test project")
           new-project-id (:project-id new-project)

@@ -10,8 +10,7 @@
         sysrev.db.migration
         sysrev.db.export
         sysrev.db.files
-        #_ sysrev.source.core
-        sysrev.db.sources
+        sysrev.source.core
         sysrev.db.article_list
         sysrev.db.annotations
         sysrev.cassandra
