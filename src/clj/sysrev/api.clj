@@ -758,11 +758,11 @@
   (db/with-project-cache
     project-id [:prediction-histogram]
     (let [all-score-vals (->> (range 0 1 0.02)
-                              (mapv #(util/round-to 0.02 2 % :op :floor)))
+                              (mapv #(util/round-to % 0.02 2 :op :floor)))
           prediction-scores
           (->> (articles/project-prediction-scores project-id)
                (mapv #(assoc % :rounded-score
-                             (->> (:val %) (util/round-to 0.02 2 :op :floor)))))
+                             (-> (:val %) (util/round-to 0.02 2 :op :floor)))))
           predictions-map (zipmap (mapv :article-id prediction-scores)
                                   (mapv :rounded-score prediction-scores))
           project-article-statuses (labels/project-article-statuses project-id)

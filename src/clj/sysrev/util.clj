@@ -201,7 +201,7 @@
 
   op controls which operation to use for the first round. Allowed
   values are [:round :floor :ceil]."
-  [interval precision d & {:keys [op] :or {op :round}}]
+  [d interval precision & {:keys [op] :or {op :round}}]
   (let [x (/ d interval)]
     (->> interval
          (* (case op
