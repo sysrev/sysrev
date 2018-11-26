@@ -50,7 +50,7 @@
   "Implements single-threaded import of articles from a new project-source.
   Returns true on success, false on failure.
   Catches all exceptions, indicating failure in return value."
-  [project-id source-id {:keys [article-refs get-articles] :as input}]
+  [project-id source-id {:keys [article-refs get-articles] :as impl}]
   (try
     (doseq [articles (->> (get-articles article-refs) (partition-all 10))]
       (try
@@ -89,9 +89,9 @@
   "Implements multi-threaded import of articles from a new project-source.
   Returns true on success, false on failure.
   Catches all exceptions, indicating failure in return value."
-  [project-id source-id {:keys [article-refs get-articles] :as input}
-   & {:keys [use-future? threads] :or {use-future? false threads 1}}]
-  (if (and use-future? (nil? *conn*))
+  [project-id source-id {:keys [article-refs get-articles] :as impl}
+   & {:keys [threads] :or {threads 1}}]
+  (if (and (>= threads 1) (nil? *conn*))
     (try
       (let [group-size (->> (quot (count article-refs) threads) (max 1))
             thread-groups (->> article-refs (partition-all group-size))
@@ -109,24 +109,43 @@
         (log/info "Error in import-source-articles:"
                   (.getMessage e))
         false))
-    (import-articles-impl project-id source-id input)))
+    (import-articles-impl project-id source-id impl)))
 
-(defn import-source
-  [project-id source-id {:keys [article-refs get-articles] :as input}
-   & {:keys [use-future? threads] :or {use-future? false threads 1}}]
-  (let [success? (import-source-articles
-                  project-id source-id input
-                  :use-future? use-future? :threads threads)]
-    (with-transaction
-      ;; update source metadata
-      (if success?
-        (s/alter-source-meta
-         source-id #(assoc % :importing-articles? false))
-        (s/fail-source-import source-id))
-      ;; update the enabled flag for the articles
-      (s/update-project-articles-enabled project-id))
-    ;; start threads for updates from api.insilica.co
-    (when success?
-      (predict-api/schedule-predict-update project-id)
-      (importance/schedule-important-terms-update project-id))
-    success?))
+(defn- after-source-import [project-id source-id success?]
+  (with-transaction
+    ;; update source metadata
+    (if success?
+      (s/alter-source-meta
+       source-id #(assoc % :importing-articles? false))
+      (s/fail-source-import source-id))
+    ;; update the enabled flag for the articles
+    (s/update-project-articles-enabled project-id))
+  ;; start threads for updates from api.insilica.co
+  (when success?
+    (predict-api/schedule-predict-update project-id)
+    (importance/schedule-important-terms-update project-id))
+  success?)
+
+(defn import-source-impl
+  [project-id source-meta {:keys [article-refs get-articles] :as impl}
+   & {:keys [use-future? threads] :or {use-future? true threads 1}}]
+  (let [source-id (s/create-source
+                   project-id (assoc source-meta :importing-articles? true))
+        do-import
+        (fn []
+          (->> (try (import-source-articles
+                     project-id source-id impl :threads threads)
+                    (catch Throwable e
+                      (log/warn "import-source-impl failed -" (.getMessage e))
+                      false))
+               (after-source-import project-id source-id)))]
+    {:source-id source-id
+     :import (if (and use-future? (nil? *conn*))
+               (future (do-import))
+               (do-import))}))
+
+(defmulti import-source (fn [project-id stype input options] stype))
+
+(defmethod import-source :default [project-id stype input options]
+  (throw (Exception. (format "import-source - invalid source key (%s)"
+                             (pr-str (-> input keys first))))))

@@ -2,13 +2,13 @@
   (:require [clojure.test :refer :all]
             [sysrev.db.project :as project]
             [sysrev.source.core :as source]
+            [sysrev.source.import :as import]
             [sysrev.db.users :as users]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :refer [test-login create-test-user]]
             [sysrev.test.web.routes.utils :refer [route-response-fn]]
             [sysrev.pubmed :as pubmed]
-            [sysrev.import.pubmed :as i-pubmed]
             [ring.mock.request :as mock]
             [sysrev.util :as util]))
 
@@ -69,8 +69,9 @@
       (is (= 0
              (project/project-article-count new-project-id)))
       ;; add articles to this project
-      (i-pubmed/import-pmids-to-project-with-meta!
-       (:pmids search-query-result) new-project-id meta)
+      (import/import-source
+       new-project-id :pubmed {:search-term search-term}
+       {:use-future? false :threads 1})
       ;; Does the new project have the correct amount of articles?
       ;; I would like a 'get-project' route
       ;;

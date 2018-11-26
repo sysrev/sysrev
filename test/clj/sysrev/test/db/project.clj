@@ -10,8 +10,8 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.source.core :as source]
+            [sysrev.source.import :as import]
             [sysrev.pubmed :as pubmed]
-            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture completes?]]
             [sysrev.test.db.core :refer [test-project-ids]]))
 
@@ -36,17 +36,15 @@ Corge")
         search-term "foo bar"
         ;; import articles to this project
         pmids (pubmed/get-all-pmids-for-query search-term)
-        _ (i-pubmed/import-pmids-to-project-with-meta!
-           pmids project-id
-           (source/make-source-meta
-            :pubmed {:search-term search-term
-                     :search-count (count pmids)}))
-        _ (api/import-articles-from-search (:project-id new-project)
-                                           search-term
-                                           "PubMed")
+        _ (import/import-source
+           project-id :pubmed {:search-term search-term}
+           {:use-future? false :threads 1})
         article-count (count (:pmids (pubmed/get-search-query-response search-term 1)))
         project-sources (source/project-sources project-id)
-        {:keys [source-id]}  (first (filter #(= (get-in % [:meta :search-term]) search-term) project-sources))
+        {:keys [source-id]}
+        (->> project-sources
+             (filter #(= (get-in % [:meta :search-term]) search-term))
+             first)
         source-article-ids (map :article-id (-> (select :article_id)
                                                 (from :article_source)
                                                 (where [:= :source_id source-id])

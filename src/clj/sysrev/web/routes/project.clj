@@ -176,11 +176,10 @@
   (POST "/api/import-articles/pubmed" request
         (wrap-authorize
          request {:roles ["admin"]}
-         (let [{:keys [search-term source]} (:body request)
+         (let [{:keys [search-term]} (:body request)
                project-id (active-project request)]
            (api/import-articles-from-search
-            project-id search-term source
-            :threads 3))))
+            project-id search-term))))
 
   (POST "/api/import-articles/pmid-file/:project-id" request
         (wrap-authorize
@@ -188,8 +187,7 @@
          (let [project-id (active-project request)
                {:keys [tempfile filename]} (get-in request [:params :file])]
            (api/import-articles-from-file
-            project-id tempfile filename
-            :threads 3))))
+            project-id tempfile filename))))
 
   (POST "/api/import-articles/endnote-xml/:project-id" request
         (wrap-authorize
@@ -205,8 +203,7 @@
          (let [project-id (active-project request)
                {:keys [tempfile filename]} (get-in request [:params :file])]
            (api/import-articles-from-pdf-zip-file
-            tempfile filename project-id
-            :threads 3))))
+            tempfile filename project-id))))
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request

@@ -16,7 +16,6 @@
         sysrev.cassandra
         sysrev.clone-project
         sysrev.files.stores
-        sysrev.import.pubmed
         sysrev.import.endnote
         sysrev.import.zip
         sysrev.export.endnote

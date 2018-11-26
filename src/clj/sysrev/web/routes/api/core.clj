@@ -9,7 +9,6 @@
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.import.pubmed :as pubmed]
             [sysrev.web.app :refer
              [current-user-id active-project make-error-response]]
             [sysrev.util :refer

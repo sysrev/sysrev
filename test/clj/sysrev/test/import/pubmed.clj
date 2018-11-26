@@ -7,11 +7,11 @@
             [sysrev.test.core :refer
              [default-fixture database-rollback-fixture full-tests?]]
             [sysrev.pubmed :as pubmed]
-            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.util :refer [parse-xml-str xml-find]]
             [sysrev.db.core :refer [*conn* active-db do-execute to-jsonb]]
             [sysrev.db.project :as project]
-            [sysrev.source.core :as source]))
+            [sysrev.source.core :as source]
+            [sysrev.source.import :as import]))
 
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
@@ -69,15 +69,12 @@
     (let [result-count (fn [result] (-> result first :count))
           search-term "foo bar"
           pmids (:pmids (pubmed/get-search-query-response search-term 1))
-          meta (source/make-source-meta :pubmed {:search-term search-term
-                                                  :search-count (count pmids)})
           new-project (project/create-project "test project")
-          new-project-id (:project-id new-project)
-          article-summaries (pubmed/get-pmids-summary pmids)]
+          new-project-id (:project-id new-project)]
       #_ (is (not (importing-articles? new-project-id)))
-      (i-pubmed/import-pmids-to-project-with-meta!
-       (pubmed/get-all-pmids-for-query search-term)
-       new-project-id meta)
+      (import/import-source new-project-id :pubmed
+                            {:search-term search-term}
+                            {:use-future? false :threads 1})
       #_ (is (not (importing-articles? new-project-id)))
     
       ;; Do we have the correct amount of PMIDS?

@@ -5,7 +5,6 @@
             [sysrev.source.core :as source]
             [sysrev.db.users :as users]
             [sysrev.pubmed :as pubmed]
-            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.web.core :refer [sysrev-handler]]
             [sysrev.test.core :refer [default-fixture database-rollback-fixture]]
             [sysrev.test.browser.core :refer [test-login create-test-user]]
@@ -46,20 +45,4 @@
       ;; create a project for this user
       (is (get-in create-project-response [:result :success]))
       ;; get the article count, should be 0
-      (is (= 0
-             (project/project-article-count new-project-id)))
-      ;; add articles to this project
-      (i-pubmed/import-pmids-to-project-with-meta! (:pmids search-query-result) new-project-id meta)
-      ;; Does the new project have the correct amount of articles?
-      ;; I would like a 'get-project' route
-      ;; delete this project
-      #_ (is (-> (handler
-                  (-> (mock/request :post "/web-api/delete-project")
-                      (mock/body (json/write-str
-                                  {:project-id new-project-id
-                                   :api-token web-api-token}))
-                      (mock/header "Content-Type" "application/json")))
-                 :body
-                 (json/read-str :key-fn keyword)
-                 :result
-                 :success)))))
+      (is (= 0 (project/project-article-count new-project-id))))))

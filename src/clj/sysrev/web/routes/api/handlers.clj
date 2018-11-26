@@ -11,8 +11,8 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.source.core :as source]
+            [sysrev.source.import :as import]
             [sysrev.predict.core :as predict]
-            [sysrev.import.pubmed :as pubmed]
             [sysrev.web.app :refer
              [current-user-id active-project make-error-response]]
             [sysrev.util :refer
@@ -120,14 +120,16 @@
         (make-error-response
          500 :api "pmids must be an array of integers")
         :else
-        (do (pubmed/import-pmids-to-project-with-meta!
-             pmids project-id
-             (source/make-source-meta :pmid-vector {}))
+        (let [{:keys [error]} (import/import-source
+                               project-id :pmid-vector {:pmids pmids}
+                               {:use-future? false :threads 3})]
+          (if error
+            {:error {:message error}}
             {:result
              {:success true
               :attempted (count pmids)
               :project-articles
-              (project/project-article-count project-id)}})))))
+              (project/project-article-count project-id)}}))))))
 
 ;; outdated, doesn't handle sources, disabled
 #_

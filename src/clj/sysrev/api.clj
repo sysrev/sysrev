@@ -24,11 +24,13 @@
             [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
             [sysrev.source.core :as source]
+            [sysrev.source.import :as import]
+            [sysrev.source.pmid :as src-pmid]
+            sysrev.source.all
             [sysrev.db.users :as users]
             [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
-            [sysrev.import.pubmed :as i-pubmed]
             [sysrev.import.zip :as zip]
             [sysrev.paypal :as paypal]
             [sysrev.stripe :as stripe]
@@ -103,96 +105,30 @@
   cannot have multiple 'foo bar' searches for one project over
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
-  [project-id search-term source & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (source/project-sources project-id)
-        search-term-sources (filter #(= (get-in % [:meta :search-term]) search-term) project-sources)
-        pmids-count (:count (pubmed/get-search-query-response search-term 1)) ]
-    (cond (> pmids-count max-import-articles)
-          {:error {:message (format "Too many PMIDs from search (max %d; got %d)"
-                                    max-import-articles pmids-count)}}
-
-          (not (project/project-exists? project-id))
-          {:error {:status not-found
-                   :message "Project not found"}}
-
-          ;; there is no import going on for this search-term
-          ;; execute it
-          (and (empty? search-term-sources)
-               (= source "PubMed"))
-          (try
-            (let [pmids (pubmed/get-all-pmids-for-query search-term)
-                  meta (source/make-source-meta
-                        :pubmed {:search-term search-term
-                                 :search-count (count pmids)})
-                  success?
-                  (i-pubmed/import-pmids-to-project-with-meta!
-                   pmids project-id meta
-                   :use-future? true
-                   :threads threads)]
-              (if success?
-                {:result {:success true}}
-                {:error {:message "Error during import (1)"}}))
-            #_ (catch Throwable e
-                 {:error {:message "Error during import (2)"}}))
-
-          (not (empty? search-term-sources))
-          {:result {:success true}}
-
-          :else
-          {:error {:message "Unexpected event occurred"}})))
-
+  [project-id search-term & {:keys [threads] :or {threads 3}}]
+  (let [{:keys [error]} (import/import-source
+                         project-id :pubmed {:search-term search-term}
+                         {:threads threads})]
+    (if error
+      {:error {:message error}}
+      {:result {:success true}})))
+;;
 (s/def ::threads integer?)
-
 (s/fdef import-articles-from-search
         :args (s/cat :project-id int?
                      :search-term string?
-                     :source string?
                      :keys (s/keys* :opt-un [::threads]))
         :ret map?)
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
-  [project-id file filename & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (source/project-sources project-id)
-        filename-sources (filter #(= (get-in % [:meta :filename]) filename)
-                                 project-sources)]
-    (try
-      (let [pmid-vector (i-pubmed/parse-pmid-file file)]
-        (cond (and (sequential? pmid-vector)
-                   (> (count pmid-vector) max-import-articles))
-              {:error {:message (format "Too many PMIDs from file (max %d; got %d)"
-                                        max-import-articles (count pmid-vector))}}
-
-              (empty? pmid-vector)
-              {:error {:message "Error parsing file"}}
-
-              (not (project/project-exists? project-id))
-              {:error {:status not-found
-                       :message "Project not found"}}
-
-              ;; there is no import going on for this filename
-              (and (empty? filename-sources))
-              (try
-                (let [meta (source/make-source-meta :pmid-file {:filename filename})
-                      success?
-                      (i-pubmed/import-pmids-to-project-with-meta!
-                       pmid-vector project-id meta
-                       :use-future? true
-                       :threads threads)]
-                  (if success?
-                    {:result {:success true}}
-                    {:error {:message "Error during import (1)"}}))
-                (catch Throwable e
-                  {:error {:message "Error during import (2)"}}))
-
-              (not (empty? filename-sources))
-              {:result {:success true}}
-
-              :else
-              {:error {:message "Error (unexpected event)"}}))
-      (catch Throwable e
-        {:error {:message "Exception during import"
-                 :exception e}}))))
+  [project-id file filename & {:keys [threads] :or {threads 3}}]
+  (let [{:keys [error]} (import/import-source
+                         project-id :pmid-file {:file file :filename filename}
+                         {:threads threads})]
+    (if error
+      {:error {:message error}}
+      {:result {:success true}})))
 
 (defn import-articles-from-endnote-file
   "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"

@@ -19,4 +19,7 @@
   <logger name="com.zaxxer.hikari" level="WARN" />
   <logger name="org.apache.http.client" level="ERROR" />
   <logger name="com.google.javascript.jscomp" level="ERROR" />
+  <logger name="com.google.javascript.jscomp" level="ERROR" />
+  <logger name="com.datastax.driver.core" level="WARN" />
+  <logger name="com.datastax.driver.core.Cluster" level="INFO" />
 </configuration>
