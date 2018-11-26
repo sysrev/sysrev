@@ -196,37 +196,41 @@
                 "Available Funds: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
+                {:style {:text-align "right"}}
                 (accounting/cents->string available-funds)]]
               [:div.ui.row
                [:div.five.wide.column
                 "Outstanding Compensations: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
+                {:style {:text-align "right"}}
                 (accounting/cents->string compensation-outstanding)]]
               [:div.ui.row
                [:div.five.wide.column
                 "Outstanding Admin Fees: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
+                {:style {:text-align "right"}}
                 (accounting/cents->string admin-fees)]]
               [:div.ui.row
                [:div.five.wide.column
                 "Current Balance: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
+                {:style {:text-align "right"}}
                 (accounting/cents->string current-balance)]]]]]
-           (when (> pending-funds 0))
-           [:div.ui.segment
-            [:div
-             [:h4.ui.dividing.header "Awaiting Approval"]
-             [:div.ui.grid
-              [:div.ui.row
-               {:style {:color "red"}}
-               [:div.five.wide.column
-                "Funds Pending: "]
-               [:div.eight.wide.column]
-               [:div.three.wide.column
-                (accounting/cents->string pending-funds)]]]]]]))
+           (when (> pending-funds 0)
+             [:div.ui.segment
+              [:div
+               [:h4.ui.dividing.header "Awaiting Approval"]
+               [:div.ui.grid
+                [:div.ui.row
+                 {:style {:color "red"}}
+                 [:div.five.wide.column
+                  "Funds Pending: "]
+                 [:div.eight.wide.column]
+                 [:div.three.wide.column
+                  (accounting/cents->string pending-funds)]]]]])]))
       :get-initial-state
       (fn [this]
         (when-not (nil? @project-funds)

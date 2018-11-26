@@ -637,7 +637,7 @@
     {:result {:success true}}))
 
 ;; to manually add funds:
-;; (compensation/create-fund {:project-id <project-id> :user-id <project-admin> :transaction-id "manual-entry" :transaction-source "PayPal manual transfer" :amount <amount> :created (util/now-unix-seconds)})
+;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (UUID/randomUUID)) :transaction-source "Manual Entry" :amount 20000 :created (util/now-unix-seconds)})
 ;; in the database:
 ;; insert into project_fund (project_id,user_id,amount,created,transaction_id,transaction_source) values (106,1,100,(select extract(epoch from now())::int),'manual-entry','PayPal manual transfer');
 (defn pay-user!
