@@ -673,6 +673,11 @@
                                                       :created created})
              {:result "success"})))))))
 
+(defn payments-owed-user
+  "A list of {:project-id <int> :total-owed <int>} of payments owed by all projects to user-id that are compensating user-id"
+  [user-id]
+  {:result {:payments-owed (compensation/payments-owed-user user-id)}})
+
 (defn sync-labels
   "Given a map of labels, sync them with project-id."
   [project-id labels-map]

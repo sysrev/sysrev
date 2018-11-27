@@ -18,6 +18,7 @@
             [sysrev.web.routes.auth :refer [auth-routes]]
             [sysrev.web.routes.site :refer [site-routes]]
             [sysrev.web.routes.project :refer [project-routes]]
+            [sysrev.web.routes.user :refer [user-routes]]
             [sysrev.web.routes.api.core :refer
              [api-routes wrap-web-api]]
             sysrev.web.routes.api.handlers
@@ -32,7 +33,8 @@
   (defroutes app-routes
     auth-routes
     site-routes
-    project-routes))
+    project-routes
+    user-routes))
 
 (load-app-routes)
 

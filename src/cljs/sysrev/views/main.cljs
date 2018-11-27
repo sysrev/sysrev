@@ -35,6 +35,7 @@
             [sysrev.views.panels.project.export-data]
             [sysrev.views.panels.project.review]
             [sysrev.views.panels.project.support]
+            [sysrev.views.panels.user.compensation]
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
             [sysrev.views.review :as review]

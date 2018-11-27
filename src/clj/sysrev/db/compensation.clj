@@ -287,3 +287,23 @@
   (->> (compensation-owed-by-project project-id)
        (map :admin-fee)
        (apply +)))
+
+(defn projects-compensating-user
+  "Return a list of projects with compensations associated with user"
+  [user-id]
+  (-> (select :cp.project_id)
+      (modifiers :distinct)
+      (from [:compensation_user_period :cup])
+      (join [:compensation_project :cp]
+            [:= :cp.compensation_id :cup.compensation_id])
+      (where [:= :cup.web_user_id user-id])
+      do-query))
+
+(defn payments-owed-user
+  "Return a list of compensations associated with user"
+  [user-id]
+  (let [projects (map :project-id (projects-compensating-user user-id))
+        total-owed (map #(hash-map :project-id %
+                                   :total-owed (compensation-owed-to-user-by-project % user-id))
+                        projects)]
+    total-owed))
