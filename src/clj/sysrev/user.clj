@@ -56,7 +56,6 @@
             [clojure.java.jdbc :as j]
             [clojure.tools.logging :as log]
             [clojure.java.shell :as shell :refer [sh]]
-            [cljs.env :as env]
             [clj-time.core :as time]
             [clj-time.coerce :as tc]
             [clj-http.client :as http]

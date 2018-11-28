@@ -412,7 +412,7 @@
          :source-id)))
 ;;
 (s/fdef source-exists?
-        :args (s/cat :project-id int?)
+        :args (s/cat :source-id int?)
         :ret boolean?)
 
 (defn toggle-source

@@ -10,7 +10,7 @@
 
                  [com.cognitect/transit-cljs "0.8.256"]
                  [reagent "0.8.1"]
-                 [re-frame "0.10.5"]
+                 [re-frame "0.10.6"]
                  [day8.re-frame/http-fx "0.1.6"]
                  [secretary "1.2.3"]
                  [kibu/pushy "0.3.8"]
@@ -20,7 +20,7 @@
                  ;; stripe provided form components
                  [cljsjs/react-stripe-elements "1.4.1-1"]
                  [org.clojars.jeffwk/semantic-ui "2.4.0-0"]
-                 [cljsjs/semantic-ui-react "0.82.2-0"]
+                 [cljsjs/semantic-ui-react "0.83.0-0"]
                  [cljsjs/chartjs "2.7.0-0"]
                  [cljsjs/dropzone "5.5.0-1"]
                  [cljsjs/clipboard "1.6.1-1"]
@@ -31,8 +31,8 @@
                  [cljsjs/showdown "1.8.6-0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
-             "-Xms800m"
-             "-Xmx1500m"
+             "-Xms300m"
+             "-Xmx600m"
              "-server"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"]
@@ -86,7 +86,6 @@
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
   :profiles {:dev
-             {:dependencies [[binaryage/devtools "0.9.10"]]
-              :jvm-opts ["-Xms300m" "-Xmx600m"]}
+             {:dependencies [[binaryage/devtools "0.9.10"]]}
              :figwheel
              {}})

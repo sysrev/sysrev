@@ -1,12 +1,11 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [org.clojure/clojurescript "1.10.339"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.6.5"]
-                 [cheshire "5.5.0"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.9.7"]
+                 [cheshire "5.8.1"]
                  [commons-io/commons-io "2.6"]
-                 [commons-codec "1.10"]
+                 [commons-codec "1.11"]
 
 ;;; Logging
                  [org.clojure/tools.logging "0.4.1"]
@@ -22,27 +21,27 @@
 
 ;;; Data formats
                  [org.clojure/data.json "0.2.6"]
-                 [com.cognitect/transit-clj "0.8.309"]
+                 [com.cognitect/transit-clj "0.8.313"]
                  [org.clojure/data.xml "0.2.0-alpha3"]
                  [org.clojure/data.zip "0.1.2"]
                  ;; (clojure-csv/2.0.1 because 2.0.2 changes parsing behavior)
                  [clojure-csv/clojure-csv "2.0.1"]
 
 ;;; Postgres
-                 [org.clojure/java.jdbc "0.7.7"]
-                 [org.postgresql/postgresql "42.2.4"]
-                 [joda-time "2.10"]
-                 [clj-time "0.14.4" :exclusions [joda-time]]
+                 [org.clojure/java.jdbc "0.7.8"]
+                 [org.postgresql/postgresql "42.2.5"]
+                 [joda-time "2.10.1"]
+                 [clj-time "0.15.1" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
                  [hikari-cp "2.0.1"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
                                cheshire]]
-                 [honeysql "0.9.3"]
+                 [honeysql "0.9.4"]
                  [nilenso/honeysql-postgres "0.2.4"]
 
 ;;; Cassandra
-                 [cc.qbits/alia-all "4.2.2"]
+                 [cc.qbits/alia-all "4.3.0"]
                  [cc.qbits/hayt "4.0.2"]
 
 ;;; Web server
@@ -62,11 +61,12 @@
                  [clj-http "3.9.1"]
                  [com.velisco/clj-ftp "0.3.12"]
                  [com.draines/postal "2.0.2"] ;; email client
-                 [amazonica "0.3.130"
+                 [amazonica "0.3.134"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
                                org.slf4j/slf4j-api]]
+                 ;; =1.23.0 because version conflict in latest
                  [com.google.api-client/google-api-client "1.23.0"]
                  [abengoa/clj-stripe "1.0.4"]
                  [environ "1.1.0"]

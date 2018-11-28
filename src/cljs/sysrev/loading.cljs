@@ -39,7 +39,7 @@
   (let [counts (ajax-data-counts)]
     (any-loading-impl counts only ignore)))
 
-(defn- item-failed? [item]
+(defn item-failed? [item]
   (true? (get-in @(ajax-data-counts) [:failed item])))
 
 ;; Returns the time (ms) of 4th most recent fetch of item

@@ -224,7 +224,7 @@
        (-> (al/set-state context [:display-offset] 0)
            (al/set-state context [:active-article] nil))))))
 
-(defn- TextSearchInput [context]
+(defn TextSearchInput [context]
   (let [input (subscribe [::inputs context [:text-search]])
         set-input #(dispatch-sync [::al/set context [:inputs :text-search] %])
         curval @(subscribe [::al/get context [:text-search]])
@@ -954,7 +954,7 @@
            input-filters)))
        [NewFilterElement context]]]]))
 
-(defn- ArticleListFiltersColumn [context expanded?]
+(defn ArticleListFiltersColumn [context expanded?]
   [:div
    (if expanded?
      [FilterColumnElement context]

@@ -308,7 +308,7 @@
       [:i.left.floated.fitted {:class (str color " " iclass)}]
       [:i.left.floated.fitted {:class "grey content icon"}])))
 
-(defn- label-help-popup [label]
+(defn label-help-popup [label]
   (let [{:keys [category required question definition]} label
         criteria? (= category "inclusion criteria")
         required? required
