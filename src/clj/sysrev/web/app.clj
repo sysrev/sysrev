@@ -27,7 +27,7 @@
     (let [project-id (or (-> request :params :project-id)
                          (and (-> request :body map?)
                               (-> request :body :project-id))
-                         (-> request :session :identity :default-project-id))]
+                         #_ (-> request :session :identity :default-project-id))]
       (cond
         (integer? project-id) project-id
         (string? project-id)  (parse-integer project-id)

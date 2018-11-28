@@ -471,3 +471,33 @@
                       [:= :pn.project-note-id :an.project-note-id]))
     note-name (merge-where [:= :pn.name note-name])
     user-id (merge-where [:= :an.user-id user-id])))
+
+(defn delete-by-id
+  "Delete rows from table where id-field equals id-value.
+
+  alter-query (optional) is a function applied to modify the DELETE
+  query before executing."
+  [table id-field id-value & {:keys [alter-query]}]
+  (assert (s/valid? keyword? table))
+  (assert (s/valid? keyword? id-field))
+  (assert (not (nil? id-value)))
+  (-> (delete-from table)
+      (where [:= id-field id-value])
+      (#(if alter-query (alter-query %) %))
+      do-execute))
+
+(defn delete-multiple-by-id
+  "Delete rows from table where id-field equals any value in id-values.
+
+  alter-query (optional) is a function applied to modify the DELETE
+  query before executing."
+  [table id-field id-values & {:keys [alter-query]}]
+  (assert (s/valid? keyword? table))
+  (assert (s/valid? keyword? id-field))
+  (assert (s/valid? (s/nilable sequential?) id-values))
+  (doseq [id-group (partition-all 100 id-values)]
+    (when (not-empty id-group)
+      (-> (delete-from table)
+          (where [:in id-field (vec id-group)])
+          (#(if alter-query (alter-query %) %))
+          do-execute))))

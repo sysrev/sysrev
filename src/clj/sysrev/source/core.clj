@@ -123,9 +123,7 @@
                           (merge-where
                            [:!= :asrc.source-id source-id]))]]])
             do-execute)
-        (-> (delete-from :article-source)
-            (where [:= :source-id source-id])
-            do-execute))
+        (q/delete-by-id :article-source :source-id source-id))
       (finally
         (clear-project-cache (source-id->project-id source-id))))))
 
@@ -226,9 +224,7 @@
            ;; delete articles that aren't contained in another source
            (delete-source-articles source-id)
            ;; delete entries for project source
-           (-> (delete-from :project-source)
-               (where [:= :source-id source-id])
-               do-execute)
+           (q/delete-by-id :project-source :source-id source-id)
            ;; update the article enabled flags
            (update-project-articles-enabled project-id)
            true)

@@ -81,7 +81,6 @@
   []
   (create-uuids :project :project-id :project-uuid)
   (create-uuids :web-user :user-id :user-uuid)
-  (create-uuids :criteria :criteria-id :criteria-uuid)
   (create-uuids :article :article-id :article-uuid))
 
 (defn ensure-permissions-set

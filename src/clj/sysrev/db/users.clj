@@ -154,18 +154,14 @@
 (defn delete-user [user-id]
   (assert (integer? user-id))
   (try
-    (-> (delete-from :web-user)
-        (where [:= :user-id user-id])
-        do-execute)
+    (q/delete-by-id :web-user :user-id user-id)
     (finally
       (db/clear-query-cache))))
 
 (defn delete-user-by-email [email]
   (assert (string? email))
   (try
-    (-> (delete-from :web-user)
-        (where [:= :email email])
-        do-execute)
+    (q/delete-by-id :web-user :email email)
     (finally
       (db/clear-query-cache))))
 

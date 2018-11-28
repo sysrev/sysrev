@@ -725,9 +725,7 @@
 (defn delete-all-projects-with-name [project-name]
   (assert (string? project-name))
   (assert (not-empty project-name))
-  (-> (delete-from :project)
-      (where [:= :name project-name])
-      do-execute))
+  (q/delete-by-id :project :name project-name))
 
 (defn get-single-user-project-ids [user-id]
   (let [user-project-ids

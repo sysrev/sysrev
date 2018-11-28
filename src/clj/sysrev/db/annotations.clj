@@ -1,12 +1,12 @@
 (ns sysrev.db.annotations
-  (:require [honeysql.helpers :as sqlh :refer [insert-into values where select from delete-from sset
-                                               join left-join]]
+  (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [returning]]
             [clj-time.coerce :as tc]
             [sysrev.db.core :refer
              [do-query do-execute to-jsonb sql-now with-project-cache with-transaction]]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? map-values] :as sutil]))
+            [sysrev.shared.util :refer [in? map-values] :as sutil]
+            [sysrev.db.queries :as q]))
 
 (defn create-semantic-class!
   [definition]
@@ -136,12 +136,9 @@
                annotations))
         []))))
 
-
 (defn delete-annotation!
   [annotation-id]
-  (-> (delete-from :annotation)
-      (where [:= :id annotation-id])
-      do-execute))
+  (q/delete-by-id :annotation :id annotation-id))
 
 (defn annotation-id->project-id
   [annotation-id]

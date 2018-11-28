@@ -3,7 +3,8 @@
    [ring.middleware.session.store :refer [SessionStore]]
    [sysrev.db.core :refer [to-jsonb sql-now do-query do-execute]]
    [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]])
+   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+   [sysrev.db.queries :as q])
   (:import [java.util UUID]))
 
 (defn get-session [skey]
@@ -41,9 +42,7 @@
               do-execute)))
       key))
   (delete-session [_ key]
-    (-> (delete-from :session)
-        (where [:= :skey key])
-        do-execute)
+    (q/delete-by-id :session :skey key)
     nil))
 
 (defn sysrev-session-store []

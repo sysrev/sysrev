@@ -5,7 +5,7 @@
             [clj-time.core :as t]
             [clj-time.format :as f]
             [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer [insert-into values left-join join select from where sset modifiers delete-from order-by]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
             [sysrev.util :as util]))

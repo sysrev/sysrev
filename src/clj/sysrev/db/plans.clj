@@ -1,5 +1,5 @@
 (ns sysrev.db.plans
-  (:require [honeysql.helpers :refer [values from select where insert-into join]]
+  (:require [honeysql.helpers :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [upsert on-conflict do-update-set]]
             [sysrev.db.core :refer [do-query do-execute]]))
 

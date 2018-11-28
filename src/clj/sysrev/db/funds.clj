@@ -1,5 +1,5 @@
 (ns sysrev.db.funds
-  (:require [honeysql.helpers :as sqlh :refer [insert-into values select from where sset]]
+  (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
             [sysrev.util :as util]))
 
