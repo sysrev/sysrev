@@ -1,10 +1,21 @@
 (ns sysrev.web.routes.user
   (:require [compojure.core :refer :all]
-            [sysrev.api :as api]))
+            [sysrev.api :as api]
+            [sysrev.web.app :refer [current-user-id wrap-authorize]]))
+
+(defn user-authd?
+  [user-id]
+  (fn [request]
+    (boolean (= user-id (current-user-id request)))))
 
 (defroutes user-routes
-  (context "/api" []
-           (context "/user/:user-id" [user-id]
-                    (GET "/payments-owed" []
-                         (api/payments-owed-user (Integer/parseInt user-id)))
-                    )))
+  (context
+   "/api" []
+   (context
+    "/user/:user-id" [user-id]
+    (GET "/payments-owed" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (api/payments-owed-user (Integer/parseInt user-id)))))))
+

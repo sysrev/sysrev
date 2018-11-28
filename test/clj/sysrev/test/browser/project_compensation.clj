@@ -419,3 +419,11 @@
           ;; delete test users
           (doseq [{:keys [email]} test-users]
             (b/delete-test-user :email email)))))))
+
+
+;; (taxi/switch-to-frame {:xpath "//iframe[contains(@title,'ppbutton')]"})
+;; (taxi/click {:css "div.paypal-button-card-visa"})
+;; (taxi/find-window {:title "PayPal Checkout"})
+;; (taxi/switch-to-window (taxi/find-window {:title "PayPal Checkout"}))
+;; (taxi/input-text "input#cc" "123")
+;; (taxi/switch-to-window (taxi/find-window {:url "http://localhost:4061/p/117/compensations"}))
