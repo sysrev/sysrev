@@ -1,10 +1,11 @@
-(ns sysrev.views.panels.user-settings
+(ns sysrev.views.panels.user.main
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
+            [sysrev.views.panels.user.compensation :refer [PaymentsOwed]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :refer [StripeConnect]]
             [sysrev.util :refer [full-size?]]))
@@ -160,6 +161,5 @@
      #_[:div.ui.one.column.stackable.grid
       [:div.column
        [StripeConnect]]]
+     ;;[PaymentsOwed]
      [UserSupportSubscriptions]]))
-
-;; http://localhost:4061/user/settings?code=ac_Dqvg8XWDSp8lB1fyrCviNnusF5YBe19D&state=state

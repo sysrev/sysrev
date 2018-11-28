@@ -24,3 +24,7 @@
           :error-handler (fn [error-response]
                            (reset! retrieving-payments-owed? false)
                            (reset! error-message (get-in error-response [:response :error :message])))})))
+
+(defn PaymentsOwed
+  []
+  [:div.ui.segment [:h1 "You have payments!"]])
