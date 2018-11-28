@@ -178,32 +178,28 @@
          request {:roles ["admin"]}
          (let [{:keys [search-term]} (:body request)
                project-id (active-project request)]
-           (api/import-articles-from-search
-            project-id search-term))))
+           (api/import-articles-from-search project-id search-term))))
 
   (POST "/api/import-articles/pmid-file/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
                {:keys [tempfile filename]} (get-in request [:params :file])]
-           (api/import-articles-from-file
-            project-id tempfile filename))))
+           (api/import-articles-from-file project-id tempfile filename))))
 
   (POST "/api/import-articles/endnote-xml/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
                {:keys [tempfile filename]} (get-in request [:params :file])]
-           (api/import-articles-from-endnote-file
-            project-id tempfile filename))))
+           (api/import-articles-from-endnote-file project-id tempfile filename))))
 
   (POST "/api/import-articles/pdf-zip/:project-id" request
         (wrap-authorize
          request {:roles ["admin"]}
          (let [project-id (active-project request)
                {:keys [tempfile filename]} (get-in request [:params :file])]
-           (api/import-articles-from-pdf-zip-file
-            tempfile filename project-id))))
+           (api/import-articles-from-pdf-zip-file tempfile filename project-id))))
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request

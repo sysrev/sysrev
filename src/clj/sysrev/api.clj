@@ -26,7 +26,6 @@
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.source.pmid :as src-pmid]
-            sysrev.source.all
             [sysrev.db.users :as users]
             [sysrev.files.s3store :as s3store]
             [sysrev.import.endnote :as endnote]
@@ -63,7 +62,8 @@
                 :message (.getMessage e#)}})))
 
 (defn create-project-for-user!
-  "Create a new project for user-id using project-name and insert a minimum label, returning the project in a response map"
+  "Create a new project for user-id using project-name and insert a
+  minimum label, returning the project in a response map"
   [project-name user-id]
   (let [{:keys [project-id] :as project}
         (project/create-project project-name)]
@@ -81,7 +81,9 @@
         :ret ::sp/project)
 
 (defn delete-project!
-  "Delete a project with project-id by user-id. Checks to ensure the user is an admin of that project. If there are reviewed articles in the project, disables project instead of deleting it"
+  "Delete a project with project-id by user-id. Checks to ensure the
+  user is an admin of that project. If there are reviewed articles in
+  the project, disables project instead of deleting it"
   [project-id user-id]
   (assert (or (project/member-has-permission? project-id user-id "admin")
               (in? (:permissions (users/get-user-by-id user-id)) "admin")))
@@ -105,10 +107,9 @@
   cannot have multiple 'foo bar' searches for one project over
   multiple dates, but you are allowed multiple search terms for a
   project e.g. 'foo bar' and 'baz qux'"
-  [project-id search-term & {:keys [threads] :or {threads 3}}]
-  (let [{:keys [error]} (import/import-source
-                         project-id :pubmed {:search-term search-term}
-                         {:threads threads})]
+  [project-id search-term & {:keys [threads] :as options}]
+  (let [{:keys [error]} (import/import-pubmed-search
+                         project-id {:search-term search-term} options)]
     (if error
       {:error {:message error}}
       {:result {:success true}})))
@@ -121,17 +122,20 @@
         :ret map?)
 
 (defn import-articles-from-file
-  "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
-  [project-id file filename & {:keys [threads] :or {threads 3}}]
-  (let [{:keys [error]} (import/import-source
-                         project-id :pmid-file {:file file :filename filename}
-                         {:threads threads})]
+  "Import PMIDs into project-id from file. A file is a white-space/comma
+  separated file of PMIDs. Only one import from a file is allowed at
+  one time"
+  [project-id file filename & {:keys [threads] :as options}]
+  (let [{:keys [error]} (import/import-pmid-file
+                         project-id {:file file :filename filename} options)]
     (if error
       {:error {:message error}}
       {:result {:success true}})))
 
 (defn import-articles-from-endnote-file
-  "Import PMIDs into project-id from file. A file is a white-space/comma separated file of PMIDs. Only one import from a file is allowed at one time"
+  "Import PMIDs into project-id from file. A file is a white-space/comma
+  separated file of PMIDs. Only one import from a file is allowed at
+  one time"
   [project-id file filename & {:keys [threads] :or {threads 1}}]
   (assert (integer? project-id))
   (let [project-sources (source/project-sources project-id)
@@ -154,7 +158,9 @@
                  :exception e}}))))
 
 (defn import-articles-from-pdf-zip-file
-  "Import PDFs from pdf zip file. A pdf zip file is a file which contains pdfs. Each pdf will create its own article entry with the simply the name of the pdf as a title."
+  "Import PDFs from pdf zip file. A pdf zip file is a file which
+  contains pdfs. Each pdf will create its own article entry with the
+  simply the name of the pdf as a title."
   [file filename project-id & {:keys [threads] :or {threads 1}}]
   (let [project-sources (source/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
@@ -439,7 +445,11 @@
                   :rate rate}})))
 
 (defn project-compensation-for-users
-  "Return all compensations owed for project-id using start-date and end-date. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM)."
+  "Return all compensations owed for project-id using start-date and
+  end-date. start-date and end-date are of the form YYYY-MM-dd
+  e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of
+  the day (12:00:00AM) and end-date is until the end of the
+  day (11:59:59AM)."
   [project-id start-date end-date]
   (try {:result {:amount-owed (compensation/project-compensation-for-users project-id start-date end-date)}}
        (catch Throwable e
@@ -603,11 +613,11 @@
                                                 :created created})
              ;; deduct admin fee
              (funds/create-project-fund-entry! {:project-id project-id
-                                                      :user-id user-id
-                                                      :amount (- admin-fee)
-                                                      :transaction-id (str (UUID/randomUUID))
-                                                      :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
-                                                      :created created})
+                                                :user-id user-id
+                                                :amount (- admin-fee)
+                                                :transaction-id (str (UUID/randomUUID))
+                                                :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
+                                                :created created})
              {:result "success"})))))))
 
 (defn payments-owed-user
@@ -917,8 +927,8 @@
       {:result {:available? false}})))
 
 (defn article-pdfs
-  "Given an article-id, return a vector of maps that correspond to the files
-  associated with article-id"
+  "Given an article-id, return a vector of maps that correspond to the
+  files associated with article-id"
   [article-id]
   (let [pmcid (-> article-id
                   articles/article-pmcid)
@@ -1107,4 +1117,3 @@
   "Server Sanity Check"
   []
   {:test "passing"})
-

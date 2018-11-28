@@ -72,9 +72,9 @@
           new-project (project/create-project "test project")
           new-project-id (:project-id new-project)]
       #_ (is (not (importing-articles? new-project-id)))
-      (import/import-source new-project-id :pubmed
-                            {:search-term search-term}
-                            {:use-future? false :threads 1})
+      (import/import-pubmed-search
+       new-project-id {:search-term search-term}
+       {:use-future? false :threads 1})
       #_ (is (not (importing-articles? new-project-id)))
     
       ;; Do we have the correct amount of PMIDS?

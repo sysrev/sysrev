@@ -120,9 +120,8 @@
         (make-error-response
          500 :api "pmids must be an array of integers")
         :else
-        (let [{:keys [error]} (import/import-source
-                               project-id :pmid-vector {:pmids pmids}
-                               {:use-future? false :threads 3})]
+        (let [{:keys [error]} (import/import-pmid-vector
+                               project-id {:pmids pmids} {:use-future? false})]
           (if error
             {:error {:message error}}
             {:result

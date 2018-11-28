@@ -36,8 +36,8 @@ Corge")
         search-term "foo bar"
         ;; import articles to this project
         pmids (pubmed/get-all-pmids-for-query search-term)
-        _ (import/import-source
-           project-id :pubmed {:search-term search-term}
+        _ (import/import-pubmed-search
+           project-id {:search-term search-term}
            {:use-future? false :threads 1})
         article-count (count (:pmids (pubmed/get-search-query-response search-term 1)))
         project-sources (source/project-sources project-id)

@@ -134,7 +134,9 @@
         failed (->> (all-project-ns)
                     (mapv #(try
                              (do (require (ns-name %) :reload) nil)
-                             (catch Throwable e %)))
+                             (catch Throwable e
+                               (log/warn (ns-name %) "failed:" (.getMessage e))
+                               %)))
                     (remove nil?))]
     ;; Try again for any that failed
     ;; (may have depended on changes from another namespace)

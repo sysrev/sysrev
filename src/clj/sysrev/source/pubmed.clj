@@ -4,11 +4,11 @@
             [sysrev.pubmed :as pubmed]
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.source.core :as source]
-            [sysrev.source.import :as import :refer [import-source]]
+            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.shared.util :as su :refer [in?]]))
 
 (defn pubmed-get-articles [pmids]
-  (->> pmids sort
+  (->> (sort pmids)
        (partition-all (if pubmed/use-cassandra-pubmed? 300 40))
        (map #(if pubmed/use-cassandra-pubmed?
                (pubmed/fetch-pmid-entries-cassandra %)
@@ -24,8 +24,7 @@
        not-empty))
 
 (defmethod import-source :pubmed
-  [project-id stype {:keys [search-term]}
-   {:keys [use-future? threads] :or {use-future? true threads 1}}]
+  [stype project-id {:keys [search-term]} {:keys [use-future? threads] :as options}]
   (let [_ (assert (string? search-term))
         {:keys [max-import-articles]} config/env
         pmids-count (:count (pubmed/get-search-query-response search-term 1))]
@@ -42,7 +41,7 @@
             source-meta (source/make-source-meta
                          :pubmed {:search-term search-term
                                   :search-count (count pmids)})]
-        (import/import-source-impl
+        (import-source-impl
          project-id source-meta
          {:article-refs pmids, :get-articles pubmed-get-articles}
-         :use-future? use-future? :threads threads)))))
+         options)))))

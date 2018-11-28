@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [sysrev.config.core :as config]
             [sysrev.source.core :as source]
-            [sysrev.source.import :as import :refer [import-source]]
+            [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.source.pubmed :refer [pubmed-get-articles]]))
 
 (defn parse-pmid-file
@@ -28,8 +28,7 @@
        not-empty))
 
 (defmethod import-source :pmid-file
-  [project-id stype {:keys [file filename]}
-   {:keys [use-future? threads] :or {use-future? true threads 1}}]
+  [stype project-id {:keys [file filename]} {:keys [use-future? threads] :as options}]
   (let [{:keys [max-import-articles]} config/env
         pmids (parse-pmid-file file)]
     (cond
@@ -46,14 +45,13 @@
       :else
       (let [source-meta (source/make-source-meta
                          :pmid-file {:filename filename})]
-        (import/import-source-impl
+        (import-source-impl
          project-id source-meta
          {:article-refs pmids, :get-articles pubmed-get-articles}
-         :use-future? use-future? :threads threads)))))
+         options)))))
 
 (defmethod import-source :pmid-vector
-  [project-id stype {:keys [pmids]}
-   {:keys [use-future? threads] :or {use-future? true threads 1}}]
+  [stype project-id {:keys [pmids]} {:keys [use-future? threads] :as options}]
   (let [{:keys [max-import-articles]} config/env]
     (cond
       (empty? pmids)
@@ -65,7 +63,7 @@
 
       :else
       (let [source-meta (source/make-source-meta :pmid-vector {})]
-        (import/import-source-impl
+        (import-source-impl
          project-id source-meta
          {:article-refs pmids, :get-articles pubmed-get-articles}
-         :use-future? use-future? :threads threads)))))
+         options)))))
