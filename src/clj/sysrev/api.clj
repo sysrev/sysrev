@@ -28,7 +28,7 @@
             [sysrev.source.pmid :as src-pmid]
             [sysrev.db.users :as users]
             [sysrev.files.s3store :as s3store]
-            [sysrev.import.endnote :as endnote]
+            [sysrev.source.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
             [sysrev.import.zip :as zip]
             [sysrev.paypal :as paypal]
@@ -136,23 +136,22 @@
   "Import PMIDs into project-id from file. A file is a white-space/comma
   separated file of PMIDs. Only one import from a file is allowed at
   one time"
-  [project-id file filename & {:keys [threads] :or {threads 1}}]
+  [project-id file filename & {:keys [threads] :as options}]
   (assert (integer? project-id))
   (let [project-sources (source/project-sources project-id)
         filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
     (try
-      (cond (not (project/project-exists? project-id))
-            {:error {:status not-found
-                     :message "Project not found"}}
-
-            (not-empty filename-sources)
+      (cond (not-empty filename-sources)
             (do (log/warn "got (not-empty filename-sources): " filename-sources)
-                {:result {:success true}})
+                {:error {:message "Filename already imported to project"}})
 
             :else
-            (endnote/import-endnote-library!
-             file filename project-id
-             :use-future? true :threads 3))
+            (let [{:keys [error]}
+                  (import/import-endnote-xml
+                   project-id {:file file :filename filename} options)]
+              (if error
+                {:error {:message error}}
+                {:result {:success true}})))
       (catch Throwable e
         {:error {:message "Exception during import"
                  :exception e}}))))

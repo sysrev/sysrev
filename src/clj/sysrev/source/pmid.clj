@@ -47,7 +47,7 @@
                          :pmid-file {:filename filename})]
         (import-source-impl
          project-id source-meta
-         {:article-refs pmids, :get-articles pubmed-get-articles}
+         {:get-article-refs (constantly pmids), :get-articles pubmed-get-articles}
          options)))))
 
 (defmethod import-source :pmid-vector
@@ -65,5 +65,5 @@
       (let [source-meta (source/make-source-meta :pmid-vector {})]
         (import-source-impl
          project-id source-meta
-         {:article-refs pmids, :get-articles pubmed-get-articles}
+         {:get-article-refs (constantly pmids), :get-articles pubmed-get-articles}
          options)))))

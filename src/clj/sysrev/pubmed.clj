@@ -21,6 +21,15 @@
 
 (def e-util-api-key (:e-util-api-key config/env))
 
+(defn extract-wrapped-text [x]
+  (cond (string? x) x
+
+        (and (map? x) (contains? x :tag) (contains? x :content)
+             (-> x :content first string?))
+        (-> x :content first)
+
+        :else nil))
+
 (defn parse-pubmed-author-names [authors]
   (when-not (empty? authors)
     (->> authors
@@ -93,22 +102,13 @@
       (log/error "abstract-texts =" (pr-str abstract-texts))
       (throw e))))
 
-(defn extract-wrapped-text [x]
-  (cond (string? x) x
-
-        (and (map? x) (contains? x :tag) (contains? x :content)
-             (-> x :content first string?))
-        (-> x :content first)
-
-        :else nil))
-
 (defn parse-pmid-xml
   [pxml & {:keys [create-raw?] :or {create-raw? true}}]
   (try
     (let [title (->> [:MedlineCitation :Article :ArticleTitle]
-                     (xml-find-value pxml))
+                     (xml-find-value pxml) extract-wrapped-text)
           journal (->> [:MedlineCitation :Article :Journal :Title]
-                       (xml-find-value pxml))
+                       (xml-find-value pxml) extract-wrapped-text)
           abstract (->> [:MedlineCitation :Article :Abstract :AbstractText]
                         (xml-find pxml) parse-abstract)
           authors (->> [:MedlineCitation :Article :AuthorList :Author]

@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
             [sysrev.db.articles :as articles]
-            [sysrev.import.endnote :refer
+            [sysrev.source.endnote :refer
              [load-endnote-record parse-endnote-file]]
             [clojure.string :as str]))
 

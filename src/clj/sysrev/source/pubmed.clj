@@ -1,11 +1,8 @@
 (ns sysrev.source.pubmed
-  (:require [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.config.core :as config]
+  (:require [sysrev.config.core :as config]
             [sysrev.pubmed :as pubmed]
-            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.source.core :as source]
-            [sysrev.source.interface :refer [import-source import-source-impl]]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.source.interface :refer [import-source import-source-impl]]))
 
 (defn pubmed-get-articles [pmids]
   (->> (sort pmids)
@@ -37,11 +34,11 @@
                       max-import-articles pmids-count)}
 
       :else
-      (let [pmids (pubmed/get-all-pmids-for-query search-term)
-            source-meta (source/make-source-meta
+      (let [source-meta (source/make-source-meta
                          :pubmed {:search-term search-term
-                                  :search-count (count pmids)})]
+                                  :search-count pmids-count})]
         (import-source-impl
          project-id source-meta
-         {:article-refs pmids, :get-articles pubmed-get-articles}
+         {:get-article-refs #(pubmed/get-all-pmids-for-query search-term),
+          :get-articles pubmed-get-articles}
          options)))))

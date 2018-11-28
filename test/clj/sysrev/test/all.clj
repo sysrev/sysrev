@@ -2,7 +2,7 @@
   (:require sysrev.test.core
             sysrev.test.connect
             sysrev.test.profile
-            sysrev.test.import.pubmed
+            sysrev.test.import
             sysrev.test.db.core
             sysrev.test.db.project
             sysrev.test.db.labels

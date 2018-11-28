@@ -12,10 +12,10 @@
             [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
             [sysrev.db.migration :as migrate]
-            [sysrev.import.endnote :as endnote]
+            [sysrev.source.endnote :as endnote]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
-            [sysrev.shared.util :refer [in?]]
+            [sysrev.shared.util :refer [in? to-uuid]]
             [clojure.tools.logging :as log]))
 
 (defn copy-project-members [src-project-id dest-project-id &
@@ -270,6 +270,22 @@
         (copy-project-article-labels src-id dest-id))))
   (log/info "clone-subproject-articles done"))
 
+(defn load-endnote-doc-ids
+  "Parse an Endnote XML file mapping article-uuid values (custom5 field)
+  to document-id values."
+  [reader]
+  (->> (endnote/load-endnote-library-xml reader)
+       (map (fn [entry]
+              (let [entry
+                    (-> entry
+                        (select-keys [:custom5 :document-ids])
+                        (#(assoc % :article-uuid (to-uuid (:custom5 %))))
+                        (dissoc :custom5))]
+                [(:article-uuid entry)
+                 (:document-ids entry)])))
+       (apply concat)
+       (apply hash-map)))
+
 (defn clone-subproject-endnote
   "Clones a project from the subset of articles in `parent-id` project that
   are contained in Endnote XML export file `endnote-path`. Also imports
@@ -287,8 +303,7 @@
   fields `parent-project-id` and `parent-article-uuid`."
   [project-name parent-id endnote-path pdfs-path]
   (with-transaction
-    (let [article-doc-ids (-> endnote-path io/file io/reader
-                              endnote/load-endnote-doc-ids)
+    (let [article-doc-ids (-> endnote-path io/file io/reader load-endnote-doc-ids)
           article-uuids (keys article-doc-ids)
           child-id
           (:project-id (project/create-project

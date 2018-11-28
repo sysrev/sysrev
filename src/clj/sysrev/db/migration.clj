@@ -19,7 +19,7 @@
             [sysrev.db.labels :refer [add-label-entry-boolean]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
-            [sysrev.import.endnote :refer [load-endnote-record]]
+            [sysrev.source.endnote :refer [load-endnote-record]]
             [sysrev.pubmed :refer
              [extract-article-location-entries parse-pmid-xml]]
             [sysrev.db.queries :as q]

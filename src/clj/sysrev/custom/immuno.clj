@@ -6,7 +6,7 @@
   (:require [clojure.xml :as xml]
             [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
-            [sysrev.import.endnote :refer [parse-endnote-file]]
+            [sysrev.source.endnote :refer [parse-endnote-file]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query do-query-map do-execute]]

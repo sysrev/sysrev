@@ -100,7 +100,7 @@
       article-id)
     (catch Throwable e
       (throw (Exception.
-              (str "exception in sysrev.import.endnote/add-article "
+              (str "exception in sysrev.import.zip/add-article "
                    "article:" (:primary-title article) " "
                    "message: " (.getMessage e))))
       nil)))

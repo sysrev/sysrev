@@ -89,7 +89,7 @@
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
   [project-id source-id {:keys [article-refs get-articles] :as impl} threads]
-  (if (and (>= threads 1) (nil? *conn*))
+  (if (and (> threads 1) (nil? *conn*))
     (try
       (let [group-size (->> (quot (count article-refs) threads) (max 1))
             thread-groups (->> article-refs (partition-all group-size))
@@ -128,31 +128,34 @@
 (defn import-source-impl
   "Top-level function for running import of a new source with
   articles. This should only be called directly from an import-source
-  method implementation for a source type. article-refs is a sequence
-  of values that can be used to obtain an article; get-articles is a
-  function that accepts a sequence of values from article-refs and
-  returns their corresponding article values."
+  method implementation for a source type. get-article-refs is a
+  function returning a sequence of values (article-refs) that can be
+  used to obtain an article; get-articles is a function that accepts a
+  sequence of values from article-refs and returns their corresponding
+  article values."
   [project-id source-meta
-   {:keys [article-refs get-articles] :as impl}
+   {:keys [get-article-refs get-articles] :as impl}
    {:keys [use-future? threads] :or {use-future? true threads 4}}]
-  (let [source-id (s/create-source
+  (let [blocking? (boolean (or (not use-future?) *conn*))
+        source-id (s/create-source
                    project-id (assoc source-meta :importing-articles? true))
-        do-import
-        (fn []
-          (->> (try (import-source-articles project-id source-id impl threads)
-                    (catch Throwable e
-                      (log/warn "import-source-impl failed -" (.getMessage e))
-                      false))
-               (after-source-import project-id source-id)))]
+        do-import (fn []
+                    (->> (try (import-source-articles
+                               project-id source-id
+                               {:article-refs (get-article-refs)
+                                :get-articles get-articles}
+                               threads)
+                              (catch Throwable e
+                                (log/warn "import-source-impl failed -" (.getMessage e))
+                                false))
+                         (after-source-import project-id source-id)))]
     {:source-id source-id
-     :import (if (and use-future? (nil? *conn*))
-               (future (do-import))
-               (do-import))}))
+     :import (if blocking? (do-import) (future (do-import)))}))
 
 (defmulti import-source
   "Multimethod for import implementation per source type."
   (fn [stype project-id input options] stype))
 
 (defmethod import-source :default [stype project-id input options]
-  (throw (Exception. (format "import-source - invalid source key (%s)"
+  (throw (Exception. (format "import-source - invalid source type (%s)"
                              (pr-str stype)))))

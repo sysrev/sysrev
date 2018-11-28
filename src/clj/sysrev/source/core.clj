@@ -258,8 +258,8 @@
     0))
 ;;
 (s/fdef source-articles-with-labels
-        :args (s/cat :source-id int?)
-        :ret (s/nilable int?))
+  :args (s/cat :source-id int?)
+  :ret (s/nilable int?))
 
 (defn source-unique-articles-count
   "Return map of {source-id -> unique-article-count} for project sources"

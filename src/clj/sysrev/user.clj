@@ -16,7 +16,7 @@
         sysrev.cassandra
         sysrev.clone-project
         sysrev.files.stores
-        sysrev.import.endnote
+        sysrev.source.endnote
         sysrev.import.zip
         sysrev.export.endnote
         sysrev.paypal
