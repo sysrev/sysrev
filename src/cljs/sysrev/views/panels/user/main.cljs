@@ -161,5 +161,5 @@
      #_[:div.ui.one.column.stackable.grid
       [:div.column
        [StripeConnect]]]
-     ;;[PaymentsOwed]
+     [PaymentsOwed]
      [UserSupportSubscriptions]]))

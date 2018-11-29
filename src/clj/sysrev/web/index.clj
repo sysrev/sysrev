@@ -68,9 +68,19 @@
                  :src "https://apis.google.com/js/platform.js"}]
     [:script {:src "https://js.stripe.com/v3/"}]
     [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
-    [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]
-    [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
-    [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"}]
+    ;; issues with SRI: https://shkspr.mobi/blog/2018/11/major-sites-running-unauthenticated-javascript-on-their-payment-pages/
+    ;; to get sri from unpkg:
+    ;; see: https://github.com/unpkg/unpkg.com/issues/48
+    ;; https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js?meta
+    [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"
+              :integrity "sha384-rIKlQB9P0e4mbgFLuJ2xBYtb6H0hFqlAcuVOiVcoe5YOC4SW5I0+iekM7RIY8Lk0"
+              :crossorigin "anonymous"}]
+    [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"
+              :integrity "sha384-FVC5kR7Wzc7qaZ3O99Q7bSdrAYQJU4eDVt3icJnuHwfTMiM27DfvBF3nJuPQ1Ybe"
+              :crossorigin "anonymous"}]
+    [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"
+              :integrity "sha384-HENZbXzFIaIvM6Lf55V7Bt1g1e2I57cJ/ChnBirhGwF0drEO78qhs24L8mfC2Wh6"
+              :crossorigin "anonymous"}]
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")

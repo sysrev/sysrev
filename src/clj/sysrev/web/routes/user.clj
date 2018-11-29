@@ -6,7 +6,7 @@
 (defn user-authd?
   [user-id]
   (fn [request]
-    (boolean (= user-id (current-user-id request)))))
+    (boolean (= (read-string user-id) (current-user-id request)))))
 
 (defroutes user-routes
   (context
