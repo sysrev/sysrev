@@ -5,7 +5,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
-            [sysrev.views.panels.user.compensation :refer [PaymentsOwed]]
+            [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :refer [StripeConnect]]
             [sysrev.util :refer [full-size?]]))
@@ -162,4 +162,5 @@
       [:div.column
        [StripeConnect]]]
      [PaymentsOwed]
+     [PaymentsPaid]
      [UserSupportSubscriptions]]))

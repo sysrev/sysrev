@@ -17,5 +17,10 @@
          (wrap-authorize
           request
           {:authorize-fn (user-authd? user-id)}
-          (api/payments-owed-user (Integer/parseInt user-id)))))))
+          (api/payments-owed (Integer/parseInt user-id))))
+    (GET "/payments-paid" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (api/payments-paid (Integer/parseInt user-id)))))))
 

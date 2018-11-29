@@ -8,6 +8,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
+            [sysrev.db.funds :refer [transaction-source-descriptor]]
             [sysrev.util :as util]))
 
 (def admin-fee 0.20)
@@ -291,19 +292,35 @@
 (defn projects-compensating-user
   "Return a list of projects with compensations associated with user"
   [user-id]
-  (-> (select :cp.project_id)
+  (-> (select :cp.project_id [:p.name :project_name])
       (modifiers :distinct)
       (from [:compensation_user_period :cup])
       (join [:compensation_project :cp]
-            [:= :cp.compensation_id :cup.compensation_id])
+            [:= :cp.compensation_id :cup.compensation_id]
+            [:project :p]
+            [:= :p.project_id :cp.project_id])
       (where [:= :cup.web_user_id user-id])
       do-query))
 
 (defn payments-owed-user
   "Return a list of compensations associated with user"
   [user-id]
-  (let [projects (map :project-id (projects-compensating-user user-id))
-        total-owed (map #(hash-map :project-id %
-                                   :total-owed (compensation-owed-to-user-by-project % user-id))
+  (let [projects (projects-compensating-user user-id)
+        total-owed (map (fn [{:keys [project-id] :as payments-owed-map}]
+                          (assoc payments-owed-map
+                                 :total-owed (compensation-owed-to-user-by-project project-id user-id)))
                         projects)]
     total-owed))
+
+(defn payments-paid-user
+  "Return a list of payments made to user"
+  [user-id]
+  (-> (select [:p.name :project_name] :pf.project_id [:pf.amount :total_paid] :pf.created)
+      (from [:project_fund :pf])
+      (join [:project :p]
+            [:= :pf.project_id :p.project_id])
+      (where [:and
+              [:= :pf.user_id user-id]
+              [:< :pf.amount 0]
+              [:= :pf.transaction_source (:paypal-payout transaction-source-descriptor)]])
+      do-query))

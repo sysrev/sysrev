@@ -8,6 +8,7 @@
             [cljs-time.coerce :as tc]
             [cljs-time.format :as tformat]
             [cljsjs.jquery]
+            [cljsjs.moment]
             [sysrev.shared.util :refer [parse-integer]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -439,3 +440,9 @@
           (.css "max-height" (str label-height-em "em")))
       (-> (js/$ annotate-css)
           (.css "max-height" (str annotate-height-em "em"))))))
+
+(defn unix-epoch->date-string
+  [unix]
+  (-> unix
+      (js/moment.unix)
+      ($ format "YYYY-MM-DD HH:mm:ss")))

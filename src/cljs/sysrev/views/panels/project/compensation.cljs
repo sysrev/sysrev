@@ -7,7 +7,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
             [sysrev.charts.chartjs :as chartjs]
-            [sysrev.util :refer [vector->hash-map continuous-update-until]]
+            [sysrev.util :refer [vector->hash-map continuous-update-until unix-epoch->date-string]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.charts :as charts]
             [sysrev.paypal :as paypal :refer [AddFunds]]
@@ -110,7 +110,8 @@
   [state user-id compensation admin-fee]
   (let [project-id @(subscribe [:active-project-id])
         retrieving? (r/cursor state [:retrieving-pay? user-id])
-        pay-error (r/cursor state [:pay-error user-id])]
+        pay-error (r/cursor state [:pay-error user-id])
+        confirming? (r/cursor state [:confirming? user-id])]
     (reset! retrieving? true)
     (reset! pay-error nil)
     (POST "/api/pay-user"
@@ -122,6 +123,7 @@
            :handler (fn [response]
                       (reset! retrieving? false)
                       (compensation-owed! state)
+                      (reset! confirming? false)
                       (dispatch [:project/get-funds]))
            :error-handler (fn [error-response]
                             (reset! retrieving? false)
@@ -230,6 +232,7 @@
                   "Funds Pending: "]
                  [:div.eight.wide.column]
                  [:div.three.wide.column
+                  {:style {:text-align "right"}}
                   (accounting/cents->string pending-funds)]]]]])]))
       :get-initial-state
       (fn [this]
@@ -237,6 +240,8 @@
           (reset! project-funds nil))
         (dispatch [:project/get-funds]))
       :component-did-update (fn [this old-argv]
+                              ;; do the initial check
+                              (check-pending-transactions)
                               (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
                                 (continuous-update-until check-pending-transactions
                                                          #(= @pending-funds 0)
@@ -416,11 +421,7 @@
 
 (defn CompensationSummary
   []
-  (let [compensation-owed (r/cursor state [:compensation-owed])
-        unix-epoch->date-string (fn [unix]
-                                  (-> unix
-                                      (js/moment.unix)
-                                      ($ format "YYYY-MM-DD HH:mm:ss")))]
+  (let [compensation-owed (r/cursor state [:compensation-owed])]
     (r/create-class
      {:reagent-render
       (fn [this]
