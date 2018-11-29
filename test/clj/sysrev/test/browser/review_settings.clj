@@ -4,6 +4,7 @@
             [clj-webdriver.taxi :as taxi]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
+            [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -18,8 +19,6 @@
       test-users (mapv #(str "user" % "@fake.com") [1 2 3])
       [user1 user2 user3] test-users
       project-name "Unlimited Reviews Test"
-      ;; This search term should find 3 articles, test will break if not
-      search-term "foo bar code"
       label-definitions
       [review/include-label-definition]
       review-articles
@@ -34,7 +33,7 @@
       (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
-      (pm/add-articles-from-search-term search-term)
+      (import/import-pmid-vector @project-id {:pmids [25706626 25215519 23790141]} {:use-future? false})
       (nav/go-project-route "/settings")
       (b/click "#unlimited-reviews_true")
       (b/click ".project-options button.save-changes")
