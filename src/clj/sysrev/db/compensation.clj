@@ -306,10 +306,11 @@
   "Return a list of compensations associated with user"
   [user-id]
   (let [projects (projects-compensating-user user-id)
-        total-owed (map (fn [{:keys [project-id] :as payments-owed-map}]
-                          (assoc payments-owed-map
-                                 :total-owed (compensation-owed-to-user-by-project project-id user-id)))
-                        projects)]
+        total-owed (->> projects
+                        (map (fn [{:keys [project-id] :as payments-owed-map}]
+                               (assoc payments-owed-map
+                                      :total-owed (compensation-owed-to-user-by-project project-id user-id))))
+                        (filter #(> (:total-owed %) 0)))]
     total-owed))
 
 (defn payments-paid-user
