@@ -637,20 +637,21 @@
                   :data processed-unreviewed-histogram
                   ;;(mapv (partial * 3) (into [] (range 1 (+ (count labels) 1))))
                   :backgroundColor (:orange colors)}))]
-    [:div.ui.segment
-     [:h4.ui.dividing.header "Prediction Histograms"]
-     [chartjs/bar
-      {:data {:labels labels
-              :datasets datasets}
-       :options (charts/wrap-default-options
-                 {:scales
-                  {:xAxes [{:stacked true
-                            :ticks {:fontColor font-color}
-                            :scaleLabel {:fontColor font-color}}]
-                   :yAxes [{:ticks {:fontColor font-color}
-                            :scaleLabel {:fontColor font-color}}]}
-                  :legend {:labels {:fontColor font-color}}})
-       :height 170}]]))
+    (when-not (empty? datasets)
+      [:div.ui.segment
+       [:h4.ui.dividing.header "Prediction Histograms"]
+       [chartjs/bar
+        {:data {:labels labels
+                :datasets datasets}
+         :options (charts/wrap-default-options
+                   {:scales
+                    {:xAxes [{:stacked true
+                              :ticks {:fontColor font-color}
+                              :scaleLabel {:fontColor font-color}}]
+                     :yAxes [{:ticks {:fontColor font-color}
+                              :scaleLabel {:fontColor font-color}}]}
+                    :legend {:labels {:fontColor font-color}}})
+         :height 170}]])))
 
 (defn PredictionHistogram []
   (when-let [project-id @(subscribe [:active-project-id])]
