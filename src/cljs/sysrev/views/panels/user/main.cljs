@@ -6,9 +6,10 @@
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
+            [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :refer [StripeConnect]]
-            [sysrev.util :refer [full-size?]]))
+            [sysrev.util :refer [full-size? get-url-path mobile?]]))
 
 (def ^:private panel [:user-settings])
 
@@ -150,17 +151,44 @@
           #(dispatch [:action [:user/delete-account user-id]])}
          "Delete Account"]]])))
 
+(defn UserContent
+  []
+  (let [current-path sysrev.base/active-route]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        [:div
+         [:nav
+          [:div.ui.top.attached.middle.aligned.segment.desktop
+           [:h4.ui.header.title-header "User Settings"]]
+          [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
+           {:class (str " " (if (mobile?) "tiny"))}
+           [:a {:key "#settings"
+                :class (cond-> "item "
+                         (= @current-path "/user/settings") (str "active "))
+                :href "/user/settings"}
+            "Settings"]
+           [:a {:key "#compensation"
+                :class (cond-> "item "
+                         (= @current-path "/user/settings/compensation")
+                         (str "active "))
+                :href "/user/settings/compensation"}
+            "Compensation"]]]
+         [:div#user-content
+          (condp = @current-path
+            "/user/settings"
+            [:div.ui.two.column.stackable.grid
+             [:div.column [user-options-box]]
+             [:div.column [user-dev-tools-box]]]
+            #_[:div.ui.one.column.stackable.grid
+               [:div.column
+                [StripeConnect]]]
+            "/user/settings/compensation"
+            [:div
+             [PaymentsOwed]
+             [PaymentsPaid]
+             [UserSupportSubscriptions]])]])})))
+
 (defmethod panel-content [:user-settings] []
   (fn [child]
-    [:div
-     [:div.ui.segment
-      [:h4 "User Settings"]]
-     [:div.ui.two.column.stackable.grid
-      [:div.column [user-options-box]]
-      [:div.column [user-dev-tools-box]]]
-     #_[:div.ui.one.column.stackable.grid
-      [:div.column
-       [StripeConnect]]]
-     [PaymentsOwed]
-     [PaymentsPaid]
-     [UserSupportSubscriptions]]))
+    [UserContent]))

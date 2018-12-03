@@ -6,7 +6,8 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [reagent.core :as r])
   (:require-macros [secretary.core :refer [defroute]]))
 
 (defonce sysrev-hostname "sysrev.com")
@@ -53,7 +54,7 @@
 
 (secretary/set-config! :prefix "")
 
-(defonce active-route (atom nil))
+(defonce active-route (r/atom nil))
 
 (defonce history
   (pushy/pushy

@@ -289,9 +289,8 @@
  (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:set-active-panel [:project :project :support]])))
 
-(sr-defroute
- user-settings "/user/settings" []
- (dispatch [:set-active-panel [:user-settings]]))
+(defroute "/user/*" {}
+  (dispatch [:set-active-panel [:user-settings]]))
 
 (defn- load-default-panels [db]
   (->> [[[]
@@ -358,7 +357,7 @@
          #(project-uri (:project-id %) "/support")]
 
         [[:user-settings]
-         "/user/settings"]]
+         "/user/*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))
