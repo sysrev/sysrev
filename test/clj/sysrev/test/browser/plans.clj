@@ -131,7 +131,7 @@
     (b/backspace-clear backspace-clear-length field)
     (b/input-text field cc-num)))
 
-(deftest-browser register-and-subscribe-to-paid-plans
+#_(deftest-browser register-and-subscribe-to-paid-plans
   (let [{:keys [email password]} b/test-login]
     (log/info "register-and-subscribe-to-paid-plans")
     ;; TODO: fix text input in Stripe payment form
