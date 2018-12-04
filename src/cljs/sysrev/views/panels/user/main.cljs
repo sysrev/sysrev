@@ -155,33 +155,40 @@
 (defn UserContent
   []
   (let [current-path sysrev.base/active-route
-        current-panel (subscribe [:active-panel])]
+        current-panel (subscribe [:active-panel])
+        prod? (= js/window.location.host "sysrev.com")
+        enable-billing? (not prod?)
+        enable-compensation? (not prod?)]
     (r/create-class
      {:reagent-render
       (fn [this]
         [:div
          [:nav
           [:div.ui.top.attached.middle.aligned.segment.desktop
-           [:h4.ui.header.title-header "Personal settings"]]
+           [:h4.ui.header.title-header "User Console"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
            [:a {:key "#settings"
-                :class (cond-> "item "
-                         (= @current-path "/user/settings") (str "active "))
+                :class (cond-> "item"
+                         (= @current-path "/user/settings") (str " active"))
                 :href "/user/settings"}
             "Settings"]
-           [:a {:key "#compensation"
-                :class (cond-> "item "
-                         (= @current-path "/user/settings/compensation")
-                         (str "active "))
-                :href "/user/settings/compensation"}
-            "Compensation"]
-           [:a {:key "#Billing"
-                :class (cond-> "item "
+           [:a {:key "#billing"
+                :class (cond-> "item"
                          (= @current-path "/user/settings/billing")
-                         (str "active "))
+                         (str " active")
+                         (not enable-billing?)
+                         (str " disabled"))
                 :href "/user/settings/billing"}
-            "Billing"]]]
+            "Billing"]
+           [:a {:key "#compensation"
+                :class (cond-> "item"
+                         (= @current-path "/user/settings/compensation")
+                         (str " active")
+                         (not enable-compensation?)
+                         (str " disabled"))
+                :href "/user/settings/compensation"}
+            "Compensation"]]]
          [:div#user-content
           (condp = @current-path
             "/user/settings"
@@ -191,13 +198,13 @@
             #_[:div.ui.one.column.stackable.grid
                [:div.column
                 [StripeConnect]]]
+            "/user/settings/billing"
+            [Plans]
             "/user/settings/compensation"
             [:div
              [PaymentsOwed]
              [PaymentsPaid]
              [UserSupportSubscriptions]]
-            "/user/settings/billing"
-            [Plans]
             ;; default before the active panel is loaded
             ;; and this component still exists
             [:div {:style {:display "none"}}])]])})))
