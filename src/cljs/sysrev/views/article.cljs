@@ -170,7 +170,9 @@
           [:h3.header {:style {:margin-top "0px"}}
            (when-not (or pdf-only? (empty? title))
              (if annotator-enabled?
-               title
+               [render-keywords
+                article-id @(subscribe [:article/title-render article-id])
+                {:label-class "large"}]
                [annotation/AnnotatedText
                 title annotations
                 (if (= context :review)
@@ -191,7 +193,7 @@
             ;; abstract, with annotations
             (when-not (empty? abstract)
               (if annotator-enabled?
-                [:div abstract]
+                [render-abstract article-id]
                 [annotation/AnnotatedText
                  abstract annotations
                  (when (= context :review)

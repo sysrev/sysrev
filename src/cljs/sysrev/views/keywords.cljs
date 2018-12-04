@@ -4,7 +4,7 @@
    [clojure.string :as str]
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [sysrev.views.components :refer [with-tooltip dangerous]]
-   [sysrev.util :refer [full-size?]]))
+   [sysrev.util :refer [full-size? nbsp]]))
 
 (defn- with-keyword-tooltip [content label-name label-value]
   [[with-tooltip content
@@ -33,7 +33,7 @@
   (let [{:keys [label-id label-value category] :as kw}
         (and keyword-id (get keywords keyword-id))]
     (if (nil? kw)
-      [(dangerous :span text)]
+      [(dangerous :span (if (empty? text) nbsp text))]
       (let [has-value? ((comp not nil?) label-value)
             label-name @(subscribe [:label/name label-id])
             enabled? @(subscribe [:label/enabled? label-id])
