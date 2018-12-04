@@ -169,7 +169,8 @@
               "article-content-tab"])]
           [:h3.header {:style {:margin-top "0px"}}
            (when-not (or pdf-only? (empty? title))
-             (if annotator-enabled?
+             (if true
+               #_ annotator-enabled?
                [render-keywords
                 article-id @(subscribe [:article/title-render article-id])
                 {:label-class "large"}]
@@ -192,7 +193,8 @@
             [pdf/ViewPDF {:pdf-url visible-url :entry entry}]
             ;; abstract, with annotations
             (when-not (empty? abstract)
-              (if annotator-enabled?
+              (if true
+                #_ annotator-enabled?
                 [render-abstract article-id]
                 [annotation/AnnotatedText
                  abstract annotations
