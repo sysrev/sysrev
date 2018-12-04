@@ -2,6 +2,7 @@
   (:require [clj-webdriver.taxi :as taxi]
             [clojure.string :as str]
             [clojure.test :refer :all]
+            [sysrev.db.core :as db]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
@@ -365,14 +366,18 @@
   [label-settings]
   (log/info "setting article labels")
   (nav/go-project-route "/review")
-  (Thread/sleep 50)
+  (Thread/sleep 200)
+  (when (test/remote-test?) (Thread/sleep 500))
   (mapv #(set-article-label %) label-settings)
-  (Thread/sleep 100)
+  (Thread/sleep 200)
+  (when (test/remote-test?) (Thread/sleep 500))
   (taxi/wait-until #(and (taxi/displayed? "button.save-labels")
                          (not (taxi/displayed? "button.save-labels.disabled")))
                    2000 25)
-  (b/click "button.save-labels")
-  (b/wait-until-loading-completes :pre-wait 200))
+  (b/click "button.save-labels" :delay 100)
+  (when (test/remote-test?) (Thread/sleep 500))
+  (b/wait-until-loading-completes :pre-wait 200)
+  (db/clear-query-cache))
 
 (defn randomly-set-article-labels
   "Given a vector of label-settings maps, set the labels for an article in the browser, randomly choosing from a set of values in {:definition {:all-values} or {:definition {:examples} ."

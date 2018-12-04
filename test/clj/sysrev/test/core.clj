@@ -48,6 +48,18 @@
 (defn set-selenium-config [raw-config]
   (reset! raw-selenium-config raw-config))
 
+(defn full-tests? []
+  (let [{:keys [sysrev-full-tests profile]} env]
+    (boolean
+     (or (= profile :dev)
+         (not (in? [nil "" "0" 0] sysrev-full-tests))))))
+
+(defn test-profile? []
+  (in? [:test :remote-test] (-> env :profile)))
+
+(defn remote-test? []
+  (= :remote-test (-> env :profile)))
+
 (defn test-db-shell-args [& [postgres-overrides]]
   (let [{:keys [dbname user host port]}
         (merge (:postgres env) postgres-overrides)]
@@ -208,17 +220,7 @@
   [pred]
   `(wait-until* ~(pr-str pred) ~pred))
 
-(defn full-tests? []
-  (let [{:keys [sysrev-full-tests profile]} env]
-    (boolean
-     (or (= profile :dev)
-         (not (in? [nil "" "0" 0] sysrev-full-tests))))))
 
-(defn test-profile? []
-  (in? [:test :remote-test] (-> env :profile)))
-
-(defn remote-test? []
-  (= :remote-test (-> env :profile)))
 
 (defn add-test-label [project-id entry-values]
   (let [add-label (case (:value-type entry-values)

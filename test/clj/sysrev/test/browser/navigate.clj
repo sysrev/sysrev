@@ -88,6 +88,7 @@
   (b/set-input-text "input[placeholder='Project Name']" project-name)
   (b/click (xpath "//button[text()='Create']"))
   (Thread/sleep 100)
+  (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']"
                   project-name)

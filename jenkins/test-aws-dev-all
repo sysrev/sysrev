@@ -5,4 +5,4 @@ rm -rf ./target
 
 SYSREV_FULL_TESTS=1
 testcmd1='lein test-aws-dev-all'
-$testcmd1 || $testcmd1
+$testcmd1 || (cat target/junit-all.xml && $testcmd1)
