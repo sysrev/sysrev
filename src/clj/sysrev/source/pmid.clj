@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.config.core :as config]
-            [sysrev.source.core :as source]
+            [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.source.pubmed :refer [pubmed-get-articles]]))
 
@@ -27,8 +27,14 @@
        (filter #(= (get-in % [:meta :filename]) filename))
        not-empty))
 
+(defmethod make-source-meta :pmid-file [_ {:keys [filename]}]
+  {:source "PMID file" :filename filename})
+
+(defmethod make-source-meta :pmid-vector [_ {:keys []}]
+  {:source "PMID vector"})
+
 (defmethod import-source :pmid-file
-  [stype project-id {:keys [file filename]} {:keys [use-future? threads] :as options}]
+  [stype project-id {:keys [file filename]} {:as options}]
   (let [{:keys [max-import-articles]} config/env
         pmids (parse-pmid-file file)]
     (cond
@@ -51,7 +57,7 @@
          options)))))
 
 (defmethod import-source :pmid-vector
-  [stype project-id {:keys [pmids]} {:keys [use-future? threads] :as options}]
+  [stype project-id {:keys [pmids]} {:as options}]
   (let [{:keys [max-import-articles]} config/env]
     (cond
       (empty? pmids)

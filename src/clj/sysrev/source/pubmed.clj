@@ -1,7 +1,7 @@
 (ns sysrev.source.pubmed
   (:require [sysrev.config.core :as config]
             [sysrev.pubmed :as pubmed]
-            [sysrev.source.core :as source]
+            [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 
 (defn pubmed-get-articles [pmids]
@@ -20,8 +20,13 @@
        (filter #(= (get-in % [:meta :search-term]) search-term))
        not-empty))
 
+(defmethod make-source-meta :pubmed [_ {:keys [search-term search-count]}]
+  {:source "PubMed search"
+   :search-term search-term
+   :search-count search-count})
+
 (defmethod import-source :pubmed
-  [stype project-id {:keys [search-term]} {:keys [use-future? threads] :as options}]
+  [stype project-id {:keys [search-term]} {:as options}]
   (let [_ (assert (string? search-term))
         {:keys [max-import-articles]} config/env
         pmids-count (:count (pubmed/get-search-query-response search-term 1))]

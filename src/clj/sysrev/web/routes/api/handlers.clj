@@ -99,7 +99,6 @@
           :articles (project/project-article-count project-id)
           :labels labels})))))
 
-;; note: there is no idempotency!
 (def-webapi
   :import-pmids :post
   {:required [:project-id :pmids]
@@ -111,7 +110,7 @@
               "On success, returns the project article count after completing import."]
              (str/join "\n"))}
   (fn [request]
-    (let [{:keys [api-token project-id pmids allow-answers] :as body}
+    (let [{:keys [api-token project-id pmids] :as body}
           (-> request :body)]
       (cond
         (or (not (seqable? pmids))
@@ -127,6 +126,49 @@
             {:result
              {:success true
               :attempted (count pmids)
+              :project-articles
+              (project/project-article-count project-id)}}))))))
+
+(def-webapi
+  :import-article-text :post
+  {:required [:project-id :articles]
+   :require-admin? true
+   :check-answers? true
+   :doc (->> ["articles: array of article maps"
+              ""
+              "Imports articles from manually provided values."
+              ""
+              "Required fields in article map:"
+              "  primary-title: string"
+              "  abstract: string"
+              ""
+              "Optional fields include:"
+              "  authors: vector of strings"
+              "  public-id: string (PMID value)"
+              ""
+              "On success, returns the project article count after completing import."]
+             (str/join "\n"))}
+  (fn [request]
+    (let [{:keys [api-token project-id articles] :as body}
+          (-> request :body)]
+      (cond
+        (or (not (seqable? articles))
+            (empty? articles)
+            (not (every? #(and (map? %)
+                               (-> % :primary-title string?)
+                               (-> % :abstract string?))
+                         articles)))
+        (make-error-response
+         500 :api (str "articles must be an array of maps"
+                       " with keys \"primary-title\" and \"abstract\""))
+        :else
+        (let [{:keys [error]} (import/import-article-text-manual
+                               project-id {:articles articles} {:use-future? false})]
+          (if error
+            {:error {:message error}}
+            {:result
+             {:success true
+              :attempted (count articles)
               :project-articles
               (project/project-article-count project-id)}}))))))
 

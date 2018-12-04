@@ -5,7 +5,7 @@
             [clojure.tools.logging :as log]
             [clojure.string :as str]
             [sysrev.config.core :as config]
-            [sysrev.source.core :as source]
+            [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :refer
              [xml-find xml-find-vector xml-find-vector parse-xml-str]]
@@ -90,8 +90,11 @@
   (->> (load-endnote-library-xml reader)
        (map #(dissoc % :custom4 :custom5 :rec-number))))
 
+(defmethod make-source-meta :endnote-xml [_ {:keys [filename]}]
+  {:source "EndNote file" :filename filename})
+
 (defmethod import-source :endnote-xml
-  [stype project-id {:keys [file filename]} {:keys [use-future? threads] :as options}]
+  [stype project-id {:keys [file filename]} {:as options}]
   (let [source-meta (source/make-source-meta :endnote-xml {:filename filename})]
     (import-source-impl
      project-id source-meta

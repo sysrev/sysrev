@@ -12,9 +12,6 @@
             [sysrev.db.articles :as a]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
-(def all-source-types
-  [:pubmed :pmid-vector :pmid-file :endnote-xml :pdf-zip :legacy :custom])
-
 (defn source-id->project-id
   [source-id]
   (-> (select :project-id)
@@ -47,29 +44,6 @@
 
 (defmethod make-source-meta :default [source-type values]
   (throw (Exception. "invalid source-type")))
-
-(defmethod make-source-meta :pubmed [_ {:keys [search-term search-count]}]
-  {:source "PubMed search"
-   :search-term search-term
-   :search-count search-count})
-
-(defmethod make-source-meta :pmid-vector [_ {:keys []}]
-  {:source "PMID vector"})
-
-(defmethod make-source-meta :pmid-file [_ {:keys [filename]}]
-  {:source "PMID file" :filename filename})
-
-(defmethod make-source-meta :endnote-xml [_ {:keys [filename]}]
-  {:source "EndNote file" :filename filename})
-
-(defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
-  {:source "PDF Zip file" :filename filename})
-
-(defmethod make-source-meta :legacy [_ {:keys []}]
-  {:source "legacy"})
-
-(defmethod make-source-meta :custom [_ {:keys [description]}]
-  {:source "Custom import" :custom description})
 
 (defn update-source-meta
   "Replace the metadata for source-id"

@@ -49,6 +49,28 @@
         (when user-id (users/delete-user user-id))
         (when project-id (project/delete-project project-id))))))
 
+(deftest test-import-article-text
+  (let [url (:url (get-selenium-config))
+        {:keys [user-id api-token]}
+        (create-test-user)
+        {:keys [project-id] :as project}
+        (project/create-project "test-import-article-text")]
+    (try
+      (let [response (webapi-post "import-article-text"
+                                  {:api-token api-token
+                                   :project-id project-id
+                                   :articles [{:primary-title "article 1"
+                                               :abstract "abstract text 1"}
+                                              {:primary-title "abstract 2"
+                                               :abstract "abstract text 2"}]}
+                                  :url url)]
+        (is (true? (-> response :result :success)))
+        (is (= 2 (-> response :result :attempted)))
+        (is (= 2 (-> response :result :project-articles))))
+      (finally
+        (when user-id (users/delete-user user-id))
+        (when project-id (project/delete-project project-id))))))
+
 #_
 (deftest test-copy-articles
   (let [url (:url (get-selenium-config))
