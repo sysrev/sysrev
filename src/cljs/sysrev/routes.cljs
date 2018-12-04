@@ -275,12 +275,6 @@
  (dispatch [:set-active-panel [:pubmed-search]]))
 
 (sr-defroute
- plans "/plans" []
- (dispatch [:reload [:plans]])
- (dispatch [:reload [:current-plan]])
- (dispatch [:set-active-panel [:plans]]))
-
-(sr-defroute
  payment "/payment" []
  (dispatch [:set-active-panel [:payment]]))
 
@@ -289,8 +283,12 @@
  (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:set-active-panel [:project :project :support]])))
 
-(defroute "/user/*" {}
+#_(defroute "/user/*" {}
   (dispatch [:set-active-panel [:user-settings]]))
+
+(sr-defroute
+ user-settings "/user/*" []
+ (dispatch [:set-active-panel [:user-settings]]))
 
 (defn- load-default-panels [db]
   (->> [[[]

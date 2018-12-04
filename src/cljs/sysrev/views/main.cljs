@@ -48,6 +48,11 @@
      [:h2 "route not found"]
      child]))
 
+(defmethod logged-out-content :logged-out []
+  [:div
+   [:h2 "You must be logged in to perform this action"]
+   [:a {:href "/login"} "Log In"]])
+
 (defmethod logged-out-content :default []
   nil)
 

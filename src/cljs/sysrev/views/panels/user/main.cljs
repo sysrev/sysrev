@@ -6,6 +6,7 @@
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
+            [sysrev.views.panels.user.billing :refer [Plans]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :refer [StripeConnect]]
@@ -153,14 +154,15 @@
 
 (defn UserContent
   []
-  (let [current-path sysrev.base/active-route]
+  (let [current-path sysrev.base/active-route
+        current-panel (subscribe [:active-panel])]
     (r/create-class
      {:reagent-render
       (fn [this]
         [:div
          [:nav
           [:div.ui.top.attached.middle.aligned.segment.desktop
-           [:h4.ui.header.title-header "User Settings"]]
+           [:h4.ui.header.title-header "Personal settings"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
            [:a {:key "#settings"
@@ -173,7 +175,13 @@
                          (= @current-path "/user/settings/compensation")
                          (str "active "))
                 :href "/user/settings/compensation"}
-            "Compensation"]]]
+            "Compensation"]
+           [:a {:key "#Billing"
+                :class (cond-> "item "
+                         (= @current-path "/user/settings/billing")
+                         (str "active "))
+                :href "/user/settings/billing"}
+            "Billing"]]]
          [:div#user-content
           (condp = @current-path
             "/user/settings"
@@ -187,7 +195,15 @@
             [:div
              [PaymentsOwed]
              [PaymentsPaid]
-             [UserSupportSubscriptions]])]])})))
+             [UserSupportSubscriptions]]
+            "/user/settings/billing"
+            [Plans]
+            ;; default before the active panel is loaded
+            ;; and this component still exists
+            [:div {:style {:display "none"}}])]])})))
+
+(defmethod logged-out-content [:user-settings] []
+  (logged-out-content :logged-out))
 
 (defmethod panel-content [:user-settings] []
   (fn [child]

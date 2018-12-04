@@ -81,7 +81,7 @@
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email b/test-login)))
 
-(let [{:keys [email password]} b/test-login
+#_(let [{:keys [email password]} b/test-login
       project-name "Sysrev Support Project Test"
       project-id (atom nil)]
   ;; This is testing a feature that is not used anymore
