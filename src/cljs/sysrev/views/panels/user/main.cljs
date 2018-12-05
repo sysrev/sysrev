@@ -6,7 +6,7 @@
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
-            [sysrev.views.panels.user.billing :refer [Plans]]
+            [sysrev.views.panels.user.billing :refer [Billing]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.stripe :refer [StripeConnect]]
@@ -165,14 +165,14 @@
         [:div
          [:nav
           [:div.ui.top.attached.middle.aligned.segment.desktop
-           [:h4.ui.header.title-header "User Console"]]
+           [:h4.ui.header.title-header "Personal Settings"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
-           [:a {:key "#settings"
+           [:a {:key "#general"
                 :class (cond-> "item"
                          (= @current-path "/user/settings") (str " active"))
                 :href "/user/settings"}
-            "Settings"]
+            "General"]
            [:a {:key "#billing"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/billing")
@@ -198,13 +198,13 @@
             #_[:div.ui.one.column.stackable.grid
                [:div.column
                 [StripeConnect]]]
-            "/user/settings/billing"
-            [Plans]
             "/user/settings/compensation"
             [:div
              [PaymentsOwed]
              [PaymentsPaid]
              [UserSupportSubscriptions]]
+            "/user/settings/billing"
+            [Billing]
             ;; default before the active panel is loaded
             ;; and this component still exists
             [:div {:style {:display "none"}}])]])})))

@@ -1,26 +1,50 @@
 (ns sysrev.web.routes.user
-  (:require [compojure.core :refer :all]
+  (:require [compojure.coercions :refer [as-int]]
+            [compojure.core :refer :all]
             [sysrev.api :as api]
             [sysrev.web.app :refer [current-user-id wrap-authorize]]))
 
 (defn user-authd?
   [user-id]
   (fn [request]
-    (boolean (= (read-string user-id) (current-user-id request)))))
+    (boolean (=  user-id (current-user-id request)))))
 
 (defroutes user-routes
   (context
    "/api" []
    (context
-    "/user/:user-id" [user-id]
+    "/user/:user-id" [user-id :<< as-int]
     (GET "/payments-owed" request
          (wrap-authorize
           request
           {:authorize-fn (user-authd? user-id)}
-          (api/payments-owed (Integer/parseInt user-id))))
+          (api/payments-owed user-id)))
     (GET "/payments-paid" request
          (wrap-authorize
           request
           {:authorize-fn (user-authd? user-id)}
-          (api/payments-paid (Integer/parseInt user-id)))))))
-
+          (api/payments-paid user-id)))
+    (context "/stripe" []
+             (GET "/payment-source" request
+                  (wrap-authorize
+                   request
+                   {:authorize-fn (user-authd? user-id)}
+                   (api/payment-source? user-id))))
+    (POST "/stripe/payment-method" request
+          (wrap-authorize
+           request {:authorize-fn (user-authd? user-id)}
+           (let [{:keys [token]} (:body request)
+                 user-id (current-user-id request)]
+             (api/stripe-payment-method user-id))))
+    (GET "/current-plan" request
+         (wrap-authorize
+          request {:authorize-fn (user-authd? user-id)}
+          (api/current-plan user-id)))
+    (POST "/support-project" request
+          (wrap-authorize
+           request {:authorize-fn (user-authd? user-id)}
+           (let [{:keys [project-id amount frequency]} (:body request)]
+             (api/support-project user-id
+                                  project-id
+                                  amount
+                                  frequency)))))))

@@ -228,7 +228,7 @@
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
 
-(defn add-payment-method
+(defn stripe-payment-method
   "Using a stripe token, update the payment method for user"
   [user token]
   (let [stripe-response (stripe/update-customer-card!
@@ -247,7 +247,7 @@
                         (filter #(not= (:name %) "ProjectSupport"))
                         (mapv #(select-keys % [:name :amount :product])))}})
 
-(defn get-current-plan
+(defn current-plan
   "Get the plan for user-id"
   [user]
   {:result {:success true
@@ -372,6 +372,11 @@
       ;; return an error
       {:error {:status (:status finalize-response)
                :message (:error_description body)}})))
+
+(defn payment-source?
+  [user-id]
+  (let [user (users/get-user-by-id user-id)]
+    {:result {:payment-source (stripe/payment-source? user)}}))
 
 (defn user-has-stripe-account?
   "Does the user have a stripe account associated with the platform?"

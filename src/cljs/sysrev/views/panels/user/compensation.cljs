@@ -4,7 +4,8 @@
             [re-frame.core :refer [subscribe]]
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
-            [sysrev.util :refer [vector->hash-map continuous-update-until unix-epoch->date-string]]))
+            [sysrev.util :refer [vector->hash-map continuous-update-until unix-epoch->date-string]]
+            [sysrev.views.semantic :refer [Grid Row Column Button ListUI Item Segment Header]]))
 
 (def ^:private panel [:user :compensation])
 
@@ -47,14 +48,14 @@
   "Display a payment-owed map"
   [{:keys [total-owed project-id project-name]}]
   ^{:key (gensym project-id)}
-  [:div.item
-   [:div.ui.grid
-    [:div.ui.row
-     [:div.five.wide.column
+  [Item
+   [Grid
+    [Row
+     [Column {:width 5}
       project-name]
-     [:div.eight.wide.column]
-     [:div.three.wide.column
-      {:style {:text-align "right"}}
+     [Column {:width 8}]
+     [Column {:width 3
+              :align "right"}
       (accounting/cents->string total-owed)]]]])
 
 (defn PaymentsOwed
@@ -63,13 +64,16 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (when-not (empty? @payments-owed)
-          [:div.ui.segment
-           [:h4.ui.dividing.header "Payments Owed"]
-           [:div.ui.relaxed.divided.list
+        [Segment
+         [Header {:as "h4"
+                  :dividing true} "Payments Owed"]
+         (if-not (empty? @payments-owed)
+           [ListUI {:divided true
+                    :relaxed true}
             (doall (map
                     (partial PaymentOwed)
-                    @payments-owed))]]))
+                    @payments-owed))]
+           [:div [:h4 "You do not currently have any payments owed"]])])
       :component-did-mount
       (fn [this]
         (get-payments-owed! state))})))
@@ -78,15 +82,15 @@
   "Display a payment-owed map"
   [{:keys [total-paid project-id project-name created]}]
   ^{:key (gensym project-id)}
-  [:div.item
-   [:div.ui.grid
-    [:div.ui.row
-     [:div.five.wide.column
+  [Item
+   [Grid
+    [Row
+     [Column {:width 5}
       project-name]
-     [:div.eight.wide.column
+     [Column {:width 8}
       (str "Paid on: " (unix-epoch->date-string created)) ]
-     [:div.three.wide.column
-      {:style {:text-align "right"}}
+     [Column {:width 3
+              :align "right"}
       (accounting/cents->string total-paid)]]]])
 
 (defn PaymentsPaid
@@ -96,9 +100,12 @@
      {:reagent-render
       (fn [this]
         (when-not (empty? @payments-paid)
-          [:div.ui.segment
-           [:h4.ui.dividing.header "Payments Paid"]
-           [:div.ui.relaxed.divided.list
+          [Segment
+           [Header {:as "h4"
+                    :dividing true}
+            "Payments Paid"]
+           [ListUI {:divided true
+                    :relaxed true}
             (doall (map
                     (partial PaymentPaid)
                     @payments-paid))]]))

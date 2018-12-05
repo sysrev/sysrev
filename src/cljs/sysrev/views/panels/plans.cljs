@@ -202,3 +202,26 @@
              [ChangePlan])
            (when-not @changing-plan?
              [Plans])])))))
+
+(defn UserPlans
+  []
+  (ensure-state)
+  (stripe/ensure-state)
+  (with-loader [[:identity]
+                [:plans]
+                [:current-plan]] {}
+    (if (not @(subscribe [:self/logged-in?]))
+      [LoginRegisterPanel]
+      (let [changing-plan? (r/cursor state [:changing-plan?])
+            updating-card? (r/cursor state [:updating-card?])
+            need-card? (r/cursor stripe/state [:need-card?])
+            error-message (r/cursor state [:error-message])]
+        [:div.ui.segment
+         (when-not @changing-plan?
+           [UpdatePaymentButton])
+         [:br]
+         [:br]
+         (when @changing-plan?
+           [ChangePlan])
+         (when-not @changing-plan?
+           [Plans])]))))

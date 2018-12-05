@@ -519,32 +519,6 @@
             (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
               {:result {:project {:project-id project-id :name name}}})))))
 
-  (POST "/api/payment-method" request
-        (wrap-authorize
-         request {:logged-in true}
-         (let [{:keys [token]} (:body request)
-               user-id (current-user-id request)]
-           (api/add-payment-method (users/get-user-by-id user-id) token))))
-
-  (GET "/api/plans" request
-       (wrap-authorize
-        request {}
-        (api/plans)))
-
-  (GET "/api/current-plan" request
-       (wrap-authorize
-        request {:logged-in true}
-        (api/get-current-plan (users/get-user-by-id (current-user-id request)))))
-
-  (POST "/api/support-project" request
-        (wrap-authorize
-         request {:logged-in true}
-         (let [{:keys [project-id amount frequency]} (:body request)]
-           (api/support-project (users/get-user-by-id (current-user-id request))
-                                project-id
-                                amount
-                                frequency))))
-
   (POST "/api/paypal/add-funds" request
         (wrap-authorize
          request {:logged-in true}

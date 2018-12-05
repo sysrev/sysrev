@@ -43,6 +43,13 @@
   (execute-action
    (customers/get-customer (:stripe-id user))))
 
+(defn payment-source?
+  "Does the customer have payment source?"
+  [user]
+  (> (-> (get-customer user)
+         :sources
+         :total_count)
+     0))
 (defn update-customer-card!
   "Update a stripe customer with a stripe-token returned by stripe.js"
   [user stripe-token]
