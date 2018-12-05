@@ -64,7 +64,9 @@
                    (map-values #(do {:notes %}))))
           annotations (->> (ann/project-annotation-articles project-id)
                            (map-values #(do {:annotations %})))]
-      (->> (merge-with merge articles alabels anotes annotations)
+      (->> (-> (merge-with merge articles alabels anotes annotations)
+               ;; ensure all map keys are present in primary articles map
+               (select-keys (keys articles)))
            (map-values
             (fn [article]
               (merge article

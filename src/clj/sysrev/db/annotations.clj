@@ -269,7 +269,7 @@
                                tc/to-sql-time)
                :count (count entries)})))))
 
-(defn project-annotation-articles [project-id]
+(defn project-annotation-articles [project-id & {:keys [include-disabled?]}]
   (with-project-cache
     project-id [:annotations :articles]
     (-> (select :an.created :aa.article-id :sc.definition :au.user-id)
@@ -291,7 +291,10 @@
          ;; semantic class
          [:semantic_class :sc]
          [:= :sc.id :asc.semantic_class_id])
-        (where [:= :a.project_id project-id])
+        (where [:and
+                [:= :a.project_id project-id]
+                (if include-disabled? true
+                    [:= :a.enabled true])])
         (->> do-query
              (group-by :article-id)
              (map-values
