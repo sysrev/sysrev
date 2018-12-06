@@ -16,7 +16,7 @@
 ;; basics
 (def Segment (r/adapt-react-class (goog.object/get semantic-ui "Segment")))
 (def Header (r/adapt-react-class (goog.object/get semantic-ui "Header")))
-
+(def Icon (r/adapt-react-class (goog.object/get semantic-ui "Icon")))
 ;; forms
 (def Form (r/adapt-react-class (goog.object/get semantic-ui "Form")))
 (def FormButton (r/adapt-react-class

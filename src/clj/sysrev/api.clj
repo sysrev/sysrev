@@ -229,10 +229,10 @@
       :else (throw (util/should-never-happen-exception)))))
 
 (defn stripe-payment-method
-  "Using a stripe token, update the payment method for user"
-  [user token]
+  "Using a stripe token, update the payment method for user-id"
+  [user-id token]
   (let [stripe-response (stripe/update-customer-card!
-                         user
+                         (users/get-user-by-id user-id)
                          token)]
     (if (:error stripe-response)
       stripe-response
@@ -373,10 +373,9 @@
       {:error {:status (:status finalize-response)
                :message (:error_description body)}})))
 
-(defn payment-source?
+(defn stripe-default-source
   [user-id]
-  (let [user (users/get-user-by-id user-id)]
-    {:result {:payment-source (stripe/payment-source? user)}}))
+  {:result {:default-source (stripe/read-default-customer-source (users/get-user-by-id user-id))}})
 
 (defn user-has-stripe-account?
   "Does the user have a stripe account associated with the platform?"

@@ -25,17 +25,16 @@
           {:authorize-fn (user-authd? user-id)}
           (api/payments-paid user-id)))
     (context "/stripe" []
-             (GET "/payment-source" request
+             (GET "/default-source" request
                   (wrap-authorize
                    request
                    {:authorize-fn (user-authd? user-id)}
-                   (api/payment-source? user-id))))
-    (POST "/stripe/payment-method" request
-          (wrap-authorize
-           request {:authorize-fn (user-authd? user-id)}
-           (let [{:keys [token]} (:body request)
-                 user-id (current-user-id request)]
-             (api/stripe-payment-method user-id))))
+                   (api/stripe-default-source user-id)))
+             (POST "/payment-method" request
+                   (wrap-authorize
+                    request {:authorize-fn (user-authd? user-id)}
+                    (let [{:keys [token]} (:body request)]
+                      (api/stripe-payment-method user-id token)))))
     (GET "/current-plan" request
          (wrap-authorize
           request {:authorize-fn (user-authd? user-id)}

@@ -6,7 +6,7 @@
             [re-frame.core :refer [subscribe dispatch reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.nav :refer [nav-redirect get-url-params]]
+            [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
             [sysrev.views.semantic :refer [Button]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -14,6 +14,8 @@
 ;;           https://jsfiddle.net/g9rm5qkt/
 
 (def ^:private panel [:stripe])
+
+(def default-redirect-uri "/user/settings/billing")
 
 (def initial-state {:error-message nil
                     :need-card? false
@@ -58,7 +60,7 @@
    {}))
 
 (def-action :payments/stripe-token
-  :uri (fn [] "/api/payment-method")
+  :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id])  "/stripe/payment-method"))
   :content (fn [token]
              {:token token})
   :process
@@ -67,7 +69,7 @@
           ;; this is just in case it wasn't set
           ;; e.g. user went directly to /payment route
           calling-route (or (get-in db [:state :stripe :calling-route])
-                            [:payment])
+                            default-redirect-uri)
           need-card? (r/cursor state [:need-card?])]
       ;; don't need to ask for a card anymore
       ;;(dispatch [:stripe/set-need-card? false])
@@ -75,7 +77,10 @@
       ;; clear any error message that was present in plans
       ;;(dispatch [:plans/clear-error-message!])
       ;; go back to where this panel was called from
-      (dispatch [:navigate calling-route])
+      (if (= (type calling-route)
+             (type "string"))
+        (nav-scroll-top calling-route)
+        (dispatch [:navigate calling-route]))
       ;; empty map, just interested in causing side effects
       {}))
   :on-error

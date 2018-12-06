@@ -43,13 +43,20 @@
   (execute-action
    (customers/get-customer (:stripe-id user))))
 
-(defn payment-source?
-  "Does the customer have payment source?"
+(defn read-customer-sources
+  "Return the customer fund sources"
   [user]
-  (> (-> (get-customer user)
-         :sources
-         :total_count)
-     0))
+  (let [customer (get-customer user)
+        sources (:sources customer)
+        default-source (:default_source customer)]
+    (assoc sources :default-source default-source)))
+
+(defn read-default-customer-source
+  [user]
+  (let [customer-sources (read-customer-sources user)
+        default-source (:default-source customer-sources)]
+    (first (filter #(= (:id %) default-source) (:data customer-sources)))))
+
 (defn update-customer-card!
   "Update a stripe customer with a stripe-token returned by stripe.js"
   [user stripe-token]
