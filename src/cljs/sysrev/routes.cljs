@@ -274,10 +274,6 @@
  pubmed-search "/pubmed-search" []
  (dispatch [:set-active-panel [:pubmed-search]]))
 
-(sr-defroute
- payment "/payment" []
- (dispatch [:set-active-panel [:payment]]))
-
 (sr-defroute-project
  support "/support" [project-id]
  (let [project-id @(subscribe [:active-project-id])]
@@ -351,7 +347,7 @@
          "/pubmed-search"]
 
         [[:payment]
-         "/payment"]
+         "/user/payment"]
 
         [[:project :project :support]
          #(project-uri (:project-id %) "/support")]
