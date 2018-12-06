@@ -74,62 +74,6 @@
   [cents]
   (str (-> cents (/ 100) (.toFixed 2))))
 
-;; based on:
-;; https://codepen.io/caiosantossp/pen/vNazJy
-
-#_(defn Plan
-  "Props is:
-  {:name   <string>
-   :amount <integer> ; in USD cents"
-  []
-  (fn [{:keys [name amount product color]
-        :or {color "blue"}}]
-    (let [subscribed? (= product (:product @(r/cursor state [:current-plan])))
-          changing-plan? (r/cursor state [:changing-plan?])
-          selected-plan (r/cursor state [:selected-plan])
-          plans (r/cursor state [:plans])]
-      [:div {:class "column"}
-       [:div {:class "ui segments plan"}
-        [:div {:class (str "ui top attached segment inverted plan-title "
-                           color)}
-         [:span {:class "ui header"} name]]
-        [:div {:class "ui attached segment feature"}
-         [:div {:class "amount"}
-          (if (= 0 amount)
-            "Free"
-            (str "$" (cents->dollars amount))) ]]
-        [:div {:class "ui attached secondary segment feature"}
-         [:i.red.times.icon] "Item 1" ]
-        [:div {:class "ui attached segment feature"}
-         [:i.red.times.icon] "Item 2" ]
-        [:div {:class "ui attached secondary segment feature"}
-         [:i.red.times.icon] "Item 3" ]
-        [:div {:class (str "ui bottom attached button btn-plan "
-                           color
-                           (when subscribed?
-                             " disabled"))
-               :on-click (fn [e]
-                           ;; this button shouldn't be enabled
-                           ;; so this fn shouldn't run, but making
-                           ;; sure of that
-                           (when-not subscribed?
-                             (if (= amount 0)
-                               ;; this plan costs nothing, so no need to
-                               ;; get payment information
-                               (dispatch [:action [:subscribe-plan name]])
-                               ;; we need to get the user's payment
-                               (do
-                                 (.preventDefault e)
-                                 (reset! selected-plan
-                                         (first (filter #(= product
-                                                            (:product %))
-                                                        @plans)))
-                                 (reset! changing-plan? true)))))}
-         (if subscribed?
-           "Subscribed"
-           [:div
-            [:i {:class "cart icon"}]  "Select Plan"])]]])))
-
 (defn DowngradePlan []
   (let [plans (r/cursor state [:plans])
         default-source (subscribe [:billing/default-source])
@@ -199,21 +143,20 @@
     [:div
      [:h1 "Upgrade your plan"]
      [Grid
-      [Row
-       [Column {:width 8}
-        [Grid [Row [Column
-                    [:h3 "UPGRADING TO"]
-                    [Segment
-                     [Grid {:stackable true}
-                      [Row
-                       [Column {:width 8}
-                        [:b "Business Unlimited"]
-                        [ListUI
-                         [Item "Unlimited public projects"]
-                         [Item "Unlimited private projects"]]]
-                       [Column {:width 8
-                                :align "right"} [:h2 "$50 / month"]]]]]
-                    [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+      [Row [Column {:width 8}
+            [Grid [Row [Column
+                        [:h3 "UPGRADING TO"]
+                        [Segment
+                         [Grid {:stackable true}
+                          [Row
+                           [Column {:width 8}
+                            [:b "Business Unlimited"]
+                            [ListUI
+                             [Item "Unlimited public projects"]
+                             [Item "Unlimited private projects"]]]
+                           [Column {:width 8
+                                    :align "right"} [:h2 "$50 / month"]]]]]
+                        [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
        [Column {:width 8}
         [Grid [Row [Column
                     [:h3 "Upgrade Summary"]
@@ -243,47 +186,6 @@
                         [MessageHeader "Upgrade Plan Error"]
                         [:p @error-message]])]]]]]]]]))
 
-#_(defn UpdatePaymentButton []
-  [:div {:class "ui button primary"
-         :on-click (fn [e]
-                     (.preventDefault e)
-                     (dispatch [:payment/set-calling-route! [:plans]])
-                     (dispatch [:navigate [:payment]]))}
-   "Update Payment Information"])
-
-#_(defn ChangePlan []
-  (let [selected-plan (r/cursor state [:selected-plan])
-        changing-plan? (r/cursor state [:changing-plan?])
-        error-message (r/cursor state [:error-message])
-        need-card? (r/cursor stripe/state [:need-card?])]
-    [:div [:h1 (str "You will be charged "
-                    "$" (cents->dollars (:amount @selected-plan))
-                    " per month and subscribed to the "
-                    (:name @selected-plan) " plan.")]
-     [:div {:class (str "ui button primary "
-                        (when @need-card?
-                          " disabled"))
-            :on-click (fn [e]
-                        (.preventDefault e)
-                        (dispatch [:action [:subscribe-plan (:name @selected-plan)]])
-                        (dispatch [:stripe/reset-error-message!]))}
-      "Subscribe"]
-     [:div {:class "ui button"
-            :on-click
-            (fn [e]
-              (.preventDefault e)
-              (reset! selected-plan nil)
-              (reset! changing-plan? false)
-              (reset! error-message nil)
-              (reset! need-card? false))}
-      "Cancel"]
-     (when @error-message
-       [:div.ui.red.header @error-message])
-     [:br]
-     [:br]
-     (when @need-card?
-       [UpdatePaymentButton])]))
-
 (defmethod logged-out-content [:plans] []
   (logged-out-content :logged-out))
 
@@ -292,41 +194,14 @@
     (ensure-state)
     (stripe/ensure-state)
     (with-loader [[:identity]
-                  ;;[:plans]
-                  [:current-plan]
-                  ] {}
+                  [:current-plan]] {}
       (let [changing-plan? (r/cursor state [:changing-plan?])
             updating-card? (r/cursor state [:updating-card?])
             need-card? (r/cursor stripe/state [:need-card?])
             error-message (r/cursor state [:error-message])
             current-plan (:name @(subscribe [:plans/current-plan]))]
         [:div
-         #_(when-not @changing-plan?
-           [UpdatePaymentButton])
          (when (= current-plan "Basic")
            [UpgradePlan])
          (when (= current-plan "Unlimited")
            [DowngradePlan])]))))
-
-#_(defn UserPlans
-  []
-  (ensure-state)
-  (stripe/ensure-state)
-  (with-loader [[:identity]
-                [:plans]
-                [:current-plan]] {}
-    (if (not @(subscribe [:self/logged-in?]))
-      [LoginRegisterPanel]
-      (let [changing-plan? (r/cursor state [:changing-plan?])
-            updating-card? (r/cursor state [:updating-card?])
-            need-card? (r/cursor stripe/state [:need-card?])
-            error-message (r/cursor state [:error-message])]
-        [:div.ui.segment
-         (when-not @changing-plan?
-           [UpdatePaymentButton])
-         [:br]
-         [:br]
-         (when @changing-plan?
-           [ChangePlan])
-         (when-not @changing-plan?
-           [Plans])]))))

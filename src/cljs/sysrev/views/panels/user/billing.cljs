@@ -51,18 +51,13 @@
          (if (nil? @default-source)
            [Row
             [Column {:width 2} "Payment"]
-            [Column {:width 14}
-             [Loader {:active true
-                      :inline "centered"}]]]
+            [Column {:width 14} [Loader {:active true
+                                         :inline "centered"}]]]
            [Row
-            [Column {:width 2}
-             "Payment"]
-            [Column {:width 8}
-             [DefaultSource]]
-            [Column {:width 6
-                     :align "right"}
+            [Column {:width 2} "Payment"]
+            [Column {:width 8} [DefaultSource]]
+            [Column {:width 6 :align "right"}
              [Button {:on-click (fn [event]
-                                  ;;(.log js/console "add payment method today!")
                                   (dispatch [:payment/set-calling-route! (str "/user/settings/billing")])
                                   (dispatch [:navigate [:payment]]))}
               (if-not (empty? @default-source)
@@ -79,24 +74,19 @@
     [Grid {:stackable true}
      (if (nil? current-plan)
        [Row
-        [Column {:width 2}
-         "Plan"]
-        [Column {:width 14}
-         [Loader {:active true
-                      :inline "centered"}]]]
+        [Column {:width 2} "Plan"]
+        [Column {:width 14} [Loader {:active true
+                                     :inline "centered"}]]]
        [Row
-        [Column {:width 2}
-         "Plan"]
+        [Column {:width 2} "Plan"]
         [Column {:width 8}
          (cond
            (= current-plan "Basic")
            "Free Plan, unlimited public projects"
            (= current-plan "Unlimited")
            "Unlimited Plan, unlimited public and private projects")]
-        [Column {:width 6
-                 :align "right"}
+        [Column {:width 6 :align "right"}
          [Button {:on-click (fn [event]
-                              ;;(.log js/console "upgrade your plan today!")
                               (nav-scroll-top "/user/plans"))
                   :color (if (= current-plan "Basic")
                            "green")}
