@@ -249,14 +249,15 @@
 
 (defn current-plan
   "Get the plan for user-id"
-  [user]
+  [user-id]
   {:result {:success true
-            :plan (plans/get-current-plan user)}})
+            :plan (plans/get-current-plan (users/get-user-by-id user-id))}})
 
 (defn subscribe-to-plan
   "Subscribe user to plan-name"
-  [user plan-name]
-  (let [stripe-response (stripe/subscribe-customer! user plan-name)]
+  [user-id plan-name]
+  (let [user (users/get-user-by-id user-id)
+        stripe-response (stripe/subscribe-customer! user plan-name)]
     (if (:error stripe-response)
       (assoc stripe-response
              :error
@@ -375,7 +376,9 @@
 
 (defn stripe-default-source
   [user-id]
-  {:result {:default-source (stripe/read-default-customer-source (users/get-user-by-id user-id))}})
+  {:result {:default-source (if-let [source-default (stripe/read-default-customer-source (users/get-user-by-id user-id))]
+                              source-default
+                              [])}})
 
 (defn user-has-stripe-account?
   "Does the user have a stripe account associated with the platform?"

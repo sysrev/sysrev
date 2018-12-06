@@ -203,31 +203,3 @@
          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
          :handler (fn [] (check-if-stripe-user!))
          :error-handler (fn [error] ($ js/console log "[[sysrev.stripe/save-stripe-user]] error"))}))
-
-(defn StripeConnect
-  []
-  (r/create-class
-   {:reagent-render
-    (fn []
-      (let [stripe-code (-> (get-url-params)
-                            :code)
-            connected? (r/cursor state [:connected?])
-            retrieving-connected? (r/cursor state [:retrieving-connected?])]
-        (cond @retrieving-connected?
-              [:div.ui.small.active.inline.loader
-               {:style {:margin-right "1em"
-                        :margin-left "1em"}}]
-              stripe-code
-              (do (save-stripe-user! @(subscribe [:self/user-id]) stripe-code)
-                  (nav-redirect "/user/settings"))
-              @connected?
-              [Button {:href ""
-                       :disabled true
-                       :color "blue"}
-               "Connected with Stripe"]
-              :else [ConnectWithStripe])))
-    :get-initial-state
-    (fn [this]
-      (ensure-state)
-      (check-if-stripe-user!))}))
-

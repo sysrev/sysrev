@@ -9,7 +9,6 @@
             [sysrev.views.panels.user.billing :refer [Billing]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.stripe :refer [StripeConnect]]
             [sysrev.util :refer [full-size? get-url-path mobile?]]))
 
 (def ^:private panel [:user-settings])

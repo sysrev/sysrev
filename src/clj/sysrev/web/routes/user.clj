@@ -34,11 +34,16 @@
                    (wrap-authorize
                     request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [token]} (:body request)]
-                      (api/stripe-payment-method user-id token)))))
-    (GET "/current-plan" request
-         (wrap-authorize
-          request {:authorize-fn (user-authd? user-id)}
-          (api/current-plan user-id)))
+                      (api/stripe-payment-method user-id token))))
+             (GET "/current-plan" request
+                  (wrap-authorize
+                   request {:authorize-fn (user-authd? user-id)}
+                   (api/current-plan user-id)))
+             (POST "/subscribe-plan" request
+                   (wrap-authorize
+                    request {:authorize-fn (user-authd? user-id)}
+                    (let [{:keys [plan-name]} (:body request)]
+                      (api/subscribe-to-plan user-id plan-name)))))
     (POST "/support-project" request
           (wrap-authorize
            request {:authorize-fn (user-authd? user-id)}

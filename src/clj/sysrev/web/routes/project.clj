@@ -547,13 +547,6 @@
             (users/get-user-by-id (current-user-id request))
             project-id))))
 
-  (POST "/api/subscribe-plan" request
-        (wrap-authorize
-         request {:logged-in true}
-         (let [{:keys [plan-name]} (:body request)]
-           (api/subscribe-to-plan (users/get-user-by-id (current-user-id request))
-                                  plan-name))))
-
   (GET "/api/important-terms" request
        (wrap-authorize
         request {:allow-public true}

@@ -283,11 +283,16 @@
  (let [project-id @(subscribe [:active-project-id])]
    (dispatch [:set-active-panel [:project :project :support]])))
 
-#_(defroute "/user/*" {}
-  (dispatch [:set-active-panel [:user-settings]]))
+(sr-defroute
+ plans "/user/plans" []
+ (dispatch [:set-active-panel [:plans]]))
 
 (sr-defroute
- user-settings "/user/*" []
+ plans "/user/payment" []
+ (dispatch [:set-active-panel [:payment]]))
+
+(sr-defroute
+ user-settings "/user/settings*" []
  (dispatch [:set-active-panel [:user-settings]]))
 
 (defn- load-default-panels [db]
@@ -345,17 +350,17 @@
         [[:pubmed-search]
          "/pubmed-search"]
 
-        [[:plans]
-         "/plans"]
-
         [[:payment]
          "/payment"]
 
         [[:project :project :support]
          #(project-uri (:project-id %) "/support")]
 
+        [[:plans]
+         "/user/plans"]
+
         [[:user-settings]
-         "/user/*"]]
+         "/user/settings*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))
