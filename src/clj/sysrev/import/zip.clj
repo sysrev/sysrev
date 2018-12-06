@@ -133,6 +133,7 @@
                 (catch Throwable e
                   (log/error "sysrev.import.zip/import-pdfs-from-zip-file!:"
                              (.getMessage e))
+                  (.printStackTrace e)
                   false))]
           (with-transaction
             (if success?
@@ -142,8 +143,7 @@
             (source/update-project-articles-enabled project-id))
           success?)
         (catch Throwable e
-          (log/error "import-pdfs-from-zip-file! exception:"
-                     (.getMessage e))
+          (log/error "import-pdfs-from-zip-file! exception:" (.getMessage e))
           (.printStackTrace e)
           (with-transaction
             (source/fail-source-import source-id)
