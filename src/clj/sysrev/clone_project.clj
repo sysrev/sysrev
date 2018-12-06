@@ -178,9 +178,7 @@
           (values [(-> article
                        (assoc :project-id child-id
                               :parent-article-uuid article-uuid)
-                       (dissoc :article-id
-                               :article-uuid
-                               :duplicate-of)
+                       (dissoc :article-id :article-uuid :duplicate-of :text-search)
                        (articles/article-to-sql))])
           do-execute))))
 
