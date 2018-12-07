@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.user.compensation
   (:require [ajax.core :refer [POST GET DELETE PUT]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe]]
+            [re-frame.core :refer [subscribe reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
             [sysrev.util :refer [vector->hash-map continuous-update-until unix-epoch->date-string]]
@@ -11,9 +11,15 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
+(reg-sub :compensation/payments-owed
+         (fn [db] @(r/cursor state [:payments-owed])))
+
+(reg-sub :compensation/payments-paid
+         (fn [db] @(r/cursor state [:payments-paid])))
+
 (defn get-payments-owed!
   "Retrieve the current amount of compensation owed to user"
-  [state]
+  []
   (let [user-id @(subscribe [:self/user-id])
         payments-owed (r/cursor state [:payments-owed])
         retrieving-payments-owed? (r/cursor state [:retrieving-payments-owed?])
@@ -28,9 +34,16 @@
                            (reset! retrieving-payments-owed? false)
                            (reset! error-message (get-in error-response [:response :error :message])))})))
 
+(reg-event-fx
+ :compensation/get-payments-owed!
+ [trim-v]
+ (fn [_ _]
+   (get-payments-owed!)
+   {}))
+
 (defn get-payments-paid!
   "Retrieve the current amount of compensation made to user"
-  [state]
+  []
   (let [user-id @(subscribe [:self/user-id])
         payments-paid (r/cursor state [:payments-paid])
         retrieving-payments-paid? (r/cursor state [:retrieving-payments-paid?])
@@ -44,6 +57,14 @@
           :error-handler (fn [error-response]
                            (reset! retrieving-payments-paid? false)
                            (reset! error-message (get-in error-response [:response :error :message])))})))
+
+(reg-event-fx
+ :compensation/get-payments-paid!
+ [trim-v]
+ (fn [_ _]
+   (get-payments-paid!)
+   {}))
+
 (defn PaymentOwed
   "Display a payment-owed map"
   [{:keys [total-owed project-id project-name]}]
@@ -76,7 +97,7 @@
            [:div [:h4 "You do not currently have any payments owed"]])])
       :component-did-mount
       (fn [this]
-        (get-payments-owed! state))})))
+        (get-payments-owed!))})))
 
 (defn PaymentPaid
   "Display a payment-owed map"
@@ -111,4 +132,4 @@
                     @payments-paid))]]))
       :component-did-mount
       (fn [this]
-        (get-payments-paid! state))})))
+        (get-payments-paid!))})))

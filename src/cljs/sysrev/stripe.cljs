@@ -52,13 +52,6 @@
                            "::placeholder" {:color "#aab7c4"}}
                     :invalid {:color "#9e2146"}}) 
 
-(reg-event-fx
- :stripe/reset-error-message!
- [trim-v]
- (fn [_ _]
-   (reset! (r/cursor state [:error-message]) nil)
-   {}))
-
 (def-action :payments/stripe-token
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id])  "/stripe/payment-method"))
   :content (fn [token]

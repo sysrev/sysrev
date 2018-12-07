@@ -157,7 +157,9 @@
         current-panel (subscribe [:active-panel])
         prod? (= js/window.location.host "sysrev.com")
         enable-billing? (not prod?)
-        enable-compensation? (not prod?)]
+        enable-compensation? (not prod?)
+        payments-owed (subscribe [:compensation/payments-owed])
+        payments-paid (subscribe [:compensation/payments-paid])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -180,14 +182,15 @@
                          (str " disabled"))
                 :href "/user/settings/billing"}
             "Billing"]
-           [:a {:key "#compensation"
-                :class (cond-> "item"
-                         (= @current-path "/user/settings/compensation")
-                         (str " active")
-                         (not enable-compensation?)
-                         (str " disabled"))
-                :href "/user/settings/compensation"}
-            "Compensation"]]]
+           (when-not (empty? (or @payments-owed @payments-paid))
+             [:a {:key "#compensation"
+                  :class (cond-> "item"
+                           (= @current-path "/user/settings/compensation")
+                           (str " active")
+                           (not enable-compensation?)
+                           (str " disabled"))
+                  :href "/user/settings/compensation"}
+              "Compensation"])]]
          [:div#user-content
           (condp = @current-path
             "/user/settings"
@@ -206,7 +209,11 @@
             [Billing]
             ;; default before the active panel is loaded
             ;; and this component still exists
-            [:div {:style {:display "none"}}])]])})))
+            [:div {:style {:display "none"}}])]])
+      :get-initial-state
+      (fn [this]
+        (dispatch [:compensation/get-payments-owed!])
+        (dispatch [:compensation/get-payments-paid!]))})))
 
 (defmethod logged-out-content [:user-settings] []
   (logged-out-content :logged-out))
