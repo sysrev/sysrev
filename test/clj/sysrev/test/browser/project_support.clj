@@ -12,7 +12,8 @@
             [sysrev.test.core :as test :refer [wait-until]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
-            [sysrev.test.browser.plans :as test-plans]))
+            [sysrev.test.browser.plans :as test-plans]
+            [sysrev.test.browser.stripe :as browser-stripe]))
 
 ;; if a user is created in the db, they won't have a stripe customer associated with them
 ;; to add them: (users/create-sysrev-stripe-customer! (users/get-user-by-email "browser+test@insilica.co"))
@@ -23,42 +24,6 @@
 (def cancel-support-button {:xpath "//button[contains(text(),'Cancel Support')]"})
 (def stop-support-button {:xpath "//button[contains(text(),'Stop Support')]"})
 ;;(def support-button {:xpath "//a[contains(@class,'item')]/span[contains(text(),'Support')]"})
-
-(defn enter-cc-information
-  [{:keys [cardnumber exp-date cvc postal]}]
-  (let [ ;; note: stripe could change the frame names
-        cardnumber-input-iframe {:xpath "//iframe[@name='__privateStripeFrame4']"}
-        cardnumber-input "input[name~='cardnumber']"
-        exp-date-iframe {:xpath "//iframe[@name='__privateStripeFrame5']"}
-        exp-date-input "input[name~='exp-date']"
-        cvc-iframe {:xpath "//iframe[@name='__privateStripeFrame6']"}
-        cvc-input "input[name~='cvc']"
-        postal-iframe {:xpath "//iframe[@name='__privateStripeFrame7']"}
-        postal-input "input[name~='postal']"]
-    ;; let's reset to be user we are in the default iframe
-    (taxi/switch-to-default)
-    (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
-    ;; switch the the proper iframe. note that the name could change if stripe updates their library
-    (taxi/switch-to-frame cardnumber-input-iframe)
-    ;; clear anything that could be in the form
-    (b/set-input-text-per-char cardnumber-input cardnumber)
-    ;; switch back to default
-    (taxi/switch-to-default)
-    ;; switch to month input iframe
-    (taxi/switch-to-frame exp-date-iframe)
-    (b/set-input-text-per-char exp-date-input exp-date)
-    ;; swtich back to default
-    (taxi/switch-to-default)
-    ;; switch to cvc iframe
-    (taxi/switch-to-frame cvc-iframe)
-    (b/set-input-text-per-char cvc-input cvc)
-    ;; switch back to default frame
-    (taxi/switch-to-default)
-    ;; switch to post code frame
-    (taxi/switch-to-frame postal-iframe)
-    (b/set-input-text-per-char postal-input postal)
-    ;; where done, return back to default
-    (taxi/switch-to-default)))
 
 (defn support-message-xpath
   [string]
@@ -117,11 +82,11 @@
       (is (b/exists? (test-plans/error-msg-xpath test-plans/no-payment-method)))
 ;;; update with a valid cc number and see if we can support a project
       (b/click test-plans/update-payment-button)
-      (enter-cc-information {:cardnumber test-plans/valid-visa-cc
-                             :exp-date "0120"
-                             :cvc "123"
-                             :postal "11111"})
-      (b/click test-plans/use-card-button)
+      (browser-stripe/enter-cc-information {:cardnumber browser-stripe/valid-visa-cc
+                                            :exp-date "0120"
+                                            :cvc "123"
+                                            :postal "11111"})
+      (b/click browser-stripe/use-card-button)
       ;; support the project at $10 per month
       (b/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
       (b/click support-submit-button)
