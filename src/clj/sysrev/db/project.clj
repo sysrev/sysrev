@@ -255,9 +255,9 @@
           do-query first :count pos?))))
 ;;
 (s/fdef project-contains-public-id
-        :args (s/cat :public-id ::sa/public-id
-                     :project-id ::sc/project-id)
-        :ret boolean?)
+  :args (s/cat :public-id ::sa/public-id
+               :project-id ::sc/project-id)
+  :ret boolean?)
 
 (defn project-article-count
   "Return number of articles in project."
@@ -269,8 +269,18 @@
           do-query first :count))))
 ;;
 (s/fdef project-article-count
-        :args (s/cat :project-id ::sc/project-id)
-        :ret (s/and integer? nat-int?))
+  :args (s/cat :project-id ::sc/project-id)
+  :ret (s/and integer? nat-int?))
+
+(defn project-article-pdf-count
+  "Return number of article pdfs in project."
+  [project-id]
+  (let [project-id (q/to-project-id project-id)]
+    (with-project-cache
+      project-id [:articles :pdf-count]
+      (-> (q/select-project-articles project-id [:%count.*])
+          (merge-join [:article-pdf :apdf] [:= :apdf.article-id :a.article-id])
+          do-query first :count))))
 
 (defn delete-project-articles
   "Delete all articles from project."
