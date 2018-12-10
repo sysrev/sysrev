@@ -155,9 +155,6 @@
   []
   (let [current-path sysrev.base/active-route
         current-panel (subscribe [:active-panel])
-        prod? (= js/window.location.host "sysrev.com")
-        enable-billing? (not prod?)
-        enable-compensation? (not prod?)
         payments-owed (subscribe [:compensation/payments-owed])
         payments-paid (subscribe [:compensation/payments-paid])]
     (r/create-class
@@ -177,18 +174,14 @@
            [:a {:key "#billing"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/billing")
-                         (str " active")
-                         (not enable-billing?)
-                         (str " disabled"))
+                         (str " active"))
                 :href "/user/settings/billing"}
             "Billing"]
            (when-not (empty? (or @payments-owed @payments-paid))
              [:a {:key "#compensation"
                   :class (cond-> "item"
                            (= @current-path "/user/settings/compensation")
-                           (str " active")
-                           (not enable-compensation?)
-                           (str " disabled"))
+                           (str " active"))
                   :href "/user/settings/compensation"}
               "Compensation"])]]
          [:div#user-content
