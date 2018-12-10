@@ -17,7 +17,6 @@
         sysrev.clone-project
         sysrev.files.stores
         sysrev.source.endnote
-        sysrev.import.zip
         sysrev.export.endnote
         sysrev.paypal
         sysrev.predict.core

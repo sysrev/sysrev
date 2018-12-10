@@ -4,9 +4,6 @@
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]))
 
-(defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
-  {:source "PDF Zip file" :filename filename})
-
 (defmethod make-source-meta :api-text-manual [_ {:keys [article-count]}]
   {:source "API Text Manual" :article-count article-count})
 

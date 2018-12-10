@@ -1,7 +1,7 @@
 (ns sysrev.source.import
   (:require [sysrev.source.core :as source]
             [sysrev.source.interface :refer [import-source]]
-            (sysrev.source pubmed pmid endnote extra)))
+            (sysrev.source pubmed pmid endnote pdf-zip extra)))
 
 (defn import-pubmed-search
   [project-id {:keys [search-term] :as input} & [{:as options}]]
@@ -22,3 +22,7 @@
 (defn import-article-text-manual
   [project-id {:keys [articles] :as input} & [{:as options}]]
   (import-source :api-text-manual project-id input options))
+
+(defn import-pdf-zip
+  [project-id {:keys [file filename] :as input} & [{:as options}]]
+  (import-source :pdf-zip project-id input options))

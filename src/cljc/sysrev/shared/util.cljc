@@ -116,3 +116,10 @@
   (-> s
       (str/replace #"\&lt;" "<")
       (str/replace #"\&gt;" ">")))
+
+(defn pluralize
+  "Add an 's' to end of string depending on count."
+  [item-count string]
+  (when string
+    (cond-> string (not= item-count 1) (str "s"))))
+

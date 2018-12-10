@@ -32,11 +32,11 @@
         pmids-count (:count (pubmed/get-search-query-response search-term 1))]
     (cond
       (pubmed-source-exists? project-id search-term)
-      {:error (format "Source already exists for %s" (pr-str search-term))}
+      {:error {:message (format "Source already exists for %s" (pr-str search-term))}}
 
       (> pmids-count max-import-articles)
-      {:error (format "Too many PMIDs from search (max %d; got %d)"
-                      max-import-articles pmids-count)}
+      {:error {:message (format "Too many PMIDs from search (max %d; got %d)"
+                                max-import-articles pmids-count)}}
 
       :else
       (let [source-meta (source/make-source-meta

@@ -13,16 +13,21 @@
 (defn- add-articles
   "Implements adding article entries to db from sequence of article maps.
 
-  Returns map of {article-id -> article} where article is the article
-  map used as source to create the db entry."
-  [project-id articles]
-  (let [prepare-article #(-> % (dissoc :locations) (assoc :enabled false))
-        article-ids (articles/add-articles (->> articles (mapv prepare-article))
-                                           project-id *conn*)]
-    (->> (map (fn [id article] {id article})
-              article-ids articles)
-         (apply merge))))
+  Returns sequence of maps {article-id -> article} where article is
+  the article map (prior to prepare-article) used as source to create
+  the db entry with article-id field added."
+  [project-id articles & [prepare-article]]
+  (let [prepare-article-full
+        (fn [article]
+          (-> article (dissoc :locations) (assoc :enabled false)
+              (#(if (nil? prepare-article) % (prepare-article %)))))
+        article-ids (articles/add-articles
+                     (->> articles (mapv prepare-article-full))
+                     project-id *conn*)]
+    (map (fn [id article] {id (merge article {:article-id id})})
+         article-ids articles)))
 
+;; TODO: this should be customizable by source type (keep this as default)
 (defn- match-existing-articles
   "Implements checking list of article maps for matches against existing
   project articles."
@@ -50,35 +55,44 @@
   "Implements single-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
-  [project-id source-id {:keys [article-refs get-articles] :as impl}]
+  [project-id source-id
+   {:keys [article-refs get-articles prepare-article on-article-added] :as impl}]
   (try
     (doseq [articles (->> (get-articles article-refs) (partition-all 10))]
       (try
         (with-transaction
           (let [{:keys [new-articles existing-article-ids]}
                 (match-existing-articles project-id articles)
-                new-article-ids (add-articles project-id new-articles)
+                new-article-ids (add-articles project-id new-articles prepare-article)
+                new-articles-map (apply merge new-article-ids)
                 new-locations
-                (->> (keys new-article-ids)
+                (->> (keys new-articles-map)
                      (map (fn [article-id]
-                            (let [article (get new-article-ids article-id)]
+                            (let [article (get new-articles-map article-id)]
                               (->> (:locations article)
                                    (mapv #(assoc % :article-id article-id))))))
                      (apply concat)
                      vec)]
             (s/add-articles-to-source
-             (concat existing-article-ids (keys new-article-ids))
+             (concat existing-article-ids (keys new-articles-map))
              source-id)
             (when (not-empty new-locations)
               (-> (sqlh/insert-into :article-location)
                   (values new-locations)
-                  do-execute))))
+                  do-execute))
+            (when on-article-added
+              (try
+                (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
+                  (on-article-added (get new-articles-map article-id)))
+                (catch Throwable e
+                  (log/warn "import-articles-impl: exception in on-article-added")
+                  (throw e))))))
         (catch Throwable e
           (log/warn "import-articles-impl: error importing group -" (.getMessage e))
           (throw e))))
     true
     (catch Throwable e
-      (log/warn "error in import-pmids-to-project:" (.getMessage e))
+      (log/warn "import-articles-impl:" (.getMessage e))
       (.printStackTrace e)
       false)
     (finally
@@ -88,7 +102,9 @@
   "Implements multi-threaded import of articles from a new project-source.
   Returns true on success, false on failure. Catches all exceptions,
   indicating failure in return value."
-  [project-id source-id {:keys [article-refs get-articles] :as impl} threads]
+  [project-id source-id
+   {:keys [article-refs get-articles prepare-article on-article-added] :as impl}
+   threads]
   (if (and (> threads 1) (nil? *conn*))
     (try
       (let [group-size (->> (quot (count article-refs) threads) (max 1))
@@ -99,8 +115,7 @@
                   (fn [thread-refs]
                     (future (import-articles-impl
                              project-id source-id
-                             {:article-refs thread-refs
-                              :get-articles get-articles}))))
+                             (-> impl (assoc :article-refs thread-refs))))))
                  (mapv deref))]
         (every? true? thread-results))
       (catch Throwable e
@@ -128,13 +143,34 @@
 (defn import-source-impl
   "Top-level function for running import of a new source with
   articles. This should only be called directly from an import-source
-  method implementation for a source type. get-article-refs is a
-  function returning a sequence of values (article-refs) that can be
-  used to obtain an article; get-articles is a function that accepts a
-  sequence of values from article-refs and returns their corresponding
-  article values."
+  method implementation for a source type.
+
+  get-article-refs is a function returning a sequence of
+  values (article-refs) that can be used to obtain an article.
+
+  get-articles is a function that accepts an article-refs sequence and
+  returns a sequence of corresponding article values. The article
+  values should be maps, and may contain extra custom fields (e.g. for
+  use by on-article-added)
+
+  prepare-article is an optional function that will be applied to
+  transform article values for inserting to database.
+
+  on-article-added is an optional function that will be called for
+  each article value immediately after the article has been
+  successfully added to database. on-article-added will receive the
+  same article value that was obtained from get-articles, with
+  an :article-id key added to reference the new article entry.
+
+  use-future? is a boolean value (defaults to true) that controls
+  whether this function will wrap the top-level import call in a
+  future and return immediately. When false, this function will
+  return after the import attempt has completed.
+
+  threads is an integer controlling the number of threads that will be
+  used to import articles in parallel."
   [project-id source-meta
-   {:keys [get-article-refs get-articles] :as impl}
+   {:keys [get-article-refs get-articles prepare-article on-article-added] :as impl}
    {:keys [use-future? threads] :or {use-future? true threads 4}}]
   (let [blocking? (boolean (or (not use-future?) *conn*))
         source-id (s/create-source
@@ -142,11 +178,13 @@
         do-import (fn []
                     (->> (try (import-source-articles
                                project-id source-id
-                               {:article-refs (get-article-refs)
-                                :get-articles get-articles}
+                               (-> impl
+                                   (assoc :article-refs (get-article-refs))
+                                   (dissoc :get-article-refs))
                                threads)
                               (catch Throwable e
                                 (log/warn "import-source-impl failed -" (.getMessage e))
+                                (.printStackTrace e)
                                 false))
                          (after-source-import project-id source-id)))]
     {:source-id source-id

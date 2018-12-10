@@ -199,7 +199,7 @@
          request {:roles ["admin"]}
          (let [project-id (active-project request)
                {:keys [tempfile filename]} (get-in request [:params :file])]
-           (api/import-articles-from-pdf-zip-file tempfile filename project-id))))
+           (api/import-articles-from-pdf-zip-file project-id tempfile filename))))
 
   ;; Returns an article for user to label
   (GET "/api/label-task" request

@@ -13,7 +13,8 @@
             [sysrev.views.panels.pubmed :as pubmed]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components :as ui]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :as su]))
 
 (def panel [:project :project :add-articles])
 
@@ -45,22 +46,14 @@
              [:reload [:project project-id]]
              [:reload [:project/sources project-id]])})))
 
-(defn admin?
-  []
+(defn admin? []
   (or @(subscribe [:member/admin?])
       @(subscribe [:user/admin?])))
-
-(defn plural-or-singular
-  "Return the singular form of string when item-count is one, return plural otherwise"
-  [item-count string]
-  (if (= item-count 1)
-    string
-    (str string "s")))
 
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
-  (plural-or-singular item-count "article"))
+  (su/pluralize item-count "article"))
 
 (defn- source-import-timed-out? [source]
   (let [{:keys [meta source-id date-created
@@ -121,9 +114,6 @@
       (cond-> "fluid"
         (any-source-processing?) (str " disabled"))]]))
 
-(defn ImportPubMedView []
-  [pubmed/SearchBar])
-
 (defn DeleteArticleSource
   [source-id]
   (let [project-id @(subscribe [:active-project-id])]
@@ -153,34 +143,37 @@
        "Enabled"
        "Disabled")]))
 
+;; TODO: these (:source meta) values should be stored as identifiers
+;;       from an enforced set of possible values and shouldn't be
+;;       mistakable for a description intended for users
 (defn meta->source-name-vector
-  [meta]
-  (let [source (:source meta)]
-    (condp = source
-      "PubMed search"
-      ["PubMed Search" (str (:search-term meta))]
+  [{:keys [source] :as meta}]
+  (condp = source
+    "PubMed search"
+    ["PubMed Search" (str (:search-term meta))]
 
-      "PMID file"
-      ["PMIDs from File" (:filename meta)]
+    "PMID file"
+    ["PMIDs from File" (:filename meta)]
 
-      "PMID vector"
-      ["PMIDs from API" nil]
+    "PMID vector"
+    ["PMIDs from API" nil]
 
-      "fact"
-      ["PMIDs from FACTS" nil]
+    "fact"
+    ["PMIDs from FACTS" nil]
 
-      "EndNote file"
-      ["EndNote XML" (:filename meta)]
+    "EndNote file"
+    ["EndNote XML" (:filename meta)]
 
-      "legacy"
-      ["Legacy Import" nil]
+    "legacy"
+    ["Legacy Import" nil]
 
-      "PDF Zip file"
-      ["PDF Zip File" (:filename meta)]
+    "PDF Zip file"
+    ["PDF Zip File" (:filename meta)]
 
-      ["Unknown Source" nil])))
+    :else
+    [source nil]))
 
-(defn SourceInfoView [{:keys [source] :as meta}]
+(defn SourceInfoView [meta]
   (let [[source-type import-label]
         (meta->source-name-vector meta)]
     [:div.ui.middle.aligned.stackable.grid.segment.source-info
@@ -198,9 +191,7 @@
   (let [sources (subscribe [:project/sources])]
     (->> @sources
          (filter #(= source-id (:source-id %)))
-         first
-         :meta
-         (meta->source-name-vector))))
+         first :meta meta->source-name-vector)))
 
 (defonce polling-sources? (r/atom false))
 
@@ -427,7 +418,7 @@
         "import-source-tabs"]]
       [:div.ui.attached.secondary.segment
        (case active-tab
-         :pubmed   [ImportPubMedView]
+         :pubmed   [pubmed/SearchBar]
          :pmid     [ImportPMIDsView]
          :endnote  [ImportEndNoteView]
          :zip-file [ImportPDFZipsView])]

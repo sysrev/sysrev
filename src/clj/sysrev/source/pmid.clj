@@ -39,14 +39,14 @@
         pmids (parse-pmid-file file)]
     (cond
       (empty? pmids)
-      {:error "Unable to parse file"}
+      {:error {:message "Unable to parse file"}}
 
       (pmid-source-exists? project-id filename)
-      {:error (format "Source already exists for %s" (pr-str filename))}
+      {:error {:message (format "Source already exists for %s" (pr-str filename))}}
 
       (> (count pmids) max-import-articles)
-      {:error (format "Too many PMIDs from file (max %d; got %d)"
-                      max-import-articles (count pmids))}
+      {:error {:message (format "Too many PMIDs from file (max %d; got %d)"
+                                max-import-articles (count pmids))}}
 
       :else
       (let [source-meta (source/make-source-meta
@@ -61,11 +61,11 @@
   (let [{:keys [max-import-articles]} config/env]
     (cond
       (empty? pmids)
-      {:error "pmids list is empty"}
+      {:error {:message "pmids list is empty"}}
 
       (> (count pmids) max-import-articles)
-      {:error (format "Too many PMIDs requested (max %d; got %d)"
-                      max-import-articles (count pmids))}
+      {:error {:message (format "Too many PMIDs requested (max %d; got %d)"
+                                max-import-articles (count pmids))}}
 
       :else
       (let [source-meta (source/make-source-meta :pmid-vector {})]

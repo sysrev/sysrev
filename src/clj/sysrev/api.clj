@@ -30,7 +30,6 @@
             [sysrev.files.s3store :as s3store]
             [sysrev.source.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
-            [sysrev.import.zip :as zip]
             [sysrev.paypal :as paypal]
             [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
@@ -96,90 +95,52 @@
                   :project-id project-id}})))
 
 (s/fdef delete-project!
-        :args (s/cat :project-id int?
-                     :user-id int?)
-        :ret map?)
+  :args (s/cat :project-id int?
+               :user-id int?)
+  :ret map?)
+
+(defn wrap-import-api [f]
+  (let [{:keys [error]}
+        (try (f)
+             (catch Throwable e
+               (log/warn "wrap-import-handler - unexpected error -"
+                         (.getMessage e))
+               (.printStackTrace e)
+               {:error {:message "Import error"}}))]
+    (if error
+      {:error error}
+      {:result {:success true}})))
 
 (defn import-articles-from-search
-  "Import PMIDS resulting from using search-term as a query at source.
-  Currently only support PubMed as a source for search queries. Will
-  only allow a search-term to be used once for a project. i.e. You
-  cannot have multiple 'foo bar' searches for one project over
-  multiple dates, but you are allowed multiple search terms for a
-  project e.g. 'foo bar' and 'baz qux'"
+  "Import PMIDS resulting from using search-term against PubMed API."
   [project-id search-term & {:keys [threads] :as options}]
-  (let [{:keys [error]} (import/import-pubmed-search
-                         project-id {:search-term search-term} options)]
-    (if error
-      {:error {:message error}}
-      {:result {:success true}})))
-;;
-(s/def ::threads integer?)
-(s/fdef import-articles-from-search
-        :args (s/cat :project-id int?
-                     :search-term string?
-                     :keys (s/keys* :opt-un [::threads]))
-        :ret map?)
+  (wrap-import-api
+   #(import/import-pubmed-search
+     project-id {:search-term search-term} options)))
 
 (defn import-articles-from-file
   "Import PMIDs into project-id from file. A file is a white-space/comma
-  separated file of PMIDs. Only one import from a file is allowed at
-  one time"
+  separated file of PMIDs."
   [project-id file filename & {:keys [threads] :as options}]
-  (let [{:keys [error]} (import/import-pmid-file
-                         project-id {:file file :filename filename} options)]
-    (if error
-      {:error {:message error}}
-      {:result {:success true}})))
+  (wrap-import-api
+   #(import/import-pmid-file
+     project-id {:file file :filename filename} options)))
 
 (defn import-articles-from-endnote-file
-  "Import PMIDs into project-id from file. A file is a white-space/comma
-  separated file of PMIDs. Only one import from a file is allowed at
-  one time"
+  "Import articles from an Endnote XML file."
   [project-id file filename & {:keys [threads] :as options}]
-  (assert (integer? project-id))
-  (let [project-sources (source/project-sources project-id)
-        filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
-    (try
-      (cond (not-empty filename-sources)
-            (do (log/warn "got (not-empty filename-sources): " filename-sources)
-                {:error {:message "Filename already imported to project"}})
-
-            :else
-            (let [{:keys [error]}
-                  (import/import-endnote-xml
-                   project-id {:file file :filename filename} options)]
-              (if error
-                {:error {:message error}}
-                {:result {:success true}})))
-      (catch Throwable e
-        {:error {:message "Exception during import"
-                 :exception e}}))))
+  (wrap-import-api
+   #(import/import-endnote-xml
+     project-id {:file file :filename filename} options)))
 
 (defn import-articles-from-pdf-zip-file
-  "Import PDFs from pdf zip file. A pdf zip file is a file which
-  contains pdfs. Each pdf will create its own article entry with the
-  simply the name of the pdf as a title."
-  [file filename project-id & {:keys [threads] :or {threads 1}}]
-  (let [project-sources (source/project-sources project-id)
-        filename-sources (filter #(= (get-in % [:meta :filename]) filename) project-sources)]
-    (try
-      (cond (not (project/project-exists? project-id))
-            {:error {:status not-found
-                     :message "Project not found"}}
-            ;; there is no import going on for this filename
-            (and (empty? filename-sources))
-            (do
-              (zip/import-pdfs-from-zip-file!
-               file filename project-id)
-              {:result {:success true}})
-            (not (empty? filename-sources))
-            {:result {:success true}}
-            :else
-            {:error {:message "Error (unexpected event)"}})
-      (catch Throwable e
-        {:error {:message "Exception during import"
-                 :exception e}}))))
+  "Import articles from the PDF files contained in a zip file. An
+  article entry is created for each PDF, using filename as the article
+  title."
+  [project-id file filename & {:keys [threads] :as options}]
+  (wrap-import-api
+   #(import/import-pdf-zip
+     project-id {:file file :filename filename} options)))
 
 (defn project-sources
   "Return sources for project-id"
