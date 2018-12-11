@@ -170,7 +170,6 @@
     "PDF Zip file"
     ["PDF Zip File" (:filename meta)]
 
-    :else
     [source nil]))
 
 (defn SourceInfoView [meta]
