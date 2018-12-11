@@ -75,7 +75,7 @@
     (let [{:keys [user-id] :as user}
           (users/get-user-by-email email)]
       (try
-        (when user
+        (when (:stripe-id user)
           (stripe/delete-customer! user))
         (catch Throwable t
           nil))

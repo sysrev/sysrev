@@ -7,10 +7,12 @@
             [clj-stripe.plans :as plans]
             [clj-stripe.subscriptions :as subscriptions]
             [clojure.data.json :as json]
+            [clojure.tools.logging :as log]
             [environ.core :refer [env]]
             [sysrev.db.funds :as funds]
             [sysrev.db.plans :as db-plans]
-            [sysrev.db.project :as project]))
+            [sysrev.db.project :as project]
+            [sysrev.util :refer [current-function-name]]))
 
 (def stripe-secret-key (or (System/getProperty "STRIPE_SECRET_KEY")
                            (env :stripe-secret-key)))
@@ -72,7 +74,9 @@
 (defn delete-customer!
   "Delete stripe customer entry for user"
   [user]
-  (execute-action (customers/delete-customer (:stripe-id user))))
+  (if-not (nil? (:stripe-id user))
+    (execute-action (customers/delete-customer (:stripe-id user)))
+    (log/info (str "Error in " (current-function-name) ": " "no stripe-id associated with user (user-id: " (:user-id user) ")"))))
 
 ;; !!! WARNING !!!
 ;; !! This is only a util for dev environemnt !!
