@@ -87,6 +87,8 @@
 
 (deftest-browser register-and-subscribe-to-paid-plans
   (let [{:keys [email password]} b/test-login]
+    (when (and (test/db-connected?)
+               (not= :remote-test (-> env :profile)))
     (log/info "register-and-subscribe-to-paid-plans")
     (b/delete-test-user)
     (Thread/sleep 200)
@@ -224,4 +226,4 @@
     ;; do we think the user is subscribed to a basic plan?
     (is (= api/default-plan
            (:name (plans/get-current-plan (users/get-user-by-email email)))))
-    #_ (nav/log-out)))
+    #_ (nav/log-out))))
