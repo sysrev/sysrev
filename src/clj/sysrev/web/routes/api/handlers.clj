@@ -172,39 +172,6 @@
               :project-articles
               (project/project-article-count project-id)}}))))))
 
-;; outdated, doesn't handle sources, disabled
-#_
-(def-webapi
-  :copy-articles :post
-  {:required [:project-id :src-project-id :article-ids]
-   :check-answers? true
-   :require-admin? true
-   :doc (->> ["\"article-ids\": array of integer article IDs"
-              ""
-              "Copies a list of articles from `src-project-id` into `project-id`."
-              "Returns a map of success/failure counts for articles after copying."]
-             (str/join "\n"))}
-  (fn [request]
-    (let [{:keys [api-token project-id src-project-id article-ids allow-answers] :as body}
-          (-> request :body)]
-      (cond
-        (or (not (seqable? article-ids))
-            (not (every? integer? article-ids)))
-        (make-error-response
-         500 :api "article-ids must be an array of integers")
-        :else
-        (let [results
-              (->> article-ids
-                   (mapv #(articles/copy-project-article
-                           src-project-id project-id %)))
-              result-counts
-              (->> (distinct results)
-                   (map (fn [status]
-                          [status (->> results (filter (partial = status)) count)]))
-                   (apply concat)
-                   (apply hash-map))]
-          {:result result-counts})))))
-
 ;; disabled, let users join on their own, use invite link
 #_
 (def-webapi

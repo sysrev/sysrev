@@ -835,24 +835,6 @@
                          (#(hash-map :notes %)))))))]
     (merge-with merge articles notes)))
 
-(defn article-user-multi-labels
-  "Queries article-label entries, returning a list entries for each user.
-  Multiple entries should not exist, this is only useful for fixing them.
-  (Also this is now prevented with a Postgres unique constraint)."
-  [article-id]
-  (->>
-   (-> (q/select-article-by-id article-id [:al.*])
-       (q/join-article-labels)
-       do-query)
-   (group-by :user-id)
-   (map-values
-    (fn [ulabels]
-      (->> ulabels
-           (group-by :label-id)
-           (map-values
-            (fn [entries]
-              (->> entries (sort-by :article-label-local-id >)))))))))
-
 (defn project-included-articles [project-id]
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]
@@ -875,17 +857,6 @@
                      (true? inclusion-status)))))
            (apply concat)
            (apply hash-map)))))
-
-(defn project-include-labels [project-id]
-  (with-project-cache
-    project-id [:label-values :confirmed :include-labels]
-    (->>
-     (-> (q/select-project-article-labels
-          project-id true
-          [:a.article-id :al.user-id :al.answer :al.resolve])
-         (q/filter-overall-label)
-         do-query)
-     (group-by :article-id))))
 
 (defn project-user-inclusions [project-id]
   (with-project-cache

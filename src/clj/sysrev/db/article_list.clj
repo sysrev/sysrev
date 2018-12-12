@@ -208,14 +208,6 @@ WHERE project_id=%d
              (status-test overall)
              (inclusion-test))))))
 
-#_
-(defn article-content-filter [{:keys []}]
-  nil)
-
-#_
-(defn article-annotation-filter [{:keys []}]
-  nil)
-
 (defn get-sort-fn [sort-by sort-dir]
   (case sort-by
     :article-added (sort-article-id sort-dir)

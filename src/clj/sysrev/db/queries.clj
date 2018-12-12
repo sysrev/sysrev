@@ -263,9 +263,6 @@
   (-> (select-label-where project-id where-clause [:*])
       do-query first))
 
-(defn label-id-from-name [project-id label-name]
-  (:label-id (query-label-where project-id [:= :name label-name] [:label-id])))
-
 (defn query-project-labels [project-id fields]
   (-> (select-label-where project-id true fields)
       do-query))

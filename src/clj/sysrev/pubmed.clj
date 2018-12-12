@@ -206,9 +206,6 @@
              result)
            (remove nil?)))))
 
-(defn fetch-pmid-entry [pmid]
-  (first (fetch-pmid-entries [pmid])))
-
 ;; https://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Searching_a_Database
 (defn get-search-query
   "Given a query and retstart value, fetch the json associated with that query. Return a EDN map of that data. A page size is 20 PMIDs and starts on page 1"

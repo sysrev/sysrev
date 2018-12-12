@@ -189,7 +189,7 @@
 (defmacro completes? [form]
   `(do ~form true))
 
-(defn filestore-fixture [test]
+(defn s3-bucket-fixture [test]
   (let [bucket-name (str (UUID/randomUUID))]
     (binding [env (assoc-in env [:filestore :bucket-name] bucket-name)]
       (s3/create-bucket bucket-name)
