@@ -9,7 +9,7 @@
               clear-project-cache with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
-            [sysrev.db.articles :as a]
+            [sysrev.article.core :as a]
             [sysrev.files.s3store :as s3store]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
@@ -22,7 +22,7 @@
 ;;;
 (s/fdef source-id->project-id
   :args (s/cat :source-id int?)
-  :ret int?)
+  :ret (s/nilable int?))
 
 (defn create-source
   "Create an entry in project_source table"
@@ -308,7 +308,7 @@
 ;;;
 (s/fdef project-sources-overlap
   :args (s/cat :project-id int?)
-  :ret coll?)
+  :ret (s/coll-of map?))
 
 (defn project-sources
   "Returns vector of source information maps for project-id."
@@ -343,7 +343,7 @@
 ;;;
 (s/fdef project-sources
   :args (s/cat :project-id int?)
-  :ret (s/nilable vector?))
+  :ret vector?)
 
 (defn source-has-labeled-articles?
   [source-id]
@@ -377,9 +377,7 @@
      (-> (select :source-id)
          (from [:project-source :ps])
          (where [:= :ps.source-id source-id])
-         do-query
-         first
-         :source-id)))
+         do-query first :source-id)))
 ;;;
 (s/fdef source-exists?
   :args (s/cat :source-id int?)

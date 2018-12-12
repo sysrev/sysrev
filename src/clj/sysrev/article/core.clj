@@ -1,8 +1,9 @@
-(ns sysrev.db.articles
+(ns sysrev.article.core
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-project-cache clear-project-cache]]
+            [sysrev.entity :as e]
             [sysrev.db.queries :as q]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
@@ -26,11 +27,11 @@
       (log/warn "article-to-sql: error converting article")
       (log/warn "article =" (pr-str article))
       (throw e))))
-;;
+;;;
 (s/fdef article-to-sql
-        :args (s/cat :article ::sa/article-partial
-                     :conn (s/? any?))
-        :ret map?)
+  :args (s/cat :article ::sa/article-partial
+               :conn (s/? any?))
+  :ret map?)
 
 (defn add-article [article project-id & [conn]]
   (let [project-id (q/to-project-id project-id)]
@@ -39,12 +40,12 @@
                         {:project-id project-id})])
         (returning :article-id)
         do-query first :article-id)))
-;;
+;;;
 (s/fdef add-article
-        :args (s/cat :article ::sa/article-partial
-                     :project-id ::sc/project-id
-                     :conn (s/? any?))
-        :ret (s/nilable ::sc/article-id))
+  :args (s/cat :article ::sa/article-partial
+               :project-id ::sc/project-id
+               :conn (s/? any?))
+  :ret (s/nilable ::sc/article-id))
 
 (defn add-articles [articles project-id & [conn]]
   (if (empty? articles)
@@ -92,13 +93,13 @@
               do-query)))
       (finally
         (clear-project-cache (:project-id pnote))))))
-;;
+;;;
 (s/fdef set-user-article-note
-        :args (s/cat :article-id ::sc/article-id
-                     :user-id ::sc/user-id
-                     :note-name string?
-                     :content (s/nilable string?))
-        :ret (s/nilable map?))
+  :args (s/cat :article-id ::sc/article-id
+               :user-id ::sc/user-id
+               :note-name string?
+               :content (s/nilable string?))
+  :ret (s/nilable map?))
 
 (defn article-user-notes-map [project-id article-id]
   (let [project-id (q/to-project-id project-id)
@@ -115,11 +116,11 @@
               (group-by :name)
               (map-values first)
               (map-values :content)))))))
-;;
+;;;
 (s/fdef article-user-notes-map
-        :args (s/cat :project-id ::sc/project-id
-                     :article-id ::sc/article-id)
-        :ret (s/nilable map?))
+  :args (s/cat :project-id ::sc/project-id
+               :article-id ::sc/article-id)
+  :ret (s/nilable map?))
 
 (defn remove-article-flag [article-id flag-name]
   (-> (delete-from :article-flag)
@@ -127,11 +128,11 @@
               [:= :article-id article-id]
               [:= :flag-name flag-name]])
       do-execute))
-;;
+;;;
 (s/fdef remove-article-flag
-        :args (s/cat :article-id ::sc/article-id
-                     :flag-name ::sa/flag-name)
-        :ret ::sc/sql-execute)
+  :args (s/cat :article-id ::sc/article-id
+               :flag-name ::sa/flag-name)
+  :ret ::sc/sql-execute)
 
 (defn set-article-flag [article-id flag-name disable? & [meta]]
   (remove-article-flag article-id flag-name)
@@ -142,13 +143,13 @@
                 :meta (when meta (db/to-jsonb meta))}])
       (returning :*)
       do-query first))
-;;
+;;;
 (s/fdef set-article-flag
-        :args (s/cat :article-id ::sc/article-id
-                     :flag-name ::sa/flag-name
-                     :disable? boolean?
-                     :meta (s/? ::sa/meta))
-        :ret map?)
+  :args (s/cat :article-id ::sc/article-id
+               :flag-name ::sa/flag-name
+               :disable? boolean?
+               :meta (s/? ::sa/meta))
+  :ret map?)
 
 (defn article-review-status [article-id]
   (let [entries
@@ -188,6 +189,7 @@
         (or predict-run-id (q/article-latest-predict-run-id article-id)))
       do-query first :score))
 
+;; TODO: replace with generic interface for querying db entities with added values
 (defn get-article
   "Queries for article data by id, with data from other tables included.
 
@@ -223,6 +225,7 @@
     (when (not-empty article)
       (merge article item-values))))
 
+;; TODO: move this to cljc, client project duplicates this function
 (defn article-location-urls [locations]
   (let [sources [:pubmed :doi :pii :nct]]
     (->>
@@ -265,6 +268,7 @@
                 [:= :a.enabled true])])
       do-query))
 
+;; TODO: replace with a generic select-by-field-values function
 (defn article-ids-to-uuids [article-ids]
   (->> (partition-all 500 article-ids)
        (mapv (fn [article-ids]
@@ -277,46 +281,35 @@
 (defn article-pmcid
   "Given an article id, return it's pmcid. Returns nil if it does not exist"
   [article-id]
-  (try
-      (-> (select :raw)
-          (from :article)
-          (where [:= :article_id article-id])
-          do-query
-          first
-          :raw
-          (->> (re-find #"PMC\d+")))
-      (catch Throwable e
-        nil)))
+  (-> (select :raw)
+      (from :article)
+      (where [:= :article-id article-id])
+      do-query (some->> first :raw (re-find #"PMC\d+"))))
 
 (defn pmcid-in-s3store?
   "Given a pmcid, do we have a file associated with it in the s3store?"
   [pmcid]
-  (boolean (try (-> (select :pmcid)
-                    (from :pmcid_s3store)
-                    (where [:= :pmcid pmcid])
-                    do-query
-                    first)
-                (catch Throwable e
-                  nil))))
+  (boolean (-> (select :pmcid)
+               (from :pmcid-s3store)
+               (where [:= :pmcid pmcid])
+               do-query first)))
 
 (defn pmcid->s3store-id
   "Given a PMCID, return a s3store-id associated with it, if any"
   [pmcid]
-  (-> (select :s3_id)
-      (from :pmcid_s3store)
+  (-> (select :s3-id)
+      (from :pmcid-s3store)
       (where [:= :pmcid pmcid])
-      do-query
-      first
-      :s3-id))
+      do-query first :s3-id))
 
 (defn associate-pmcid-s3store
   "Given a pmcid and an s3store-id, associate the two"
   [pmcid s3store-id]
-  (-> (insert-into :pmcid_s3store)
-      (values [{:pmcid pmcid
-                :s3_id s3store-id}])
+  (-> (insert-into :pmcid-s3store)
+      (values [{:pmcid pmcid :s3-id s3store-id}])
       do-execute))
 
+;; TODO: replace with generic function
 (defn modify-project-articles
   "Runs SQL update setting `values` on all project articles"
   [project-id values]
@@ -325,6 +318,7 @@
       (where [:= :project-id project-id])
       do-execute))
 
+;; TODO: replace with generic function
 (defn modify-articles-by-id
   "Runs SQL update setting `values` on articles in `article-ids`."
   [article-ids values]

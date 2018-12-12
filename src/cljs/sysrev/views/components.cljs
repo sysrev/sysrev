@@ -164,11 +164,6 @@
           (doall
            (for [entry right-entries]
              (doall (render-entry entry))))]))]))
-(s/fdef
- primary-tabbed-menu
- :args (s/cat :entries (s/coll-of ::menu-tab)
-              :active-tab-id ::tab-id
-              :menu-class (s/? string?)))
 
 (defn secondary-tabbed-menu
   [left-entries right-entries active-tab-id & [menu-class mobile?]]
@@ -213,13 +208,6 @@
           (doall
            (for [entry right-entries]
              (render-entry entry)))]))]))
-(s/fdef
- secondary-tabbed-menu
- :args (s/cat :left-entries (s/coll-of ::menu-tab)
-              :right-entries (s/coll-of ::menu-tab)
-              :active-tab-id ::tab-id
-              :menu-class (s/? string?)
-              :mobile? (s/? boolean?)))
 
 (defn tabbed-panel-menu [entries active-tab-id & [menu-class mobile?]]
   (let [menu-class (or menu-class "")
@@ -256,12 +244,6 @@
       (doall
        (for [entry entries]
          (render-entry entry)))]]))
-(s/fdef
- tabbed-panel-menu
- :args (s/cat :entries (s/coll-of ::menu-tab)
-              :active-tab-id ::tab-id
-              :menu-class (s/? string?)
-              :mobile? (s/? boolean?)))
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}

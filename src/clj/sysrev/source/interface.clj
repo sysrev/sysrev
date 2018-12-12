@@ -4,7 +4,7 @@
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction *conn*
               clear-project-cache]]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.source.core :as s]
             [sysrev.shared.util :as su :refer [in?]]
             [sysrev.biosource.predict :as predict-api]
@@ -28,7 +28,7 @@
                          (format "[No Title Found] %s"
                                  (-> (UUID/randomUUID) str (str/split #"-") first))
                          %))))
-        article-ids (articles/add-articles
+        article-ids (article/add-articles
                      (->> articles (mapv prepare-article-full))
                      project-id *conn*)]
     (map (fn [id article] {id (merge article {:article-id id})})

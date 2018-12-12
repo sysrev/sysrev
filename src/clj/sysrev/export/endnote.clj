@@ -9,7 +9,7 @@
             [sysrev.shared.util :as u :refer [in? map-values]]
             [sysrev.db.queries :as q]
             [sysrev.db.labels :as labels]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.source.endnote :refer
              [load-endnote-record parse-endnote-file]]
             [clojure.string :as str]))
@@ -80,7 +80,7 @@
 
 (defn article-to-endnote-xml
   [article-id {:keys [filename] :or {filename "Sysrev_Articles"}}]
-  (let [article (articles/get-article article-id :items [:locations])]
+  (let [article (article/get-article article-id :items [:locations])]
     [:record
      [:database {:name (str filename ".enl")}
       (str filename ".enl")]
@@ -123,7 +123,7 @@
       (let [urls (concat
                   (-> article :urls)
                   (-> article :locations
-                      articles/article-location-urls))]
+                      article/article-location-urls))]
         (when (not-empty urls)
           [:related-urls
            (doall

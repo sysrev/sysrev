@@ -3,12 +3,12 @@
             [clojure.spec.alpha :as s]
             [sysrev.shared.spec.core :as sc]
             [sysrev.db.core :as db :refer
-             [do-query do-query-map do-execute with-transaction
+             [do-query do-execute with-transaction
               sql-now to-sql-array to-jsonb sql-cast
               with-query-cache with-project-cache clear-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [sysrev.shared.article-list :refer
@@ -291,7 +291,7 @@
                     (take n-closest)
                     (#(when-not (empty? %) (crypto-rand-nth %)))
                     :article-id)]
-      (-> (articles/get-article
+      (-> (article/get-article
            article-id :predict-run-id predict-run-id)
           (dissoc :raw)))))
 
@@ -639,9 +639,9 @@
         (sset {:enabled enabled?})
         (where [:= :label-id label-id])
         do-execute)))
+;;;
 (s/fdef set-label-enabled
-        :args (s/cat :label-id ::sc/label-id
-                     :enabled? boolean?))
+  :args (s/cat :label-id ::sc/label-id, :enabled? boolean?))
 
 (defn set-label-required [label-id required?]
   (let [label-id (q/to-label-id label-id)]
@@ -649,9 +649,9 @@
         (sset {:required required?})
         (where [:= :label-id label-id])
         do-execute)))
+;;;
 (s/fdef set-label-required
-        :args (s/cat :label-id ::sc/label-id
-                     :required? boolean?))
+  :args (s/cat :label-id ::sc/label-id, :required? boolean?))
 
 (defn query-public-article-labels [project-id]
   (with-project-cache

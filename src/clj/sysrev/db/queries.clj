@@ -35,10 +35,10 @@
                   (where [:= :article-uuid id])
                   do-query first :article-id)))
           :else nil)))))
-;;
+;;;
 (s/fdef to-article-id
-        :args (s/cat :article-or-id ::sa/article-or-id)
-        :ret (s/nilable ::sc/sql-serial-id))
+  :args (s/cat :article-or-id ::sa/article-or-id)
+  :ret (s/nilable ::sc/sql-serial-id))
 
 (defn to-user-id
   "Returns integer user id of argument."
@@ -54,10 +54,10 @@
                           (where [:= :user-uuid user-id])
                           do-query first :user-id)
           :else nil)))))
-;;
+;;;
 (s/fdef to-user-id
-        :args (s/cat :user-id ::sc/user-id)
-        :ret (s/nilable ::sc/sql-serial-id))
+  :args (s/cat :user-id ::sc/user-id)
+  :ret (s/nilable ::sc/sql-serial-id))
 
 (defn to-project-id
   "Returns integer project id of argument."
@@ -73,10 +73,10 @@
                           (where [:= :project-uuid project-id])
                           do-query first :project-id)
           :else nil)))))
-;;
+;;;
 (s/fdef to-project-id
-        :args (s/cat :project-id ::sc/project-id)
-        :ret (s/nilable ::sc/sql-serial-id))
+  :args (s/cat :project-id ::sc/project-id)
+  :ret (s/nilable ::sc/sql-serial-id))
 
 (defn to-label-id
   "Returns label uuid of argument."
@@ -92,10 +92,10 @@
                             (where [:= :label-id-local label-id])
                             do-query first :label-id)
           :else nil)))))
-;;
+;;;
 (s/fdef to-label-id
-        :args (s/cat :label-id ::sc/label-id)
-        :ret (s/nilable ::sc/uuid))
+  :args (s/cat :label-id ::sc/label-id)
+  :ret (s/nilable ::sc/uuid))
 
 ;;;
 ;;; articles
@@ -370,23 +370,23 @@
   (let [test (sql-array-contains :u.permissions permission)
         test (if not? [:not test] test)]
     (merge-where m test)))
-;;
+;;;
 (s/fdef filter-user-permission
-        :args (s/cat :m ::sc/honeysql
-                     :permission string?
-                     :not? (s/? boolean?))
-        :ret ::sc/honeysql)
+  :args (s/cat :m ::sc/honeysql
+               :permission string?
+               :not? (s/? boolean?))
+  :ret ::sc/honeysql)
 
 (defn filter-admin-user [m admin?]
   (cond-> m
     (true? admin?) (filter-user-permission "admin")
     (false? admin?) (filter-user-permission "admin" true)
     (nil? admin?) (identity)))
-;;
+;;;
 (s/fdef filter-admin-user
-        :args (s/cat :m ::sc/honeysql
-                     :admin? (s/nilable boolean?))
-        :ret ::sc/honeysql)
+  :args (s/cat :m ::sc/honeysql
+               :admin? (s/nilable boolean?))
+  :ret ::sc/honeysql)
 
 ;;;
 ;;; predict values

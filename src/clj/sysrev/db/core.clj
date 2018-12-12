@@ -27,6 +27,9 @@
 ;; This is used to bind a transaction connection in with-transaction.
 (defonce ^:dynamic *conn* nil)
 
+;; Used by sysrev.entity; must be defined here to allow resetting in set-active-db!
+(defonce entity-columns-cache (atom {}))
+
 (defn make-db-config
   "Creates a Postgres db pool object to use with JDBC.
 
@@ -55,16 +58,15 @@
 (defn set-active-db!
   [db & [only-if-new]]
   (clear-query-cache)
-  (if (and only-if-new
-           (= (:config db) (:config @active-db)))
-    nil
-    (do (close-active-db)
-        (reset! active-db db)
-        (when-not (in? [:test :remote-test] (:profile env))
-          (let [{:keys [host port dbname]} (:config db)]
-            (log/info (format "connected to postgres (%s:%d/%s)"
-                              host port dbname))))
-        db)))
+  (when-not (and only-if-new (= (:config db) (:config @active-db)))
+    (close-active-db)
+    (reset! active-db db)
+    (reset! entity-columns-cache {})
+    (when-not (in? [:test :remote-test] (:profile env))
+      (let [{:keys [host port dbname]} (:config db)]
+        (log/info (format "connected to postgres (%s:%d/%s)"
+                          host port dbname))))
+    db))
 
 ;; Add JDBC conversion methods for Postgres jsonb type
 (add-jsonb-type
@@ -102,8 +104,25 @@
 (defn sql-array-contains [field val]
   [:= val (sql/call :any field)])
 
-(defn format-column-name [col]
-  (-> col str/lower-case (str/replace "_" "-")))
+(defn clj-identifier-to-sql
+  "Convert a Clojure keyword or string identifier to SQL format by
+  replacing all '-' with '_', returning a string."
+  [identifier]
+  (-> identifier name str/lower-case (str/replace "-" "_")))
+;;;
+(s/fdef clj-identifier-to-sql
+  :args (s/cat :identifier (s/or :keyword keyword? :string string?))
+  :ret string?)
+
+(defn sql-identifier-to-clj
+  "Convert an SQL keyword or string identifier to Clojure format by
+  replacing all '_' with '-', returning a string."
+  [identifier]
+  (-> identifier name str/lower-case (str/replace "_" "-")))
+;;;
+(s/fdef sql-identifier-to-clj
+  :args (s/cat :identifier (s/or :keyword keyword? :string string?))
+  :ret string?)
 
 (defn prepare-honeysql-map
   "Converts map values to jsonb strings as needed."
@@ -122,14 +141,8 @@
   [sql-map & [conn]]
   (j/query (or conn *conn* @active-db)
            (-> sql-map prepare-honeysql-map (sql/format :quoting :ansi))
-           {:identifiers format-column-name
+           {:identifiers sql-identifier-to-clj
             :result-set-fn vec}))
-
-(defn do-query-map
-  "(->> (do-query ...) (map map-fn))"
-  [sql-map map-fn & [conn]]
-  (->> (do-query sql-map conn)
-       (map map-fn)))
 
 (defmacro with-debug-sql
   "Runs body with exception handler to print SQL error details."

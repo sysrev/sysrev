@@ -13,7 +13,7 @@
             [sysrev.cache :refer [db-memo]]
             [sysrev.charts :as charts]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.db.annotations :as db-annotations]
             [sysrev.db.compensation :as compensation]
             [sysrev.db.core :as db]
@@ -73,11 +73,10 @@
     {:result
      {:success true
       :project (select-keys project [:project-id :name])}}))
-
+;;;
 (s/fdef create-project-for-user!
-        :args (s/cat :project-name ::sp/name
-                     :user-id ::sc/user-id)
-        :ret ::sp/project)
+  :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id)
+  :ret ::sp/project)
 
 (defn delete-project!
   "Delete a project with project-id by user-id. Checks to ensure the
@@ -93,10 +92,9 @@
     (do (project/delete-project project-id)
         {:result {:success true
                   :project-id project-id}})))
-
+;;;
 (s/fdef delete-project!
-  :args (s/cat :project-id int?
-               :user-id int?)
+  :args (s/cat :project-id int?, :user-id int?)
   :ret map?)
 
 (defn wrap-import-api [f]
@@ -150,10 +148,10 @@
               :sources (source/project-sources project-id)}}
     {:error {:status not-found
              :message (str "project-id " project-id  " not found")}}))
-
+;;;
 (s/fdef project-sources
-        :args (s/cat :project-id int?)
-        :ret map?)
+  :args (s/cat :project-id int?)
+  :ret map?)
 
 (defn delete-source!
   "Delete a source with source-id by user-id."
@@ -169,10 +167,10 @@
                 (predict-api/schedule-predict-update project-id)
                 (importance/schedule-important-terms-update project-id)
                 {:result {:success true}})))
-
+;;;
 (s/fdef delete-source!
-        :args (s/cat :source-id int?)
-        :ret map?)
+  :args (s/cat :source-id int?)
+  :ret map?)
 
 (defn toggle-source
   "Toggle a source as being enabled or disabled."
@@ -185,11 +183,10 @@
       {:result {:success true}})
     {:error {:status not-found
              :message (str "source-id " source-id " does not exist")}}))
-
+;;;
 (s/fdef toggle-source
-        :args (s/cat :source-id int?
-                     :enabled? boolean?)
-        :ret map?)
+  :args (s/cat :source-id int?, :enabled? boolean?)
+  :ret map?)
 
 (defn register-user!
   "Register a user and add them as a stripe customer"
@@ -678,7 +675,7 @@
     (let [all-score-vals (->> (range 0 1 0.02)
                               (mapv #(util/round-to % 0.02 2 :op :floor)))
           prediction-scores
-          (->> (articles/project-prediction-scores project-id)
+          (->> (article/project-prediction-scores project-id)
                (mapv #(assoc % :rounded-score
                              (-> (:val %) (util/round-to 0.02 2 :op :floor)))))
           predictions-map (zipmap (mapv :article-id prediction-scores)
@@ -766,7 +763,7 @@
   articles abstract"
   [article-id]
   {:result {:annotations (-> article-id
-                             articles/get-article
+                             article/get-article
                              :abstract
                              annotations-wrapper!)}})
 
@@ -860,19 +857,19 @@
 
 (defn open-access-available?
   [article-id]
-  (let [pmcid (-> article-id articles/article-pmcid)]
+  (let [pmcid (-> article-id article/article-pmcid)]
     (cond
       ;; the pdf exists in the store already
-      (articles/pmcid-in-s3store? pmcid)
+      (article/pmcid-in-s3store? pmcid)
       {:result {:available? true
                 :key (-> pmcid
-                         (articles/pmcid->s3store-id)
+                         (article/pmcid->s3store-id)
                          (files/s3store-id->key))}}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
         (let [filename (-> article-id
-                           articles/article-pmcid
+                           article/article-pmcid
                            pubmed/article-pmcid-pdf-filename)
               file (java.io.File. filename)
               bytes (util/slurp-bytes file)
@@ -882,12 +879,12 @@
           ;; delete the temporary file
           (fs/delete filename)
           ;; associate the pmcid with the s3store item
-          (articles/associate-pmcid-s3store
+          (article/associate-pmcid-s3store
            pmcid s3store-id)
           ;; finally, return the pdf from our own archive
           {:result {:available? true
                     :key (-> pmcid
-                             (articles/pmcid->s3store-id)
+                             (article/pmcid->s3store-id)
                              (files/s3store-id->key))}})
         (catch Throwable e
           {:error {:message (str "open-access-available?: " (type e))
@@ -903,8 +900,8 @@
   files associated with article-id"
   [article-id]
   (let [pmcid (-> article-id
-                  articles/article-pmcid)
-        pmcid-s3store-id (articles/pmcid->s3store-id pmcid)]
+                  article/article-pmcid)
+        pmcid-s3store-id (article/pmcid->s3store-id pmcid)]
     {:result {:success true
               :files (->> (files/get-article-file-maps article-id)
                           (mapv #(assoc % :open-access?

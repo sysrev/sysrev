@@ -170,17 +170,16 @@
                         action-params (conj action-params))
           :on-failure (cond-> on-failure
                         action-params (conj action-params))}
-         force-body?
-         (merge {:body (util/write-transit-str content)})
-         (not force-body?)
-         (merge {:params content}))}))
-
+       force-body?
+       (merge {:body (util/write-transit-str content)})
+       (not force-body?)
+       (merge {:params content}))}))
+;;;
 (s/fdef run-ajax
-        :args (s/cat
-               :keys (s/keys
+  :args (s/cat :keys (s/keys
                       :req-un [::method ::uri ::on-success]
                       :opt-un [::content ::on-failure ::action-params]))
-        :ret map?)
+  :ret map?)
 
 (reg-event-db
  :ajax/default-failure

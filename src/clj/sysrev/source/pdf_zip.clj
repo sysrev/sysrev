@@ -4,7 +4,7 @@
             [clojure.java.io :as io]
             [me.raynes.fs :as fs]
             [sysrev.db.core :as db :refer [with-transaction]]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.db.files :as files]
             [sysrev.files.s3store :as s3store]
             [sysrev.source.core :as source :refer [make-source-meta]]

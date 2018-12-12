@@ -7,7 +7,7 @@
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.project :as project]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.db.labels :as labels]
             [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
@@ -179,7 +179,7 @@
                        (assoc :project-id child-id
                               :parent-article-uuid article-uuid)
                        (dissoc :article-id :article-uuid :duplicate-of :text-search)
-                       (articles/article-to-sql))])
+                       (article/article-to-sql))])
           do-execute))))
 
 ;; TODO: should copy "Project Documents" files

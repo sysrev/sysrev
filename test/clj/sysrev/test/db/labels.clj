@@ -9,7 +9,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
             [sysrev.db.labels :as l]
-            [sysrev.db.articles :as a]
+            [sysrev.article.core :as a]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.test.core :refer [default-fixture completes?]]

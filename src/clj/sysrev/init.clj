@@ -1,5 +1,6 @@
 (ns sysrev.init
   (:require [sysrev.db.core :as db :refer [set-active-db! make-db-config]]
+            sysrev.all-entities
             [sysrev.cassandra :as cdb]
             [sysrev.web.core :refer [run-web]]
             [sysrev.config.core :refer [env]]

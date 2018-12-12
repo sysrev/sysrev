@@ -8,12 +8,12 @@
             [clojure.data.xml :as dxml]
             [clojure.tools.logging :as log]
             [sysrev.db.core :refer
-             [do-query do-query-map do-execute with-transaction
-              to-sql-array with-debug-sql to-jsonb sql-cast]]
+             [do-query do-execute with-transaction to-sql-array
+              with-debug-sql to-jsonb sql-cast]]
             [sysrev.db.project :as project :refer
              [add-project-member set-member-permissions
               default-project-settings]]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.db.users :refer
              [get-user-by-email set-user-permissions generate-api-token]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
@@ -140,7 +140,7 @@
                     (q/join-article-labels)
                     (merge-where
                      [:!= :al.inclusion nil]))]]])
-            (do-query-map :project-id))]
+            (->> do-query (map :project-id)))]
     (doseq [project-id project-ids]
       (let [alabels
             (-> (q/select-project-articles
@@ -258,7 +258,7 @@
                          " article-flag disable entries for project #"
                          project-id))
           (doseq [article-id article-ids]
-            (articles/set-article-flag article-id "legacy-disable" true)))))))
+            (article/set-article-flag article-id "legacy-disable" true)))))))
 
 ;; TODO: this doesn't work for replacing existing stripe_plan entries
 (defn update-stripe-plans-table

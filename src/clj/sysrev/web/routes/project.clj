@@ -8,7 +8,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.export :as export]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.db.documents :as docs]
             [sysrev.db.labels :as labels]
             [sysrev.source.core :as source]
@@ -72,9 +72,9 @@
 (defn article-info-full [project-id article-id]
   (let [[article user-labels user-notes article-pdfs]
         (pvalues
-         (articles/get-article article-id)
+         (article/get-article article-id)
          (labels/article-user-labels-map project-id article-id)
-         (articles/article-user-notes-map project-id article-id)
+         (article/article-user-notes-map project-id article-id)
          (api/article-pdfs article-id))]
     {:article (merge (prepare-article-response article)
                      {:pdfs (-> article-pdfs :result :files)})
@@ -248,7 +248,7 @@
          (let [user-id (current-user-id request)
                {:keys [article-id name content]
                 :as body} (-> request :body)]
-           (articles/set-user-article-note article-id user-id name content)
+           (article/set-user-article-note article-id user-id name content)
            {:result body})))
 
   (GET "/api/member-articles/:user-id" request

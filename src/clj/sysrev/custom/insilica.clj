@@ -1,6 +1,6 @@
 (ns sysrev.custom.insilica
   (:require [sysrev.db.core :refer [do-query with-transaction]]
-            [sysrev.db.articles :as articles]
+            [sysrev.article.core :as article]
             [sysrev.db.labels :as labels]
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
@@ -54,7 +54,7 @@
                    (let [article-labels (get public-labels article-id)]
                      (prostate-clinical-trial?
                       article-labels overall-id clinical-id preclinical-id))))
-         (articles/article-ids-to-uuids))))
+         (article/article-ids-to-uuids))))
 
 (defn prostate-preclinical-article-uuids [project-id]
   (let [public-labels (labels/query-public-article-labels project-id)
@@ -72,7 +72,7 @@
                    (let [article-labels (get public-labels article-id)]
                      (prostate-preclinical?
                       article-labels overall-id clinical-id preclinical-id))))
-         (articles/article-ids-to-uuids))))
+         (article/article-ids-to-uuids))))
 
 (defn clone-prostate-clinical [project-id]
   (let [title (:name (q/query-project-by-id project-id [:name]))]
@@ -105,5 +105,5 @@
   (let [article-ids (pubmed-foreign-article-ids project-id)]
     (with-transaction
       (doseq [article-id article-ids]
-        (articles/set-article-flag
+        (article/set-article-flag
          article-id "pubmed foreign language" true)))))
