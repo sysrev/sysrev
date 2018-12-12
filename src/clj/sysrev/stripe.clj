@@ -89,19 +89,23 @@
 ;; Because of the sensitive nature of this fn, it is hardcoded to only use a 
 ;; key extracted from profiles.clj
 ;;
+;;
 ;; !!! WARNING !!!
 (defn- delete-all-customers!
   []
-  (let [do-action (fn [action]
-                    (common/with-token (env :stripe-secret-key)
-                      (common/execute action)))]
-    (mapv #(do-action (customers/delete-customer %))
-          ;; note that even the limit-count is hard coded here
-          ;; you may have to run this function more than once if you have
-          ;; created a lot of stray stripe customers
-          (->> (do-action (customers/get-customers (common/limit-count 100)))
-               :data
-               (mapv :id)))))
+  (if (and (re-matches #"pk_test_.*" (env :stripe-public-key))
+           (re-matches #"sk_test_.*" (env :stripe-secret-key)))
+    (let [do-action (fn [action]
+                      (common/with-token (env :stripe-secret-key)
+                        (common/execute action)))]
+      (mapv #(do-action (customers/delete-customer %))
+            ;; note that even the limit-count is hard coded here
+            ;; you may have to run this function more than once if you have
+            ;; created a lot of stray stripe customers
+            (->> (do-action (customers/get-customers (common/limit-count 100)))
+                 :data
+                 (mapv :id))))
+    (log/info (str "Error in " (current-function-name) ": " "attempt to run with non-test keys"))))
 
 (defn get-plans
   "Get all site plans"

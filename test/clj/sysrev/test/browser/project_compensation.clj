@@ -21,6 +21,7 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(def payments-owed-header (xpath "//h4[contains(text(),'Payments Owed')]"))
 ;;;
 ;;; NOTE: Compensation entries should not be deleted like this except in testing.
 ;;;
@@ -52,7 +53,17 @@
 (defn cents->string
   "Convert an integer amount of cents to a string dollar amount"
   [cents]
-  (->> (/ cents 100) double (format "%.2f")))
+  (->> (/ cents 100) double (format "%.2f") (str "$")))
+
+(defn string->cents
+  "Convert a string dollar amount to an integer amount of cents"
+  [string]
+  (-> string
+      (subs 1)
+      (clojure.string/replace #"," "")
+      read-string
+      (* 100)
+      int))
 
 (defn create-compensation
   "Create a compensation in an integer amount of cents"
@@ -63,11 +74,11 @@
     (log/info "creating compensation:" amount "cents")
     (nav/go-project-route "/compensations")
     (b/wait-until-exists create-new-compensation)
-    (b/set-input-text-per-char amount-input (cents->string amount))
+    (b/set-input-text-per-char amount-input (subs (cents->string amount) 1))
     (b/click amount-create)
     (b/wait-until-exists
      (xpath "//div[@id='project-compensations']"
-            "/descendant::span[contains(text(),'$" (cents->string amount) "')]"))))
+            "/descendant::span[contains(text(),'" (cents->string amount) "')]"))))
 
 (defn compensation-select [user]
   (xpath "//div[contains(text(),'" user "')]"
@@ -76,7 +87,7 @@
 
 (defn compensation-option [user amount]
   (let [amount (if (number? amount)
-                 (str "$" (cents->string amount) " / article")
+                 (str (cents->string amount) " / article")
                  "No Compensation")]
     (xpath (compensation-select user)
            "/descendant::div[@role='option']"
@@ -101,6 +112,19 @@
        (map #(* (:articles %)
                 (get-in % [:rate :amount])))
        (apply +)))
+
+(defn project-payments-owed
+  "Given a project name, how much does it owe the user?"
+  [project-name]
+  (-> (xpath (str "//div[text()='" project-name "']/ancestor::div[@class='row']/div[contains(text(),'$')]"))
+      taxi/find-element
+      taxi/text))
+
+(defn correct-payments-owed?
+  "Does the compensation tab show the correct payments owed to user by project-id?"
+  [user project]
+  (is (= (user-amount-owed @(:project-id project) (:name user))
+         (string->cents (project-payments-owed (:name project))))))
 
 (defn switch-user [{:keys [email password]} & [project]]
   (nav/log-in email password)
@@ -406,7 +430,25 @@
                       (* (:n-articles user2) (-> project1 :amounts (nth 2))))
                    (user-amount-owed @(:project-id project1) (:name user2))))
             (is (= (* (:n-articles user3) (-> project1 :amounts (nth 0)))
-                   (user-amount-owed @(:project-id project1) (:name user3)))))
+                   (user-amount-owed @(:project-id project1) (:name user3))))
+            ;; is foo shown the correct payments owed?
+            (switch-user user1)
+            (nav/go-route "/user/settings/compensation")
+            (b/wait-until-exists payments-owed-header)
+            (correct-payments-owed? user1 project1)
+            (correct-payments-owed? user1 project2)
+            ;; is bar shown the correct payments owed?
+            (switch-user user2)
+            (nav/go-route "/user/settings/compensation")
+            (b/wait-until-exists payments-owed-header)
+            (correct-payments-owed? user2 project1)
+            (correct-payments-owed? user2 project2)
+            ;; is corge shown the correct payments owed?
+            (switch-user user3)
+            (nav/go-route "/user/settings/compensation")
+            (b/wait-until-exists payments-owed-header)
+            (correct-payments-owed? user3 project1)
+            (correct-payments-owed? user3 project2))
           ;; don't uncomment below here if testing line-by-line
           ))
       (finally

@@ -317,8 +317,6 @@
     (support-project-monthly user project-id amount)
     (support-project-once user project-id amount)))
 
-(defonce paypal-response (atom nil))
-
 ;;https://developer.paypal.com/docs/checkout/how-to/customize-flow/#manage-funding-source-failure
 ;; response.error = 'INSTRUMENT_DECLINED'
 (defn add-funds-paypal
