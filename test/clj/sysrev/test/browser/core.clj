@@ -237,3 +237,9 @@
   (when-let [test-user-id (:user-id (users/get-user-by-email
                                      "browser+test@insilica.co"))]
     (project/delete-solo-projects-from-user test-user-id)))
+
+
+(defn current-frame-names
+  []
+  (->> (taxi/xpath-finder "//iframe")
+       (map #(taxi/attribute % :name))))

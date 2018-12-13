@@ -22,6 +22,27 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (def payments-owed-header (xpath "//h4[contains(text(),'Payments Owed')]"))
+(def project-funds-header (xpath "//h4[contains(text(),'Add Funds')]"))
+(def add-funds-input (xpath "//input[@id='create-user-defined-support-level']"))
+;; PayPal
+;;(def paypal-checkout-window {:title "PayPal Checkout"})
+(def cardnumber-input (xpath "//input[@id='cc']"))
+(def visa-cardnumber "4032033511927936")
+(def card-exp-input (xpath "//input[@id='expiry_value']"))
+(def card-exp "11/23")
+(def cvv-input (xpath "//input[@id='cvv']"))
+(def first-name-input (xpath "//input[@id='firstName']"))
+(def last-name-input (xpath "//input[@id='lastName']"))
+(def street-address-input (xpath "//input[@id='billingLine1']"))
+(def billing-city-input (xpath "//input[@id='billingCity']"))
+(def billing-state-select (xpath "//select[@id='billingState']"))
+(def billing-postal-code-input (xpath "//input[@id='billingPostalCode']"))
+(def telephone-input (xpath "//input[@id='telephone']"))
+(def email-input (xpath "//input[@id='email']"))
+(def guest-signup-2-radio (xpath "//input[@id='guestSignup2']/ancestor::div[contains(@class,'radioButton')]"))
+(def pay-now-button (xpath "//button[@id='guestSubmit']"))
+
+(def payment-processed (xpath "//div[contains(text(),'Payment Processed')]"))
 ;;;
 ;;; NOTE: Compensation entries should not be deleted like this except in testing.
 ;;;
@@ -113,18 +134,49 @@
                 (get-in % [:rate :amount])))
        (apply +)))
 
+(defn user-amount-paid [project-name email]
+  (->> (get-in (api/payments-paid (:user-id (users/get-user-by-email email)))
+               [:result :payments-paid])
+       (filter #(= (:project-name %) project-name))
+       (map :total-paid)
+       (apply +)))
+
 (defn project-payments-owed
   "Given a project name, how much does it owe the user?"
   [project-name]
-  (-> (xpath (str "//div[text()='" project-name "']/ancestor::div[@class='row']/div[contains(text(),'$')]"))
-      taxi/find-element
-      taxi/text))
+  (if-let [element (-> (xpath (str "//h4[contains(text(),'Payments Owed')]"
+                                   "/ancestor::div[contains(@class,'segment')]"
+                                   "/descendant::div[text()='" project-name "']"
+                                   "/ancestor::div[@class='row']"
+                                   "/div[contains(text(),'$')]"))
+                       taxi/find-element)]
+    (taxi/text element)
+    "$0.00"))
 
 (defn correct-payments-owed?
   "Does the compensation tab show the correct payments owed to user by project-id?"
   [user project]
   (is (= (user-amount-owed @(:project-id project) (:name user))
          (string->cents (project-payments-owed (:name project))))))
+
+(defn project-payments-paid
+  "Given a project name, how much does it owe the user?"
+  [project-name]
+  (if-let [element (-> (xpath (str "//h4[contains(text(),'Payments Paid')]"
+                                   "/ancestor::div[contains(@class,'segment')]"
+                                   "/descendant::div[text()='" project-name "']"
+                                   "/ancestor::div[@class='row']"
+                                   "/div[contains(text(),'$')]"))
+                       taxi/find-element)]
+    (taxi/text element)
+    "$0.00"))
+
+(defn correct-payments-paid?
+  "Does the compensation tab show the correct payments paid to user by project-id?"
+  [user project]
+  (is (= (user-amount-paid (:name project)
+                           (:email user))
+         (string->cents (project-payments-paid (:name project))))))
 
 (defn switch-user [{:keys [email password]} & [project]]
   (nav/log-in email password)
@@ -151,6 +203,13 @@
                 [:= :project_id project-id]])
         do-query
         (->> (map :article-id)))))
+
+(defn click-paypal-visa
+  []
+  (let [paypal-frame-name (-> (b/current-frame-names) first)]
+    (taxi/switch-to-default)
+    (taxi/switch-to-frame (xpath (str "//iframe[@name='" paypal-frame-name "']")))
+    (b/click {:css "div.paypal-button-card-visa"})))
 
 ;; this function is incomplete as it only handles the case of boolean labels
 ;; this can only create, not update labels
@@ -192,6 +251,42 @@
   "Given an email address return the user-id"
   [email]
   (-> email (users/get-user-by-email) :user-id))
+
+(defn add-paypal-funds
+  "Add dollar amount of funds (e.g. $20.00) to project using paypal"
+  [amount]
+  (b/set-input-text-per-char add-funds-input amount)
+  (click-paypal-visa)
+  (taxi/wait-until #(try (taxi/switch-to-window 1)
+                         true
+                         (catch Exception e false)) 30)
+  (taxi/switch-to-window 1)
+  (b/wait-until-exists cardnumber-input)
+  (Thread/sleep 2500)
+  (b/set-input-text-per-char cardnumber-input visa-cardnumber)
+  (b/set-input-text-per-char card-exp-input card-exp)
+  (b/set-input-text-per-char cvv-input "123")
+  (b/set-input-text-per-char first-name-input "Foo")
+  (b/set-input-text-per-char last-name-input "Bar")
+  (b/set-input-text-per-char street-address-input "1 Infinite Loop Dr")
+  (b/set-input-text-per-char billing-city-input "Baltimore")
+  (taxi/select-by-text billing-state-select "Maryland")
+  (b/set-input-text-per-char billing-postal-code-input "21209")
+  (b/set-input-text-per-char telephone-input "222-333-4444")
+  (b/set-input-text-per-char email-input "browser+test@insilica.co")
+  (taxi/click guest-signup-2-radio)
+  (taxi/click pay-now-button)
+  (taxi/switch-to-window 0)
+  (taxi/switch-to-default))
+
+(defn pay-user
+  "Pay the user with email address"
+  [email]
+  (let [pay-button (xpath "//h4[contains(text(),'Compensation Owed')]/ancestor::div[contains(@class,'segment')]/descendant::div[contains(text(),'" email "')]/ancestor::div[contains(@class,'grid')]/descendant::button[contains(text(),'Pay')]")
+        confirm-button (xpath "//button[contains(text(),'Confirm')]")]
+    (taxi/click pay-button)
+    (b/wait-until-exists confirm-button)
+    (taxi/click confirm-button)))
 
 (let [project-name "Sysrev Compensation Test"
       search-term "foo create"
@@ -238,10 +333,12 @@
   (let [projects
         (->> [{:name "Sysrev Compensation Test 1"
                :amounts [100 10 110]
-               :search "foo create"}
+               :search "foo create"
+               :funds "$20.00"}
               {:name "Sysrev Compensation Test 2"
                :amounts [100 20 330]
-               :search "foo create"}]
+               :search "foo create"
+               :funds "$15.00"}]
              (mapv #(assoc % :project-id (atom nil))))
         [project1 project2] projects
         test-users [{:name "foo"
@@ -305,6 +402,10 @@
           (select-compensation-for-user
            "Default New User Compensation" (-> project1 :amounts (nth 0)))
           (Thread/sleep 200)
+          ;; add funds to the project
+          (b/wait-until-exists project-funds-header)
+          (add-paypal-funds "$20.00")
+          (b/wait-until-exists payment-processed 30000 500)
           ;; create users
           (doseq [{:keys [email password]} test-users]
             (b/create-test-user :email email :password password
@@ -448,7 +549,29 @@
             (nav/go-route "/user/settings/compensation")
             (b/wait-until-exists payments-owed-header)
             (correct-payments-owed? user3 project1)
-            (correct-payments-owed? user3 project2))
+            (correct-payments-owed? user3 project2)
+            ;; pay some users
+            (switch-user nil project1)
+            (nav/go-project-route "/compensations")
+            (pay-user (:email user1))
+            (pay-user (:email user2))
+            ;; check if user1 and user3 are paid by project1, but still owed by project2
+            (switch-user user1)
+            (nav/go-route "/user/settings/compensation")
+            (b/wait-until-exists payments-owed-header)
+            (correct-payments-paid? user1 project1)
+            (correct-payments-owed? user1 project2)
+            (switch-user user3)
+            (nav/go-route "/user/settings/compensation")
+            (b/wait-until-exists payments-owed-header)
+            (correct-payments-paid? user3 project1)
+            (correct-payments-owed? user3 project2)
+            ;; user2 should be still owed by project1 and project2
+            (switch-user user2)
+            (nav/go-route "/user/settings/compensation")
+            (b/wait-until-exists payments-owed-header)
+            (correct-payments-paid? user2 project1)
+            (correct-payments-owed? user2 project2))
           ;; don't uncomment below here if testing line-by-line
           ))
       (finally
@@ -462,10 +585,6 @@
           (doseq [{:keys [email]} test-users]
             (b/delete-test-user :email email)))))))
 
-
-;; (taxi/switch-to-frame {:xpath "//iframe[contains(@title,'ppbutton')]"})
-;; (taxi/click {:css "div.paypal-button-card-visa"})
-;; (taxi/find-window {:title "PayPal Checkout"})
-;; (taxi/switch-to-window (taxi/find-window {:title "PayPal Checkout"}))
-;; (taxi/input-text "input#cc" "123")
-;; (taxi/switch-to-window (taxi/find-window {:url "http://localhost:4061/p/117/compensations"}))
+;; for deleting during manual test
+;; (doall (map #(do (delete-project-compensations %) (project/delete-project %)) [113 114])) ; manual input of project-id
+;; (doall (map (partial b/delete-test-user :email) (map :email [user1 user2 user3]))) ; user1 ... user3 should have been def'd

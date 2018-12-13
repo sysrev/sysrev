@@ -539,7 +539,6 @@
   [project-id]
   {:result {:project-funds (calculate-project-funds project-id)}})
 
-
 (defn check-pending-project-transactions!
   "Check the pending project transactions and update them accordingly"
   [project-id]

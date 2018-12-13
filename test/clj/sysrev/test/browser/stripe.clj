@@ -42,8 +42,7 @@
 
 (defn get-stripe-frame-names
   []
-  (->> (taxi/xpath-finder "//iframe")
-       (map #(taxi/attribute % :name))
+  (->> (b/current-frame-names)
        (filter #(re-matches #".*StripeFrame.*" %))
        sort))
 
