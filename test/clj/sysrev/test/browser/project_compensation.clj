@@ -282,11 +282,12 @@
 (defn pay-user
   "Pay the user with email address"
   [email]
-  (let [pay-button (xpath "//h4[contains(text(),'Compensation Owed')]/ancestor::div[contains(@class,'segment')]/descendant::div[contains(text(),'" email "')]/ancestor::div[contains(@class,'grid')]/descendant::button[contains(text(),'Pay')]")
-        confirm-button (xpath "//button[contains(text(),'Confirm')]")]
-    (taxi/click pay-button)
+  (let [pay-button (xpath "//h4[contains(text(),'Compensation Owed')]/ancestor::div[contains(@class,'segment')]/descendant::div[contains(text(),'" email "')]/ancestor::div[contains(@class,'grid')]/descendant::button[contains(text(),'Pay') and not(contains(@class,'disabled'))]")
+        confirm-button (xpath "//button[contains(text(),'Confirm') and not(contains(@class,'disabled'))]")]
+    (b/wait-until-exists pay-button)
+    (b/click pay-button)
     (b/wait-until-exists confirm-button)
-    (taxi/click confirm-button)))
+    (b/click confirm-button)))
 
 (let [project-name "Sysrev Compensation Test"
       search-term "foo create"
@@ -329,7 +330,7 @@
       (project/delete-project @project-id)
       (b/delete-test-user :email (:email test-user)))))
 
-(deftest multiple-project-compensations
+(deftest-browser multiple-project-compensations
   (let [projects
         (->> [{:name "Sysrev Compensation Test 1"
                :amounts [100 10 110]

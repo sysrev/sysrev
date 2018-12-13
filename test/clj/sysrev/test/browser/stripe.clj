@@ -52,8 +52,9 @@
   (b/wait-until-displayed {:xpath "//h1[text()='Enter your Payment Method']"})
   ;; switch the the proper iframe. note that the name could change if stripe updates their library
   (taxi/switch-to-frame {:xpath (str "//iframe[@name='" (nth (get-stripe-frame-names) 0) "']")})
+  (b/backspace-clear 30 cardnumber-input)
   ;; clear anything that could be in the form
-  (b/set-input-text-per-char cardnumber-input cc-number :clear? true)
+  (b/set-input-text-per-char cardnumber-input cc-number)
   ;; switch back to default
   (taxi/switch-to-default))
 
@@ -72,17 +73,17 @@
     (enter-cc-number cardnumber)
     ;; switch to month input iframe
     (taxi/switch-to-frame exp-date-iframe)
-    (b/set-input-text-per-char exp-date-input exp-date :clear? true)
+    (b/set-input-text-per-char exp-date-input exp-date)
     ;; swtich back to default
     (taxi/switch-to-default)
     ;; switch to cvc iframe
     (taxi/switch-to-frame cvc-iframe)
-    (b/set-input-text-per-char cvc-input cvc :clear? true)
+    (b/set-input-text-per-char cvc-input cvc)
     ;; switch back to default frame
     (taxi/switch-to-default)
     ;; switch to post code frame
     (taxi/switch-to-frame postal-iframe)
-    (b/set-input-text-per-char postal-input postal :clear? true)
+    (b/set-input-text-per-char postal-input postal)
     ;; we're done, return back to default
     (taxi/switch-to-default)))
 
