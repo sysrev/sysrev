@@ -34,6 +34,7 @@
             [sysrev.views.panels.user.compensation]
             [sysrev.views.panels.user.payment]
             [sysrev.views.panels.user.plans]
+            [sysrev.views.panels.users]
             [sysrev.views.menu :refer [header-menu]]
             [sysrev.views.components :as ui]
             [sysrev.views.review :as review]

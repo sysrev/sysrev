@@ -286,6 +286,10 @@
  user-settings "/user/settings*" []
  (dispatch [:set-active-panel [:user-settings]]))
 
+(sr-defroute
+ users "/users*" []
+ (dispatch [:set-active-panel [:users]]))
+
 (defn- load-default-panels [db]
   (->> [[[]
          "/"]
@@ -348,7 +352,10 @@
          "/user/plans"]
 
         [[:user-settings]
-         "/user/settings*"]]
+         "/user/settings*"]
+
+        [[:users]
+         "/users*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))

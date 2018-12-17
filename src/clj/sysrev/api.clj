@@ -1053,7 +1053,7 @@
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
 
-(def opt-in-atom (atom {}))
+(defonce opt-in-atom (atom {}))
 
 (defn user-opted-in?
   "Return a boolean value for wether or not user-id is opted in to being displayed publicly as a paid reviewer."
@@ -1065,6 +1065,14 @@
   [user-id opt-in?]
   (swap! opt-in-atom assoc user-id opt-in?)
   {:result {:opt-in (boolean (get @opt-in-atom user-id))}})
+
+(defn get-public-users
+  "Get the users that have marked themselves as public"
+  []
+  (let [opt-in-users (->> (map (fn [x] x) @opt-in-atom)
+                          (filter second)
+                          (map first))]
+    {:result {:users (users/get-users-public-info opt-in-users)}}))
 
 (defn test-response
   "Server Sanity Check"

@@ -12,6 +12,11 @@
 (defroutes user-routes
   (context
    "/api" []
+   (GET "/users" request
+        (wrap-authorize
+         request
+         {:logged-in true}
+         (api/get-public-users)))
    (context
     "/user/:user-id" [user-id :<< as-int]
     (GET "/payments-owed" request

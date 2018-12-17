@@ -48,6 +48,14 @@
       do-query
       first))
 
+(defn get-users-public-info
+  [user-ids]
+  "Given a coll of user-ids, return a coll of maps that represent the publicly viewable information for each user-id"
+  (-> (select :user-id :email :date_created :username)
+      (from :web-user)
+      (where [:in :web-user.user_id user-ids])
+      do-query))
+
 (defn get-user-by-reset-code [reset-code]
   (assert (string? reset-code))
   (-> (select :*)
