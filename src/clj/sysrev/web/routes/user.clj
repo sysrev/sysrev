@@ -24,6 +24,24 @@
           request
           {:authorize-fn (user-authd? user-id)}
           (api/payments-paid user-id)))
+    (POST "/support-project" request
+          (wrap-authorize
+           request {:authorize-fn (user-authd? user-id)}
+           (let [{:keys [project-id amount frequency]} (:body request)]
+             (api/support-project user-id
+                                  project-id
+                                  amount
+                                  frequency))))
+    (GET "/opt-in" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (api/user-opted-in? user-id)))
+    (PUT "/opt-in" request
+         (wrap-authorize
+          request {:authorize-fn (user-authd? user-id)}
+          (let [{:keys [opt-in]} (:body request)]
+            (api/set-opt-in! user-id opt-in))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize
@@ -43,12 +61,4 @@
                    (wrap-authorize
                     request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [plan-name]} (:body request)]
-                      (api/subscribe-to-plan user-id plan-name)))))
-    (POST "/support-project" request
-          (wrap-authorize
-           request {:authorize-fn (user-authd? user-id)}
-           (let [{:keys [project-id amount frequency]} (:body request)]
-             (api/support-project user-id
-                                  project-id
-                                  amount
-                                  frequency)))))))
+                      (api/subscribe-to-plan user-id plan-name))))))))

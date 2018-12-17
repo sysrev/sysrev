@@ -1,9 +1,11 @@
 (ns sysrev.views.panels.user.main
-  (:require [reagent.core :as r]
+  (:require [ajax.core :refer [GET PUT]]
+            [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
+            [sysrev.views.semantic :refer [Segment Header Grid Row Column Radio Message MessageHeader]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
             [sysrev.views.panels.user.billing :refer [Billing]]
@@ -151,6 +153,59 @@
           #(dispatch [:action [:user/delete-account user-id]])}
          "Delete Account"]]])))
 
+(defn PublicReviewerOptIn
+  "Public Reviewer Opt-In"
+  []
+  (let [opt-in? (r/atom nil)
+        loading? (r/atom true)
+        user-id @(subscribe [:self/user-id])
+        error-message (r/atom "")
+        get-opt-in (fn []
+                     (reset! loading? true)
+                     (GET (str "/api/user/" user-id "/opt-in")
+                               {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                :handler (fn [response]
+                                           (reset! opt-in? (-> response :result :opt-in))
+                                           (reset! loading? false))
+                                :error-handler (fn [error-response]
+                                                 (reset! loading? false)
+                                                 (reset! error-message "There was an error retrieving opt-in status"))}))
+        put-opt-in! (fn []
+                     (reset! loading? true)
+                     (PUT (str "/api/user/" user-id "/opt-in")
+                          {:params {:opt-in (not @opt-in?)}
+                           :format :transit
+                           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                           :handler (fn [response]
+                                      (reset! opt-in? (-> response :result :opt-in))
+                                      (reset! loading? false))
+                           :error-handler (fn [error-message]
+                                            (reset! loading? false)
+                                            (reset! error-message "There was an error when setting opt-in status"))}))]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (when-not (nil? @opt-in?)
+          [Segment
+           [Header {:as "h4"
+                    :dividing true}
+            "Public Reviewer Opt In"]
+           [Radio {:toggle true
+                   :label "Publicly Listed as a Paid Reviewer"
+                   :checked @opt-in?
+                   :disabled @loading?
+                   :on-change (fn [e]
+                                (put-opt-in!))}]
+           (when-not (clojure.string/blank? @error-message)
+             [Message {:onDismiss #(reset! error-message nil)
+                       :negative true}
+              [MessageHeader "Opt-In Error"]
+              @error-message])]))
+      :get-initial-state
+      (fn [this]
+        (reset! loading? true)
+        (get-opt-in))})))
+
 (defn UserContent
   []
   (let [current-path sysrev.base/active-route
@@ -187,12 +242,14 @@
          [:div#user-content
           (condp = @current-path
             "/user/settings"
-            [:div.ui.two.column.stackable.grid
-             [:div.column [user-options-box]]
-             [:div.column [user-dev-tools-box]]]
-            #_[:div.ui.one.column.stackable.grid
-               [:div.column
-                [StripeConnect]]]
+            [:div
+             [Grid {:stackable true}
+              [Row
+               [Column {:width 8} [user-options-box]]
+               [Column {:width 8} [user-dev-tools-box]]]
+              [Row
+               [Column {:width 8}
+                [PublicReviewerOptIn]]]]]
             "/user/settings/compensation"
             [:div
              [PaymentsOwed]

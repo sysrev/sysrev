@@ -1053,6 +1053,19 @@
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
 
+(def opt-in-atom (atom {}))
+
+(defn user-opted-in?
+  "Return a boolean value for wether or not user-id is opted in to being displayed publicly as a paid reviewer."
+  [user-id]
+  {:result {:opt-in (boolean (get @opt-in-atom user-id))}})
+
+(defn set-opt-in!
+  "Set opt-in? for user-id. When opt-in? is true, user is listed publicly as reviewer."
+  [user-id opt-in?]
+  (swap! opt-in-atom assoc user-id opt-in?)
+  {:result {:opt-in (boolean (get @opt-in-atom user-id))}})
+
 (defn test-response
   "Server Sanity Check"
   []
