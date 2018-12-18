@@ -263,7 +263,8 @@
         (-> (select :p.project-id :p.name :p.date-created
                     :m.join-date :m.access-date
                     [:p.enabled :project-enabled]
-                    [:m.enabled :member-enabled])
+                    [:m.enabled :member-enabled]
+                    [:m.permissions :permissions])
             (from [:project-member :m])
             (join [:project :p]
                   [:= :p.project-id :m.project-id])
@@ -347,3 +348,48 @@
       (where [:= :user-id user-id])
       do-query
       first))
+
+(defn create-opt-in!
+  "Set the boolean opt-in value with opt-in-type for user-id"
+  [user-id opt-in-type opt-in]
+  (-> (insert-into :web_user_opt_in)
+      (values [{:user-id user-id
+                :opt-in opt-in
+                :opt-in-type opt-in-type}])
+      do-execute))
+
+(defn read-opt-in
+  "Read the boolean opt-in value with opt-in-type for user-id"
+  [user-id opt-in-type]
+  (-> (select :opt-in)
+      (from :web-user-opt-in)
+      (where [:and
+              [:= :user-id user-id]
+              [:= :opt-in-type opt-in-type]])
+      do-query
+      first
+      :opt-in))
+
+(defn update-opt-in!
+  "Set the boolean opt-in value with with-opt-in type"
+  [user-id opt-in-type opt-in]
+  (-> (sqlh/update :web-user-opt-in)
+      (sset {:opt-in opt-in
+             :updated (sql-now)})
+      (where [:and
+              [:= :user-id user-id]
+              [:= :opt-in-type opt-in-type]])
+      do-execute))
+
+(defn read-users-with-opt-in-type
+  [opt-in-type]
+  (let [opt-in-users (-> (select :user-id)
+                         (from :web-user-opt-in)
+                         (where [:and
+                                 [:= :opt-in true]
+                                 [:= :opt-in-type opt-in-type]])
+                         do-query
+                         (->> (map :user-id)))]
+    (if-not (empty? opt-in-users)
+      (get-users-public-info opt-in-users)
+      [])))

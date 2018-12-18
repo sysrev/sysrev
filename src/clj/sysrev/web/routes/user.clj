@@ -9,14 +9,26 @@
   (fn [request]
     (boolean (=  user-id (current-user-id request)))))
 
+(defn user-publicly-viewable?
+  [user-id]
+  (fn [request]
+    (boolean (api/user-opted-in? user-id "public-reviewer"))))
+
 (defroutes user-routes
   (context
    "/api" []
-   (GET "/users" request
+   (GET "/users/:opt-in-type" [opt-in-type :as request]
+        request
         (wrap-authorize
          request
          {:logged-in true}
-         (api/get-public-users)))
+         (api/read-users-with-opt-in-type opt-in-type)))
+   (GET "/users/public-reviewer/:user-id" [user-id :<< as-int :as request]
+        request
+        (wrap-authorize
+         request
+         {:authorize-fn (user-publicly-viewable? user-id)}
+         (api/read-user-public-info user-id)))
    (context
     "/user/:user-id" [user-id :<< as-int]
     (GET "/payments-owed" request
@@ -37,16 +49,16 @@
                                   project-id
                                   amount
                                   frequency))))
-    (GET "/opt-in" request
+    (GET "/opt-in/:opt-in-type" [user-id :<< as-int opt-in-type :as request]
          (wrap-authorize
           request
           {:authorize-fn (user-authd? user-id)}
-          (api/user-opted-in? user-id)))
+          (api/user-opted-in? user-id opt-in-type)))
     (PUT "/opt-in" request
          (wrap-authorize
           request {:authorize-fn (user-authd? user-id)}
-          (let [{:keys [opt-in]} (:body request)]
-            (api/set-opt-in! user-id opt-in))))
+          (let [{:keys [opt-in opt-in-type]} (:body request)]
+            (api/set-opt-in! user-id opt-in-type opt-in))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize

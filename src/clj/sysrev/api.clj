@@ -1056,23 +1056,29 @@
 (defonce opt-in-atom (atom {}))
 
 (defn user-opted-in?
-  "Return a boolean value for wether or not user-id is opted in to being displayed publicly as a paid reviewer."
-  [user-id]
-  {:result {:opt-in (boolean (get @opt-in-atom user-id))}})
+  "What is the opt-in value of opt-in-type for user-id"
+  [user-id opt-in-type]
+  {:result {:opt-in (boolean (users/read-opt-in user-id opt-in-type))
+            :opt-in-type opt-in-type}})
 
 (defn set-opt-in!
-  "Set opt-in? for user-id. When opt-in? is true, user is listed publicly as reviewer."
-  [user-id opt-in?]
-  (swap! opt-in-atom assoc user-id opt-in?)
-  {:result {:opt-in (boolean (get @opt-in-atom user-id))}})
+  "Set opt-in with opt-in-type for user-id"
+  [user-id opt-in-type opt-in]
+  (if (nil? (users/read-opt-in user-id opt-in-type))
+    (users/create-opt-in! user-id opt-in-type opt-in)
+    (users/update-opt-in! user-id opt-in-type opt-in))
+  {:result {:opt-in (boolean (users/read-opt-in user-id opt-in-type))
+            :opt-in-type opt-in-type}})
 
-(defn get-public-users
-  "Get the users that have marked themselves as public"
-  []
-  (let [opt-in-users (->> (map (fn [x] x) @opt-in-atom)
-                          (filter second)
-                          (map first))]
-    {:result {:users (users/get-users-public-info opt-in-users)}}))
+(defn read-users-with-opt-in-type
+  "Get the users with opt-in set to true for opt-in-type"
+  [opt-in-type]
+  {:result {:users (users/read-users-with-opt-in-type opt-in-type)}})
+
+(defn read-user-public-info
+  "Get the users public info"
+  [user-id]
+  {:result {:user (first (users/get-users-public-info [user-id]))}})
 
 (defn test-response
   "Server Sanity Check"

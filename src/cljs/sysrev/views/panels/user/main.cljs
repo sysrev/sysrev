@@ -162,7 +162,7 @@
         error-message (r/atom "")
         get-opt-in (fn []
                      (reset! loading? true)
-                     (GET (str "/api/user/" user-id "/opt-in")
+                     (GET (str "/api/user/" user-id "/opt-in/public-reviewer")
                                {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                 :handler (fn [response]
                                            (reset! opt-in? (-> response :result :opt-in))
@@ -173,7 +173,8 @@
         put-opt-in! (fn []
                      (reset! loading? true)
                      (PUT (str "/api/user/" user-id "/opt-in")
-                          {:params {:opt-in (not @opt-in?)}
+                          {:params {:opt-in (not @opt-in?)
+                                    :opt-in-type "public-reviewer"}
                            :format :transit
                            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                            :handler (fn [response]

@@ -15,7 +15,7 @@
             [sysrev.db.core :refer
              [do-query do-execute to-sql-array sql-cast with-project-cache
               clear-project-cache clear-query-cache cached-project-ids to-jsonb
-              with-transaction]]
+              with-transaction sql-now]]
             [sysrev.db.compensation :as compensation]
             [sysrev.article.core :refer
              [set-article-flag remove-article-flag article-to-sql]]
@@ -761,3 +761,29 @@
       (from :article)
       (where [:= :project-id project-id])
       (->> do-query (mapv :article-id))))
+
+(defn create-project-invite!
+  [project-id user-id invite-type]
+  (-> (insert-into :project_web_user_invite)
+      (values [{:project-id project-id
+                :user-id user-id
+                :invite-type invite-type}])
+      do-execute))
+
+(defn read-project-invites
+  [user-id]
+  (-> (select :*)
+      (from :project_web_user_invite)
+      (where [:= :user-id user-id])
+      do-query))
+
+(defn update-project-invite!
+  [project-id user-id invite-type accepted]
+  (-> (sqlh/update :project_web_user_invte)
+      (sset {:accepted accepted
+             :updated (sql-now)})
+      (where [:and
+              [:= :user-id user-id]
+              [:= :project-id project-id]
+              [:= :invite-type invite-type]])
+      do-execute))

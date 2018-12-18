@@ -43,6 +43,8 @@
                     ($ (goog.object/get semantic-ui "Message") :Header)))
 (def Radio (r/adapt-react-class
             (goog.object/get semantic-ui "Radio")))
+(def Select (r/adapt-react-class
+             (goog.object/get semantic-ui "Select")))
 ;; grids
 (def Grid (r/adapt-react-class
            (goog.object/get semantic-ui "Grid")))
