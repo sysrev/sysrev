@@ -274,8 +274,8 @@
   (b/set-input-text-per-char billing-postal-code-input "21209")
   (b/set-input-text-per-char telephone-input "222-333-4444")
   (b/set-input-text-per-char email-input "browser+test@insilica.co")
-  (taxi/click guest-signup-2-radio)
-  (taxi/click pay-now-button)
+  (b/click guest-signup-2-radio)
+  (b/click pay-now-button)
   (taxi/switch-to-window 0)
   (taxi/switch-to-default))
 
