@@ -7,9 +7,9 @@
             [sysrev.config.core :as config]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
-            [sysrev.util :refer
+            [sysrev.util :as u :refer
              [xml-find xml-find-vector xml-find-vector parse-xml-str]]
-            [sysrev.shared.util :refer [map-values to-uuid parse-integer]]))
+            [sysrev.shared.util :as su :refer [map-values to-uuid parse-integer]]))
 
 (defn parse-endnote-file [fname]
   (-> fname io/file io/reader dxml/parse))
@@ -88,7 +88,12 @@
 
 (defn endnote-file->articles [reader]
   (->> (load-endnote-library-xml reader)
-       (map #(dissoc % :custom4 :custom5 :rec-number))))
+       (map #(dissoc % :custom4 :custom5 :rec-number))
+       ;; for testing missing titles and exception handling
+       #_ (map #(case (u/crypto-rand-int 3)
+                  0 %
+                  1 (assoc % :primary-title nil)
+                  2 (assoc % :primary-title (u/crypto-rand-int 100))))))
 
 (defmethod make-source-meta :endnote-xml [_ {:keys [filename]}]
   {:source "EndNote file" :filename filename})

@@ -8,7 +8,9 @@
             [sysrev.source.core :as s]
             [sysrev.shared.util :as su :refer [in?]]
             [sysrev.biosource.predict :as predict-api]
-            [sysrev.biosource.importance :as importance]))
+            [sysrev.biosource.importance :as importance]
+            [clojure.string :as str])
+  (:import java.util.UUID))
 
 (defn- add-articles
   "Implements adding article entries to db from sequence of article maps.
@@ -20,7 +22,12 @@
   (let [prepare-article-full
         (fn [article]
           (-> article (dissoc :locations) (assoc :enabled false)
-              (#(if (nil? prepare-article) % (prepare-article %)))))
+              (#(if (nil? prepare-article) % (prepare-article %)))
+              (update :primary-title
+                      #(if (empty? %)
+                         (format "[No Title Found] %s"
+                                 (-> (UUID/randomUUID) str (str/split #"-") first))
+                         %))))
         article-ids (articles/add-articles
                      (->> articles (mapv prepare-article-full))
                      project-id *conn*)]
@@ -57,46 +64,53 @@
   indicating failure in return value."
   [project-id source-id
    {:keys [article-refs get-articles prepare-article on-article-added] :as impl}]
-  (try
-    (doseq [articles (->> (get-articles article-refs) (partition-all 10))]
-      (try
-        (with-transaction
-          (let [{:keys [new-articles existing-article-ids]}
-                (match-existing-articles project-id articles)
-                new-article-ids (add-articles project-id new-articles prepare-article)
-                new-articles-map (apply merge new-article-ids)
-                new-locations
-                (->> (keys new-articles-map)
-                     (map (fn [article-id]
-                            (let [article (get new-articles-map article-id)]
-                              (->> (:locations article)
-                                   (mapv #(assoc % :article-id article-id))))))
-                     (apply concat)
-                     vec)]
-            (s/add-articles-to-source
-             (concat existing-article-ids (keys new-articles-map))
-             source-id)
-            (when (not-empty new-locations)
-              (-> (sqlh/insert-into :article-location)
-                  (values new-locations)
-                  do-execute))
-            (when on-article-added
+  (letfn [(import-group [articles]
+            (with-transaction
+              (let [{:keys [new-articles existing-article-ids]}
+                    (match-existing-articles project-id articles)
+                    new-article-ids (add-articles project-id new-articles prepare-article)
+                    new-articles-map (apply merge new-article-ids)
+                    new-locations
+                    (->> (keys new-articles-map)
+                         (map (fn [article-id]
+                                (let [article (get new-articles-map article-id)]
+                                  (->> (:locations article)
+                                       (mapv #(assoc % :article-id article-id))))))
+                         (apply concat)
+                         vec)]
+                (s/add-articles-to-source
+                 (concat existing-article-ids (keys new-articles-map))
+                 source-id)
+                (when (not-empty new-locations)
+                  (-> (sqlh/insert-into :article-location)
+                      (values new-locations)
+                      do-execute))
+                (when on-article-added
+                  (try
+                    (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
+                      (on-article-added (get new-articles-map article-id)))
+                    (catch Throwable e
+                      (log/warn "import-articles-impl: exception in on-article-added")
+                      (throw e)))))))]
+    (try
+      (doseq [articles (->> (get-articles article-refs) (partition-all 10))]
+        (try
+          (import-group articles)
+          (catch Throwable e
+            (log/warn "import-articles-impl: error importing group -" (.getMessage e))
+            (log/warn "attempting again with individual articles")
+            (doseq [article articles]
               (try
-                (doseq [article-id (->> new-article-ids (map #(-> % keys first)))]
-                  (on-article-added (get new-articles-map article-id)))
-                (catch Throwable e
-                  (log/warn "import-articles-impl: exception in on-article-added")
-                  (throw e))))))
-        (catch Throwable e
-          (log/warn "import-articles-impl: error importing group -" (.getMessage e))
-          (throw e))))
-    true
-    (catch Throwable e
-      (log/warn "import-articles-impl:" (.getMessage e))
-      (.printStackTrace e)
-      false)
-    (finally
-      (clear-project-cache project-id))))
+                (import-group [article])
+                (catch Throwable e1
+                  (log/warn "import error for article -" (.getMessage e1))))))))
+      true
+      (catch Throwable e
+        (log/warn "import-articles-impl:" (.getMessage e))
+        (.printStackTrace e)
+        false)
+      (finally
+        (clear-project-cache project-id)))))
 
 (defn- import-source-articles
   "Implements multi-threaded import of articles from a new project-source.
