@@ -260,7 +260,6 @@
   (taxi/wait-until #(try (taxi/switch-to-window 1)
                          true
                          (catch Exception e false)) 30)
-  (taxi/switch-to-window 1)
   (b/wait-until-exists cardnumber-input)
   (Thread/sleep 2500)
   (b/set-input-text-per-char cardnumber-input visa-cardnumber)
