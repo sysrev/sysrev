@@ -12,12 +12,10 @@
             [sysrev.views.annotator :as annotator]
             [sysrev.views.base :refer
              [panel-content logged-out-content render-panel-tree]]
-            [sysrev.views.panels.create-project]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.root]
             [sysrev.views.panels.password-reset]
             [sysrev.views.panels.pubmed]
-            [sysrev.views.panels.select-project]
             [sysrev.views.panels.project.common]
             [sysrev.views.panels.project.compensation]
             [sysrev.views.panels.project.add-articles]

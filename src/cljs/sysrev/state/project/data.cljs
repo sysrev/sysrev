@@ -194,8 +194,9 @@
 
 (reg-sub
  :public-projects
- (fn [db [_]]
-   (get-in db [:data :public-projects])))
+ (fn [db [_ project-id]]
+   (cond-> (get-in db [:data :public-projects])
+     project-id (get project-id))))
 
 (reg-sub
  :public-project-ids

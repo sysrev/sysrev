@@ -6,7 +6,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.project.common
              :refer [project-page-menu project-submenu]]
-            [sysrev.views.panels.select-project :refer [SelectProject]]
+            [sysrev.views.project-list :as plist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.util :refer [nbsp]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -66,18 +66,15 @@
       (cond (or (nil? project-id)
                 @(subscribe [:project/not-found? project-id]))
             [:div
-             [ProjectErrorNotice
-              "Project not found"]
+             [ProjectErrorNotice "Project not found"]
              [:div {:style {:margin-top "16px"}}
-              [SelectProject]]]
+              [plist/UserProjectListFull]]]
 
             @(subscribe [:project/unauthorized? project-id])
-            [ProjectErrorNotice
-             "Not authorized to view project"]
+            [ProjectErrorNotice "Not authorized to view project"]
 
             @(subscribe [:project/error? project-id])
-            [ProjectErrorNotice
-             "Unable to load project"]
+            [ProjectErrorNotice "Unable to load project"]
 
             :else
             [ProjectContent child]))))

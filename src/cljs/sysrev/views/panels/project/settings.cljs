@@ -192,12 +192,10 @@
 (def-action :project/delete
   :uri (fn [] "/api/delete-project")
   :content (fn [project-id] {:project-id project-id})
-  :process
-  (fn [{:keys [db]} _ result]
-    {:db (-> db
-             (assoc-in [:state :active-project-id] nil))
-     :dispatch-n (list [:navigate [:select-project]]
-                       [:fetch [:identity]])}))
+  :process (fn [{:keys [db]} _ result]
+             {:db (assoc-in db [:state :active-project-id] nil)
+              :dispatch [:reload [:identity]]
+              :nav-scroll-top "/"}))
 
 (defn- input-field-class [skey]
   (if (valid-input? skey) "" "error"))

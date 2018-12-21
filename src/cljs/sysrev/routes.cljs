@@ -266,11 +266,6 @@
  (dispatch [:fetch [:password-reset reset-code]]))
 
 (sr-defroute
- select-project "/select-project" []
- (dispatch [:set-active-panel [:select-project]])
- (dispatch [:reload [:identity]]))
-
-(sr-defroute
  pubmed-search "/pubmed-search" []
  (dispatch [:set-active-panel [:pubmed-search]]))
 
@@ -339,9 +334,6 @@
 
         [[:request-password-reset]
          "/request-password-reset"]
-
-        [[:select-project]
-         "/select-project"]
 
         [[:pubmed-search]
          "/pubmed-search"]
