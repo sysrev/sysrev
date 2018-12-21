@@ -182,25 +182,36 @@
   return after the import attempt has completed.
 
   threads is an integer controlling the number of threads that will be
-  used to import articles in parallel."
+  used to import articles in parallel.
+
+  filename and file are optional arguments providing a file the import
+  data is coming from; if given, the file will be stored to s3 and
+  referenced in the source meta map."
   [project-id source-meta
    {:keys [get-article-refs get-articles prepare-article on-article-added] :as impl}
-   {:keys [use-future? threads] :or {use-future? true threads 4}}]
+   {:keys [use-future? threads] :or {use-future? true threads 4}}
+   & {:keys [filename file]}]
   (let [blocking? (boolean (or (not use-future?) *conn*))
         source-id (s/create-source
                    project-id (assoc source-meta :importing-articles? true))
-        do-import (fn []
-                    (->> (try (import-source-articles
-                               project-id source-id
-                               (-> impl
-                                   (assoc :article-refs (get-article-refs))
-                                   (dissoc :get-article-refs))
-                               threads)
-                              (catch Throwable e
-                                (log/warn "import-source-impl failed -" (.getMessage e))
-                                (.printStackTrace e)
-                                false))
-                         (after-source-import project-id source-id)))]
+        do-import
+        (fn []
+          (->> (try (when (and filename file)
+                      (try (s/save-import-file source-id filename file)
+                           (catch Throwable e
+                             (log/warn "failed to save import file -"
+                                       (.getMessage e)))))
+                    (import-source-articles
+                     project-id source-id
+                     (-> impl
+                         (assoc :article-refs (get-article-refs))
+                         (dissoc :get-article-refs))
+                     threads)
+                    (catch Throwable e
+                      (log/warn "import-source-impl failed -" (.getMessage e))
+                      (.printStackTrace e)
+                      false))
+               (after-source-import project-id source-id)))]
     {:source-id source-id
      :import (if blocking? (do-import) (future (do-import)))}))
 

@@ -10,6 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
             [sysrev.db.articles :as a]
+            [sysrev.files.s3store :as s3store]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
 (defn source-id->project-id
@@ -18,10 +19,10 @@
       (from :project-source)
       (where [:= :source-id source-id])
       do-query first :project-id))
-;;
+;;;
 (s/fdef source-id->project-id
-        :args (s/cat :source-id int?)
-        :ret int?)
+  :args (s/cat :source-id int?)
+  :ret int?)
 
 (defn create-source
   "Create an entry in project_source table"
@@ -34,11 +35,10 @@
         do-query first :source-id)
     (finally
       (clear-project-cache project-id))))
-;;
+;;;
 (s/fdef create-source
-        :args (s/cat :project-id int?
-                     :metadata map?)
-        :ret int?)
+  :args (s/cat :project-id int? :metadata map?)
+  :ret int?)
 
 (defmulti make-source-meta (fn [source-type values] source-type))
 
@@ -55,10 +55,9 @@
         do-execute)
     (finally
       (clear-project-cache (source-id->project-id source-id)))))
-;;
+;;;
 (s/fdef update-source-meta
-        :args (s/cat :source-id int?
-                     :metadata map?))
+  :args (s/cat :source-id int? :metadata map?))
 
 (defn alter-source-meta
   "Replaces the meta field for source-id with the result of
@@ -69,10 +68,9 @@
                       (where [:= :source-id source-id])
                       do-query first :meta)]
     (update-source-meta source-id (f meta))))
-;;
+;;;
 (s/fdef alter-source-meta
-        :args (s/cat :source-id int?
-                     :f ifn?))
+  :args (s/cat :source-id int? :f ifn?))
 
 (defn delete-source-articles
   "Deletes all article-source entries for source-id, and their associated
@@ -182,9 +180,9 @@
         nil))
     (finally
       (clear-project-cache project-id))))
-;;
+;;;
 (s/fdef update-project-articles-enabled
-        :args (s/cat :project-id int?))
+  :args (s/cat :project-id int?))
 
 (defn delete-source
   "Given a source-id, delete it and remove the articles associated with
@@ -208,9 +206,9 @@
            (alter-source-meta
             source-id #(assoc % :deleting? false))
            false))))
-;;
+;;;
 (s/fdef delete-source
-        :args (s/cat :source-id int?))
+  :args (s/cat :source-id int?))
 
 (defn source-articles-with-labels
   "Given a source-id, return the amount of articles that have labels"
@@ -230,7 +228,7 @@
                   [:!= :al.confirm-time nil]])
           do-query first :count))
     0))
-;;
+;;;
 (s/fdef source-articles-with-labels
   :args (s/cat :source-id int?)
   :ret (s/nilable int?))
@@ -280,11 +278,9 @@
              (group :ars.article-id)
              (having [:> :%count.* 1])
              do-query)))
-;;
+;;;
 (s/fdef project-source-overlap
-  :args (s/cat :project-id int?
-               :base-source-id int?
-               :source-id int?)
+  :args (s/cat :project-id int? :base-source-id int? :source-id int?)
   :ret int?)
 
 (defn project-source-ids [project-id & {:keys [enabled] :or {enabled nil}}]
@@ -309,10 +305,10 @@
                  [{:count overlap, :source-id id1, :overlap-source-id id2}
                   {:count overlap, :source-id id2, :overlap-source-id id1}])))
            (apply concat)))))
-;;
+;;;
 (s/fdef project-sources-overlap
-        :args (s/cat :project-id int?)
-        :ret coll?)
+  :args (s/cat :project-id int?)
+  :ret coll?)
 
 (defn project-sources
   "Returns vector of source information maps for project-id."
@@ -344,18 +340,18 @@
                             :labeled-article-count labeled-count
                             :overlap overlap
                             :unique-articles-count (get unique-coll source-id)})))))))))
-;;
+;;;
 (s/fdef project-sources
-        :args (s/cat :project-id int?)
-        :ret (s/nilable vector?))
+  :args (s/cat :project-id int?)
+  :ret (s/nilable vector?))
 
 (defn source-has-labeled-articles?
   [source-id]
   (not (zero? (source-articles-with-labels source-id))))
-;;
+;;;
 (s/fdef source-has-labeled-articles?
-        :args (s/cat :source-id int?)
-        :ret boolean?)
+  :args (s/cat :source-id int?)
+  :ret boolean?)
 
 (defn add-article-to-source
   "Add article-id to source-id"
@@ -384,10 +380,10 @@
          do-query
          first
          :source-id)))
-;;
+;;;
 (s/fdef source-exists?
-        :args (s/cat :source-id int?)
-        :ret boolean?)
+  :args (s/cat :source-id int?)
+  :ret boolean?)
 
 (defn toggle-source
   "Toggle a source has enabled?"
@@ -399,7 +395,12 @@
         do-execute)
     ;; logic for updating enabled in article
     (update-project-articles-enabled (source-id->project-id source-id))))
-;;
+;;;
 (s/fdef toggle-source
-        :args (s/cat :source-id int?
-                     :enabled? boolean?))
+  :args (s/cat :source-id int? :enabled? boolean?))
+
+;; FIX: handle duplicate file uploads, don't create new copy
+(defn save-import-file [source-id filename file]
+  (let [file-hash (s3store/save-file file :bucket-name "sysrev.imports")
+        file-meta {:filename filename :key file-hash} ]
+    (alter-source-meta source-id #(assoc % :s3-file file-meta))))

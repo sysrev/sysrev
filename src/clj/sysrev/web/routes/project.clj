@@ -359,6 +359,18 @@
                user-id (current-user-id request)]
            (api/toggle-source source-id enabled?))))
 
+  (GET "/api/sources/download/:project-id/:source-id/:key/:filename" request
+       (wrap-authorize
+        request {:allow-public true}
+        (let [project-id (active-project request)
+              key (-> request :params :key)
+              filename (-> request :params :filename)
+              data (sysrev.files.s3store/get-file key :bucket-name "sysrev.imports")]
+          (-> (response/response data)
+              (response/header
+               "Content-Disposition"
+               (format "attachment; filename=\"%s\"" filename))))))
+
   (GET "/api/files/:project-id" request
        (wrap-authorize
         request {:allow-public true}

@@ -172,9 +172,9 @@
 
     [source nil]))
 
-(defn SourceInfoView [meta]
-  (let [[source-type import-label]
-        (meta->source-name-vector meta)]
+(defn SourceInfoView [project-id source-id meta]
+  (let [{:keys [s3-file]} meta
+        [source-type import-label] (meta->source-name-vector meta)]
     [:div.ui.middle.aligned.stackable.grid.segment.source-info
      [:div.row
       [:div.three.wide.column.left.aligned
@@ -182,7 +182,16 @@
       [:div.thirteen.wide.column.right.aligned
        (when import-label
          [:div.import-label.ui.large.basic.label
-          [:span.import-label import-label]])]]]))
+          [:span.import-label
+           (if (and s3-file (:filename s3-file) (:key s3-file))
+             [:a {:href (str "/api/sources/download/" project-id
+                             "/" source-id
+                             "/" (:key s3-file)
+                             "/" (:filename s3-file))
+                  :target "_blank"
+                  :download (:filename s3-file)}
+              import-label " " [:i.download.icon]]
+             import-label)]])]]]))
 
 (defn source-name
   "Given a source-id, return the source name vector"
@@ -251,7 +260,7 @@
       (poll-project-sources project-id source-id)
       nil)
     [:div.project-source>div.ui.segments.project-source
-     [SourceInfoView meta segment-class]
+     [SourceInfoView project-id source-id meta]
      [:div.ui.segment.source-details
       {:class segment-class}
       [:div.ui.middle.aligned.stackable.grid>div.row

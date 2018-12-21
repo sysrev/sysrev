@@ -88,4 +88,5 @@
                   #(-> %
                        (assoc :primary-title (:filename %))
                        (dissoc :filename :file-byte-array))}]
-        (import-source-impl project-id source-meta impl options)))))
+        (import-source-impl project-id source-meta impl options
+                            :filename filename :file file)))))

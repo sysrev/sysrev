@@ -115,4 +115,5 @@
        project-id source-meta
        {:get-article-refs #(-> file io/reader endnote-file->articles doall)
         :get-articles identity}
-       options))))
+       options
+       :filename filename :file file))))
