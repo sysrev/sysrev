@@ -1,5 +1,5 @@
 (defproject sysrev-web "0.1.0-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.9.0"]
+  :dependencies [[org.clojure/clojure "1.10.0"]
 
 ;;; Force versions of indirect dependencies
                  [com.fasterxml.jackson.core/jackson-databind "2.9.7"]
