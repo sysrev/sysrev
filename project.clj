@@ -2,7 +2,7 @@
   :dependencies [[org.clojure/clojure "1.10.0"]
 
 ;;; Force versions of indirect dependencies
-                 [com.fasterxml.jackson.core/jackson-databind "2.9.7"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.9.8"]
                  [cheshire "5.8.1"]
                  [commons-io/commons-io "2.6"]
                  [commons-codec "1.11"]
@@ -33,12 +33,13 @@
                  [joda-time "2.10.1"]
                  [clj-time "0.15.1" :exclusions [joda-time]]
                  [postgre-types "0.0.4"]
-                 [hikari-cp "2.0.1"]
+                 [hikari-cp "2.6.0"]
                  [clj-postgresql "0.7.0"
                   :exclusions [org.clojure/java.jdbc
-                               cheshire]]
+                               cheshire
+                               prismatic/schema]]
                  [honeysql "0.9.4"]
-                 [nilenso/honeysql-postgres "0.2.4"]
+                 [nilenso/honeysql-postgres "0.2.5"]
 
 ;;; Cassandra
                  [cc.qbits/alia-all "4.3.0"]
@@ -49,7 +50,7 @@
                  [http-kit "2.3.0"]
                  [manifold "0.1.8"]
                  [aleph "0.4.6"]
-                 [ring "1.6.3"]
+                 [ring "1.7.1"]
                  [ring/ring-defaults "0.3.2"]
                  [ring-transit "0.1.6"]
                  [ring/ring-json "0.4.0" :exclusions [cheshire]]
@@ -60,8 +61,8 @@
                  [buddy "2.0.0"] ;; encryption/authentication
                  [clj-http "3.9.1"]
                  [com.velisco/clj-ftp "0.3.12"]
-                 [com.draines/postal "2.0.2"] ;; email client
-                 [amazonica "0.3.134"
+                 [com.draines/postal "2.0.3"] ;; email client
+                 [amazonica "0.3.139"
                   :exclusions [com.taoensso/encore
                                com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                com.fasterxml.jackson.core/jackson-databind
