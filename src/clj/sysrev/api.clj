@@ -19,6 +19,7 @@
             [sysrev.db.core :as db]
             [sysrev.db.files :as files]
             [sysrev.db.funds :as funds]
+            [sysrev.db.invitation :as invitation]
             [sysrev.db.labels :as labels]
             [sysrev.db.markdown :as markdown]
             [sysrev.db.plans :as plans]
@@ -1053,32 +1054,69 @@
 (defn public-projects []
   {:result {:projects (project/all-public-projects)}})
 
-(defonce opt-in-atom (atom {}))
-
-(defn user-opted-in?
+(defn user-group-name-active?
   "What is the opt-in value of opt-in-type for user-id"
-  [user-id opt-in-type]
-  {:result {:opt-in (boolean (users/read-opt-in user-id opt-in-type))
-            :opt-in-type opt-in-type}})
+  [user-id group-name]
+  {:result {:active (boolean (:active (users/read-web-user-group-name user-id group-name)))}})
 
-(defn set-opt-in!
-  "Set opt-in with opt-in-type for user-id"
-  [user-id opt-in-type opt-in]
-  (if (nil? (users/read-opt-in user-id opt-in-type))
-    (users/create-opt-in! user-id opt-in-type opt-in)
-    (users/update-opt-in! user-id opt-in-type opt-in))
-  {:result {:opt-in (boolean (users/read-opt-in user-id opt-in-type))
-            :opt-in-type opt-in-type}})
+(defn set-web-user-group!
+  "Set  with opt-in-type for user-id"
+  [user-id group-name active?]
+  (if-let [group-id (:id (users/read-web-user-group-name user-id group-name))]
+    (users/update-web-user-group! group-id active?)
+    (users/create-web-user-group-name! user-id group-name))
+  {:result {:active (:active (users/read-web-user-group-name user-id group-name))}})
 
-(defn read-users-with-opt-in-type
-  "Get the users with opt-in set to true for opt-in-type"
-  [opt-in-type]
-  {:result {:users (users/read-users-with-opt-in-type opt-in-type)}})
+(defn users-in-group
+  "Get the users in group-name"
+  [group-name]
+  {:result {:users (users/read-users-in-group group-name)}})
+
+(defn user-active-in-group?
+  "Is the user-id active in group-name?"
+  [user-id group-name]
+  (users/user-active-in-group? user-id group-name))
 
 (defn read-user-public-info
   "Get the users public info"
   [user-id]
   {:result {:user (first (users/get-users-public-info [user-id]))}})
+
+(defn create-invitation!
+  "Create an invitation from inviter to join project-id to invitee with optional description"
+  [invitee project-id inviter & [description]]
+  (let [description (or description "view-project")
+        project-invitation (->> invitee
+                                invitation/invitations-for-user
+                                (filter #(= project-id (:project-id %)))
+                                (filter #(= description (:description %))))]
+    (if (empty? project-invitation)
+      {:result {:invitation-id (invitation/create-invitation! invitee project-id inviter description)}}
+      {:error {:status bad-request
+               :message "You can only send one invitation to a user per project"}})))
+
+(defn read-invitations-for-admined-projects
+  "Return all invitations for projects admined by user-id"
+  [user-id]
+  {:result {:invitations (invitation/invitations-for-admined-projects user-id)}})
+
+(defn read-user-invitations
+  "Return all invitations for user-id"
+  [user-id]
+  {:result {:invitations (invitation/invitations-for-user user-id)}})
+
+(defn update-invitation!
+  "Update invitation-id with accepted? value"
+  [invitation-id accepted?]
+  ;; user joins project when invitation is accepted
+  (when accepted?
+    (let [{:keys [project-id user-id]} (invitation/read-invitation invitation-id)]
+      (println {:project-id project-id
+                :user-id user-id})
+      (when (nil? (project/project-member project-id user-id))
+        (project/add-project-member project-id user-id))))
+  (invitation/update-invitation-accepted! invitation-id accepted?)
+  {:result {:success true}})
 
 (defn test-response
   "Server Sanity Check"

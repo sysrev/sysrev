@@ -9,26 +9,33 @@
   (fn [request]
     (boolean (=  user-id (current-user-id request)))))
 
-(defn user-publicly-viewable?
-  [user-id]
+(defn user-in-group?
+  [user-id group-name]
   (fn [request]
-    (boolean (api/user-opted-in? user-id "public-reviewer"))))
+    (boolean (api/user-active-in-group? user-id "public-reviewer"))))
+
+(defn user-owns-invitation?
+  [user-id invitation-id]
+  (fn [request]
+    (-> (api/read-user-invitations user-id)
+        (filter #(= :id invitation-id))
+        (comp not empty?))))
 
 (defroutes user-routes
   (context
    "/api" []
-   (GET "/users/:opt-in-type" [opt-in-type :as request]
-        request
-        (wrap-authorize
-         request
-         {:logged-in true}
-         (api/read-users-with-opt-in-type opt-in-type)))
-   (GET "/users/public-reviewer/:user-id" [user-id :<< as-int :as request]
-        request
-        (wrap-authorize
-         request
-         {:authorize-fn (user-publicly-viewable? user-id)}
-         (api/read-user-public-info user-id)))
+   (context "/users/group" []
+            (GET "/public-reviewer" request
+                 (wrap-authorize
+                  request
+                  {:logged-in true}
+                  (api/users-in-group "public-reviewer")))
+            (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
+                 request
+                 (wrap-authorize
+                  request
+                  {:authorize-fn (user-in-group? user-id "public-reviewer")}
+                  (api/read-user-public-info user-id))))
    (context
     "/user/:user-id" [user-id :<< as-int]
     (GET "/payments-owed" request
@@ -49,16 +56,20 @@
                                   project-id
                                   amount
                                   frequency))))
-    (GET "/opt-in/:opt-in-type" [user-id :<< as-int opt-in-type :as request]
-         (wrap-authorize
-          request
-          {:authorize-fn (user-authd? user-id)}
-          (api/user-opted-in? user-id opt-in-type)))
-    (PUT "/opt-in" request
-         (wrap-authorize
-          request {:authorize-fn (user-authd? user-id)}
-          (let [{:keys [opt-in opt-in-type]} (:body request)]
-            (api/set-opt-in! user-id opt-in-type opt-in))))
+    (context "/groups/:group-name" [group-name]
+             (GET "/active" [user-id :<< as-int group-name :as request]
+                  (wrap-authorize
+                   request
+                   {:authorize-fn (user-authd? user-id)}
+                   (api/user-group-name-active? user-id group-name)))
+             (PUT "/active" request
+                  (wrap-authorize
+                   request {:authorize-fn (user-authd? user-id)}
+                   (let [{:keys [active]} (:body request)]
+                     (condp = group-name
+                       "public-reviewer"
+                       (api/set-web-user-group! user-id group-name active)
+                       {:error {:message "That group can't be modified"}})))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize
@@ -78,4 +89,28 @@
                    (wrap-authorize
                     request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [plan-name]} (:body request)]
-                      (api/subscribe-to-plan user-id plan-name))))))))
+                      (api/subscribe-to-plan user-id plan-name)))))
+    (GET "/invitations" request
+         (wrap-authorize
+          request {:authorize-fn (user-authd? user-id)}
+          (api/read-user-invitations user-id)))
+    (GET "/invitations/projects" request
+         (wrap-authorize
+          request {:authorize-fn (user-authd? user-id)}
+          (api/read-invitations-for-admined-projects user-id)))
+    (context "/invitation" []
+             (PUT "/:invitation-id" [invitation-id :<< as-int :as request]
+                  (wrap-authorize
+                   request {:authorize-fn (user-owns-invitation? user-id invitation-id)}
+                   (let [{:keys [accepted]} (:body request)]
+                     (println {:invitation-id invitation-id
+                               :accepted accepted})
+                     (api/update-invitation! invitation-id accepted))))
+             (POST "/:invitee/:project-id" [project-id :<< as-int
+                                            invitee :<< as-int
+                                            :as request]
+                   (wrap-authorize
+                    request {:roles ["admin"]}
+                    (let [{:keys [description]} (:body request)]
+                      (api/create-invitation! invitee project-id user-id description)))))
+    )))

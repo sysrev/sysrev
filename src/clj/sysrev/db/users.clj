@@ -349,47 +349,56 @@
       do-query
       first))
 
-(defn create-opt-in!
-  "Set the boolean opt-in value with opt-in-type for user-id"
-  [user-id opt-in-type opt-in]
-  (-> (insert-into :web_user_opt_in)
+(defn create-web-user-group-name!
+  "Create a group-name for user-id in web-user-group"
+  [user-id group-name]
+  (-> (insert-into :web_user_group)
       (values [{:user-id user-id
-                :opt-in opt-in
-                :opt-in-type opt-in-type}])
+                :group-name group-name}])
       do-execute))
 
-(defn read-opt-in
-  "Read the boolean opt-in value with opt-in-type for user-id"
-  [user-id opt-in-type]
-  (-> (select :opt-in)
-      (from :web-user-opt-in)
+(defn read-web-user-group-name
+  "Read the id for the web-user-group for user-id and grou-name"
+  [user-id group-name]
+  (-> (select :id :active)
+      (from :web_user_group)
       (where [:and
               [:= :user-id user-id]
-              [:= :opt-in-type opt-in-type]])
+              [:= :group-name group-name]])
+      do-query
+      first))
+
+(defn update-web-user-group!
+  "Set the boolean active? on group-id"
+  [group-id active?]
+  (-> (sqlh/update :web-user-group)
+      (sset {:active active?
+             :updated (sql-now)})
+      (where [:= :id group-id])
+      do-execute))
+
+(defn read-users-in-group
+  "Return all of the users in group-name"
+  [group-name]
+  (let [users-in-group (-> (select :user-id)
+                        (from :web-user-group)
+                        (where [:and
+                                [:= :active true]
+                                [:= :group_name group-name]])
+                        do-query
+                        (->> (map :user-id)))]
+    (if-not (empty? users-in-group)
+      (get-users-public-info users-in-group)
+      [])))
+
+(defn user-active-in-group?
+  "Is the user-id active in group-name?"
+  [user-id group-name]
+  (-> (select :active)
+      (from :web-user-group)
+      (where [:and
+              [:= :user-id user-id]
+              [:= :group_name group-name]])
       do-query
       first
-      :opt-in))
-
-(defn update-opt-in!
-  "Set the boolean opt-in value with with-opt-in type"
-  [user-id opt-in-type opt-in]
-  (-> (sqlh/update :web-user-opt-in)
-      (sset {:opt-in opt-in
-             :updated (sql-now)})
-      (where [:and
-              [:= :user-id user-id]
-              [:= :opt-in-type opt-in-type]])
-      do-execute))
-
-(defn read-users-with-opt-in-type
-  [opt-in-type]
-  (let [opt-in-users (-> (select :user-id)
-                         (from :web-user-opt-in)
-                         (where [:and
-                                 [:= :opt-in true]
-                                 [:= :opt-in-type opt-in-type]])
-                         do-query
-                         (->> (map :user-id)))]
-    (if-not (empty? opt-in-users)
-      (get-users-public-info opt-in-users)
-      [])))
+      boolean))

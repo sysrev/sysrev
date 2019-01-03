@@ -5,10 +5,11 @@
             [re-frame.db :refer [app-db]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
-            [sysrev.views.semantic :refer [Segment Header Grid Row Column Radio Message MessageHeader]]
+            [sysrev.views.semantic :refer [Segment Header Grid Row Column Radio Message MessageHeader Icon]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
-            [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
             [sysrev.views.panels.user.billing :refer [Billing]]
+            [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
+            [sysrev.views.panels.user.invitations :refer [Invitations]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :refer [full-size? get-url-path mobile?]]))
@@ -156,29 +157,28 @@
 (defn PublicReviewerOptIn
   "Public Reviewer Opt-In"
   []
-  (let [opt-in? (r/atom nil)
+  (let [active? (r/atom nil)
         loading? (r/atom true)
         user-id @(subscribe [:self/user-id])
         error-message (r/atom "")
         get-opt-in (fn []
                      (reset! loading? true)
-                     (GET (str "/api/user/" user-id "/opt-in/public-reviewer")
+                     (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
                                {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                 :handler (fn [response]
-                                           (reset! opt-in? (-> response :result :opt-in))
+                                           (reset! active? (-> response :result :active))
                                            (reset! loading? false))
                                 :error-handler (fn [error-response]
                                                  (reset! loading? false)
                                                  (reset! error-message "There was an error retrieving opt-in status"))}))
         put-opt-in! (fn []
                      (reset! loading? true)
-                     (PUT (str "/api/user/" user-id "/opt-in")
-                          {:params {:opt-in (not @opt-in?)
-                                    :opt-in-type "public-reviewer"}
+                     (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
+                          {:params {:active (not @active?)}
                            :format :transit
                            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                            :handler (fn [response]
-                                      (reset! opt-in? (-> response :result :opt-in))
+                                      (reset! active? (-> response :result :active))
                                       (reset! loading? false))
                            :error-handler (fn [error-message]
                                             (reset! loading? false)
@@ -186,14 +186,14 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (when-not (nil? @opt-in?)
+        (when-not (nil? @active?)
           [Segment
            [Header {:as "h4"
                     :dividing true}
             "Public Reviewer Opt In"]
            [Radio {:toggle true
                    :label "Publicly Listed as a Paid Reviewer"
-                   :checked @opt-in?
+                   :checked @active?
                    :disabled @loading?
                    :on-change (fn [e]
                                 (put-opt-in!))}]
@@ -212,7 +212,8 @@
   (let [current-path sysrev.base/active-route
         current-panel (subscribe [:active-panel])
         payments-owed (subscribe [:compensation/payments-owed])
-        payments-paid (subscribe [:compensation/payments-paid])]
+        payments-paid (subscribe [:compensation/payments-paid])
+        invitations (subscribe [:user/invitations])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -239,7 +240,18 @@
                            (= @current-path "/user/settings/compensation")
                            (str " active"))
                   :href "/user/settings/compensation"}
-              "Compensation"])]]
+              "Compensation"])
+           (when-not (empty? @invitations)
+             [:a {:key "#invitations"
+                  :class (cond-> "item"
+                           (= @current-path "/user/settings/invitations")
+                           (str " active"))
+                  :href "/user/settings/invitations"}
+              "Invitations" (when-not (empty? (filter #(nil? (:accepted (val %))) @invitations))
+                              [Icon {:name "circle"
+                                     :size "tiny"
+                                     :color "red"
+                                     :style {:margin-left "0.5em"}}])])]]
          [:div#user-content
           (condp = @current-path
             "/user/settings"
@@ -258,13 +270,16 @@
              [UserSupportSubscriptions]]
             "/user/settings/billing"
             [Billing]
+            "/user/settings/invitations"
+            [Invitations]
             ;; default before the active panel is loaded
             ;; and this component still exists
             [:div {:style {:display "none"}}])]])
       :get-initial-state
       (fn [this]
         (dispatch [:compensation/get-payments-owed!])
-        (dispatch [:compensation/get-payments-paid!]))})))
+        (dispatch [:compensation/get-payments-paid!])
+        (dispatch [:user/get-invitations!]))})))
 
 (defmethod logged-out-content [:user-settings] []
   (logged-out-content :logged-out))
