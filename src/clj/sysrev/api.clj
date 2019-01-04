@@ -27,7 +27,7 @@
             [sysrev.source.import :as import]
             [sysrev.source.pmid :as src-pmid]
             [sysrev.db.users :as users]
-            [sysrev.files.s3store :as s3store]
+            [sysrev.filestore :as fstore]
             [sysrev.source.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
             [sysrev.paypal :as paypal]
@@ -772,26 +772,6 @@
   [project-id]
   {:result {:data (charts/process-label-counts project-id)}})
 
-(defn get-s3-file
-  "Given a key, return a file response"
-  [key]
-  (try
-    (response/response (ByteArrayInputStream. (s3store/get-file key)))
-    (catch Throwable e
-      {:error
-       {:message "Exception in label-count-data"
-        :exception e}})))
-
-(defn view-s3-pdf
-  [key]
-  (try
-    {:headers {"Content-Type" "application/pdf"}
-     :body (java.io.ByteArrayInputStream. (s3store/get-file key))}
-    (catch Throwable e
-      {:error
-       {:message "Exception in view-s3-pdf"
-        :exception e}})))
-
 (defn save-article-pdf
   "Handle saving a file on S3 and the associated accounting with it"
   [article-id file filename]
@@ -808,10 +788,8 @@
                 :key hash}}
       ;; there is a file, but it is not associated with this article
       (not (nil? s3-id))
-      (try (do (files/associate-s3-with-article s3-id
-                                                article-id)
-               {:result {:success true
-                         :key hash}})
+      (try (do (files/associate-s3-with-article s3-id article-id)
+               {:result {:success true, :key hash}})
            (catch Throwable e
              {:error {:message "error (associate article file)"
                       :exception e}}))
@@ -824,10 +802,8 @@
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
               s3-id (files/id-for-s3-filename-key-pair filename hash)]
-          (files/associate-s3-with-article s3-id
-                                           article-id)
-          {:result {:success true
-                    :key hash}})
+          (files/associate-s3-with-article s3-id article-id)
+          {:result {:success true, :key hash}})
         (catch Throwable e
           {:error {:message "error (associate filename)"
                    :exception e}}))
@@ -836,24 +812,19 @@
            (not (files/s3-has-key? hash)))
       (try
         (let [ ;; create a new file on the s3 store
-              _ (s3store/save-file file)
+              _ (fstore/save-file file :pdf)
               ;; create a new association between this file name
               ;; and the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
               s3-id (files/id-for-s3-filename-key-pair filename hash)]
           (files/associate-s3-with-article s3-id article-id)
-          {:result {:success true
-                    :key hash}})
+          {:result {:success true, :key hash}})
         (catch Throwable e
           {:error {:message "error (store file)"
                    :exception e}}))
       :else
       {:error {:message "error (unexpected event)"}})))
-
-(defn open-access-pdf
-  [article-id key]
-  (view-s3-pdf key))
 
 (defn open-access-available?
   [article-id]

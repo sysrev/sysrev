@@ -6,7 +6,7 @@
             [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.article.core :as article]
             [sysrev.db.files :as files]
-            [sysrev.files.s3store :as s3store]
+            [sysrev.filestore :as fstore]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util :refer [shell]])
@@ -48,7 +48,7 @@
 
         ;; file does not exist on s3
         :else
-        (do (s3store/save-byte-array byte-array)
+        (do (fstore/save-byte-array byte-array :pdf)
             (files/insert-file-hash-s3-record filename file-hash)
             (-> (files/id-for-s3-filename-key-pair filename file-hash)
                 (files/associate-s3-with-article article-id))))

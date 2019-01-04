@@ -21,7 +21,6 @@
              [set-article-flag remove-article-flag article-to-sql]]
             [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
-            [sysrev.files.stores :as files]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
              [map-values in? short-uuid to-uuid parse-number]]

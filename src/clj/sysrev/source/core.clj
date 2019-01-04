@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
             [sysrev.article.core :as a]
-            [sysrev.files.s3store :as s3store]
+            [sysrev.filestore :as fstore]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
 (defn source-id->project-id
@@ -399,6 +399,6 @@
 
 ;; FIX: handle duplicate file uploads, don't create new copy
 (defn save-import-file [source-id filename file]
-  (let [file-hash (s3store/save-file file :bucket-name "sysrev.imports")
+  (let [file-hash (fstore/save-file file :import)
         file-meta {:filename filename :key file-hash} ]
     (alter-source-meta source-id #(assoc % :s3-file file-meta))))

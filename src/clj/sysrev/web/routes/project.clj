@@ -17,7 +17,7 @@
             [sysrev.db.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.export.endnote :as endnote-out]
-            [sysrev.files.stores :as fstore]
+            [sysrev.filestore :as fstore]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.predict.report :as predict-report]
             [sysrev.shared.keywords :as keywords]
@@ -96,7 +96,7 @@
                    (project/project-users-info project-id)
                    (project/project-keywords project-id)
                    (project/project-notes project-id)
-                   (fstore/project-files project-id)
+                   (files/list-files-for-project project-id)
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
                    (source/project-sources project-id)
@@ -365,7 +365,7 @@
         (let [project-id (active-project request)
               key (-> request :params :key)
               filename (-> request :params :filename)
-              data (sysrev.files.s3store/get-file key :bucket-name "sysrev.imports")]
+              data (fstore/get-file key :import)]
           (-> (response/response data)
               (response/header
                "Content-Disposition"
@@ -375,17 +375,17 @@
        (wrap-authorize
         request {:allow-public true}
         (let [project-id (active-project request)
-              files (fstore/project-files project-id)]
+              files (files/list-files-for-project project-id)]
           {:result (vec files)})))
 
-  (GET "/api/files/:project-id/download/:key/:name" request
+  (GET "/api/files/:project-id/download/:file-key/:filename" request
        (wrap-authorize
         request {:allow-public true}
         (let [project-id (active-project request)
-              uuid (-> request :params :key (UUID/fromString))
-              file-data (fstore/get-file project-id uuid)
-              data (slurp-bytes (:filestream file-data))]
-          (response/response (ByteArrayInputStream. data)))))
+              {:keys [file-key filename]} (:params request)]
+          (-> (response/response (fstore/get-file file-key :document))
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename))))))
 
   (POST "/api/files/:project-id/upload" request
         (wrap-authorize
@@ -395,7 +395,8 @@
                file (:tempfile file-data)
                filename (:filename file-data)
                user-id (current-user-id request)]
-           (fstore/store-file project-id user-id filename file)
+           (fstore/save-document-file
+            project-id user-id filename file)
            {:result 1})))
 
   (POST "/api/files/:project-id/delete/:key" request
@@ -404,7 +405,7 @@
          request {:roles ["member"]}
          (let [project-id (active-project request)
                key (-> request :params :key)
-               deletion (fstore/delete-file project-id (UUID/fromString key))]
+               deletion (files/mark-deleted (UUID/fromString key) project-id)]
            {:result deletion})))
 
   ;; TODO: fix permissions without breaking download on Safari
@@ -416,13 +417,9 @@
               ;; project-id (active-project request)
               data (json/write-str (export/export-project project-id))]
           (-> (response/response data)
-              (response/header
-               "Content-Type"
-               "application/json; charset=utf-8")
-              (response/header
-               "Content-Disposition"
-               (format "attachment; filename=\"%s\""
-                       filename))))))
+              (response/header "Content-Type" "application/json; charset=utf-8")
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename))))))
 
   ;; TODO: fix permissions without breaking download on Safari
   (GET "/api/export-answers-csv/:project-id/:filename" request
@@ -434,12 +431,9 @@
               data (->> (export/export-project-answers project-id)
                         (csv/write-csv))]
           (-> (response/response data)
-              (response/header "Content-Type"
-                               "text/csv; charset=utf-8")
-              (response/header
-               "Content-Disposition"
-               (format "attachment; filename=\"%s\""
-                       filename))))))
+              (response/header "Content-Type" "text/csv; charset=utf-8")
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename))))))
 
   ;; TODO: fix permissions without breaking download on Safari
   (GET "/api/export-endnote-xml/:project-id/:filename" request
@@ -579,8 +573,10 @@
   (GET "/api/open-access/:article-id/availability" [article-id]
        (api/open-access-available? (parse-integer article-id)))
 
+  ;; TODO: article-id is ignored; check value or remove
   (GET "/api/open-access/:article-id/view/:key" [article-id key]
-       (api/open-access-pdf (parse-integer article-id) key))
+       (-> (response/response (fstore/get-file key :pdf))
+           (response/header "Content-Type" "application/pdf")))
 
   (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
         (wrap-authorize
@@ -600,14 +596,18 @@
   (GET "/api/files/:project-id/article/:article-id/download/:key/:filename" request
        (wrap-authorize
         request {:roles ["member"]}
-        (let [{:keys [key]} (:params request)]
-          (api/get-s3-file key))))
+        (let [{:keys [key filename]} (:params request)]
+          (-> (response/response (fstore/get-file key :pdf))
+              (response/header "Content-Type" "application/pdf")
+              (response/header "Content-Disposition"
+                               (format "attachment; filename=\"%s\"" filename))))))
 
   (GET "/api/files/:project-id/article/:article-id/view/:key/:filename" request
        (wrap-authorize
         request {:roles ["member"]}
         (let [{:keys [key]} (:params request)]
-          (api/view-s3-pdf key))))
+          (-> (response/response (fstore/get-file key :pdf))
+              (response/header "Content-Type" "application/pdf")))))
 
   (POST "/api/files/:project-id/article/:article-id/delete/:key/:filename" request
         (wrap-authorize
