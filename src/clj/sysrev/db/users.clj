@@ -41,6 +41,14 @@
       do-query
       first))
 
+(defn update-user-email!
+  [user-id email]
+  (-> (sqlh/update :web-user)
+      (sset {:verified false
+             :email email})
+      (where [:= :user-id user-id])
+      do-execute))
+
 (defn get-user-by-id [user-id]
   (-> (select :*)
       (from :web-user)
@@ -106,8 +114,6 @@
              :verify-code (crypto.random/hex 16)
              :permissions (to-sql-array "text" permissions)
              :default-project-id project-id
-             ;; TODO: implement email verification
-             :verified true
              :date-created (sql-now)
              :user-uuid (UUID/randomUUID)
              :api-token (generate-api-token)}
@@ -174,7 +180,7 @@
       (db/clear-query-cache))))
 
 ;; TODO: implement email verification
-(defn verify-user-email [verify-code]
+(defn verify-email! [verify-code]
   (-> (sqlh/update :web-user)
       (sset {:verified true})
       (where [:= :verify-code verify-code])

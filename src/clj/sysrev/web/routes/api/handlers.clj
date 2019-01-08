@@ -69,7 +69,7 @@
           valid (users/valid-password? email password)
           user (when valid (users/get-user-by-email email))
           {verified :verified :or {verified false}} user
-          success (boolean (and valid verified))]
+          success (boolean valid)]
       (if success
         {:api-token (:api-token user)}
         (make-error-response 403 :api "User authentication failed")))))

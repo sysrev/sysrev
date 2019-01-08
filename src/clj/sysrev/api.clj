@@ -32,6 +32,7 @@
             [sysrev.source.endnote :as endnote]
             [sysrev.pubmed :as pubmed]
             [sysrev.paypal :as paypal]
+            [sysrev.sendgrid :as sendgrid]
             [sysrev.stripe :as stripe]
             [sysrev.shared.spec.project :as sp]
             [sysrev.shared.spec.core :as sc]
@@ -1117,6 +1118,61 @@
         (project/add-project-member project-id user-id))))
   (invitation/update-invitation-accepted! invitation-id accepted?)
   {:result {:success true}})
+
+(defn send-verification
+  "Resend the verification email to user-id"
+  [user-id]
+  (let [{:keys [email verify-code]} (users/get-user-by-id user-id)]
+    (sendgrid/send-template-email
+     email "Verify Your Email"
+     (str "Verify your email by clicking <a href='"
+          (if (= (:profile env)
+                 :dev)
+            "http://localhost:4061"
+            "https://sysrev.com")
+          "/user/settings/email/" verify-code "'>here</a>"))
+    {:result {:success true}}))
+
+(defn verify-email!
+  "Verify the email for user-id with code"
+  [user-id code]
+  ;; does the code match the one associated with user?
+  (let [{:keys [verify-code verified]} (users/get-user-by-id user-id)]
+    (cond verified
+          ;; user has already been verified
+          {:error {:status 412
+                   :message "This email address has already been verified"}}
+          ;; code does not match
+          (not= verify-code code)
+          {:error {:status precondition-failed
+                   :message "Verification code does not match our records"}}
+          (= verify-code code)
+          (do (users/verify-email! verify-code)
+              {:result {:success true}})
+          :else
+          {:error {:status internal-server-error
+                   :message "An unknown condition occured"}})))
+
+(defn update-email!
+  "Change the email for user-id"
+  [user-id new-email]
+  (let [{:keys [email]} (users/get-user-by-id user-id)
+        current-user-id (:user-id (users/get-user-by-email email))]
+    (cond
+      ;; this email address is already in use
+      (not (nil? current-user-id))
+      {:error {:status bad-request
+               :message "That email is already associated with an account."}}
+      ;; new email address is the same as the old one
+      (= email new-email)
+      {:error {:status precondition-failed
+               :message "The new email address is the same as the old email address. Enter a new email address."}}
+      ;; change the email address for the user
+      (not= email new-email)
+      (do (users/update-user-email! user-id email))
+      :else
+      {:error {:status internal-server-error
+               :message "An unknown condition occured"}})))
 
 (defn test-response
   "Server Sanity Check"

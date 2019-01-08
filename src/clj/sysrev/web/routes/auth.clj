@@ -100,7 +100,7 @@
                         (users/valid-password? email password))
               user (when valid (users/get-user-by-email email))
               {verified :verified :or {verified false}} user
-              success (boolean (and valid verified))
+              success (boolean valid)
               session-identity (select-keys user [:user-id
                                                   :user-uuid
                                                   :email
@@ -111,8 +111,6 @@
                :verified verified}
               (not valid)
               (assoc :message "Invalid username or password")
-              (and valid (not verified))
-              (assoc :message "Your account's email has not been verified yet")
               success
               (with-meta
                 {:session

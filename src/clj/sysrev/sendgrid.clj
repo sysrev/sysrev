@@ -73,4 +73,3 @@
               {:content [{:type "text/html" :value message}]
                :template_id template-id}
               :substitutions substitutions))
-#_ (send-template-email "james@insilica.co" "This is only a test" "<a href='http://localhost:4061/confirm-email'>Click here to confirm your email</a>")

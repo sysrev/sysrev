@@ -9,6 +9,7 @@
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.billing :refer [Billing]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
+            [sysrev.views.panels.user.email :refer [Email VerifyEmail]]
             [sysrev.views.panels.user.invitations :refer [Invitations]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
@@ -234,6 +235,12 @@
                          (str " active"))
                 :href "/user/settings/billing"}
             "Billing"]
+           [:a {:key "#email"
+                :class (cond-> "item"
+                         (= @current-path "/user/settings/email")
+                         (str " active"))
+                :href "/user/settings/email"}
+            "Email"]
            (when-not (empty? (or @payments-owed @payments-paid))
              [:a {:key "#compensation"
                   :class (cond-> "item"
@@ -253,8 +260,8 @@
                                      :color "red"
                                      :style {:margin-left "0.5em"}}])])]]
          [:div#user-content
-          (condp = @current-path
-            "/user/settings"
+          (condp re-matches @current-path
+            #"/user/settings"
             [:div
              [Grid {:stackable true}
               [Row
@@ -263,17 +270,21 @@
               [Row
                [Column {:width 8}
                 [PublicReviewerOptIn]]]]]
-            "/user/settings/compensation"
+            #"/user/settings/compensation"
             [:div
              [PaymentsOwed]
              [PaymentsPaid]
              [UserSupportSubscriptions]]
-            "/user/settings/billing"
+            #"/user/settings/billing"
             [Billing]
-            "/user/settings/invitations"
+            #"/user/settings/invitations"
             [Invitations]
+            #"/user/settings/email"
+            [Email]
             ;; default before the active panel is loaded
             ;; and this component still exists
+            #"/user/settings/email/(\w+)" :>>
+            (fn [[_ code]] [VerifyEmail code])
             [:div {:style {:display "none"}}])]])
       :get-initial-state
       (fn [this]

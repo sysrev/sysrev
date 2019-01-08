@@ -84,6 +84,11 @@
  (fn [db]
    (get-in db [:state :identity])))
 
+(reg-sub
+ :self/identity
+ (fn [db]
+   (get-in db [:state :identity])))
+
 (defn current-user-id [db]
   (get-in db [:state :identity :user-id]))
 
