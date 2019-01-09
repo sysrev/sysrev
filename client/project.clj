@@ -1,18 +1,19 @@
 (defproject sysrev-client "0.1.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.10.0"]
-                 [org.clojure/clojurescript "1.10.339"]
+                 [org.clojure/clojurescript "1.10.439"]
 
+;;; JVM/CLJS deps
                  [org.clojure/tools.logging "0.4.1"]
                  [ch.qos.logback/logback-classic "1.2.3"]
                  [org.slf4j/jul-to-slf4j "1.7.25"]
-
                  [org.clojure/test.check "0.9.0"]
 
+;;; Client dependencies (CLJS)
                  [com.cognitect/transit-cljs "0.8.256"]
                  [reagent "0.8.1"]
                  [re-frame "0.10.6"]
                  [day8.re-frame/http-fx "0.1.6"]
-                 [secretary "1.2.3"]
+                 [clj-commons/secretary "1.2.4"]
                  [kibu/pushy "0.3.8"]
                  [cljs-http "0.1.45"]
                  ;; only provides ext.js for stripe.js
@@ -21,7 +22,7 @@
                  [cljsjs/react-stripe-elements "1.4.1-1"]
                  [org.clojars.jeffwk/semantic-ui "2.4.0-0"]
                  [cljsjs/semantic-ui-react "0.83.0-0"]
-                 [cljsjs/chartjs "2.7.0-0"]
+                 [cljsjs/chartjs "2.7.3-0"]
                  [cljsjs/dropzone "5.5.0-1"]
                  [cljsjs/clipboard "1.6.1-1"]
                  [cljsjs/accounting "0.4.1-1"]

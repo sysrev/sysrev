@@ -67,6 +67,7 @@
       (fn [this]
         (get-default-source state))})))
 
+;; TODO: shows Loader forever on actual null plan value (show error message?)
 (defn Plan
   []
   (let [current-plan (:name @(subscribe [:plans/current-plan]))]
