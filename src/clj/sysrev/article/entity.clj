@@ -1,3 +1,8 @@
+;;;
+;;; NOTE: this is not yet used - intended to replace
+;;; sysrev.article.core/get-article with generalized mechanism
+;;;
+
 (ns sysrev.article.entity
   (:require [sysrev.article.core :as a]
             [sysrev.db.files :as files]

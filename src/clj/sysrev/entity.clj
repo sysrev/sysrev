@@ -1,3 +1,9 @@
+;;;
+;;; NOTE: this is not yet used - intended to reduce code duplication
+;;; for database interaction, improve consistency and support
+;;; refactoring
+;;;
+
 (ns sysrev.entity
   (:require [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
@@ -17,9 +23,10 @@
 (defonce ^:private entity-defs (atom {}))
 
 (defn entity-columns
-  "Get sequence of column name keywords for table named by keyword value
-  entity. Will query database for list of columns on first invocation
-  for a table; all further invocations will use cached value."
+  "Returns sequence of column name keywords for table named by keyword
+  value entity. Will query database for list of columns on first
+  invocation for a table; all further invocations will use cached
+  value."
   [entity]
   (if-let [cached (get @db/entity-columns-cache entity)]
     cached
@@ -41,7 +48,7 @@
   :ret (s/coll-of ::column))
 
 (defn entity-custom-fields
-  "Get sequence of custom field name keywords for entity."
+  "Returns sequence of custom field name keywords for entity."
   [entity]
   (some-> @entity-defs (get entity) :values keys sort vec))
 ;;;
@@ -49,7 +56,10 @@
   :args (s/cat :entity ::entity)
   :ret (s/coll-of ::field))
 
-(defn entity-fields [entity]
+(defn entity-fields
+  "Returns sequence of all column name and custom field name keywords
+  for entity."
+  [entity]
   (let [columns (entity-columns entity)
         custom-fields (entity-custom-fields entity)
         conflicts (set/intersection (set columns) (set custom-fields))]
@@ -65,7 +75,7 @@
 (s/def ::primary-key (s/or :column ::column
                            :multi (s/coll-of ::column)))
 
-(defn update-entity-def [entity update-fn]
+(defn- update-entity-def [entity update-fn]
   (swap! entity-defs update entity update-fn)
   (get @entity-defs entity))
 
@@ -89,14 +99,14 @@
   (assert (s/valid? ifn? value-fn))
   (update-entity-def entity #(assoc-in % [:values field] value-fn)))
 
-(defn custom-value-fn [entity field]
-  "Gets value function for a custom entity field."
+(defn- custom-value-fn [entity field]
+  "Returns value function for a custom entity field."
   (get-in @entity-defs [entity :values field]))
 
 ;; TODO: support user-defined default list of columns to include
 (defn- get-with-custom [entity primary-key custom-fields]
-  "Gets value map for an instance of entity using primary-key, including
-  values for the specified custom fields."
+  "Returns value map for an instance of entity using primary-key,
+  including values for the specified custom fields."
   (let [def (get @entity-defs entity)
         pkey-field (get def :primary-key)
         ;; TODO: support field-combination primary keys
@@ -119,7 +129,7 @@
                   (apply merge))))))
 
 (defn get-all
-  "Gets value map for an instance of entity using primary-key, including
+  "Returns value map for an instance of entity using primary-key, including
   all custom fields defined for entity. without is an optional
   sequence of fields to exclude from query."
   [entity primary-key & {:keys [without]}]
