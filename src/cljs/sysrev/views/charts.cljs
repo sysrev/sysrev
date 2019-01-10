@@ -90,7 +90,9 @@
     "#dddddd" "#282828"))
 
 (defn bar-chart
-  [height xlabels ynames yss & {:keys [colors options on-click]}]
+  [height xlabels ynames yss &
+   {:keys [colors options on-click display-ticks]
+    :or {display-ticks true}}]
   (let [datasets (get-datasets ynames yss colors)
         font-color (graph-text-color)
         data {:labels xlabels
@@ -102,7 +104,7 @@
                  (wrap-default-options
                   {:scales
                    {:xAxes [{:stacked true
-                             :ticks {:fontColor font-color}
+                             :ticks {:fontColor font-color :display display-ticks}
                              :scaleLabel {:fontColor font-color}}]
                     :yAxes [{:stacked true
                              :ticks {:fontColor font-color}

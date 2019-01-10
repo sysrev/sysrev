@@ -25,7 +25,7 @@
 
 (def initial-state {})
 (defonce state (r/cursor app-db [:state :panels panel]))
-(defonce important-terms-tab (r/cursor state [:important-terms-tab]))
+#_ (defonce important-terms-tab (r/cursor state [:important-terms-tab]))
 
 (def colors {:grey "rgba(160,160,160,0.5)"
              :green "rgba(33,186,69,0.55)"
@@ -372,25 +372,26 @@
       (continuous-update-until #(dispatch [:fetch item])
                                #(not (updating?))
                                #(reset! polling-important-terms? false)
-                               1000))))
+                               500))))
 
-(defn ImportantTermsChart [{:keys [entity data loading?]} title]
+(defn ImportantTermsChart [{:keys [entity data loading?]}]
   (when (not-empty data)
     (let [project-id @(subscribe [:active-project-id])
           height (+ 35 (* 10 (count data)))]
       (let [entries (->> data (sort-by :tfidf >))
             labels (mapv :instance-name entries)
-            counts (mapv :tfidf entries)]
-        [charts/bar-chart height labels ["count"] [counts]
+            scores (mapv :tfidf entries)]
+        [charts/bar-chart height labels ["score"] [scores]
          :colors ["rgba(33,186,69,0.55)"]
-         :options {:legend {:display false}}]))))
+         :options {:legend {:display false}}
+         :display-ticks false]))))
 
 (defn KeyTerms []
-  (let [active-tab (or @important-terms-tab :mesh)
+  (let [#_ active-tab #_ (or @important-terms-tab :mesh)
         project-id @(subscribe [:active-project-id])
         terms @(subscribe [:project/important-terms])
         loading? @(subscribe [:project/important-terms-loading?])
-        {:keys [mesh chemical gene]} terms]
+        {:keys [mesh #_ chemical #_ gene]} terms]
     (with-loader [[:project project-id]
                   [:project/important-terms project-id]]
       {}
@@ -399,7 +400,7 @@
          [:h4.ui.dividing.header
           [:div.ui.two.column.middle.aligned.grid
            [:div.ui.left.aligned.column
-            "Important Terms"]]]
+            "Important MeSH Terms"]]]
          (with-loader [[:project project-id]
                        [:project/important-terms project-id]]
            {:dimmer :fixed
@@ -407,6 +408,7 @@
            [:div
             (when loading?
               (poll-important-terms project-id))
+            #_
             [ui/tabbed-panel-menu
              [{:tab-id :mesh
                :content "MeSH"
@@ -419,14 +421,12 @@
                :action #(reset! important-terms-tab :gene)}]
              active-tab
              "important-term-tab"]
-            (let [[data title]
-                  (case active-tab
-                    :mesh      [mesh "Important Mesh Terms"]
-                    :chemical  [chemical "Important Compounds"]
-                    :gene      [gene "Important Genes"])]
+            #_
+            (let [data (get terms active-tab)]
               [ImportantTermsChart
-               {:entity active-tab, :data data, :loading? loading?}
-               title])])]))))
+               {:entity active-tab, :data data, :loading? loading?}])
+            [ImportantTermsChart
+             {:entity :mesh, :data mesh, :loading? loading?}]])]))))
 
 (defn short-labels-vector
   "Given a set of label-counts, get the set of short-labels"

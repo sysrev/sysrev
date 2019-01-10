@@ -662,11 +662,17 @@
      {:terms
       (->> terms (map-values
                   #(->> %
-                        (sort-by (fn [term] (/ (:instance-count term)
-                                               (:instance-score term)))  >)
+                        ;; for old api response format
+                        #_ (sort-by (fn [term] (/ (:instance-count term)
+                                                  (:instance-score term)))  >)
+                        (sort-by :instance-score >)
                         (take n)
-                        (map (fn [term] (assoc term :tfidf (/ (:instance-count term)
-                                                              (:instance-score term)))))
+                        ;; for old api response format
+                        #_ (map (fn [term] (assoc term :tfidf (/ (:instance-count term)
+                                                                 (:instance-score term)))))
+                        (map (fn [term] (-> term
+                                            (assoc :tfidf (:instance-score term))
+                                            (dissoc :instance-score))))
                         (into []))))
       :loading
       (importance/project-importance-loading? project-id)}}))
