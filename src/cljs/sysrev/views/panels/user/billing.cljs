@@ -1,5 +1,5 @@
 (ns sysrev.views.panels.user.billing
-  (:require [ajax.core :refer [GET POST PUT]]
+  (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]

@@ -114,16 +114,21 @@
                     (let [{:keys [description]} (:body request)]
                       (api/create-invitation! invitee project-id user-id description)))))
     (context "/email" []
-             (GET "/send-verification" [:as request]
+             (GET "/addresses" [:as request]
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
-                   (api/send-verification user-id)))
+                   (api/read-email-addresses user-id)))
+             (PUT "/send-verification" [:as request]
+                  (wrap-authorize
+                   request {:authorize-fn (user-authd? user-id)}
+                   (let [{:keys [email]} (:body request)]
+                     (api/send-verification user-id email))))
              (GET "/verify/:code" [code :as request]
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (api/verify-email! user-id code)))
-             (PUT "/update" [:as request]
+             (POST "/create" [:as request]
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (let [{:keys [email]} (:body request)]
-                     (api/update-email! user-id email))))))))
+                     (api/create-email! user-id email))))))))

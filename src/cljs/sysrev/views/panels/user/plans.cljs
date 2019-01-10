@@ -97,7 +97,7 @@
                              [Item "Unlimited public projects"]
                              [Item "Unlimited private projects"]]]
                            [Column {:width 8
-                                    :align "right"} [:h2 "$50 / month"]]]]]]]]
+                                    :align "right"} [:h2 "$30 / month"]]]]]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [Segment
@@ -162,14 +162,14 @@
                                                  [Item "Unlimited public projects"]
                                                  [Item "Unlimited private projects"]]]
                                                [Column {:width 8
-                                                        :align "right"} [:h2 "$50 / month"]]]]]
+                                                        :align "right"} [:h2 "$30 / month"]]]]]
                                             [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
                            [Column {:width 8}
                             [Grid [Row [Column
                                         [:h3 "Upgrade Summary"]
                                         [ListUI {:divided true}
                                          [:h4 "New Monthly Bill"]
-                                         [Item [:p "Unlimited plan ($50 / month)"]]
+                                         [Item [:p "Unlimited plan ($30 / month)"]]
                                          [:h4 "Billing Information"]
                                          [Item [DefaultSource]]
                                          (when (or (empty? @default-source)

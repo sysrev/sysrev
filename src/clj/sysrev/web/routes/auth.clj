@@ -99,12 +99,12 @@
                              (= password "override"))
                         (users/valid-password? email password))
               user (when valid (users/get-user-by-email email))
-              {verified :verified :or {verified false}} user
               success (boolean valid)
               session-identity (select-keys user [:user-id
                                                   :user-uuid
                                                   :email
-                                                  :default-project-id])]
+                                                  :default-project-id])
+              verified (users/primary-email-verified? (:user-id session-identity))]
           (cond->
               {:success success
                :valid valid

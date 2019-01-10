@@ -213,16 +213,18 @@
         :message "Exception occurred while creating account"
         :exception db-result}}
       (true? db-result)
-      (do
+      (let [new-user (users/get-user-by-email email)]
         ;; create-sysrev-stripe-customer! will handle
         ;; logging any error messages related to not
         ;; being able to create a stripe customer for the
         ;; user
         (users/create-sysrev-stripe-customer!
-         (users/get-user-by-email email))
+         new-user)
         ;; subscribe the customer to the basic plan, by default
         (stripe/subscribe-customer! (users/get-user-by-email email)
                                     default-plan)
+        ;; add email verification entry for email
+        (users/create-email-verification! (:user-id new-user) email :principal true)
         {:result
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
@@ -1121,8 +1123,8 @@
 
 (defn send-verification
   "Resend the verification email to user-id"
-  [user-id]
-  (let [{:keys [email verify-code]} (users/get-user-by-id user-id)]
+  [user-id email]
+  (let [{:keys [verify-code]} (users/read-email-verification-code user-id email)]
     (sendgrid/send-template-email
      email "Verify Your Email"
      (str "Verify your email by clicking <a href='"
@@ -1133,13 +1135,18 @@
           "/user/settings/email/" verify-code "'>here</a>"))
     {:result {:success true}}))
 
+(defn read-email-addresses
+  "Given a user-id, return all email addresses associated with it"
+  [user-id]
+  {:result {:addresses (users/read-email-addresses user-id)}})
+
 (defn verify-email!
   "Verify the email for user-id with code"
   [user-id code]
   ;; does the code match the one associated with user?
-  (let [{:keys [verify-code verified]} (users/get-user-by-id user-id)]
+  (let [{:keys [verify-code verified email]} (users/web-user-email user-id code)]
     (cond verified
-          ;; user has already been verified
+          ;; user email has already been verified
           {:error {:status 412
                    :message "This email address has already been verified"}}
           ;; code does not match
@@ -1147,32 +1154,37 @@
           {:error {:status precondition-failed
                    :message "Verification code does not match our records"}}
           (= verify-code code)
-          (do (users/verify-email! verify-code)
+          (do (users/verify-email! email verify-code user-id)
+              ;; set this as primary when the user doesn't have any other verified email addresses
+              (when (= (->> (users/read-email-addresses user-id)
+                            (filterv :verified)
+                            count)
+                       1)
+                (users/set-primary-email! user-id email))
               {:result {:success true}})
           :else
           {:error {:status internal-server-error
                    :message "An unknown condition occured"}})))
 
-(defn update-email!
-  "Change the email for user-id"
+(defn create-email!
+  "Create an email entry to user-id"
   [user-id new-email]
-  (let [{:keys [email]} (users/get-user-by-id user-id)
-        current-user-id (:user-id (users/get-user-by-email email))]
-    (cond
-      ;; this email address is already in use
-      (not (nil? current-user-id))
-      {:error {:status bad-request
-               :message "That email is already associated with an account."}}
-      ;; new email address is the same as the old one
-      (= email new-email)
-      {:error {:status precondition-failed
-               :message "The new email address is the same as the old email address. Enter a new email address."}}
-      ;; change the email address for the user
-      (not= email new-email)
-      (do (users/update-user-email! user-id email))
-      :else
-      {:error {:status internal-server-error
-               :message "An unknown condition occured"}})))
+  (cond
+    ;; this email address has already been entered for this user
+    (users/email-exists-for-user-id? user-id new-email)
+    {:error {:status bad-request
+             :message "This email is already associated with your account."}}
+    ;; this email address has already been verified
+    (users/email-verified? new-email)
+    {:error {:status bad-request
+             :message "That email is already associated with an account."}}
+    ;; this email doesn't exist for this user
+    (not (users/email-exists-for-user-id? user-id new-email))
+    (do (users/create-email-verification! user-id new-email)
+        {:result {:success true}})
+    :else
+    {:error {:status internal-server-error
+             :message "An unknown condition occured"}}))
 
 (defn test-response
   "Server Sanity Check"

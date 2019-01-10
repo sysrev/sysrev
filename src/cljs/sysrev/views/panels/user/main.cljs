@@ -9,7 +9,7 @@
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.billing :refer [Billing]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
-            [sysrev.views.panels.user.email :refer [Email VerifyEmail]]
+            [sysrev.views.panels.user.email :refer [EmailSettings VerifyEmail]]
             [sysrev.views.panels.user.invitations :refer [Invitations]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
@@ -239,6 +239,7 @@
                 :class (cond-> "item"
                          (= @current-path "/user/settings/email")
                          (str " active"))
+                :style (when (= js/window.location.host "sysrev.com") {:display "none"})
                 :href "/user/settings/email"}
             "Email"]
            (when-not (empty? (or @payments-owed @payments-paid))
@@ -280,7 +281,7 @@
             #"/user/settings/invitations"
             [Invitations]
             #"/user/settings/email"
-            [Email]
+            [EmailSettings]
             ;; default before the active panel is loaded
             ;; and this component still exists
             #"/user/settings/email/(\w+)" :>>

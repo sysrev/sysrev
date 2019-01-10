@@ -68,7 +68,7 @@
                                        walk/keywordize-keys)
           valid (users/valid-password? email password)
           user (when valid (users/get-user-by-email email))
-          {verified :verified :or {verified false}} user
+          verified (users/primary-email-verified? (:user-id user))
           success (boolean valid)]
       (if success
         {:api-token (:api-token user)}
