@@ -42,23 +42,30 @@ div.project-content {
     }
 }
 
-div.project-files > .ui.celled.list {
+div.project-files > .ui.list {
     margin-top: 0;
 }
 
-div.project-files > .ui.celled.list > .item {
+div.project-files > .ui.list > .item {
     padding-top: 4px;
     padding-bottom: 4px;
 }
 
-div.project-files > .ui.celled.list > .item > .content.file-link {
+div.project-files > .ui.list > .item > .content.file-link {
     padding-top: 3px;
     padding-bottom: 3px;
     font-weight: bold;
 }
 
-div.upload-container {
-    margin-top: 7px;
+div.project-files {
+    .ui.divided.list {
+        margin-top: -0.5em;
+    }
+    .ui.grid.upload-grid {
+        .column {
+            padding-top: 0.5em;
+        }
+    }
 }
 
 div.label-status-help {
@@ -85,14 +92,17 @@ div.label-status-help {
 
         > .ui.attached.segment.status-header {
             padding: 0.5em;
+            border-top: none !important;
             color: rgba(250,250,250,1.0);
             .noselect;
         }
         > .ui.attached.segment.status-header.green {
             background-color: @green;
+            border-color: @solidInternalBorderColor;
         }
         > .ui.attached.segment.status-header.orange {
             background-color: @orange;
+            border-color: @solidInternalBorderColor;
         }
         > .ui.attached.segment.status-buttons {
             padding: 0;
@@ -109,13 +119,31 @@ div.label-status-help {
         }
         > .ui.attached.segment.status-buttons.with-header {
             > .ui.fluid.buttons {
-                border-width: 1px;
-                border-top-width: 0px;
+                border-width: 0;
                 border-top-left-radius: 0;
                 border-top-right-radius: 0;
                 > .ui.button {
                     border-top-left-radius: 0;
                     border-top-right-radius: 0;
+                }
+                .ui.button:first-child {
+                    border-left: 1px solid @solidInternalBorderColor;
+                }
+                .ui.button:last-child {
+                    border-right: 1px solid @solidInternalBorderColor;
+                }
+            }
+        }
+
+        > .ui.attached.segment.status-buttons.no-header {
+            > .ui.fluid.buttons {
+                ui.button {
+                }
+                .ui.button:first-child {
+                    border-right: 1px solid @internalBorderColor;
+                }
+                .ui.button:last-child {
+                    border-left: none;
                 }
             }
         }

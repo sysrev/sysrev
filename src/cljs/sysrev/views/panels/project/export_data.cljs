@@ -1,10 +1,9 @@
 (ns sysrev.views.panels.project.export-data
-  (:require
-   [re-frame.core :refer [subscribe dispatch]]
-   [sysrev.views.base :refer [panel-content logged-out-content]]
-   [sysrev.views.components :refer
-    [with-ui-help-tooltip ui-help-icon]]
-   [sysrev.util :refer [today-string nbsp]]))
+  (:require [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.components :refer
+             [with-ui-help-tooltip ui-help-icon]]
+            [sysrev.util :refer [today-string nbsp]]))
 
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]

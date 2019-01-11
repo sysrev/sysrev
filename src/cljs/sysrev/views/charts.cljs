@@ -51,6 +51,32 @@
   (fn [event item]
     (set! (-> event .-target .-style .-cursor) "pointer")))
 
+(defn graph-text-color []
+  (if (= "Dark" (:ui-theme @(subscribe [:self/settings])))
+    "#dddddd" "#282828"))
+
+(defn graph-border-color []
+  "rgba(128,128,128,0.2)")
+
+(defn graph-font-family []
+  "'Lato', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif")
+
+(defn graph-font-family-alternate []
+  "'Open Sans', 'Lato', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif")
+
+(defn graph-font-settings [& {:keys [alternate]}]
+  {:fontColor (graph-text-color)
+   :fontFamily (if alternate (graph-font-family-alternate)
+                   (graph-font-family))
+   :fontSize (if (mobile?) 12 13)})
+
+(defn tooltip-font-settings [& {:keys [alternate]}]
+  (let [family (if alternate (graph-font-family-alternate)
+                   (graph-font-family))]
+    {:titleFontFamily family, :titleFontSize 13
+     :bodyFontFamily family, :bodyFontSize 13
+     :xPadding 8, :yPadding 7}))
+
 (defn wrap-default-options
   [options & {:keys [animate? items-clickable?]
               :or {animate? true items-clickable? false}}]
@@ -63,7 +89,8 @@
                  :responsiveAnimationDuration duration
                  :hover {:animationDuration (if mobile? 0 300)}
                  :legend {:onHover (on-legend-hover)}
-                 :onHover (on-graph-hover items-clickable?)}
+                 :onHover (on-graph-hover items-clickable?)
+                 :tooltips (tooltip-font-settings)}
                 options)))
 
 (def series-colors ["rgba(29,252,35,0.4)"   ;light green
@@ -85,17 +112,16 @@
         (mapv (partial zipmap [:backgroundColor :label :data]))))
   ([ynames yss] (get-datasets ynames yss series-colors)))
 
-(defn graph-text-color []
-  (if (= "Dark" (:ui-theme @(subscribe [:self/settings])))
-    "#dddddd" "#282828"))
-
 (defn bar-chart
   [height xlabels ynames yss &
-   {:keys [colors options on-click display-ticks]
-    :or {display-ticks true}}]
-  (let [datasets (get-datasets ynames yss colors)
-        font-color (graph-text-color)
-        data {:labels xlabels
+   {:keys [colors options on-click display-ticks log-scale x-label-string]
+    :or {display-ticks true log-scale false}}]
+  (let [font (graph-font-settings)
+        datasets (get-datasets ynames yss colors)
+        max-length (if (mobile?) 22 28)
+        xlabels-short (->> xlabels (mapv #(if (<= (count %) max-length)
+                                            % (str (subs % 0 (- max-length 2)) "..."))))
+        data {:labels xlabels-short
               :datasets (->> datasets (map #(merge % {:borderWidth 1})))}
         options (merge-with
                  (fn [x1 x2]
@@ -104,12 +130,30 @@
                  (wrap-default-options
                   {:scales
                    {:xAxes [{:stacked true
-                             :ticks {:fontColor font-color :display display-ticks}
-                             :scaleLabel {:fontColor font-color}}]
+                             :ticks (merge font {:display display-ticks})
+                             :gridLines {:drawTicks (if display-ticks true false)
+                                         :zeroLineWidth (if display-ticks 0 1)
+                                         :color (graph-border-color)}
+                             :type (if log-scale "logarithmic" "linear")
+                             :scaleLabel (cond-> font
+                                           x-label-string
+                                           (merge {:display true
+                                                   :labelString x-label-string}))}]
                     :yAxes [{:stacked true
-                             :ticks {:fontColor font-color}
-                             :scaleLabel {:fontColor font-color}}]}
-                   :legend {:labels {:fontColor font-color}}
+                             :ticks (merge font {:padding 7})
+                             :gridLines {:drawTicks false
+                                         :color (graph-border-color)}}]}
+                   :legend {:labels font}
+                   :tooltips {:callbacks
+                              {:label
+                               (fn [item data]
+                                 (let [idx (-> item .-datasetIndex)
+                                       label (nth ynames idx)
+                                       value (-> item .-xLabel)
+                                       value-str (if (and (number? value) (not (integer? value)))
+                                                   (/ (js/Math.round (* 100 value)) 100.0)
+                                                   value)]
+                                   (str label ": " value-str)))}}
                    :onClick
                    (when on-click
                      (fn [event elts]
@@ -119,10 +163,7 @@
                              (on-click idx))))))}
                   :items-clickable? (if on-click true false))
                  options)]
-    [chartjs/horizontal-bar
-     {:data data
-      :height height
-      :options options}]))
+    [chartjs/horizontal-bar {:data data :height height :options options}]))
 
 (defn pie-chart
   [entries & [on-click]]
@@ -132,26 +173,15 @@
                        (if (contains? entry 2)
                          (nth entry 2) default-color))
                      entries series-colors)
-        dataset
-        {:data values
-         :backgroundColor colors}
-        data {:labels labels
-              :datasets [dataset]}
+        dataset {:data values :backgroundColor colors}
+        data {:labels labels :datasets [dataset]}
         options (wrap-default-options
                  {:legend {:display false}
-                  :onClick
-                  (when on-click
-                    (fn [event elts]
-                      (let [elts (-> elts js->clj)]
-                        (when (and (coll? elts) (not-empty elts))
-                          (when-let [idx (-> elts first (aget "_index"))]
-                            (on-click idx))))))}
-                 :items-clickable? (if on-click true false))]
-    [chartjs/doughnut {:data data
-                       :options options
-                       :height 300}]))
-
-(defn label-count->chart-height
-  "Given a label count n, return the chart height in px"
-  [n]
-  (+ 50 (* 12 n)))
+                  :onClick (when on-click
+                             (fn [event elts]
+                               (let [elts (-> elts js->clj)]
+                                 (when (and (coll? elts) (not-empty elts))
+                                   (when-let [idx (-> elts first (aget "_index"))]
+                                     (on-click idx))))))}
+                 :items-clickable? (boolean on-click))]
+    [chartjs/doughnut {:data data :options options :height 245}]))

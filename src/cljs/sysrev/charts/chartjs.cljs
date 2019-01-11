@@ -9,10 +9,13 @@
   (let [{:keys [type data options width height]} (r/props chart)]
     (swap! (r/state-atom chart) assoc
            :chart-instance
-           (js/Chart. (r/dom-node chart)
+           (js/Chart. (-> (r/dom-node chart) .-firstChild .-firstChild)
                       (clj->js {:type type
                                 :data data
-                                :options options})))))
+                                :options
+                                (merge {:responsive true
+                                        :maintainAspectRatio false}
+                                       options)})))))
 
 (defn- chart-component [{:keys [type data options width height]}]
   (let [ref (atom nil)]
@@ -48,9 +51,12 @@
         (let [{:keys [type data options width height]} (r/props this)]
           ;; Method of getting React ref value with Reagent taken from:
           ;; https://gist.github.com/pesterhazy/4d9df2edc303e5706d547aeabe0e17e1
-          [:canvas (cond-> {:ref #(reset! ref %)}
-                     height (merge {:height height})
-                     width  (merge {:width width}))]))})))
+          [:div {:style (when height {:height (str height "px")})}
+           [:div.chart-container
+            {:style {:position "relative"
+                     :height (when height (str height "px"))
+                     :width (when width (str width "px"))}}
+            [:canvas {:ref #(reset! ref %)}]]]))})))
 
 (defn doughnut [{:keys [data options width height] :as props}]
   [chart-component (merge props {:type "doughnut"})])

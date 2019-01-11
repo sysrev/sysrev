@@ -225,10 +225,7 @@
     (->> (get-missing-items db)
          (remove #(loading/item-failed? %))
          (remove #(loading/item-loading? %))
-         (map (fn [item]
-                #_ (js/console.log (str "fetch-missing [trigger " (pr-str trigger-item)
-                                        "] [fetching " (pr-str item) "]"))
-                [:fetch item]))
+         (map (fn [item] [:fetch item]))
          doall)}))
 
 (reg-fx
@@ -240,7 +237,6 @@
        (when (and item (in? missing item)
                   (not (loading/item-failed? item))
                   (not (loading/item-loading? item)))
-         #_ (js/console.log (str "fetch-if-missing [fetching " (pr-str item) "]"))
          (dispatch [:fetch item])))
     10)))
 

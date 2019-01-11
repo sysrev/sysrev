@@ -408,14 +408,13 @@
                   :xAxes
                   [{:maxBarThickness 10
                     :scaleLabel {:fontColor font-color}
-                    :ticks {:fontColor font-color}}]}
-                 :legend
-                 {:display false}
-                 :tooltips {:callbacks {:label (fn [item]
-                                                 (accounting/cents->string ($ item :yLabel)))}}}]
+                    :ticks {:fontColor font-color}
+                    :gridLines {:color (charts/graph-border-color)}}]}
+                 :legend {:display false}
+                 :tooltips {:callbacks {:label #(accounting/cents->string ($ % :yLabel))}}}]
     [chartjs/bar
      {:data data
-      :height (charts/label-count->chart-height (count labels))
+      :height (+ 50 (* 12 (count labels)))
       :width (* (count labels) 200)
       :options options}]))
 

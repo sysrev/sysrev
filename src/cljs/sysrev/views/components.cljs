@@ -384,7 +384,8 @@
     element
     (merge {:delay {:show 300
                     :hide 0}
-            :hoverable false}
+            :hoverable false
+            :position "top left"}
            popup-options)]
    ^{:key :tooltip-help}
    [:div.ui.flowing.popup.transition.hidden.tooltip
