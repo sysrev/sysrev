@@ -2,7 +2,8 @@
   (:require [sysrev.charts.chartjs :as chartjs]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
-            [sysrev.util :refer [random-id mobile?]]))
+            [sysrev.util :refer [random-id mobile?]])
+  (:require-macros [reagent.interop :refer [$]]))
 
 ;; Paul Tol colors: https://personal.sron.nl/~pault/
 ;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js
@@ -147,9 +148,9 @@
                    :tooltips {:callbacks
                               {:label
                                (fn [item data]
-                                 (let [idx (-> item .-datasetIndex)
+                                 (let [idx ($ item :datasetIndex)
                                        label (nth ynames idx)
-                                       value (-> item .-xLabel)
+                                       value ($ item :xLabel)
                                        value-str (if (and (number? value) (not (integer? value)))
                                                    (/ (js/Math.round (* 100 value)) 100.0)
                                                    value)]
