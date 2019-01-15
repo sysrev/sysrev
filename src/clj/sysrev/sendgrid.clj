@@ -2,8 +2,7 @@
   (:require [clj-http.client :as client]
             [environ.core :refer [env]]))
 
-
-(def sendgrid-api-key (or (System/getProperty "SENDGRID_API_URL")
+(def sendgrid-api-key (or (System/getProperty "SENDGRID_API_KEY")
                           (env :sendgrid-api-key)))
 (def sendgrid-api-url "https://api.sendgrid.com/v3/")
 (def sendgrid-default-from "info@sysrev.com")
