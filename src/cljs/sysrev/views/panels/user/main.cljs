@@ -239,7 +239,6 @@
                 :class (cond-> "item"
                          (= @current-path "/user/settings/email")
                          (str " active"))
-                :style (when (= js/window.location.host "sysrev.com") {:display "none"})
                 :href "/user/settings/email"}
             "Email"]
            (when-not (empty? (or @payments-owed @payments-paid))
