@@ -15,7 +15,8 @@
               default-project-settings]]
             [sysrev.article.core :as article]
             [sysrev.db.users :refer
-             [get-user-by-email set-user-permissions generate-api-token]]
+             [get-user-by-email set-user-permissions generate-api-token create-email-verification!
+              current-email-entry]]
             [sysrev.db.labels :refer [add-label-entry-boolean]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
@@ -306,6 +307,22 @@
               do-execute))))
     (log/info "Finished Converting Dates. ")))
 
+(defn ensure-web-user-email-entries
+  "Migrate to new email verification system, should only be run when the
+  web_user_email table is essentially empty"
+  []
+  (when (< (-> (select :%count.*)
+               (from :web_user_email)
+               do-query first :count)
+           1)
+    (let [web-user (-> (select :user_id :email)
+                       (from :web_user)
+                       do-query)]
+      (doall (map #(create-email-verification!
+                    (:user-id %)
+                    (:email %)
+                    :principal true) web-user)))))
+
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
@@ -317,6 +334,7 @@
                       ;; #'ensure-no-null-authors
                       #'update-stripe-plans-table
                       #'ensure-project-sources-exist
+                      #'ensure-web-user-email-entries
                       ;; #'ensure-article-flag-disable-entries
                       ]]
     (log/info "Running " (str migrate-fn))
