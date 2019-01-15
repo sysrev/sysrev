@@ -5,6 +5,7 @@ CREATE TABLE web_user_email (
        email text NOT NULL,
        verified boolean NOT NULL DEFAULT FALSE,
        principal boolean DEFAULT FALSE,
+       active BOOLEAN DEFAULT TRUE,
        created timestamp WITH TIME ZONE DEFAULT now() NOT NULL,
        updated timestamp WITH TIME ZONE,
        PRIMARY KEY (id)

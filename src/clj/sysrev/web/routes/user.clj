@@ -113,6 +113,16 @@
                     request {:roles ["admin"]}
                     (let [{:keys [description]} (:body request)]
                       (api/create-invitation! invitee project-id user-id description)))))
+    (DELETE "/email" [:as request]
+            (wrap-authorize
+             request {:authorize-fn (user-authd? user-id)}
+             (let [{:keys [email]} (:body request)]
+               (api/delete-email! user-id email))))
+    (POST "/email" [:as request]
+          (wrap-authorize
+           request {:authorize-fn (user-authd? user-id)}
+           (let [{:keys [email]} (:body request)]
+             (api/create-email! user-id email))))
     (context "/email" []
              (GET "/addresses" [:as request]
                   (wrap-authorize
@@ -127,8 +137,8 @@
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (api/verify-email! user-id code)))
-             (POST "/create" [:as request]
+             (PUT "/set-primary" [:as request]
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (let [{:keys [email]} (:body request)]
-                     (api/create-email! user-id email))))))))
+                     (api/set-primary-email! user-id email))))))))

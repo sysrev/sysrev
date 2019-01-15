@@ -1151,46 +1151,90 @@
   [user-id code]
   ;; does the code match the one associated with user?
   (let [{:keys [verify-code verified email]} (users/web-user-email user-id code)]
-    (cond verified
-          ;; user email has already been verified
-          {:error {:status 412
-                   :message "This email address has already been verified"}}
-          ;; code does not match
-          (not= verify-code code)
-          {:error {:status precondition-failed
-                   :message "Verification code does not match our records"}}
-          (= verify-code code)
-          (do (users/verify-email! email verify-code user-id)
-              ;; set this as primary when the user doesn't have any other verified email addresses
-              (when (= (->> (users/read-email-addresses user-id)
-                            (filterv :verified)
-                            count)
-                       1)
-                (users/set-primary-email! user-id email))
-              {:result {:success true}})
-          :else
-          {:error {:status internal-server-error
-                   :message "An unknown condition occured"}})))
+    (cond
+      ;; this email is already verified and set as primary, for this account or another
+      (users/verified-primary-email? email)
+      {:error {:status precondition-failed
+               :message "This email address is already verified and set as primary."}}
+      verified
+      ;; user email has already been verified
+      {:error {:status precondition-failed
+               :message "This email address has already been verified"}}
+      ;; code does not match
+      (not= verify-code code)
+      {:error {:status precondition-failed
+               :message "Verification code does not match our records"}}
+      (= verify-code code)
+      (do (users/verify-email! email verify-code user-id)
+          ;; set this as primary when the user doesn't have any other verified email addresses
+          (when (= (->> (users/read-email-addresses user-id)
+                        (filterv :verified)
+                        count)
+                   1)
+            (users/set-primary-email! user-id email))
+          {:result {:success true}})
+      :else
+      {:error {:status internal-server-error
+               :message "An unknown condition occured"}})))
 
 (defn create-email!
   "Create an email entry to user-id"
   [user-id new-email]
-  (cond
-    ;; this email address has already been entered for this user
-    (users/email-exists-for-user-id? user-id new-email)
-    {:error {:status bad-request
-             :message "This email is already associated with your account."}}
-    ;; this email address has already been verified
-    (users/email-verified? new-email)
-    {:error {:status bad-request
-             :message "That email is already associated with an account."}}
-    ;; this email doesn't exist for this user
-    (not (users/email-exists-for-user-id? user-id new-email))
-    (do (users/create-email-verification! user-id new-email)
-        {:result {:success true}})
-    :else
-    {:error {:status internal-server-error
-             :message "An unknown condition occured"}}))
+  (let [current-email-entry (users/current-email-entry user-id new-email)]
+    (cond
+      ;; this email doesn't exist for this user
+      (not current-email-entry)
+      (do (users/create-email-verification! user-id new-email)
+          {:result {:success true}})
+      ;; this email address has already been entered for this user
+      ;; but it is not active, reactivate it
+      (not (:active current-email-entry))
+      (do (users/set-active-field-email! user-id new-email true)
+          {:result {:success true}})
+      ;; this email address is already active
+      (:active current-email-entry)
+      {:error {:status bad-request
+               :message "That email is already associated with an account."}}
+      :else
+      {:error {:status internal-server-error
+               :message "An unknown condition occured"}})))
+
+(defn delete-email!
+  [user-id email]
+  (let [current-email-entry (users/current-email-entry user-id email)]
+    (cond (nil? current-email-entry)
+          {:error {:status not-found
+                   :message "That email address is not associated with user-id"}}
+          (:principal current-email-entry)
+          {:error {:status forbidden
+                   :message "Primary email addresses can not be deleted"}}
+          (not (:principal current-email-entry))
+          (do (users/set-active-field-email! user-id email false)
+              {:result {:success true}})
+          :else
+          {:error {:status bad-request
+                   :messasge "An unkown error occured."}})))
+
+(defn set-primary-email!
+  [user-id email]
+  (let [current-email-entry (users/current-email-entry user-id email)]
+    (cond
+      (:principal current-email-entry)
+      {:error {:status precondition-failed
+               :message "This email address is already the primary email account"}}
+      ;; this email is already verified and set as primary, for this account or another
+      (users/verified-primary-email? email)
+      {:error {:status precondition-failed
+               :message "This email address is already verified and set as primary for an account."}}
+      (not (:verified current-email-entry))
+      {:error {:status precondition-failed
+               :message "This email address has not been verified. Only verified email addresses can be set as primary"}}
+      (:verified current-email-entry)
+      (do (users/set-primary-email! user-id email)
+          {:result {:success true}})
+      :else
+      {:error {:status internal-server-error
+               :message "An unknown condition occured"}})))
 
 (defn test-response
   "Server Sanity Check"

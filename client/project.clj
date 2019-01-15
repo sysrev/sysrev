@@ -48,7 +48,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs" "src/cljc"]
+     :source-paths ["src/cljs" "src/cljc" "src/clj"]
      :figwheel {:on-jsload "sysrev.core/mount-root"}
      :compiler {:main "sysrev.user"
                 :output-to "resources/public/out-dev/sysrev.js"

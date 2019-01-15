@@ -412,6 +412,16 @@
               [:= :verify-code verify-code]])
       do-query first))
 
+(defn current-email-entry
+  [user-id email]
+  (-> (select :*)
+      (from :web_user_email)
+      (where [:and
+              [:= :user-id user-id]
+              [:= :email email]])
+      do-query first))
+
+;; needed in auth.clj
 (defn primary-email-verified?
   "Is the primary email for this user verified?"
   [user-id]
@@ -424,7 +434,7 @@
                 [:= :principal true]])
         do-query first :verified boolean)))
 
-(defn email-verified?
+#_(defn email-verified?
   "Has this email address already been verified?"
   [email]
   (-> (select :verified)
@@ -434,7 +444,7 @@
               [:= :verified true]])
       do-query first :verified boolean))
 
-(defn email-exists-for-user-id?
+#_(defn email-exists-for-user-id?
   "Does user-id already have an entry for email?"
   [user-id email]
   (-> (select :verified)
@@ -449,24 +459,25 @@
   [user-id email]
   ;; set all web-user-email principal to false for this user-id
   ;; note: this will eventually change
-  (-> (sqlh/update :web-user-email)
-      (sset {:principal false
-             :updated (sql-now)})
-      (where [:= :user-id user-id])
-      do-execute)
-  (-> (sqlh/update :web-user-email)
-      (sset {:principal true
-             :updated (sql-now)})
-      (where [:and
-              [:= :user-id user-id]
-              [:= :email email]])
-      do-execute)
-  ;; update the user
-  (-> (sqlh/update :web-user)
-      (sset {:verified true
-             :email email})
-      (where [:= :user-id user-id])
-      do-execute))
+  (with-transaction
+    (-> (sqlh/update :web-user-email)
+        (sset {:principal false
+               :updated (sql-now)})
+        (where [:= :user-id user-id])
+        do-execute)
+    (-> (sqlh/update :web-user-email)
+        (sset {:principal true
+               :updated (sql-now)})
+        (where [:and
+                [:= :user-id user-id]
+                [:= :email email]])
+        do-execute)
+    ;; update the user
+    (-> (sqlh/update :web-user)
+        (sset {:verified true
+               :email email})
+        (where [:= :user-id user-id])
+        do-execute)))
 
 (defn verify-email! [email verify-code user-id]
   (-> (sqlh/update :web-user-email)
@@ -483,7 +494,28 @@
   (-> (select :*)
       (from :web-user-email)
       (where [:and [:= :user-id user-id]])
-      do-query))
+      do-query
+      (->> (filter :active))))
+
+(defn set-active-field-email!
+  [user-id email active]
+  (-> (sqlh/update :web-user-email)
+      (sset {:active active})
+      (where [:and
+              [:= :email email]
+              [:= :user-id user-id]])
+      do-execute))
+
+(defn verified-primary-email?
+  "Is this email already primary and verified?"
+  [email]
+  (-> (select :email)
+      (from :web-user-email)
+      (where [:and
+              [:= :email email]
+              [:= :principal true]
+              [:= :verified true]])
+      do-query empty? not))
 
 (defn read-email-verification-code
   [user-id email]

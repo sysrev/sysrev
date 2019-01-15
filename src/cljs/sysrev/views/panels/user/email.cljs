@@ -1,12 +1,11 @@
 (ns sysrev.views.panels.user.email
-  (:require [ajax.core :refer [GET PUT POST]]
+  (:require [ajax.core :refer [GET PUT POST DELETE]]
             [reagent.core :as r]
             [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :refer [vector->hash-map]]
-            [sysrev.views.semantic :refer [Segment Header Grid Row Column Label Button Message MessageHeader ListUI Item
-                                           FormGroup FormInput Form]])
+            [sysrev.views.semantic :refer [Segment Header Grid Row Column Label Button Message MessageHeader ListUI Item FormGroup FormInput Form]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def state (r/cursor app-db [:state :panels :user :email]))
@@ -26,7 +25,6 @@
                            (reset! verifying-code? false)
                            (reset! verify-error (get-in error-response [:response :error :message])))})))
 
-
 (defn get-email-addresses!
   []
   (let [retrieving-addresses? (r/cursor state [:email :retrieving-addresses?])
@@ -36,10 +34,88 @@
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-addresses? false)
+                     (dispatch [:fetch [:identity]])
                      (reset! email-addresses (-> response :result :addresses (vector->hash-map :id))))
           :error-handler (fn [error]
                            (reset! retrieving-addresses? false)
                            ($ js/console log "[get-email-addresses] There was an error"))})))
+
+(defn resend-verification-code!
+  [email-object]
+  (let [{:keys [email id]} email-object
+        resending-code? (r/cursor state [:code id :resending?])
+        resend-message (r/cursor state [:code id :resend-messasge])
+        resend-error (r/cursor state [:code id :resend-error])]
+    (reset! resending-code? true)
+    (PUT (str "/api/user/" @(subscribe [:self/user-id]) "/email/send-verification")
+         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :params {:email email}
+          :handler (fn [response]
+                     (reset! resending-code? false)
+                     (reset! resend-message "Confirmation email resent."))
+          :error-handler (fn [error-response]
+                           (reset! resending-code? false)
+                           (reset! resend-error "There was an error sending the confirmation email."))})))
+
+(defn create-email! [new-email]
+  (let [sending-update? (r/cursor state [:update :sending?])
+        update-message (r/cursor state [:update :message])
+        update-error (r/cursor state [:update :error])
+        adding-email? (r/cursor state [:email :changing?])]
+    (reset! sending-update? true)
+    (reset! update-message nil)
+    (reset! update-error nil)
+    (cond (clojure.string/blank? new-email)
+          (do
+            (reset! update-error "New email address can not be blank!")
+            (reset! sending-update? false))
+          :else
+          (POST (str "/api/user/" @(subscribe [:self/user-id]) "/email")
+                {:params {:email new-email}
+                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                 :handler (fn [response]
+                            (reset! sending-update? false)
+                            (reset! adding-email? false)
+                            (get-email-addresses!)
+                            (reset! update-message "You've successfully added a new email address"))
+                 :error-handler (fn [error-response]
+                                  (reset! sending-update? false)
+                                  (reset! update-error (get-in error-response [:response :error :message])))}))))
+
+(defn delete-email!
+  [email-object]
+  (let [{:keys [email id]} email-object
+        deleting-email? (r/cursor state [:email id :deleting?])
+        delete-message (r/cursor state [:email id :delete-messasge])
+        delete-error (r/cursor state [:email id :delete-error])]
+    (reset! deleting-email? true)
+    (DELETE (str "/api/user/" @(subscribe [:self/user-id]) "/email")
+         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :params {:email email}
+          :handler (fn [response]
+                     (reset! deleting-email? false)
+                     (get-email-addresses!))
+          :error-handler (fn [error-response]
+                           (reset! deleting-email? false)
+                           (reset! delete-error (get-in error-response [:response :error :message]))
+                           (reset! delete-error "There was an error deleting this emil."))})))
+
+(defn set-primary!
+  [email-object]
+  (let [{:keys [email id]} email-object
+        setting-primary? (r/cursor state [:email :setting-primary])
+        set-primary-message (r/cursor state [:email id :set-primary-message])
+        set-primary-error (r/cursor state [:email id :set-primary-error])]
+    (reset! setting-primary? true)
+    (PUT (str "/api/user/" @(subscribe [:self/user-id]) "/email/set-primary")
+         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+          :params {:email email}
+          :handler (fn [response]
+                     (reset! setting-primary? false)
+                     (get-email-addresses!))
+          :error-handler (fn [error-response]
+                           (reset! setting-primary? false)
+                           (reset! set-primary-error (get-in error-response [:response :error :message])))})))
 
 (defn VerifyEmail
   [code]
@@ -65,34 +141,23 @@
         (reset! verify-error nil)
         (verify-email code))})))
 
-
-(defn resend-verification-code!
-  [email-address]
-  (let [resending-code? (r/cursor state [:code :resending?])
-        resend-message (r/cursor state [:code :resend-messasge])
-        resend-error (r/cursor state [:code :resend-error])]
-    (reset! resending-code? true)
-    (PUT (str "/api/user/" @(subscribe [:self/user-id]) "/email/send-verification")
-         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :params {:email email-address}
-          :handler (fn [response]
-                     (reset! resending-code? false)
-                     (reset! resend-message "Confirmation email resent."))
-          :error-handler (fn [error-response]
-                           (reset! resending-code? false)
-                           (reset! resend-error "There was an error sending the confirmation email."))})))
 (defn EmailAddress
   [email-object]
-  (let [resending-code? (r/cursor state [:code :resending?])
-        resend-message (r/cursor state [:code :resend-messasge])
-        resend-error (r/cursor state [:code :resend-error])]
+  (let [{:keys [id]} email-object
+        resending-code? (r/cursor state [:code id :resending?])
+        resend-message (r/cursor state [:code id :resend-messasge])
+        resend-error (r/cursor state [:code id :resend-error])
+        deleting-email? (r/cursor state [:email id :deleting?])
+        delete-error (r/cursor state [:email id :delete-error])
+        setting-primary? (r/cursor state [:email :setting-primary])
+        set-primary-error (r/cursor state [:email id :set-primary-error])]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [email verified principal]} email-object]
+        (let [{:keys [email verified principal id]} email-object]
           [Grid
            [Row
-            [Column {:width 12}
+            [Column {:width 11}
              [:h4 email " " (if verified
                               [Label {:color "green"}
                                "Verified"]
@@ -102,52 +167,48 @@
                 [Label "Primary"])
               " " (when (not verified) [Button {:size "mini"
                                                 :basic true
-                                                :on-click #(resend-verification-code! email)
-                                                :disabled @resending-code?} "Resend Verification Email"])]
-             (when-not (clojure.string/blank? @resend-error)
-               [Message {:onDismiss #(reset! resend-error nil)
-                         :negative true}
-                @resend-error])
-             (when-not (clojure.string/blank? @resend-message)
-               [Message {:onDismiss #(reset! resend-message nil)
-                         :positive true}
-                @resend-message])]
-            (when-not principal
-              [Column {:width 4}
-               [Button {:size "mini"
-                        :basic true
-                        :on-click #(.log js/console "I don't do a whole lot")}
-                "Delete Email"]])]]))
+                                                :on-click #(resend-verification-code! email-object)
+                                                :disabled @resending-code?} "Resend Verification Email"])]]
+            [Column {:width 5}
+             (when-not principal
+               [:div
+                [Button {:size "mini"
+                         :basic true
+                         :on-click #(delete-email! email-object)
+                         :disabled @deleting-email?}
+                 "Delete Email"]
+                (when verified
+                  [Button {:size "mini"
+                           :basic true
+                           :on-click #(set-primary! email-object)
+                           :disabled @setting-primary?}
+                   "Make Primary"])])]]
+           (when (some false? (mapv clojure.string/blank? [@resend-error
+                                                           @resend-message
+                                                           @delete-error
+                                                           @set-primary-error]))
+             [Row
+              [Column {:width 16}
+               (when-not (clojure.string/blank? @resend-error)
+                 [Message {:onDismiss #(reset! resend-error nil)
+                           :negative true}
+                  @resend-error])
+               (when-not (clojure.string/blank? @resend-message)
+                 [Message {:onDismiss #(reset! resend-message nil)
+                           :positive true}
+                  @resend-message])
+               (when-not (clojure.string/blank? @delete-error)
+                 [Message {:onDismiss #(reset! delete-error nil)
+                           :negative true}
+                  @delete-error])
+               (when-not (clojure.string/blank? @set-primary-error)
+                 [Message {:onDismiss #(reset! set-primary-error nil)
+                           :negative true}
+                  @set-primary-error])]])]))
       :component-did-mount
       (fn [this]
         (reset! resend-error nil)
-        (reset! resend-message nil)
-        (dispatch [:fetch [:identity]]))})))
-
-(defn create-email! [new-email]
-  (let [sending-update? (r/cursor state [:update :sending?])
-        update-message (r/cursor state [:update :message])
-        update-error (r/cursor state [:update :error])
-        adding-email? (r/cursor state [:email :changing?])]
-    (reset! sending-update? true)
-    (reset! update-message nil)
-    (reset! update-error nil)
-    (cond (clojure.string/blank? new-email)
-          (do
-            (reset! update-error "New email address can not be blank!")
-            (reset! sending-update? false))
-          :else
-          (POST (str "/api/user/" @(subscribe [:self/user-id]) "/email/create")
-                {:params {:email new-email}
-                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                 :handler (fn [response]
-                            (reset! sending-update? false)
-                            (reset! adding-email? false)
-                            (get-email-addresses!)
-                            (reset! update-message "You've successfully added a new email address"))
-                 :error-handler (fn [error-response]
-                                  (reset! sending-update? false)
-                                  (reset! update-error (get-in error-response [:response :error :message])))}))))
+        (reset! resend-message nil))})))
 
 (defn CreateEmailAddress
   []
@@ -204,22 +265,27 @@
 
 (defn EmailAddresses
   []
-  (let [email-addresses (r/cursor state [:email :addresses])]
-    (r/create-class
-     {:reagent-render (fn [this]
-                        (when-not (empty? @email-addresses))
+  (r/create-class
+   {:reagent-render (fn [this]
+                      (let [email-addresses (r/cursor state [:email :addresses])
+                            primary-email-address (->> (vals @email-addresses)
+                                                       (filter :principal))
+                            rest-email-addresses (->> (vals @email-addresses)
+                                                      (filter (comp not :principal))
+                                                      (sort-by :email))
+                            email-object-fn (fn [email-object]
+                                              ^{:key (:id email-object)}
+                                              [Item [EmailAddress email-object]])]
                         [ListUI {:divided true
                                  :relaxed true}
-                         (doall (map
-                                 (fn [email-object]
-                                   ^{:key (:id email-object)}
-                                   [Item [EmailAddress email-object]])
-                                 (vals @email-addresses)))
-                         [Item [CreateEmailAddress]]])
-      :get-initial-state
-      (fn [this]
-        (get-email-addresses!))}
-     )))
+                         (when-not (empty? primary-email-address)
+                           (doall (map email-object-fn primary-email-address)))
+                         (when-not (empty? rest-email-addresses)
+                           (doall (map email-object-fn rest-email-addresses)))
+                         [Item [CreateEmailAddress]]]))
+    :get-initial-state
+    (fn [this]
+      (get-email-addresses!))}))
 
 (defn EmailSettings
   []
