@@ -62,7 +62,9 @@
     (Thread/sleep 100)
     (go-route "/")))
 
-(defn register-user [& [email password]]
+;; can't use this because it would send emails out
+;; use sysrev.test.browser.core/create-test-user instead
+#_(defn register-user [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
     (go-route "/")

@@ -190,6 +190,20 @@
   :args (s/cat :source-id int?, :enabled? boolean?)
   :ret map?)
 
+(defn send-verification-email
+  "Resend the verification email to user-id"
+  [user-id email]
+  (let [{:keys [verify-code]} (users/read-email-verification-code user-id email)]
+    (sendgrid/send-template-email
+     email "Verify Your Email"
+     (str "Verify your email by clicking <a href='"
+          (if (= (:profile env)
+                 :dev)
+            "http://localhost:4061"
+            "https://sysrev.com")
+          "/user/settings/email/" verify-code "'>here</a>"))
+    {:result {:success true}}))
+
 (defn register-user!
   "Register a user and add them as a stripe customer"
   [email password project-id]
@@ -225,6 +239,8 @@
                                     default-plan)
         ;; add email verification entry for email
         (users/create-email-verification! (:user-id new-user) email :principal true)
+        ;; send verification email
+        (send-verification-email (:user-id new-user) email)
         {:result
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
@@ -1127,20 +1143,6 @@
   (invitation/update-invitation-accepted! invitation-id accepted?)
   {:result {:success true}})
 
-(defn send-verification
-  "Resend the verification email to user-id"
-  [user-id email]
-  (let [{:keys [verify-code]} (users/read-email-verification-code user-id email)]
-    (sendgrid/send-template-email
-     email "Verify Your Email"
-     (str "Verify your email by clicking <a href='"
-          (if (= (:profile env)
-                 :dev)
-            "http://localhost:4061"
-            "https://sysrev.com")
-          "/user/settings/email/" verify-code "'>here</a>"))
-    {:result {:success true}}))
-
 (defn read-email-addresses
   "Given a user-id, return all email addresses associated with it"
   [user-id]
@@ -1182,14 +1184,21 @@
   [user-id new-email]
   (let [current-email-entry (users/current-email-entry user-id new-email)]
     (cond
+      ;; this email was already registerd to another user
+      (-> (users/get-user-by-email new-email) empty? not)
+      {:error {:status forbidden
+               :message "This email address was already used to register an account."}}
       ;; this email doesn't exist for this user
       (not current-email-entry)
       (do (users/create-email-verification! user-id new-email)
+          (send-verification-email user-id new-email)
           {:result {:success true}})
       ;; this email address has already been entered for this user
       ;; but it is not active, reactivate it
       (not (:active current-email-entry))
       (do (users/set-active-field-email! user-id new-email true)
+          (when-not (:verified current-email-entry)
+            (send-verification-email user-id new-email))
           {:result {:success true}})
       ;; this email address is already active
       (:active current-email-entry)
@@ -1219,6 +1228,10 @@
   [user-id email]
   (let [current-email-entry (users/current-email-entry user-id email)]
     (cond
+      ;; already used for a main account
+      (-> (users/get-user-by-email email) empty? not)
+      {:error {:status forbidden
+               :message "This email address was already used to register an account."}}
       (:principal current-email-entry)
       {:error {:status precondition-failed
                :message "This email address is already the primary email account"}}

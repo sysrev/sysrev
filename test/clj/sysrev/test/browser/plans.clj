@@ -55,6 +55,7 @@
   [plan-name]
   (b/exists? {:xpath (str "//span[contains(text(),'" plan-name "')]/ancestor::div[contains(@class,'plan')]/descendant::div[contains(text(),'Subscribed')]")}))
 
+;; need to disable sending emails in this test
 (deftest-browser register-and-check-basic-plan-subscription
   (when (and (test/db-connected?)
              (not= :remote-test (-> env :profile)))
@@ -62,7 +63,10 @@
     (let [{:keys [email password]} b/test-login]
       (b/delete-test-user)
       (Thread/sleep 200)
-      (nav/register-user email password)
+      (b/create-test-user email password)
+      (users/create-sysrev-stripe-customer! (users/get-user-by-email email))
+      (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
+      ;;(nav/register-user email password)
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
       (is (= email
@@ -85,6 +89,7 @@
       ;; make sure this has occurred for the next test
       (test/wait-until #(nil? (users/get-user-by-email email))))))
 
+;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
   (let [{:keys [email password]} b/test-login]
     (when (and (test/db-connected?)
@@ -92,7 +97,11 @@
     (log/info "register-and-subscribe-to-paid-plans")
     (b/delete-test-user)
     (Thread/sleep 200)
-    (nav/register-user email password)
+    (b/create-test-user email password)
+    (users/create-sysrev-stripe-customer! (users/get-user-by-email email))
+    (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
+    ;;(nav/register-user email password)
+    (nav/log-in email password)
     (assert stripe/stripe-secret-key)
     (assert stripe/stripe-public-key)
     (wait-until-stripe-id email)

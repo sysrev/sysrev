@@ -9,6 +9,7 @@
             [clj-webdriver.taxi :as taxi]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.api :as api]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db :refer [do-execute with-transaction]]
             [sysrev.db.users :as users]
