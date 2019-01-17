@@ -340,22 +340,30 @@
       do-query
       first))
 
-(defn create-web-user-group-name!
+(defn get-group-id
+  "Given a group-name, get the group-id associated with it"
+  [group-name]
+  (-> (select :id)
+      (from :groups)
+      (where [:= :group-name group-name])
+      do-query first :id))
+
+(defn create-web-user-group!
   "Create a group-name for user-id in web-user-group"
   [user-id group-name]
   (-> (insert-into :web_user_group)
       (values [{:user-id user-id
-                :group-name group-name}])
+                :group-id (get-group-id group-name)}])
       do-execute))
 
 (defn read-web-user-group-name
-  "Read the id for the web-user-group for user-id and grou-name"
+  "Read the id for the web-user-group for user-id and group-name"
   [user-id group-name]
   (-> (select :id :active)
       (from :web_user_group)
       (where [:and
               [:= :user-id user-id]
-              [:= :group-name group-name]])
+              [:= :group-id (get-group-id group-name)]])
       do-query
       first))
 
@@ -365,7 +373,7 @@
   (-> (sqlh/update :web-user-group)
       (sset {:active active?
              :updated (sql-now)})
-      (where [:= :id group-id])
+      (where [:= :group-id group-id])
       do-execute))
 
 (defn read-users-in-group
@@ -375,7 +383,7 @@
                            (from :web-user-group)
                            (where [:and
                                    [:= :active true]
-                                   [:= :group_name group-name]])
+                                   [:= :group-id (get-group-id group-name)]])
                            do-query
                            (->> (map :user-id)))]
     (if-not (empty? users-in-group)
@@ -389,7 +397,7 @@
       (from :web-user-group)
       (where [:and
               [:= :user-id user-id]
-              [:= :group_name group-name]])
+              [:= :group-id (get-group-id group-name)]])
       do-query
       first
       boolean))

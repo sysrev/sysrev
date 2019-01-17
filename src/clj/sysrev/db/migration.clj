@@ -323,6 +323,18 @@
                     (:email %)
                     :principal true) web-user)))))
 
+(defn ensure-groups
+  "Ensure that there are always the required SysRev groups"
+  []
+  (when-not (= (-> (select :group-name)
+                   (from :groups)
+                   (where [:= :group-name "public-reviewer"])
+                   do-query first :group-name)
+               "public-reviewer")
+    (-> (insert-into :groups)
+        (values [{:group-name "public-reviewer"}])
+        do-execute)))
+
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."
   []
@@ -336,6 +348,7 @@
                       #'ensure-project-sources-exist
                       #'ensure-web-user-email-entries
                       ;; #'ensure-article-flag-disable-entries
+                      #'ensure-groups
                       ]]
     (log/info "Running " (str migrate-fn))
     (time ((var-get migrate-fn)))))

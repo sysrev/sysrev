@@ -201,7 +201,7 @@
                  :dev)
             "http://localhost:4061"
             "https://sysrev.com")
-          "/user/settings/email/" verify-code "'>here</a>"))
+          "/user/settings/email/" verify-code "'>here</a>."))
     {:result {:success true}}))
 
 (defn register-user!
@@ -1085,11 +1085,11 @@
   {:result {:active (boolean (:active (users/read-web-user-group-name user-id group-name)))}})
 
 (defn set-web-user-group!
-  "Set  with opt-in-type for user-id"
+  "Set with opt-in-type for user-id"
   [user-id group-name active?]
   (if-let [group-id (:id (users/read-web-user-group-name user-id group-name))]
     (users/update-web-user-group! group-id active?)
-    (users/create-web-user-group-name! user-id group-name))
+    (users/create-web-user-group! user-id group-name))
   {:result {:active (:active (users/read-web-user-group-name user-id group-name))}})
 
 (defn users-in-group
