@@ -187,22 +187,27 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (when-not (nil? @active?)
-          [Segment
-           [Header {:as "h4"
-                    :dividing true}
-            "Public Reviewer Opt In"]
-           [Radio {:toggle true
-                   :label "Publicly Listed as a Paid Reviewer"
-                   :checked @active?
-                   :disabled @loading?
-                   :on-change (fn [e]
-                                (put-opt-in!))}]
-           (when-not (clojure.string/blank? @error-message)
-             [Message {:onDismiss #(reset! error-message nil)
-                       :negative true}
-              [MessageHeader "Opt-In Error"]
-              @error-message])]))
+        (let [verified (-> @(subscribe [:self/identity])
+                           :verified)]
+          (when-not (nil? @active?)
+            [Segment
+             [Header {:as "h4"
+                      :dividing true}
+              "Public Reviewer Opt In"]
+             (when-not verified
+               [:p {:style {:color "grey"}} "Please verify your email address to Opt-In"])
+             [Radio {:toggle true
+                     :label "Publicly Listed as a Paid Reviewer"
+                     :checked @active?
+                     :disabled (or (not verified)
+                                   @loading?)
+                     :on-change (fn [e]
+                                  (put-opt-in!))}]
+             (when-not (clojure.string/blank? @error-message)
+               [Message {:onDismiss #(reset! error-message nil)
+                         :negative true}
+                [MessageHeader "Opt-In Error"]
+                @error-message])])))
       :get-initial-state
       (fn [this]
         (reset! loading? true)

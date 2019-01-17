@@ -132,11 +132,13 @@
   
   (GET "/api/auth/identity" request
        (let [{{{:keys [user-id] :as identity} :identity
-               :as session} :session} request]
+               :as session} :session} request
+             verified (users/primary-email-verified? user-id)]
          (if user-id
-           (merge
-            {:identity (users/user-identity-info user-id true)}
-            (users/user-self-info user-id))
+           (-> (merge
+                {:identity (users/user-identity-info user-id true)}
+                (users/user-self-info user-id))
+               (assoc-in [:identity :verified] verified))
            {:identity {:settings (:settings session)}})))
 
   (POST "/api/auth/change-session-settings" request
