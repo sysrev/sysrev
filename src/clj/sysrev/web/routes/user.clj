@@ -66,10 +66,7 @@
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (let [{:keys [active]} (:body request)]
-                     (condp = group-name
-                       "public-reviewer"
-                       (api/set-web-user-group! user-id group-name active)
-                       {:error {:message "That group can't be modified"}})))))
+                     (api/set-web-user-group! user-id group-name active)))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize

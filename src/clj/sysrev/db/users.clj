@@ -369,11 +369,11 @@
 
 (defn update-web-user-group!
   "Set the boolean active? on group-id"
-  [group-id active?]
+  [web-user-group-id active?]
   (-> (sqlh/update :web-user-group)
       (sset {:active active?
              :updated (sql-now)})
-      (where [:= :group-id group-id])
+      (where [:= :id web-user-group-id])
       do-execute))
 
 (defn read-users-in-group

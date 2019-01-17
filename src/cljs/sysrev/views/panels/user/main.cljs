@@ -165,25 +165,25 @@
         get-opt-in (fn []
                      (reset! loading? true)
                      (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
-                               {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                :handler (fn [response]
-                                           (reset! active? (-> response :result :active))
-                                           (reset! loading? false))
-                                :error-handler (fn [error-response]
-                                                 (reset! loading? false)
-                                                 (reset! error-message "There was an error retrieving opt-in status"))}))
-        put-opt-in! (fn []
-                     (reset! loading? true)
-                     (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
-                          {:params {:active (not @active?)}
-                           :format :transit
-                           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                            :handler (fn [response]
                                       (reset! active? (-> response :result :active))
                                       (reset! loading? false))
-                           :error-handler (fn [error-message]
+                           :error-handler (fn [error-response]
                                             (reset! loading? false)
-                                            (reset! error-message "There was an error when setting opt-in status"))}))]
+                                            (reset! error-message "There was an error retrieving opt-in status"))}))
+        put-opt-in! (fn []
+                      (reset! loading? true)
+                      (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
+                           {:params {:active (not @active?)}
+                            :format :transit
+                            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                            :handler (fn [response]
+                                       (reset! active? (-> response :result :active))
+                                       (reset! loading? false))
+                            :error-handler (fn [error-message]
+                                             (reset! loading? false)
+                                             (reset! error-message "There was an error when setting opt-in status"))}))]
     (r/create-class
      {:reagent-render
       (fn [this]
