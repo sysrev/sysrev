@@ -191,7 +191,7 @@
   :ret map?)
 
 (defn send-verification-email
-  "Resend the verification email to user-id"
+  "Send the verification email to user-id"
   [user-id email]
   (let [{:keys [verify-code]} (users/read-email-verification-code user-id email)]
     (sendgrid/send-template-email
@@ -1098,7 +1098,11 @@
 (defn users-in-group
   "Get the users in group-name"
   [group-name]
-  {:result {:users (users/read-users-in-group group-name)}})
+  (condp = group-name
+    "public-reviewer"
+    {:result {:users (users/read-users-in-group group-name)}}
+    {:error {:status 403
+             :message "That group's users can not viewed"}}))
 
 (defn user-active-in-group?
   "Is the user-id active in group-name?"
@@ -1110,6 +1114,19 @@
   [user-id]
   {:result {:user (first (users/get-users-public-info [user-id]))}})
 
+(defn send-invitation-email
+  "Send an invitation email"
+  [email project-id]
+  (let [project-name (:name (project/get-project-by-id project-id))]
+    (sendgrid/send-template-email
+     email (str "You've been invited to " project-name " as a reviewer")
+     (str "You've been invited to <b>" project-name "</b> as a reviewer. You can view the invitation <a href='"
+          (if (= (:profile env)
+                 :dev)
+            "http://localhost:4061"
+            "https://sysrev.com")
+          "/user/settings/invitations'>here</a>."))))
+
 (defn create-invitation!
   "Create an invitation from inviter to join project-id to invitee with optional description"
   [invitee project-id inviter & [description]]
@@ -1117,9 +1134,14 @@
         project-invitation (->> invitee
                                 invitation/invitations-for-user
                                 (filter #(= project-id (:project-id %)))
-                                (filter #(= description (:description %))))]
+                                (filter #(= description (:description %))))
+        email (:email (users/get-user-by-id invitee))]
     (if (empty? project-invitation)
-      {:result {:invitation-id (invitation/create-invitation! invitee project-id inviter description)}}
+      (do
+        ;; send invitation email
+        (send-invitation-email email project-id)
+        ;; create invitation
+        {:result {:invitation-id (invitation/create-invitation! invitee project-id inviter description)}})
       {:error {:status bad-request
                :message "You can only send one invitation to a user per project"}})))
 

@@ -177,7 +177,7 @@
 
 (defn AllUsers
   []
-  (let [users (r/atom {})
+  (let [users (r/cursor state [:users])
         error-message (r/atom "")
         retrieving-users? (r/atom false)
         current-path sysrev.base/active-route
@@ -187,7 +187,8 @@
                           {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                            :handler (fn [response]
                                       (reset! retrieving-users? false)
-                                      (reset! users (-> response :result :users)))
+                                      (reset! users (->> (-> response :result :users)
+                                                         (filter :primary_email_verified))))
                            :error-handler (fn [error-response]
                                             (reset! retrieving-users? false)
                                             (reset! error-message "There was a problem retrieving users"))}))]
@@ -206,7 +207,8 @@
            (doall (map
                    (fn [user]
                      ^{:key (:user-id user)}
-                     [Segment [User user]]) @users))
+                     [Segment [User user]])
+                   @users))
            [Message
             "There currently are no public reviewers"])])
       :get-initial-state

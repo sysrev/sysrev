@@ -761,3 +761,12 @@
       (from :article)
       (where [:= :project-id project-id])
       (->> do-query (mapv :article-id))))
+
+(defn get-project-by-id
+  "Return a project by its id"
+  [project-id]
+  (-> (select :*)
+      (from :project)
+      (where [:= :project-id project-id])
+      do-query
+      first))

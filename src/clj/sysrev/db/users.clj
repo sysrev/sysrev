@@ -376,6 +376,17 @@
       (where [:= :id web-user-group-id])
       do-execute))
 
+(defn verified-primary-email?
+  "Is this email already primary and verified?"
+  [email]
+  (-> (select :email)
+      (from :web-user-email)
+      (where [:and
+              [:= :email email]
+              [:= :principal true]
+              [:= :verified true]])
+      do-query empty? not))
+
 (defn read-users-in-group
   "Return all of the users in group-name"
   [group-name]
@@ -387,7 +398,8 @@
                            do-query
                            (->> (map :user-id)))]
     (if-not (empty? users-in-group)
-      (get-users-public-info users-in-group)
+      (doall (map #(assoc % :primary_email_verified (verified-primary-email? (:email %)))
+                  (get-users-public-info users-in-group)))
       [])))
 
 (defn user-active-in-group?
@@ -513,17 +525,6 @@
               [:= :email email]
               [:= :user-id user-id]])
       do-execute))
-
-(defn verified-primary-email?
-  "Is this email already primary and verified?"
-  [email]
-  (-> (select :email)
-      (from :web-user-email)
-      (where [:and
-              [:= :email email]
-              [:= :principal true]
-              [:= :verified true]])
-      do-query empty? not))
 
 (defn read-email-verification-code
   [user-id email]
