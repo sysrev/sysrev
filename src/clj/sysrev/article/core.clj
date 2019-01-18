@@ -259,11 +259,11 @@
                                          first
                                          :predict-run-id)}}]
   (-> (select :lp.article-id :lp.val)
-      (from [:label_predicts :lp])
+      (from [:label-predicts :lp])
       (join [:article :a] [:= :lp.article-id :a.article-id])
       (where [:and
-              [:= :a.project_id project-id]
-              [:= :lp.predict_run_id predict-run-id]
+              [:= :a.project-id project-id]
+              [:= :lp.predict-run-id predict-run-id]
               (when (not include-disabled?)
                 [:= :a.enabled true])])
       do-query))

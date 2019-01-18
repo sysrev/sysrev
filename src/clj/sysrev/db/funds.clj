@@ -54,14 +54,13 @@
   (-> (sqlh/update :project-fund-pending)
       (sset {:status status
              :updated (util/now-unix-seconds)})
-      (where [:= :transaction_id transaction-id])
+      (where [:= :transaction-id transaction-id])
       do-execute))
 
 (defn get-pending-payment
   [payment-id]
-    (-> (select :*)
+  (-> (select :*)
       (from :project-fund-pending)
       (where [:and
-              [:= :transaction_id payment-id]])
-      do-query
-      first))
+              [:= :transaction-id payment-id]])
+      do-query first))

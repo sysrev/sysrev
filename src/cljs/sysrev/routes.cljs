@@ -219,10 +219,6 @@
    (dispatch [:set-active-panel [:project :project :settings]])))
 
 (sr-defroute-project
- invite-link "/invite-link" [project-id]
- (dispatch [:set-active-panel [:project :project :invite-link]]))
-
-(sr-defroute-project
  project-export "/export" [project-id]
  (dispatch [:set-active-panel [:project :project :export-data]]))
 
@@ -326,9 +322,6 @@
 
         [[:project :project :compensations]
          #(project-uri (:project-id %) "/compensations")]
-
-        [[:project :project :invite-link]
-         #(project-uri (:project-id %) "/invite-link")]
 
         [[:project :project :export-data]
          #(project-uri (:project-id %) "/export")]

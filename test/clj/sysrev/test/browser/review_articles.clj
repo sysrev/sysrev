@@ -189,19 +189,15 @@
 (defn discard-label []
   (b/click discard-button :delay 50))
 
-(defn label-text-input-xpath
-  "Given an xpath, get the text input for label-name under xpath"
-  [xpath label-name]
+(defn field-input-xpath [xpath field-class & {:keys [input-type]}]
+  "Searches inside xpath for an input element within a div.field
+  where the field contains field-class."
   (x/xpath xpath
-           "/descendant::" (label-name-xpath label-name)
-           "/parent::div/descendant::input[@type='text']"))
-
-(defn label-checkbox-input-xpath
-  "Given an xpath, get the check box for label-name under xpath"
-  [xpath label-name]
-  (x/xpath xpath
-           "/descendant::" (label-name-xpath label-name)
-           "/parent::div/descendant::input[@type='checkbox']"))
+           (format "/descendant::div[contains(@class,'field') and contains(@class,'%s')]"
+                   field-class)
+           "/descendant::input"
+           (if (nil? input-type) ""
+               (format "[@type='%s']" input-type))))
 
 (defn set-checkbox-button
   "When selected? is true, set checkbox defined by xpath to 'on',
@@ -213,7 +209,7 @@
 (defn value-for-inclusion-checkbox
   [xpath inclusion-value]
   (x/xpath xpath
-           "/descendant::" (label-name-xpath "for Inclusion")
+           "/descendant::" (label-name-xpath "for inclusion")
            "/parent::div/"
            "descendant::label[contains(text(),'" inclusion-value "')]"
            "/parent::div[contains(@class,'checkbox')]/input[@type='checkbox']"))
@@ -241,17 +237,22 @@
          :or {inclusion-values [true]}} definition]
     ;; Enter the display name
     (b/set-input-text
-     (label-text-input-xpath xpath "Display Name")
+     (field-input-xpath xpath "label-name")
      short-label)
     ;; enter the question
     (b/set-input-text
-     (label-text-input-xpath xpath "Question")
+     (field-input-xpath xpath "label-question")
      question)
     ;; required setting
     (set-checkbox-button
-     (label-checkbox-input-xpath xpath "Must be answered?") required)
+     (field-input-xpath xpath "require-answer")
+     required)
     ;; inclusion values
-    (set-boolean-inclusion xpath (first inclusion-values))))
+    (set-checkbox-button
+     (field-input-xpath xpath "inclusion-criteria")
+     (-> inclusion-values empty? not))
+    (when (not-empty inclusion-values)
+      (set-boolean-inclusion xpath (first inclusion-values)))))
 
 (defn set-string-label-values
   [xpath label-map]
@@ -266,25 +267,27 @@
               max-length ""}} definition]
     ;; Enter the display name
     (b/set-input-text
-     (label-text-input-xpath xpath "Display Name")
+     (field-input-xpath xpath "label-name")
      short-label)
     ;; required setting
     (set-checkbox-button
-     (label-checkbox-input-xpath xpath "Must be answered?") required)
+     (field-input-xpath xpath "require-answer")
+     required)
     ;; allow multiple values?
     (set-checkbox-button
-     (label-checkbox-input-xpath xpath "Allow multiple values?") multi?)
+     (field-input-xpath xpath "allow-multiple")
+     multi?)
     ;; enter the question
     (b/set-input-text
-     (label-text-input-xpath xpath "Question")
+     (field-input-xpath xpath "label-question")
      question)
     ;; enter the max length
     (b/set-input-text
-     (label-text-input-xpath xpath "Max Length")
+     (field-input-xpath xpath "max-length")
      (str max-length))
     ;; Examples
     (b/set-input-text
-     (label-text-input-xpath xpath "Examples (comma separated)")
+     (field-input-xpath xpath "examples")
      (str/join "," examples)
      :delay 50)))
 
@@ -301,38 +304,42 @@
               inclusion-values []}} definition]
     ;; Enter the display name
     (b/set-input-text
-     (label-text-input-xpath xpath "Display Name")
+     (field-input-xpath xpath "label-name")
      short-label)
     ;; required setting
     (set-checkbox-button
-     (label-checkbox-input-xpath xpath "Must be answered?") required)
+     (field-input-xpath xpath "require-answer")
+     required)
     ;; enter the question
     (b/set-input-text
-     (label-text-input-xpath xpath "Question")
+     (field-input-xpath xpath "label-question")
      question)
     ;; enter the categories
     (b/set-input-text
-     (label-text-input-xpath xpath "Categories (comma separated options)")
+     (field-input-xpath xpath "categories")
      (str/join "," all-values)
      :delay 50)
     ;;  inclusion values
     (taxi/wait-until
-     #(= (taxi/value (label-text-input-xpath
-                      xpath "Categories (comma separated options)"))
+     #(= (taxi/value (field-input-xpath xpath "categories"))
          (str/join "," all-values))
      5000 25)
-    ;; set the inclusion values
-    (mapv #(let [inclusion-checkbox (value-for-inclusion-checkbox xpath %)
-                 included? (contains? (set inclusion-values)
-                                      %)]
-             ;; each time a selection is made, the checkboxes
-             ;; are re-rendered. Need to make sure it is present
-             ;; before setting inclusion value
-             (b/wait-until-exists inclusion-checkbox)
-             (when (not= (taxi/selected? inclusion-checkbox)
-                         included?)
-               (b/click inclusion-checkbox)))
-          all-values)))
+    (set-checkbox-button
+     (field-input-xpath xpath "inclusion-criteria")
+     (-> inclusion-values empty? not))
+    (when (not-empty inclusion-values)
+      ;; set the inclusion values
+      (mapv #(let [inclusion-checkbox (value-for-inclusion-checkbox xpath %)
+                   included? (contains? (set inclusion-values)
+                                        %)]
+               ;; each time a selection is made, the checkboxes
+               ;; are re-rendered. Need to make sure it is present
+               ;; before setting inclusion value
+               (b/wait-until-exists inclusion-checkbox)
+               (when (not= (taxi/selected? inclusion-checkbox)
+                           included?)
+                 (b/click inclusion-checkbox)))
+            all-values))))
 
 (defn set-label-values
   "Given a label map, set the values accordingly in the browser"

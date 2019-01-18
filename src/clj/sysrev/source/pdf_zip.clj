@@ -1,5 +1,6 @@
 (ns sysrev.source.pdf-zip
   (:require [clojure.string :as str]
+            [clojure.set :as set]
             [clojure.tools.logging :as log]
             [clojure.java.io :as io]
             [me.raynes.fs :as fs]
@@ -86,7 +87,7 @@
                         (assoc :byte-array (:file-byte-array %))))
                   :prepare-article
                   #(-> %
-                       (assoc :primary-title (:filename %))
-                       (dissoc :filename :file-byte-array))}]
+                       (set/rename-keys {:filename :primary-title})
+                       (dissoc :file-byte-array))}]
         (import-source-impl project-id source-meta impl options
                             :filename filename :file file)))))

@@ -295,9 +295,9 @@
                (endnote-extract-date %)
                :else nil)]
     (log/info "Started Converting dates... ")
-    (doseq [article (-> (select :raw :article_id)
+    (doseq [article (-> (select :raw :article-id)
                         (from [:article :a])
-                        (order-by [:a.article_id :desc])
+                        (order-by [:a.article-id :desc])
                         do-query)]
       (let [date (article-xml-extract-date (:raw article))]
         (when-not (clojure.string/blank? date)
@@ -312,11 +312,11 @@
   web_user_email table is essentially empty"
   []
   (when (< (-> (select :%count.*)
-               (from :web_user_email)
+               (from :web-user-email)
                do-query first :count)
            1)
-    (let [web-user (-> (select :user_id :email)
-                       (from :web_user)
+    (let [web-user (-> (select :user-id :email)
+                       (from :web-user)
                        do-query)]
       (doall (map #(create-email-verification!
                     (:user-id %)

@@ -24,18 +24,13 @@
       {:tab-id :labels
        :content [:span [:i.tags.icon] "Label Definitions"]
        :action (project-uri project-id "/labels/edit")}
-      (when (or member? @(subscribe [:user/admin?]))
-        {:tab-id :invite-link
-         :content [:span [:i.mail.outline.icon] "Invite Link"]
-         :action (project-uri project-id "/invite-link")})
       (when (> total 0)
         {:tab-id :export-data
-         :content [:span [:i.download.icon] "Export"]
+         :content [:span [:i.download.icon] "Export Data"]
          :action (project-uri project-id "/export")})
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]
-       :action (project-uri project-id "/settings")
-       #_ (list [:project :project :settings] action-params)}
+       :action (project-uri project-id "/settings")}
       (when (and (admin?)
                  (re-matches #".*@insilica.co" @(subscribe [:user/email])))
         {:tab-id :compensations
@@ -56,21 +51,17 @@
         member? @(subscribe [:self/member? project-id])]
     [secondary-tabbed-menu
      [{:tab-id :add-articles
-       :content [:span #_ [:i.list.icon] "Sources"]
+       :content [:span "Sources"]
        :action (list [:project :project :add-articles] action-params)}
       {:tab-id :labels
-       :content [:span #_ [:i.tags.icon] "Labels"]
+       :content [:span "Labels"]
        :action (list [:project :project :labels :edit] action-params)}
-      (when member?
-        {:tab-id :invite-link
-         :content [:span #_ [:i.mail.outline.icon] "Invite Link"]
-         :action (list [:project :project :invite-link] action-params)})
       (when (> total 0)
         {:tab-id :export-data
-         :content [:span #_ [:i.download.icon] "Export"]
+         :content [:span "Export"]
          :action (list [:project :project :export-data] action-params)})
       {:tab-id :settings
-       :content [:span #_ [:i.configure.icon] "Settings"]
+       :content [:span "Settings"]
        :action (list [:project :project :settings] action-params)}
       (when (and (admin?)
                  (not= js/window.location.hostname "sysrev.com"))
@@ -92,7 +83,6 @@
         active-tab (->> @(subscribe [:active-panel]) (drop 1) (take 2) vec)
         active-tab (if (in? [[:project :add-articles]
                              [:project :labels]
-                             [:project :invite-link]
                              [:project :export-data]
                              [:project :settings]
                              [:project :support]

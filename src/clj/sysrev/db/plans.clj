@@ -49,8 +49,8 @@
   "Return all support subscriptions for user which are active"
   [user]
   (-> (select :*)
-      (from :project_support_subscriptions)
-      (join :project [:= :project.project_id :project_support_subscriptions.project_id])
+      (from :project-support-subscriptions)
+      (join :project [:= :project.project-id :project-support-subscriptions.project-id])
       (where [:and
               [:= :user-id (:user-id user)]
               [:= :status "active"]])
@@ -60,7 +60,7 @@
   "Return the subscription info for id"
   [id]
   (-> (select :*)
-      (from :project_support_subscriptions)
+      (from :project-support-subscriptions)
       (where [:= :id id])
       do-query
       first))
@@ -69,7 +69,7 @@
   "Given a project-id and a user, return the corresponding active subscription"
   [user project-id]
   (-> (select :*)
-      (from :project_support_subscriptions)
+      (from :project-support-subscriptions)
       (where [:and
               [:= :user-id (:user-id user)]
               [:= :project-id project-id]
@@ -80,7 +80,7 @@
 (defn upsert-support!
   "Add a support entry for amount by user supporting project. Can also be used to change the status of the subscription"
   [{:keys [id project-id user-id stripe-id quantity status created] :as support-object}]
-  (-> (insert-into :project_support_subscriptions)
+  (-> (insert-into :project-support-subscriptions)
       (values [support-object])
       (upsert (-> (on-conflict :id)
                   (do-update-set :status)))

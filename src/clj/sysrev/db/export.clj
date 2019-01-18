@@ -1,16 +1,17 @@
 (ns sysrev.db.export
-  (:require
-   [clojure.string :as str]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [honeysql-postgres.format :refer :all]
-   [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-   [sysrev.db.core :refer [do-query]]
-   [sysrev.db.queries :as q]
-   [sysrev.db.labels :as labels]
-   [sysrev.db.project :as project]
-   [sysrev.shared.util :refer [map-values in?]]))
+  (:require [clojure.string :as str]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.db.core :refer [do-query]]
+            [sysrev.db.queries :as q]
+            [sysrev.db.labels :as labels]
+            [sysrev.db.project :as project]
+            [sysrev.shared.util :refer [map-values in?]]
+            [clojure.set :as set]))
 
+;; TODO: replace this with better format (importable, comprehensive, tested)
 (defn export-project [project-id]
   (let [articles
         (-> (q/select-project-articles
@@ -19,12 +20,9 @@
             (->> do-query
                  (group-by :article-id)
                  (map-values first)
-                 (map-values #(-> % (assoc :locations {}
-                                           :user-labels {}
-                                           :user-notes {}
-                                           :title (:primary-title %)
-                                           :journal (:secondary-title %))
-                                  (dissoc :primary-title :secondary-title)))))
+                 (map-values #(-> (assoc % :locations {} :user-labels {} :user-notes {})
+                                  (set/rename-keys {:primary-title :title
+                                                    :secondary-title :journal})))))
         all-article-ids (apply hash-set (keys articles))
         alocations
         (-> (q/select-project-articles
@@ -33,8 +31,7 @@
             (->> do-query
                  (filter #(contains? all-article-ids (:article-id %)))
                  (group-by :article-id)
-                 (map-values
-                  (fn [xs] (->> xs (map #(-> % (dissoc :article-id))))))
+                 (map-values (fn [xs] (->> xs (map #(dissoc % :article-id)))))
                  (map-values #(merge {} {:locations %}))))
         anotes
         (-> (q/select-project-articles
@@ -43,15 +40,14 @@
             (->> do-query
                  (filter #(contains? all-article-ids (:article-id %)))
                  (group-by :article-id)
-                 (map-values
-                  (fn [xs] (->> xs (map #(-> % (dissoc :article-id))))))
+                 (map-values (fn [xs] (->> xs (map #(dissoc % :article-id)))))
                  (map-values #(merge {} {:user-notes %}))))
         ldefs-vec
         (-> (q/select-label-where
              project-id nil [:l.label-id :l.label-id-local :l.name :l.question
                              :l.short-label :l.value-type :l.required :l.category
                              :l.definition])
-            (->> do-query vec))
+            do-query vec)
         l-uuid-to-int
         (->> ldefs-vec
              (group-by :label-id)
@@ -62,27 +58,26 @@
              (group-by :label-id-local)
              (map-values first)
              (map-values #(let [int-id (:label-id-local %)]
-                            (-> % (dissoc :label-id :label-id-local)
+                            (-> (dissoc % :label-id :label-id-local)
                                 (assoc :label-id int-id)))))
         alabels
         (-> (q/select-project-articles
-             project-id [:al.article-id :al.label-id :al.user-id :al.answer :al.inclusion
-                         :al.resolve :al.updated-time])
+             project-id [:al.article-id :al.label-id :al.user-id :al.answer
+                         :al.inclusion :al.resolve :al.updated-time])
             (q/join-article-labels)
             (q/filter-valid-article-label true)
             (->> do-query
                  (filter #(contains? all-article-ids (:article-id %)))
                  (group-by :article-id)
                  (map-values
-                  (fn [xs] (->> xs (map #(-> % (dissoc :article-id)
+                  (fn [xs] (->> xs (map #(-> (dissoc % :article-id)
                                              (update :label-id l-uuid-to-int))))))
                  (map-values #(merge {} {:user-labels %}))))
         users
         (-> (q/select-project-members
              project-id [:u.user-id :u.email :u.admin :u.permissions])
             (->> do-query
-                 (remove #(or (:admin %)
-                              (in? (:permissions %) "admin")))
+                 (remove #(or (:admin %) (in? (:permissions %) "admin")))
                  (map #(select-keys % [:user-id :email]))
                  (sort-by :user-id <)))]
     {:articles (->> (merge-with merge articles alocations alabels anotes)
@@ -91,7 +86,11 @@
      :users users
      :version "1.0.1"}))
 
-(defn export-project-answers [project-id]
+(defn export-project-answers
+  "Returns CSV-printable list of raw user article answers. The first row
+  contains column names; each following row contains answers for one
+  value of (user,article)."
+  [project-id]
   (let [all-articles (-> (q/select-project-articles
                           project-id [:a.article-id
                                       :a.primary-title
@@ -104,7 +103,7 @@
                         project-id true
                         [:label-id :short-label])
                        (order-by :label-id)
-                       (->> do-query))
+                       do-query)
         user-answers (-> (q/select-project-articles
                           project-id [:al.article-id
                                       :al.label-id
@@ -164,3 +163,13 @@
                     (mapv #(cond (or (nil? %) (and (coll? %) (empty? %))) ""
                                  (sequential? %) (->> % (map str) (str/join ", "))
                                  :else (str %)))))))))))
+
+;; TODO: write this function
+(defn export-article-answers
+  "Returns CSV-printable list of combined group answers for
+  articles. The first row contains column names; each following row
+  contains answers for one article. article-ids optionally specifies a
+  subset of articles within project to include; by default, all
+  enabled articles will be included."
+  [project-id & {:keys [article-ids]}]
+  nil)

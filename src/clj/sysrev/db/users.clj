@@ -51,9 +51,9 @@
 (defn get-users-public-info
   [user-ids]
   "Given a coll of user-ids, return a coll of maps that represent the publicly viewable information for each user-id"
-  (-> (select :user-id :email :date_created :username)
+  (-> (select :user-id :email :date-created :username)
       (from :web-user)
-      (where [:in :web-user.user_id user-ids])
+      (where [:in :web-user.user-id user-ids])
       do-query))
 
 (defn get-user-by-reset-code [reset-code]
@@ -327,7 +327,7 @@
       do-execute))
 
 (defn create-web-user-stripe-acct [stripe-acct user-id]
-  (-> (insert-into :web_user_stripe_acct)
+  (-> (insert-into :web-user-stripe-acct)
       (values [{:stripe-acct stripe-acct
                 :user-id user-id}])
       do-execute))
@@ -335,10 +335,9 @@
 (defn user-stripe-account
   [user-id]
   (-> (select :*)
-      (from :web_user_stripe_acct)
+      (from :web-user-stripe-acct)
       (where [:= :user-id user-id])
-      do-query
-      first))
+      do-query first))
 
 (defn get-group-id
   "Given a group-name, get the group-id associated with it"
@@ -351,7 +350,7 @@
 (defn create-web-user-group!
   "Create a group-name for user-id in web-user-group"
   [user-id group-name]
-  (-> (insert-into :web_user_group)
+  (-> (insert-into :web-user-group)
       (values [{:user-id user-id
                 :group-id (get-group-id group-name)}])
       do-execute))
@@ -360,7 +359,7 @@
   "Read the id for the web-user-group for user-id and group-name"
   [user-id group-name]
   (-> (select :id :active)
-      (from :web_user_group)
+      (from :web-user-group)
       (where [:and
               [:= :user-id user-id]
               [:= :group-id (get-group-id group-name)]])
@@ -419,14 +418,14 @@
   (-> (insert-into :web-user-email)
       (values [{:user-id user-id
                 :email email
-                :verify_code (crypto.random/hex 16)
+                :verify-code (crypto.random/hex 16)
                 :principal principal}])
       do-execute))
 
 (defn web-user-email
   [user-id verify-code]
-  (-> (select :verify_code :verified :email)
-      (from :web_user_email)
+  (-> (select :verify-code :verified :email)
+      (from :web-user-email)
       (where [:and
               [:= :user-id user-id]
               [:= :verify-code verify-code]])
@@ -435,7 +434,7 @@
 (defn current-email-entry
   [user-id email]
   (-> (select :*)
-      (from :web_user_email)
+      (from :web-user-email)
       (where [:and
               [:= :user-id user-id]
               [:= :email email]])
@@ -447,7 +446,7 @@
   [user-id]
   (let [{:keys [email]} (get-user-by-id user-id)]
     (-> (select :verified)
-        (from :web_user_email)
+        (from :web-user-email)
         (where [:and
                 [:= :user-id user-id]
                 [:= :email email]

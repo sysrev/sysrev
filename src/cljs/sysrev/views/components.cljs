@@ -380,24 +380,19 @@
 (defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
   (list
    ^{:key :tooltip-content}
-   [with-tooltip
-    element
-    (merge {:delay {:show 300
-                    :hide 0}
+   [with-tooltip element
+    (merge {:delay {:show 300 :hide 0}
             :hoverable false
             :position "top left"}
            popup-options)]
    ^{:key :tooltip-help}
    [:div.ui.flowing.popup.transition.hidden.tooltip
-    (cond help-content
-          (doall (map-indexed #(if (string? %2)
-                                 ^{:key %1}
-                                 [:p %2]
-                                 ^{:key %1}
-                                 [:div %2])
-                              help-content))
-          help-element
-          help-element)]))
+    (if help-content
+      (doall (map-indexed #(if (string? %2)
+                             ^{:key %1} [:p %2]
+                             ^{:key %1} [:div %2])
+                          help-content))
+      help-element)]))
 
 (defn note-content-label [note-name content]
   (when (and (string? content)
@@ -512,10 +507,12 @@
    :read-only     <boolean>      ; set readOnly attribute on input
   }"
   [{:keys [error value on-change on-mouse-up on-mouse-down
-           placeholder default-value label autofocus disabled read-only]}]
+           placeholder default-value label autofocus disabled read-only
+           field-class]}]
   [:div.field
    {:class (cond-> ""
-             error (str " error"))}
+             error (str " error")
+             field-class (str " " field-class))}
    [:label label]
    [:input.ui.input
     (cond-> {:type "text"
@@ -562,18 +559,28 @@
    :error     <string>  ; optional
    :label     <string>
   }"
-  [{:keys [error on-change checked? label]}]
-  [:div.field
-   {:class (when error "error")}
-   [:div.ui.checkbox
-    [:input
-     {:type "checkbox"
-      :on-change (util/wrap-user-event
-                  on-change :timeout false)
-      :checked checked?}]
-    [:label label]]
-   (when error
-     [:div.ui.red.message error])])
+  [{:keys [error on-change checked? label tooltip disabled? field-class]}]
+  (let [field
+        [:div.field
+         {:key [:label label]
+          :class (cond-> ""
+                   error (str " error")
+                   field-class (str " " field-class))}
+         [:div.ui.checkbox
+          (when disabled? {:class "disabled"})
+          [:input
+           {:type "checkbox"
+            :on-change (util/wrap-user-event
+                        on-change :timeout false)
+            :checked (boolean checked?)}]
+          [:label label (when tooltip [:span " " [ui-help-icon]])]]
+         (when error
+           [:div.ui.red.message error])]]
+    (doall
+     (if tooltip
+       (with-ui-help-tooltip field :help-content tooltip
+         :popup-options {:delay {:show 1000 :hide 0}})
+       (list field)))))
 
 (defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
   [:div.ui.two.column.grid.save-reset-form

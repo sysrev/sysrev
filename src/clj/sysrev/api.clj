@@ -2,7 +2,7 @@
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require [bouncer.core :as b]
             [clojure.data.json :as json]
-            [clojure.set :refer [rename-keys difference]]
+            [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [clojure.walk :refer [keywordize-keys]]
@@ -623,56 +623,54 @@
   "Given a map of labels, sync them with project-id."
   [project-id labels-map]
   ;; first let's convert the labels to a set
-  (let [client-labels (set (vals labels-map))
-        all-labels-valid? (fn [labels]
-                            (every? true? (map #(b/valid? % (labels/label-validations %)) client-labels)))]
-    ;; labels must be valid
-    (if (all-labels-valid? client-labels)
-      ;; labels are valid
-      (let [server-labels (set (vals (project/project-labels project-id true)))
-            ;; new labels are given a randomly generated string id on
-            ;; the client, so labels that are non-existent on the server
-            ;; will have string as opposed to UUID label-ids
-            new-client-labels (set (filter #(= java.lang.String
-                                               (type (:label-id %)))
-                                           client-labels))
-            current-client-labels (set (filter #(= java.util.UUID
-                                                   (type (:label-id %)))
-                                               client-labels))
-            modified-client-labels (difference current-client-labels server-labels)]
-        ;; creation/modification of labels should be done
-        ;; on labels that have been validated.
-        ;;
-        ;; labels are never deleted, the enabled flag is set to 'empty'
-        ;; instead
-        ;;
-        ;; If there are issues with a label being incorrectly
-        ;; modified, add a validator for that case so that
-        ;; the error can easily be reported in the client
-        (when-not (empty? new-client-labels)
-          (doall (map (partial labels/add-label-entry project-id)
-                      new-client-labels)))
-        (when-not (empty? modified-client-labels)
-          (doall (map #(labels/alter-label-entry project-id
-                                                 (:label-id %) %)
-                      modified-client-labels)))
-        {:result {:valid? true
-                  :labels (project/project-labels project-id true)}})
-      ;; labels are invalid
-      {:result {:valid? false
-                :labels
-                (->> client-labels
-                     ;; validate each label
-                     (map #(b/validate % (labels/label-validations %)))
-                     ;; get the label map with attached errors
-                     (map second)
-                     ;; rename bouncer.core/errors -> errors
-                     (map #(rename-keys % {:bouncer.core/errors :errors}))
-                     ;; create a new hash map of labels which include
-                     ;; errors
-                     (map #(hash-map (:label-id %) %))
-                     ;; finally, return a map
-                     (apply merge))}})))
+  (db/with-transaction
+    (let [client-labels (set (vals labels-map))
+          all-labels-valid? (->> client-labels
+                                 (map #(b/valid? % (labels/label-validations %)))
+                                 (every? true?))]
+      ;; labels must be valid
+      (if all-labels-valid?
+        ;; labels are valid
+        (let [server-labels (set (vals (project/project-labels project-id true)))
+              ;; new labels are given a randomly generated string id on
+              ;; the client, so labels that are non-existent on the server
+              ;; will have string as opposed to UUID label-ids
+              new-client-labels (set (filter #(= java.lang.String
+                                                 (type (:label-id %)))
+                                             client-labels))
+              current-client-labels (set (filter #(= java.util.UUID
+                                                     (type (:label-id %)))
+                                                 client-labels))
+              modified-client-labels (set/difference current-client-labels server-labels)]
+          ;; creation/modification of labels should be done
+          ;; on labels that have been validated.
+          ;;
+          ;; labels are never deleted, the enabled flag is set to 'empty'
+          ;; instead
+          ;;
+          ;; If there are issues with a label being incorrectly
+          ;; modified, add a validator for that case so that
+          ;; the error can easily be reported in the client
+          (doseq [label new-client-labels]
+            (labels/add-label-entry project-id label))
+          (doseq [{:keys [label-id] :as label} modified-client-labels]
+            (labels/alter-label-entry project-id label-id label))
+          {:result {:valid? true
+                    :labels (project/project-labels project-id true)}})
+        ;; labels are invalid
+        {:result {:valid? false
+                  :labels (->> client-labels
+                               ;; validate each label
+                               (map #(b/validate % (labels/label-validations %)))
+                               ;; get the label map with attached errors
+                               (map second)
+                               ;; rename bouncer.core/errors -> errors
+                               (map #(set/rename-keys % {:bouncer.core/errors :errors}))
+                               ;; create a new hash map of labels which include
+                               ;; errors
+                               (map #(hash-map (:label-id %) %))
+                               ;; finally, return a map
+                               (apply merge))}}))))
 
 (defn important-terms
   "Given a project-id, return the term counts for the top n most used terms"
@@ -683,17 +681,10 @@
      {:terms
       (->> terms (map-values
                   #(->> %
-                        ;; for old api response format
-                        #_ (sort-by (fn [term] (/ (:instance-count term)
-                                                  (:instance-score term)))  >)
                         (sort-by :instance-score >)
                         (take n)
-                        ;; for old api response format
-                        #_ (map (fn [term] (assoc term :tfidf (/ (:instance-count term)
-                                                                 (:instance-score term)))))
-                        (map (fn [term] (-> term
-                                            (assoc :tfidf (:instance-score term))
-                                            (dissoc :instance-score))))
+                        (map (fn [term] (set/rename-keys
+                                         term {:instance-score :tfidf})))
                         (into []))))
       :loading
       (importance/project-importance-loading? project-id)}}))
@@ -723,7 +714,7 @@
           unreviewed-articles
           (let [all-article-ids (set (mapv :article-id prediction-scores))
                 reviewed-article-ids (set (mapv :article-id project-article-statuses))]
-            (clojure.set/difference all-article-ids reviewed-article-ids))
+            (set/difference all-article-ids reviewed-article-ids))
           get-rounded-score-fn (fn [article-id]
                                  (get predictions-map article-id))
           reviewed-articles-scores (mapv #(assoc % :rounded-score
@@ -1035,7 +1026,7 @@
                                         (:filename %)
                                         (:key %)))
                   %))
-         (mapv #(rename-keys % {:definition :semantic-class}))
+         (mapv #(set/rename-keys % {:definition :semantic-class}))
          (mapv (fn [result]
                  (let [text-context (get-in result [:context :text-context])
                        field (:field text-context)]

@@ -327,7 +327,7 @@
                           make-db-config))
       (try
         (-> (select (sql/call :pg_terminate_backend :pid))
-            (from :pg_stat_activity)
+            (from :pg-stat-activity)
             (where [:= :datname dbname])
             do-query
             count)

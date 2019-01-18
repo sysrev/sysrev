@@ -1,23 +1,26 @@
 (ns sysrev.db.invitation
   (:require [sysrev.db.core :refer [do-query do-execute sql-now]]
             [honeysql.helpers :as sqlh :refer [select from insert-into where values join sset]]
-            [honeysql-postgres.helpers :refer [returning]]))
+            [honeysql-postgres.helpers :refer [returning]]
+            [sysrev.shared.util :as su :refer [in?]]))
 
 (defn create-invitation!
-  "Invite invitee to project-id by inviter. The inviter is the invitee the invitation is from. Optional description is a text field, defaults to 'view-project'."
+  "Invite invitee to project-id by inviter. The inviter is the invitee
+  the invitation is from. Optional description is a text field,
+  defaults to 'view-project'."
   [invitee project-id inviter description]
   (let [invitation-id (-> (insert-into :invitation)
-                          (values [{:user_id invitee
-                                    :project_id project-id
+                          (values [{:user-id invitee
+                                    :project-id project-id
                                     :description description}])
                           (returning :id)
                           do-query
                           first
                           :id)]
     (when-not (nil? invitation-id)
-      (-> (insert-into :invitation_from)
-          (values [{:invitation_id invitation-id
-                    :user_id inviter}])
+      (-> (insert-into :invitation-from)
+          (values [{:invitation-id invitation-id
+                    :user-id inviter}])
           do-execute))
     invitation-id))
 
@@ -27,20 +30,19 @@
   (if-not (empty? project-ids)
     (-> (select :*)
         (from :invitation)
-        (where [:in :project_id project-ids])
+        (where [:in :project-id project-ids])
         do-query)))
 
 (defn invitations-for-admined-projects
   "Get all invitations that have been sent for projects admined by user-id"
   [user-id]
-  (let [admined-projects (-> (select :permissions :project_id)
+  (let [admined-projects (-> (select :permissions :project-id)
                              (from :project-member)
                              (where [:= :user-id user-id])
                              do-query
-                             (->> (filter #(some (partial = "admin") (:permissions %)))
+                             (->> (filter #(in? (:permissions %) "admin"))
                                   (map :project-id)))]
-    (invitations-for-projects admined-projects)
-    ))
+    (invitations-for-projects admined-projects)))
 
 (defn invitations-for-user
   "Return all invitations for user-id"
@@ -48,8 +50,8 @@
   (-> (select :i.* [:p.name :project-name])
       (from [:invitation :i])
       (join [:project :p]
-            [:= :p.project_id :i.project-id])
-      (where [:= :user_id user-id])
+            [:= :p.project-id :i.project-id])
+      (where [:= :user-id user-id])
       do-query))
 
 (defn update-invitation-accepted!

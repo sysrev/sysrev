@@ -22,9 +22,9 @@
                             (values [{:rate (to-jsonb rate)}])
                             (returning :id)
                             do-query first :id)]
-    (-> (insert-into :compensation_project)
-        (values [{:project_id project-id
-                  :compensation_id compensation-id
+    (-> (insert-into :compensation-project)
+        (values [{:project-id project-id
+                  :compensation-id compensation-id
                   :active true}])
         do-execute)
     compensation-id))
@@ -33,39 +33,39 @@
   [project-id]
   (-> (select :c.id :c.rate :cp.active :c.created)
       (from [:compensation :c])
-      (left-join [:compensation_project :cp]
-                 [:= :c.id :cp.compensation_id])
-      (where [:= :cp.project_id project-id])
+      (left-join [:compensation-project :cp]
+                 [:= :c.id :cp.compensation-id])
+      (where [:= :cp.project-id project-id])
       do-query))
 
 (defn start-compensation-period-for-user!
   "Make an entry into compensation_user_period for compensation-id and user-id. The period_end value
   is nil and represents a currently active compensation period"
   [compensation-id user-id]
-  (-> (insert-into :compensation_user_period)
-      (values [{:compensation_id compensation-id
-                :web_user_id user-id}])
+  (-> (insert-into :compensation-user-period)
+      (values [{:compensation-id compensation-id
+                :web-user-id user-id}])
       do-execute))
 
 (defn end-compensation-period-for-user!
   "Mark the period_end as now for compensation-id with user-id. period_end must not already have been set"
   [compensation-id user-id]
-  (-> (sqlh/update :compensation_user_period)
-      (sset {:period_end (sql-now)})
+  (-> (sqlh/update :compensation-user-period)
+      (sset {:period-end (sql-now)})
       (where [:and
-              [:= :compensation_id compensation-id]
-              [:= :web_user_id user-id]
-              [:= :period_end nil]])
+              [:= :compensation-id compensation-id]
+              [:= :web-user-id user-id]
+              [:= :period-end nil]])
       do-execute))
 
 (defn project-users
   "A list of user for project-id"
   [project-id]
-  (-> (select :pm.user_id :wu.email)
-      (from [:project_member :pm])
-      (left-join [:web_user :wu]
-                 [:= :pm.user_id :wu.user_id])
-      (where [:= project-id :project_id])
+  (-> (select :pm.user-id :wu.email)
+      (from [:project-member :pm])
+      (left-join [:web-user :wu]
+                 [:= :pm.user-id :wu.user-id])
+      (where [:= project-id :project-id])
       do-query))
 
 (defn start-compensation-period-for-all-users!
@@ -83,35 +83,33 @@
 (defn toggle-active-project-compensation!
   "Set active to active? on compensation-id for project-id"
   [project-id compensation-id active?]
-  (-> (sqlh/update :compensation_project)
+  (-> (sqlh/update :compensation-project)
       (sset {:active active?})
       (where [:and
-              [:= :project_id project-id]
-              [:= :compensation_id compensation-id]])
+              [:= :project-id project-id]
+              [:= :compensation-id compensation-id]])
       do-execute))
 
 (defn create-default-project-compensation!
   "Create a default project-compensation"
   [project-id compensation-id]
-  (-> (insert-into :compensation_project_default)
-      (values [{:project_id project-id
-                :compensation_id compensation-id}])
+  (-> (insert-into :compensation-project-default)
+      (values [{:project-id project-id
+                :compensation-id compensation-id}])
       do-execute))
 
 (defn get-default-project-compensation
   "Get the default compensation-id for project-id"
   [project-id]
   (-> (select :*)
-      (from :compensation_project_default)
-      (where [:= :project_id project-id])
-      do-query
-      first
-      :compensation-id))
+      (from :compensation-project-default)
+      (where [:= :project-id project-id])
+      do-query first :compensation-id))
 
 (defn delete-default-project-compensation!
   [project-id]
-  (-> (delete-from :compensation_project_default)
-      (where [:= :project_id project-id])
+  (-> (delete-from :compensation-project-default)
+      (where [:= :project-id project-id])
       do-execute))
 
 (defn set-default-project-compensation!
@@ -120,41 +118,48 @@
   (delete-default-project-compensation! project-id)
   (create-default-project-compensation! project-id compensation-id))
 
-;; for now, this is just the article labeled count. Eventually, should use the "item" field of the rate on the compensation
+;; for now, this is just the article labeled count. Eventually, should
+;; use the "item" field of the rate on the compensation
 (defn compensation-owed-for-articles-for-user
-  "Returns a count of articles associated with a compensation-id for user-id. start-date and end-date are of the form YYYY-MM-dd e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of the day (12:00:00AM) and end-date is until the end of the day (11:59:59AM). The default start-date is 1970-01-01 and the default end-date is today"
+  "Returns a count of articles associated with a compensation-id for
+  user-id. start-date and end-date are of the form YYYY-MM-dd
+  e.g. 2018-09-14 (or 2018-9-14). start-date is until the begining of
+  the day (12:00:00AM) and end-date is until the end of the
+  day (11:59:59AM). The default start-date is 1970-01-01 and the
+  default end-date is today"
   [user-id project-id compensation-id & [start-date end-date]]
   (let [start-date (or start-date "1970-01-01")
         end-date (or end-date (->> (l/local-now) (f/unparse (f/formatters :date))))
-        compensation-periods (-> (select :period_begin
-                                         :period_end)
-                                 (from :compensation_user_period)
+        start-date-time (->> start-date (f/parse (f/formatters :date)))
+        end-date-time (->> end-date (f/parse (f/formatters :date)))
+        compensation-periods (-> (select :period-begin :period-end)
+                                 (from :compensation-user-period)
                                  (where [:and
-                                         [:= :compensation_id compensation-id]
-                                         [:= :web_user_id user-id]])
+                                         [:= :compensation-id compensation-id]
+                                         [:= :web-user-id user-id]])
                                  do-query)
         time-period-statement (->> compensation-periods
                                    (mapv #(vector :and
-                                                  [:>= :al.added_time (:period-begin %)]
-                                                  [:<= :al.added_time (or (:period-end %)
+                                                  [:>= :al.added-time (:period-begin %)]
+                                                  [:<= :al.added-time (or (:period-end %)
                                                                           (sql-now))]))
                                    (cons :or)
                                    (into []))]
     ;; check that the there is really a compensation with a time period
     (if (> (count time-period-statement) 1)
-      (-> (select :%count.%distinct.al.article_id ;; :al.added_time :a.project_id
+      (-> (select :%count.%distinct.al.article-id ;; :al.added-time :a.project-id
                   )
-          (from [:article_label :al])
+          (from [:article-label :al])
           (left-join [:article :a]
-                     [:= :al.article_id :a.article_id])
+                     [:= :al.article-id :a.article-id])
           (where [:and
-                  [:= :al.user_id user-id]
+                  [:= :al.user-id user-id]
                   [:and
-                   [:>= :al.added_time (->> start-date (f/parse (f/formatters :date)) (tc/to-sql-time))]
-                   [:< :al.added_time (tc/to-sql-time (t/plus (->> end-date (f/parse (f/formatters :date))) (t/days 1)))]
-                   [:!= :al.confirm_time nil]]
+                   [:>= :al.added-time (-> start-date-time tc/to-sql-time)]
+                   [:< :al.added-time (-> end-date-time (t/plus (t/days 1)) tc/to-sql-time)]
+                   [:!= :al.confirm-time nil]]
                   time-period-statement
-                  [:= :a.project_id project-id]])
+                  [:= :a.project-id project-id]])
           do-query
           first
           :count)
@@ -187,12 +192,12 @@
   "Get the total amount paid to user-id by project-id"
   [project-id user-id]
   (-> (select :amount)
-      (from :project_fund)
+      (from :project-fund)
       (where [:and
-              [:= :project_id project-id]
-              [:= :user_id user-id]
+              [:= :project-id project-id]
+              [:= :user-id user-id]
               [:< :amount 0]
-              [:= :transaction_source "PayPal/payout-batch-id"]])
+              [:= :transaction-source "PayPal/payout-batch-id"]])
       do-query
       (->> (map :amount)
            (apply +))))
@@ -211,8 +216,8 @@
   "Return the date of last payment for user-id by project-id"
   [project-id user-id]
   (-> (select :created)
-      (from :project_fund)
-      (where [:and [:= :project_id project-id] [:= :user_id user-id]
+      (from :project-fund)
+      (where [:and [:= :project-id project-id] [:= :user-id user-id]
               [:< :amount 0]])
       (order-by [:created :desc]) do-query first :created))
 
@@ -258,19 +263,19 @@
 (defn user-compensation
   "Return the current compensation_id associated with user for project-id, or nil if there is none"
   [project-id user-id]
-  (-> (select :cup.compensation_id :cp.project_id)
+  (-> (select :cup.compensation-id :cp.project-id)
       (modifiers :distinct)
-      (from [:compensation_user_period :cup])
-      (join [:compensation_project :cp]
-            [:= :cup.compensation_id :cp.compensation_id])
+      (from [:compensation-user-period :cup])
+      (join [:compensation-project :cp]
+            [:= :cup.compensation-id :cp.compensation-id])
       ;; because if period_begin is not nil
       ;; period_end is nil, the compensation is currently
       ;; active
       (where [:and
-              [:<> :cup.period_begin nil]
-              [:= :cup.period_end nil]
-              [:= :cup.web_user_id user-id]
-              [:= :cp.project_id project-id]])
+              [:<> :cup.period-begin nil]
+              [:= :cup.period-end nil]
+              [:= :cup.web-user-id user-id]
+              [:= :cp.project-id project-id]])
       do-query
       first
       :compensation-id))
@@ -292,14 +297,14 @@
 (defn projects-compensating-user
   "Return a list of projects with compensations associated with user"
   [user-id]
-  (-> (select :cp.project_id [:p.name :project_name])
+  (-> (select :cp.project-id [:p.name :project-name])
       (modifiers :distinct)
-      (from [:compensation_user_period :cup])
-      (join [:compensation_project :cp]
-            [:= :cp.compensation_id :cup.compensation_id]
+      (from [:compensation-user-period :cup])
+      (join [:compensation-project :cp]
+            [:= :cp.compensation-id :cup.compensation-id]
             [:project :p]
-            [:= :p.project_id :cp.project_id])
-      (where [:= :cup.web_user_id user-id])
+            [:= :p.project-id :cp.project-id])
+      (where [:= :cup.web-user-id user-id])
       do-query))
 
 (defn payments-owed-user
@@ -316,12 +321,12 @@
 (defn payments-paid-user
   "Return a list of payments made to user"
   [user-id]
-  (-> (select [:p.name :project_name] :pf.project_id [:pf.amount :total_paid] :pf.created)
-      (from [:project_fund :pf])
+  (-> (select [:p.name :project-name] :pf.project-id [:pf.amount :total-paid] :pf.created)
+      (from [:project-fund :pf])
       (join [:project :p]
-            [:= :pf.project_id :p.project_id])
+            [:= :pf.project-id :p.project-id])
       (where [:and
-              [:= :pf.user_id user-id]
+              [:= :pf.user-id user-id]
               [:< :pf.amount 0]
-              [:= :pf.transaction_source (:paypal-payout transaction-source-descriptor)]])
+              [:= :pf.transaction-source (:paypal-payout transaction-source-descriptor)]])
       do-query))

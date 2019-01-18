@@ -57,22 +57,26 @@
 
   Ordinarily this will be directly called only by one of the type-specific 
   label creation functions."
-  [project-id {:keys [name question short-label
-                      category required value-type definition]}]
+  [project-id {:keys [name question short-label category
+                      required consensus value-type definition]}]
   (assert (in? valid-label-categories category))
   (assert (in? valid-label-value-types value-type))
   (try
     (-> (insert-into :label)
-        (values [{:project-id project-id
-                  :project-ordering (q/next-label-project-ordering project-id)
-                  :value-type value-type
-                  :name name
-                  :question question
-                  :short-label short-label
-                  :required required
-                  :category category
-                  :definition (to-jsonb definition)
-                  :enabled true}])
+        (values [(cond-> {:project-id project-id
+                          :project-ordering (q/next-label-project-ordering project-id)
+                          :value-type value-type
+                          :name name
+                          :question question
+                          :short-label short-label
+                          :required required
+                          :category category
+                          :definition (to-jsonb definition)
+                          :enabled true}
+                   (boolean? consensus)
+                   (merge {:consensus consensus})
+                   (= name "overall include")
+                   (merge {:consensus true}))])
         do-execute)
     (finally
       (db/clear-project-cache project-id)))
@@ -92,12 +96,12 @@
   determined from the value of `inclusion-value`."
   [project-id
    {:keys [name question short-label inclusion-value required
-           custom-category]
+           consensus custom-category]
     :as entry-values}]
   (add-label-entry
    project-id
    (merge
-    (->> [:name :question :short-label :required]
+    (->> [:name :question :short-label :required :consensus]
          (select-keys entry-values))
     {:value-type "boolean"
      :category (or custom-category
@@ -126,14 +130,14 @@
   determined from the value of `inclusion-value`."
   [project-id
    {:keys [name question short-label all-values inclusion-values
-           required multi? custom-category]
+           required consensus multi? custom-category]
     :as entry-values}]
   (assert (sequential? all-values))
   (assert (sequential? inclusion-values))
   (add-label-entry
    project-id
    (merge
-    (->> [:name :question :short-label :required]
+    (->> [:name :question :short-label :required :consensus]
          (select-keys entry-values))
     {:value-type "categorical"
      :category (or custom-category
@@ -142,14 +146,6 @@
      :definition {:all-values all-values
                   :inclusion-values inclusion-values
                   :multi? (boolean multi?)}})))
-
-(defn add-label-overall-include [project-id]
-  (add-label-entry-boolean
-   project-id {:name "overall include"
-               :question "Include this article?"
-               :short-label "Include"
-               :inclusion-value true
-               :required true}))
 
 (defn add-label-entry-string
   "Creates an entry for a string label definition. Value is provided by user
@@ -167,7 +163,7 @@
 
   `multi?` if true allows multiple string values in answer."
   [project-id
-   {:keys [name question short-label required custom-category
+   {:keys [name question short-label required consensus custom-category
            max-length regex entity examples multi?]
     :as entry-values}]
   (assert (= (type multi?) Boolean))
@@ -182,7 +178,7 @@
   (add-label-entry
    project-id
    (merge
-    (->> [:name :question :short-label :required]
+    (->> [:name :question :short-label :required :consensus]
          (select-keys entry-values))
     {:value-type "string"
      :category (or custom-category "extra")
@@ -192,6 +188,15 @@
                    regex (assoc :regex regex)
                    entity (assoc :entity entity)
                    examples (assoc :examples examples))})))
+
+(defn add-label-overall-include [project-id]
+  (add-label-entry-boolean
+   project-id {:name "overall include"
+               :question "Include this article?"
+               :short-label "Include"
+               :inclusion-value true
+               :required true
+               :consensus true}))
 
 (defn alter-label-entry [project-id label-id values-map]
   (let [project-id (q/to-project-id project-id)
@@ -582,7 +587,7 @@
                              :imported (boolean imported?)
                              :resolve (boolean resolve?)
                              :inclusion inclusion}
-                            confirm? (merge {:confirm-time now}))))))]
+                          confirm? (merge {:confirm-time now}))))))]
       (doseq [label-id existing-label-ids]
         (when (contains? valid-values label-id)
           (let [label (get (all-labels-cached) label-id)
@@ -597,7 +602,7 @@
                            :imported (boolean imported?)
                            :resolve (boolean resolve?)
                            :inclusion inclusion}
-                          confirm? (merge {:confirm-time now})))
+                        confirm? (merge {:confirm-time now})))
                 (where [:and
                         [:= :article-id article-id]
                         [:= :user-id user-id]
@@ -676,7 +681,7 @@
            (-> (select :a.article-id :l.label-id :al.answer :al.inclusion
                        :al.resolve :al.confirm-time :al.user-id)
                (from [:article :a])
-               (join [:article-label :al] [:= :a.article_id :al.article_id]
+               (join [:article-label :al] [:= :a.article-id :al.article-id]
                      [:label :l] [:= :al.label-id :l.label-id])
                (where [:and
                        [:= :a.project-id project-id]
@@ -970,7 +975,7 @@
   [label-id]
   (-> (select :*)
       (from :label)
-      (where [:= :label_id label-id])
+      (where [:= :label-id label-id])
       do-query first))
 
 ;; label validations
@@ -983,9 +988,9 @@
     (string? label-id) false
 
     (uuid? label-id)
-    (boolean (> (count (-> (select :article_id)
-                           (from :article_label)
-                           (where [:= :label_id label-id])
+    (boolean (> (count (-> (select :article-id)
+                           (from :article-label)
+                           (where [:= :label-id label-id])
                            (do-query)))
                 0))
 
@@ -1081,7 +1086,7 @@
 
 (defn label-validations
   "Given a label, return a validation map for it"
-  [{:keys [value-type definition label-id]}]
+  [{:keys [value-type required definition label-id]}]
   {:value-type [[v/required
                  :message "[Error] Label type is not set"]
                 [v/string
@@ -1122,6 +1127,9 @@
 
    :required [[boolean-or-nil?
                :message "[Error] Invalid value for \"Required\""]]
+
+   :consensus [[#(not (and (true? %) (false? required)))
+                :message "Answer must be required when requiring consensus"]]
 
    ;; each value-type has a different definition
    :definition (condp = value-type

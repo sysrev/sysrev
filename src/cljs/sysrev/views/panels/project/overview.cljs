@@ -255,17 +255,29 @@
         excludes   (->> visible-user-ids
                         (mapv #(deref (subscribe [:member/exclude-count %]))))
         yss [includes excludes]
-        ynames ["Include" "Exclude"]]
-    [:div.ui.segment
-     [:h4.ui.dividing.header "Member Activity"]
-     (with-loader [[:project project-id]] {:dimmer :fixed}
-       [unpad-chart [0.7 0.5]
-        [charts/bar-chart (* 2 (+ 35 (* 12 (count visible-user-ids))))
-         user-names ynames yss
-         :colors ["rgba(33,186,69,0.55)"
-                  "rgba(242,113,28,0.55)"]
-         :on-click #(articles/load-member-label-settings
-                     (nth visible-user-ids %))]])]))
+        ynames ["Include" "Exclude"]
+        member? @(subscribe [:self/member?])
+        invite-url @(subscribe [:project/invite-url])
+        invite? (and member? invite-url)]
+    [:div.ui.segments
+     [:div.ui.segment
+      [:h4.ui.dividing.header "Member Activity"]
+      (with-loader [[:project project-id]] {:dimmer :fixed}
+        [unpad-chart [0.7 0.5]
+         [charts/bar-chart (* 2 (+ 35 (* 12 (count visible-user-ids))))
+          user-names ynames yss
+          :colors ["rgba(33,186,69,0.55)"
+                   "rgba(242,113,28,0.55)"]
+          :on-click #(articles/load-member-label-settings
+                      (nth visible-user-ids %))]])
+      (when invite?
+        [:h4.ui.dividing.header {:style {:margin-top "1.5em"}}
+         "Invite others to join"])
+      (when invite?
+        [:div.ui.fluid.action.input
+         [:input#invite-url.ui.input {:readOnly true
+                                      :value invite-url}]
+         [ui/ClipboardButton "#invite-url" "Copy Invite Link"]])]]))
 
 (defn RecentProgressChart []
   (let [project-id @(subscribe [:active-project-id])

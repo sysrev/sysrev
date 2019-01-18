@@ -41,14 +41,8 @@
         (nav/go-project-route "/settings")
         (is (nav/panel-exists? [:project :project :settings]))
 
-        (nav/go-project-route "/invite-link")
-        (is (nav/panel-exists? [:project :project :invite-link]))
-
         (nav/go-project-route "/export")
         (is (nav/panel-exists? [:project :project :export-data]))
-
-        #_ (nav/go-project-route "/user")
-        #_ (is (nav/panel-exists? [:project :user :labels]))
 
         (nav/go-project-route "/review")
         (is (nav/panel-exists? [:project :review]))

@@ -633,10 +633,10 @@
   [project-id & {:keys [include-disabled?]
                  :or {include-disabled? true}}]
   (= project-id
-     (-> (select :project_id)
+     (-> (select :project-id)
          (from [:project :p])
          (where [:and
-                 [:= :p.project_id project-id]
+                 [:= :p.project-id project-id]
                  (if include-disabled?
                    true
                    [:= :p.enabled true])])
@@ -653,10 +653,10 @@
   [project-id]
   (boolean (> (-> (select :%count.*)
                   (from :article-label)
-                  (where [:in :article_id
-                          (-> (select :article_id)
+                  (where [:in :article-id
+                          (-> (select :article-id)
                               (from :article)
-                              (where [:= :project_id project-id]))])
+                              (where [:= :project-id project-id]))])
                   do-query first :count)
               0)))
 ;;;
@@ -677,10 +677,10 @@
 (defn project-pmids
   "Given a project-id, return all PMIDs associated with the project"
   [project-id]
-  (->> (-> (select :public_id)
+  (->> (-> (select :public-id)
            (from :article)
            (where [:and
-                   [:= :project_id project-id]
+                   [:= :project-id project-id]
                    [:= :enabled true]])
            do-query)
        (mapv :public-id)

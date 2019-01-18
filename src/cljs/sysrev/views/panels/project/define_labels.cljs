@@ -6,6 +6,7 @@
               reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
+            [sysrev.loading :as loading]
             [sysrev.state.labels :as labels]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content]]
@@ -13,13 +14,14 @@
             [sysrev.views.review :refer [label-help-popup inclusion-tag]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
-;; Convention -
-;; A (new) label that exists in the client but not on the server
-;; has a label-id of type string
+;; Convention - A (new) label that exists in the client but not on the
+;; server has a label-id of type string
 ;;
-;; After it is saved on the server, the label-id type is #object[Transit$UUID] on the client and java.util.UUID on the server
+;; After it is saved on the server, the label-id type is
+;; #object[Transit$UUID] on the client and java.util.UUID on the
+;; server
 
 ;; The jQuery plugin formBuilder is inspiration for the UI
 ;; repo: https://github.com/kevinchappell/formBuilder
@@ -27,8 +29,7 @@
 
 (def panel [:project :project :labels :edit])
 
-(def initial-state {:server-syncing? false
-                    :read-only-message-closed? false})
+(def initial-state {:read-only-message-closed? false})
 
 (defonce state (r/cursor app-db [:state :panels panel]))
 
@@ -38,41 +39,32 @@
   (let [db @app-db]
     (get-in db [:data :project (active-project-id db) :labels])))
 
-(defn map-labels
-  "Apply f to each label in labels"
-  [f labels]
-  (->> labels vals
-       (map f)
-       (map #(hash-map (:label-id %) %))
-       (apply merge)))
-
-(defn labels->local-labels
-  "Add default answers to each label"
+(defn to-local-labels
+  "Convert labels map to format used by local namespace state."
   [labels]
-  (let [insert-answer-fn (fn [label-value]
-                           (condp = (:value-type label-value)
-                             "boolean"
-                             (assoc label-value :answer nil)
-                             (assoc label-value :answer [])))
-        add-local-keys (fn [label-value]
-                         (-> label-value
-                             (assoc :editing? false)))]
-    (map-labels (comp insert-answer-fn add-local-keys)
-                labels)))
+  (let [insert-answer #(condp = (:value-type %)
+                         "boolean" (assoc % :answer nil)
+                         (assoc % :answer []))
+        add-local-keys #(assoc % :editing? (not-empty (:errors %)))
+        set-inclusion (fn [label]
+                        (if (contains? label :inclusion)
+                          label
+                          (let [ivalues (-> label :definition :inclusion-values)]
+                            (assoc label :inclusion (not (empty? ivalues))))))]
+    (map-values (comp insert-answer add-local-keys set-inclusion) labels)))
 
-(defn sync-local-labels!
-  "Sync the local state labels with labels map. Labels should already have the proper local keys added to them via labels->local-labels"
+(defn set-local-labels!
+  "Sets value of local labels state from labels map, applying some
+  conversions to format correctly for local state."
   [labels]
-  (swap! state
-         assoc-in [:labels]
-         labels))
+  (swap! state assoc-in [:labels] (to-local-labels labels)))
 
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state))
   (let [labels (r/cursor state [:labels])]
     (when (empty? @labels)
-      (sync-local-labels! (labels->local-labels (saved-labels))))))
+      (set-local-labels! (saved-labels)))))
 
 (reg-event-fx
  :define-labels/reset-state!
@@ -106,23 +98,20 @@
      (cond-> {}
        (= value-type "boolean") (assoc :inclusion-values [])
        (= value-type "string") (assoc :multi? false)
-       ;; TODO: run db migration to fix `multi?` values for categorical
-       ;; (should always be true currently)
        (= value-type "categorical") (assoc :inclusion-values []
                                            :multi? true)),
-     ;; we are assuming people want all labels as inclusion criteria
-     ;; label influences inclusion
+     :inclusion false
      :category "extra"
      :name (str value-type (util/random-id))
      :project-ordering (inc (max-project-ordering))
-     ;; string, per convention
-     :label-id label-id
+     :label-id label-id ;; this is a string, to distinguish unsaved labels
      :project-id (active-project-id @app-db)
      :enabled true
      :value-type value-type
-     ;; must be answered
      :required false
-     ;; below are values for editing labels
+
+     ;; these last fields are used only internally by this namespace;
+     ;; filtered before exporting elsewhere
      :answer (default-answer value-type)
      :editing? true
      :errors (list)}))
@@ -140,7 +129,8 @@
   [labels]
   (not (every? nil? (map :errors (vals labels)))))
 
-(defn local-labels->global-labels
+(defn to-global-labels
+  "Convert labels map to format used by global client state and server."
   [labels]
   (->> labels
        vals
@@ -151,7 +141,7 @@
                 (assoc label :category
                        (if (not-empty inclusion-values)
                          "inclusion criteria" "extra")))))
-       (map #(dissoc % :editing? :answer :errors))
+       (map #(dissoc % :editing? :answer :errors :inclusion))
        (map #(hash-map (:label-id %) %))
        (apply merge)))
 
@@ -159,12 +149,12 @@
   "Are the labels synced with the global app-db?"
   []
   (= (saved-labels)
-     (local-labels->global-labels (get-local-labels))))
+     (to-global-labels (get-local-labels))))
 
 (defn single-label-synced?
   [label-id]
   (= (get (saved-labels) label-id)
-     (get (local-labels->global-labels (get-local-labels)) label-id)))
+     (get (to-global-labels (get-local-labels)) label-id)))
 
 (defn sync-to-server
   "Send local labels to server to update DB."
@@ -172,59 +162,66 @@
   (when (not (labels-synced?))
     (dispatch [:action [:labels/sync-project-labels
                         (active-project-id @app-db)
-                        (local-labels->global-labels (get-local-labels))]])))
+                        (to-global-labels (get-local-labels))]])))
 
-(defn sync-app-db-labels!
-  "Sync the local labels with the global labels. label maps in labels
-  should not have local keywords such as :editing?, :errors, etc"
+(defn set-app-db-labels!
+  "Overwrite the value of global project labels map."
   [labels]
-  ;; set the global labels
   (reset!
-   (r/cursor app-db
-             [:data :project (active-project-id @app-db) :labels])
+   (r/cursor app-db [:data :project (active-project-id @app-db) :labels])
    labels))
+
+(defn reset-local-label! [label-id]
+  "Resets local state of label to saved state, or discards unsaved."
+  (if (string? label-id)
+    (swap! (r/cursor state [:labels]) dissoc label-id)
+    (reset! (r/cursor state [:labels label-id])
+            (-> (saved-labels) to-local-labels (get label-id)))))
 
 (defn DisableEnableLabelButton
   [label]
   (let [labels (r/cursor state [:labels])
         label-id (r/cursor label [:label-id])
         enabled? (r/cursor label [:enabled])
-        [text icon-class]
-        (cond (string? @label-id)
-              ["Discard" "circle times"]
-              @enabled?
-              ["Disable" "circle minus"]
-              (not @enabled?)
-              ["Enable" "circle plus"])]
-    [:button.ui.fluid.labeled.icon.button
+        [text icon-class] (if @enabled?
+                            ["Disable Label" "circle minus"]
+                            ["Enable Label" "circle plus"])]
+    ;; don't show this button for unsaved labels
+    (when-not (string? @label-id)
+      [:button.ui.small.fluid.labeled.icon.button
+       {:class (if @enabled? "" "primary")
+        :on-click
+        (util/wrap-user-event
+         #(do (reset-local-label! @label-id)
+              (swap! (r/cursor label [:enabled]) not)
+              (sync-to-server))
+         :prevent-default true)}
+       [:i {:class (str icon-class " icon")}]
+       text])))
+
+(defn CancelDiscardButton
+  [label]
+  (let [labels (r/cursor state [:labels])
+        label-id (r/cursor label [:label-id])
+        enabled? (r/cursor label [:enabled])
+        text (if (string? @label-id) "Discard" "Cancel")]
+    [:button.ui.small.fluid.labeled.icon.button
      {:on-click
-      (util/wrap-user-event
-       #(if (string? @label-id)
-          ;; this is just an ephemeral label that hasn't been saved
-          (swap! labels dissoc @label-id)
-          ;; label already exists on server
-          (do
-            ;; we need to reset the label back to its initial
-            ;; state from the server so that the user can
-            ;; just delete a label, even with errors in it
-            (reset! label (get (saved-labels) @label-id))
-            ;; set the label to disabled
-            (swap! (r/cursor label [:enabled]) not)
-            ;; save the labels
-            (sync-to-server)))
-       :prevent-default true)}
-     [:i {:class (str icon-class " icon")}]
+      (util/wrap-user-event #(reset-local-label! @label-id)
+                            :prevent-default true)}
+     [:i.circle.times.icon]
      text]))
+
+(defn save-request-active? []
+  (loading/any-action-running? :only :labels/sync-project-labels))
 
 (defn SaveLabelButton
   [label]
-  [:button.ui.fluid.positive.labeled.icon.button
+  [:button.ui.small.fluid.positive.labeled.icon.button
    {:type "submit"
     :class (cond-> ""
-             @(r/cursor state [:server-syncing?])
-             (str " loading")
-             (labels-synced?)
-             (str " disabled"))}
+             (save-request-active?) (str " loading")
+             (labels-synced?)       (str " disabled"))}
    [:i.check.circle.outline.icon]
    "Save"])
 
@@ -264,27 +261,17 @@
   :uri (fn [] "/api/sync-project-labels")
   ;; labels in this case have already been processed for the server
   :content (fn [project-id labels]
-             (swap! state assoc-in [:server-syncing?] true)
-             {:project-id project-id
-              :labels labels})
-  :process (fn [_ _ {:keys [valid? labels] :as result}]
-             (swap! state assoc-in [:server-syncing?] false)
+             {:project-id project-id, :labels labels})
+  :process (fn [_ [project-id _] {:keys [valid? labels] :as result}]
              (if valid?
                ;; no errors
                (do
-                 ;; sync the labels with app-db
-                 (sync-app-db-labels! labels)
-                 ;; sync the local labels with app-db
-                 (sync-local-labels! (labels->local-labels labels)))
-               ;; errors
-               (do
-                 ;; sync the local labels, now with errors
-                 (sync-local-labels!
-                  (map-labels (fn [label]
-                                (if (:errors label)
-                                  (assoc label :editing? true)
-                                  (assoc label :editing? false)))
-                              (labels->local-labels labels)))))
+                 ;; update client project data with new labels
+                 (set-app-db-labels! labels)
+                 ;; set local state to new labels
+                 (set-local-labels! labels))
+               ;; set local state to new labels (includes error messages)
+               (set-local-labels! labels))
              ;; an empty handler
              {}))
 
@@ -322,7 +309,7 @@
 (defn LabelEditForm [label]
   (let [label-id (r/cursor label [:label-id])
         on-server? (not (string? @label-id))
-        error-message-class {:class "ui red message"}
+        show-error-msg (fn [msg] (when msg [:div.ui.red.message msg]))
         value-type (r/cursor label [:value-type])
         answer (r/cursor label [:answer])
 
@@ -331,12 +318,17 @@
         name (r/cursor label [:name])
         ;; required, string
         short-label (r/cursor label [:short-label])
-        ;; required, boolean
+        ;; boolean (default false)
         required (r/cursor label [:required])
+        ;; boolean (default false, available if :required is true)
+        consensus (r/cursor label [:consensus])
         ;; required, string
         question (r/cursor label [:question])
         ;;
         definition (r/cursor label [:definition])
+;;; type=(boolean or categorical)
+        ;; boolean, activates interface for defining inclusion-values
+        inclusion (r/cursor label [:inclusion])
 ;;; type=(boolean or categorical)
         ;; optional, vector of (boolean or string)
         ;; for categorical, the values here must also be in `:all-values`
@@ -355,74 +347,40 @@
 
         errors (r/cursor label [:errors])]
     [:form.ui.form.define-label
-     {:on-submit
-      (util/wrap-user-event
-       #(if (not (labels-synced?))
-          ;; save on server
-          (sync-to-server)
-          ;; just reset editing
-          (reset! (r/cursor label [:editing?]) false))
-       :prevent-default true)}
-     [:div.field {:class (when (:value-type @errors) "error")}
-      [:label "Type"]
-      [:select.ui.dropdown
-       (if true #_ on-server?
-           {:default-value @value-type
-            :class "disabled"}
-           {:value @value-type
-            :on-change
-            (util/wrap-user-event
-             #(do
-                ;; change the type
-                (reset! value-type (-> % .-target .-value))
-                ;; clear the current answer as it is likely nonsense
-                ;; for this type
-                (reset! answer (default-answer @value-type))
-                ;; reset the definition of the label as well
-                (condp = @value-type
-                  "boolean"     (reset! definition {:inclusion-values [true]})
-                  "string"      (reset! definition {:multi? false})
-                  "categorical" (reset! definition {:inclusion-values []
-                                                    :multi? true})))
-             :timeout false)})
-       [:option {:value "boolean"}
-        "Boolean"]
-       [:option {:value "string"}
-        "String"]
-       [:option {:value "categorical"}
-        "Categorical"]]
-      (when-let [error (:value-type @errors)]
-        [:div error-message-class
-         error])]
+     {:on-submit (util/wrap-user-event
+                  #(if (not (labels-synced?))
+                     ;; save on server
+                     (sync-to-server)
+                     ;; just reset editing
+                     (reset! (r/cursor label [:editing?]) false))
+                  :prevent-default true)}
+
+     ;; show this only for saved labels
+     (when (string? @value-type)
+       [:h5.ui.dividing.header.value-type
+        (str (str/capitalize @value-type) " Label")])
+
      ;; short-label
      [ui/TextInputField
-      {:error (:short-label @errors)
+      {:field-class "label-name"
+       :error (:short-label @errors)
        :value short-label
        :on-change #(reset! short-label (-> % .-target .-value))
-       :label "Display Name"}]
-     ;; required
-     [ui/LabeledCheckboxField
-      {:error (:required @errors)
-       :on-change #(reset! required (-> % .-target .-checked boolean))
-       :checked? @required
-       :label "Must be answered?"}]
-     ;; multi?
-     (when (= @value-type "string")
-       [ui/LabeledCheckboxField
-        {:error (get-in @errors [:definition :multi?])
-         :on-change #(reset! multi? (-> % .-target .-checked boolean))
-         :checked? @multi?
-         :label "Allow multiple values?"}])
+       :label "Name"}]
+
      ;; question
      [ui/TextInputField
-      {:error (:question @errors)
+      {:field-class "label-question"
+       :error (:question @errors)
        :value question
        :on-change #(reset! question (-> % .-target .-value))
        :label "Question"}]
+
      ;; max-length on a string label
      (when (= @value-type "string")
        [ui/TextInputField
-        {:error (get-in @errors [:definition :max-length])
+        {:field-class "max-length"
+         :error (get-in @errors [:definition :max-length])
          :value max-length
          :on-change (fn [event]
                       (let [value (-> event .-target .-value)
@@ -431,11 +389,13 @@
                                           value)]
                         (reset! max-length parse-value)))
          :placeholder "100"
-         :label "Max Length"}])
+         :label "Max length"}])
+
      ;; examples on a string label
      (when (= @value-type "string")
        [ui/TextInputField
-        {:error (get-in @errors [:definition :examples])
+        {:field-class "examples"
+         :error (get-in @errors [:definition :examples])
          :default-value (str/join "," @examples)
          :type "text"
          :placeholder "example one,example two"
@@ -445,56 +405,106 @@
                           (reset! examples nil)
                           (reset! examples
                                   (str/split value #",")))))
-         :label "Examples (comma separated)"}])
-     ;; all-values on a categorical label
+         :label "Examples (comma-separated)"}])
+
      (when (= @value-type "categorical")
-       (doall
-        (list
-         ^{:key [:categories-all name]}
-         [ui/TextInputField
-          {:error (get-in @errors [:definition :all-values])
-           :default-value (str/join "," @all-values)
-           :placeholder "one,two,three"
-           :on-change (fn [event]
-                        (let [value (-> event .-target .-value)]
-                          (if (empty? value)
-                            (reset! all-values nil)
-                            (reset! all-values
-                                    (str/split value #",")))))
-           :label "Categories (comma separated options)"}]
-         ;; inclusion values for categorical
-         (when (not (empty? @all-values))
-           ^{:key [:categories-inclusion name]}
-           [:div.field
-            {:class (when (get-in @errors [:definition :all-values])
-                      "error")}
-            [:label "Values for Inclusion"]
-            (doall
-             (map
-              (fn [option-value]
-                ^{:key (gensym option-value)}
-                [ui/LabeledCheckbox
-                 {:checked? (contains? (set @inclusion-values) option-value)
-                  :on-change
-                  (fn [event]
-                    (let [checked? (-> event .-target .-checked)]
-                      (reset! inclusion-values
-                              (if checked?
-                                (into [] (conj (set @inclusion-values)
-                                               option-value))
-                                (into [] (remove #(= option-value %)
-                                                 (set @inclusion-values)))))))
-                  :label option-value}])
-              @all-values))
-            (when-let [error (get-in @errors [:definition :inclusion-values])]
-              [:div error-message-class
-               error])]))))
+       ;; TODO: whitespace not trimmed from input strings
+       ;; need to run db migration to fix all existing values
+       [ui/TextInputField
+        {:field-class "categories"
+         :error (get-in @errors [:definition :all-values])
+         :default-value (str/join "," @all-values)
+         :placeholder "one,two,three"
+         :on-change (fn [event]
+                      (let [value (-> event .-target .-value)]
+                        (if (empty? value)
+                          (reset! all-values nil)
+                          (reset! all-values
+                                  (->> (str/split value #",")
+                                       #_ (map str/trim))))))
+         :label "Categories (comma-separated options)"}])
+
+     ;; required
+     (ui/LabeledCheckboxField
+      {:field-class "require-answer"
+       :error (:required @errors)
+       :on-change #(let [value (-> % .-target .-checked boolean)]
+                     (reset! required value)
+                     (when (false? value)
+                       (reset! consensus false)))
+       :checked? @required
+       :label "Require answer"
+       :tooltip ["Require users to provide this answer before saving article."]})
+
+     ;; consensus
+     ;;
+     ;; Hiding this for now until conflict matching is changed to use this
+     #_
+     (ui/LabeledCheckboxField
+      {:error (:consensus @errors)
+       :on-change #(reset! consensus (-> % .-target .-checked boolean))
+       :checked? @consensus
+       :disabled? (false? @required)
+       :label "Require user consensus"
+       :tooltip ["Check answers for consensus among users."
+                 "Articles will be marked as conflicted if user answers are not identical."]})
+
+     ;; multi?
+     (when (= @value-type "string")
+       (ui/LabeledCheckboxField
+        {:field-class "allow-multiple"
+         :error (get-in @errors [:definition :multi?])
+         :on-change #(reset! multi? (-> % .-target .-checked boolean))
+         :checked? @multi?
+         :label "Allow multiple values"}))
+
+     (when (in? ["boolean" "categorical"] @value-type)
+       (ui/LabeledCheckboxField
+        {:field-class "inclusion-criteria"
+         :error (:required @errors)
+         :on-change #(let [value (-> % .-target .-checked boolean)]
+                       (reset! inclusion value)
+                       (when (false? value)
+                         (reset! inclusion-values [])))
+         :checked? @inclusion
+         :label "Inclusion criteria"
+         :tooltip ["Define a relationship between this label and article inclusion."
+                   "Users will be warned if their answers contradict what they have selected for article inclusion."]}))
+
+     ;; inclusion-values on a categorical label
+     (when (and (= @value-type "categorical")
+                (not (false? @inclusion))
+                (not (empty? @all-values)))
+       [:div.field.inclusion-values
+        {:class (when (get-in @errors [:definition :all-values])
+                  "error")}
+        [:label "Values for inclusion"]
+        (doall
+         (map
+          (fn [option-value]
+            ^{:key (gensym option-value)}
+            [ui/LabeledCheckbox
+             {:checked? (contains? (set @inclusion-values) option-value)
+              :on-change
+              (fn [event]
+                (let [checked? (-> event .-target .-checked)]
+                  (reset! inclusion-values
+                          (if checked?
+                            (into [] (conj (set @inclusion-values)
+                                           option-value))
+                            (into [] (remove #(= option-value %)
+                                             (set @inclusion-values)))))))
+              :label option-value}])
+          @all-values))
+        [show-error-msg (get-in @errors [:definition :inclusion-values])]])
+
      ;; inclusion-values on a boolean label
-     (when (= @value-type "boolean")
-       [:div.field
+     (when (and (= @value-type "boolean")
+                (not (false? @inclusion)))
+       [:div.field.inclusion-values
         {:class (when (get-in @errors [:definition :inclusion-values])
                   "error")}
-        [:label "Value for Inclusion"]
+        [:label "Value for inclusion"]
         [ui/LabeledCheckbox
          {:checked? (contains? (set @inclusion-values) false)
           :on-change (fn [event]
@@ -513,13 +523,15 @@
                                    [true]
                                    []))))
           :label "Yes"}]
-        (when-let [error (get-in @errors [:definition :inclusion-values])]
-          [:div error-message-class
-           error])])
+        [show-error-msg (get-in @errors [:definition :inclusion-values])]])
+     [:div.field {:style {:margin-bottom "0.75em"}}
+      [:div.ui.two.column.grid {:style {:margin "-0.5em"}}
+       [:div.column {:style {:padding "0.5em"}}
+        [SaveLabelButton label]]
+       [:div.column {:style {:padding "0.5em"}}
+        [CancelDiscardButton label]]]]
      [:div.field
-      [:div.ui.two.column.grid
-       [:div.column [SaveLabelButton label]]
-       [:div.column [DisableEnableLabelButton label]]]]]))
+      [DisableEnableLabelButton label]]]))
 
 ;; this corresponds to
 ;; (defmethod sysrev.views.review/label-input-el "string" ...)
@@ -708,7 +720,7 @@
         enabled? @(r/cursor label [:enabled])
         [side-width center-width] (if (util/mobile?)
                                     ["two wide" "twelve wide"]
-                                    ["one wide" "fourteen wide"])]
+                                    ["two wide" "twelve wide"])]
     [:div.ui.middle.aligned.grid.segment.label-item
      {:class (if enabled? nil "secondary")
       :id (str @label-id)}
@@ -737,10 +749,7 @@
           sort-label-ids
           (fn [enabled?]
             (->> (concat
-                  (->> @labels
-                       (filter
-                        (fn [[label-id label]]
-                          (uuid? label-id)))
+                  (->> (saved-labels)
                        (apply concat)
                        (apply hash-map)
                        (#(labels/sort-project-labels % true)))
@@ -768,20 +777,23 @@
        [ReadOnlyMessage
         "Editing label definitions is restricted to project administrators."
         read-only-message-closed?]
-       (doall (map-indexed
-               (fn [i label-id]
-                 ^{:key [:label-item label-id]}
-                 ;; let's pass a cursor to the state
-                 [LabelItem i (r/cursor state [:labels label-id])])
-               active-ids))
+       [:div.ui.two.column.stackable.grid.label-items
+        (doall (map-indexed
+                (fn [i label-id]
+                  ^{:key [:label-item label-id]}
+                  ;; let's pass a cursor to the state
+                  [:div.column [LabelItem i (r/cursor state [:labels label-id])]])
+                active-ids))]
        (when (not-empty disabled-ids)
-         [:div
-          [:h4.ui.block.header "Disabled Labels"]
+         [:h4.ui.block.header "Disabled Labels"])
+       ;; TODO: collapse disabled labels by default, display on click
+       (when (not-empty disabled-ids)
+         [:div.ui.two.column.stackable.grid.label-items
           (doall (map-indexed
                   (fn [i label-id]
                     ^{:key [:label-id label-id]}
                     ;; let's pass a cursor to the state
-                    [LabelItem i (r/cursor state [:labels label-id])])
+                    [:div.column [LabelItem i (r/cursor state [:labels label-id])]])
                   disabled-ids))])
        (when admin?
          [:div.ui.three.column.stackable.grid
