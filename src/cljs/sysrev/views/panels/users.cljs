@@ -33,15 +33,11 @@
                           :name)]
     [Message (cond-> {}
                accepted (merge {:positive true})
-               (not accepted) (merge {:negative true})
-               (nil? accepted) {})
+               (false? accepted) (merge {:negative true}))
      [:div (-> created js/moment ($ format "YYYY-MM-DD h:mm A"))]
      [:div (str "This user was invited as a " description " to " project-name ".")]
      (when-not (nil? accepted)
-       [:div (str "Invitation "
-                  (if accepted
-                    "accepted "
-                    "declined "))])]))
+       [:div (str "Invitation " (if accepted "accepted " "declined "))])]))
 
 (defn Invitations
   [user-id]

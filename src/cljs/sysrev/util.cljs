@@ -305,9 +305,8 @@
       Base event handler function; `(fn [event] ...)`
       `wrap-user-event` will return nil when given nil value for `f`.
     timeout :
-      When true (default), runs inner handler via `js/setTimeout`.
+      Default false. When true, runs inner handler via `js/setTimeout`.
       This breaks (at least) ability to access `(.-target event)`.
-      Set as false if handler accesses `.-target` or has other issues.
     prevent-default :
       Adds wrap-prevent-default at outermost level of handler.
     stop-propagation :
@@ -348,8 +347,8 @@
                   true)
               (wrap-handler event))
             true)
-          stop-propagation (wrap-stop-propagation)
-          prevent-default (wrap-prevent-default)))))
+        stop-propagation (wrap-stop-propagation)
+        prevent-default (wrap-prevent-default)))))
 
 ;; https://www.kirupa.com/html5/get_element_position_using_javascript.htm
 (defn get-element-position [el]

@@ -398,7 +398,7 @@
                            do-query
                            (->> (map :user-id)))]
     (if-not (empty? users-in-group)
-      (doall (map #(assoc % :primary_email_verified (verified-primary-email? (:email %)))
+      (doall (map #(assoc % :primary-email-verified (verified-primary-email? (:email %)))
                   (get-users-public-info users-in-group)))
       [])))
 
@@ -504,7 +504,9 @@
       (sset {:verified true
              :updated (sql-now)})
       (where [:and
-              [:= :verify-code verify-code]
+              (if verify-code
+                [:= :verify-code verify-code]
+                true)
               [:= :email email]
               [:= :user-id user-id]])
       do-execute))

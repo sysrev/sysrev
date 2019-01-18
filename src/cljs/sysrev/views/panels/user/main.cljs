@@ -23,6 +23,10 @@
   (when (nil? @state)
     (reset! state initial-state)))
 
+;;;
+;;; TODO: remove all this inputs/values/etc stuff
+;;;
+
 (defn- parse-input [skey input]
   (case skey
     :ui-theme input
@@ -162,6 +166,8 @@
         loading? (r/atom true)
         user-id @(subscribe [:self/user-id])
         error-message (r/atom "")
+        ;; TODO: get this value from identity request instead (way
+        ;; easier, available everywhere)
         get-opt-in (fn []
                      (reset! loading? true)
                      (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
@@ -187,15 +193,15 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [verified (-> @(subscribe [:self/identity])
-                           :verified)]
+        (let [verified (-> @(subscribe [:self/identity]) :verified)]
           (when-not (nil? @active?)
             [Segment
-             [Header {:as "h4"
-                      :dividing true}
+             [Header {:as "h4" :dividing true}
               "Public Reviewer Opt In"]
              (when-not verified
-               [:p {:style {:color "grey"}} "Please verify your email address to Opt-In"])
+               [Message {:warning true}
+                [:a {:href "/user/settings/email"}
+                 "Your email address is not yet verified."]])
              [Radio {:toggle true
                      :label "Publicly Listed as a Paid Reviewer"
                      :checked @active?

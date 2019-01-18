@@ -190,17 +190,22 @@
   :args (s/cat :source-id int?, :enabled? boolean?)
   :ret map?)
 
+(defn sysrev-base-url
+  "Tries to determine and return the current root url for Sysrev web
+  app. Returns default of \"https://sysrev.com\" if no condition
+  matches."
+  []
+  (if (= :dev (:profile env))
+    "http://localhost:4061"
+    "https://sysrev.com"))
+
 (defn send-verification-email
   "Send the verification email to user-id"
   [user-id email]
   (let [{:keys [verify-code]} (users/read-email-verification-code user-id email)]
     (sendgrid/send-template-email
      email "Verify Your Email"
-     (str "Verify your email by clicking <a href='"
-          (if (= (:profile env)
-                 :dev)
-            "http://localhost:4061"
-            "https://sysrev.com")
+     (str "Verify your email by clicking <a href='" (sysrev-base-url)
           "/user/settings/email/" verify-code "'>here</a>."))
     {:result {:success true}}))
 
@@ -1121,10 +1126,7 @@
     (sendgrid/send-template-email
      email (str "You've been invited to " project-name " as a reviewer")
      (str "You've been invited to <b>" project-name "</b> as a reviewer. You can view the invitation <a href='"
-          (if (= (:profile env)
-                 :dev)
-            "http://localhost:4061"
-            "https://sysrev.com")
+          (sysrev-base-url)
           "/user/settings/invitations'>here</a>."))))
 
 (defn create-invitation!
