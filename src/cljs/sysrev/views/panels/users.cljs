@@ -184,7 +184,7 @@
                            :handler (fn [response]
                                       (reset! retrieving-users? false)
                                       (reset! users (->> (-> response :result :users)
-                                                         (filter :primary_email_verified))))
+                                                         (filter :primary-email-verified))))
                            :error-handler (fn [error-response]
                                             (reset! retrieving-users? false)
                                             (reset! error-message "There was a problem retrieving users"))}))]
