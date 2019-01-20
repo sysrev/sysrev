@@ -306,6 +306,12 @@
               ["grey" "circle outline"])]
     [:i.left.floated.fitted {:class (str color " " iclass " icon")}]))
 
+(defn FormLabelWithTooltip [text tooltip-content]
+  (doall (ui/with-ui-help-tooltip
+           [:label text " " [ui/ui-help-icon]]
+           :help-content tooltip-content
+           :popup-options {:delay {:show 750 :hide 0}})))
+
 (defn LabelEditForm [label]
   (let [label-id (r/cursor label [:label-id])
         on-server? (not (string? @label-id))
@@ -374,7 +380,9 @@
        :error (:question @errors)
        :value question
        :on-change #(reset! question (-> % .-target .-value))
-       :label "Question"}]
+       :label "Question"
+       :tooltip ["Describe the meaning of this label for reviewers."
+                 "Displayed as tooltip in review interface."]}]
 
      ;; max-length on a string label
      (when (= @value-type "string")
@@ -405,7 +413,9 @@
                           (reset! examples nil)
                           (reset! examples
                                   (str/split value #",")))))
-         :label "Examples (comma-separated)"}])
+         :label "Examples (comma-separated)"
+         :tooltip ["Examples of possible label values for reviewers."
+                   "Displayed as tooltip in review interface."]}])
 
      (when (= @value-type "categorical")
        ;; TODO: whitespace not trimmed from input strings
@@ -422,7 +432,9 @@
                           (reset! all-values
                                   (->> (str/split value #",")
                                        #_ (map str/trim))))))
-         :label "Categories (comma-separated options)"}])
+         :label "Categories (comma-separated options)"
+         :tooltip ["List of values allowed for label."
+                   "Reviewers may select multiple values in their answers."]}])
 
      ;; required
      [ui/LabeledCheckboxField
@@ -434,7 +446,7 @@
                        (reset! consensus false)))
        :checked? @required
        :label "Require answer"
-       :tooltip ["Require users to provide this answer before saving article."]}]
+       :tooltip ["Require users to provide an answer for this label before saving article."]}]
 
      ;; consensus
      ;;
@@ -456,7 +468,8 @@
          :error (get-in @errors [:definition :multi?])
          :on-change #(reset! multi? (-> % .-target .-checked boolean))
          :checked? @multi?
-         :label "Allow multiple values"}])
+         :label "Allow multiple values"
+         :tooltip ["Allow answers to contain multiple string values."]}])
 
      (when (in? ["boolean" "categorical"] @value-type)
        [ui/LabeledCheckboxField
@@ -469,7 +482,7 @@
          :checked? @inclusion
          :label "Inclusion criteria"
          :tooltip ["Define a relationship between this label and article inclusion."
-                   "Users will be warned if their answers contradict what they have selected for article inclusion."]}])
+                   "Users will be warned if their answers contradict the value selected for article inclusion."]}])
 
      ;; inclusion-values on a categorical label
      (when (and (= @value-type "categorical")
@@ -477,8 +490,12 @@
                 (not (empty? @all-values)))
        [:div.field.inclusion-values
         {:class (when (get-in @errors [:definition :all-values])
-                  "error")}
-        [:label "Values for inclusion"]
+                  "error")
+         :style {:width "100%"}}
+        (FormLabelWithTooltip
+         "Inclusion values"
+         ["Answers containing any of these values will indicate article inclusion."
+          "Non-empty answers otherwise will indicate exclusion."])
         (doall
          (map
           (fn [option-value]
@@ -504,7 +521,9 @@
        [:div.field.inclusion-values
         {:class (when (get-in @errors [:definition :inclusion-values])
                   "error")}
-        [:label "Value for inclusion"]
+        (FormLabelWithTooltip
+         "Inclusion value"
+         ["Select which value should indicate article inclusion."])
         [ui/LabeledCheckbox
          {:checked? (contains? (set @inclusion-values) false)
           :on-change (fn [event]

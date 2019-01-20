@@ -508,12 +508,18 @@
   }"
   [{:keys [error value on-change on-mouse-up on-mouse-down
            placeholder default-value label autofocus disabled read-only
-           field-class]}]
+           field-class tooltip]}]
   [:div.field
    {:class (cond-> ""
              error (str " error")
              field-class (str " " field-class))}
-   [:label label]
+   (if (nil? tooltip)
+     [:label label]
+     [:label (doall (with-ui-help-tooltip
+                      [:span {:style {:width "100%"}}
+                       label " " [ui-help-icon]]
+                      :help-content tooltip
+                      :popup-options {:delay {:show 750 :hide 0}}))])
    [:input.ui.input
     (cond-> {:type "text"
              :on-change on-change

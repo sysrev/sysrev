@@ -26,7 +26,7 @@
        :action (project-uri project-id "/labels/edit")}
       (when (> total 0)
         {:tab-id :export-data
-         :content [:span [:i.download.icon] "Export Data"]
+         :content [:span [:i.download.icon] "Export"]
          :action (project-uri project-id "/export")})
       {:tab-id :settings
        :content [:span [:i.configure.icon] "Settings"]

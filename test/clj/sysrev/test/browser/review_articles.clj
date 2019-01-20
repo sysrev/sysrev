@@ -209,7 +209,7 @@
 (defn value-for-inclusion-checkbox
   [xpath inclusion-value]
   (x/xpath xpath
-           "/descendant::" (label-name-xpath "for inclusion")
+           "/descendant::" (label-name-xpath "Inclusion value")
            "/parent::div/"
            "descendant::label[contains(text(),'" inclusion-value "')]"
            "/parent::div[contains(@class,'checkbox')]/input[@type='checkbox']"))
