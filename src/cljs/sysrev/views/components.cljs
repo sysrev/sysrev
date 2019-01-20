@@ -560,27 +560,29 @@
    :label     <string>
   }"
   [{:keys [error on-change checked? label tooltip disabled? field-class]}]
-  (let [field
-        [:div.field
-         {:key [:label label]
-          :class (cond-> ""
-                   error (str " error")
-                   field-class (str " " field-class))}
-         [:div.ui.checkbox
-          (when disabled? {:class "disabled"})
-          [:input
-           {:type "checkbox"
-            :on-change (util/wrap-user-event
-                        on-change :timeout false)
-            :checked (boolean checked?)}]
-          [:label label (when tooltip [:span " " [ui-help-icon]])]]
-         (when error
-           [:div.ui.red.message error])]]
-    (doall
-     (if tooltip
-       (with-ui-help-tooltip field :help-content tooltip
-         :popup-options {:delay {:show 1000 :hide 0}})
-       (list field)))))
+  [:div.field
+   {:key [:label label]
+    :class (cond-> ""
+             error (str " error")
+             field-class (str " " field-class))}
+   [:div.ui.checkbox
+    { ;; need width 100% to make room for tooltip element
+     :style {:width "100%"}
+     :class (cond-> "" disabled? (str " disabled"))}
+    [:input
+     {:type "checkbox"
+      :on-change (util/wrap-user-event
+                  on-change :timeout false)
+      :checked (boolean checked?)}]
+    (if (nil? tooltip)
+      [:label label]
+      [:label (doall (with-ui-help-tooltip
+                       [:span {:style {:width "100%"}}
+                        label " " [ui-help-icon]]
+                       :help-content tooltip
+                       :popup-options {:delay {:show 750 :hide 0}}))])]
+   (when error
+     [:div.ui.red.message error])])
 
 (defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
   [:div.ui.two.column.grid.save-reset-form

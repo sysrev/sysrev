@@ -425,7 +425,7 @@
          :label "Categories (comma-separated options)"}])
 
      ;; required
-     (ui/LabeledCheckboxField
+     [ui/LabeledCheckboxField
       {:field-class "require-answer"
        :error (:required @errors)
        :on-change #(let [value (-> % .-target .-checked boolean)]
@@ -434,32 +434,32 @@
                        (reset! consensus false)))
        :checked? @required
        :label "Require answer"
-       :tooltip ["Require users to provide this answer before saving article."]})
+       :tooltip ["Require users to provide this answer before saving article."]}]
 
      ;; consensus
      ;;
      ;; Hiding this for now until conflict matching is changed to use this
      #_
-     (ui/LabeledCheckboxField
+     [ui/LabeledCheckboxField
       {:error (:consensus @errors)
        :on-change #(reset! consensus (-> % .-target .-checked boolean))
        :checked? @consensus
        :disabled? (false? @required)
        :label "Require user consensus"
        :tooltip ["Check answers for consensus among users."
-                 "Articles will be marked as conflicted if user answers are not identical."]})
+                 "Articles will be marked as conflicted if user answers are not identical."]}]
 
      ;; multi?
      (when (= @value-type "string")
-       (ui/LabeledCheckboxField
+       [ui/LabeledCheckboxField
         {:field-class "allow-multiple"
          :error (get-in @errors [:definition :multi?])
          :on-change #(reset! multi? (-> % .-target .-checked boolean))
          :checked? @multi?
-         :label "Allow multiple values"}))
+         :label "Allow multiple values"}])
 
      (when (in? ["boolean" "categorical"] @value-type)
-       (ui/LabeledCheckboxField
+       [ui/LabeledCheckboxField
         {:field-class "inclusion-criteria"
          :error (:required @errors)
          :on-change #(let [value (-> % .-target .-checked boolean)]
@@ -469,7 +469,7 @@
          :checked? @inclusion
          :label "Inclusion criteria"
          :tooltip ["Define a relationship between this label and article inclusion."
-                   "Users will be warned if their answers contradict what they have selected for article inclusion."]}))
+                   "Users will be warned if their answers contradict what they have selected for article inclusion."]}])
 
      ;; inclusion-values on a categorical label
      (when (and (= @value-type "categorical")
