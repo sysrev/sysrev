@@ -11,6 +11,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.source.import :as import]
+            [sysrev.source.endnote :as endnote]
             [sysrev.util :as u :refer [parse-xml-str xml-find]]))
 
 (use-fixtures :once test/default-fixture)
@@ -84,6 +85,21 @@
       (is (completes? (import/import-endnote-xml
                        project-id input {:use-future? false})))
       (is (= 112 (project/project-article-count project-id)))
+      (finally
+        (project/delete-project project-id))))
+  (let [filename "test2-endnote.xml"
+        file (-> (str "test-files/" filename) io/resource io/file)
+        {:keys [project-id]} (project/create-project "autotest endnote import 2")]
+    (try
+      (is (= 0 (project/project-article-count project-id)))
+      (is (completes? (import/import-endnote-xml
+                       project-id {:file file :filename filename}
+                       {:use-future? false})))
+      (is (= 100 (project/project-article-count project-id)))
+      (is (->> file io/reader
+               endnote/load-endnote-library-xml
+               (map :primary-title)
+               (every? (every-pred string? not-empty))))
       (finally
         (project/delete-project project-id)))))
 
