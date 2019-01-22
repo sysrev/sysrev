@@ -100,21 +100,32 @@
       (fn [this]
         (let [options (options-fn @(subscribe [:self/projects]))]
           (when-not (empty? options)
-            [:div {:style {:display "inline-block"}}
-             "Invite this user to " [Select {:options options
-                                             :on-change (fn [e f]
-                                                          (reset! project-id ($ f :value)))
-                                             :size "small"
-                                             :disabled (or @loading? @retrieving-invitations?)
-                                             :value @project-id
-                                             :placeholder "Select Project"}]
-             [Button {:on-click #(do
-                                   (create-invitation! user-id @project-id)
-                                   (reset! project-id nil))
-                      :basic true
-                      :color "green"
-                      :disabled (or @loading? @retrieving-invitations?)
-                      :size "mini"} "Invite"]
+            [:div
+             [:div {:style {:display "inline-block"}}
+              "Invite this user to " [:div {:style
+                                            {:display "inline-block"
+                                             :padding-left "0.5em"}}
+                                      [Select {:options options
+                                                    :on-change (fn [e f]
+                                                                 (reset! project-id ($ f :value)))
+                                                    :size "tiny"
+                                                    :disabled (or @loading? @retrieving-invitations?)
+                                                    :value @project-id
+                                                    :placeholder "Select Project"}]]]
+             (when-not (nil? @project-id)
+               [:div {:style {:padding-top "1em"}}
+                [Button {:on-click #(do
+                                      (create-invitation! user-id @project-id)
+                                      (reset! project-id nil))
+                         :basic true
+                         :color "green"
+                         :disabled (or @loading? @retrieving-invitations?)
+                         :size "tiny"} "Invite"]
+                [Button {:on-click #(do (reset! project-id nil))
+                         :basic true
+                         :color "red"
+                         :disabled (or @loading? @retrieving-invitations?)
+                         :size "tiny"} "Cancel"]])
              (when-not (clojure.string/blank? @error-message)
                [Message {:onDismiss #(reset! error-message nil)
                          :negative true}
@@ -128,7 +139,7 @@
 (defn User
   [{:keys [email user-id]}]
   [Grid
-   [Row
+   [Row {:style {:padding-bottom "0"}}
     [Column {:width 2}
      [Icon {:name "user icon"
             :size "huge"}]]

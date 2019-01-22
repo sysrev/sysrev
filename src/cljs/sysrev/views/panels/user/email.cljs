@@ -154,15 +154,16 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [email verified principal id]} email-object]
+        (let [{:keys [email verified principal id]} @(r/cursor state [:email :addresses id])]
           [Grid
            [Row
             [Column {:width 11}
-             [:h4 email " " (if verified
-                              [Label {:color "green"}
-                               "Verified"]
-                              [Label {:color "red"}
-                               "Unverified"])
+             [:h4 {:class "email-entry"}
+              email " " (if verified
+                          [Label {:color "green"}
+                           "Verified"]
+                          [Label {:color "red"}
+                           "Unverified"])
               (when principal
                 [Label "Primary"])
               " " (when (not verified) [Button {:size "mini"
@@ -173,12 +174,14 @@
              (when-not principal
                [:div
                 [Button {:size "mini"
+                         :id "delete-email-button"
                          :basic true
                          :on-click #(delete-email! email-object)
                          :disabled @deleting-email?}
                  "Delete Email"]
                 (when verified
                   [Button {:size "mini"
+                           :id "make-primary-button"
                            :basic true
                            :on-click #(set-primary! email-object)
                            :disabled @setting-primary?}
@@ -224,22 +227,24 @@
          (when-not @adding-email?
            [Button {:on-click #(do (reset! adding-email? true)
                                    (reset! update-error nil)
-                                   (reset! update-message nil))}
+                                   (reset! update-message nil)
+                                   (reset! new-email ""))}
             "Add a New Email Address"])
          (when @adding-email?
            [:div
             [Form {:on-submit #(do
                                  (reset! update-error nil)
                                  (reset! update-message nil)
-                                 (create-email! @new-email)
-                                 (reset! new-email nil))}
+                                 (create-email! @new-email))}
              [FormGroup
-              [FormInput {:value @new-email
+              [FormInput {:id "new-email-address"
+                          :value @new-email
                           :width 8
                           :placeholder "New Email Address"
                           :on-change (fn [event]
                                        (reset! new-email ($ event :target.value)))}]
-              [Button {:disabled @sending-update?} "Submit"]
+              [Button {:disabled @sending-update?
+                       :id "new-email-address-submit"} "Submit"]
               [Button {:on-click (fn [event]
                                    ($ event preventDefault)
                                    (reset! adding-email? false)
@@ -267,10 +272,10 @@
   []
   (r/create-class
    {:reagent-render (fn [this]
-                      (let [email-addresses (r/cursor state [:email :addresses])
-                            primary-email-address (->> (vals @email-addresses)
+                      (let [email-addresses (vals @(r/cursor state [:email :addresses]))
+                            primary-email-address (->> email-addresses
                                                        (filter :principal))
-                            rest-email-addresses (->> (vals @email-addresses)
+                            rest-email-addresses (->> email-addresses
                                                       (filter (comp not :principal))
                                                       (sort-by :email))
                             email-object-fn (fn [email-object]

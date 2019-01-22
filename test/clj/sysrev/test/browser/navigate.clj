@@ -62,12 +62,7 @@
     (Thread/sleep 100)
     (go-route "/")))
 
-;; TODO: add a way to disable sending emails in testing (maybe add
-;; "&noemail=true" to url and pass along to AJAX requests)
-;;
-;; can't use this because it would send emails out
-;; use sysrev.test.browser.core/create-test-user instead
-#_(defn register-user [& [email password]]
+(defn register-user [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
     (go-route "/")
@@ -78,7 +73,8 @@
     (b/click "button[name='submit']")
     (b/wait-until-loading-completes :pre-wait 1000)
     (b/wait-until-loading-completes :pre-wait 500)
-    (go-route "/")))
+    (go-route "/")
+    (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))))
 
 (defn wait-until-overview-ready []
   (let [overview (xpath "//span[contains(text(),'Overview')]")

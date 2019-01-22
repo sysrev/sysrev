@@ -16,6 +16,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review]
+            [sysrev.test.browser.semantic :as s]
             [sysrev.test.browser.pubmed :as pm]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -43,6 +44,17 @@
 (def pay-now-button (xpath "//button[@id='guestSubmit']"))
 
 (def payment-processed (xpath "//div[contains(text(),'Payment Processed')]"))
+
+;; verification of emails
+(def resend-verification-email (xpath "//button[contains(text(),'Resend Verification Email')]"))
+(def green-verified-label (xpath "//div[contains(text(),'Verified') and contains(@class,'green') and contains(@class,'label')]"))
+(def red-unverified-label (xpath "//div[contains(text(),'Unverified') and contains(@class,'red') and contains(@class,'label')]"))
+(def primary-label (xpath "//div[contains(text(),'Primary') and contains(@class,'label')]"))
+(def add-new-email-address (xpath "//button[contains(text(),'Add a New Email Address')]"))
+(def new-email-address-input (xpath "//input[@id='new-email-address']"))
+(def submit-new-email-address (xpath "//button[@id='new-email-address-submit']"))
+(def make-primary-button (xpath "//button[@id='make-primary-button']"))
+(def delete-email-button (xpath "//button[@id='delete-email-button']"))
 ;;;
 ;;; NOTE: Compensation entries should not be deleted like this except in testing.
 ;;;
@@ -587,3 +599,83 @@
 ;; for deleting during manual test
 ;; (doall (map #(do (delete-project-compensations %) (project/delete-project %)) [113 114])) ; manual input of project-id
 ;; (doall (map (partial b/delete-test-user :email) (map :email [user1 user2 user3]))) ; user1 ... user3 should have been def'd
+
+(defn email-address-row
+  [email]
+  (xpath (str "//h4[contains(text(),'" email "')]/ancestor::div[contains(@class,'row')]")))
+
+(defn email-verified?
+  [email]
+  (let [verified-xpath (xpath (str (:xpath (email-address-row email)) (:xpath green-verified-label)))]
+    (b/wait-until-exists verified-xpath)
+    (taxi/exists? verified-xpath)))
+
+(defn email-unverfied?
+  [email]
+  (let [unverified-xpath (xpath (str (:xpath (email-address-row email)) (:xpath red-unverified-label)))]
+    (b/wait-until-exists unverified-xpath)
+    (taxi/exists? unverified-xpath)))
+
+(defn primary?
+  [email]
+  (let [primary-email-xpath (xpath (str (:xpath (email-address-row email)) (:xpath primary-label)))]
+    (b/exists? primary-email-xpath)))
+
+(defn make-primary
+  [email]
+  (let [make-primary-email-xpath (xpath (str (:xpath (email-address-row email)) (:xpath make-primary-button)))]
+    (b/wait-until-exists make-primary-email-xpath)
+    (b/click make-primary-email-xpath)))
+
+(defn delete-email-address
+  [email]
+  (let [delete-email-xpath (xpath (str (:xpath (email-address-row email)) (:xpath delete-email-button)))]
+    (b/wait-until-exists delete-email-xpath)
+    (b/click delete-email-xpath)))
+
+(defn email-address-count
+  []
+  (count (taxi/find-elements (xpath "//h4[@class='email-entry']"))))
+
+(deftest-browser create-user-verify-email-addresses
+  (let [test-user {:email "foo@insilica.co"
+                   :password "foobar"}
+        new-email-address "bar@insilica.co"]
+    (try
+      (alter-var-root #'sysrev.sendgrid/send-template-email
+                      (fn [send-template-email]
+                        (fn [to subject message
+                             & {:keys [from template-id substitutions]}]
+                          (println "No email was actually sent"))))
+      ;; User registers
+      (nav/register-user (:email test-user) (:password test-user))
+      ;; verify the email address
+
+      (let [{:keys [user-id email]} (users/get-user-by-email (:email test-user))
+            {:keys [verify-code]} (users/read-email-verification-code user-id email)]
+        (nav/go-route (str "/user/settings/email/" verify-code))
+        (email-verified? email)
+        ;; add a new email address
+        (b/click add-new-email-address)
+        ;; check for a basic error
+        (b/click submit-new-email-address)
+        (is (s/check-for-error-message "New email address can not be blank!"))
+        ;; add a new email address
+        (taxi/clear new-email-address-input)
+        (b/set-input-text-per-char new-email-address-input new-email-address)
+        (b/click submit-new-email-address)
+        (is (email-unverfied? new-email-address))
+        ;; verify new email address
+        (nav/go-route (str "/user/settings/email/"
+                           (:verify-code (users/read-email-verification-code user-id new-email-address))))
+        (is (email-verified? new-email-address))
+        ;;make this email address primary
+        (make-primary new-email-address)
+        (primary? new-email-address)
+        ;; delete the other email
+        (delete-email-address email)
+        ;; the email count should be 1
+        (is (= 1 (email-address-count))))
+      :cleanup
+      (b/delete-test-user :email (:email test-user)))))
+
