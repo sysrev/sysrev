@@ -71,14 +71,16 @@
              (keywords/process-keywords secondary-title keywords)))))
 
 (defn article-info-full [project-id article-id]
-  (let [[article user-labels user-notes article-pdfs]
+  (let [[article user-labels user-notes article-pdfs consensus]
         (pvalues
          (article/get-article article-id)
          (labels/article-user-labels-map project-id article-id)
          (article/article-user-notes-map project-id article-id)
-         (api/article-pdfs article-id))]
+         (api/article-pdfs article-id)
+         (labels/article-consensus-status project-id article-id))]
     {:article (merge (prepare-article-response article)
-                     {:pdfs (-> article-pdfs :result :files)})
+                     {:pdfs (-> article-pdfs :result :files)}
+                     {:review-status consensus})
      :labels user-labels
      :notes user-notes}))
 

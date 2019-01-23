@@ -151,6 +151,7 @@
                :meta (s/? ::sa/meta))
   :ret map?)
 
+#_
 (defn article-review-status [article-id]
   (let [entries
         (-> (q/select-article-by-id
@@ -217,8 +218,8 @@
                           #(or (article-score
                                 article-id :predict-run-id predict-run-id)
                                0.0))
-                (get-item :review-status
-                          #(article-review-status article-id))
+                #_ (get-item :review-status
+                             #(article-review-status article-id))
                 (get-item :flags
                           #(article-flags-map article-id))]
                (remove nil?) (apply pcalls) doall (apply merge {})))]

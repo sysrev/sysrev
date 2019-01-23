@@ -49,6 +49,13 @@
                              (update :confirm-time tc/to-epoch)))
                    (group-by :article-id)
                    (map-values #(do {:labels %}))))
+          aconsensus
+          (->> (keys alabels)
+               (map (fn [article-id]
+                      {article-id
+                       {:consensus
+                        (labels/article-consensus-status project-id article-id)}}))
+               (apply merge {}))
           anotes
           (-> (q/select-project-articles
                project-id [:a.article-id :an.user-id  :an.content
@@ -62,9 +69,10 @@
                    (map #(-> % (update :updated-time tc/to-epoch)))
                    (group-by :article-id)
                    (map-values #(do {:notes %}))))
-          annotations (->> (ann/project-annotation-articles project-id)
-                           (map-values #(do {:annotations %})))]
-      (->> (-> (merge-with merge articles alabels anotes annotations)
+          annotations
+          (->> (ann/project-annotation-articles project-id)
+               (map-values #(do {:annotations %})))]
+      (->> (-> (merge-with merge articles alabels anotes annotations aconsensus)
                ;; ensure all map keys are present in primary articles map
                (select-keys (keys articles)))
            (map-values

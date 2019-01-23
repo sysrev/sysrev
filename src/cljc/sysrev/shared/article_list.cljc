@@ -7,7 +7,7 @@
   (->> labels (filter :resolve) first))
 (defn is-conflict? [labels]
   (and (not (is-resolved? labels))
-       (< 1 (count (->> labels (map :inclusion) distinct)))))
+       (< 1 (count (->> labels (map :answer) (remove nil?) distinct)))))
 (defn is-single? [labels]
   (= 1 (count labels)))
 (defn is-consistent? [labels]

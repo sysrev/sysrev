@@ -8,8 +8,6 @@
             [sysrev.state.nav :refer
              [active-panel active-project-id]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.shared.article-list :refer
-             [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
             [sysrev.views.components :as ui]
             [sysrev.views.article-list.base :as al]
             [sysrev.util :as util :refer [nbsp]]

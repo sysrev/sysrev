@@ -385,24 +385,23 @@
        :today-count today-count})))
 
 (defn article-user-labels-map [project-id article-id]
-  (->>
-   (-> (q/select-article-by-id article-id [:al.*])
-       (q/join-article-labels)
-       do-query)
-   (group-by :user-id)
-   (map-values
-    (fn [ulabels]
-      (->> ulabels
-           (group-by :label-id)
-           (map-values first)
+  (-> (q/select-article-by-id article-id [:al.*])
+      (q/join-article-labels)
+      (->> do-query
+           (group-by :user-id)
            (map-values
-            (fn [{:keys [confirm-time updated-time] :as entry}]
-              (merge (select-keys entry [:answer :resolve])
-                     {:confirmed (not (nil? confirm-time))
-                      :confirm-epoch
-                      (if (nil? confirm-time) 0
-                          (max (tc/to-epoch confirm-time)
-                               (tc/to-epoch updated-time)))}))))))))
+            (fn [ulabels]
+              (->> ulabels
+                   (group-by :label-id)
+                   (map-values first)
+                   (map-values
+                    (fn [{:keys [confirm-time updated-time] :as entry}]
+                      (merge (select-keys entry [:answer :resolve])
+                             {:confirmed (not (nil? confirm-time))
+                              :confirm-epoch
+                              (if (nil? confirm-time) 0
+                                  (max (tc/to-epoch confirm-time)
+                                       (tc/to-epoch updated-time)))})))))))))
 
 (defn merge-article-labels [article-ids]
   (let [labels
@@ -840,6 +839,33 @@
                          (#(hash-map :notes %)))))))]
     (merge-with merge articles notes)))
 
+(defn article-consensus-status [project-id article-id]
+  (let [overall-id (project/project-overall-label-id project-id)
+        labels (project/project-labels project-id)
+        label-ids (keys labels)
+        consensus-ids
+        (->> label-ids (filter #(-> (get labels %) :consensus true?)))
+        alabels
+        (-> (query-public-article-labels project-id)
+            (get article-id))]
+    (cond (or (empty? alabels)
+              (empty? (get-in alabels [:labels overall-id])))
+          nil
+
+          (is-single? (get-in alabels [:labels overall-id]))
+          :single
+
+          ;; TODO: change resolve handling
+          (is-resolved? (get-in alabels [:labels overall-id]))
+          :resolved
+
+          (some (fn [label-id]
+                  (is-conflict? (get-in alabels [:labels label-id])))
+                consensus-ids)
+          :conflict
+
+          :else :consistent)))
+
 (defn project-included-articles [project-id]
   (let [articles (query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)]
@@ -848,14 +874,11 @@
            (filter
             (fn [[article-id article]]
               (let [labels (get-in article [:labels overall-id])
-                    group-status
-                    (cond (is-single? labels)     :single
-                          (is-resolved? labels)   :resolved
-                          (is-conflict? labels)   :conflict
-                          :else                   :consistent)
+                    group-status (article-consensus-status project-id article-id)
                     inclusion-status
                     (case group-status
                       :conflict nil,
+                      ;; TODO: update resolve handling
                       :resolved (->> labels (filter :resolve) (map :inclusion) first),
                       (->> labels (map :inclusion) first))]
                 (and (in? [:consistent :resolved] group-status)
@@ -893,19 +916,18 @@
           overall-id (project/project-overall-label-id project-id)]
       (when overall-id
         (let [status-vals
-              (->> (vals articles)
+              (->> articles
                    (map
-                    (fn [article]
-                      (let [labels (get-in article [:labels overall-id])
+                    (fn [[article-id entry]]
+                      (let [labels (get-in entry [:labels overall-id])
                             group-status
-                            (cond (is-single? labels)     :single
-                                  (is-resolved? labels)   :resolved
-                                  (is-conflict? labels)   :conflict
-                                  :else                   :consistent)
+                            (article-consensus-status project-id article-id)
                             inclusion-status
                             (case group-status
-                              :conflict nil,
-                              :resolved (->> labels (filter :resolve) (map :inclusion) first),
+                              :conflict nil
+                              :resolved (->> labels
+                                             (filter :resolve) (map :inclusion)
+                                             first)
                               (->> labels (map :inclusion) first))]
                         [group-status inclusion-status]))))]
           (merge
@@ -924,21 +946,17 @@
       (let [status-vals
             (->> articles
                  (map
-                  (fn [article]
-                    (let [article-labels (second article)
-                          labels (get-in article-labels [:labels overall-id])
+                  (fn [[article-id article-labels]]
+                    (let [labels (get-in article-labels [:labels overall-id])
                           group-status
-                          (cond (is-single? labels)     :single
-                                (is-resolved? labels)   :resolved
-                                (is-conflict? labels)   :conflict
-                                :else                   :consistent)
+                          (article-consensus-status project-id article-id)
                           inclusion-status
                           (case group-status
                             :conflict nil,
                             :resolved (->> labels (filter :resolve) (map :inclusion) first),
                             (->> labels (map :inclusion) first))]
                       (hash-map :group-status group-status
-                                :article-id (first article)
+                                :article-id article-id
                                 :answer (:answer (first labels)))))))]
         status-vals))))
 

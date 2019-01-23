@@ -10,8 +10,6 @@
             [sysrev.state.nav :refer
              [active-panel active-project-id]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.shared.article-list :refer
-             [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
             [sysrev.views.article :refer [ArticleInfo]]
             [sysrev.views.review :refer [LabelEditor]]
             [sysrev.views.components :as ui]
@@ -180,7 +178,8 @@
         @(subscribe [::al/display-options (al/cached context)])
         active-article @(subscribe [::al/get context [:active-article]])
         overall-id @(subscribe [:project/overall-label-id])
-        {:keys [article-id primary-title labels notes updated-time]} article
+        {:keys [article-id primary-title labels notes
+                consensus updated-time]} article
         notes (cond->> notes
                 self-only (filterv #(= (:user-id %) self-id)))
         labels (cond->> labels
@@ -192,12 +191,7 @@
              (filterv #(not (in? [0 nil] (:confirm-time %)))))
         overall-labels (->> consensus-labels (filter #(= (:label-id %) overall-id)))
         active? (and active-article (= article-id active-article))
-        answer-class
-        (cond
-          (is-resolved? overall-labels) "resolved"
-          (is-consistent? overall-labels) "consistent"
-          (is-single? overall-labels) "single"
-          :else "conflict")
+        answer-class (if consensus (name consensus) "conflict")
         labels? (and (not active?)
                      (or (and show-labels (not-empty labels))
                          (and show-notes (not-empty notes))))

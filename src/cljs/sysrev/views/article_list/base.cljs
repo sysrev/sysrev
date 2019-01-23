@@ -9,8 +9,6 @@
             [sysrev.state.nav :refer
              [active-panel active-project-id]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.shared.article-list :refer
-             [is-resolved? resolved-answer is-conflict? is-single? is-consistent?]]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
