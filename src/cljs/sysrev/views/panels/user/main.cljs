@@ -203,6 +203,7 @@
                 [:a {:href "/user/settings/email"}
                  "Your email address is not yet verified."]])
              [Radio {:toggle true
+                     :id "opt-in-public-reviewer"
                      :label "Publicly Listed as a Paid Reviewer"
                      :checked @active?
                      :disabled (or (not verified)

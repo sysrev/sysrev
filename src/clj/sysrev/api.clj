@@ -1154,8 +1154,6 @@
   ;; user joins project when invitation is accepted
   (when accepted?
     (let [{:keys [project-id user-id]} (invitation/read-invitation invitation-id)]
-      (println {:project-id project-id
-                :user-id user-id})
       (when (nil? (project/project-member project-id user-id))
         (project/add-project-member project-id user-id))))
   (invitation/update-invitation-accepted! invitation-id accepted?)

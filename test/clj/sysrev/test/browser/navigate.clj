@@ -29,11 +29,10 @@
     (cond (or (not (string? current))
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (init-route path)
-
           (not= current (path->full-url path))
           (do (b/wait-until-loading-completes :pre-wait 10)
               (log/info "navigating:" path)
-              (taxi/execute-script (format "sysrev.nav.set_token(\"%s\");" path))
+              (taxi/get-url (path->full-url path))
               (b/wait-until-loading-completes :pre-wait (or wait-ms 50))))
     nil))
 
@@ -65,16 +64,13 @@
 (defn register-user [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
-    (go-route "/")
     (log-out)
     (go-route "/register")
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-loading-completes :pre-wait 1000)
-    (b/wait-until-loading-completes :pre-wait 500)
-    (go-route "/")
-    (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))))
+    (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))
+    ))
 
 (defn wait-until-overview-ready []
   (let [overview (xpath "//span[contains(text(),'Overview')]")

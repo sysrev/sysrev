@@ -55,6 +55,9 @@
 (def submit-new-email-address (xpath "//button[@id='new-email-address-submit']"))
 (def make-primary-button (xpath "//button[@id='make-primary-button']"))
 (def delete-email-button (xpath "//button[@id='delete-email-button']"))
+
+;; opt-in for public reviewer
+(def opt-in-toggle (xpath "//input[@id='opt-in-public-reviewer']"))
 ;;;
 ;;; NOTE: Compensation entries should not be deleted like this except in testing.
 ;;;
@@ -637,45 +640,94 @@
   []
   (count (taxi/find-elements (xpath "//h4[@class='email-entry']"))))
 
-(deftest-browser create-user-verify-email-addresses
+(defn your-projects-count
+  []
+  (- (count (taxi/find-elements (xpath "//div[@id='your-projects']//h4")))
+     1))
+
+(deftest-browser create-user-verify-email-and-invite
   (let [test-user {:email "foo@insilica.co"
                    :password "foobar"}
         new-email-address "bar@insilica.co"]
-    (try
-      (alter-var-root #'sysrev.sendgrid/send-template-email
-                      (fn [send-template-email]
-                        (fn [to subject message
-                             & {:keys [from template-id substitutions]}]
-                          (println "No email was actually sent"))))
-      ;; User registers
-      (nav/register-user (:email test-user) (:password test-user))
-      ;; verify the email address
-
-      (let [{:keys [user-id email]} (users/get-user-by-email (:email test-user))
-            {:keys [verify-code]} (users/read-email-verification-code user-id email)]
-        (nav/go-route (str "/user/settings/email/" verify-code))
-        (email-verified? email)
-        ;; add a new email address
-        (b/click add-new-email-address)
-        ;; check for a basic error
-        (b/click submit-new-email-address)
-        (is (s/check-for-error-message "New email address can not be blank!"))
-        ;; add a new email address
-        (taxi/clear new-email-address-input)
-        (b/set-input-text-per-char new-email-address-input new-email-address)
-        (b/click submit-new-email-address)
-        (is (email-unverfied? new-email-address))
-        ;; verify new email address
-        (nav/go-route (str "/user/settings/email/"
-                           (:verify-code (users/read-email-verification-code user-id new-email-address))))
-        (is (email-verified? new-email-address))
-        ;;make this email address primary
-        (make-primary new-email-address)
-        (primary? new-email-address)
-        ;; delete the other email
-        (delete-email-address email)
-        ;; the email count should be 1
-        (is (= 1 (email-address-count))))
-      :cleanup
-      (b/delete-test-user :email (:email test-user)))))
+    (alter-var-root #'sysrev.sendgrid/send-template-email
+                    (fn [send-template-email]
+                      (fn [to subject message
+                           & {:keys [from template-id substitutions]}]
+                        (println "No email was actually sent"))))
+    ;; create the test user
+    (b/create-test-user)
+    ;; User registers
+    (nav/register-user (:email test-user) (:password test-user))
+    ;; the user can't be listed as a public reviewer
+    (nav/go-route "/user/settings")
+    (b/wait-until-exists opt-in-toggle)
+    (is (taxi/attribute opt-in-toggle "disabled"))
+    ;; verify the email address
+    (let [{:keys [user-id email]} (users/get-user-by-email (:email test-user))
+          {:keys [verify-code]} (users/read-email-verification-code user-id email)]
+      (nav/go-route (str "/user/settings/email/" verify-code))
+      (email-verified? email)
+      ;; add a new email address
+      (b/click add-new-email-address)
+      ;; check for a basic error
+      (b/click submit-new-email-address)
+      (is (s/check-for-error-message "New email address can not be blank!"))
+      ;; add a new email address
+      (taxi/clear new-email-address-input)
+      (b/set-input-text-per-char new-email-address-input new-email-address)
+      (b/click submit-new-email-address)
+      (is (email-unverfied? new-email-address))
+      ;; verify new email address
+      (nav/go-route (str "/user/settings/email/"
+                         (:verify-code (users/read-email-verification-code user-id new-email-address))))
+      (is (email-verified? new-email-address))
+      ;;make this email address primary
+      (make-primary new-email-address)
+      (primary? new-email-address)
+      ;; make the original email primary again
+      (make-primary (:email test-user))
+      (primary? (:email test-user))
+      ;; delete the other email
+      (delete-email-address new-email-address)
+      ;; the email count should be 1
+      (is (= 1 (email-address-count)))
+      ;; opt-in as a public reviewer
+      (nav/go-route "/user/settings")
+      (b/wait-until-exists opt-in-toggle)
+      ;; due to the hacky nature of React Semantic UI toggle buttons, you click the label, not the input
+      (b/click (xpath "//label[@for='opt-in-public-reviewer']"))
+      ;; go to the users page and see if we are listed
+      (nav/go-route "/users")
+      (b/wait-until-exists (xpath "//a[contains(text(),'foo')]"))
+      (is (b/exists? (xpath "//a[contains(text(),'foo')]")))
+      ;; log in with another user and create a project
+      (nav/log-in)
+      (nav/new-project "Invitation Test")
+      ;; go to user and invite foo
+      (nav/go-route "/users")
+      (b/click (xpath "//div[@role='listbox']"))
+      (b/click (xpath "//span[contains(text(),'Invitation Test')]/ancestor::div[@role='option']"))
+      (b/click (xpath "//button[contains(text(),'Invite')]"))
+      (b/wait-until-exists (xpath "//div[contains(text(),'This user was invited as a paid-reviewer to Invitation Test')]"))
+      (is (b/exists? (xpath "//div[contains(text(),'This user was invited as a paid-reviewer to Invitation Test')]")))
+      ;; log in as foo and check invitation
+      (nav/log-in (:email test-user) (:password test-user))
+      ;; confirm we aren't a member of Invitation Test
+      (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))
+      (is (= 0 (your-projects-count)))
+      (nav/go-route "/user/settings")
+      (b/click (xpath "//a[@href='/user/settings/invitations']"))
+      ;; accept the invitation
+      (b/click (xpath "//button[contains(text(),'Accept')]"))
+      (b/wait-until-exists (xpath "//div[contains(text(),'You accepted this invitation')]"))
+      (is (b/exists? (xpath "//div[contains(text(),'You accepted this invitation')]")))
+      ;; are we now a member of at least one project?
+      (nav/go-route "/")
+      (is (= 1 (your-projects-count)))
+      ))
+  :cleanup
+  (let [test-user {:email "foo@insilica.co"
+                   :password "foobar"}]
+    (b/delete-test-user :email (:email test-user))
+    (b/delete-test-user)))
 

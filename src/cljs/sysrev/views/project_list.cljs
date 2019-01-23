@@ -35,7 +35,10 @@
   (with-loader [[:identity]] {}
     (when (or (not-empty projects) (true? member?))
       [:div.ui.segments.projects-list
-       {:class (if member? "member" "non-member")}
+       {:class (if member? "member" "non-member")
+        :id (if member?
+              "your-projects"
+              "available-projects")}
        (when (loading/item-loading? [:identity])
          [:div.ui.active.inverted.dimmer
           [:div.ui.loader]])

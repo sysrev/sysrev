@@ -139,7 +139,7 @@
 (defn User
   [{:keys [email user-id]}]
   [Grid
-   [Row {:style {:padding-bottom "0"}}
+   [Row
     [Column {:width 2}
      [Icon {:name "user icon"
             :size "huge"}]]
