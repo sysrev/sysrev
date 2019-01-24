@@ -32,7 +32,8 @@
           (not= current (path->full-url path))
           (do (b/wait-until-loading-completes :pre-wait 10)
               (log/info "navigating:" path)
-              (taxi/get-url (path->full-url path))
+              #_ (taxi/get-url (path->full-url path))
+              (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or wait-ms 50))))
     nil))
 
@@ -69,8 +70,7 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))
-    ))
+    (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))))
 
 (defn wait-until-overview-ready []
   (let [overview (xpath "//span[contains(text(),'Overview')]")
@@ -82,6 +82,7 @@
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/")
+  (b/wait-until-exists x/create-project-text)
   (b/set-input-text "input[placeholder='Project Name']" project-name)
   (b/click (xpath "//button[text()='Create']"))
   (Thread/sleep 100)

@@ -65,36 +65,41 @@
         error-message (r/atom "")
         confirm-message (r/atom "")
         invitations (r/cursor state [:invitations])
-        options-fn (fn [projects]
-                     (let [project-invitations (->> @invitations
-                                                    (filter #(= (:user-id %) user-id))
-                                                    (map :project-id))]
-                       (->> projects
-                            (filter #(some (partial = "admin") (:permissions %)))
-                            (filter #(not (some (partial = (:project-id %)) project-invitations)))
-                            (map #(hash-map :key (:project-id %) :text (:name %) :value (:project-id %)))
-                            (sort-by :key)
-                            (into []))))
-        create-invitation! (fn [invitee project-id]
-                             (let [project-name (->> @(subscribe [:self/projects])
-                                                     options-fn
-                                                     (filter #(= (:value %) project-id))
-                                                     first
-                                                     :text)]
-                               (reset! loading? true)
-                               (POST (str "/api/user/" @(subscribe [:self/user-id])
-                                          "/invitation/" invitee "/" project-id)
-                                     {:params {:description "paid-reviewer"}
-                                      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                      :handler (fn [response]
-                                                 (reset! confirm-message (str "You've invited this user to " project-name))
-                                                 (reset! loading? false)
-                                                 (get-project-invitations! @(subscribe [:self/user-id])))
-                                      :error-handler (fn [error-response]
-                                                       (reset! loading? false)
-                                                       (reset! error-message
-                                                               (str "There was an error inviting this user to "
-                                                                    project-name)))})))]
+        options-fn
+        (fn [projects]
+          (let [project-invitations (->> @invitations
+                                         (filter #(= (:user-id %) user-id))
+                                         (map :project-id))]
+            (->> projects
+                 (filter #(some (partial = "admin") (:permissions %)))
+                 (filter #(not (some (partial = (:project-id %)) project-invitations)))
+                 (map #(hash-map :key (:project-id %)
+                                 :text (:name %)
+                                 :value (:project-id %)))
+                 (sort-by :key)
+                 (into []))))
+        create-invitation!
+        (fn [invitee project-id]
+          (let [project-name (->> @(subscribe [:self/projects])
+                                  options-fn
+                                  (filter #(= (:value %) project-id))
+                                  first
+                                  :text)]
+            (reset! loading? true)
+            (POST (str "/api/user/" @(subscribe [:self/user-id])
+                       "/invitation/" invitee "/" project-id)
+                  {:params {:description "paid-reviewer"}
+                   :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                   :handler (fn [response]
+                              (reset! confirm-message
+                                      (str "You've invited this user to " project-name))
+                              (reset! loading? false)
+                              (get-project-invitations! @(subscribe [:self/user-id])))
+                   :error-handler (fn [error-response]
+                                    (reset! loading? false)
+                                    (reset! error-message
+                                            (str "There was an error inviting this user to "
+                                                 project-name)))})))]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -102,16 +107,16 @@
           (when-not (empty? options)
             [:div
              [:div {:style {:display "inline-block"}}
-              "Invite this user to " [:div {:style
-                                            {:display "inline-block"
-                                             :padding-left "0.5em"}}
-                                      [Select {:options options
-                                                    :on-change (fn [e f]
-                                                                 (reset! project-id ($ f :value)))
-                                                    :size "tiny"
-                                                    :disabled (or @loading? @retrieving-invitations?)
-                                                    :value @project-id
-                                                    :placeholder "Select Project"}]]]
+              "Invite this user to "
+              [:div {:style {:display "inline-block"
+                             :padding-left "0.5em"}}
+               [Select {:options options
+                        :on-change (fn [e f]
+                                     (reset! project-id ($ f :value)))
+                        :size "tiny"
+                        :disabled (or @loading? @retrieving-invitations?)
+                        :value @project-id
+                        :placeholder "Select Project"}]]]
              (when-not (nil? @project-id)
                [:div {:style {:padding-top "1em"}}
                 [Button {:on-click #(do
