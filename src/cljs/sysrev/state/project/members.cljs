@@ -59,15 +59,6 @@
        (in? permissions "resolve"))))
 
 (reg-sub
- :member/articles
- (fn [[_ user-id project-id]]
-   [(subscribe [:project/raw project-id])
-    (subscribe [:self/user-id])])
- (fn [[project self-id] [_ user-id _]]
-   (let [user-id (or user-id self-id)]
-     (get-in project [:member-articles user-id]))))
-
-(reg-sub
  :member/include-count
  (fn [[_ user-id project-id]]
    [(subscribe [::member user-id project-id])])

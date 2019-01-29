@@ -10,7 +10,8 @@
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as label]
+            [sysrev.label.answer :as answer]
             [sysrev.web.routes.api.core :refer [webapi-get webapi-post]]
             sysrev.web.routes.api.handlers
             [sysrev.db.queries :as q]
@@ -168,7 +169,7 @@
         {:keys [project-id]
          :as project} (project/create-project "test-check-allow-answers")]
     (try
-      (labels/add-label-entry-boolean
+      (label/add-label-entry-boolean
        project-id {:name "include" :question "include?" :short-label "Include"
                    :inclusion-value true :required true})
       (let [response (webapi-post "import-pmids"
@@ -187,7 +188,7 @@
                 do-query first :label-id)]
         (is (s/valid? ::sc/article-id article-id))
         (is (s/valid? ::sc/label-id label-id))
-        (labels/set-user-article-labels
+        (answer/set-user-article-labels
          user-id article-id {label-id true}
          :imported? false
          :change? false

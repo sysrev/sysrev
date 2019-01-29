@@ -14,7 +14,7 @@
             [sysrev.web.index :refer [set-web-asset-path]]
             [sysrev.db.core :as db]
             [sysrev.db.users :as users]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.db.migration :as migrate]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [shell]]

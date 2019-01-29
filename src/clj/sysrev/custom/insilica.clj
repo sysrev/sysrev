@@ -1,7 +1,7 @@
 (ns sysrev.custom.insilica
   (:require [sysrev.db.core :refer [do-query with-transaction]]
             [sysrev.article.core :as article]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
             [sysrev.clone-project :as clone]

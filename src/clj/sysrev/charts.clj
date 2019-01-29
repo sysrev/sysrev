@@ -1,7 +1,7 @@
 (ns sysrev.charts
   (:require [sysrev.db.core :refer [with-project-cache]]
             [sysrev.db.project :as project]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.shared.transit :as sr-transit]))
 
 ;; Paul Tol colors: https://personal.sron.nl/~pault/
@@ -156,9 +156,7 @@
 (defn process-label-counts [project-id]
   (with-project-cache
     project-id [:member-label-counts]
-    (let [article-labels (->> (labels/query-public-article-labels project-id)
-                              (labels/filter-recent-public-articles project-id nil)
-                              vals)
+    (let [article-labels (vals (labels/query-public-article-labels project-id))
           labels (project/project-labels project-id)
           label-ids (->> labels
                          keys

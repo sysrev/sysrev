@@ -20,7 +20,8 @@
             [sysrev.db.files :as files]
             [sysrev.db.funds :as funds]
             [sysrev.db.invitation :as invitation]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
+            [sysrev.label.define :as ldefine]
             [sysrev.db.markdown :as markdown]
             [sysrev.db.plans :as plans]
             [sysrev.db.project :as project]
@@ -626,7 +627,7 @@
   (db/with-transaction
     (let [client-labels (set (vals labels-map))
           all-labels-valid? (->> client-labels
-                                 (map #(b/valid? % (labels/label-validations %)))
+                                 (map #(b/valid? % (ldefine/label-validations %)))
                                  (every? true?))]
       ;; labels must be valid
       (if all-labels-valid?
@@ -661,7 +662,7 @@
         {:result {:valid? false
                   :labels (->> client-labels
                                ;; validate each label
-                               (map #(b/validate % (labels/label-validations %)))
+                               (map #(b/validate % (ldefine/label-validations %)))
                                ;; get the label map with attached errors
                                (map second)
                                ;; rename bouncer.core/errors -> errors

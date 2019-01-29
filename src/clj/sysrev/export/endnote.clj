@@ -8,7 +8,7 @@
             [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
             [sysrev.shared.util :as u :refer [in? map-values]]
             [sysrev.db.queries :as q]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.article.core :as article]
             [sysrev.source.endnote :refer
              [load-endnote-record parse-endnote-file]]

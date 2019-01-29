@@ -10,7 +10,7 @@
             [sysrev.db.core :refer [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
             [sysrev.shared.article-list :as alist]

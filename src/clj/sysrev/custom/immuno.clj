@@ -11,7 +11,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query do-execute]]
             [sysrev.db.users :as users]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.util :refer [xml-find]]
             [clojure.string :as str]
             [sysrev.db.queries :as q]

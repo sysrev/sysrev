@@ -6,7 +6,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.db.project :as project]
             [sysrev.shared.util :refer [map-values in?]]
             [clojure.set :as set]))

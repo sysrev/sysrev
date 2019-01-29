@@ -11,7 +11,8 @@
             [sysrev.db.export :as export]
             [sysrev.article.core :as article]
             [sysrev.db.documents :as docs]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
+            [sysrev.label.answer :as answer]
             [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
             [sysrev.db.files :as files]
@@ -235,7 +236,7 @@
              (assert (or change? resolve?
                          (not (labels/user-article-confirmed? user-id article-id))))
              (update-user-default-project request)
-             (labels/set-user-article-labels user-id article-id label-values
+             (answer/set-user-article-labels user-id article-id label-values
                                              :imported? false
                                              :confirm? confirm?
                                              :change? change?
@@ -256,15 +257,6 @@
                   :as body} (-> request :body)]
              (article/set-user-article-note article-id user-id name content)
              {:result body}))))
-
-(dr (GET "/api/member-articles/:user-id" request
-         (wrap-authorize
-          request {:allow-public true}
-          (let [user-id (-> request :params :user-id Integer/parseInt)
-                project-id (active-project request)]
-            (update-user-default-project request)
-            {:result (sr-transit/encode-member-articles
-                      (labels/query-member-articles project-id user-id))}))))
 
 ;; Returns map with full information on an article
 (dr (GET "/api/article-info/:article-id" request

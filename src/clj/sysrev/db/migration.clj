@@ -14,17 +14,15 @@
              [add-project-member set-member-permissions
               default-project-settings]]
             [sysrev.article.core :as article]
-            [sysrev.db.users :refer
-             [get-user-by-email set-user-permissions generate-api-token create-email-verification!
-              current-email-entry]]
-            [sysrev.db.labels :refer [add-label-entry-boolean]]
+            [sysrev.db.users :as users]
+            [sysrev.label.core :as label]
+            [sysrev.label.answer :as answer]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
             [sysrev.source.endnote :refer [load-endnote-record]]
             [sysrev.pubmed :refer
              [extract-article-location-entries parse-pmid-xml]]
             [sysrev.db.queries :as q]
-            [sysrev.db.labels :as labels]
             [sysrev.source.core :as source]
             [sysrev.stripe :as stripe])
   (:import java.util.UUID))
@@ -157,7 +155,7 @@
           alabels
           (pmap
            (fn [alabel]
-             (let [inclusion (labels/label-answer-inclusion
+             (let [inclusion (answer/label-answer-inclusion
                               (:label-id alabel) (:answer alabel))]
                (-> (sqlh/update [:article-label :al])
                    (sset {:inclusion inclusion})
@@ -318,7 +316,7 @@
     (let [web-user (-> (select :user-id :email)
                        (from :web-user)
                        do-query)]
-      (doall (map #(create-email-verification!
+      (doall (map #(users/create-email-verification!
                     (:user-id %)
                     (:email %)
                     :principal true) web-user)))))

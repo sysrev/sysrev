@@ -8,7 +8,7 @@
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as p]
-            [sysrev.db.labels :as l]
+            [sysrev.label.core :as l]
             [sysrev.article.core :as a]
             [sysrev.article.assignment :as assign]
             [sysrev.shared.spec.core :as sc]

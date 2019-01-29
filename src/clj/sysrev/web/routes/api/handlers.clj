@@ -27,7 +27,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.web.routes.api.core :refer
              [def-webapi web-api-routes web-api-routes-order]]
-            [sysrev.db.labels :as labels]))
+            [sysrev.label.core :as labels]))
 
 ;; weird bug in cider:
 ;; If you (run-tests) in sysrev.test.web.routes.api.handlers

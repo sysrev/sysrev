@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [clojure.test :refer :all]
             [sysrev.db.core :as db]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]

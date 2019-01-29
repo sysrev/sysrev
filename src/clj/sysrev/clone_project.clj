@@ -8,7 +8,7 @@
              [do-query do-execute with-transaction to-jsonb]]
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.db.documents :as docs]
             [sysrev.db.queries :as q]
             [sysrev.db.migration :as migrate]

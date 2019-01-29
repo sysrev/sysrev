@@ -152,18 +152,6 @@
              {:db (assoc-in db [:data :project project-id :sources]
                             sources)}))
 
-(def-data :member/articles
-  :loaded? (fn [db project-id user-id]
-             (-> (get-in db [:data :project project-id :member-articles])
-                 (contains? user-id)))
-  :uri (fn [project-id user-id] (str "/api/member-articles/" user-id))
-  :content (fn [project-id user-id] {:project-id project-id})
-  :prereqs (fn [project-id user-id] [[:identity] [:project project-id]])
-  :process
-  (fn [{:keys [db]} [project-id user-id] result]
-    {:db (assoc-in db [:data :project project-id :member-articles user-id]
-                   (sr-transit/decode-member-articles result))}))
-
 (reg-event-db
  :project/clear-data
  [trim-v]

@@ -10,7 +10,7 @@
              [do-query do-execute with-transaction to-jsonb clear-project-cache sql-now]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as labels]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.xpath :as x :refer [xpath]]

@@ -6,7 +6,7 @@
         sysrev.db.queries
         sysrev.db.documents
         sysrev.db.users
-        sysrev.db.labels
+        sysrev.label.core
         sysrev.db.project
         sysrev.db.migration
         sysrev.db.export

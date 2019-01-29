@@ -1,5 +1,6 @@
 (ns sysrev.custom.ebtc
-  (:require [sysrev.db.labels :as labels]
+  (:require [sysrev.label.core :as labels]
+            [sysrev.label.answer :as answer]
             [clojure.math.combinatorics :as combo]
             [clojure-csv.core :as csv]
             [sysrev.shared.util :refer [in?]]
@@ -9,7 +10,7 @@
   (let [articles (labels/project-included-articles project-id)
         combos
         (->> label-ids
-             (mapv #(->> (labels/label-possible-values %)
+             (mapv #(->> (answer/label-possible-values %)
                          (concat [nil]) distinct))
              (apply combo/cartesian-product))
         get-article-combos

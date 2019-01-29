@@ -14,7 +14,8 @@
              [active-db do-query do-execute to-sql-array sql-now to-jsonb
               with-project-cache clear-project-cache]]
             [sysrev.db.project :as project]
-            [sysrev.db.labels :as labels]
+            [sysrev.label.core :as label]
+            [sysrev.label.answer :as answer]
             [sysrev.db.queries :as q]
             [sysrev.db.annotations :as ann]
             [sysrev.shared.util :as sutil :refer [in? map-values]]
@@ -54,7 +55,7 @@
                (map (fn [article-id]
                       {article-id
                        {:consensus
-                        (labels/article-consensus-status project-id article-id)}}))
+                        (label/article-consensus-status project-id article-id)}}))
                (apply merge {}))
           anotes
           (-> (q/select-project-articles
@@ -145,7 +146,7 @@ WHERE project_id=%d
     (boolean? inclusion)
     (filter
      (fn [entry]
-       (let [answer-inclusion (labels/label-answer-inclusion
+       (let [answer-inclusion (answer/label-answer-inclusion
                                label-id (:answer entry))]
          (= inclusion answer-inclusion))))))
 
