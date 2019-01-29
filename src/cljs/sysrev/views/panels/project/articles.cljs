@@ -5,7 +5,6 @@
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v reg-fx]]
             [re-frame.db :refer [app-db]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :refer [project-uri active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list.base :as al]
@@ -177,10 +176,9 @@
   ;; TODO: function
   nil)
 
-(when use-new-article-list?
-  (defmethod panel-content [:project :project :articles] []
-    (fn [child]
-      (when-let [project-id @(subscribe [:active-project-id])]
-        [:div.project-content
-         [ArticleListPanel (get-context)]
-         child]))))
+(defmethod panel-content [:project :project :articles] []
+  (fn [child]
+    (when-let [project-id @(subscribe [:active-project-id])]
+      [:div.project-content
+       [ArticleListPanel (get-context)]
+       child])))

@@ -7,7 +7,6 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
             [sysrev.markdown :as markdown :refer [ProjectDescription]]
@@ -53,14 +52,8 @@
 
 (defn nav-article-status [[inclusion group-status]]
   (when-let [project-id @(subscribe [:active-project-id])]
-    (if use-new-article-list?
-      (articles/load-consensus-settings :status group-status
-                                        :inclusion inclusion)
-      (do (dispatch [:navigate [:project :project :articles]
-                     {:project-id project-id}])
-          (dispatch [:public-labels/reset-filters [:group-status :inclusion-status]])
-          (dispatch [:public-labels/set-group-status group-status])
-          (dispatch [:public-labels/set-inclusion-status inclusion])))))
+    (articles/load-consensus-settings :status group-status
+                                      :inclusion inclusion)))
 
 (defn- label-status-help-column [colors]
   (let [scounts @(subscribe [:project/status-counts])

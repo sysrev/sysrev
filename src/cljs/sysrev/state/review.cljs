@@ -3,7 +3,6 @@
              [subscribe reg-sub reg-sub-raw
               reg-event-db reg-event-fx trim-v reg-fx]]
             [reagent.ratom :refer [reaction]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.nav :refer [active-panel]]
@@ -70,28 +69,17 @@
  (fn [panel]
    (= panel [:project :review])))
 
-;; TODO: replace :public-labels subs with :project-articles
 (reg-sub
  :review/editing-id
  :<- [:review/on-review-task?]
  :<- [:review/task-id]
- :<- [:public-labels/editing?]
- :<- [:public-labels/article-id]
  :<- [:project-articles/editing?]
  :<- [:project-articles/article-id]
- :<- [:user-labels/editing?]
- :<- [:user-labels/article-id]
  (fn [[on-review-task? task-aid
-       public-editing? public-aid
-       project-editing? project-aid
-       user-editing? user-aid]]
+       project-editing? project-aid]]
    (cond (and on-review-task?
               (integer? task-aid))  task-aid
-         (and (not use-new-article-list?)
-              public-editing?)      public-aid
-         (and use-new-article-list?
-              project-editing?)     project-aid
-         user-editing?              user-aid)))
+         project-editing?           project-aid)))
 
 (reg-sub
  :review/editing?
@@ -101,16 +89,10 @@
 
 (reg-sub
  :review/resolving?
- :<- [:public-labels/article-id]
- :<- [:public-labels/resolving?]
  :<- [:project-articles/article-id]
  :<- [:project-articles/resolving?]
- (fn [[public-aid public-resolving?
-       project-aid project-resolving?]]
-   (boolean
-    (if (not use-new-article-list?)
-      (and public-aid public-resolving?)
-      (and project-aid project-resolving?)))))
+ (fn [[project-aid project-resolving?]]
+   (boolean (and project-aid project-resolving?))))
 
 (reg-sub
  ::labels

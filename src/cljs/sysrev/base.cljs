@@ -75,5 +75,3 @@
              nil))))))
 
 (def default-db {})
-
-(def use-new-article-list? true)

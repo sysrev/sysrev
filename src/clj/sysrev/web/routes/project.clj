@@ -12,6 +12,7 @@
             [sysrev.article.core :as article]
             [sysrev.db.documents :as docs]
             [sysrev.db.labels :as labels]
+            [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
             [sysrev.db.files :as files]
             [sysrev.db.article_list :as alist]
@@ -212,7 +213,7 @@
           request {:roles ["member"]}
           (update-user-default-project request)
           (if-let [{:keys [article-id today-count] :as task}
-                   (labels/get-user-label-task (active-project request)
+                   (assign/get-user-label-task (active-project request)
                                                (current-user-id request))]
             {:result
              (let [project-id (active-project request)
@@ -449,18 +450,6 @@
                 (response/header "Content-Type" "text/xml; charset=utf-8")
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
-
-(dr (GET "/api/public-labels" request
-         (wrap-authorize
-          request {:allow-public true}
-          (let [project-id (active-project request)
-                exclude-hours (if (= :dev (:profile env))
-                                nil nil)]
-            (update-user-default-project request)
-            {:result
-             (->> (labels/query-public-article-labels project-id)
-                  (labels/filter-recent-public-articles project-id exclude-hours)
-                  (sr-transit/encode-public-labels))}))))
 
 (dr (POST "/api/project-articles" request
           (wrap-authorize

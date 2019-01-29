@@ -80,19 +80,6 @@
     (when (vector? files)
       {:db (assoc-in db [:data :project project-id :files] files)})))
 
-;; TODO: disable after new article list ready
-(def-data :project/public-labels
-  :loaded? (fn [db project-id]
-             (-> (get-in db [:data :project project-id])
-                 (contains? :public-labels)))
-  :uri (fn [project-id] "/api/public-labels")
-  :content (fn [project-id] {:project-id project-id})
-  :prereqs (fn [project-id] [[:identity] [:project project-id]])
-  :process
-  (fn [{:keys [db]} [project-id] result]
-    {:db (assoc-in db [:data :project project-id :public-labels]
-                   (sr-transit/decode-public-labels result))}))
-
 (def-data :project/article-list-count
   :method :post
   :loaded? (fn [db project-id args]

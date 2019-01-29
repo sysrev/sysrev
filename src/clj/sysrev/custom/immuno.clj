@@ -15,7 +15,8 @@
             [sysrev.util :refer [xml-find]]
             [clojure.string :as str]
             [sysrev.db.queries :as q]
-            [sysrev.misc :refer [articles-matching-regex-clause]]
+            [sysrev.misc :refer [articles-matching-regex-clause
+                                 merge-article-labels]]
             [clojure.java.jdbc :as j]))
 
 (defn match-article-id
@@ -90,7 +91,7 @@
                :article-id)]
       (when (every? :enabled articles)
         (assert single-id)
-        (labels/merge-article-labels article-ids)
+        (merge-article-labels article-ids)
         (doseq [article-id article-ids]
           (q/set-article-enabled-where
            (= article-id single-id)

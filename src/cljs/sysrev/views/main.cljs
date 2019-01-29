@@ -22,8 +22,6 @@
             [sysrev.views.panels.project.main]
             [sysrev.views.panels.project.overview]
             [sysrev.views.panels.project.articles]
-            [sysrev.views.panels.project.public-labels-old]
-            [sysrev.views.panels.project.user-labels-old]
             [sysrev.views.panels.project.define-labels]
             [sysrev.views.panels.project.settings]
             [sysrev.views.panels.project.invite-link]

@@ -1,6 +1,5 @@
 (ns sysrev.views.panels.project.common
   (:require [re-frame.core :as re-frame :refer [subscribe dispatch]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.views.components :refer
              [primary-tabbed-menu secondary-tabbed-menu dropdown-menu]]
@@ -117,16 +116,6 @@
            :action (project-uri project-id "/articles")
            :disabled (not ready?)
            :tooltip not-ready-msg}
-          (when (not use-new-article-list?)
-            {:tab-id [:user :labels]
-             :content [:span
-                       (when-not mobile?
-                         [:span [:i.user.icon] " "])
-                       (if mobile?
-                         "Answers" "Saved Answers")]
-             :action (project-uri project-id "/user")
-             :disabled (or (not ready?) (not member?))
-             :tooltip (or not-ready-msg not-member-msg)})
           {:tab-id [:review]
            :content [:span
                      (when-not mobile?

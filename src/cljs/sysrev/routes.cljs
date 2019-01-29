@@ -2,7 +2,6 @@
   (:require [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
             [re-frame.db :refer [app-db]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.nav :as nav :refer [nav nav-scroll-top nav-redirect]]
             [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
             [sysrev.views.article-list.base :as article-list]
@@ -49,133 +48,50 @@
  (let [project-id @(subscribe [:active-project-id])]
    (go-project-panel project-id)))
 
-(if use-new-article-list?
-  (do
-    (sr-defroute-project
-     articles "/articles" [project-id]
-     (let [project-id @(subscribe [:active-project-id])
-           panel [:project :project :articles]
-           context (project-articles/get-context)
-           active-panel @(subscribe [:active-panel])
-           panel-changed? (not= panel active-panel)
-           count-item @(subscribe [::article-list/count-query context])
-           data-item @(subscribe [::article-list/articles-query context])
-           set-panel [:set-active-panel panel]
-           have-project? @(subscribe [:have? [:project project-id]])
-           load-params [:article-list/load-url-params context]
-           sync-params #(article-list/sync-url-params context)
-           set-transition [::article-list/set-recent-nav-action
-                           context :transition]]
-       (cond
-         (not have-project?)
-         (do (dispatch [:require [:project project-id]])
-             (dispatch
-              [:data/after-load [:project project-id] :project-articles-project
-               (list load-params set-panel)]))
+(sr-defroute-project
+ articles "/articles" [project-id]
+ (let [project-id @(subscribe [:active-project-id])
+       panel [:project :project :articles]
+       context (project-articles/get-context)
+       active-panel @(subscribe [:active-panel])
+       panel-changed? (not= panel active-panel)
+       count-item @(subscribe [::article-list/count-query context])
+       data-item @(subscribe [::article-list/articles-query context])
+       set-panel [:set-active-panel panel]
+       have-project? @(subscribe [:have? [:project project-id]])
+       load-params [:article-list/load-url-params context]
+       sync-params #(article-list/sync-url-params context)
+       set-transition [::article-list/set-recent-nav-action
+                       context :transition]]
+   (cond
+     (not have-project?)
+     (do (dispatch [:require [:project project-id]])
+         (dispatch
+          [:data/after-load [:project project-id] :project-articles-project
+           (list load-params set-panel)]))
 
-         panel-changed?
-         (do (dispatch
-              [:data/after-load data-item :project-articles-route
-               (list set-panel #(js/setTimeout sync-params 25))])
-             (dispatch set-transition)
-             (article-list/require-list context)
-             (article-list/reload-list context))
+     panel-changed?
+     (do (dispatch
+          [:data/after-load data-item :project-articles-route
+           (list set-panel #(js/setTimeout sync-params 25))])
+         (dispatch set-transition)
+         (article-list/require-list context)
+         (article-list/reload-list context))
 
-         :else (do (dispatch load-params)))))
+     :else (do (dispatch load-params)))))
 
-    (sr-defroute-project
-     articles-id "/articles/:article-id" [project-id article-id]
-     (let [project-id @(subscribe [:active-project-id])
-           panel [:project :project :articles]
-           article-id (parse-integer article-id)
-           item [:article project-id article-id]
-           set-panel [:set-active-panel panel]
-           have-project? @(subscribe [:have? [:project project-id]])]
-       (dispatch set-panel)
-       (dispatch (project-articles/show-article article-id))
-       (dispatch [:require item])
-       (dispatch [:reload item]))))
-  (do
-    (sr-defroute-project
-     articles "/articles" [project-id]
-     (let [project-id @(subscribe [:active-project-id])
-           panel [:project :project :articles]
-           item [:project/public-labels project-id]
-           set-panel [:set-active-panel [:project :project :articles]]
-           ensure-visible #(ensure-dom-elt-visible-soon
-                            ".article-list-view div.ui.segment.article-nav")
-           on-article? (and (= @(subscribe [:active-panel]) panel)
-                            @(subscribe [:public-labels/article-id]))
-           data-loaded? @(subscribe [:have? item])
-           have-project? @(subscribe [:have? [:project project-id]])]
-       (when (not have-project?)
-         (dispatch set-panel))
-       (if (and on-article? data-loaded?)
-         (do (dispatch set-panel)
-             (dispatch [:public-labels/hide-article])
-             (ensure-visible))
-         (do (dispatch
-              [:data/after-load item :project-articles-route
-               (list set-panel
-                     [:public-labels/hide-article]
-                     ensure-visible)])
-             (dispatch [:require item])
-             (dispatch [:reload item])))))
-
-    (sr-defroute-project
-     articles-id "/articles/:article-id" [project-id article-id]
-     (let [project-id @(subscribe [:active-project-id])
-           panel [:project :project :articles]
-           article-id (parse-integer article-id)
-           item [:article project-id article-id]
-           set-panel [:set-active-panel panel]
-           have-project? @(subscribe [:have? [:project project-id]])]
-       (when (not have-project?)
-         (dispatch set-panel))
-       (dispatch
-        [:data/after-load item :project-articles-route
-         (list set-panel
-               [:public-labels/show-article article-id]
-               #(ensure-dom-elt-visible-soon
-                 ".article-view div.ui.segment.article-nav"))])
-       (dispatch [:require item])
-       (dispatch [:reload item])))
-
-    (sr-defroute-project
-     project-user "/user" [project-id]
-     (let [project-id @(subscribe [:active-project-id])
-           user-id @(subscribe [:self/user-id])
-           item [:member/articles project-id user-id]
-           set-panel [:set-active-panel [:project :user :labels]]]
-       (if user-id
-         (do (dispatch
-              [:data/after-load item :user-articles-route
-               (list set-panel
-                     [:user-labels/hide-article]
-                     #(ensure-dom-elt-visible-soon
-                       ".article-list-view div.ui.segment.article-nav"))])
-             (dispatch [:require item])
-             (dispatch [:reload item]))
-         (dispatch set-panel))))
-
-    (sr-defroute-project
-     project-user-article "/user/article/:article-id" [project-id article-id]
-     (let [project-id @(subscribe [:active-project-id])
-           panel [:project :user :labels]
-           article-id (parse-integer article-id)
-           item [:article project-id article-id]
-           set-panel [:set-active-panel panel]
-           have-project? @(subscribe [:have? [:project project-id]])]
-       (when (not have-project?)
-         (dispatch set-panel))
-       (dispatch
-        [:data/after-load item :user-articles-route
-         (list set-panel
-               [:user-labels/show-article article-id]
-               #(ensure-dom-elt-visible-soon
-                 ".article-view div.ui.segment.article-nav"))])
-       (dispatch [:require item])
-       (dispatch [:reload item])))))
+(sr-defroute-project
+ articles-id "/articles/:article-id" [project-id article-id]
+ (let [project-id @(subscribe [:active-project-id])
+       panel [:project :project :articles]
+       article-id (parse-integer article-id)
+       item [:article project-id article-id]
+       set-panel [:set-active-panel panel]
+       have-project? @(subscribe [:have? [:project project-id]])]
+   (dispatch set-panel)
+   (dispatch (project-articles/show-article article-id))
+   (dispatch [:require item])
+   (dispatch [:reload item])))
 
 (sr-defroute-project
  project-labels-edit "/labels/edit" [project-id]

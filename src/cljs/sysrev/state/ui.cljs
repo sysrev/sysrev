@@ -1,7 +1,6 @@
 (ns sysrev.state.ui
   (:require [re-frame.core :refer
              [subscribe reg-sub reg-event-db reg-event-fx dispatch trim-v]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.state.nav :as nav]
             [sysrev.util :refer [dissoc-in]]))
 
@@ -146,11 +145,7 @@
  (fn [_]
    [(subscribe [:review/on-review-task?])
     (subscribe [:review/task-id])
-    (subscribe [:public-labels/article-id])
-    (subscribe [:user-labels/article-id])
     (subscribe [:project-articles/article-id])])
- (fn [[on-review? id-review id-public id-user id-project]]
+ (fn [[on-review? id-review id-project]]
    (or (and on-review? id-review)
-       (and (not use-new-article-list?) id-public)
-       (and (not use-new-article-list?) id-user)
-       (and use-new-article-list? id-project))))
+       id-project)))

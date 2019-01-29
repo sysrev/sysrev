@@ -5,7 +5,6 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub
               reg-event-db reg-event-fx reg-fx trim-v]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.loading :as loading]
             [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.state.nav :refer [active-panel project-uri]]
@@ -33,7 +32,6 @@
  ::add-label-value
  [trim-v]
  (fn [db [article-id label-id label-value]]
-   #_ (println (str "running add-label-value (\"" label-value "\")"))
    (let [current-values (get (review/active-labels db article-id) label-id)]
      (set-label-value db article-id label-id
                       (-> current-values (concat [label-value]) distinct vec)))))
@@ -43,7 +41,6 @@
  ::remove-label-value
  [trim-v]
  (fn [db [article-id label-id label-value]]
-   #_ (println (str "running remove-label-value (\"" label-value "\")"))
    (let [current-values (get (review/active-labels db article-id) label-id)]
      (set-label-value db article-id label-id
                       (->> current-values (remove (partial = label-value)) vec)))))
@@ -168,7 +165,8 @@
            {:id dom-id
             :on-click
             ;; this seems to cause problems now
-            (when false #_ touchscreen?
+            (when false
+              #_ touchscreen?
               ;; hide dropdown on click anywhere in main dropdown box
               (util/wrap-user-event
                #(when (or (= dom-id (-> % .-target .-id))
@@ -478,19 +476,10 @@
                            [:fetch [:article project-id article-id]])
                          (when (not on-review-task?)
                            [:review/disable-change-labels article-id])
-                         (when (and use-new-article-list?
-                                    @(subscribe [:project-articles/article-id]))
+                         (when @(subscribe [:project-articles/article-id])
                            (dispatch [:project-articles/reload-list])
                            (dispatch [:project-articles/hide-article])
-                           (util/scroll-top))
-                         #_
-                         (when @(subscribe [:user-labels/article-id])
-                           ;; Use setTimeout here to avoid immediately triggering
-                           ;; the :review/send-labels logic in sr-defroute before
-                           ;; state has been fully updated
-                           #(js/setTimeout
-                             (fn [] (nav-scroll-top (project-uri project-id "/user")))
-                             50)))
+                           (util/scroll-top)))
                    (remove nil?))}])))
         button (fn []
                  [:button.ui.right.labeled.icon.button.save-labels
@@ -636,13 +625,9 @@
     (when (not= panel [:project :project :articles])
       [:a.ui.tiny.primary.button
        {:class (if (util/full-size?) "labeled icon" nil)
-        :href
-        (when (not use-new-article-list?)
-          (project-uri project-id "/user"))
         :on-click
-        (when use-new-article-list?
-          (util/wrap-user-event
-           #(dispatch [:project-articles/load-preset :self])))
+        (util/wrap-user-event
+         #(dispatch [:project-articles/load-preset :self]))
         :tabIndex "-1"}
        (when (util/full-size?) [:i.user.icon])
        (if (util/full-size?) "View All Labels" "View Labels")])))

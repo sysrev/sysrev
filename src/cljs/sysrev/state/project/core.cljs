@@ -83,13 +83,6 @@
    [(subscribe [:project/settings project-id])])
  (fn [[settings]] (:public-access settings)))
 
-;; TODO: disable after new article list ready
-(reg-sub
- :project/public-labels
- (fn [[_ project-id]]
-   [(subscribe [:project/raw project-id])])
- (fn [[project]] (:public-labels project)))
-
 (reg-sub
  :project/document-paths
  (fn [[_ _ project-id]]

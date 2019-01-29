@@ -4,7 +4,6 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
-            [sysrev.base :refer [use-new-article-list?]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer
@@ -406,52 +405,51 @@
        [SingleArticlePanel context]
        [MultiArticlePanel context])]))
 
-(when use-new-article-list?
-  ;; Gets id of article currently being individually displayed
-  (reg-sub
-   :article-list/article-id
-   (fn [[_ context]]
-     [(subscribe [:active-panel])
-      (subscribe [::al/get context [:active-article]])])
-   (fn [[active-panel article-id] [_ context]]
-     (when (= active-panel (:panel context))
-       article-id)))
+;; Gets id of article currently being individually displayed
+(reg-sub
+ :article-list/article-id
+ (fn [[_ context]]
+   [(subscribe [:active-panel])
+    (subscribe [::al/get context [:active-article]])])
+ (fn [[active-panel article-id] [_ context]]
+   (when (= active-panel (:panel context))
+     article-id)))
 
-  (reg-event-fx
-   :article-list/set-recent-article
-   [trim-v]
-   (fn [{:keys [db]} [context article-id]]
-     {:db (al/set-state db context [:recent-article] article-id)}))
+(reg-event-fx
+ :article-list/set-recent-article
+ [trim-v]
+ (fn [{:keys [db]} [context article-id]]
+   {:db (al/set-state db context [:recent-article] article-id)}))
 
-  (reg-event-fx
-   :article-list/set-active-article
-   [trim-v]
-   (fn [{:keys [db]} [context article-id]]
-     {:dispatch [::al/set-active-article context article-id]}))
+(reg-event-fx
+ :article-list/set-active-article
+ [trim-v]
+ (fn [{:keys [db]} [context article-id]]
+   {:dispatch [::al/set-active-article context article-id]}))
 
-  (reg-sub
-   :article-list/editing?
-   (fn [[_ context article-id]]
-     [(subscribe [::al/get context [:active-article]])
-      (subscribe [::editing-allowed? context article-id])
-      (subscribe [:article/user-status article-id])
-      (subscribe [:review/change-labels? article-id (:panel context)])
-      (subscribe [::al/display-options context])])
-   (fn [[active-id can-edit? user-status change-labels? display]
-        [_ context article-id]]
-     (let [{:keys [self-only]} display]
-       (when (= article-id active-id)
-         (boolean
-          (and can-edit?
-               (or change-labels?
-                   (and #_ self-only
-                        (= user-status :unconfirmed)))))))))
+(reg-sub
+ :article-list/editing?
+ (fn [[_ context article-id]]
+   [(subscribe [::al/get context [:active-article]])
+    (subscribe [::editing-allowed? context article-id])
+    (subscribe [:article/user-status article-id])
+    (subscribe [:review/change-labels? article-id (:panel context)])
+    (subscribe [::al/display-options context])])
+ (fn [[active-id can-edit? user-status change-labels? display]
+      [_ context article-id]]
+   (let [{:keys [self-only]} display]
+     (when (= article-id active-id)
+       (boolean
+        (and can-edit?
+             (or change-labels?
+                 (and #_ self-only
+                      (= user-status :unconfirmed)))))))))
 
-  (reg-sub
-   :article-list/resolving?
-   (fn [[_ context article-id]]
-     [(subscribe [:article-list/editing? context article-id])
-      (subscribe [::resolving-allowed? context article-id])])
-   (fn [[editing? resolving-allowed?]]
-     (boolean
-      (and editing? resolving-allowed?)))))
+(reg-sub
+ :article-list/resolving?
+ (fn [[_ context article-id]]
+   [(subscribe [:article-list/editing? context article-id])
+    (subscribe [::resolving-allowed? context article-id])])
+ (fn [[editing? resolving-allowed?]]
+   (boolean
+    (and editing? resolving-allowed?))))
