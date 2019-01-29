@@ -148,8 +148,9 @@
                           @(subscribe [:view-field :article [article-id :visible-pdf]]))
             pdf-only? (and title visible-url filename
                            (= (str/trim title) (str/trim filename)))]
-        (when (= context :article-list)
-          (get-annotations article-id))
+        #_(when (= context :article-list)
+            (get-annotations article-id))
+        (get-annotations article-id)
         [annotator/AnnotationCapture
          annotator-context
          [:div
@@ -174,7 +175,7 @@
                 article-id @(subscribe [:article/title-render article-id])
                 {:label-class "large"}]
                [annotation/AnnotatedText
-                title annotations
+                annotations title
                 (if (= context :review)
                   "underline green"
                   "underline #909090")]))]
@@ -194,9 +195,10 @@
             (when-not (empty? abstract)
               (if true
                 #_ annotator-enabled?
-                [render-abstract article-id]
+                #_ [render-abstract article-id]
                 [annotation/AnnotatedText
-                 abstract annotations
+                 @(subscribe [:annotator/article project-id article-id])
+                 abstract
                  (when (= context :review)
                    "underline green")])))
           (when-not (empty? documents)
