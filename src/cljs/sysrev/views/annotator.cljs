@@ -517,6 +517,8 @@
         data (subscribe (annotator-data-item context))
         touchscreen? @(subscribe [:touchscreen?])
         update-selection
+        ;; need to be checked here because otherwise it would disable highlights altogether
+        ;; to disable it anywhere else
         (when (and @(subscribe [:self/logged-in?])
                    @(subscribe [:self/member?])
                    @(subscribe [:annotator/enabled context]))

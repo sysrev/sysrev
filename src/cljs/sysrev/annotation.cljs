@@ -12,7 +12,7 @@
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
-            [sysrev.util :as util])
+            [sysrev.util :as util :refer [vector->hash-map]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def semantic-ui js/semanticUIReact)
@@ -118,7 +118,7 @@
 
 (defn annotations->word-indices-maps
   "Given a string and a vector of annotations maps of the form
-  [{:word <string :annotation <string>}..]
+  [{:word <string> :annotation <string>}..]
 
   return a vector of maps for the form
   [{:word <string> :index [[<begin> <end>] ..] :annotation <string>} ...]
@@ -222,7 +222,7 @@
               :content content}]
       highlight-text)))
 
-(defn AnnotatedText
+#_(defn AnnotatedText
   [text annotations & [text-decoration]]
   (let [annotations (process-annotations annotations text)]
     [:div.annotated-text
@@ -238,3 +238,92 @@
                               text-decoration
                               (merge {:text-decoration text-decoration}))])))
           annotations)]))
+
+(defn convert-annotations
+  "Given an annotations map in the form
+  {<id> ;integer
+    {:semantic-class <string> ; semantic class, optionally nil
+     :annotation <string> ; annotation for popup
+     :context {:start-offset <integer>
+               :end-offset <integer>
+               :selection <string> ; the text corresponding to the annotation
+               :text-context <string> ; the context from which a selection was taken}}}
+  and a text that contains text-context, return a set of annotations in the form
+  [{:start <integer> ;; start index in text
+    :end   <integer> ;; end index in text
+    :annotation <string> ;; will be contain semantic-class: annotation}]"
+  [annotations text]
+  (let [;; just deal with the vals
+        annotations (vals annotations)
+        ;; get all contexts and determine their relative offset in selection
+        contexts (->> annotations
+                      (map #(get-in % [:context :text-context]))
+                      set
+                      ;;(map #(hash-map :word %))
+                      (map #(hash-map % (let [start (clojure.string/index-of
+                                                     text
+                                                     %)
+                                              end (+ start (count %))]
+                                          [start end])))
+                      ;;(#(annotation-indices % text))
+                      ;;(map (partial annotation-map->word-indices-maps text))
+                      ;;(map #(hash-map (:word %) (:index %)))
+                      (apply merge))
+        processed-annotations (map #(let [{:keys [selection context semantic-class annotation]} %
+                                          {:keys [start-offset end-offset text-context]} context
+                                          start (+ start-offset (first (get contexts text-context)))
+                                          end (+ end-offset (first (get contexts text-context)))
+                                          ]
+                                         (hash-map :start start
+                                                   :end end
+                                                   :semantic-class semantic-class
+                                                   :annotation annotation
+                                                   :selection selection
+                                                   :text-context text-context))
+                                      annotations)]
+    processed-annotations))
+
+(defn AnnotatedText
+  "Annotate text where annotations are of the form
+  [{:start <integer> ;; index where annotation starts in text
+    :end   <integer> ;; index where annotation ends in text
+    :semantic-class <string> ;; optionally nil,  semantic class, will be put in the popup bubble over highlighted text
+    :annotation <string> ;; optionally nil, a string with an annotation, will be put in the popup bubble over highlighted text"
+  [annotations text & [text-decoration]]
+  (let [annotations (convert-annotations annotations text)
+        max-index (- (count text) 1)
+        start-map (vector->hash-map annotations :start)
+        end-map (vector->hash-map annotations :end)
+        test-str (str "[:div.article-abstract "
+                      (->> (map-indexed
+                            (fn [idx item]
+                              (cond
+                                ;; on first item, but it is also begining of highlighted
+                                (and (= idx 0)
+                                     (get start-map idx))
+                                (str "[:div [:span {:style {:background-color \"black\" :color \"white\"}} \"" item)
+                                ;; on first item, no highlights
+                                (= idx 0)
+                                (str "[:div \"" item)
+                                ;; a new line
+                                (= item "\n")
+                                "\"] [:span {:dangerouslySetInnerHTML {:__html \"&nbsp;\"}}] [:div \""
+                                ;; on the last item, close out
+                                (= idx max-index)
+                                "\"]"
+                                ;; match for start index at idx
+                                (get start-map idx)
+                                (str "\" [:span {:style {:background-color \"black\" :color \"white\"}} \"" item)
+                                ;; match for end index at idx
+                                (get end-map (+ idx 1))
+                                (str item "\"]\"")
+                                ;; nothing special to be done
+                                :else
+                                item))
+                            ;;(clojure.string/replace text #"\n+" "\n")
+                            text)
+                           (apply str))
+                      "]")]
+    [:div (cljs.reader/read-string
+             test-str)]
+    #_[:div "foo"]))
