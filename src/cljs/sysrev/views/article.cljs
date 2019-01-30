@@ -5,6 +5,7 @@
             [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
+            [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
@@ -197,7 +198,13 @@
                 #_ annotator-enabled?
                 #_ [render-abstract article-id]
                 [annotation/AnnotatedText
-                 @(subscribe [:annotator/article project-id article-id])
+                 ;; annotations
+                 ;; todo: refactor so that unsaved-annotations and saved-annotation are saved in one location
+                 (let [saved-annotations (or (vals @(subscribe [:annotator/article project-id article-id]))
+                                             '())
+                       unsaved-annotation (-> (get-in @app-db [:state :panels [:project :review] :views :annotator])
+                                              vals first :new-annotation)]
+                   (filter #(not (nil? (get-in % [:selection]))) (conj saved-annotations unsaved-annotation)))
                  abstract
                  (when (= context :review)
                    "underline green")])))

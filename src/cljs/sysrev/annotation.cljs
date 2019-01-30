@@ -240,40 +240,30 @@
           annotations)]))
 
 (defn convert-annotations
-  "Given an annotations map in the form
-  {<id> ;integer
-    {:semantic-class <string> ; semantic class, optionally nil
-     :annotation <string> ; annotation for popup
-     :context {:start-offset <integer>
-               :end-offset <integer>
-               :selection <string> ; the text corresponding to the annotation
-               :text-context <string> ; the context from which a selection was taken}}}
+  "Given a coll of annotation maps in the form
+   {:semantic-class <string> ; semantic class, optionally nil
+    :annotation <string> ; annotation for popup
+    :context {:start-offset <integer>
+              :end-offset <integer>
+              :selection <string> ; the text corresponding to the annotation
+              :text-context <string> ; the context from which a selection was taken}}}
   and a text that contains text-context, return a set of annotations in the form
   [{:start <integer> ;; start index in text
     :end   <integer> ;; end index in text
     :annotation <string> ;; will be contain semantic-class: annotation}]"
   [annotations text]
-  (let [;; just deal with the vals
-        annotations (vals annotations)
-        ;; get all contexts and determine their relative offset in selection
+  (let [;; get all contexts and determine their relative offset in selection
         contexts (->> annotations
                       (map #(get-in % [:context :text-context]))
                       set
-                      ;;(map #(hash-map :word %))
-                      (map #(hash-map % (let [start (clojure.string/index-of
-                                                     text
-                                                     %)
+                      (map #(hash-map % (let [start (clojure.string/index-of text %)
                                               end (+ start (count %))]
                                           [start end])))
-                      ;;(#(annotation-indices % text))
-                      ;;(map (partial annotation-map->word-indices-maps text))
-                      ;;(map #(hash-map (:word %) (:index %)))
                       (apply merge))
         processed-annotations (map #(let [{:keys [selection context semantic-class annotation]} %
                                           {:keys [start-offset end-offset text-context]} context
                                           start (+ start-offset (first (get contexts text-context)))
-                                          end (+ end-offset (first (get contexts text-context)))
-                                          ]
+                                          end (+ end-offset (first (get contexts text-context)))]
                                          (hash-map :start start
                                                    :end end
                                                    :semantic-class semantic-class
