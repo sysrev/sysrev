@@ -13,6 +13,14 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
 
+(defn article-project-id
+  "Get project-id value from article-id."
+  [article-id]
+  (-> (select :project-id)
+      (from :article)
+      (where [:= :article-id article-id])
+      do-query first :project-id))
+
 (defn article-to-sql
   "Converts some fields in an article map to values that can be passed
   to honeysql and JDBC."

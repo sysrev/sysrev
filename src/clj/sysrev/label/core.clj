@@ -340,13 +340,9 @@
 
 (defn article-consensus-status [project-id article-id]
   (let [overall-id (project/project-overall-label-id project-id)
-        labels (project/project-labels project-id)
-        label-ids (keys labels)
-        consensus-ids
-        (->> label-ids (filter #(-> (get labels %) :consensus true?)))
-        alabels
-        (-> (query-public-article-labels project-id)
-            (get article-id))]
+        consensus-ids (project/project-consensus-label-ids project-id)
+        alabels (-> (query-public-article-labels project-id)
+                    (get article-id))]
     (cond (or (empty? alabels)
               (empty? (get-in alabels [:labels overall-id])))
           nil

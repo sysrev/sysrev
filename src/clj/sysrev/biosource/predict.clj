@@ -95,14 +95,16 @@
                           project-id predict-version-id)
           article-texts (get-article-texts false project-id label-id)
           article-ids (vec (keys article-texts))
+          request-body
+          (json/write-str
+           {"project_id" project-id
+            "feature" (str label-id)
+            "documents" (mapv #(get article-texts %) article-ids)})
           response
           (http/post
            (str api-host "sysrev/predictionService")
            {:content-type "application/json"
-            :body (json/write-str
-                   {"project_id" project-id
-                    "feature" (str label-id)
-                    "documents" (mapv #(get article-texts %) article-ids)})})
+            :body request-body})
           ;; _ (println (-> response :body))
           entries
           (->> (-> response :body (json/read-str :key-fn keyword) :articles)

@@ -3,8 +3,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [sysrev.db.core :as db :refer
-             [do-query do-execute with-transaction
-              with-project-cache clear-project-cache sql-now to-jsonb]]
+             [do-query do-execute with-transaction]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
@@ -97,7 +96,7 @@
   (assert (map? label-values))
   (with-transaction
     (let [valid-values (->> label-values filter-valid-label-values)
-          now (sql-now)
+          now (db/sql-now)
           project-id (:project-id (q/query-article-by-id article-id [:project-id]))
           current-entries
           (when change?
@@ -106,7 +105,7 @@
                 (q/filter-label-user user-id)
                 (->> (do-query)
                      (map #(-> %
-                               (update :answer to-jsonb)
+                               (update :answer db/to-jsonb)
                                (update :imported boolean)
                                (dissoc :article-label-id :article-label-local-id))))))
           overall-label-id (project/project-overall-label-id project-id)
@@ -133,7 +132,7 @@
                             {:label-id label-id
                              :article-id article-id
                              :user-id user-id
-                             :answer (to-jsonb answer)
+                             :answer (db/to-jsonb answer)
                              :added-time now
                              :updated-time now
                              :imported (boolean imported?)
@@ -149,7 +148,7 @@
                 inclusion (label-answer-inclusion label-id answer)]
             (-> (sqlh/update :article-label)
                 (sset (cond->
-                          {:answer (to-jsonb answer)
+                          {:answer (db/to-jsonb answer)
                            :updated-time now
                            :imported (boolean imported?)
                            :resolve (boolean resolve?)
@@ -189,3 +188,21 @@
                     (where [:= :article-label-id article-label-id])
                     do-execute))))
            doall))))
+
+(defn resolve-article-answers
+  "Create new article_resolve entry to record a user resolving answers
+  for an article at current time and for current consensus labels."
+  [article-id user-id & {:keys [resolve-time label-ids]}]
+  (with-transaction
+    (let [project-id (article/article-project-id article-id)
+          _ (assert (integer? project-id))
+          label-ids (or label-ids
+                        (project/project-consensus-label-ids project-id))
+          resolve-time (or resolve-time (db/sql-now))]
+      (-> (insert-into :article-resolve)
+          (values [{:article-id article-id
+                    :user-id user-id
+                    :resolve-time resolve-time
+                    :label-ids (db/to-jsonb (vec label-ids))}])
+          (returning :*)
+          do-query))))

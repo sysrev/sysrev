@@ -312,6 +312,11 @@
                :include-disabled? (s/? (s/nilable boolean?)))
   :ret (s/map-of ::sc/label-id ::sl/label))
 
+(defn project-consensus-label-ids [project-id & [include-disabled?]]
+  (let [labels (project-labels project-id include-disabled?)
+        label-ids (keys labels)]
+    (->> label-ids (filter #(-> (get labels %) :consensus true?)))))
+
 (defn project-overall-label-id [project-id]
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
