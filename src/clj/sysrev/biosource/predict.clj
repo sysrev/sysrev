@@ -87,6 +87,22 @@
      {:content-type "application/json"
       :body body})))
 
+(defn fetch-model-predictions [project-id label-id article-texts article-ids]
+  (log/info "fetching" (count article-ids) "article predictions")
+  (->> (-> (http/post
+            (str api-host "sysrev/predictionService")
+            {:content-type "application/json"
+             :body (json/write-str
+                    {"project_id" project-id
+                     "feature" (str label-id)
+                     "documents" (mapv #(get article-texts %) article-ids)})})
+           :body (json/read-str :key-fn keyword) :articles)
+       (map-indexed (fn [i {:keys [prediction probability]}]
+                      {:article-id (nth article-ids i)
+                       :value (if (true? prediction)
+                                probability
+                                (- 1.0 probability))}))))
+
 (defn store-model-predictions [project-id & {:keys [label-id predict-version-id]
                                              :or {predict-version-id 3}}]
   (with-transaction
@@ -95,24 +111,10 @@
                           project-id predict-version-id)
           article-texts (get-article-texts false project-id label-id)
           article-ids (vec (keys article-texts))
-          request-body
-          (json/write-str
-           {"project_id" project-id
-            "feature" (str label-id)
-            "documents" (mapv #(get article-texts %) article-ids)})
-          response
-          (http/post
-           (str api-host "sysrev/predictionService")
-           {:content-type "application/json"
-            :body request-body})
-          ;; _ (println (-> response :body))
-          entries
-          (->> (-> response :body (json/read-str :key-fn keyword) :articles)
-               (map-indexed (fn [i {:keys [prediction probability]}]
-                              {:article-id (nth article-ids i)
-                               :value (if (true? prediction)
-                                        probability
-                                        (- 1.0 probability))})))]
+          entries (->> (partition-all 2000 article-ids)
+                       (mapv #(fetch-model-predictions
+                               project-id label-id article-texts %))
+                       (apply concat))]
       (predict/store-article-predictions
        project-id predict-run-id label-id entries)
       (report/update-predict-meta project-id predict-run-id))))

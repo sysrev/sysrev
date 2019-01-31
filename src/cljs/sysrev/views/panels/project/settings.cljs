@@ -624,6 +624,28 @@
    [ProjectMembersList]
    [ProjectPermissionsForm]])
 
+(def-action :project/update-predictions
+  :uri (fn [project-id] "/api/update-project-predictions")
+  :content (fn [project-id] {:project-id project-id})
+  :process
+  (fn [_ _ _]
+    {:dispatch [:set-panel-field [:update-predictions-clicked] true panel]
+     :dispatch-later
+     [{:ms 2000
+       :dispatch [:set-panel-field [:update-predictions-clicked] nil panel]}]}))
+
+(defn- DeveloperActions []
+  (when @(subscribe [:user/admin?])
+    (let [project-id @(subscribe [:active-project-id])]
+      [:div.ui.segments>div.ui.segment
+       [:h4.ui.dividing.header "Developer Actions"]
+       (let [clicked? @(subscribe [:panel-field [:update-predictions-clicked]])]
+         [:div.ui.fluid.right.labeled.icon.button
+          {:class (if clicked? "green" "blue")
+           :on-click #(dispatch [:action [:project/update-predictions project-id]])}
+          (if clicked? "Updating" "Update Predictions")
+          (if clicked? [:i.check.circle.icon] [:i.repeat.icon])])])))
+
 (defmethod panel-content [:project :project :settings] []
   (fn [child]
     (ensure-state)
@@ -640,4 +662,5 @@
           [ProjectOptionsBox]
           [DeleteProjectForm]]
          [:div.ui.column
-          [ProjectMembersBox]]]]])))
+          [ProjectMembersBox]
+          [DeveloperActions]]]]])))

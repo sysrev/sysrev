@@ -152,7 +152,7 @@
 (dr (POST "/api/join-project" request
           (wrap-authorize
            request {:logged-in true}
-           (let [project-id (-> request :body :project-id)
+           (let [project-id (active-project request)
                  user-id (current-user-id request)
                  session (assoc-in (:session request)
                                    [:identity :default-project-id]
@@ -176,7 +176,7 @@
 (dr (POST "/api/delete-project" request
           (wrap-authorize
            request {:roles ["admin"]}
-           (let [project-id (-> request :body :project-id)
+           (let [project-id (active-project request)
                  user-id (current-user-id request)]
              (api/delete-project! project-id user-id)))))
 
@@ -340,8 +340,7 @@
 (dr (GET "/api/project-sources" request
          (wrap-authorize
           request {:allow-public true}
-          (let [project-id (active-project request)]
-            (api/project-sources project-id)))))
+          (api/project-sources (active-project request)))))
 
 (dr (POST "/api/delete-source" request
           (wrap-authorize
@@ -483,7 +482,8 @@
 (dr (POST "/api/sync-project-labels" request
           (wrap-authorize
            request {:roles ["admin"]}
-           (let [{:keys [project-id labels]} (:body request)]
+           (let [project-id (active-project request)
+                 {:keys [labels]} (:body request)]
              (api/sync-labels project-id labels)))))
 
 (dr (GET "/api/lookup-project-url" request
@@ -511,7 +511,8 @@
 (dr (POST "/api/paypal/add-funds" request
           (wrap-authorize
            request {:logged-in true}
-           (let [{:keys [project-id user-id response]} (:body request)]
+           (let [project-id (active-project request)
+                 {:keys [user-id response]} (:body request)]
              (api/add-funds-paypal project-id user-id response)))))
 
 (dr (GET "/api/user-support-subscriptions" request
@@ -523,18 +524,16 @@
 (dr (GET "/api/current-support" request
          (wrap-authorize
           request {:logged-in true}
-          (let [{:keys [project-id]} (-> request :params)]
-            (api/current-project-support-level
-             (users/get-user-by-id (current-user-id request))
-             (parse-integer project-id))))))
+          (api/current-project-support-level
+           (users/get-user-by-id (current-user-id request))
+           (active-project request)))))
 
 (dr (POST "/api/cancel-project-support" request
           (wrap-authorize
            request {:logged-in true}
-           (let [{:keys [project-id]} (:body request)]
-             (api/cancel-project-support
-              (users/get-user-by-id (current-user-id request))
-              project-id)))))
+           (api/cancel-project-support
+            (users/get-user-by-id (current-user-id request))
+            (active-project request)))))
 
 (dr (GET "/api/important-terms" request
          (wrap-authorize
@@ -545,13 +544,12 @@
 (dr (GET "/api/prediction-histograms" request
          (wrap-authorize
           request {:allow-public true}
-          (let [{:keys [project-id]} (-> request :params)]
-            (api/prediction-histogram (parse-integer project-id))))))
+          (api/prediction-histogram (active-project request)))))
 
 (dr (GET "/api/charts/label-count-data" request
          (wrap-authorize
           request {:allow-public true}
-          (api/label-count-data (-> request :params :project-id parse-integer)))))
+          (api/label-count-data (active-project request)))))
 
 (dr (GET "/api/open-access/:article-id/availability" [article-id]
          (api/open-access-available? (parse-integer article-id))))
@@ -678,80 +676,79 @@
 (dr (GET "/api/project-description" request
          (wrap-authorize
           request {:allow-public true}
-          (let [project-id (-> request :params :project-id parse-integer)]
-            (api/read-project-description project-id)))))
+          (api/read-project-description (active-project request)))))
 
 (dr (POST "/api/project-description" request
           (wrap-authorize
            request {:roles ["admin"]}
-           (let [project-id (-> request :body :project-id)
+           (let [project-id (active-project request)
                  markdown (-> request :body :markdown)]
              (api/set-project-description! project-id markdown)))))
 
 (dr (POST "/api/project-compensation" request
           (wrap-authorize
            request {:roles ["admin"]}
-           (let [project-id (-> request :body :project-id)
-                 rate (-> request :body :rate)]
+           (let [project-id (active-project request)
+                 {:keys [rate]} (:body request)]
              (api/create-project-compensation! project-id rate)))))
 
 (dr (GET "/api/project-compensations" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [project-id (-> request :params :project-id parse-integer)]
+          (let [project-id (active-project request)]
             (api/read-project-compensations project-id)))))
 
 (dr (PUT "/api/toggle-compensation-active" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [{:keys [project-id compensation-id active]} (:body request)]
+          (let [project-id (active-project request)
+                {:keys [compensation-id active]} (:body request)]
             (api/toggle-compensation-active! project-id compensation-id active)))))
 
 (dr (GET "/api/get-default-compensation" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [project-id (-> request :params :project-id parse-integer)]
-            (api/get-default-compensation project-id)))))
+          (api/get-default-compensation (active-project request)))))
 
 (dr (PUT "/api/set-default-compensation" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [{:keys [project-id compensation-id]} (:body request)]
+          (let [project-id (active-project request)
+                {:keys [compensation-id]} (:body request)]
             (api/set-default-compensation! project-id compensation-id)))))
 
 (dr (GET "/api/compensation-owed" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [project-id (-> request :params :project-id parse-integer)]
-            (api/compensation-owed project-id)))))
+          (api/compensation-owed (active-project request)))))
 
 (dr (GET "/api/project-users-current-compensation" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [project-id (-> request :params :project-id parse-integer)]
-            (api/project-users-current-compensation project-id)))))
+          (api/project-users-current-compensation (active-project request)))))
 
 (dr (PUT "/api/set-user-compensation" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [{:keys [project-id user-id compensation-id]} (:body request)]
+          (let [project-id (active-project request)
+                {:keys [user-id compensation-id]} (:body request)]
             (api/set-user-compensation! project-id user-id compensation-id)))))
 
 (dr (GET "/api/project-funds" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (api/project-funds (-> request :params :project-id parse-integer)))))
+          (api/project-funds (active-project request)))))
 
 (dr (PUT "/api/check-pending-transaction" request
          (wrap-authorize
           request {:roles ["admin"]}
-          (let [{:keys [project-id]} (:body request)]
-            (api/check-pending-project-transactions! project-id)))))
+          (api/check-pending-project-transactions! (active-project request)))))
 
 (dr (POST "/api/pay-user" request
           (wrap-authorize
            request {:roles ["admin"]}
-           (let [{:keys [project-id user-id compensation admin-fee]} (-> request :body)]
+           (let [project-id (active-project request)
+                 {:keys [user-id compensation admin-fee]} (-> request :body)]
              (api/pay-user! project-id user-id compensation admin-fee)))))
 
 (dr (POST "/api/stripe/finalize-user" request
@@ -766,9 +763,11 @@
           (let [user-id (-> request :params :user-id Integer/parseInt)]
             (api/user-has-stripe-account? user-id)))))
 
-(dr (GET "/api/test" request
-         (wrap-authorize
-          request {}
-          (api/test-response))))
+(dr (POST "/api/update-project-predictions" request
+          (wrap-authorize
+           request {:developer true}
+           (let [project-id (active-project request)]
+             (assert (integer? project-id))
+             (api/update-project-predictions project-id)))))
 
 (finalize-routes)

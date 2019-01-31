@@ -134,8 +134,8 @@
           [:i.linkedin.icon] "LinkedIn"]
          [:a {:target "_blank" :href "https://www.facebook.com/insilica/"}
           [:i.facebook.icon] "Facebook"]
-         [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"}
-          [:i.reddit.alien.icon] "Reddit"]]
+         #_ [:a {:target "_blank" :href "https://www.reddit.com/r/sysrev"}
+             [:i.reddit.alien.icon] "Reddit"]]
         contact-email
         [:span.email "info@insilica.co"]
         copyright-notice

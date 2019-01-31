@@ -1266,7 +1266,6 @@
       {:error {:status internal-server-error
                :message "An unknown condition occured"}})))
 
-(defn test-response
-  "Server Sanity Check"
-  []
-  {:test "passing"})
+(defn update-project-predictions [project-id]
+  (future (predict-api/update-project-predictions project-id))
+  {:result {:success true}})
