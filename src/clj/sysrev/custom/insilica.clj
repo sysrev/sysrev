@@ -46,6 +46,7 @@
              (and (not not-preclinical?)
                   (not clinical?))))))
 
+#_
 (defn prostate-clinical-article-uuids [project-id]
   (let [public-labels (labels/query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)
@@ -64,6 +65,7 @@
                       article-labels overall-id clinical-id preclinical-id))))
          (article/article-ids-to-uuids))))
 
+#_
 (defn prostate-preclinical-article-uuids [project-id]
   (let [public-labels (labels/query-public-article-labels project-id)
         overall-id (project/project-overall-label-id project-id)
@@ -82,6 +84,7 @@
                       article-labels overall-id clinical-id preclinical-id))))
          (article/article-ids-to-uuids))))
 
+#_
 (defn clone-prostate-clinical [project-id]
   (let [title (:name (q/query-project-by-id project-id [:name]))]
     (clone/clone-subproject-articles
@@ -90,6 +93,7 @@
      (prostate-clinical-article-uuids project-id)
      :labels? true :answers? true)))
 
+#_
 (defn clone-prostate-preclinical [project-id]
   (let [title (:name (q/query-project-by-id project-id [:name]))]
     (clone/clone-subproject-articles
@@ -98,6 +102,7 @@
      (prostate-preclinical-article-uuids project-id)
      :labels? true :answers? true)))
 
+#_
 (defn pubmed-foreign-article-ids [project-id]
   (-> (q/select-project-articles
        project-id [:a.article-id :a.primary-title :a.public-id]
@@ -109,6 +114,7 @@
                    (re-matches #"^ *\[.*\][ \.]*$" primary-title))))
            (mapv :article-id))))
 
+#_
 (defn disable-pubmed-foreign-articles [project-id]
   (let [article-ids (pubmed-foreign-article-ids project-id)]
     (with-transaction
