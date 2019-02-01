@@ -42,7 +42,7 @@
            :aria-hidden true}]
          (str/join ", " values))]]]))
 
-(defn label-values-component [labels & {:keys [notes user-name]}]
+(defn label-values-component [labels & {:keys [notes user-name resolved?]}]
   (let [dark-theme? @(subscribe [:self/dark-theme?])
         note-entries (concat
                       (for [note-name (keys notes)] ^{:key [note-name]}
@@ -65,8 +65,7 @@
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
        [:div.ui.basic.yellow.label.labels-status
         "Unconfirmed"])
-     (when (and (some #(contains? % :resolve) (vals labels))
-                (some :resolve (vals labels)))
+     (when resolved?
        [:div.ui.basic.purple.label.labels-status
         "Resolved"])
      (doall note-entries)
@@ -79,8 +78,9 @@
           (doall note-entries)]))]))
 
 (defn article-label-values-component [article-id user-id]
-  (let [labels @(subscribe [:article/labels article-id user-id])]
-    [label-values-component labels]))
+  (let [labels @(subscribe [:article/labels article-id user-id])
+        resolved? (= user-id @(subscribe [:article/resolve-user-id article-id]))]
+    [label-values-component labels :resolved? resolved?]))
 
 (defn article-labels-view [article-id &
                            {:keys [self-only?] :or {self-only? false}}]
@@ -107,7 +107,7 @@
             (some #(real-answer? (get-in ulmap [% :answer]))
                   (keys ulmap))))
         resolved?
-        (fn [user-id] @(subscribe [:article/user-resolved? article-id user-id]))
+        (fn [user-id] (= user-id @(subscribe [:article/resolve-user-id article-id])))
         user-ids-resolved
         (->> user-ids
              (filter resolved?)

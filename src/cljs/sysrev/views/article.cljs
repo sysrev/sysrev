@@ -12,8 +12,7 @@
             [sysrev.views.annotator :as annotator]
             [sysrev.views.components :as ui :refer [out-link document-link]]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
-            [sysrev.views.labels :refer
-             [label-values-component article-labels-view]]
+            [sysrev.views.labels :refer [article-labels-view]]
             [sysrev.util :refer [full-size? nbsp continuous-update-until]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 

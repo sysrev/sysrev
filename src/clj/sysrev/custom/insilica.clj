@@ -5,33 +5,41 @@
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
             [sysrev.clone-project :as clone]
-            [sysrev.shared.util :refer [in? parse-integer]]
-            [sysrev.shared.article-list :as article-list]))
+            [sysrev.shared.util :refer [in? parse-integer]]))
 
+(defn article-label-value-present? [article-labels label-id value]
+  (some (fn [{:keys [answer]}]
+          (or (= answer value)
+              (and (sequential? answer)
+                   (in? answer value))))
+        (get-in article-labels [:labels label-id])))
+
+#_
 (defn prostate-clinical-trial? [article-labels overall-id clinical-id preclinical-id]
   (let [included? (article-list/article-included? article-labels overall-id true)
-        clinical? (article-list/article-label-value-present?
+        clinical? (article-label-value-present?
                    article-labels clinical-id true)
-        not-clinical? (article-list/article-label-value-present?
+        not-clinical? (article-label-value-present?
                        article-labels clinical-id false)
-        preclinical? (article-list/article-label-value-present?
+        preclinical? (article-label-value-present?
                       article-labels preclinical-id true)
-        not-preclinical? (article-list/article-label-value-present?
+        not-preclinical? (article-label-value-present?
                           article-labels preclinical-id false)]
     (and included?
          (or clinical?
              (and (not not-clinical?)
                   (not preclinical?))))))
 
+#_
 (defn prostate-preclinical? [article-labels overall-id clinical-id preclinical-id]
   (let [included? (article-list/article-included? article-labels overall-id true)
-        clinical? (article-list/article-label-value-present?
+        clinical? (article-label-value-present?
                    article-labels clinical-id true)
-        not-clinical? (article-list/article-label-value-present?
+        not-clinical? (article-label-value-present?
                        article-labels clinical-id false)
-        preclinical? (article-list/article-label-value-present?
+        preclinical? (article-label-value-present?
                       article-labels preclinical-id true)
-        not-preclinical? (article-list/article-label-value-present?
+        not-preclinical? (article-label-value-present?
                           article-labels preclinical-id false)]
     (and included?
          (or preclinical?

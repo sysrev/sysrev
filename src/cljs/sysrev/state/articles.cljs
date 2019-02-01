@@ -189,6 +189,18 @@
      user-id                 (get user-id)
      (and user-id label-id)  (get label-id))))
 
+(reg-sub
+ :article/resolve-user-id
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article] _] (-> article :resolve :user-id)))
+
+(reg-sub
+ :article/resolve-labels
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article] _] (-> article :resolve :labels)))
+
 (defn- article-user-status-impl [user-id ulmap]
   (cond (nil? user-id)
         :logged-out
@@ -216,14 +228,6 @@
    (let [user-id (or user-id self-id)
          ulmap (get alabels user-id)]
      (article-user-status-impl user-id ulmap))))
-
-(reg-sub
- :article/user-resolved?
- (fn [[_ article-id user-id]]
-   (assert user-id ":article/user-resolved? - user-id must be passed")
-   [(subscribe [:article/labels article-id user-id])])
- (fn [[ulmap]]
-   (->> (vals ulmap) (map :resolve) first)))
 
 (defn- article-document-url [project-id doc-id fs-path]
   (str "/documents/PDF/" project-id "/" doc-id "/" fs-path))

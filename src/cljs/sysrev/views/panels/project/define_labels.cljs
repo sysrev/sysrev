@@ -449,9 +449,6 @@
        :tooltip ["Require users to provide an answer for this label before saving article."]}]
 
      ;; consensus
-     ;;
-     ;; Hiding this for now until conflict matching is changed to use this
-     #_
      [ui/LabeledCheckboxField
       {:error (:consensus @errors)
        :on-change #(reset! consensus (-> % .-target .-checked boolean))

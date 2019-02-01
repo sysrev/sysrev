@@ -76,6 +76,23 @@
        (remove nil?)
        (apply merge)))
 
+(defn resolve-article-answers
+  "Create new article_resolve entry to record a user resolving answers
+  for an article at current time and for current consensus labels."
+  [article-id user-id & {:keys [resolve-time label-ids]}]
+  (with-transaction
+    (let [project-id (article/article-project-id article-id)
+          label-ids (or label-ids
+                        (project/project-consensus-label-ids project-id))
+          resolve-time (or resolve-time (db/sql-now))]
+      (-> (insert-into :article-resolve)
+          (values [{:article-id article-id
+                    :user-id user-id
+                    :resolve-time resolve-time
+                    :label-ids (db/to-jsonb (vec label-ids))}])
+          (returning :*)
+          do-query))))
+
 ;; TODO: check that all required labels are answered
 (defn set-user-article-labels
   "Set article-id for user-id with a map of label-values. imported? is
@@ -167,6 +184,8 @@
         (-> (insert-into :article-label-history)
             (values current-entries)
             do-execute))
+      (when resolve?
+        (resolve-article-answers article-id user-id :resolve-time now))
       (db/clear-project-cache project-id)
       true)))
 
@@ -188,21 +207,3 @@
                     (where [:= :article-label-id article-label-id])
                     do-execute))))
            doall))))
-
-(defn resolve-article-answers
-  "Create new article_resolve entry to record a user resolving answers
-  for an article at current time and for current consensus labels."
-  [article-id user-id & {:keys [resolve-time label-ids]}]
-  (with-transaction
-    (let [project-id (article/article-project-id article-id)
-          _ (assert (integer? project-id))
-          label-ids (or label-ids
-                        (project/project-consensus-label-ids project-id))
-          resolve-time (or resolve-time (db/sql-now))]
-      (-> (insert-into :article-resolve)
-          (values [{:article-id article-id
-                    :user-id user-id
-                    :resolve-time resolve-time
-                    :label-ids (db/to-jsonb (vec label-ids))}])
-          (returning :*)
-          do-query))))

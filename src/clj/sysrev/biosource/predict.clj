@@ -13,30 +13,29 @@
             [sysrev.label.core :as labels]
             [sysrev.predict.core :as predict]
             [sysrev.predict.report :as report]
-            [sysrev.shared.article-list :as alist]
             [sysrev.config.core :as config]
-            [sysrev.biosource.core :refer [api-host]]))
+            [sysrev.biosource.core :refer [api-host]]
+            [sysrev.shared.util :as su :refer [in?]]))
 
 (defonce predict-api (agent nil))
 
 ;; (do (create-predict-model 100) (store-model-predictions 100))
 
 ;; TODO: this only works for boolean inclusion criteria labels
+;; TODO: change consensus/resolved functions to work without caching;
+;;       currently they prevent this from working in with-transaction
 (defn get-training-label-values [project-id label-id]
   (->> (labels/query-public-article-labels project-id)
        (map (fn [[article-id {:keys [labels]}]]
-              (let [labels (get labels label-id)
+              (let [consensus (labels/article-consensus-status project-id article-id)
+                    labels (get labels label-id)
                     answer
-                    (cond (empty? labels) nil
+                    (cond (in? [:single :consistent] consensus)
+                          (->> labels (map :answer) (remove nil?) first)
 
-                          (or (alist/is-single? labels)
-                              (alist/is-consistent? labels))
-                          (->> labels first :answer)
-
-                          (alist/is-resolved? labels)
-                          (->> labels (filter :resolve) first :answer)
-
-                          :else nil)]
+                          (= :resolved consensus)
+                          (-> (labels/article-resolved-labels project-id article-id)
+                              (get label-id)))]
                 (when-not (nil? answer)
                   [article-id answer]))))
        (remove nil?)
@@ -127,10 +126,12 @@
        predict-api
        (fn [_]
          (try
-           (with-transaction
-             (create-predict-model project-id)
-             (store-model-predictions project-id)
-             true)
+           ;; TODO: can't use with-transaction here because article
+           ;;       consensus functions rely on with-project-cache
+           ;;       caching
+           (create-predict-model project-id)
+           (store-model-predictions project-id)
+           true
            (catch Throwable e
              (log/info "Exception in update-project-predictions:")
              (log/info (.getMessage e))

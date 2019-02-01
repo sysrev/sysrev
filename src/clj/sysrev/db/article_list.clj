@@ -19,7 +19,6 @@
             [sysrev.db.queries :as q]
             [sysrev.db.annotations :as ann]
             [sysrev.shared.util :as sutil :refer [in? map-values]]
-            [sysrev.shared.article-list :as al]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]))
 
@@ -188,33 +187,33 @@ WHERE project_id=%d
 (defn article-consensus-filter [context {:keys [status inclusion]}]
   (let [{:keys [project-id]} context
         overall-id (project/project-overall-label-id project-id)]
-    (fn [{:keys [labels] :as article}]
+    (fn [{:keys [labels consensus article-id] :as article}]
       (let [overall
             (->> labels
                  (filter-labels-confirmed true)
                  (filter-labels-by-id overall-id))
             status-test
             (case status
-              :single al/is-single?
-              :determined #(or (al/is-resolved? %)
-                               (al/is-consistent? %))
-              :conflict al/is-conflict?
-              :consistent al/is-consistent?
-              :resolved al/is-resolved?
+              :single #(= :single consensus)
+              :determined #(in? [:consistent :resolved] consensus)
+              :conflict #(= :conflict consensus)
+              :consistent #(= :consistent consensus)
+              :resolved #(= :resolved consensus)
               (constantly true))
             inclusion-test
             (if (nil? inclusion)
               (constantly true)
               (fn []
-                (let [entries (if (or (= status :resolved)
-                                      (and (= status :determined)
-                                           (al/is-resolved? overall)))
-                                (filter :resolve overall)
-                                overall)]
-                  (in? (->> entries (map :inclusion) distinct)
+                (if (or (= status :resolved)
+                        (and (= status :determined)
+                             (= consensus :resolved)))
+                  (-> (label/article-resolved-labels project-id article-id)
+                      (get overall-id)
+                      (= inclusion))
+                  (in? (->> overall (map :inclusion) distinct)
                        inclusion))))]
         (and (not-empty overall)
-             (status-test overall)
+             (status-test)
              (inclusion-test))))))
 
 (defn get-sort-fn [sort-by sort-dir]

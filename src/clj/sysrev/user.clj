@@ -46,7 +46,6 @@
         sysrev.shared.util
         sysrev.shared.keywords
         sysrev.shared.transit
-        sysrev.shared.article-list
         sysrev.test.core
         sysrev.test.browser.core
         sysrev.test.browser.navigate)

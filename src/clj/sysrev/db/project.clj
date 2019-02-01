@@ -299,13 +299,12 @@
 (defn project-labels [project-id & [include-disabled?]]
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
-      project-id [:labels :all]
-      (->>
-       (-> (q/select-label-where project-id true [:*]
-                                 {:include-disabled? include-disabled?})
-           do-query)
-       (group-by :label-id)
-       (map-values first)))))
+      project-id [:labels :all include-disabled?]
+      (->> (q/select-label-where
+            project-id true [:*] {:include-disabled? include-disabled?})
+           do-query
+           (group-by :label-id)
+           (map-values first)))))
 ;;;
 (s/fdef project-labels
   :args (s/cat :project-id ::sc/project-id
@@ -313,9 +312,11 @@
   :ret (s/map-of ::sc/label-id ::sl/label))
 
 (defn project-consensus-label-ids [project-id & [include-disabled?]]
-  (let [labels (project-labels project-id include-disabled?)
-        label-ids (keys labels)]
-    (->> label-ids (filter #(-> (get labels %) :consensus true?)))))
+  (with-project-cache
+    project-id [:labels :consensus include-disabled?]
+    (let [labels (project-labels project-id include-disabled?)
+          label-ids (keys labels)]
+      (->> label-ids (filter #(-> (get labels %) :consensus true?))))))
 
 (defn project-overall-label-id [project-id]
   (let [project-id (q/to-project-id project-id)]

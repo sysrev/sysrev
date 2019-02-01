@@ -148,7 +148,8 @@
                  (filterv #(not (in? [0 nil] (:confirm-time %)))))
         users-labels (group-by :user-id labels)
         users-notes (group-by :user-id notes)
-        self-id @(subscribe [:self/user-id])]
+        self-id @(subscribe [:self/user-id])
+        resolver-id @(subscribe [:article/resolve-user-id (:article-id article)])]
     [:div.ui.segment.article-labels
      (doall
       (for [user-id (->> [(keys users-labels)
@@ -161,14 +162,16 @@
                             {})
               user-note (when show-notes
                           (->> (get users-notes user-id) first))
-              user-name @(subscribe [:user/display user-id])]
+              user-name @(subscribe [:user/display user-id])
+              resolved? (= user-id resolver-id)]
           (when (or user-note (not-empty user-labels))
             ^{:key [:user-labels user-id]}
             [labels/label-values-component
              user-labels
              :user-name user-name
              :notes (when user-note
-                      {(:name user-note) (:content user-note)})]))))]))
+                      {(:name user-note) (:content user-note)})
+             :resolved? resolved?]))))]))
 
 (defn- ArticleListEntry
   [context article full-size?]
