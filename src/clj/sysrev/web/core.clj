@@ -99,7 +99,9 @@
     (ANY "/api/*" []
          (wrap-routes app-routes wrap-sysrev-app))
     (compojure.route/resources "/")
-    (GET "/sitemap.xml" [] (index/sysrev-sitemap))
+    (GET "/sitemap.xml" [] (-> (r/response (index/sysrev-sitemap))
+                               (r/header "Content-Type"
+                                         "application/xml; charset=utf-8")))
     (GET "*" []
          (wrap-routes html-routes wrap-sysrev-html)))
    (#(if (= :dev (-> env :profile))
