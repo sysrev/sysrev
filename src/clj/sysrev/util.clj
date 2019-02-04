@@ -190,6 +190,12 @@
 (defn now-unix-seconds
   []
   (-> (t/now) (tc/to-long) (/ 1000) int))
+
+(defn today-string-site-map
+  "Generate a string of the form YYYY-MM-DD"
+  []
+  (->> (t/now) (tformat/unparse (tformat/formatters :date))))
+
 ;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places
 (defn round
   "Round a double to the given precision (number of significant digits)"

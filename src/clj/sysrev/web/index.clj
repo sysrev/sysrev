@@ -1,12 +1,15 @@
 (ns sysrev.web.index
   (:require [clojure.string :as str]
             [hiccup.page :as page]
+            [sitemap.core :refer [generate-sitemap]]
             [sysrev.shared.components :refer [loading-content]]
             [sysrev.config.core :refer [env]]
             [sysrev.paypal :refer [paypal-env paypal-client-id]]
-            [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
             [sysrev.resources :as res]
+            [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
+            [sysrev.util :refer [today-string-site-map]]
             [sysrev.db.users :as users]
+            [sysrev.db.project :as project]
             [sysrev.shared.text :as text]))
 
 (defonce web-asset-path (atom "/out"))
@@ -121,3 +124,13 @@
       [:div.ui.stripe {:style "padding-top: 20px;"}
        [:h1.ui.header.huge.center.aligned
         "Not found"]]]]]))
+
+(defn sysrev-sitemap
+  []
+  (let [project->site-map-entry (fn [project]
+                                  {:loc (str "https://sysrev.com/p/" (:project-id project))
+                                   :lastmod (today-string-site-map)
+                                   :changefreq "daily"})
+        project-site-maps (map project->site-map-entry
+                               (project/all-public-projects))]
+    (generate-sitemap project-site-maps)))
