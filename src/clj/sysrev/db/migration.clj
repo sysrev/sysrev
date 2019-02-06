@@ -17,6 +17,7 @@
             [sysrev.db.users :as users]
             [sysrev.label.core :as label]
             [sysrev.label.answer :as answer]
+            [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
             [sysrev.source.endnote :refer [load-endnote-record]]
@@ -347,6 +348,6 @@
                       #'ensure-web-user-email-entries
                       ;; #'ensure-article-flag-disable-entries
                       #'ensure-groups
-                      ]]
+                      #'migrate-all-project-article-resolve]]
     (log/info "Running " (str migrate-fn))
     (time ((var-get migrate-fn)))))
