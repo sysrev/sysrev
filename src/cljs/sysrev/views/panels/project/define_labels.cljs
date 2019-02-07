@@ -453,7 +453,7 @@
       {:error (:consensus @errors)
        :on-change #(reset! consensus (-> % .-target .-checked boolean))
        :checked? @consensus
-       :disabled? (false? @required)
+       ;; :disabled? (false? @required)
        :label "Require user consensus"
        :tooltip ["Check answers for consensus among users."
                  "Articles will be marked as conflicted if user answers are not identical."]}]

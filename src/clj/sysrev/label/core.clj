@@ -367,17 +367,27 @@
         (get article-id)
         :resolve)))
 
-(defn- is-conflict? [labels]
-  (< 1 (count (->> labels (map :answer) (remove nil?) distinct))))
-
 (defn article-conflict-label-ids
   "Returns list of consensus labels in project for which article has
   conflicting answers."
   [project-id article-id]
   (let [alabels (-> (query-public-article-labels project-id)
-                    (get article-id))]
+                    (get article-id))
+        user-ids (->> alabels :labels vals
+                      (apply concat) (map :user-id) distinct)
+        user-label-answer (fn [user-id label-id]
+                            (->> (get-in alabels [:labels label-id])
+                                 (filter #(= (:user-id %) user-id))
+                                 (map :answer)
+                                 first))
+        ;; Get answers in this way to include nil values where
+        ;; a user has not answered the particular label.
+        ;;
+        ;; Non-answers may generate conflicts with answers.
+        label-answers (fn [label-id]
+                        (->> user-ids (map #(user-label-answer % label-id))))]
     (->> (project/project-consensus-label-ids project-id)
-         (filterv #(is-conflict? (get-in alabels [:labels %]))))))
+         (filter #(-> (label-answers %) distinct count (> 1))))))
 
 (defn article-resolved-status
   "If article consensus status is resolved, returns a map of the
