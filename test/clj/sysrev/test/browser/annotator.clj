@@ -21,7 +21,7 @@
           search-term "foo bar enthalpic mesoporous"
           article-title-div {:xpath "//div[contains(@class,'article-title')]"}
           select-text-to-annotate {:xpath "//div[contains(text(),'Select text to annotate')]"}
-          selected-text {:xpath "//span[contains(text(),'Journal of the American Chemical Society')]"}
+          selected-text {:xpath "//div[contains(text(),'measurement of isosteric heats of adsorption')]"}
           semantic-class-input {:xpath "//div[contains(@class,'semantic-class')]//input"}
           semantic-class "foo"
           annotation-value-input {:xpath "//div[contains(@class,'value')]//input"}
@@ -72,11 +72,15 @@
         (is (= (count annotations) 1))
         (is (= semantic-class (:semantic-class annotation)))
         (is (= annotation-value (:annotation annotation)))
-        (is (= "Journal of the American Chemical Society"
-               (get-in  annotation [:context :text-context])))
-        (is (= 15 (get-in annotation [:context :start-offset])))
-        (is (= 23 (get-in annotation [:context :end-offset]))))))
-
+        #_(is (= "Journal of the American Chemical Society"
+                 (get-in  annotation [:context :text-context])))
+        (is (= "secondary"
+               ;;(get-in annotation [:context :text-context])
+               (:selection annotation)))
+        (is (= 1068 (get-in annotation [:context :start-offset])))
+        (is (= 1077 (get-in annotation [:context :end-offset]))))
+      ))
   :cleanup
   (when (test/db-connected?)
-    (nav/delete-current-project)))
+    (nav/delete-current-project))
+  )

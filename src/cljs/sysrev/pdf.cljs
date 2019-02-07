@@ -244,7 +244,10 @@
            {:class (when page-rendering "rendering")}
            [:div.ui.grid.view-pdf-main
             [:div.sixteen.wide.column.pdf-content
-             [annotator/AnnotationCapture context
+             [:div.pdf-container {:id container-id}]
+             ;; if annotations are ever capturable in a pdf
+             ;; enable them here
+             #_[annotator/AnnotationCapture context
               [:div.pdf-container {:id container-id}]]]]]))
       :component-will-mount
       (fn [this]

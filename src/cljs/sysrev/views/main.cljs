@@ -122,6 +122,8 @@
          (if (= active :labels)
            [review/LabelEditorColumn article-id]
            [SidebarAnnotationMenu ann-context])
+         (when (= active :annotations)
+           (dispatch [:set-review-interface :annotations]))
          [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn GlobalFooter []
