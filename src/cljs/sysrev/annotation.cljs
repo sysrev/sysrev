@@ -273,47 +273,62 @@
                                       annotations)]
     processed-annotations))
 
-(defn AnnotatedText
-  "Annotate text where annotations are of the form
-  [{:start <integer> ;; index where annotation starts in text
-    :end   <integer> ;; index where annotation ends in text
-    :semantic-class <string> ;; optionally nil,  semantic class, will be put in the popup bubble over highlighted text
-    :annotation <string> ;; optionally nil, a string with an annotation, will be put in the popup bubble over highlighted text"
-  [annotations text & [text-decoration]]
-  (let [annotations (convert-annotations annotations text)
+(defn highlight-text-div-string
+  "Generate the string to pass to cljs.reader for a div that contains text highlighted with annotations."
+  [annotations text]
+  (let [text (clojure.string/replace text #"\n+" "\n")
+        annotations (convert-annotations annotations text)
         max-index (- (count text) 1)
         start-map (vector->hash-map annotations :start)
-        end-map (vector->hash-map annotations :end)
-        test-str (str "[:div.article-abstract "
-                      (->> (map-indexed
-                            (fn [idx item]
-                              (cond
-                                ;; on first item, but it is also begining of highlighted
-                                (and (= idx 0)
-                                     (get start-map idx))
-                                (str "[:div [:span {:style {:background-color \"black\" :color \"white\"}} \"" item)
-                                ;; on first item, no highlights
-                                (= idx 0)
-                                (str "[:div \"" item)
-                                ;; a new line
-                                (= item "\n")
-                                "\"] [:span {:dangerouslySetInnerHTML {:__html \"&nbsp;\"}}] [:div \""
-                                ;; on the last item, close out
-                                (= idx max-index)
-                                "\"]"
-                                ;; match for start index at idx
-                                (get start-map idx)
-                                (str "\" [:span {:style {:background-color \"black\" :color \"white\"}} \"" item)
-                                ;; match for end index at idx
-                                (get end-map (+ idx 1))
-                                (str item "\"]\"")
-                                ;; nothing special to be done
-                                :else
-                                item))
-                            ;;(clojure.string/replace text #"\n+" "\n")
-                            text)
-                           (apply str))
-                      "]")]
-    [:div (cljs.reader/read-string
-             test-str)]
-    #_[:div "foo"]))
+        end-map (vector->hash-map annotations :end)]
+    (str "[:div "
+         (->> (map-indexed
+               (fn [idx item]
+                 (cond
+                   ;; on first item, but it also starts highlight
+                   (and (= idx 0)
+                        (get start-map idx))
+                   (str "[:div [:span {:style {:background-color \"black\" :color \"white\"}} \"" item)
+                   ;; on first item, no highlights
+                   (= idx 0)
+                   (str "[:div \"" item)
+                   ;; on the last item, but it also starts highlight
+                   (and (= idx max-index)
+                        (get start-map idx))
+                   (str "\"[:span {:style {:background-color \"black\" :color \"white\"}} \"" item "\"]]")
+                   ;; on the last item, close out
+                   (= idx max-index)
+                   (str item "\"]]")
+                   ;; a new line
+                   (= item "\n")
+                   ;; just skip it
+                   ;;"\"] [:span {:dangerouslySetInnerHTML {:__html \"&nbsp;\"}}] [:div \""
+                   ""
+                   ;; match for start index at idx
+                   (get start-map idx)
+                   (str "\" [:span {:style {:background-color \"black\" :color \"white\"}} \"" item)
+                   ;; match for end index at idx
+                   (get end-map idx)
+                   (str "\"]\"" item)
+                   ;;(str "\"][[\"" item) ; reader-error-render is used instead for testing purposes
+                   ;; nothing special to be done
+                   :else
+                   item))
+               text)
+              (apply str))
+         "]")))
+
+(def annotations-atom (r/atom {}))
+(def text-atom (r/atom ""))
+(defn AnnotatedText
+  "Return a div with text highlighted by annotations. The class name for the annotated div is given as :class, defaults to 'annotated-text'"
+  [annotations text & {:keys [text-decoration reader-error-render class]
+                       :or {reader-error-render [:div "There was an error rendering the annotator view"]
+                            class "annotated-text"}}]
+  (reset! text-atom text)
+  (reset! annotations-atom annotations)
+  [:div {:class class}
+   (try (cljs.reader/read-string
+         (highlight-text-div-string annotations text))
+        (catch js/Object e
+          reader-error-render))])

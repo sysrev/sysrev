@@ -140,7 +140,8 @@
              :project-id project-id
              :article-id article-id}
             annotator-enabled?
-            @(subscribe [:annotator/enabled annotator-context])
+            (and @(subscribe [:annotator/enabled annotator-context])
+                 (= :annotations @(subscribe [:review-interface])))
             {:keys [key filename] :as entry} (first pdfs)
             pdf-url (pdf/view-s3-pdf-url
                      project-id article-id key filename)
@@ -149,79 +150,78 @@
                           @(subscribe [:view-field :article [article-id :visible-pdf]]))
             pdf-only? (and title visible-url filename
                            (= (str/trim title) (str/trim filename)))]
-        #_(when (= context :article-list)
-            (get-annotations article-id))
+        (.log js/console "article-id: " article-id)
         (get-annotations article-id)
-        [annotator/AnnotationCapture
-         annotator-context
-         [:div
-          [:div {:style {:margin-bottom "0.5em"}}
-           (when (and (not-empty pdfs) (not-empty abstract))
-             [ui/tabbed-panel-menu
-              [{:tab-id :abstract
-                :content "Abstract"
-                :action #(dispatch [:set-view-field :article
-                                    [article-id :visible-pdf] nil])}
-               {:tab-id :pdf
-                :content "PDF"
-                :action #(dispatch [:set-view-field :article
-                                    [article-id :visible-pdf] pdf-url])}]
-              (if (nil? visible-url) :abstract :pdf)
-              "article-content-tab"])]
-          [:h3.header {:style {:margin-top "0px"}}
-           (when-not (or pdf-only? (empty? title))
-             (if true
-               #_ annotator-enabled?
-               [render-keywords
-                article-id @(subscribe [:article/title-render article-id])
-                {:label-class "large"}]
-               [annotation/AnnotatedText
-                annotations title
-                (if (= context :review)
-                  "underline green"
-                  "underline #909090")]))]
-          (when-not (or pdf-only? (empty? journal-name))
-            [:h3.header {:style {:margin-top "0px"}}
-             [render-keywords article-id journal-render
-              {:label-class "large"}]])
-          (when-not (or pdf-only? (empty? date))
-            [:h5.header {:style {:margin-top "0px"}}
-             date])
-          (when-not (or pdf-only? (empty? authors))
-            [:h5.header {:style {:margin-top "0px"}}
-             (author-names-text 5 authors)])
-          (if visible-url
-            [pdf/ViewPDF {:pdf-url visible-url :entry entry}]
-            ;; abstract, with annotations
-            (when-not (empty? abstract)
-              (if true
-                #_ annotator-enabled?
-                #_ [render-abstract article-id]
-                [annotation/AnnotatedText
-                 ;; annotations
-                 ;; todo: refactor so that unsaved-annotations and saved-annotation are saved in one location
-                 (let [saved-annotations (or (vals @(subscribe [:annotator/article project-id article-id]))
+        [:div
+         [:div {:style {:margin-bottom "0.5em"}}
+          (when (and (not-empty pdfs) (not-empty abstract))
+            [ui/tabbed-panel-menu
+             [{:tab-id :abstract
+               :content "Abstract"
+               :action #(dispatch [:set-view-field :article
+                                   [article-id :visible-pdf] nil])}
+              {:tab-id :pdf
+               :content "PDF"
+               :action #(dispatch [:set-view-field :article
+                                   [article-id :visible-pdf] pdf-url])}]
+             (if (nil? visible-url) :abstract :pdf)
+             "article-content-tab"])]
+         [:h3.header {:style {:margin-top "0px"}}
+          (when-not (or pdf-only? (empty? title))
+            (if true
+              [render-keywords
+               article-id @(subscribe [:article/title-render article-id])
+               {:label-class "large"}]))]
+         (when-not (or pdf-only? (empty? journal-name))
+           [:h3.header {:style {:margin-top "0px"}}
+            [render-keywords article-id journal-render
+             {:label-class "large"}]])
+         (when-not (or pdf-only? (empty? date))
+           [:h5.header {:style {:margin-top "0px"}}
+            date])
+         (when-not (or pdf-only? (empty? authors))
+           [:h5.header {:style {:margin-top "0px"}}
+            (author-names-text 5 authors)])
+         (if visible-url
+           [pdf/ViewPDF {:pdf-url visible-url :entry entry}]
+           ;; abstract, with annotations
+           (when-not (empty? abstract)
+             (if-not annotator-enabled?
+               [render-abstract article-id]
+               [annotator/AnnotationCapture
+                annotator-context
+                ;; todo: consolidate class names that need to be passed
+                ;;       to both AnnotationCapture and AnnotatedText
+                "article-abstract"
+                (let [saved-annotations (or (vals @(subscribe [:annotator/article project-id article-id]))
                                              '())
-                       unsaved-annotation (-> (get-in @app-db [:state :panels [:project :review] :views :annotator])
-                                              vals first :new-annotation)]
-                   (filter #(not (nil? (get-in % [:selection]))) (conj saved-annotations unsaved-annotation)))
-                 abstract
-                 (when (= context :review)
-                   "underline green")])))
-          (when-not (empty? documents)
-            [:div {:style {:padding-top "0.75em"}}
-             [:div.content.ui.horizontal.list
-              (doall
-               (map-indexed (fn [idx {:keys [fs-path url]}]
-                              ^{:key [idx]} [document-link url fs-path])
-                            documents))]])
-          (when-not (empty? urls)
-            [:div {:style {:padding-top "0.75em"}}
-             [:div.content.ui.horizontal.list
-              (doall
-               (map-indexed (fn [idx url]
-                              ^{:key [idx]} [out-link url])
-                            urls))]])]]))))
+                       unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
+                                                           {:class "abstract" :project-id project-id :article-id article-id}])
+                                              :new-annotation)
+                       annotations (->> (conj saved-annotations unsaved-annotation)
+                                        (filter #(let [text-context (get-in % [:context :text-context])]
+                                                   (or (= (type text-context) (type "string"))
+                                                       (= (:field text-context) "abstract")))))]
+                  [annotation/AnnotatedText
+                   ;; todo: refactor so that unsaved-annotations and saved-annotation are saved in one location
+                   annotations
+                   abstract
+                   :reader-error-render [render-abstract article-id]
+                   :class "article-abstract"])])))
+         (when-not (empty? documents)
+           [:div {:style {:padding-top "0.75em"}}
+            [:div.content.ui.horizontal.list
+             (doall
+              (map-indexed (fn [idx {:keys [fs-path url]}]
+                             ^{:key [idx]} [document-link url fs-path])
+                           documents))]])
+         (when-not (empty? urls)
+           [:div {:style {:padding-top "0.75em"}}
+            [:div.content.ui.horizontal.list
+             (doall
+              (map-indexed (fn [idx url]
+                             ^{:key [idx]} [out-link url])
+                           urls))]])]))))
 
 (defn- article-flag-label [description]
   [:div.ui.left.labeled.button.article-flag

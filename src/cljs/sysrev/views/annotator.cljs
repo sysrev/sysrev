@@ -2,6 +2,7 @@
   (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
+            [goog.dom :as gdom]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
             [re-frame.core :as re-frame :refer
@@ -491,21 +492,53 @@
                       reverse))))
        #_ [:div.ui.secondary.segment]])))
 
+(def js-text-type (type (new js/Text)))
+
+(defn previous-text
+  "Get all previous text from nodes up until node with class-name. Return result as a string"
+  ([node class-name]
+   (previous-text (gdom/getPreviousNode node) class-name ""))
+  ([node class-name string]
+   (cond
+     ;; we need this, it's a text node
+     (= (type node) js-text-type)
+     (previous-text (gdom/getPreviousNode node) class-name
+                    (str ($ node :data) string))
+     ;; todo: check that class-name is contained in a multi-class node
+     ;;       fyi (re-find (re-pattern class-name) ($ node getAttribute "class"))
+     ;;       won't work
+     ;; we're at the final node
+     (= ($ node getAttribute "class") class-name)
+     string
+     ;; skip this node, it isn't a text node
+     :else
+     (previous-text (gdom/getPreviousNode node) class-name
+                      string))))
+
+;; see: https://developer.mozilla.org/en-US/docs/Web/API/Selection
+;;      https://developer.mozilla.org/en-US/docs/Web/API/Range
+;;      https://developer.mozilla.org/en-US/docs/Web/API/Node
 (defn get-selection
-  "Get the current selection, with context, in the dom"
-  []
-  (let [current-selection ($ js/window getSelection)]
-    (when (> ($ current-selection :rangeCount) 0)
-      (let [range ($ current-selection getRangeAt 0)]
+  "Get the current selection relative to text in the component with class"
+  [class]
+  (let [current-selection ($ js/window getSelection)
+        range ($ current-selection getRangeAt 0)
+        common-ancestor ($ range :commonAncestorContainer)]
+    (when (and (> ($ current-selection :rangeCount) 0)
+               ;; when annotations are overlapped, below is nil (undefined)
+               (-> common-ancestor ($ :data)))
+      (let [previous-text (previous-text common-ancestor class)
+            abstract-text (-> (gdom/getAncestorByClass common-ancestor class)
+                              (gdom/getRawTextContent))]
         {:selection ($ current-selection toString)
-         :text-context (-> ($ range :commonAncestorContainer) ($ :data))
-         :start-offset ($ range :startOffset)
-         :end-offset ($ range :endOffset)}))))
+         :text-context abstract-text
+         :start-offset (+ ($ range :startOffset) (count previous-text))
+         :end-offset (+ ($ range :endOffset) (count previous-text))}))))
 
 (defn AnnotationCapture
-  "Create an Annotator using state. A child is a single element which has text
-  to be captured"
-  [context child]
+  "Create an Annotator using state. A child is a single reagent component which has text
+  to be captured. class is the root class-name that contains all of the text context to be annotated"
+  [context class child]
   (let [set (fn [path value]
               (dispatch-sync [::set context path value]))
         set-ann (fn [id path value]
@@ -517,8 +550,6 @@
         data (subscribe (annotator-data-item context))
         touchscreen? @(subscribe [:touchscreen?])
         update-selection
-        ;; need to be checked here because otherwise it would disable highlights altogether
-        ;; to disable it anywhere else
         (when (and @(subscribe [:self/logged-in?])
                    @(subscribe [:self/member?])
                    @(subscribe [:annotator/enabled context]))
@@ -541,7 +572,7 @@
                 (set-pos :ctarget-y ct-y)
                 (set-pos :client-x c-x)
                 (set-pos :client-y c-y)))
-            (let [selection-map (get-selection)]
+            (let [selection-map (get-selection class)]
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
                 (set [:new-annotation] nil)
