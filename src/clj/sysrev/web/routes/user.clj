@@ -100,8 +100,6 @@
                   (wrap-authorize
                    request {:authorize-fn (user-owns-invitation? user-id invitation-id)}
                    (let [{:keys [accepted]} (:body request)]
-                     (println {:invitation-id invitation-id
-                               :accepted accepted})
                      (api/update-invitation! invitation-id accepted))))
              (POST "/:invitee/:project-id" [project-id :<< as-int
                                             invitee :<< as-int

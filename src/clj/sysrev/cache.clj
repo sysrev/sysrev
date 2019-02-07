@@ -3,7 +3,9 @@
                                                   CacheProtocol]]
             [clojure.core.memoize :refer [build-memoizer]]
             [clojure.java.jdbc :refer [query insert!]]
-            [clojure.main :refer [demunge]])
+            [clojure.main :refer [demunge]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.db.core :refer [do-query do-execute]])
   (:import [clojure.core.memoize PluggableMemoization]))
 
 ;; from https://www.postgresql.org/docs/9.1/static/datatype-character.html
@@ -45,9 +47,16 @@
   "Given a database definition,db, a string representing a function
   name f (i.e. string returned by fn->string) and params, look up any
   result associated with it in the db"
-  (let [sql (format "select params, result from %s where f = ? and params = ?;"
-                    (name cache-table))]
-    (query db [sql (pr-str f) (pr-str params)])))
+  #_(let [sql (format "select params, result from %s where f = ? and params = ?;"
+                      (name cache-table))]
+      (query db [sql (pr-str f) (pr-str params)]))
+  ;; note: this is sysrev specific
+  (-> (select :params :result)
+      (from cache-table)
+      (where [:and
+              [:= :f (pr-str f)]
+              [:= :params (pr-str params)]])
+      do-query))
 
 (defn lookup
   "Lookup results when calling f by params"
@@ -59,10 +68,16 @@
        not-found))))
 
 (defn store [db f params result]
-  (insert! db cache-table
-           {:params (pr-str params)
-            :result (pr-str @result)
-            :f (pr-str f)}))
+  #_(insert! db cache-table
+             {:params (pr-str params)
+              :result (pr-str @result)
+              :f (pr-str f)})
+  ;; this is sysrev specific
+  (-> (insert-into cache-table)
+      (values [{:params (pr-str params)
+                :result (pr-str @result)
+                :f (pr-str f)}])
+      do-execute))
 
 (defn purge [db params])
 
@@ -114,7 +129,7 @@
   (into {} (for [[k v] seed] [k (make-derefable v)])))
 
 (defn db-memo
-  "Based upon memo from clojure.core.memoize, except it is back by a SQL
+  "Based upon memo from clojure.core.memoize, except it is backed by a SQL
   database. The table that stores the fn params does so per function
   name. Define your functions with defn before db-memo'izing them.
   Note that defining a db-memo'ized fn for an anonymous function e.g.
@@ -130,7 +145,7 @@
     (derefable-seed seed))))
 
 ;; note: for functions memo'ized with db-memo, the
-;; clojure.core.memoize fn's snapshot and lazy-snapshot return an
+;; clojure.core.memoize fn's snapshot and lazy-snapshot return and
 ;; empty map memoized? correctly returns true memo-clear! and
 ;; memo-swap! can be called, but have no effect on the actual results
 ;; This is due to the fact that we are always calling from the DB and

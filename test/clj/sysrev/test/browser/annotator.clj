@@ -15,7 +15,8 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(deftest-browser happy-path-project-annotator
+;; this has to be disabled until a consistent way to highlight text is found
+#_(deftest-browser happy-path-project-annotator
   (when (test/db-connected?)
     (let [project-name "Annotator Test"
           search-term "foo bar enthalpic mesoporous"

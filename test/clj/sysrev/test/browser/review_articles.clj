@@ -20,7 +20,7 @@
 ;;       If you are having an issue with not finding elements that should be there,
 ;;       try resizing the window to desktop to see if there is a discrepancy and then fix it
 ;;       in the element xpath names.
-;;       You should have consistent test behavior wether you are in mobile or desktop!!!
+;;       You should have consistent test behavior whether you are in mobile or desktop!!!
 ;;
 ;; helpful manual testing functions:
 ;; There are additional notes in create_project.clj
