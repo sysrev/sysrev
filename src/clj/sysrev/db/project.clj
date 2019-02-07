@@ -14,7 +14,7 @@
             [sysrev.shared.spec.notes :as snt]
             [sysrev.db.core :refer
              [do-query do-execute to-sql-array sql-cast with-project-cache
-              clear-project-cache clear-query-cache cached-project-ids to-jsonb
+              clear-project-cache clear-query-cache to-jsonb
               with-transaction sql-now]]
             [sysrev.db.compensation :as compensation]
             [sysrev.article.core :refer

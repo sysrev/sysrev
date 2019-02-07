@@ -169,7 +169,8 @@
   `(do (if *conn*
          (do ~@body)
          (j/with-db-transaction [conn# @active-db]
-           (binding [*conn* conn#]
+           (binding [*conn* conn#
+                     *transaction-query-cache* (atom {})]
              (do ~@body))))))
 
 (defmacro with-rollback-transaction
@@ -232,9 +233,10 @@
   {:-write write-object-str})
 
 ;;
-;; Facility for caching query results that shouldn't change often
+;; Facility for caching results of expensive data queries
 ;;
 (defonce query-cache (atom {}))
+(defonce ^:dynamic *transaction-query-cache* nil)
 
 (defonce query-cache-enabled (atom true))
 
@@ -248,15 +250,18 @@
 (defmacro with-query-cache [field-path form]
   (let [field-path (if (keyword? field-path)
                      [field-path] field-path)]
-    `(if (or (not @query-cache-enabled) *conn*)
-       (do ~form)
-       (let [field-path# ~field-path
-             cache-val# (get-in @query-cache field-path# :not-found)]
-         (if (= cache-val# :not-found)
-           (let [new-val# (do ~form)]
-             (swap! query-cache assoc-in field-path# new-val#)
-             new-val#)
-           cache-val#)))))
+    `(let [cache# (if (and *conn* *transaction-query-cache*)
+                    *transaction-query-cache*
+                    query-cache)]
+       (if (not @query-cache-enabled)
+         (do ~form)
+         (let [field-path# ~field-path
+               cache-val# (get-in @cache# field-path# :not-found)]
+           (if (= cache-val# :not-found)
+             (let [new-val# (do ~form)]
+               (swap! cache# assoc-in field-path# new-val#)
+               new-val#)
+             cache-val#))))))
 
 (defmacro with-project-cache [project-id field-path form]
   (let [field-path (if (keyword? field-path)
@@ -266,40 +271,50 @@
            full-path# (concat [:project project-id#] field-path#)]
        (with-query-cache full-path# ~form))))
 
-(defn cached-project-ids []
-  (keys (get @query-cache :project)))
-
 (defn clear-query-cache [& [field-path]]
-  (if (nil? field-path)
-    (reset! query-cache {})
-    (swap! query-cache
-           (fn [cache-state]
-             (if (= 1 (count field-path))
-               (dissoc cache-state (first field-path))
-               (update-in cache-state
-                          (butlast field-path)
-                          #(dissoc % (last field-path)))))))
+  (let [in-transaction (and *conn* *transaction-query-cache*)]
+    (if (nil? field-path)
+      (do (reset! query-cache {})
+          (when in-transaction
+            (reset! *transaction-query-cache* {})))
+      (let [update-cache
+            (fn [cache-state]
+              (if (= 1 (count field-path))
+                (dissoc cache-state (first field-path))
+                (update-in cache-state
+                           (butlast field-path)
+                           #(dissoc % (last field-path)))))]
+        (swap! query-cache update-cache)
+        (when in-transaction
+          (swap! *transaction-query-cache* update-cache)))))
   nil)
 
 (defn clear-global-cache []
   (clear-query-cache [:all-labels]))
 
 (defn clear-project-cache [& [project-id field-path clear-protected?]]
-  (clear-global-cache)
-  (cond
-    (and project-id field-path)
-    (clear-query-cache (concat [:project project-id] field-path))
+  (let [in-transaction (and *conn* *transaction-query-cache*)]
+    (clear-global-cache)
+    (cond
+      (and project-id field-path)
+      (clear-query-cache (concat [:project project-id] field-path))
 
-    project-id
-    (swap! query-cache
-           #(assoc-in % [:project project-id]
-                      {:protected
-                       (if clear-protected? {}
-                           (get-in % [:project project-id :protected]))}))
+      project-id
+      (let [update-cache
+            #(assoc-in % [:project project-id]
+                       {:protected
+                        (if clear-protected? {}
+                            (get-in % [:project project-id :protected]))})]
+        (swap! query-cache update-cache)
+        (when in-transaction
+          (swap! *transaction-query-cache* update-cache)))
 
-    :else
-    (swap! query-cache assoc :project {}))
-  nil)
+      :else
+      (let [update-cache #(assoc % :project {})]
+        (swap! query-cache update-cache)
+        (when in-transaction
+          (swap! *transaction-query-cache* update-cache))))
+    nil))
 
 (defn sql-field [table-name field-name]
   (keyword (str (name table-name) "." (name field-name))))
