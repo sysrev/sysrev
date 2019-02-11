@@ -158,7 +158,7 @@
 (defn set-categorical-label-definition
   [xpath label-map]
   (let [{:keys [question short-label required value-type
-                definition]
+                consensus definition]
          :or {question ""
               short-label ""
               required false
@@ -174,6 +174,10 @@
     (set-checkbox-button
      (field-input-xpath xpath "require-answer")
      required)
+    ;; consensus setting
+    (set-checkbox-button
+     (field-input-xpath xpath "consensus")
+     (boolean consensus))
     ;; enter the question
     (b/set-input-text
      (field-input-xpath xpath "label-question")
@@ -205,31 +209,51 @@
                  (b/click inclusion-checkbox)))
             all-values))))
 
+(defn add-label-button [value-type]
+  (condp = value-type
+    "boolean"      add-boolean-label-button
+    "string"       add-string-label-button
+    "categorical"  add-categorical-label-button))
+
 (defn set-label-definition
   "Set definition for label using browser interface."
   [xpath label-map]
-  (let [{:keys [value-type]
-         :or {value-type "boolean"}} label-map]
-    (b/wait-until-displayed (x/xpath xpath))
-    (condp = value-type
-      "boolean"     (set-boolean-label-definition xpath label-map)
-      "string"      (set-string-label-definition xpath label-map)
-      "categorical" (set-categorical-label-definition xpath label-map))))
+  (let [xpath (x/xpath xpath)
+        {:keys [value-type]} label-map
+        set-definition (condp = value-type
+                         "boolean"      set-boolean-label-definition
+                         "string"       set-string-label-definition
+                         "categorical"  set-categorical-label-definition)]
+    (b/wait-until-displayed xpath)
+    (set-definition xpath label-map)))
 
 (defn define-label
   "Create a new label definition using browser interface."
   [label-map]
   (let [{:keys [value-type]} label-map
-        [add-label set-values]
-        (condp = value-type
-          "boolean"     [add-boolean-label-button
-                         set-boolean-label-definition]
-          "string"      [add-string-label-button
-                         set-string-label-definition]
-          "categorical" [add-categorical-label-button
-                         set-categorical-label-definition])
         new-xpath "//div[contains(@id,'new-label-')]"]
+    (log/info "creating label definition")
     (nav/go-project-route "/labels/edit")
-    (b/click add-label)
-    (set-values new-xpath label-map)
-    (b/click save-button)))
+    (b/click (add-label-button value-type))
+    (set-label-definition new-xpath label-map)
+    (b/click save-button)
+    (b/wait-until-loading-completes :pre-wait true)
+    (is (empty? (get-all-error-messages)))))
+
+(defn label-definition-div [label-id]
+  (xpath (format "//div[@id='%s']" label-id)))
+
+(defn edit-label-button [label-id]
+  (xpath (label-definition-div label-id)
+         "//div[contains(@class,'edit-label-button')]"))
+
+(defn edit-label
+  "Edit an existing label definition using browser interface."
+  [label-id label-map]
+  (log/info "editing label definition")
+  (nav/go-project-route "/labels/edit")
+  (b/click (edit-label-button label-id))
+  (set-label-definition (label-definition-div label-id) label-map)
+  (b/click save-button)
+  (b/wait-until-loading-completes :pre-wait true)
+  (is (empty? (get-all-error-messages))))

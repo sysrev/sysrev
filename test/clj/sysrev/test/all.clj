@@ -19,6 +19,7 @@
             sysrev.test.browser.markdown
             sysrev.test.browser.blog
             sysrev.test.browser.review-settings
+            sysrev.test.browser.label-settings
             sysrev.test.stripe
             sysrev.test.web.routes.api.handlers
             sysrev.test.web.routes.project))

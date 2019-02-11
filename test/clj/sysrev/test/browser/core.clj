@@ -75,16 +75,17 @@
   (with-transaction
     (let [{:keys [user-id] :as user}
           (users/get-user-by-email email)]
-      (try
-        (when (:stripe-id user)
-          (stripe/delete-customer! user))
-        (catch Throwable t
-          nil))
-      (when user-id
-        (-> (delete-from :compensation-user-period)
-            (where [:= :web-user-id user-id])
-            do-execute))
-      (users/delete-user-by-email email))))
+      (when user
+        (try
+          (when (:stripe-id user)
+            (stripe/delete-customer! user))
+          (catch Throwable t
+            nil))
+        (when user-id
+          (-> (delete-from :compensation-user-period)
+              (where [:= :web-user-id user-id])
+              do-execute))
+        (users/delete-user-by-email email)))))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)

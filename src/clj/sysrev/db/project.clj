@@ -173,7 +173,7 @@
   "Deletes a project entry. All dependent entries should be deleted also by
   ON DELETE CASCADE constraints in Postgres."
   [project-id]
-  (let [project-id (q/to-project-id project-id)]
+  (when-let [project-id (q/to-project-id project-id)]
     (try
       (-> (delete-from :project)
           (where [:= :project-id project-id])

@@ -615,7 +615,8 @@
   (b/click (xpath (email-address-row email) make-primary-button)))
 
 (defn delete-email-address [email]
-  (b/click (xpath (email-address-row email) delete-email-button)))
+  (b/click (xpath (email-address-row email) delete-email-button))
+  (Thread/sleep 200))
 
 (defn email-address-count []
   (count (taxi/find-elements (xpath "//h4[@class='email-entry']"))))

@@ -128,7 +128,7 @@
 
            editing-allowed?
            [:div.ui.segment
-            [:div.ui.fluid.button
+            [:div.ui.fluid.button.change-labels
              {:on-click
               (util/wrap-user-event
                #(dispatch [:review/enable-change-labels

@@ -65,11 +65,11 @@
        "Include"]
       [:div.ui.attached.segment.status-buttons.with-header
        [:div.ui.small.basic.fluid.buttons
-        [:a.ui.button
+        [:a.ui.button.include-full-button
          {:on-click #(nav-article-status [true :determined])}
          (str "Full (" (+ (scount [:consistent true])
                           (scount [:resolved true])) ")")]
-        [:a.ui.button
+        [:a.ui.button.include-partial-button
          {:on-click #(nav-article-status [true :single])}
          (str "Partial (" (scount [:single true]) ")")]]]]
      [:div.ui.segments
@@ -77,23 +77,23 @@
        "Exclude"]
       [:div.ui.attached.segment.status-buttons.with-header
        [:div.ui.small.basic.fluid.buttons
-        [:a.ui.button
+        [:a.ui.button.exclude-full-button
          {:on-click #(nav-article-status [false :determined])}
          (str "Full (" (+ (scount [:consistent false])
                           (scount [:resolved false])) ")")]
-        [:a.ui.button
+        [:a.ui.button.exclude-partial-button
          {:on-click #(nav-article-status [false :single])}
          (str "Partial (" (scount [:single false]) ")")]]]]
      [:div.ui.segments {:style {:border-color "rgba(0,0,0,0.0)"}}
       [:div.ui.attached.segment.status-buttons.no-header
        [:div.ui.small.basic.fluid.buttons
-        [:a.ui.button
+        [:a.ui.button.conflict-button
          {:style {:border-left (color-border :red)
                   :border-top (color-border :red)
                   :border-bottom (color-border :red)}
           :on-click #(nav-article-status [nil :conflict])}
          (str "Conflict (" (scount [:conflict nil]) ")")]
-        [:a.ui.button
+        [:a.ui.button.resolve-button
          {:style {:border-right (color-border :purple)
                   :border-top (color-border :purple)
                   :border-bottom (color-border :purple)}
