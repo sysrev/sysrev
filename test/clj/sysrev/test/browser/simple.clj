@@ -26,6 +26,7 @@
                          :wait? false)))
 
 (deftest-browser project-routes
+  true []
   (do (nav/log-in)
       (nav/new-project "Simple Test")
       (let [project-id (b/current-project-id)]

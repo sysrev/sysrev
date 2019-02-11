@@ -16,34 +16,34 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(let [project-id (atom nil)
-      test-users (mapv #(str "user" % "@fake.com") [1 2 3])
-      [user1 user2 user3] test-users
-      project-name "Label Consensus Test"
-      switch-user (fn [email]
-                    (nav/log-out)
-                    (nav/log-in email)
-                    (nav/go-project-route "/review" @project-id))
-      label-def-1 {:value-type "categorical"
-                   :short-label "Test Label 1"
-                   :question "Is it?"
-                   :definition
-                   {:all-values ["One" "Two" "Three"]
-                    :inclusion-values ["One" "Bar"]
-                    :multi? false}
-                   :required false}
-      all-defs [review/include-label-definition label-def-1]
-      lvalues-1 [(-> {:value true}
-                     (merge review/include-label-definition))
-                 (-> {:value "One"}
-                     (merge label-def-1))]
-      lvalues-2 [(-> {:value true}
-                     (merge review/include-label-definition))
-                 (-> {:value "Two"}
-                     (merge label-def-1))]]
-  (deftest-browser label-consensus-test
-    (when (test/db-connected?)
-      (nav/log-in)
+(deftest-browser label-consensus-test
+  (test/db-connected?)
+  [project-id (atom nil)
+   test-users (mapv #(str "user" % "@fake.com") [1 2 3])
+   [user1 user2 user3] test-users
+   project-name "Label Consensus Test"
+   switch-user (fn [email]
+                 (nav/log-out)
+                 (nav/log-in email)
+                 (nav/go-project-route "/review" @project-id))
+   label-def-1 {:value-type "categorical"
+                :short-label "Test Label 1"
+                :question "Is it?"
+                :definition
+                {:all-values ["One" "Two" "Three"]
+                 :inclusion-values ["One" "Bar"]
+                 :multi? false}
+                :required false}
+   all-defs [review/include-label-definition label-def-1]
+   lvalues-1 [(-> {:value true}
+                  (merge review/include-label-definition))
+              (-> {:value "One"}
+                  (merge label-def-1))]
+   lvalues-2 [(-> {:value true}
+                  (merge review/include-label-definition))
+              (-> {:value "Two"}
+                  (merge label-def-1))]]
+  (do (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (import/import-pmid-vector
@@ -68,9 +68,8 @@
       (review/set-article-answers lvalues-2)
       (is (b/exists? ".no-review-articles")))
 
-    :cleanup
-    (when (test/db-connected?)
-      (project/delete-project @project-id)
-      ;; delete test users
+  :cleanup
+  (do (project/delete-project @project-id)
       (doseq [email test-users]
-        (b/delete-test-user :email email)))))
+        (b/delete-test-user :email email))))
+

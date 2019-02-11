@@ -8,7 +8,7 @@
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test :refer [wait-until]]
-            [sysrev.test.browser.core :as b :refer [deftest-browser]]
+            [sysrev.test.browser.core :as b]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]

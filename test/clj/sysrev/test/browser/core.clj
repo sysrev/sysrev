@@ -221,17 +221,19 @@
                           (Thread/sleep 20))))
   true)
 
-(defmacro deftest-browser [name body & {:keys [cleanup]}]
+(defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   `(deftest ~name
-     (try
-       ~body
-       (catch Throwable e#
-         (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-           (log/info "Saving screenshot:" filename#)
-           (taxi/take-screenshot :file filename#)
-           (throw e#)))
-       (finally
-         ~cleanup))))
+     (when ~enable
+       (let ~bindings
+         (try
+           ~body
+           (catch Throwable e#
+             (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
+               (log/info "Saving screenshot:" filename#)
+               (taxi/take-screenshot :file filename#)
+               (throw e#)))
+           (finally
+             ~cleanup))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")
