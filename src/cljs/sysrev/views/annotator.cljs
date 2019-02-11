@@ -495,24 +495,21 @@
 (def js-text-type (type (new js/Text)))
 
 (defn previous-text
-  "Get all previous text from nodes up until node with class-name. Return result as a string"
-  ([node class-name]
-   (previous-text (gdom/getPreviousNode node) class-name ""))
-  ([node class-name string]
+  "Get all previous text from nodes up until node with attribute data-field = field. Return result as a string"
+  ([node field]
+   (previous-text (gdom/getPreviousNode node) field ""))
+  ([node field string]
    (cond
      ;; we need this, it's a text node
      (= (type node) js-text-type)
-     (previous-text (gdom/getPreviousNode node) class-name
+     (previous-text (gdom/getPreviousNode node) field
                     (str ($ node :data) string))
-     ;; todo: check that class-name is contained in a multi-class node
-     ;;       fyi (re-find (re-pattern class-name) ($ node getAttribute "class"))
-     ;;       won't work
      ;; we're at the final node
-     (= ($ node getAttribute "class") class-name)
+     (= ($ node getAttribute "data-field") field)
      string
      ;; skip this node, it isn't a text node
      :else
-     (previous-text (gdom/getPreviousNode node) class-name
+     (previous-text (gdom/getPreviousNode node) field
                       string))))
 
 ;; see: https://developer.mozilla.org/en-US/docs/Web/API/Selection
@@ -520,25 +517,26 @@
 ;;      https://developer.mozilla.org/en-US/docs/Web/API/Node
 (defn get-selection
   "Get the current selection relative to text in the component with class"
-  [class]
+  [field]
   (let [current-selection ($ js/window getSelection)
         range ($ current-selection getRangeAt 0)
         common-ancestor ($ range :commonAncestorContainer)]
     (when (and (> ($ current-selection :rangeCount) 0)
                ;; when annotations are overlapped, below is nil (undefined)
                (-> common-ancestor ($ :data)))
-      (let [previous-text (previous-text common-ancestor class)
-            abstract-text (-> (gdom/getAncestorByClass common-ancestor class)
-                              (gdom/getRawTextContent))]
+      (let [previous-text (previous-text common-ancestor field)
+            root-text (-> (gdom/getAncestor common-ancestor
+                                            #(= ($ % getAttribute "data-field") field))
+                          (gdom/getRawTextContent))]
         {:selection ($ current-selection toString)
-         :text-context abstract-text
+         :text-context root-text
          :start-offset (+ ($ range :startOffset) (count previous-text))
          :end-offset (+ ($ range :endOffset) (count previous-text))}))))
 
 (defn AnnotationCapture
   "Create an Annotator using state. A child is a single reagent component which has text
-  to be captured. class is the root class-name that contains all of the text context to be annotated"
-  [context class child]
+  to be captured. field corresponds to the article column on the server and the data-field attribute of the root node."
+  [context field child]
   (let [set (fn [path value]
               (dispatch-sync [::set context path value]))
         set-ann (fn [id path value]
@@ -572,13 +570,14 @@
                 (set-pos :ctarget-y ct-y)
                 (set-pos :client-x c-x)
                 (set-pos :client-y c-y)))
-            (let [selection-map (get-selection class)]
+            (let [selection-map (get-selection field)]
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
                 (set [:new-annotation] nil)
                 (let [entry {:id (str "new-ann-" (util/random-id))
                              :selection (:selection selection-map)
-                             :context (dissoc selection-map :selection)
+                             :context (-> (dissoc selection-map :selection)
+                                          (assoc :field field))
                              :annotation ""
                              :semantic-class nil}]
                   (set [:new-annotation] entry)

@@ -13,7 +13,7 @@
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
             [sysrev.util :as util :refer [vector->hash-map]])
-  (:require-macros [reagent.interop :refer [$]]))
+  (:require-macros [reagent.interop :refer [$ $!]]))
 
 (def semantic-ui js/semanticUIReact)
 (def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
@@ -159,7 +159,8 @@
        (into [])))
 
 (defn remove-overlapping-indices
-  "Given a set of index-maps returned from annotation-indices, remove all but the longest overlapping annotation"
+  "Given a coll of maps with a {:index [start end]} keyword-value sorted by :index,
+  remove all but the longest overlapping maps from coll"
   ([annotation-indices]
    (if (empty? annotation-indices)
      annotation-indices
@@ -250,7 +251,7 @@
   and a text that contains text-context, return a set of annotations in the form
   [{:start <integer> ;; start index in text
     :end   <integer> ;; end index in text
-    :annotation <string> ;; will be contain semantic-class: annotation}]"
+    :annotation <string> ;; will contain semantic-class: annotation}]"
   [annotations text]
   (let [;; get all contexts and determine their relative offset in selection
         contexts (->> annotations
@@ -273,11 +274,31 @@
                                       annotations)]
     processed-annotations))
 
+(defn html-text->text
+  "Strip all html tags and convert all character entity references (e.g. &lt;) to their single char representation
+  in html-text"
+  [html-text]
+  (let [span ($ js/document createElement "SPAN")
+        _ ($! span :innerHTML html-text)]
+    ($ span :innerText)))
+
+(defn remove-overlaps
+  "Remove all but the longest overlapping annotations"
+  [annotations]
+  (->> annotations
+       (map #(assoc % :index [(:start %)
+                              (:end %)]))
+       (sort-by :index)
+       remove-overlapping-indices))
+
 (defn highlight-text-div-string
   "Generate the string to pass to cljs.reader for a div that contains text highlighted with annotations."
   [annotations text]
-  (let [text (clojure.string/replace text #"\n+" "\n")
-        annotations (convert-annotations annotations text)
+  (let [text (-> text
+                 (clojure.string/replace #"\n+" "")
+                 html-text->text)
+        annotations (-> (convert-annotations annotations text)
+                        remove-overlaps)
         max-index (- (count text) 1)
         start-map (vector->hash-map annotations :start)
         end-map (vector->hash-map annotations :end)]
@@ -322,12 +343,12 @@
 (def text-atom (r/atom ""))
 (defn AnnotatedText
   "Return a div with text highlighted by annotations. The class name for the annotated div is given as :class, defaults to 'annotated-text'"
-  [annotations text & {:keys [text-decoration reader-error-render class]
+  [annotations text & {:keys [text-decoration reader-error-render field]
                        :or {reader-error-render [:div "There was an error rendering the annotator view"]
-                            class "annotated-text"}}]
+                            field "annotated-text"}}]
   (reset! text-atom text)
   (reset! annotations-atom annotations)
-  [:div {:class class}
+  [:div {:data-field field}
    (try (cljs.reader/read-string
          (highlight-text-div-string annotations text))
         (catch js/Object e

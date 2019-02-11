@@ -152,7 +152,7 @@
                            (= (str/trim title) (str/trim filename)))]
         (.log js/console "article-id: " article-id)
         (get-annotations article-id)
-        [:div
+        [:div {:data-article-id article-id}
          [:div {:style {:margin-bottom "0.5em"}}
           (when (and (not-empty pdfs) (not-empty abstract))
             [ui/tabbed-panel-menu
@@ -168,10 +168,31 @@
              "article-content-tab"])]
          [:h3.header {:style {:margin-top "0px"}}
           (when-not (or pdf-only? (empty? title))
-            (if true
+            (if-not annotator-enabled?
               [render-keywords
                article-id @(subscribe [:article/title-render article-id])
-               {:label-class "large"}]))]
+               {:label-class "large"}]
+              ;; refactor so that AnnotationCapture and AnnotatedText are simply given an atom
+              ;; containing the annotations that are relevant to them
+              [annotator/AnnotationCapture
+               annotator-context
+               "primary-title"
+               (let [saved-annotations (or (vals @(subscribe [:annotator/article project-id article-id]))
+                                           '())
+                     unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
+                                                         {:class "abstract" :project-id project-id :article-id article-id}])
+                                            :new-annotation)
+                     annotations (->> (conj saved-annotations unsaved-annotation)
+                                      (filter #(let [text-context (get-in % [:context :text-context])]
+                                                 (or (and (= (type text-context) (type "string"))
+                                                          (= (:field %) "primary-title"))
+                                                     (= (:field text-context) "primary-title")
+                                                     (= text-context title)))))]
+                 [annotation/AnnotatedText
+                  annotations
+                  title
+                   :reader-error-render [render-keywords article-id @(subscribe [:article/title-render article-id])]
+                   :field "primary-title"])]))]
          (when-not (or pdf-only? (empty? journal-name))
            [:h3.header {:style {:margin-top "0px"}}
             [render-keywords article-id journal-render
@@ -192,22 +213,24 @@
                 annotator-context
                 ;; todo: consolidate class names that need to be passed
                 ;;       to both AnnotationCapture and AnnotatedText
-                "article-abstract"
+                "abstract"
                 (let [saved-annotations (or (vals @(subscribe [:annotator/article project-id article-id]))
-                                             '())
-                       unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
-                                                           {:class "abstract" :project-id project-id :article-id article-id}])
-                                              :new-annotation)
-                       annotations (->> (conj saved-annotations unsaved-annotation)
-                                        (filter #(let [text-context (get-in % [:context :text-context])]
-                                                   (or (= (type text-context) (type "string"))
-                                                       (= (:field text-context) "abstract")))))]
+                                            '())
+                      unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
+                                                          {:class "abstract" :project-id project-id :article-id article-id}])
+                                             :new-annotation)
+                      annotations (->> (conj saved-annotations unsaved-annotation)
+                                       (filter #(let [text-context (get-in % [:context :text-context])]
+                                                  (or (and (= (type text-context) (type "string"))
+                                                           (= (:field %) "abstract"))
+                                                      (= (:field text-context) "abstract")
+                                                      (= text-context abstract)))))]
                   [annotation/AnnotatedText
                    ;; todo: refactor so that unsaved-annotations and saved-annotation are saved in one location
                    annotations
                    abstract
                    :reader-error-render [render-abstract article-id]
-                   :class "article-abstract"])])))
+                   :field "abstract"])])))
          (when-not (empty? documents)
            [:div {:style {:padding-top "0.75em"}}
             [:div.content.ui.horizontal.list
