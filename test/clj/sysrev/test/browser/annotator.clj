@@ -37,12 +37,12 @@
       ;; check to see that the search-term still returns only one result
       (b/click review-articles/review-articles-button)
       (b/wait-until-exists {:xpath "//div[@id='project_review']"})
-      (review-articles/set-article-labels
+      (review-articles/set-article-answers
        [(merge review-articles/include-label-definition
                {:value true})])
       (b/wait-until-exists review-articles/no-articles-need-review)
       ;; select one article and annotate it
-      (b/click review-articles/articles-button)
+      (nav/go-project-route "/articles")
       (b/wait-until-loading-completes :pre-wait 200)
       (b/click article-title-div :delay 200)
       (b/wait-until-loading-completes :pre-wait 200)

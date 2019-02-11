@@ -33,7 +33,9 @@
       (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
-      (import/import-pmid-vector @project-id {:pmids [25706626 25215519 23790141]} {:use-future? false})
+      (import/import-pmid-vector
+       @project-id {:pmids [25706626 25215519 23790141]}
+       {:use-future? false})
       (nav/go-project-route "/settings")
       (b/click "#unlimited-reviews_true")
       (b/click ".project-options button.save-changes")
