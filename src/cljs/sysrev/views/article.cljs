@@ -150,7 +150,6 @@
                           @(subscribe [:view-field :article [article-id :visible-pdf]]))
             pdf-only? (and title visible-url filename
                            (= (str/trim title) (str/trim filename)))]
-        (.log js/console "article-id: " article-id)
         (get-annotations article-id)
         [:div {:data-article-id article-id}
          [:div {:style {:margin-bottom "0.5em"}}

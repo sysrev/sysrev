@@ -342,15 +342,15 @@
               (apply str))
          "]")))
 
-(def annotations-atom (r/atom {}))
-(def text-atom (r/atom ""))
+;;(def annotations-atom (r/atom {}))
+;;(def text-atom (r/atom ""))
 (defn AnnotatedText
   "Return a div with text highlighted by annotations. The class name for the annotated div is given as :class, defaults to 'annotated-text'"
   [annotations text & {:keys [text-decoration reader-error-render field]
                        :or {reader-error-render [:div "There was an error rendering the annotator view"]
                             field "annotated-text"}}]
-  (reset! text-atom text)
-  (reset! annotations-atom annotations)
+  ;;(reset! text-atom text)
+  ;;(reset! annotations-atom annotations)
   [:div {:data-field field}
    (try (cljs.reader/read-string
          (highlight-text-div-string annotations text))
