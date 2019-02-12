@@ -924,7 +924,7 @@
       (assoc :text-context {:article-id article-id
                             :field article-field-match})
 
-      true (select-keys [:start-offset :end-offset :text-context]))))
+      true (select-keys [:start-offset :end-offset :text-context :field]))))
 
 (defn save-article-annotation
   [project-id article-id user-id selection annotation & {:keys [pdf-key context]}]
