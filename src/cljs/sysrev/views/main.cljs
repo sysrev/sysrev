@@ -101,9 +101,9 @@
                   @(subscribe [:view-field :article [article-id :visible-pdf]]))
         review-interface @(subscribe [:review-interface])
         active
-        (cond ;; (not= article-id editing-id) :annotations
-              review-interface             review-interface
-              :else                        :labels)
+        (cond review-interface             review-interface
+              (= article-id editing-id) :labels
+              :else                     :annotations)
         pdf-key (some-> pdf-url pdf/pdf-url->key)
         ann-context (if pdf-key
                       {:class "pdf"
