@@ -361,27 +361,25 @@
         }
     }
 
-    div.ui.segments.article-filters-column {
+    div.article-filters-column {
         margin-top: 0px;
 
         > .ui.segment {
             padding: 3px 8px 5px 8px;
 
-            > .ui.form, > div.inner > .ui.form {
-                > .field {
-                    > .ui.grid {
-                        margin: 0 -0.25em 0 -0.25em;
+            .ui.form, .ui.form > .field, .ui.form > .field > .inner {
+                > .ui.grid {
+                    margin: 0 -0.25em 0 -0.25em;
 
-                        > .column {
-                            padding: 0 0.25em 0 0.25em;
-                        }
+                    > .column {
+                        padding: 0 0.25em 0 0.25em;
                     }
                 }
             }
         }
 
         .ui.button {
-            font-size: 11px;
+            font-size: 13px;
         }
 
         .ui.tiny.button {
@@ -398,13 +396,18 @@
         }
 
         > .ui.segment.filters-content {
-            padding-top: 7px;
-            > div.inner {
+            // padding-top: 7px;
+            div.inner {
                 > div.ui.label,
                 > div.ui.fluid.button {
                     margin-top: 5px;
                     margin-bottom: 5px;
                 }
+            }
+
+            .ui.form.new-filter, .ui.grid.reset-reload {
+                margin-top: 5px;
+                margin-bottom: 5px;
             }
         }
 
@@ -467,15 +470,17 @@
         .ui.input > input,
         .ui.dropdown,
         .ui.dropdown > div.text {
-            font-size: 12px;
+            font-size: 13px;
         }
 
         .ui.selection.dropdown {
-            padding: 8px 22px 8px 8px;
+            // padding: 8px 22px 8px 8px;
+            padding: 9px 24px 9px 9px;
             min-height: 2.4em;
 
             > input {
-                padding: 8px 22px 8px 8px;
+                // padding: 8px 22px 8px 8px;
+                padding: 9px 24px 9px 9px;
             }
             > i.icon {
                 padding: 8px 6px 8px 6px;
@@ -483,9 +488,9 @@
         }
 
         .ui.dropdown > .menu {
-            font-size: 12px;
+            font-size: 13px;
             > .item {
-                font-size: 12px;
+                font-size: 13px;
                 padding: 0.7rem 0.9rem !important;
             }
         }
@@ -515,7 +520,7 @@
                 margin-bottom: 0;
             }
             .ui.button {
-                padding: 0.95em 0.5em;
+                padding: 0.75em 0.5em;
             }
         }
     }
@@ -550,8 +555,8 @@
     }
 
     div.describe-filter {
-        margin-top: 5px;
-        margin-bottom: 5px;
+        margin-top: 7px;
+        margin-bottom: 7px;
 
         > .ui.grid {
             margin: -2px;

@@ -14,7 +14,7 @@
             [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def ^:private panel [:project :project :articles])
+(def panel [:project :project :articles])
 
 (defn- get-context-from-db [db]
   (let [project-id (active-project-id db)]
@@ -30,9 +30,8 @@
  (fn [[project-uri overall-id]]
    {:panel panel
     :base-uri (str project-uri "/articles")
-    ;; TODO: make /article/:id route
     :article-base-uri (str project-uri "/article")
-    :defaults {:filters [#_ {:label-id overall-id}]}}))
+    :defaults {:filters []}}))
 
 (defn get-context []
   @(subscribe [::article-list-context]))

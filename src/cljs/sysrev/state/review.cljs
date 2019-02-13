@@ -75,11 +75,15 @@
  :<- [:review/task-id]
  :<- [:project-articles/editing?]
  :<- [:project-articles/article-id]
+ :<- [:article-view/editing?]
+ :<- [:article-view/article-id]
  (fn [[on-review-task? task-aid
-       project-editing? project-aid]]
+       project-editing? project-aid
+       single-editing? single-aid]]
    (cond (and on-review-task?
               (integer? task-aid))  task-aid
-         project-editing?           project-aid)))
+         project-editing?           project-aid
+         single-editing?            single-aid)))
 
 (reg-sub
  :review/editing?
@@ -91,8 +95,12 @@
  :review/resolving?
  :<- [:project-articles/article-id]
  :<- [:project-articles/resolving?]
- (fn [[project-aid project-resolving?]]
-   (boolean (and project-aid project-resolving?))))
+ :<- [:article-view/article-id]
+ :<- [:article-view/resolving?]
+ (fn [[project-aid project-resolving?
+       single-aid single-resolving?]]
+   (boolean (or (and project-aid project-resolving?)
+                (and single-aid single-resolving?)))))
 
 (reg-sub
  ::labels

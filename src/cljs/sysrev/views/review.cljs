@@ -98,8 +98,7 @@
     (when (and article-id project-id)
       (loading/item-loading? [:article project-id article-id]))))
 
-(defn display-sidebar?
-  []
+(defn display-sidebar? []
   (and @(subscribe [:active-project-id])
        (int? @(subscribe [:visible-article-id]))
        @(subscribe [:annotator/enabled nil])
@@ -689,7 +688,8 @@
        {:class (cond-> "ui"
                  review-task?       (str " two column")
                  (not review-task?) (str " one column")
-                 true               (str " grid secondary segment"))}
+                 true               (str " grid"))
+        :style {:margin-top "0em"}}
        [:div.column (SaveButton article-id true true)]
        (when review-task?
          [:div.column (SkipArticle article-id true true)])])))

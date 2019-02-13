@@ -10,7 +10,7 @@
              [active-panel active-project-id]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.article :refer [ArticleInfo]]
-            [sysrev.views.review :refer [LabelEditor]]
+            [sysrev.views.review :as review :refer [LabelEditor]]
             [sysrev.views.components :as ui]
             [sysrev.views.list-pager :refer [ListPager]]
             [sysrev.views.labels :as labels]
@@ -112,10 +112,24 @@
                  @(subscribe [:user/display user-id])]])))
          labels))])
 
-(defn- ArticleContent [context article-id]
-  (let [editing-allowed? @(subscribe [::editing-allowed? context article-id])
-        resolving-allowed? @(subscribe [::resolving-allowed? context article-id])
-        editing? @(subscribe [:article-list/editing? context article-id])
+(defn ChangeLabelsButton [context article-id & {:keys [sidebar]}]
+  (let [editing? @(subscribe [:article-list/editing? context article-id])
+        editing-allowed? @(subscribe [::editing-allowed? context article-id])
+        resolving-allowed? @(subscribe [::resolving-allowed? context article-id])]
+    (when (and editing-allowed? (not editing?))
+      [:div.ui.fluid.left.labeled.icon.button.change-labels
+       {:class (when sidebar "small")
+        :style {:margin-top "1em"}
+        :on-click (util/wrap-user-event
+                   #(do (dispatch [:review/enable-change-labels
+                                   article-id (:panel context)])
+                        (when (review/display-sidebar?)
+                          (dispatch [:set-review-interface :labels]))))}
+       [:i.pencil.icon]
+       (if resolving-allowed? "Resolve Labels" "Change Labels")])))
+
+(defn ArticleContent [context article-id]
+  (let [editing? @(subscribe [:article-list/editing? context article-id])
         {:keys [self-only]}
         @(subscribe [::al/display-options (al/cached context)])]
     [:div {:style {:width "100%"}}
@@ -123,17 +137,10 @@
       :show-labels? true
       :private-view? self-only
       :context :article-list]
-     (cond editing?
-           [LabelEditor article-id]
-
-           editing-allowed?
-           [:div.ui.segment
-            [:div.ui.fluid.button.change-labels
-             {:on-click
-              (util/wrap-user-event
-               #(dispatch [:review/enable-change-labels
-                           article-id (:panel context)]))}
-             (if resolving-allowed? "Resolve Labels" "Change Labels")]])]))
+     (if editing?
+       [LabelEditor article-id]
+       (when (not (review/display-sidebar?))
+         [ChangeLabelsButton context article-id]))]))
 
 (defn ArticleLabelsNotes [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
@@ -291,18 +298,25 @@
                [:a.ui.middle.aligned.grid.segment.article-list-article
                 {:key [:list-row article-id]
                  :class (cond-> ""
-                          ;; recent? (str " active")
+                          recent? (str " active")
                           active? (str " expanded")
                           labels? (str " with-labels")
                           first?  (str " first")
                           last?   (str " last"))
-                 :on-click
+                 :href (al/get-base-uri context article-id)
+                 :on-click (util/wrap-user-event
+                            #(dispatch [:article-list/set-recent-article
+                                        context article-id]))
+                 #_
                  (util/wrap-user-event
                   (if active?
                     #(dispatch-sync [::al/set-active-article context nil])
                     #(do (dispatch-sync [::al/set-display-option
                                          context :expand-filters false])
                          (dispatch-sync [::al/set-active-article context article-id]))))}
+                [:div.ui.inverted.dimmer
+                 {:class (when loading? "active")}
+                 [:div.ui.loader]]
                 [ArticleListEntry (al/cached context) article full-size?]]
                (when active?
                  (doall
@@ -376,11 +390,11 @@
          [:div.ui.grid.article-list-grid
           [:div.row
            [:div.column.filters-column
-            {:class (if expanded? "four wide" "one wide")}
+            {:class (if expanded? "five wide" "one wide")}
             [ui/WrapFixedVisibility 10
              [f/ArticleListFiltersColumn context expanded?]]]
            [:div.column.content-column
-            {:class (if expanded? "twelve wide" "fifteen wide")}
+            {:class (if expanded? "eleven wide" "fifteen wide")}
             [:div.ui.form
              [:div.field>div.fields>div.sixteen.wide.field
               [f/TextSearchInput context]]]

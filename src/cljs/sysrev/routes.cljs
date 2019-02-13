@@ -81,17 +81,23 @@
      :else (do (dispatch load-params)))))
 
 (sr-defroute-project
- articles-id "/articles/:article-id" [project-id article-id]
+ article-id "/article/:article-id" [project-id article-id]
  (let [project-id @(subscribe [:active-project-id])
-       panel [:project :project :articles]
+       panel [:project :project :single-article]
        article-id (parse-integer article-id)
        item [:article project-id article-id]
+       have-project? @(subscribe [:have? [:project project-id]])
        set-panel [:set-active-panel panel]
-       have-project? @(subscribe [:have? [:project project-id]])]
-   (dispatch set-panel)
-   (dispatch (project-articles/show-article article-id))
-   (dispatch [:require item])
-   (dispatch [:reload item])))
+       set-article [:article-view/set-active-article article-id]]
+   (if (integer? article-id)
+     (do (if (not have-project?)
+           (do (dispatch set-panel) (dispatch set-article))
+           (dispatch [:data/after-load item :article-route
+                      (list set-panel set-article)]))
+         (dispatch [:require item])
+         (dispatch [:reload item]))
+     (do (js/console.log "invalid article id")
+         (nav-scroll-top "/")))))
 
 (sr-defroute-project
  project-labels-edit "/labels/edit" [project-id]
@@ -214,6 +220,9 @@
 
         [[:project :project :articles]
          #(project-uri (:project-id %) "/articles")]
+
+        [[:project :project :single-article]
+         #(project-uri (:project-id %) "/article")]
 
         [[:project :project :manage]
          #(project-uri (:project-id %) "/manage")]

@@ -4,10 +4,10 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
+            [sysrev.base :refer [active-route]]
             [sysrev.loading :as loading]
             [sysrev.nav :as nav]
-            [sysrev.state.nav :refer
-             [active-panel active-project-id]]
+            [sysrev.state.nav :refer [active-panel active-project-id project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values]]))
@@ -128,11 +128,11 @@
      (merge {:dispatch
              [::set-display-option context :expand-filters false]}))))
 
-(defn- get-base-uri [context & [article-id]]
+(defn get-base-uri [context & [article-id]]
   (let [{:keys [base-uri article-base-uri]} context]
     (assert (string? base-uri))
     (assert (string? article-base-uri))
-    (if false #_ article-id
+    (if article-id
       (str article-base-uri "/" article-id)
       base-uri)))
 
@@ -322,17 +322,22 @@
          {:keys [filters display offset text-search show-article
                  sort-by sort-dir]}
          (get-params-from-url)]
-     (cond-> {:db (-> (set-state db context [:active-article] show-article)
-                      (set-state context [:filters] filters)
-                      (set-state context [:text-search] text-search)
-                      (set-state context [:display-offset] (or offset 0))
-                      (set-state context [:display] display)
-                      (set-state context [:sort-by] sort-by)
-                      (set-state context [:sort-dir] sort-dir))}
-       (or (not= filters current-filters)
-           (not= (or text-search "")
-                 (or current-text-search "")))
-       (merge {::reload-list [context :transition]})))))
+     (if show-article
+       ;; show-article url param here is no longer used.
+       ;; This will redirect to valid url for the article.
+       {:nav-scroll-top (str (:article-base-uri context)
+                             "/" show-article)}
+       (cond-> {:db (-> (set-state db context [:active-article] show-article)
+                        (set-state context [:filters] filters)
+                        (set-state context [:text-search] text-search)
+                        (set-state context [:display-offset] (or offset 0))
+                        (set-state context [:display] display)
+                        (set-state context [:sort-by] sort-by)
+                        (set-state context [:sort-dir] sort-dir))}
+         (or (not= filters current-filters)
+             (not= (or text-search "")
+                   (or current-text-search "")))
+         (merge {::reload-list [context :transition]}))))))
 
 (defn sync-url-params
   "Navigate to full browser URL that corresponds to current state"
@@ -460,8 +465,12 @@
         count-cached @(subscribe [::count-query (cached context)])
         article-now @(subscribe [::get context [:active-article]])
         article-cached @(subscribe [::get (cached context) [:active-article]])
-        project-id @(subscribe [:active-project-id])]
-    (when (and ready? changed?)
+        project-id @(subscribe [:active-project-id])
+        {:keys [base-uri]} context]
+    (when (and ready? changed?
+               (or (= @active-route base-uri)
+                   (str/starts-with? @active-route (str base-uri "/"))
+                   (str/starts-with? @active-route (str base-uri "?"))))
       #_ (println (str "current = " (pr-str ready-state)))
       #_ (println (str "next = " (pr-str cleaned)))
       (let [redirect?

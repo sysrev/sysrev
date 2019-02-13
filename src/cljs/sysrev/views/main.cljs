@@ -12,6 +12,7 @@
             [sysrev.views.annotator :as annotator]
             [sysrev.views.base :refer
              [panel-content logged-out-content render-panel-tree]]
+            [sysrev.views.article-list.core :as alist]
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.root]
             [sysrev.views.panels.password-reset]
@@ -21,7 +22,8 @@
             [sysrev.views.panels.project.add-articles]
             [sysrev.views.panels.project.main]
             [sysrev.views.panels.project.overview]
-            [sysrev.views.panels.project.articles]
+            [sysrev.views.panels.project.articles :as project-articles]
+            [sysrev.views.panels.project.single-article :as single-article]
             [sysrev.views.panels.project.define-labels]
             [sysrev.views.panels.project.settings]
             [sysrev.views.panels.project.invite-link]
@@ -85,8 +87,14 @@
     (fn [ann-context]
       [annotator/AnnotationMenu ann-context "abstract"])}))
 
+(defn get-article-list-context []
+  (let [panel @(subscribe [:active-panel])]
+    (cond (= panel project-articles/panel)  (project-articles/get-context)
+          (= panel single-article/panel)    (single-article/get-context))))
+
 (defn SidebarColumn []
-  (let [project-id @(subscribe [:active-project-id])
+  (let [panel @(subscribe [:active-panel])
+        project-id @(subscribe [:active-project-id])
         article-id @(subscribe [:visible-article-id])
         editing-id @(subscribe [:review/editing-id])
         pdf-url (when article-id
@@ -104,7 +112,8 @@
                        :pdf-key pdf-key}
                       {:class "abstract"
                        :project-id project-id
-                       :article-id article-id})]
+                       :article-id article-id})
+        alist-context (get-article-list-context)]
     (when active
       (dispatch [:set-review-interface active])
       [:div.three.wide.column.panel-side-column
@@ -120,10 +129,15 @@
             :action #(dispatch [:set-review-interface :annotations])}]
           active
           "review-interface"]
+         (when (and article-id alist-context (nil? editing-id))
+           [alist/ChangeLabelsButton
+            alist-context article-id :sidebar true])
          (if (= active :labels)
            [review/LabelEditorColumn article-id]
            [SidebarAnnotationMenu ann-context])
-         [review/SaveSkipColumnSegment article-id]]]])))
+         (when (or @(subscribe [:review/on-review-task?])
+                   (= active :labels))
+           [review/SaveSkipColumnSegment article-id])]]])))
 
 (defn GlobalFooter []
   (let [sysrev-links

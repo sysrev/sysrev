@@ -145,7 +145,9 @@
  (fn [_]
    [(subscribe [:review/on-review-task?])
     (subscribe [:review/task-id])
-    (subscribe [:project-articles/article-id])])
- (fn [[on-review? id-review id-project]]
+    (subscribe [:project-articles/article-id])
+    (subscribe [:article-view/article-id])])
+ (fn [[on-review? id-review id-project id-single]]
    (or (and on-review? id-review)
-       id-project)))
+       id-project
+       id-single)))

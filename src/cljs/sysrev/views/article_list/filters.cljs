@@ -201,8 +201,8 @@
      (if (in? filters new-filter)
        db
        (al/set-state db context (concat [:inputs :filters])
-                     (->> [new-filter]
-                          (concat filters) vec))))))
+                     (-> [new-filter]
+                         (concat filters) vec))))))
 
 (reg-sub
  ::editing-filter?
@@ -666,9 +666,9 @@
                  #_ [:has-annotation "Annotation" "quote left"]
                  [:consensus "Consensus" "users"]]
           touchscreen? @(subscribe [:touchscreen?])]
-      [:div.ui.small.form
+      [:div.ui.small.form.new-filter
        [ui/selection-dropdown
-        [:div.text "Add filter..."]
+        [:div.text "Filter by..."]
         (map-indexed
          (fn [i [ftype label icon]]
            [:div.item
@@ -814,18 +814,18 @@
         can-reset? (or any-filters? (not= display (:display al/default-options)))]
     [:div.ui.small.form
      [:div.sixteen.wide.field
-      [:div.ui.grid
+      [:div.ui.grid.reset-reload
        [:div.thirteen.wide.column
-        [:button.ui.tiny.fluid.icon.labeled.button
+        [:button.ui.small.fluid.icon.labeled.button
          {:on-click (when can-reset?
                       #(do (dispatch [::al/reset-filters context])
                            (al/reload-list context :transition)
                            (dispatch [::reset-filters-input context])))
           :class (if can-reset? nil "disabled")}
          [:i.times.icon]
-         "Reset Filters"]]
+         "Reset All"]]
        [:div.three.wide.column
-        [:button.ui.tiny.fluid.icon.button
+        [:button.ui.small.fluid.icon.button
          {:class (when (= recent-nav-action :refresh) "loading")
           :on-click (util/wrap-user-event
                      #(al/reload-list context :refresh))}
@@ -920,37 +920,30 @@
   (let [active-filters @(subscribe [::al/filters context])
         input-filters @(subscribe [::filters-input context])
         recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])]
-    [:div.ui.segments.article-filters.article-filters-column.expanded
-     [:a.ui.center.aligned.header.grid.segment.collapse-header
-      {:on-click
-       (util/wrap-user-event
-        #(dispatch-sync [::al/set-display-option
-                         context :expand-filters false]))}
-      [:div.two.wide.column.left.aligned
-       [:i.fitted.angle.double.left.icon]]
-      [:div.twelve.wide.column
-       "Filters"]
-      [:div.two.wide.column.right.aligned
-       [:i.fitted.angle.double.left.icon]]]
-     [FilterPresetsForm context]
-     [DisplayOptionsForm context]
-     [SortOptionsForm context]
+    [:div.article-filters.article-filters-column.expanded
      [:div.ui.segment.filters-content
-      [:div.inner
-       [ResetReloadForm context]
-       [TextSearchDescribeElement context]
-       (if (empty? input-filters)
-         [FilterDescribeElement context nil]
-         (doall
-          (map-indexed
-           (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
-             (if (in? active-filters fr)
-               ^{:key [:filter-text filter-idx]}
-               [FilterDescribeElement context filter-idx]
-               ^{:key [:filter-editor filter-idx]}
-               [FilterEditElement context filter-idx]))
-           input-filters)))
-       [NewFilterElement context]]]]))
+      [:div.ui.small.form
+       {:on-submit (util/wrap-prevent-default #(do nil))}
+       [:div.sixteen.wide.field
+        [:label "Filters"]
+        [:div.inner
+         [NewFilterElement context]
+         [TextSearchDescribeElement context]
+         (if (empty? input-filters)
+           [FilterDescribeElement context nil]
+           (doall
+            (map-indexed
+             (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
+               (if (in? active-filters fr)
+                 ^{:key [:filter-text filter-idx]}
+                 [FilterDescribeElement context filter-idx]
+                 ^{:key [:filter-editor filter-idx]}
+                 [FilterEditElement context filter-idx]))
+             input-filters)))
+         [ResetReloadForm context]]]]]
+     [SortOptionsForm context]
+     [DisplayOptionsForm context]
+     [FilterPresetsForm context]]))
 
 (defn ArticleListFiltersColumn [context expanded?]
   [:div
