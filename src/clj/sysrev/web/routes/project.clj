@@ -93,7 +93,8 @@
 (defn project-info [project-id]
   (with-project-cache
     project-id [:project-info]
-    (let [[fields predict articles status-counts members
+    (let [_ (labels/query-public-article-labels project-id)
+          [fields predict articles status-counts members
            users keywords notes files documents progress sources
            importance url-ids]
           (pvalues (q/query-project-by-id project-id [:*])

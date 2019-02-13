@@ -46,13 +46,15 @@
 ;; if you need need to unsubscribe all plans between tests:
 ;; (unsubscribe-user-from-all-support-plans (users/get-user-by-email (:email b/test-login)))
 
-#_(let [{:keys [email password]} b/test-login
-      project-name "Sysrev Support Project Test"
-      project-id (atom nil)]
-  ;; This is testing a feature that is not used anymore
-  (deftest-browser register-and-support-projects
-    (when (and (test/db-connected?) (not (test/remote-test?)))
-      (log/info "register-and-support-projects")
+;; This is testing a feature that is not used anymore
+#_
+(deftest-browser register-and-support-projects
+  (and (test/db-connected?) (not (test/remote-test?)))
+  [{:keys [email password]} b/test-login
+
+   project-name "Sysrev Support Project Test"
+   project-id (atom nil)]
+  (do (log/info "register-and-support-projects")
       ;; cancel any previouly created subscriptions
       (unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
       ;; delete any test user that currently exists
@@ -129,7 +131,6 @@
       ;;(unsubscribe-user-from-all-support-plans (users/get-user-by-email email))
       (is (empty? (plans/user-support-subscriptions (users/get-user-by-email email)))))
 
-    :cleanup
-    (when (and (test/db-connected?) (not (test/remote-test?)))
-      (when @project-id (project/delete-project @project-id))
-      (b/delete-test-user))))
+  :cleanup
+  (do (when @project-id (project/delete-project @project-id))
+      (b/delete-test-user)))

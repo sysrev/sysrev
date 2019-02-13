@@ -19,28 +19,27 @@
 
 (defonce predict-api (agent nil))
 
-;; (do (create-predict-model 100) (store-model-predictions 100))
-
 ;; TODO: this only works for boolean inclusion criteria labels
-;; TODO: change consensus/resolved functions to work without caching;
-;;       currently they prevent this from working in with-transaction
 (defn get-training-label-values [project-id label-id]
-  (->> (labels/query-public-article-labels project-id)
-       (map (fn [[article-id {:keys [labels]}]]
-              (let [consensus (labels/article-consensus-status project-id article-id)
-                    labels (get labels label-id)
-                    answer
-                    (cond (in? [:single :consistent] consensus)
-                          (->> labels (map :answer) (remove nil?) first)
+  (with-transaction
+    (->> (labels/query-public-article-labels project-id)
+         (map (fn [[article-id {:keys [labels]}]]
+                (let [consensus (labels/article-consensus-status
+                                 project-id article-id)
+                      labels (get labels label-id)
+                      answer
+                      (cond (in? [:single :consistent] consensus)
+                            (->> labels (map :answer) (remove nil?) first)
 
-                          (= :resolved consensus)
-                          (-> (labels/article-resolved-labels project-id article-id)
-                              (get label-id)))]
-                (when-not (nil? answer)
-                  [article-id answer]))))
-       (remove nil?)
-       (apply concat)
-       (apply hash-map)))
+                            (= :resolved consensus)
+                            (-> (labels/article-resolved-labels
+                                 project-id article-id)
+                                (get label-id)))]
+                  (when-not (nil? answer)
+                    [article-id answer]))))
+         (remove nil?)
+         (apply concat)
+         (apply hash-map))))
 
 (defn get-article-texts [training? project-id & [label-id]]
   (let [label-id (or label-id (project/project-overall-label-id project-id))]
@@ -70,21 +69,22 @@
 ;; Note: the prediction model will need a minimum of an article with a true
 ;; tag and false tag, otherwise it will fail
 (defn create-predict-model [project-id]
-  (let [label-id (project/project-overall-label-id project-id)
-        article-texts (get-article-texts true project-id label-id)
-        body (json/write-str
-              {"project_id" project-id
-               "feature" (str label-id)
-               "documents" (->> (get-training-label-values project-id label-id)
-                                (mapv (fn [[article-id answer]]
-                                        {"text" (get article-texts article-id)
-                                         "tag" answer}))
-                                (filterv #(and (string? (get % "text"))
-                                               (boolean? (get % "tag")))))})]
-    (http/post
-     (str api-host "sysrev/modelService/v2")
-     {:content-type "application/json"
-      :body body})))
+  (with-transaction
+    (let [label-id (project/project-overall-label-id project-id)
+          article-texts (get-article-texts true project-id label-id)
+          body (json/write-str
+                {"project_id" project-id
+                 "feature" (str label-id)
+                 "documents" (->> (get-training-label-values project-id label-id)
+                                  (mapv (fn [[article-id answer]]
+                                          {"text" (get article-texts article-id)
+                                           "tag" answer}))
+                                  (filterv #(and (string? (get % "text"))
+                                                 (boolean? (get % "tag")))))})]
+      (http/post
+       (str api-host "sysrev/modelService/v2")
+       {:content-type "application/json"
+        :body body}))))
 
 (defn fetch-model-predictions [project-id label-id article-texts article-ids]
   (log/info "fetching" (count article-ids) "article predictions")
@@ -119,19 +119,17 @@
       (report/update-predict-meta project-id predict-run-id))))
 
 (defn update-project-predictions [project-id]
-  (let [reviewed (-> (labels/project-article-status-counts project-id)
-                     :reviewed)]
+  (let [{:keys [reviewed]}
+        (labels/project-article-status-counts project-id)]
     (when (and reviewed (>= reviewed 10))
       (send
        predict-api
        (fn [_]
          (try
-           ;; TODO: can't use with-transaction here because article
-           ;;       consensus functions rely on with-project-cache
-           ;;       caching
-           (create-predict-model project-id)
-           (store-model-predictions project-id)
-           true
+           (with-transaction
+             (create-predict-model project-id)
+             (store-model-predictions project-id)
+             true)
            (catch Throwable e
              (log/info "Exception in update-project-predictions:")
              (log/info (.getMessage e))

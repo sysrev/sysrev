@@ -14,7 +14,7 @@
             [sysrev.shared.spec.notes :as snt]
             [sysrev.db.core :refer
              [do-query do-execute to-sql-array sql-cast with-project-cache
-              clear-project-cache clear-query-cache cached-project-ids to-jsonb
+              clear-project-cache clear-query-cache to-jsonb
               with-transaction sql-now]]
             [sysrev.db.compensation :as compensation]
             [sysrev.article.core :refer
@@ -173,7 +173,7 @@
   "Deletes a project entry. All dependent entries should be deleted also by
   ON DELETE CASCADE constraints in Postgres."
   [project-id]
-  (let [project-id (q/to-project-id project-id)]
+  (when-let [project-id (q/to-project-id project-id)]
     (try
       (-> (delete-from :project)
           (where [:= :project-id project-id])

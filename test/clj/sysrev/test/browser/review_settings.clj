@@ -15,25 +15,27 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-(let [project-id (atom nil)
-      test-users (mapv #(str "user" % "@fake.com") [1 2 3])
-      [user1 user2 user3] test-users
-      project-name "Unlimited Reviews Test"
-      label-definitions
-      [review/include-label-definition]
-      review-articles
-      (fn [n-articles]
-        (review/randomly-review-n-articles n-articles label-definitions))
-      switch-user (fn [email]
-                    (nav/log-out)
-                    (nav/log-in email)
-                    (nav/go-project-route "/review" @project-id))]
-  (deftest-browser unlimited-reviews
-    (when (test/db-connected?)
-      (nav/log-in)
+(deftest-browser unlimited-reviews
+  (test/db-connected?)
+  [project-id (atom nil)
+   test-users (mapv #(str "user" % "@fake.com") [1 2 3])
+   [user1 user2 user3] test-users
+   project-name "Unlimited Reviews Test"
+   label-definitions
+   [review/include-label-definition]
+   review-articles
+   (fn [n-articles]
+     (review/randomly-review-n-articles n-articles label-definitions))
+   switch-user (fn [email]
+                 (nav/log-out)
+                 (nav/log-in email)
+                 (nav/go-project-route "/review" @project-id))]
+  (do (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
-      (import/import-pmid-vector @project-id {:pmids [25706626 25215519 23790141]} {:use-future? false})
+      (import/import-pmid-vector
+       @project-id {:pmids [25706626 25215519 23790141]}
+       {:use-future? false})
       (nav/go-project-route "/settings")
       (b/click "#unlimited-reviews_true")
       (b/click ".project-options button.save-changes")
@@ -70,9 +72,7 @@
       (nav/go-project-route "/articles")
       (is (b/exists? ".article-list-view .list-pager")))
 
-    :cleanup
-    (when (test/db-connected?)
-      (project/delete-project @project-id)
-      ;; delete test users
+  :cleanup
+  (do (project/delete-project @project-id)
       (doseq [email test-users]
-        (b/delete-test-user :email email)))))
+        (b/delete-test-user :email email))))

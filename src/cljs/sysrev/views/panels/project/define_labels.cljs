@@ -230,7 +230,7 @@
   [label allow-edit?]
   (let [{:keys [editing?]} @label
         synced? (labels-synced?)]
-    [:div.ui.small.icon.button
+    [:div.ui.small.icon.button.edit-label-button
      {:class (if allow-edit? "" "disabled")
       :on-click
       (util/wrap-user-event
@@ -450,10 +450,11 @@
 
      ;; consensus
      [ui/LabeledCheckboxField
-      {:error (:consensus @errors)
+      {:field-class "consensus"
+       :error (:consensus @errors)
        :on-change #(reset! consensus (-> % .-target .-checked boolean))
        :checked? @consensus
-       :disabled? (false? @required)
+       ;; :disabled? (false? @required)
        :label "Require user consensus"
        :tooltip ["Check answers for consensus among users."
                  "Articles will be marked as conflicted if user answers are not identical."]}]

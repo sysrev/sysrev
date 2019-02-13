@@ -154,8 +154,8 @@
    :required [[boolean-or-nil?
                :message "[Error] Invalid value for \"Required\""]]
 
-   :consensus [[#(not (and (true? %) (false? required)))
-                :message "Answer must be required when requiring consensus"]]
+   :consensus [#_ [#(not (and (true? %) (false? required)))
+                   :message "Answer must be required when requiring consensus"]]
 
    ;; each value-type has a different definition
    :definition (condp = value-type

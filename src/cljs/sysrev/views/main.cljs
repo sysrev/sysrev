@@ -93,7 +93,7 @@
                   @(subscribe [:view-field :article [article-id :visible-pdf]]))
         review-interface @(subscribe [:review-interface])
         active
-        (cond (not= article-id editing-id) :annotations
+        (cond ;; (not= article-id editing-id) :annotations
               review-interface             review-interface
               :else                        :labels)
         pdf-key (some-> pdf-url pdf/pdf-url->key)
@@ -106,6 +106,7 @@
                        :project-id project-id
                        :article-id article-id})]
     (when active
+      (dispatch [:set-review-interface active])
       [:div.three.wide.column.panel-side-column
        [ui/WrapFixedVisibility 10
         [:div.review-menu
@@ -122,8 +123,6 @@
          (if (= active :labels)
            [review/LabelEditorColumn article-id]
            [SidebarAnnotationMenu ann-context])
-         (when (= active :annotations)
-           (dispatch [:set-review-interface :annotations]))
          [review/SaveSkipColumnSegment article-id]]]])))
 
 (defn GlobalFooter []

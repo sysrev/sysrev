@@ -75,16 +75,17 @@
   (with-transaction
     (let [{:keys [user-id] :as user}
           (users/get-user-by-email email)]
-      (try
-        (when (:stripe-id user)
-          (stripe/delete-customer! user))
-        (catch Throwable t
-          nil))
-      (when user-id
-        (-> (delete-from :compensation-user-period)
-            (where [:= :web-user-id user-id])
-            do-execute))
-      (users/delete-user-by-email email))))
+      (when user
+        (try
+          (when (:stripe-id user)
+            (stripe/delete-customer! user))
+          (catch Throwable t
+            nil))
+        (when user-id
+          (-> (delete-from :compensation-user-period)
+              (where [:= :web-user-id user-id])
+              do-execute))
+        (users/delete-user-by-email email)))))
 
 (defn create-test-user [& {:keys [email password project-id]
                            :or {email (:email test-login)
@@ -221,17 +222,19 @@
                           (Thread/sleep 20))))
   true)
 
-(defmacro deftest-browser [name body & {:keys [cleanup]}]
+(defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   `(deftest ~name
-     (try
-       ~body
-       (catch Throwable e#
-         (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-           (log/info "Saving screenshot:" filename#)
-           (taxi/take-screenshot :file filename#)
-           (throw e#)))
-       (finally
-         ~cleanup))))
+     (when ~enable
+       (let ~bindings
+         (try
+           ~body
+           (catch Throwable e#
+             (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
+               (log/info "Saving screenshot:" filename#)
+               (taxi/take-screenshot :file filename#)
+               (throw e#)))
+           (finally
+             ~cleanup))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")

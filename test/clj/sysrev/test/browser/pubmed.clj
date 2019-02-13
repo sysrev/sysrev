@@ -171,6 +171,7 @@
   (b/wait-until-loading-completes :pre-wait 500))
 
 (deftest-browser pubmed-search
+  true []
   (do (nav/log-in)
       (nav/go-route "/pubmed-search")
       (is (nav/panel-exists? [:pubmed-search]))
