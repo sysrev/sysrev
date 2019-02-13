@@ -1,6 +1,6 @@
 (ns sysrev.test.browser.annotator
   (:require [clj-webdriver.taxi :as taxi]
-            [clj-webdriver.core :refer [->actions double-click]]
+            [clj-webdriver.core :refer [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
             [clojure.string :as string]
             [clojure.test :refer :all]
             [sysrev.api :as api]
@@ -16,7 +16,7 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 ;; disabled for now
-#_(deftest-browser happy-path-project-annotator
+(deftest-browser happy-path-project-annotator
   (test/db-connected?)
   [project-name "Annotator Test"
    search-term "foo bar enthalpic mesoporous"
@@ -56,7 +56,8 @@
     (b/wait-until-displayed selected-text)
     (Thread/sleep 100)
     (->actions @b/active-webdriver
-               (double-click (taxi/find-element @b/active-webdriver selected-text)))
+               (move-to-element (taxi/find-element @b/active-webdriver {:xpath "//div[@data-field='primary-title']"}) 0 0)
+               (click-and-hold) (move-by-offset 675 0) (release) (perform))
     (Thread/sleep 100)
     (b/input-text semantic-class-input semantic-class :delay 50)
     (b/input-text annotation-value-input annotation-value :delay 50)
@@ -70,14 +71,17 @@
           project-id (review-articles/get-user-project-id user-id)
           annotations (api/project-annotations project-id)
           annotation (first annotations)]
-      
       (is (= (count annotations) 1))
       (is (= semantic-class (:semantic-class annotation)))
       (is (= annotation-value (:annotation annotation)))
-      (is (= "Journal of the American Chemical Society"
+      (is (= "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas and ambient air using mesoporous silica grafted amines."
              (get-in  annotation [:context :text-context])))
-      (is (= 15 (get-in annotation [:context :start-offset])))
-      (is (= 23 (get-in annotation [:context :end-offset])))))
+      (is (= 0 (get-in annotation [:context :start-offset])))
+      (is (= 94 (get-in annotation [:context :end-offset])))
+      ;; do we have highlights?
+      (is (= (-> (taxi/find-element (xpath "//span[contains(@style,'background-color: black; color: white;')]"))
+                 (taxi/text))
+             "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"))))
 
   :cleanup
   (nav/delete-current-project))
