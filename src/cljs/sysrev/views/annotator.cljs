@@ -527,11 +527,14 @@
       (let [previous-text (previous-text common-ancestor field)
             root-text (-> (gdom/getAncestor common-ancestor
                                             #(= ($ % getAttribute "data-field") field))
-                          (gdom/getRawTextContent))]
+                          (gdom/getRawTextContent))
+            current-selection ($ current-selection toString)
+            start-offset (+ ($ range :startOffset) (count previous-text))
+            end-offset (+ start-offset (count current-selection))]
         {:selection ($ current-selection toString)
          :text-context root-text
-         :start-offset (+ ($ range :startOffset) (count previous-text))
-         :end-offset (+ ($ range :endOffset) (count previous-text))}))))
+         :start-offset start-offset
+         :end-offset end-offset}))))
 
 (defn AnnotationCapture
   "Create an Annotator using state. A child is a single reagent component which has text
@@ -577,7 +580,7 @@
                 (let [entry {:id (str "new-ann-" (util/random-id))
                              :selection (:selection selection-map)
                              :context (-> (dissoc selection-map :selection)
-                                          (assoc :field field))
+                                          (assoc :client-field field))
                              :annotation ""
                              :semantic-class nil}]
                   (set [:new-annotation] entry)

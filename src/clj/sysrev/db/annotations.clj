@@ -199,13 +199,7 @@
             [:= :aa.annotation-id :an.id]
 
             [:article :a]
-            [:= :a.article-id :aa.article-id]
-
-            [:annotation-semantic-class :asc]
-            [:= :an.id :asc.annotation-id]
-
-            [:semantic-class :sc]
-            [:= :sc.id :asc.semantic-class-id])
+            [:= :a.article-id :aa.article-id])
       (left-join [:annotation-s3store :as3]
                  [:= :an.id :as3.annotation-id]
 
@@ -213,7 +207,13 @@
                  [:= :s3.id :as3.s3store-id]
 
                  [:annotation-web-user :au]
-                 [:= :au.annotation-id :an.id])
+                 [:= :au.annotation-id :an.id]
+
+                 [:annotation-semantic-class :asc]
+                 [:= :an.id :asc.annotation-id]
+
+                 [:semantic-class :sc]
+                 [:= :sc.id :asc.semantic-class-id])
       (where [:= :a.project-id project-id])
       do-query))
 

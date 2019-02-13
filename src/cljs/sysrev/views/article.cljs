@@ -184,7 +184,7 @@
                      annotations (->> (conj saved-annotations unsaved-annotation)
                                       (filter #(let [text-context (get-in % [:context :text-context])]
                                                  (or (and (= (type text-context) (type "string"))
-                                                          (= (:field %) "primary-title"))
+                                                          (= (get-in % [:context :client-field]) "primary-title"))
                                                      (= (:field text-context) "primary-title")
                                                      (= text-context title)))))]
                  [annotation/AnnotatedText
@@ -221,7 +221,7 @@
                       annotations (->> (conj saved-annotations unsaved-annotation)
                                        (filter #(let [text-context (get-in % [:context :text-context])]
                                                   (or (and (= (type text-context) (type "string"))
-                                                           (= (:field %) "abstract"))
+                                                           (= (get-in % [:context :client-field]) "abstract"))
                                                       (= (:field text-context) "abstract")
                                                       (= text-context abstract)))))]
                   [annotation/AnnotatedText

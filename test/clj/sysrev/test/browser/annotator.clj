@@ -69,20 +69,22 @@
     (let [{:keys [email password]} b/test-login
           user-id (:user-id (users/get-user-by-email email))
           project-id (review-articles/get-user-project-id user-id)
-          annotations (api/project-annotations project-id)
+          article-id (first (sysrev.db.project/project-article-ids project-id))
+          annotations (get-in (api/user-defined-annotations article-id) [:result :annotations])
           annotation (first annotations)]
       (is (= (count annotations) 1))
       (is (= semantic-class (:semantic-class annotation)))
       (is (= annotation-value (:annotation annotation)))
-      (is (= "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas and ambient air using mesoporous silica grafted amines."
-             (get-in  annotation [:context :text-context])))
+      (is (= (get-in annotation [:context :text-context :field])
+             "primary-title"))
+      (is (= (get-in annotation [:context :client-field])
+             "primary-title"))
       (is (= 0 (get-in annotation [:context :start-offset])))
       (is (= 94 (get-in annotation [:context :end-offset])))
       ;; do we have highlights?
       (is (= (-> (taxi/find-element (xpath "//span[contains(@style,'background-color: black; color: white;')]"))
                  (taxi/text))
              "Important roles of enthalpic and entropic contributions to CO2 capture from simulated flue gas"))))
-
   :cleanup
   (nav/delete-current-project))
 
