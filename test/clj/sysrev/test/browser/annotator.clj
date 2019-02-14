@@ -57,7 +57,7 @@
     (Thread/sleep 100)
     (->actions @b/active-webdriver
                (move-to-element (taxi/find-element @b/active-webdriver {:xpath "//div[@data-field='primary-title']"}) 0 0)
-               (click-and-hold) (move-by-offset 675 0) (release) (perform))
+               (click-and-hold) (move-by-offset 671 0) (release) (perform))
     (Thread/sleep 100)
     (b/input-text semantic-class-input semantic-class :delay 50)
     (b/input-text annotation-value-input annotation-value :delay 50)
