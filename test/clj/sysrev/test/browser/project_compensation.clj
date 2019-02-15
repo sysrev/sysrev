@@ -685,8 +685,12 @@
         (nav/new-project "Invitation Test")
         ;; go to user and invite foo
         (nav/go-route "/users")
-        (b/click (xpath "//div[@role='listbox']"))
-        (b/click (xpath "//span[contains(text(),'Invitation Test')]"
+        (b/click (xpath (str "//a[contains(@href,'" user-id "')]")
+                        "/ancestor::div"
+                        "/descendant::div[@role='listbox']"))
+        (b/click (xpath (str "//a[contains(@href,'" user-id "')]")
+                        "/ancestor::div"
+                        "/descendant::span[contains(text(),'Invitation Test')]"
                         "/ancestor::div[@role='option']"))
         (b/click (xpath "//button[contains(text(),'Invite')]"))
         (is (b/exists? (xpath "//div[contains(text(),'This user was invited as a paid-reviewer to Invitation Test')]")))
