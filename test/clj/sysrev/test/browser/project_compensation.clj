@@ -625,7 +625,10 @@
   (dec (count (taxi/find-elements (xpath "//div[@id='your-projects']//h4")))))
 
 (deftest-browser create-user-verify-email-and-invite
-  (test/db-connected?)
+  (and (test/db-connected?)
+       ;; TODO: invite correct user by name to fix for populated db
+       ;; (staging.sysrev.com)
+       (not (test/remote-test?)))
   [user1 {:email "foo@insilica.co" :password "foobar"}
    new-email-address "bar@insilica.co"]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
