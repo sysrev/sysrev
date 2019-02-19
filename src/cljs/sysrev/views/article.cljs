@@ -126,6 +126,8 @@
             documents @(subscribe [:article/documents article-id])
             date @(subscribe [:article/date article-id])
             pdfs @(subscribe [:article/pdfs article-id])
+            on-review? (= @(subscribe [:active-panel]) [:project :review])
+            self-id @(subscribe [:self/user-id])
             annotations-raw @(subscribe [::article-annotations article-id])
             annotations (condp = context
                           :article-list
@@ -149,7 +151,15 @@
                           pdf-url
                           @(subscribe [:view-field :article [article-id :visible-pdf]]))
             pdf-only? (and title visible-url filename
-                           (= (str/trim title) (str/trim filename)))]
+                           (= (str/trim title) (str/trim filename)))
+            annotations-filter (fn [annotations client-field]
+                                 (cond-> (->> annotations
+                                              (filter #(let [text-context (get-in % [:context :text-context])]
+                                                         (or (and (= (type text-context) (type "string"))
+                                                                  (= (get-in % [:context :client-field]) client-field))
+                                                                  (= (:field text-context) client-field)
+                                                                  (= text-context title)))))
+                                   on-review? (->> (filter #(= (:user-id %) self-id)))))]
         (get-annotations article-id)
         [:div {:data-article-id article-id}
          [:div {:style {:margin-bottom "0.5em"}}
@@ -181,12 +191,7 @@
                      unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
                                                          {:class "abstract" :project-id project-id :article-id article-id}])
                                             :new-annotation)
-                     annotations (->> (conj saved-annotations unsaved-annotation)
-                                      (filter #(let [text-context (get-in % [:context :text-context])]
-                                                 (or (and (= (type text-context) (type "string"))
-                                                          (= (get-in % [:context :client-field]) "primary-title"))
-                                                     (= (:field text-context) "primary-title")
-                                                     (= text-context title)))))]
+                     annotations (annotations-filter (conj saved-annotations unsaved-annotation) "primary-title")]
                  [annotation/AnnotatedText
                   annotations
                   title
@@ -218,12 +223,7 @@
                       unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
                                                           {:class "abstract" :project-id project-id :article-id article-id}])
                                              :new-annotation)
-                      annotations (->> (conj saved-annotations unsaved-annotation)
-                                       (filter #(let [text-context (get-in % [:context :text-context])]
-                                                  (or (and (= (type text-context) (type "string"))
-                                                           (= (get-in % [:context :client-field]) "abstract"))
-                                                      (= (:field text-context) "abstract")
-                                                      (= text-context abstract)))))]
+                      annotations (annotations-filter (conj saved-annotations unsaved-annotation) "abstract")]
                   [annotation/AnnotatedText
                    ;; todo: refactor so that unsaved-annotations and saved-annotation are saved in one location
                    annotations
