@@ -114,6 +114,19 @@
          (dispatch [:require [:article/annotations project-id article-id]])))
      (* delay 1000))))
 
+(defn annotations-filter [annotations client-field text]
+  (let [on-review? (= @(subscribe [:active-panel]) [:project :review])
+        self-id @(subscribe [:self/user-id])]
+    (cond->> annotations
+      true
+      (filter #(let [text-context (get-in % [:context :text-context])]
+                 (or (and (= (type text-context) (type "string"))
+                          (= (get-in % [:context :client-field]) client-field))
+                     (= (:field text-context) client-field)
+                     (= text-context text))))
+      on-review? (filter #(or (= (:user-id %) self-id)
+                              (re-matches #"new-ann.*" (str (:id %))))))))
+
 (defn article-info-main-content [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
@@ -128,15 +141,15 @@
             pdfs @(subscribe [:article/pdfs article-id])
             on-review? (= @(subscribe [:active-panel]) [:project :review])
             self-id @(subscribe [:self/user-id])
-            annotations-raw @(subscribe [::article-annotations article-id])
-            annotations (condp = context
-                          :article-list
-                          (process-annotations annotations-raw)
-                          :review
-                          (->> @(subscribe [:project/keywords])
-                               vals
-                               (mapv :value)
-                               (mapv #(hash-map :word %))))
+            ;; annotations-raw @(subscribe [::article-annotations article-id])
+            ;; annotations (condp = context
+            ;;               :article-list
+            ;;               (process-annotations annotations-raw)
+            ;;               :review
+            ;;               (->> @(subscribe [:project/keywords])
+            ;;                    vals
+            ;;                    (mapv :value)
+            ;;                    (mapv #(hash-map :word %))))
             annotator-context
             {:class "abstract"
              :project-id project-id
@@ -151,15 +164,7 @@
                           pdf-url
                           @(subscribe [:view-field :article [article-id :visible-pdf]]))
             pdf-only? (and title visible-url filename
-                           (= (str/trim title) (str/trim filename)))
-            annotations-filter (fn [annotations client-field]
-                                 (cond-> (->> annotations
-                                              (filter #(let [text-context (get-in % [:context :text-context])]
-                                                         (or (and (= (type text-context) (type "string"))
-                                                                  (= (get-in % [:context :client-field]) client-field))
-                                                                  (= (:field text-context) client-field)
-                                                                  (= text-context title)))))
-                                   on-review? (->> (filter #(= (:user-id %) self-id)))))]
+                           (= (str/trim title) (str/trim filename)))]
         (get-annotations article-id)
         [:div {:data-article-id article-id}
          [:div {:style {:margin-bottom "0.5em"}}
@@ -191,7 +196,7 @@
                      unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
                                                          {:class "abstract" :project-id project-id :article-id article-id}])
                                             :new-annotation)
-                     annotations (annotations-filter (conj saved-annotations unsaved-annotation) "primary-title")]
+                     annotations (annotations-filter (conj saved-annotations unsaved-annotation) "primary-title" title)]
                  [annotation/AnnotatedText
                   annotations
                   title
@@ -223,7 +228,7 @@
                       unsaved-annotation (-> @(subscribe [:sysrev.views.annotator/get
                                                           {:class "abstract" :project-id project-id :article-id article-id}])
                                              :new-annotation)
-                      annotations (annotations-filter (conj saved-annotations unsaved-annotation) "abstract")]
+                      annotations (annotations-filter (conj saved-annotations unsaved-annotation) "abstract" abstract)]
                   [annotation/AnnotatedText
                    ;; todo: refactor so that unsaved-annotations and saved-annotation are saved in one location
                    annotations
