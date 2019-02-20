@@ -281,6 +281,13 @@
                      (sql-field tname-al :article-id)
                      (sql-field tname-a :article-id)])))
 
+(defn join-article-source [m & [{:keys [tname-a tname-asrc]
+                                 :or {tname-a :a tname-asrc :asrc}}]]
+  (-> m (merge-join [:article-source tname-asrc]
+                    [:=
+                     (sql-field tname-asrc :article-id)
+                     (sql-field tname-a :article-id)])))
+
 (defn join-article-label-defs [m]
   (-> m (merge-join [:label :l]
                     [:= :l.label-id :al.label-id])))

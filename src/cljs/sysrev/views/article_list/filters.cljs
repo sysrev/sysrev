@@ -6,12 +6,13 @@
               reg-event-db reg-event-fx reg-fx trim-v]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer
-             [active-panel active-project-id]]
+             [active-panel active-project-id project-uri]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
             [sysrev.views.article-list.base :as al]
+            [sysrev.views.panels.project.add-articles :as source]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]))
+            [sysrev.shared.util :as su :refer [in? map-values]]))
 
 (def group-statuses
   [:single :determined :conflict :consistent :resolved])
@@ -29,6 +30,7 @@
       :has-user       {:user nil
                        :content nil
                        :confirmed nil}
+      :source         {:source-ids nil}
       :has-label      {:label-id nil
                        :users nil
                        :values nil
@@ -38,35 +40,39 @@
                        :inclusion nil})
     {:editing? true})})
 
-(defn filter-presets []
-  (let [self-id @(subscribe [:self/user-id])
-        overall-id @(subscribe [:project/overall-label-id])]
-    {:self
-     {:filters [{:has-user {:user self-id
-                            :content nil
-                            :confirmed nil}}]
-      :display {:self-only true
-                :show-inclusion false
-                :show-labels true
-                :show-notes true
-                :show-unconfirmed true}}
+(defn- filter-presets-impl [self-id]
+  {:self
+   {:filters [{:has-user {:user self-id
+                          :content nil
+                          :confirmed nil}}]
+    :display {:self-only true
+              :show-inclusion false
+              :show-labels true
+              :show-notes true
+              :show-unconfirmed true}}
 
-     :content
-     {:filters [{:has-user {:user nil
-                            :content nil
-                            :confirmed nil}}]
-      :display {:self-only false
-                :show-inclusion false
-                :show-labels true
-                :show-notes true}}
+   :content
+   {:filters [{:has-user {:user nil
+                          :content nil
+                          :confirmed nil}}]
+    :display {:self-only false
+              :show-inclusion false
+              :show-labels true
+              :show-notes true}}
 
-     :inclusion
-     {:filters [{:consensus {:status nil
-                             :inclusion nil}}]
-      :display {:self-only false
-                :show-inclusion true
-                :show-labels false
-                :show-notes false}}}))
+   :inclusion
+   {:filters [{:consensus {:status nil
+                           :inclusion nil}}]
+    :display {:self-only false
+              :show-inclusion true
+              :show-labels false
+              :show-notes false}}})
+
+(reg-sub
+ :articles/filter-presets
+ :<- [:self/user-id]
+ (fn [self-id _]
+   (filter-presets-impl self-id)))
 
 (defn- reset-filters-input [db context]
   (al/set-state db context [:inputs :filters] nil))
@@ -162,6 +168,9 @@
            {filter-type value}
 
            :has-label
+           {filter-type value}
+
+           :source
            {filter-type value}
 
            nil)
@@ -293,7 +302,34 @@
      value
      on-change
      multiple?
-     #(sutil/parse-integer %)]))
+     #(su/parse-integer %)]))
+
+(defn describe-source [source-id]
+  (when source-id
+    (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
+          source-type @(subscribe [:source/display-type source-id])
+          description (or (some-> @(subscribe [:source/display-info source-id])
+                                  (su/string-ellipsis 70 "[.....]"))
+                          (str source-id))]
+      (->> [(str "[" article-count "]")
+            (when source-type
+              (str "[" source-type "]"))
+            description]
+           (remove nil?)
+           (str/join " ")))))
+
+(defn- SelectSourceDropdown [context value on-change multiple?]
+  (let [source-ids @(subscribe [:project/source-ids true])
+        value (if (and (sequential? value) (not-empty value))
+                value
+                nil)]
+    [FilterDropdown
+     source-ids
+     #(describe-source %)
+     (first value)
+     on-change
+     multiple?
+     #(su/parse-integer %)]))
 
 (defn- SelectLabelDropdown [context value on-change]
   (let [label-ids @(subscribe [:project/label-ids])
@@ -334,7 +370,6 @@
 
 (defn- ContentTypeDropdown [context value on-change]
   [FilterDropdown
-   ;; TODO: implement :labels and :annotations options
    [nil :labels :annotations]
    #(case %
       :labels "Labels"
@@ -450,6 +485,21 @@
            (fn [new-value]
              (update-filter #(assoc % :confirmed new-value)))]]]])]))
 
+(defmethod FilterEditorFields :source [context filter-idx ifilter update-filter]
+  (let [[[_ value]] (vec ifilter)
+        {:keys [source-ids]} value]
+    [:div.ui.small.form
+     [:div.field
+      [:div.fields
+       [:div.sixteen.wide.field
+        [:label "Article Source"]
+        [SelectSourceDropdown context source-ids
+         (fn [new-value]
+           (update-filter
+            (fn [entry]
+              (assoc entry :source-ids (when new-value [new-value])))))
+         false]]]]]))
+
 (defmethod FilterEditorFields :has-label [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
         {:keys [label-id users values inclusion confirmed]} value]
@@ -467,7 +517,8 @@
         [SelectUserDropdown context (first users)
          (fn [new-value]
            (update-filter #(assoc % :users
-                                  (if (nil? new-value) nil [new-value]))))]]]]
+                                  (if (nil? new-value) nil [new-value]))))
+         false]]]]
      [:div.field
       [:div.fields
        [:div.eight.wide.field
@@ -557,6 +608,15 @@
                    (str "user " (pr-str user-name))
                    "any user")]
     (->> ["has" confirmed-str content-str "from" user-str]
+         (remove nil?)
+         (str/join " "))))
+
+(defmethod filter-description :source [context ftype value]
+  (let [sources @(subscribe [:project/sources])
+        {:keys [source-ids]} value]
+    (->> ["is present in source "
+          (->> (mapv describe-source source-ids)
+               (str/join " OR "))]
          (remove nil?)
          (str/join " "))))
 
@@ -661,10 +721,12 @@
 
 (defn- NewFilterElement [context]
   (when (not @(subscribe [::editing-filter? context]))
-    (let [items [[:has-user "User Content" "user"]
+    (let [items [[:source "Source" "list"]
+                 [:consensus "Consensus" "users"]
+                 [:has-user "User Content" "user"]
                  [:has-label "Labels" "tags"]
                  #_ [:has-annotation "Annotation" "quote left"]
-                 [:consensus "Consensus" "users"]]
+                 ]
           touchscreen? @(subscribe [:touchscreen?])]
       [:div.ui.small.form.new-filter
        [ui/selection-dropdown
@@ -702,7 +764,8 @@
 (reg-event-fx
  :article-list/load-preset [trim-v]
  (fn [_ [context preset-name]]
-   (let [preset (get (filter-presets) :self)]
+   (let [preset (-> @(subscribe [:articles/filter-presets])
+                    (get :self))]
      {:dispatch [:article-list/load-settings context preset]})))
 
 (defn- WrapFilterDisabled [content enabled? message width]
@@ -719,7 +782,7 @@
 (defn- FilterPresetsForm [context]
   (let [filters @(subscribe [::filters-input context])
         text-search @(subscribe [::al/get context [:text-search]])
-        presets (filter-presets)
+        presets @(subscribe [:articles/filter-presets])
         make-button
         (fn [pkey text icon-class enabled?]
           (let [preset (get presets pkey)]
@@ -917,10 +980,15 @@
      [:i.fitted.angle.double.right.icon]]]])
 
 (defn- FilterColumnElement [context]
-  (let [active-filters @(subscribe [::al/filters context])
+  (let [project-id @(subscribe [:active-project-id])
+        active-filters @(subscribe [::al/filters context])
         input-filters @(subscribe [::filters-input context])
         recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])]
     [:div.article-filters.article-filters-column.expanded
+     [:a.ui.fluid.primary.left.labeled.icon.button
+      {:href (project-uri project-id "/add-articles")}
+      [:i.list.icon]
+      "Add/Manage Articles"]
      [:div.ui.segment.filters-content
       [:div.ui.small.form
        {:on-submit (util/wrap-prevent-default #(do nil))}

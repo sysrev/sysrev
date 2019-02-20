@@ -9,7 +9,6 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.core :refer [ArticleListPanel]]
-            [sysrev.views.article-list.filters :as afilter]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -108,6 +107,27 @@
       :sort-by :content-updated
       :sort-dir :desc})))
 
+(defn load-source-filters
+  "Loads settings for filtering by article source, and navigates to articles page."
+  [& {:keys [source-ids]}]
+  (let [display {:show-inclusion true}
+        filters (->> source-ids
+                     (mapv #(do {:source {:source-ids [%]}})))]
+    (load-settings-and-navigate
+     {:filters filters
+      :display display
+      :sort-by :content-updated
+      :sort-dir :desc})))
+
+(reg-fx
+ :articles/load-source-filters
+ (fn [source-ids] (load-source-filters :source-ids source-ids)))
+
+(reg-event-fx
+ :articles/load-source-filters
+ (fn [_ [_ source-ids]]
+   {:articles/load-source-filters source-ids}))
+
 (defn load-member-label-settings
   "Loads settings corresponding to a user's article count from graphs on
   overview page, and navigates to articles page."
@@ -148,7 +168,8 @@
   "Loads settings corresponding to an article list preset, and navigates to
   articles page."
   [preset-name]
-  (when-let [preset (get (afilter/filter-presets) preset-name)]
+  (when-let [preset (-> @(subscribe [:articles/filter-presets])
+                        (get preset-name))]
     (load-settings-and-navigate
      (merge {:sort-by :content-updated
              :sort-dir :desc}

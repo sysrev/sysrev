@@ -544,11 +544,7 @@
      [:div.ui.red.message error])])
 
 (defn LabeledCheckbox
-  "Props:
-  {:checked?  <boolean>
-   :on-change <fn>      ; a fn of event
-   :label     <string>
-  }"
+  "Checkbox input element with label."
   [{:keys [checked? on-change label]}]
   [:div.ui.checkbox
    {:style {:margin-right "0.5em"}}
@@ -559,12 +555,7 @@
    [:label label]])
 
 (defn LabeledCheckboxField
-  "Props:
-  {:checked?  <boolean>
-   :on-change <fn>      ; a fn of event
-   :error     <string>  ; optional
-   :label     <string>
-  }"
+  "Form field with labeled checkbox and optional tooltip."
   [{:keys [error on-change checked? label tooltip disabled? field-class]}]
   [:div.field
    {:key [:label label]
@@ -590,7 +581,7 @@
    (when error
      [:div.ui.red.message error])])
 
-(defn SaveResetForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
+(defn SaveCancelForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
   [:div.ui.two.column.grid.save-reset-form
    [:div.column.save
     [:button.ui.fluid.right.labeled.positive.icon.button.save-changes
@@ -731,3 +722,59 @@
      {:component-did-mount on-update
       :component-did-update on-update
       :reagent-render (fn [offset child] [:div.visibility-wrapper child])})))
+
+(defn TooltipElement
+  "Wraps element component to add a fixed-width non-inline tooltip,
+  returning a component with a div containing both element and
+  tooltip.
+
+  Note: Using inline false allows tooltip to extend outside immediate
+  parent element, but width must be specified manually."
+  [element tooltip-content width &
+   {:keys [delay hide position hoverable options
+           props div-props]
+    :or {delay 500, hide 0, position "top center", hoverable false}}]
+  (let [tooltip-key (name (gensym))]
+    [:div.inline-block div-props
+     [with-tooltip element
+      {:popup (str "#" tooltip-key)
+       :inline false
+       :delay {:show delay :hide hide}
+       :hoverable hoverable
+       :position position}]
+     [:div.ui.flowing.popup.transition.hidden.tooltip
+      (merge {:id tooltip-key}
+             props
+             {:style
+              (merge {:text-align "left"}
+                     (:style props)
+                     {:min-width width :max-width width})})
+      tooltip-content]]))
+
+(defn TooltipElementManual
+  "Wraps element component to add a fixed-width non-inline tooltip,
+  returning a list of two functions (element, tooltip) allowing each
+  to be rendered in an appropriate location manually.
+
+  Note: Using inline false allows tooltip to extend outside immediate
+  parent element, but width must be specified manually."
+  [element tooltip-content width &
+   {:keys [delay hide position hoverable options props]
+    :or {delay 500, hide 0, position "top center", hoverable false}}]
+  (let [tooltip-key (name (gensym))]
+    (list (fn []
+            [with-tooltip element
+             {:popup (str "#" tooltip-key)
+              :inline false
+              :delay {:show delay :hide hide}
+              :hoverable hoverable
+              :position position}])
+          (fn []
+            [:div.ui.flowing.popup.transition.hidden.tooltip
+             (merge {:id tooltip-key}
+                    props
+                    {:style
+                     (merge {:text-align "left"}
+                            (:style props)
+                            {:min-width width :max-width width})})
+             tooltip-content]))))

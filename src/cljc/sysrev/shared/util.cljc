@@ -123,3 +123,12 @@
   (when string
     (cond-> string (not= item-count 1) (str "s"))))
 
+(defn string-ellipsis
+  "Shorten s using ellipsis in the middle when length is >= max-length."
+  [s max-length & [ellipsis]]
+  (let [ellipsis (or ellipsis "[...]")]
+    (if (< (count s) max-length)
+      s
+      (str (subs s 0 (quot max-length 2))
+           " " ellipsis " "
+           (subs s (- (count s) (quot max-length 2)))))))

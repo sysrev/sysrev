@@ -13,48 +13,43 @@
 
 (def semantic-ui js/semanticUIReact)
 
-;; basics
-(def Segment (r/adapt-react-class (goog.object/get semantic-ui "Segment")))
-(def Header (r/adapt-react-class (goog.object/get semantic-ui "Header")))
-(def Icon (r/adapt-react-class (goog.object/get semantic-ui "Icon")))
-(def Loader (r/adapt-react-class (goog.object/get semantic-ui "Loader")))
+(defn adapt [class & [subclass-fn]]
+  (r/adapt-react-class
+   (cond-> (goog.object/get semantic-ui (name class))
+     subclass-fn (subclass-fn))))
 
-;; forms
-(def Form (r/adapt-react-class (goog.object/get semantic-ui "Form")))
-(def FormButton (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Button)))
-(def FormField (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Field)))
-(def FormGroup (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Group)))
-(def FormInput (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Input)))
-(def FormRadio (r/adapt-react-class
-                ($ (goog.object/get semantic-ui "Form") :Radio)))
-(def Label (r/adapt-react-class
-            (goog.object/get semantic-ui "Label")))
-(def Button (r/adapt-react-class
-             (goog.object/get semantic-ui "Button")))
-(def Dropdown (r/adapt-react-class
-               (goog.object/get semantic-ui "Dropdown")))
-(def Message (r/adapt-react-class
-              (goog.object/get semantic-ui "Message")))
-(def MessageHeader (r/adapt-react-class
-                    ($ (goog.object/get semantic-ui "Message") :Header)))
-(def Radio (r/adapt-react-class
-            (goog.object/get semantic-ui "Radio")))
-(def Select (r/adapt-react-class
-             (goog.object/get semantic-ui "Select")))
-;; grids
-(def Grid (r/adapt-react-class
-           (goog.object/get semantic-ui "Grid")))
-(def Row (r/adapt-react-class
-          ($ (goog.object/get semantic-ui "Grid") :Row)))
-(def Column (r/adapt-react-class
-             ($ (goog.object/get semantic-ui "Grid") :Column)))
+;; general
+(def Segment (adapt :Segment))
+(def Header (adapt :Header))
+(def Icon (adapt :Icon))
+(def Loader (adapt :Loader))
 
-;; lists
-(def ListUI (r/adapt-react-class
-             (goog.object/get semantic-ui "List")))
-(def Item (r/adapt-react-class
-           ($ (goog.object/get semantic-ui "List") :Item)))
+;; form
+(def Form (adapt :Form))
+(def FormButton (adapt :Form #($ % :Button)))
+(def FormField (adapt :Form #($ % :Field)))
+(def FormGroup (adapt :Form #($ % :Group)))
+(def FormInput (adapt :Form #($ % :Input)))
+(def FormRadio (adapt :Form #($ % :Radio)))
+
+;; components
+(def Label (adapt :Label))
+(def Button (adapt :Button))
+(def Dropdown (adapt :Dropdown))
+(def Message (adapt :Message))
+(def MessageHeader (adapt :Message #($ % :Header)))
+(def Radio (adapt :Radio))
+(def Select (adapt :Select))
+
+;; grid
+(def Grid (adapt :Grid))
+(def Row (adapt :Grid #($ % :Row)))
+(def Column (adapt :Grid #($ % :Column)))
+
+;; list
+(def ListUI (adapt :List))
+(def ListItem (adapt :List #($ % :Item)))
+
+;; popup
+(def Popup (adapt :Popup))
+(def PopupHeader (adapt :Popup #($ % :Header)))

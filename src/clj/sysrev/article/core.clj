@@ -191,6 +191,11 @@
            (map-values first)
            (map-values #(dissoc % :flag-name)))))
 
+(defn article-sources-list [article-id]
+  (-> (q/select-article-by-id article-id [:asrc.source-id])
+      (q/join-article-source)
+      (->> do-query (mapv :source-id))))
+
 (defn article-score
   [article-id & {:keys [predict-run-id] :as opts}]
   (-> (q/select-article-by-id article-id [:a.article-id])
@@ -208,9 +213,10 @@
   `predict-run-id` allows for specifying a non-default prediction run to
   use for the prediction score."
   [article-id & {:keys [items predict-run-id]
-                 :or {items [:locations :score :review-status :flags]}
+                 :or {items [:locations :score :review-status :flags :sources]}
                  :as opts}]
-  (assert (->> items (every? #(in? [:locations :score :review-status :flags] %))))
+  (assert (->> items (every? #(in? [:locations :score :review-status
+                                    :flags :sources] %))))
   (let [article (-> (q/query-article-by-id article-id [:a.*])
                     (dissoc :text-search))
         get-item (fn [item-key f] (when (in? items item-key)
@@ -229,7 +235,9 @@
                 #_ (get-item :review-status
                              #(article-review-status article-id))
                 (get-item :flags
-                          #(article-flags-map article-id))]
+                          #(article-flags-map article-id))
+                (get-item :sources
+                          #(article-sources-list article-id))]
                (remove nil?) (apply pcalls) doall (apply merge {})))]
     (when (not-empty article)
       (merge article item-values))))

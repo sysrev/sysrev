@@ -5,7 +5,8 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.semantic :refer [Segment Grid Column Row ListUI Item Button Message MessageHeader]]
+            [sysrev.views.semantic :as s :refer
+             [Segment Grid Column Row ListUI ListItem Button]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.nav :refer [nav nav-scroll-top]])
@@ -94,8 +95,8 @@
                            [Column {:width 8}
                             [:b "Business Unlimited"]
                             [ListUI
-                             [Item "Unlimited public projects"]
-                             [Item "Unlimited private projects"]]]
+                             [ListItem "Unlimited public projects"]
+                             [ListItem "Unlimited private projects"]]]
                            [Column {:width 8
                                     :align "right"} [:h2 "$30 / month"]]]]]]]]
             [Grid [Row [Column
@@ -106,7 +107,7 @@
                            [Column {:width 8}
                             [:b "Basic"]
                             [ListUI
-                             [Item "Unlimited public projects"]]]
+                             [ListItem "Unlimited public projects"]]]
                            [Column {:width 8
                                     :align "right"} [:h2 "$0 / month"]]]]]
                         [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
@@ -115,7 +116,7 @@
                         [:h3 "Unsubscribe Summary"]
                         [ListUI {:divided true}
                          [:h4 "New Monthly Bill"]
-                         [Item [:p "Basic plan ($0 / month)"]]
+                         [ListItem [:p "Basic plan ($0 / month)"]]
                          (when (empty? @default-source)
                            [:a {:on-click
                                 (fn [event]
@@ -133,8 +134,8 @@
                                                  @changing-plan?)}
                            "Unsubscribe"]]
                          (when @error-message
-                           [Message {:negative true}
-                            [MessageHeader "Upgrade Plan Error"]
+                           [s/Message {:negative true}
+                            [s/MessageHeader "Upgrade Plan Error"]
                             [:p @error-message]])]]]]]]]])
       :get-initial-state
       (fn [this]
@@ -159,8 +160,8 @@
                                                [Column {:width 8}
                                                 [:b "Business Unlimited"]
                                                 [ListUI
-                                                 [Item "Unlimited public projects"]
-                                                 [Item "Unlimited private projects"]]]
+                                                 [ListItem "Unlimited public projects"]
+                                                 [ListItem "Unlimited private projects"]]]
                                                [Column {:width 8
                                                         :align "right"} [:h2 "$30 / month"]]]]]
                                             [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
@@ -169,9 +170,9 @@
                                         [:h3 "Upgrade Summary"]
                                         [ListUI {:divided true}
                                          [:h4 "New Monthly Bill"]
-                                         [Item [:p "Unlimited plan ($30 / month)"]]
+                                         [ListItem [:p "Unlimited plan ($30 / month)"]]
                                          [:h4 "Billing Information"]
-                                         [Item [DefaultSource]]
+                                         [ListItem [DefaultSource]]
                                          (when (or (empty? @default-source)
                                                    ((comp not nil?) @error-message))
                                            [:a {:on-click
@@ -193,8 +194,8 @@
                                                                  @changing-plan?)}
                                            "Upgrade Plan"]]
                                          (when @error-message
-                                           [Message {:negative true}
-                                            [MessageHeader "Upgrade Plan Error"]
+                                           [s/Message {:negative true}
+                                            [s/MessageHeader "Upgrade Plan Error"]
                                             [:p @error-message]])]]]]]]]])
       :get-initial-state
       (fn [this]

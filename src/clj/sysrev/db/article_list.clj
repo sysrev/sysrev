@@ -33,6 +33,14 @@
               (->> do-query
                    (group-by :article-id)
                    (map-values first)))
+          asources
+          (-> (q/select-project-articles
+               project-id [:a.article-id :asrc.source-id])
+              (q/join-article-source)
+              (merge-where [:= :a.project-id project-id])
+              (->> do-query
+                   (group-by :article-id)
+                   (map-values #(do {:sources (mapv :source-id %)}))))
           alabels
           (-> (q/select-project-articles
                project-id [:al.article-id :al.label-id :al.user-id
@@ -72,7 +80,8 @@
           annotations
           (->> (ann/project-annotation-articles project-id)
                (map-values #(do {:annotations %})))]
-      (->> (-> (merge-with merge articles alabels anotes annotations aconsensus)
+      (->> (-> (merge-with merge articles alabels anotes annotations
+                           aconsensus asources)
                ;; ensure all map keys are present in primary articles map
                (select-keys (keys articles)))
            (map-values
@@ -154,6 +163,10 @@ WHERE project_id=%d
     (not-empty user-ids)
     (filter #(in? user-ids (:user-id %)))))
 
+(defn article-source-filter [context {:keys [source-ids]}]
+  (fn [article]
+    (some #(in? source-ids %) (:sources article))))
+
 ;; TODO: include user notes in search
 (defn article-text-filter [context text]
   (let [{:keys [project-id]} context
@@ -229,6 +242,7 @@ WHERE project_id=%d
           make-filter
           (case filter-name
             :text-search       article-text-filter
+            :source            article-source-filter
             :has-user          article-user-filter
             :consensus         article-consensus-filter
             :has-label         article-labels-filter

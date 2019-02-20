@@ -2,8 +2,8 @@
   (:require [clojure.string :as str]
             [cljs-time.core :as t]
             [reagent.core :as r]
-            [re-frame.core :as re-frame :refer
-             [dispatch subscribe reg-fx reg-event-fx trim-v]]
+            [re-frame.core :refer
+             [dispatch subscribe reg-sub reg-fx reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.nav :as nav]
@@ -14,7 +14,7 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components :as ui]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su]))
+            [sysrev.shared.util :as su :refer [in?]]))
 
 (def panel [:project :project :add-articles])
 
@@ -172,14 +172,57 @@
 
     [source nil]))
 
-(defn SourceInfoView [project-id source-id meta]
-  (let [{:keys [s3-file]} meta
-        [source-type import-label] (meta->source-name-vector meta)]
+(reg-sub
+ :source/display-type
+ (fn [[_ source-id project-id]]
+   [(subscribe [:project/sources source-id project-id])])
+ (fn [[source] _]
+   (let [stype (-> source :meta :source)]
+     (condp = stype
+       "PubMed search"   "PubMed Search"
+       "PMID file"       "PMIDs from File"
+       "PMID vector"     "PMIDs from API"
+       "fact"            "PMIDs from FACTS"
+       "EndNote file"    "EndNote XML"
+       "legacy"          "Legacy Import"
+       "PDF Zip file"    "PDF Zip File"
+       stype))))
+
+(reg-sub
+ :source/display-info
+ (fn [[_ source-id project-id]]
+   [(subscribe [:project/sources source-id project-id])])
+ (fn [[source] _]
+   (let [stype (-> source :meta :source)]
+     (cond (= "PubMed search" stype)
+           (-> source :meta :search-term str)
+
+           (in? ["PMID file" "EndNote file" "PDF Zip file"] stype)
+           (-> source :meta :filename str)))))
+
+(defn SourceArticlesLink [source-id]
+  [:div.ui.primary.tiny.left.labeled.icon.button
+   {:style {:margin-left "0.4em"
+            :padding-top "10px"
+            :padding-bottom "9px"}
+    :on-click
+    (util/wrap-user-event
+     #(dispatch [:articles/load-source-filters [source-id]]))}
+   [:i.list.icon]
+   "View Articles"])
+
+(defn SourceInfoView [project-id source-id]
+  (let [{:keys [meta enabled]} @(subscribe [:project/sources source-id])
+        {:keys [s3-file]} meta
+        source-type @(subscribe [:source/display-type source-id])
+        import-label @(subscribe [:source/display-info source-id])]
     [:div.ui.middle.aligned.stackable.grid.segment.source-info
      [:div.row
-      [:div.three.wide.column.left.aligned
-       [:div.ui.large.label (str source-type)]]
-      [:div.thirteen.wide.column.right.aligned
+      [:div.six.wide.middle.aligned.left.aligned.column
+       [:div.ui.large.label (str source-type)]
+       (when enabled
+         [SourceArticlesLink source-id])]
+      [:div.ten.wide.right.aligned.middle.aligned.column
        (when import-label
          [:div.import-label.ui.large.basic.label
           [:span.import-label
@@ -260,7 +303,7 @@
       (poll-project-sources project-id source-id)
       nil)
     [:div.project-source>div.ui.segments.project-source
-     [SourceInfoView project-id source-id meta]
+     [SourceInfoView project-id source-id]
      [:div.ui.segment.source-details
       {:class segment-class}
       [:div.ui.middle.aligned.stackable.grid>div.row
@@ -345,12 +388,9 @@
                  (map
                   (fn [{shared-count :count
                         overlap-source-id :overlap-source-id} overlap-map]
-                    (let [[src-type src-info] (source-name overlap-source-id)
-                          info-size (count src-info)
-                          src-info (if (< info-size 40)
-                                     src-info
-                                     (str (subs src-info 0 20) " [.....] "
-                                          (subs src-info (- info-size 20))))]
+                    (let [src-type @(subscribe [:source/display-type source-id])
+                          src-info (some-> @(subscribe [:source/display-info source-id])
+                                           (su/string-ellipsis 40))]
                       ^{:key [:shared source-id overlap-source-id]}
                       [:div.column
                        (str (.toLocaleString shared-count) " shared: ")

@@ -11,10 +11,11 @@
             [sysrev.annotation :as annotation]
             [sysrev.pdf :as pdf]
             [sysrev.views.annotator :as annotator]
-            [sysrev.views.components :as ui :refer [out-link document-link]]
+            [sysrev.views.components :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [article-labels-view]]
-            [sysrev.util :refer [full-size? nbsp continuous-update-until]])
+            [sysrev.util :as u :refer [nbsp]]
+            [sysrev.shared.util :as su :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (reg-sub
@@ -127,6 +128,47 @@
       on-review? (filter #(or (= (:user-id %) self-id)
                               (re-matches #"new-ann.*" (str (:id %))))))))
 
+(defn WithProjectSourceTooltip [source-id element]
+  [ui/TooltipElement
+   element
+   (let [{:keys [article-count]}
+         @(subscribe [:project/sources source-id])
+         source-info (some-> @(subscribe [:source/display-info source-id])
+                             (su/string-ellipsis 150 "[.....]"))
+         has-info? (not (empty? source-info))]
+     [:div
+      [:h5.ui.header
+       {:class (when has-info? "dividing")}
+       @(subscribe [:source/display-type source-id])
+       " - "
+       (str (or article-count "?"))
+       " articles"]
+      (when has-info?
+        [:p source-info])])
+   "25em"
+   :delay 150])
+
+(defn SourceLinkButton [source-id text]
+  [WithProjectSourceTooltip source-id
+   [:div.ui.tiny.button
+    {:on-click (u/wrap-user-event
+                #(dispatch [:articles/load-source-filters [source-id]]))}
+    text]])
+
+(defn ArticleSourceLinks [article-id]
+  (let [source-ids @(subscribe [:article/sources article-id])]
+    (when (not-empty source-ids)
+      [:div.ui.small.left.aligned.form.article-source-links
+       [:div.left.aligned.field
+        [:label "Sources"]
+        [:div
+         (doall
+          (map-indexed
+           (fn [i source-id]
+             ^{:key {:source-id source-id}}
+             [SourceLinkButton source-id (str (inc i))])
+           source-ids))]]])))
+
 (defn article-info-main-content [article-id & {:keys [context]}]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:article project-id article-id]] {}
@@ -200,8 +242,8 @@
                  [annotation/AnnotatedText
                   annotations
                   title
-                   :reader-error-render [render-keywords article-id @(subscribe [:article/title-render article-id])]
-                   :field "primary-title"])]))]
+                  :reader-error-render [render-keywords article-id @(subscribe [:article/title-render article-id])]
+                  :field "primary-title"])]))]
          (when-not (or pdf-only? (empty? journal-name))
            [:h3.header {:style {:margin-top "0px"}}
             [render-keywords article-id journal-render
@@ -235,20 +277,24 @@
                    abstract
                    :reader-error-render [render-abstract article-id]
                    :field "abstract"])])))
-         (when-not (empty? documents)
-           [:div {:style {:padding-top "0.75em"}}
-            [:div.content.ui.horizontal.list
-             (doall
-              (map-indexed (fn [idx {:keys [fs-path url]}]
-                             ^{:key [idx]} [document-link url fs-path])
-                           documents))]])
-         (when-not (empty? urls)
-           [:div {:style {:padding-top "0.75em"}}
-            [:div.content.ui.horizontal.list
-             (doall
-              (map-indexed (fn [idx url]
-                             ^{:key [idx]} [out-link url])
-                           urls))]])]))))
+         [:div.ui.grid.article-links
+          [:div.twelve.wide.left.aligned.middle.aligned.column
+           (when-not (empty? documents)
+             [:div.ui.content.horizontal.list
+              {:style {:padding-top "0.75em"}}
+              (doall
+               (map-indexed (fn [idx {:keys [fs-path url]}]
+                              ^{:key [idx]} [ui/document-link url fs-path])
+                            documents))])
+           (when-not (empty? urls)
+             [:div.ui.content.horizontal.list
+              {:style {:padding-top "0.75em"}}
+              (doall
+               (map-indexed (fn [idx url]
+                              ^{:key [idx]} [ui/out-link url])
+                            urls))])]
+          [:div.four.wide.right.aligned.middle.aligned.column
+           [ArticleSourceLinks article-id]]]]))))
 
 (defn- article-flag-label [description]
   [:div.ui.left.labeled.button.article-flag
@@ -300,7 +346,7 @@
                  :or {show-score? true}}]
   (let [project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
-        full-size? (full-size?)
+        full-size? (u/full-size?)
         score @(subscribe [:article/score article-id])
         duplicates @(subscribe [:article/duplicates article-id])
         annotator-context {:class "abstract"
@@ -308,13 +354,13 @@
                            :article-id article-id}
         {:keys [unlimited-reviews]} @(subscribe [:project/settings])]
     (dispatch [:require (annotator/annotator-data-item annotator-context)])
-    [:div
+    [:div.article-info-top
      (with-loader [[:article project-id article-id]]
        {:class "ui segments article-info"}
        (list
         [:div.ui.middle.aligned.header.grid.segment.article-header
          {:key [:article-header]}
-         [:div.five.wide.column
+         [:div.five.wide.middle.aligned.column
           [:h4.ui.article-info "Article Info"]]
          [:div.eleven.wide.column.right.aligned
           [annotator/AnnotationToggleButton

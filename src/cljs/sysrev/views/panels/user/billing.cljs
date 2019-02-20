@@ -4,7 +4,8 @@
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.views.semantic :refer [Grid Row Column Button ListUI Item Segment Header Icon Loader]]))
+            [sysrev.views.semantic :as s :refer
+             [Segment Grid Row Column Button Icon]]))
 
 (def state (r/cursor app-db [:state :panels :user :billing]))
 
@@ -29,7 +30,7 @@
      {:reagent-render
       (fn [this]
         [:div {:style {:font-weight "bold"}}
-         [Icon {:name "credit card"}]
+         [s/Icon {:name "credit card"}]
          (if-not (empty? @default-source)
            (let [{:keys [brand exp_month exp_year last4]}
                  @default-source]
@@ -51,8 +52,8 @@
          (if (nil? @default-source)
            [Row
             [Column {:width 2} "Payment"]
-            [Column {:width 14} [Loader {:active true
-                                         :inline "centered"}]]]
+            [Column {:width 14} [s/Loader {:active true
+                                           :inline "centered"}]]]
            [Row
             [Column {:width 2} "Payment"]
             [Column {:width 8} [DefaultSource]]
@@ -76,8 +77,8 @@
      (if (nil? current-plan)
        [Row
         [Column {:width 2} "Plan"]
-        [Column {:width 14} [Loader {:active true
-                                     :inline "centered"}]]]
+        [Column {:width 14} [s/Loader {:active true
+                                       :inline "centered"}]]]
        [Row
         [Column {:width 2} "Plan"]
         [Column {:width 8}
@@ -99,10 +100,8 @@
 (defn Billing
   []
   [Segment
-   [Header {:as "h4"
-            :dividing true}
+   [s/Header {:as "h4" :dividing true}
     "Billing"]
-   [ListUI {:divided true
-            :relaxed true}
-    [Item [Plan]]
-    [Item [PaymentSource]]]])
+   [s/ListUI {:divided true :relaxed true}
+    [s/ListItem [Plan]]
+    [s/ListItem [PaymentSource]]]])
