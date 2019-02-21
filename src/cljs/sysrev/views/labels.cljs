@@ -5,6 +5,7 @@
    [re-frame.core :as re-frame :refer [subscribe dispatch]]
    [cljs-time.core :as t]
    [sysrev.views.components :refer [updated-time-label note-content-label]]
+   [sysrev.views.panels.users :refer [UserPublicProfileLink]]
    [sysrev.state.labels :refer [real-answer?]]
    [sysrev.util :refer [time-from-epoch time-elapsed-string]]
    [sysrev.shared.util :refer [in?]])
@@ -138,7 +139,10 @@
               [:h5.ui.dividing.header
                [:div.ui.two.column.middle.aligned.grid
                 [:div.row
-                 [:div.column (if self-only? "Your Labels" user-name)]
+                 [:div.column (if self-only?
+                                "Your Labels"
+                                [UserPublicProfileLink {:user-id user-id
+                                                        :display-name user-name}])]
                  [:div.right.aligned.column
                   [updated-time-label updated-time]]]]]
               [:div.labels

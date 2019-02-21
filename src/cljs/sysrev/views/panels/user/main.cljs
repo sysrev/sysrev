@@ -11,6 +11,7 @@
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
             [sysrev.views.panels.user.email :refer [EmailSettings VerifyEmail]]
             [sysrev.views.panels.user.invitations :refer [Invitations]]
+            [sysrev.views.panels.user.profile :refer [ProfileSettings]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :refer [full-size? get-url-path mobile?]]))
@@ -241,6 +242,11 @@
                          (= @current-path "/user/settings") (str " active"))
                 :href "/user/settings"}
             "General"]
+           #_[:a {:key "#profile"
+                :class (cond-> "item"
+                         (= @current-path "/user/settings/profile") (str " active"))
+                :href "/user/settings/profile"}
+            "Profile"]
            [:a {:key "#billing"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/billing")
@@ -293,6 +299,8 @@
             [Invitations]
             #"/user/settings/email"
             [EmailSettings]
+            #"/user/settings/profile"
+            [ProfileSettings]
             ;; default before the active panel is loaded
             ;; and this component still exists
             #"/user/settings/email/(\w+)" :>>

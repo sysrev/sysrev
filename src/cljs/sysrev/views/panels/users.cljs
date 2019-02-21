@@ -141,6 +141,11 @@
         (reset! loading? false)
         nil)})))
 
+(defn UserPublicProfileLink
+  "Should also handle permissions and determine whether or not to display a link"
+  [{:keys [user-id display-name]}]
+  [:a {:href (str "/users/" user-id)} display-name])
+
 (defn User
   [{:keys [email user-id]}]
   [Grid
@@ -149,7 +154,7 @@
      [Icon {:name "user icon"
             :size "huge"}]]
     [Column {:width 12}
-     [:a {:href (str "/users/" user-id)} (first (clojure.string/split email #"@"))]
+     [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
      [:div
       (when-not (= user-id @(subscribe [:self/user-id]))
         [InviteUser user-id])
@@ -175,7 +180,6 @@
      {:reagent-render
       (fn [this]
         [:div
-         [:a {:href "/users"} "<< Back to Users"]
          (if (clojure.string/blank? @error-message)
            [Segment
             [User @user]]

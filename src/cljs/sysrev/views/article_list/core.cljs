@@ -16,6 +16,7 @@
             [sysrev.views.labels :as labels]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.filters :as f]
+            [sysrev.views.panels.users :refer [UserPublicProfileLink]]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -109,7 +110,7 @@
                [:div.item {:key [:answer article-id user-id]}
                 (AnswerCellIcon inclusion)
                 [:div.content>div.header
-                 @(subscribe [:user/display user-id])]])))
+                 [UserPublicProfileLink {:user-id user-id :display-name @(subscribe [:user/display user-id])}]]])))
          labels))])
 
 (defn ChangeLabelsButton [context article-id & {:keys [sidebar]}]
