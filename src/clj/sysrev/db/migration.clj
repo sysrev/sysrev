@@ -203,59 +203,6 @@
       (doseq [project-id project-ids]
         (clone/create-project-legacy-source project-id)))))
 
-(defn ensure-article-flag-disable-entries []
-  (with-transaction
-    (let [project-ids
-          ;; TODO: update after changes to enabled logic
-          (-> (select :project-id)
-              (from [:project :p])
-              (where
-               [:and
-                [:exists
-                 (-> (select :*)
-                     (from [:article :a])
-                     (where
-                      [:and
-                       [:= :a.project-id :p.project-id]
-                       [:= :a.enabled false]
-                       [:not
-                        [:exists
-                         (-> (select :*)
-                             (from [:article-flag :aflag])
-                             (where
-                              [:and
-                               [:= :aflag.article-id :a.article-id]
-                               [:= :aflag.disable true]]))]]
-                       #_
-                       [:not [:exists disabled article source entry]]]))]])
-              (->> do-query (mapv :project-id)))]
-      (when (not-empty project-ids)
-        (log/info (str "Creating article-flag entries for "
-                       (count project-ids) " legacy projects")))
-      (doseq [project-id project-ids]
-        (let [article-ids
-              (-> (select :article-id)
-                  (from [:article :a])
-                  (where
-                   [:and
-                    [:= :a.project-id project-id]
-                    [:= :a.enabled false]
-                    [:not
-                     [:exists
-                      (-> (select :*)
-                          (from [:article-flag :aflag])
-                          (where
-                           [:and
-                            [:= :aflag.article-id :a.article-id]
-                            [:= :aflag.disable true]]))]]])
-                  (->> do-query (mapv :article-id)))]
-          (log/info (str "Creating " (count article-ids)
-                         " article-flag disable entries for project #"
-                         project-id))
-          (doseq [article-id article-ids]
-            (article/set-article-flag article-id "legacy-disable" true)))))))
-
-;; TODO: this doesn't work for replacing existing stripe_plan entries
 (defn update-stripe-plans-table
   "Update the stripe_plans table based upon what is stored on stripe. We
   never delete plans, even though they may no longer exist on stripe
@@ -342,7 +289,6 @@
                       #'clone/delete-empty-legacy-sources
                       #'ensure-project-sources-exist
                       #'ensure-web-user-email-entries
-                      ;; #'ensure-article-flag-disable-entries
                       #'ensure-groups
                       #'migrate-all-project-article-resolve]]
     (log/info "Running " (str migrate-fn))

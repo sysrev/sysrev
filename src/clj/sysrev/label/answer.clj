@@ -30,7 +30,7 @@
               (when (every? (in? allowed) answer)
                 {label-id answer}))
             :else nil)
-      ;; TODO check that answer value matches label regex
+      ;; TODO: check that answer value matches label regex
       "string" (when (coll? answer)
                  (let [filtered (->> answer
                                      (filter string?)
