@@ -24,7 +24,7 @@
     (reset! state initial-state)))
 
 ;;;
-;;; TODO: remove all this inputs/values/etc stuff
+;;; TODO: refactor to remove this inputs/values/... stuff
 ;;;
 
 (defn- parse-input [skey input]

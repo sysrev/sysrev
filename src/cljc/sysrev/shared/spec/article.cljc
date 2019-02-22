@@ -9,9 +9,9 @@
 (s/def ::secondary-title (s/nilable string?))
 (s/def ::abstract (s/nilable string?))
 (s/def ::public-id (s/nilable string?))
-;;
-;; TODO: check this field to try to identify conf. abstracts
-;; value is taken from endnote xml export
+
+;; NOTE: work-type field may help to identity conference abstracts
+;;       from endnote xml exports
 (s/def ::work-type (s/nilable string?))
 ;;
 (s/def ::remote-database-name (s/nilable string?))

@@ -188,14 +188,6 @@
    (al/reload-list (get-context-from-db db) :transition)
    {}))
 
-(defn set-group-status []
-  ;; TODO: function
-  nil)
-
-(defn set-inclusion-status []
-  ;; TODO: function
-  nil)
-
 (defmethod panel-content [:project :project :articles] []
   (fn [child]
     (when-let [project-id @(subscribe [:active-project-id])]

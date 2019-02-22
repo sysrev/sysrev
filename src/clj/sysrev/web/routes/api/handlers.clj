@@ -476,7 +476,7 @@
   :project-annotations :get
   {:require [:project-id]
    :require-token? false
-   :allow-public true ; TODO: implement this
+   :allow-public true ;; FIX: not implemented, full anonymous access
    :doc
    "Returns a list of annotations for a project.
 

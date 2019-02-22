@@ -134,7 +134,8 @@
   [labels]
   (->> labels
        vals
-       ;; TODO: run db migration to fix label `category` values
+       ;; FIX: run db migration to fix label `category` values;
+       ;; may affect label tooltips and sorting
        (map (fn [{:keys [definition] :as label}]
               (let [{:keys [inclusion-values]} definition]
                 ;; set correct `category` value based on `inclusion-values`
@@ -418,7 +419,7 @@
                    "Displayed as tooltip in review interface."]}])
 
      (when (= @value-type "categorical")
-       ;; TODO: whitespace not trimmed from input strings
+       ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
        [ui/TextInputField
         {:field-class "categories"
@@ -803,7 +804,7 @@
                 active-ids))]
        (when (not-empty disabled-ids)
          [:h4.ui.block.header "Disabled Labels"])
-       ;; TODO: collapse disabled labels by default, display on click
+       ;; FIX: collapse disabled labels by default, display on click
        (when (not-empty disabled-ids)
          [:div.ui.two.column.stackable.grid.label-items
           (doall (map-indexed

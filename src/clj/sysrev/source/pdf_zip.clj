@@ -58,7 +58,7 @@
 (defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
   {:source "PDF Zip file" :filename filename})
 
-;; TODO: want this to return an error if no pdfs found - does it?
+;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
   [stype project-id {:keys [file filename]} {:as options}]
   (let [project-sources (source/project-sources project-id)

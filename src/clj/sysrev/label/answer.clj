@@ -189,9 +189,9 @@
       (db/clear-project-cache project-id)
       true)))
 
-;; FIX:  can inclusion-values be changed with existing answers?
-;;       if yes, need to run this.
-;;       if no, can delete this.
+;; FIX: can inclusion-values be changed with existing answers?
+;;      if yes, need to run this.
+;;      if no, can delete this.
 (defn update-label-answer-inclusion [label-id]
   (with-transaction
     (let [entries (-> (select :article-label-id :answer)

@@ -400,7 +400,7 @@
               [f/TextSearchInput context]]]
             [ArticleListContent context]]]]
          [:div
-          ;; TODO: make filters interface for mobile/tablet
+          ;; FIX: add filters interface for mobile/tablet
           #_ [f/ArticleListFiltersRow context]
           [ArticleListContent context]]))]))
 
