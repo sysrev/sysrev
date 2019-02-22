@@ -416,7 +416,7 @@
 
 (defn ArticleListPanel [context]
   (let [single-article? @(subscribe [::al/get (al/cached context) [:single-article?]])]
-    [:div.article-list-toplevel-new
+    [:div.article-list-toplevel
      (require-all-data context)
      (if single-article?
        [SingleArticlePanel context]
