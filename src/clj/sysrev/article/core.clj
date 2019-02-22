@@ -159,23 +159,6 @@
                :meta (s/? ::sa/meta))
   :ret map?)
 
-#_
-(defn article-review-status [article-id]
-  (let [entries
-        (-> (q/select-article-by-id
-             article-id [:al.user-id :al.resolve :al.answer])
-            (q/join-article-labels)
-            (q/join-article-label-defs)
-            (q/filter-valid-article-label true)
-            (q/filter-overall-label)
-            do-query)]
-    (cond
-      (empty? entries) :unreviewed
-      (some :resolve entries) :resolved
-      (= 1 (count entries)) :single
-      (= 1 (->> entries (map :answer) distinct count)) :consistent
-      :else :conflict)))
-
 (defn article-locations-map [article-id]
   (->> (q/query-article-locations-by-id
         article-id [:al.source :al.external-id])
@@ -213,10 +196,9 @@
   `predict-run-id` allows for specifying a non-default prediction run to
   use for the prediction score."
   [article-id & {:keys [items predict-run-id]
-                 :or {items [:locations :score :review-status :flags :sources]}
+                 :or {items [:locations :score :flags :sources]}
                  :as opts}]
-  (assert (->> items (every? #(in? [:locations :score :review-status
-                                    :flags :sources] %))))
+  (assert (->> items (every? #(in? [:locations :score :flags :sources] %))))
   (let [article (-> (q/query-article-by-id article-id [:a.*])
                     (dissoc :text-search))
         get-item (fn [item-key f] (when (in? items item-key)
@@ -232,8 +214,6 @@
                           #(or (article-score
                                 article-id :predict-run-id predict-run-id)
                                0.0))
-                #_ (get-item :review-status
-                             #(article-review-status article-id))
                 (get-item :flags
                           #(article-flags-map article-id))
                 (get-item :sources

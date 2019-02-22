@@ -5,15 +5,19 @@
             [sysrev.shared.transit :as sr-transit]))
 
 ;; Paul Tol colors: https://personal.sron.nl/~pault/
-;; This vector was copied from: https://github.com/google/palette.js/blob/master/palette.js
-;; (it is under an MIT license)
 ;;
-;; A working demo of color selections: http://google.github.io/palette.js/
+;; This vector was copied from:
+;; https://github.com/google/palette.js/blob/master/palette.js (it is
+;; under an MIT license)
 ;;
-;; which in turn is a reproduction of Paul Tol's work at: https://personal.sron.nl/~pault/colourschemes.pdf
+;; A working demo of color selections:
+;; http://google.github.io/palette.js/
 ;;
-;; Paul developed this palette for scientific charts to clearly differentiate colors and to be color-blind
-;; safe
+;; which in turn is a reproduction of Paul Tol's work at:
+;; https://personal.sron.nl/~pault/colourschemes.pdf
+;;
+;; Paul developed this palette for scientific charts to clearly
+;; differentiate colors and to be color-blind safe
 (def paul-tol-colors
   [["#4477aa"],
    ["#4477aa", "#cc6677"],
@@ -33,44 +37,6 @@
    ["#332288", "#6699cc", "#88ccee", "#44aa99", "#117733", "#999933", "#ddcc77",
     "#661100", "#cc6677", "#aa4466", "#882255", "#aa4499"]])
 
-;; we need to get the equivalent to
-;; @(subscribe [:project/public-labels])
-;; goes to route /api/public-labels
-;; structure is :
-;; [{:title
-;;  "Frequency, types, severity, preventability and costs of Adverse Drug Reactions at a tertiary care hospital",
-;;  :updated-time 1507657648,
-;;  :labels
-;;  {#uuid "1282c5bf-d140-4d1a-a6de-6724574e8526"
-;;   [{:user-id 62, :answer false, :inclusion false, :resolve false}
-;;    {:user-id 100, :answer true, :inclusion true, :resolve false}
-;;    {:user-id 35, :answer false, :inclusion false, :resolve true}],
-;;   #uuid "6b91e2f7-925d-456a-9fdd-a59b666baae3"
-;;   [{:user-id 100, :answer ["human"], :inclusion true, :resolve false}],
-;;   #uuid "4a42bfa2-1d62-4895-8abd-00fab39cc534"
-;;   [{:user-id 100, :answer true, :inclusion true, :resolve false}]},
-;;   :article-id 39462}
-;;  ...
-;;  ]
-;; will be rather large, the size of the total amount of article that have
-;; been reviewed
-
-;; @(subscribe [:label/display label-id])
-;; this is (:short-label label) or (:name label) of label-id of project-id
-;; has the form
-;; "Include" - string
-
-;; @(subscribe [:label/value-type label-id])
-;; this is (:value-type label)
-;; has the form
-;; "boolean" - string
-;;
-;; @(subscribe [:project/label-ids])
-;; has the form
-;; [ #uuid "1282c5bf-d140-4d1a-a6de-6724574e8526"
-;; ... ]
-;; should be relatively small, the count of the labels
-;;
 (defn label-value-counts
   "Extract the answer counts for labels for the current project"
   [article-labels project-labels]

@@ -62,7 +62,12 @@
                (map (fn [article-id]
                       {article-id
                        {:consensus
-                        (label/article-consensus-status project-id article-id)}}))
+                        (label/article-consensus-status project-id article-id)
+                        :resolve
+                        (merge
+                         (label/article-resolved-status project-id article-id)
+                         {:labels
+                          (label/article-resolved-labels project-id article-id)})}}))
                (apply merge {}))
           anotes
           (-> (q/select-project-articles
