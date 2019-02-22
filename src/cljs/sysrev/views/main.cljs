@@ -154,7 +154,7 @@
         contact-email
         [:span.email "info@insilica.co"]
         copyright-notice
-        [:span [:span.medium-weight "Sysrev "] "© 2018 Insilica LLC"]]
+        [:span [:span.medium-weight "Sysrev "] "© 2019 Insilica LLC"]]
     [:div#footer
      (if (util/mobile?)
        [:div.ui.container
