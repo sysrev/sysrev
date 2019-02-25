@@ -45,6 +45,7 @@
             (goog.object/get semantic-ui "Radio")))
 (def Select (r/adapt-react-class
              (goog.object/get semantic-ui "Select")))
+(def TextArea (r/adapt-react-class (goog.object/get semantic-ui "TextArea")))
 ;; grids
 (def Grid (r/adapt-react-class
            (goog.object/get semantic-ui "Grid")))

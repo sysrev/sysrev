@@ -9,7 +9,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.loading :as loading]
-            [sysrev.markdown :as markdown :refer [ProjectDescription]]
+            [sysrev.views.panels.project.description :refer [ProjectDescription]]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer [active-project-id project-uri]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
