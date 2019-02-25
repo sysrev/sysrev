@@ -1,5 +1,6 @@
 (ns sysrev.markdown
-  (:require [clojure.string :as str]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [cljsjs.semantic-ui-react]
             [cljsjs.showdown]
             [re-frame.core :refer [subscribe reg-sub dispatch]]
@@ -9,7 +10,8 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
             [sysrev.state.ui :as ui-state]
-            [sysrev.util :as util])
+            [sysrev.util :as util]
+            [sysrev.views.semantic :refer [Segment]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -18,6 +20,7 @@
 (defn state-cursor [context]
   (let [{:keys [panel]} context]
     (r/cursor app-db [:state :panels panel :views view])))
+
 (defn set-state [db context path value]
   (ui-state/set-view-field db view path value (:panel context)))
 
@@ -71,83 +74,93 @@
          :dangerouslySetInnerHTML
          {:__html (create-markdown-html markdown)}}])
 
-(defn EditMarkdownButton
-  [context]
-  (let [state (state-cursor context)
-        draft-description (r/cursor state [:draft-description])
-        current-description (subscribe [:project/markdown-description])
-        editing? (r/cursor state [:editing?])]
-    (when (or @(subscribe [:member/admin?])
-              @(subscribe [:user/admin?]))
-      [:div.ui.tiny.icon.button.edit-markdown
-       {:on-click (fn [event]
-                    (reset! draft-description (or @current-description ""))
-                    (reset! editing? true))
-        :style {:position "absolute"
-                :top "0.5em"
-                :right "0.5em"
-                :margin "0"}}
-       [:i.ui.pencil.icon]])))
+(s/def ::ratom #(instance? reagent.ratom/RAtom %))
+(s/def ::markdown ::ratom)
+(s/def ::loading? #(fn? %))
+(s/def ::editing? ::ratom)
+(s/def ::set-markdown! #(fn? %))
+(s/def ::mutable? boolean?)
+(s/def ::draft-markdown string?)
 
+(s/fdef EditMarkdownButton
+  :args (s/keys :req-un [::markdown ::draft-markdown ::editing? ::mutable?]))
+
+(defn EditMarkdownButton
+  [{:keys [markdown draft-markdown editing? mutable?]}]
+  (when mutable?
+    [:div.ui.tiny.icon.button.edit-markdown
+     {:on-click (fn [event]
+                  (reset! draft-markdown (or @markdown ""))
+                  (reset! editing? true))
+      :style {:position "absolute"
+              :top "0.5em"
+              :right "0.5em"
+              :margin "0"}}
+     [:i.ui.pencil.icon]]))
+
+(s/fdef MarkdownComponent
+  :args (s/keys :req-un [::markdown ::set-markdown! ::loading? ::mutable? ::editing?]))
+
+;; refactor to use semantic js components to make it easier to read
 (defn MarkdownComponent
-  [context & {:keys [id]
-              :or {id "project-description"}}]
-  (let [state (state-cursor context)
-        project-id @(subscribe [:active-project-id])
-        editing? (r/cursor state [:editing?])
-        current-description (subscribe [:project/markdown-description])
-        draft-description (r/cursor state [:draft-description])
-        set-description!
-        #(dispatch [:action [:project/markdown-description project-id context %]])
-        changed? (not= (or @current-description "")
-                       (or @draft-description ""))
-        loading? (or (loading/any-loading?
-                      :only :project/markdown-description)
-                     (loading/any-action-running?
-                      :only :project/markdown-description))]
-    [:div.ui.segment.markdown-component
-     {:style {:position "relative"}}
-     [:div.ui.panel {:id id}
-      (when-not @editing?
-        [EditMarkdownButton context])
-      (if @editing?
-        [:div.editor-view
-         [:div.ui.segments
-          [:div.ui.form.secondary.segment
-           [TextArea {:fluid "true"
-                      :autoHeight true
-                      :disabled loading?
-                      :placeholder "Enter a Markdown description"
-                      :on-change #(reset! draft-description
-                                          (-> ($ % :target) ($ :value)))
-                      :default-value (or @draft-description "")}]]
-          [:div.ui.secondary.middle.aligned.grid.segment
-           [:div.eight.wide.left.aligned.column
-            [:a.markdown-link
-             {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
-              :target "_blank"
-              :rel "noopener noreferrer"}
-             "Markdown Cheatsheet"]]
-           [:div.eight.wide.right.aligned.column.form-buttons
-            [:button.ui.tiny.positive.icon.labeled.button
-             {:class (cond-> ""
-                       (not changed?) (str " disabled")
-                       loading?       (str " loading"))
-              :on-click #(set-description! @draft-description)}
-             [:i.circle.check.icon]
-             "Save"]
-            [:button.ui.tiny.icon.labeled.button
-             {:on-click #(reset! editing? false)
-              :class (when loading? "disabled")
-              :style {:margin-right "0"}}
-             [:i.times.icon]
-             "Cancel"]]]]
-         [:div.ui.segments
-          [:div.ui.secondary.header.segment
-           [:h5.ui.header "Preview"]]
-          [:div.ui.secondary.segment
-           [RenderMarkdown @draft-description]]]]
-        [:div [RenderMarkdown @current-description]])]]))
+  "Return a component for displaying and editing markdown. Note that set-markdown must handle the editing? atom"
+  [{:keys [markdown set-markdown! loading? mutable? editing?]}]
+  (let [;;markdown (subscribe [:project/markdown-description])
+        draft-markdown (r/atom "")]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        [Segment {:class "markdown-component"
+                  :style {:position "relative"}}
+         [:div
+          (when-not @editing?
+            [EditMarkdownButton {:markdown markdown
+                                 :draft-markdown draft-markdown
+                                 :editing? editing?
+                                 :mutable? mutable?}])
+          (if @editing?
+            [:div
+             [:div.ui.segments
+              [:div.ui.form.secondary.segment
+               [TextArea {:fluid "true"
+                          :autoHeight true
+                          :disabled (loading?)
+                          :placeholder "Enter a Markdown description"
+                          :on-change #(reset! draft-markdown
+                                              (-> ($ % :target) ($ :value)))
+                          :default-value (or @draft-markdown "")}]]
+              [:div.ui.secondary.middle.aligned.grid.segment
+               [:div.eight.wide.left.aligned.column
+                [:a.markdown-link
+                 {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
+                  :target "_blank"
+                  :rel "noopener noreferrer"}
+                 "Markdown Cheatsheet"]]
+               [:div.eight.wide.right.aligned.column.form-buttons
+                [:button.ui.tiny.positive.icon.labeled.button
+                 {:class (cond-> ""
+                           (not (not= (or @markdown "")
+                                      (or @draft-markdown ""))) (str " disabled")
+                           (loading?)       (str " loading"))
+                  :on-click #(set-markdown! @draft-markdown)}
+                 [:i.circle.check.icon]
+                 "Save"]
+                [:button.ui.tiny.icon.labeled.button
+                 {:on-click #(reset! editing? false)
+                  :class (when (loading?) "disabled")
+                  :style {:margin-right "0"}}
+                 [:i.times.icon]
+                 "Cancel"]]]]
+             [:div.ui.segments
+              [:div.ui.secondary.header.segment
+               [:h5.ui.header "Preview"]]
+              [:div.ui.secondary.segment
+               [RenderMarkdown @draft-markdown]]]]
+            [:div [RenderMarkdown @markdown]])]])
+      :get-initial-state
+      (fn [this]
+        (reset! draft-markdown "")
+        {})})))
 
 (def-data :project/markdown-description
   :loaded? (fn [db project-id _]
@@ -172,7 +185,7 @@
              {:dispatch [:reload [:project/markdown-description
                                   project-id context]]})
   :on-error (fn [{:keys [db error]} [project-id context value] _]
-              ($ js/console log "[Error] set-description!")
+              ($ js/console log "[Error] set-markdown!")
               {:db (set-state db context [:editing?] false)}))
 
 (reg-sub
@@ -192,13 +205,15 @@
      [:i.close.icon
       {:on-click #(reset! ignore-create-description-warning? true)}]
      [:div.content
-      #_ [:div.header "Create a project description, your users will thank you!"]
       [:p {:style {:margin-top "0"}}
        "This project does not currently have a description. It's easy to create a description using " [:a {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet" :target "_blank" :rel "noopener noreferrer"} "Markdown"] " and will help visitors better understand your project."]
       [:div.ui.fluid.button
        {:on-click #(reset! editing? true)}
        "Create Project Description"]]]))
 
+;; this is where we should setup the context around project description
+;; using a generic MarkDownComponent
+;; this should be moved to another namespace though
 (defn ProjectDescription
   [context]
   (ensure-state context)
@@ -208,10 +223,22 @@
         retrieving? (r/cursor state [:retrieving?])
         ignore-create-description-warning?
         (r/cursor state [:ignore-create-description-warning?])
-        editing? (r/cursor state [:editing?])]
+        editing? (r/cursor state [:editing?])
+        set-markdown! #(dispatch
+                           [:action [:project/markdown-description project-id context %]])
+        loading? #(or (loading/any-loading?
+                       :only :project/markdown-description)
+                      (loading/any-action-running?
+                       :only :project/markdown-description))]
     (with-loader [[:project/markdown-description project-id context]] {}
       (cond @editing?
-            [MarkdownComponent context]
+            [MarkdownComponent
+             {:markdown current-description
+              :set-markdown! set-markdown!
+              :loading? loading?
+              :editing? editing?
+              :mutable? (or @(subscribe [:member/admin?])
+                            @(subscribe [:user/admin?]))}]
             (and (not @retrieving?)
                  (str/blank? @current-description)
                  (or @(subscribe [:member/admin?])
@@ -219,6 +246,12 @@
                  (not @ignore-create-description-warning?))
             [ProjectDescriptionNag context]
             (not (str/blank? @current-description))
-            [MarkdownComponent context]
+            [MarkdownComponent
+             {:markdown current-description
+              :set-markdown! set-markdown!
+              :loading? loading?
+              :editing? editing?
+              :mutable? (or @(subscribe [:member/admin?])
+                            @(subscribe [:user/admin?]))}]
             :else
             [:div {:style {:display "none"}}]))))

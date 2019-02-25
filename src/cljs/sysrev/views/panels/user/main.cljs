@@ -242,7 +242,7 @@
                          (= @current-path "/user/settings") (str " active"))
                 :href "/user/settings"}
             "General"]
-           #_[:a {:key "#profile"
+           [:a {:key "#profile"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/profile") (str " active"))
                 :href "/user/settings/profile"}

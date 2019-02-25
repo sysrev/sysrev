@@ -16,7 +16,7 @@
             [sysrev.views.labels :as labels]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.filters :as f]
-            [sysrev.views.panels.users :refer [UserPublicProfileLink]]
+            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
