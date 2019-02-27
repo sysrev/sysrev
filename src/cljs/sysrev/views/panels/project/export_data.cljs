@@ -39,6 +39,7 @@
                :download filename}
               filename])
            [:span nbsp nbsp "(right-click to download)"]]]]
+        #_
         [:div.column
          [:div.ui.segment
           [:h4.ui.dividing.header

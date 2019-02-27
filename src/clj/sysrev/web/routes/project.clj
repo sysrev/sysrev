@@ -410,6 +410,8 @@
                  deletion (files/mark-deleted (UUID/fromString key) project-id)]
              {:result deletion}))))
 
+;; TODO: replace this project export format
+#_
 (dr (GET "/api/export-project/:project-id/:filename" request
          (wrap-authorize
           request {:allow-public true}
