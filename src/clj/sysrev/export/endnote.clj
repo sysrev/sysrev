@@ -79,7 +79,7 @@
          content))
 
 (defn article-to-endnote-xml
-  [article-id {:keys [filename] :or {filename "Sysrev_Articles"}}]
+  [article-id {:keys [filename] :or {filename "SR_Articles"}}]
   (let [article (article/get-article article-id :items [:locations])]
     [:record
      [:database {:name (str filename ".enl")}
@@ -162,7 +162,7 @@
 
 (defn project-to-endnote-xml
   [project-id & {:keys [to-file]}]
-  (let [filename (str "Sysrev_Articles_" project-id "_" (util/today-string))
+  (let [filename (str "SR_Articles_" project-id "_" (util/today-string))
         article-ids (-> (q/select-project-articles project-id [:article-id])
                         (->> do-query (map :article-id)))
         file (some-> to-file make-out-file)]

@@ -424,13 +424,30 @@
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
-(dr (GET "/api/export-answers-csv/:project-id/:filename" request
+(dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
          (wrap-authorize
           request {:allow-public true}
           (let [filename (-> request :params :filename)
                 project-id (-> request :params :project-id Integer/parseInt)
                 ;; project-id (active-project request)
-                data (->> (export/export-project-answers project-id)
+                data (->> (export/export-user-answers project-id)
+                          (csv/write-csv))]
+            (-> (response/response data)
+                (response/header "Content-Type" "text/csv; charset=utf-8")
+                (response/header "Content-Disposition"
+                                 (format "attachment; filename=\"%s\"" filename)))))))
+
+(dr (GET "/api/export-group-answers-csv/:project-id/:filename" request
+         (wrap-authorize
+          request {:allow-public true}
+          (let [filename (-> request :params :filename)
+                project-id (-> request :params :project-id Integer/parseInt)
+                ;; project-id (active-project request)
+
+                ;; TODO: accept filters as input instead of this article-ids filter
+                data (->> (export/export-group-answers
+                           project-id
+                           :article-ids (export/all-nonconflict-article-ids project-id))
                           (csv/write-csv))]
             (-> (response/response data)
                 (response/header "Content-Type" "text/csv; charset=utf-8")

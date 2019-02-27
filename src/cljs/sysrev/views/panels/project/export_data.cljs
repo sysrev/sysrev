@@ -13,14 +13,28 @@
         [:div.column
          [:div.ui.segment
           [:h4.ui.dividing.header
-           "Export Articles (EndNote XML)"]
-          [:h5 "Download EndNote XML file of all project articles"]
+           "Export Consensus Answers (CSV)"]
+          [:h5 "Download CSV file of label answers for non-conflicting articles."]
+          [:h5 "Contains one row per article. For labels where \"Require Consensus\" is not set, values for article are combined from all users."]
           [:div
-           (let [filename (str "Sysrev_Articles_" project-id "_"
-                               (today-string) ".xml")]
+           (let [filename (str "SR_Consensus_" project-id "_" (today-string) ".csv")]
              [:a.medium-weight
               {:style {:font-size "16px"}
-               :href (str "/api/export-endnote-xml/" project-id "/" filename)
+               :href (str "/api/export-group-answers-csv/" project-id "/" filename)
+               :target "_blank"
+               :download filename}
+              filename])
+           [:span nbsp nbsp "(right-click to download)"]]]
+         [:div.ui.segment
+          [:h4.ui.dividing.header
+           "Export User Answers (CSV)"]
+          [:h5 "Download CSV file of all user label answers and notes."]
+          [:h5 "Contains one row per pair of (article, user)."]
+          [:div
+           (let [filename (str "SR_UserAnswers_" project-id "_" (today-string) ".csv")]
+             [:a.medium-weight
+              {:style {:font-size "16px"}
+               :href (str "/api/export-user-answers-csv/" project-id "/" filename)
                :target "_blank"
                :download filename}
               filename])
@@ -28,13 +42,14 @@
         [:div.column
          [:div.ui.segment
           [:h4.ui.dividing.header
-           "Export User Answers (CSV)"]
-          [:h5 "Download CSV file of all user answers and notes"]
+           "Export Articles (EndNote XML)"]
+          [:h5 "Download EndNote XML file of all project articles."]
           [:div
-           (let [filename (str "Sysrev_Answers_" project-id "_" (today-string) ".csv")]
+           (let [filename (str "SR_Articles_" project-id "_"
+                               (today-string) ".xml")]
              [:a.medium-weight
               {:style {:font-size "16px"}
-               :href (str "/api/export-answers-csv/" project-id "/" filename)
+               :href (str "/api/export-endnote-xml/" project-id "/" filename)
                :target "_blank"
                :download filename}
               filename])
