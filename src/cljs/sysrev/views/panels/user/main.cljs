@@ -11,7 +11,7 @@
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
             [sysrev.views.panels.user.email :refer [EmailSettings VerifyEmail]]
             [sysrev.views.panels.user.invitations :refer [Invitations]]
-            [sysrev.views.panels.user.profile :refer [ProfileSettings]]
+            [sysrev.views.panels.user.profile :refer [Profile]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :refer [full-size? get-url-path mobile?]]))
@@ -300,7 +300,7 @@
             #"/user/settings/email"
             [EmailSettings]
             #"/user/settings/profile"
-            [ProfileSettings]
+            [Profile {:user-id @(subscribe [:self/user-id]) :email @(subscribe [:user/email])}]
             ;; default before the active panel is loaded
             ;; and this component still exists
             #"/user/settings/email/(\w+)" :>>

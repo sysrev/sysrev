@@ -7,7 +7,7 @@
 (defn user-authd?
   [user-id]
   (fn [request]
-    (boolean (=  user-id (current-user-id request)))))
+    (boolean (= user-id (current-user-id request)))))
 
 (defn user-in-group?
   [user-id group-name]
@@ -43,6 +43,11 @@
          (api/read-user-public-info user-id)))
    (context
     "/user/:user-id" [user-id :<< as-int]
+    (GET "/projects" request
+         (wrap-authorize
+          request
+          {:authorize-fn (constantly true)}
+          (api/user-projects user-id (= (current-user-id request) user-id))))
     (GET "/payments-owed" request
          (wrap-authorize
           request

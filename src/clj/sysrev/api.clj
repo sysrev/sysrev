@@ -1108,7 +1108,10 @@
 (defn read-user-public-info
   "Get the users public info"
   [user-id]
-  {:result {:user (first (users/get-users-public-info [user-id]))}})
+  (if-let [user (first (users/get-users-public-info [user-id]))]
+    {:result {:user user}}
+    {:error {:status not-found
+             :message "That user does not exist"}}))
 
 (defn send-invitation-email
   "Send an invitation email"
@@ -1268,3 +1271,10 @@
 (defn update-project-predictions [project-id]
   (future (predict-api/update-project-predictions project-id))
   {:result {:success true}})
+
+(defn user-projects
+  "Return a list of user projects for user-id, including non-public projects when self? is true"
+  [user-id self?]
+  (if self?
+    {:result {:projects (users/projects-member user-id)}}
+    {:result {:projects (users/public-projects-member user-id)}}))

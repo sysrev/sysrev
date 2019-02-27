@@ -4,7 +4,7 @@
             [re-frame.core :refer [subscribe]]
             [re-frame.db :refer [app-db]]
             [sysrev.base]
-            [sysrev.views.panels.user.profile :refer [User UserDetail]]
+            [sysrev.views.panels.user.profile :refer [User Profile]]
             [sysrev.views.semantic :refer [Segment Message MessageHeader]]
             [sysrev.views.base :refer [panel-content logged-out-content]])
   (:require-macros [reagent.interop :refer [$]]))
@@ -45,7 +45,7 @@
            (doall (map
                    (fn [user]
                      ^{:key (:user-id user)}
-                     [Segment [User user]])
+                     [User user])
                    @users))
            [Message
             "There currently are no public reviewers"])])
@@ -60,10 +60,10 @@
     (fn []
       [:div#users-content
        (cond
-         (re-matches #"/users" @current-path)
+         (re-matches #"/users/{0,1}$" @current-path)
          [AllUsers]
-         (re-matches #"/users/\d*" @current-path)
-         [UserDetail (second (re-matches #"/users/(\d*)" @current-path))])])))
+         (re-matches #"/users/\d+" @current-path)
+         [Profile {:user-id (js/parseInt (second (re-matches #"/users/(\d+)" @current-path)))}])])))
 
 (defmethod logged-out-content [:users] []
   (logged-out-content :logged-out))

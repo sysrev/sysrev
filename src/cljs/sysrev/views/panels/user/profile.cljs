@@ -149,54 +149,25 @@
 (defn User
   [{:keys [email user-id]}]
   (let [editing? (r/cursor state [:editing-profile?])]
-    [Grid
-     [Row
-      [Column {:width 2}
-       [Icon {:name "user icon"
-              :size "huge"}]]
-      [Column {:width 12}
-       [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
-       [:div
-        #_[:a {:on-click (fn [e]
-                         ($ e :preventDefault)
-                         (swap! editing? not))
-             :href "#"}
-         "Edit Profile"]]
-       [:div
-        (when-not (= user-id @(subscribe [:self/user-id]))
-          [InviteUser user-id])
-        [:div {:style {:margin-top "1em"}}
-         [Invitations user-id]]]]]]))
-
-(defn UserDetail
-  [user-id]
-  (let [user (r/atom {})
-        error-message (r/atom "")
-        retrieving-users? (r/atom false)
-        get-user! (fn []
-                    (reset! retrieving-users? true)
-                    (GET (str "/api/user/" user-id)
-                         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                          :handler (fn [response]
-                                     (reset! retrieving-users? false)
-                                     (reset! user (-> response :result :user)))
-                          :error-handler (fn [error-response]
-                                           (reset! retrieving-users? false)
-                                           (reset! error-message "There was a problem retrieving this user"))}))]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
+    [Segment
+     [Grid
+      [Row
+       [Column {:width 2}
+        [Icon {:name "user icon"
+               :size "huge"}]]
+       [Column {:width 12}
+        [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
         [:div
-         (if (clojure.string/blank? @error-message)
-           [Segment
-            [User @user]]
-           [Message {:onDismiss #(reset! error-message nil)
-                     :negative true}
-            [MessageHeader "Retrieving User Error"]
-            @error-message])])
-      :get-initial-state
-      (fn [this]
-        (get-user!))})))
+         #_[:a {:on-click (fn [e]
+                            ($ e :preventDefault)
+                            (swap! editing? not))
+                :href "#"}
+            "Edit Profile"]]
+        [:div
+         (when-not (= user-id @(subscribe [:self/user-id]))
+           [InviteUser user-id])
+         [:div {:style {:margin-top "1em"}}
+          [Invitations user-id]]]]]]]))
 
 (defn EditingUser
   [{:keys [user-id email]}]
@@ -231,34 +202,115 @@
        "Edit"])))
 
 (defn Introduction
-  []
+  [{:keys [mutable?]}]
   (let [markdown (r/atom "")
         editing? (r/atom false)
         set-markdown! (fn [draft-markdown]
                         (reset! markdown draft-markdown)
                         (reset! editing? false))
-        loading? (constantly false)
-        mutable? true]
-    [Segment
-     [Header {:as "h4"
-              :dividing true}
-      "Introduction"]
-     [MarkdownComponent {:markdown markdown
-                         :set-markdown! set-markdown!
-                         :loading? loading?
-                         :mutable? true
-                         :editing? editing?}]
-     [EditIntroduction {:editing? editing?
-                        :mutable? mutable?
-                        :blank? (r/track #(clojure.string/blank? @%) markdown)}]]))
+        loading? (constantly false)]
+    (when (or (not (clojure.string/blank? @markdown))
+              mutable?)
+      [Segment
+       [Header {:as "h4"
+                :dividing true}
+        "Introduction"]
+       [MarkdownComponent {:markdown markdown
+                           :set-markdown! set-markdown!
+                           :loading? loading?
+                           :mutable? true
+                           :editing? editing?}]
+       [EditIntroduction {:editing? editing?
+                          :mutable? mutable?
+                          :blank? (r/track #(clojure.string/blank? @%) markdown)}]])))
+
+(defn Project
+  [{:keys [name project-id]}]
+  [Row [Column {:width 16} [:a {:href (str "/p/" project-id)} name]]])
+
+(defn UserProjects
+  [{:keys [user-id]}]
+  (let [projects (r/atom [])
+        error-message (r/atom "")
+        retrieving-projects? (r/atom false)
+        get-user-projects! (fn [user-id projects-atom]
+                             (reset! retrieving-projects? true)
+                             (GET (str "/api/user/" user-id "/projects")
+                                  {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                                   :handler (fn [response]
+                                              (reset! retrieving-projects? false)
+                                              (reset! projects-atom (-> response :result :projects)))
+                                   :error-handler (fn [error-response]
+                                                    (.log js/console (clj->js error-response))
+                                                    (reset! retrieving-projects? false)
+                                                    (reset! error-message (get-in error-response [:response :error :message])))}))]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (let [{:keys [public private]} (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)]
+          (when-not (empty? @projects)
+            [:div
+             (when-not (empty? public)
+               [Segment
+                [Header {:as "h4"
+                         :dividing true}
+                 "Projects"]
+                [Grid
+                 (map (fn [project]
+                        ^{:key (:project-id project)}
+                        [Project project]) public)]])
+             (when-not (empty? private)
+               [Segment
+                [Header {:as "h4"
+                         :dividing true}
+                 "Private Projects"]
+                [Grid
+                 (map (fn [project]
+                        ^{:key (:project-id project)}
+                        [Project project]) private)]])])))
+      :component-will-receive-props
+      (fn [this new-argv]
+        (get-user-projects! (-> new-argv second :user-id) projects))})))
 
 (defn ProfileSettings
-  []
-  (let [editing? (r/cursor state [:editing-profile?])
-        current-user-id (subscribe [:self/user-id])
-        current-email (subscribe [:user/email])]
-    [:div
-     (if @editing?
-       [EditingUser {:user-id @current-user-id :email @current-email }]
-       [UserDetail @current-user-id])
-     [Introduction]]))
+  [{:keys [user-id email]}]
+  (let [editing? (r/cursor state [:editing-profile?])]
+    (if @editing?
+      [EditingUser {:user-id user-id :email email }]
+      [User {:user-id user-id :email email}])))
+
+(defn Profile
+  [{:keys [user-id email]}]
+  (let [user (r/atom {})
+        error-message (r/atom "")
+        retrieving-users? (r/atom false)
+        projects (r/atom [])
+        mutable? (= user-id @(subscribe [:self/user-id]))
+        get-user! (fn [user-id user-atom]
+                    (reset! retrieving-users? true)
+                    (GET (str "/api/user/" user-id)
+                         {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                          :handler (fn [response]
+                                     (reset! retrieving-users? false)
+                                     (reset! user-atom (-> response :result :user)))
+                          :error-handler (fn [error-response]
+                                           (.log js/console (clj->js error-response))
+                                           (reset! retrieving-users? false)
+                                           (reset! error-message (get-in error-response [:response :error :message])))}))]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (.log js/console "user " (clj->js @user))
+        (if (clojure.string/blank? @error-message)
+          ;; display user
+          [:div
+           [ProfileSettings @user]
+           [Introduction {:mutable? mutable?}]
+           [UserProjects @user]]
+          ;; error message
+          [Message {:negative true}
+           [MessageHeader "Error Retrieving User"]
+           @error-message]))
+      :get-initial-state
+      (fn [this]
+        (get-user! user-id user))})))

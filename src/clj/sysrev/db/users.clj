@@ -535,3 +535,21 @@
               [:= :user-id user-id]
               [:= :email email]])
       do-query first))
+
+(defn projects-member
+  "Return all projects user-id is a member of"
+  [user-id]
+  (-> (select :p.project-id :p.name :p.settings)
+      (from [:project :p])
+      (join [:project-member :pm]
+            [:= :pm.project-id :p.project-id])
+      (where [:and
+              [:= :p.enabled true]
+              [:= :pm.user_id user-id]])
+      do-query))
+
+(defn public-projects-member
+  "Return all public project a user-id is a member of"
+  [user-id]
+  (->> (projects-member user-id)
+       (filter #(-> % :settings :public-access true?))))
