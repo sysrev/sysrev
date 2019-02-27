@@ -460,7 +460,7 @@
           :content (if full-size? "EndNote XML" "EndNote")
           :action #(reset! import-tab :endnote)}
          {:tab-id :zip-file
-          :content "Zip File"
+          :content "PDF Files"
           :action #(reset! import-tab :zip-file)}]
         active-tab
         "import-source-tabs"]]
