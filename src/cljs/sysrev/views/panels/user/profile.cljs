@@ -5,7 +5,8 @@
             [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe]]
             [sysrev.base :refer [active-route]]
-            [sysrev.views.semantic :refer [Segment Grid Row Column Icon Message MessageHeader Button Select]])
+            [sysrev.markdown :refer [MarkdownComponent]]
+            [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Message MessageHeader Button Select]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:prviate panel [:state :panels :user :profile])
@@ -156,7 +157,7 @@
       [Column {:width 12}
        [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
        [:div
-        [:a {:on-click (fn [e]
+        #_[:a {:on-click (fn [e]
                          ($ e :preventDefault)
                          (swap! editing? not))
              :href "#"}
@@ -174,7 +175,7 @@
         retrieving-users? (r/atom false)
         get-user! (fn []
                     (reset! retrieving-users? true)
-                    (GET (str "/api/users/group/public-reviewer/" user-id)
+                    (GET (str "/api/user/" user-id)
                          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
                           :handler (fn [response]
                                      (reset! retrieving-users? false)
@@ -219,12 +220,45 @@
                  [:div {:style {:margin-top "1em"}}
                   [Invitations user-id]]]]]]]))
 
+(defn EditIntroduction
+  [{:keys [editing? mutable? blank?]}]
+  (when mutable?
+    (when (not @editing?)
+      [:a {:href "#"
+           :on-click (fn [event]
+                       ($ event preventDefault)
+                       (swap! editing? not))}
+       "Edit"])))
+
+(defn Introduction
+  []
+  (let [markdown (r/atom "")
+        editing? (r/atom false)
+        set-markdown! (fn [draft-markdown]
+                        (reset! markdown draft-markdown)
+                        (reset! editing? false))
+        loading? (constantly false)
+        mutable? true]
+    [Segment
+     [Header {:as "h4"
+              :dividing true}
+      "Introduction"]
+     [MarkdownComponent {:markdown markdown
+                         :set-markdown! set-markdown!
+                         :loading? loading?
+                         :mutable? true
+                         :editing? editing?}]
+     [EditIntroduction {:editing? editing?
+                        :mutable? mutable?
+                        :blank? (r/track #(clojure.string/blank? @%) markdown)}]]))
+
 (defn ProfileSettings
   []
   (let [editing? (r/cursor state [:editing-profile?])
         current-user-id (subscribe [:self/user-id])
         current-email (subscribe [:user/email])]
-    (if @editing?
-      ;;[:h1 "I don't do a whole lot right now"]
-      [EditingUser {:user-id @current-user-id :email @current-email }]
-      [UserDetail @current-user-id])))
+    [:div
+     (if @editing?
+       [EditingUser {:user-id @current-user-id :email @current-email }]
+       [UserDetail @current-user-id])
+     [Introduction]]))

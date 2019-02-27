@@ -36,6 +36,11 @@
                   request
                   {:authorize-fn (user-in-group? user-id "public-reviewer")}
                   (api/read-user-public-info user-id))))
+   (GET "/user/:user-id" [user-id :<< as-int :as request]
+        (wrap-authorize
+         request
+         {:authorize-fn (constantly true)}
+         (api/read-user-public-info user-id)))
    (context
     "/user/:user-id" [user-id :<< as-int]
     (GET "/payments-owed" request

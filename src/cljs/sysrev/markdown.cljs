@@ -51,82 +51,60 @@
 (s/def ::mutable? boolean?)
 (s/def ::draft-markdown string?)
 
-(s/fdef EditMarkdownButton
-  :args (s/keys :req-un [::markdown ::draft-markdown ::editing? ::mutable?]))
-
-(defn EditMarkdownButton
-  [{:keys [markdown draft-markdown editing? mutable?]}]
-  (when mutable?
-    [:div.ui.tiny.icon.button.edit-markdown
-     {:on-click (fn [event]
-                  (reset! draft-markdown (or @markdown ""))
-                  (reset! editing? true))
-      :style {:position "absolute"
-              :top "0.5em"
-              :right "0.5em"
-              :margin "0"}}
-     [:i.ui.pencil.icon]]))
-
 (s/fdef MarkdownComponent
   :args (s/keys :req-un [::markdown ::set-markdown! ::loading? ::mutable? ::editing?]))
 
 ;; refactor to use semantic js components to make it easier to read
 (defn MarkdownComponent
-  "Return a component for displaying and editing markdown. Note that set-markdown must handle the editing? atom"
+  "Return a component for displaying and editing markdown. set-markdown! is a function which takes a string and must handle the editing? atom"
   [{:keys [markdown set-markdown! loading? mutable? editing?]}]
   (let [draft-markdown (r/atom "")]
     (r/create-class
      {:reagent-render
       (fn [this]
-        [Segment {:class "markdown-component"
-                  :style {:position "relative"}}
-         [:div
-          (when-not @editing?
-            [EditMarkdownButton {:markdown markdown
-                                 :draft-markdown draft-markdown
-                                 :editing? editing?
-                                 :mutable? mutable?}])
-          (if @editing?
-            [:div
-             [:div.ui.segments
-              [:div.ui.form.secondary.segment
-               [TextArea {:fluid "true"
-                          :autoHeight true
-                          :disabled (loading?)
-                          :placeholder "Enter a Markdown description"
-                          :on-change #(reset! draft-markdown
-                                              (-> ($ % :target) ($ :value)))
-                          :default-value (or @draft-markdown "")}]]
-              [:div.ui.secondary.middle.aligned.grid.segment
-               [:div.eight.wide.left.aligned.column
-                [:a.markdown-link
-                 {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
-                  :target "_blank"
-                  :rel "noopener noreferrer"}
-                 "Markdown Cheatsheet"]]
-               [:div.eight.wide.right.aligned.column.form-buttons
-                [:button.ui.tiny.positive.icon.labeled.button
-                 {:class (cond-> ""
-                           (not (not= (or @markdown "")
-                                      (or @draft-markdown ""))) (str " disabled")
-                           (loading?)       (str " loading"))
-                  :on-click #(set-markdown! @draft-markdown)}
-                 [:i.circle.check.icon]
-                 "Save"]
-                [:button.ui.tiny.icon.labeled.button
-                 {:on-click #(reset! editing? false)
-                  :class (when (loading?) "disabled")
-                  :style {:margin-right "0"}}
-                 [:i.times.icon]
-                 "Cancel"]]]]
-             [:div.ui.segments
-              [:div.ui.secondary.header.segment
-               [:h5.ui.header "Preview"]]
-              [:div.ui.secondary.segment
-               [RenderMarkdown @draft-markdown]]]]
-            [:div [RenderMarkdown @markdown]])]])
+        [:div.markdown-component
+         (if @editing?
+           [:div
+            [:div.ui.segments
+             [:div.ui.form.secondary.segment
+              [TextArea {:fluid "true"
+                         :autoHeight true
+                         :disabled (loading?)
+                         :placeholder "Enter a Markdown description"
+                         :on-change #(reset! draft-markdown
+                                             (-> ($ % :target) ($ :value)))
+                         :default-value (or @draft-markdown "")}]]
+             [:div.ui.secondary.middle.aligned.grid.segment
+              [:div.eight.wide.left.aligned.column
+               [:a.markdown-link
+                {:href "https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet"
+                 :target "_blank"
+                 :rel "noopener noreferrer"}
+                "Markdown Cheatsheet"]]
+              [:div.eight.wide.right.aligned.column.form-buttons
+               [:button.ui.tiny.positive.icon.labeled.button
+                {:class (cond-> ""
+                          (not (not= (or @markdown "")
+                                     (or @draft-markdown ""))) (str " disabled")
+                          (loading?)       (str " loading"))
+                 :on-click #(set-markdown! @draft-markdown)}
+                [:i.circle.check.icon]
+                "Save"]
+               [:button.ui.tiny.icon.labeled.button
+                {:on-click #(reset! editing? false)
+                 :class (when (loading?) "disabled")
+                 :style {:margin-right "0"}}
+                [:i.times.icon]
+                "Cancel"]]]]
+            [:div.ui.segments
+             [:div.ui.secondary.header.segment
+              [:h5.ui.header "Preview"]]
+             [:div.ui.secondary.segment
+              [RenderMarkdown @draft-markdown]]]]
+           (when-not (clojure.string/blank? @markdown)
+             [:div [RenderMarkdown @markdown]]))])
       :get-initial-state
       (fn [this]
-        (reset! draft-markdown "")
+        (reset! draft-markdown (or @markdown ""))
         {})})))
 

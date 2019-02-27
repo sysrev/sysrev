@@ -8,7 +8,8 @@
             [sysrev.loading :as loading]
             [sysrev.markdown :refer [MarkdownComponent]]
             [sysrev.state.ui :as ui-state]
-            [sysrev.util :as util])
+            [sysrev.util :as util]
+            [sysrev.views.semantic :refer [Segment]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -79,9 +80,19 @@
        {:on-click #(reset! editing? true)}
        "Create Project Description"]]]))
 
-;; this is where we should setup the context around project description
-;; using a generic MarkDownComponent
-;; this should be moved to another namespace though
+(defn EditMarkdownButton
+  "Edit button for the project description. editing? is an atom, mutable? is a boolean"
+  [{:keys [editing? mutable?]}]
+  (when mutable?
+    [:div.ui.tiny.icon.button.edit-markdown
+     {:on-click (fn [event]
+                  (reset! editing? true))
+      :style {:position "absolute"
+              :top "0.5em"
+              :right "0.5em"
+              :margin "0"}}
+     [:i.ui.pencil.icon]]))
+
 (defn ProjectDescription
   [context]
   (ensure-state context)
@@ -100,13 +111,19 @@
                        :only :project/markdown-description))]
     (with-loader [[:project/markdown-description project-id context]] {}
       (cond @editing?
-            [MarkdownComponent
-             {:markdown current-description
-              :set-markdown! set-markdown!
-              :loading? loading?
-              :editing? editing?
-              :mutable? (or @(subscribe [:member/admin?])
-                            @(subscribe [:user/admin?]))}]
+            [Segment {:style {:position "relative"}}
+             [:div
+              (when-not @editing?
+                [EditMarkdownButton {:editing? editing?
+                                     :mutable? (or @(subscribe [:member/admin?])
+                                                   @(subscribe [:user/admin?]))}])
+              [MarkdownComponent
+               {:markdown current-description
+                :set-markdown! set-markdown!
+                :loading? loading?
+                :editing? editing?
+                :mutable? (or @(subscribe [:member/admin?])
+                              @(subscribe [:user/admin?]))}]]]
             (and (not @retrieving?)
                  (str/blank? @current-description)
                  (or @(subscribe [:member/admin?])
@@ -114,12 +131,19 @@
                  (not @ignore-create-description-warning?))
             [ProjectDescriptionNag context]
             (not (str/blank? @current-description))
-            [MarkdownComponent
-             {:markdown current-description
-              :set-markdown! set-markdown!
-              :loading? loading?
-              :editing? editing?
-              :mutable? (or @(subscribe [:member/admin?])
-                            @(subscribe [:user/admin?]))}]
+            [Segment {:class "markdown-component"
+                      :style {:position "relative"}}
+             [:div
+              (when-not @editing?
+                [EditMarkdownButton {:editing? editing?
+                                     :mutable? (or @(subscribe [:member/admin?])
+                                                   @(subscribe [:user/admin?]))}])
+              [MarkdownComponent
+               {:markdown current-description
+                :set-markdown! set-markdown!
+                :loading? loading?
+                :editing? editing?
+                :mutable? (or @(subscribe [:member/admin?])
+                              @(subscribe [:user/admin?]))}]]]
             :else
             [:div {:style {:display "none"}}]))))
