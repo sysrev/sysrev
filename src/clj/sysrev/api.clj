@@ -1275,6 +1275,13 @@
 (defn user-projects
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
-  (if self?
-    {:result {:projects (users/projects-member user-id)}}
-    {:result {:projects (users/public-projects-member user-id)}}))
+  (let [projects (if self?
+                   (users/projects-member user-id)
+                   (users/public-projects-member user-id))
+        labeled-summary (users/projects-labeled-summary user-id)
+        annotations-summary (users/projects-annotated-summary user-id)]
+    {:result {:projects (->> (merge-with merge
+                                         (util/vector->hash-map projects :project-id)
+                                         (util/vector->hash-map labeled-summary :project-id)
+                                         (util/vector->hash-map annotations-summary :project-id))
+                             vals)}}))

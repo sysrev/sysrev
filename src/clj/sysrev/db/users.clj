@@ -553,3 +553,47 @@
   [user-id]
   (->> (projects-member user-id)
        (filter #(-> % :settings :public-access true?))))
+
+(defn projects-labeled-summary
+  "Return the count of articles and labels done by user-id grouped by projects"
+  [user-id]
+  (-> (select [:%count.%distinct.al.article_id :articles]
+              [:%count.al.article_label_id :labels]
+              [:a.project_id :project-id])
+      (from [:article_label :al])
+      (join [:article :a]
+            [:= :a.article_id :al.article_id])
+      (where [:and
+              [:= :al.user_id user-id]
+              [:= :a.enabled true]])
+      (group :a.project_id)
+      do-query))
+
+(defn projects-annotated-summary
+  "Return the count of annotations done by user-id grouped by projects"
+  [user-id]
+  (-> (select [:%count.an.id :annotations] [:a.project_id :project-id])
+      (from [:annotation :an])
+      (join [:annotation-article :aa]
+            [:= :aa.annotation-id :an.id]
+            [:article :a]
+            [:= :a.article-id :aa.article-id]
+            [:annotation_web_user :awu]
+            [:= :awu.annotation_id :an.id])
+      (left-join [:annotation-s3store :as3]
+                 [:= :an.id :as3.annotation-id]
+
+                 [:s3store :s3]
+                 [:= :s3.id :as3.s3store-id]
+
+                 [:annotation-web-user :au]
+                 [:= :au.annotation-id :an.id]
+
+                 [:annotation-semantic-class :asc]
+                 [:= :an.id :asc.annotation-id]
+
+                 [:semantic-class :sc]
+                 [:= :sc.id :asc.semantic-class-id])
+      (group :a.project-id)
+      (where [:= :awu.user_id user-id])
+      do-query))

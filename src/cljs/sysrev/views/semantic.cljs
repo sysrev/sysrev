@@ -53,7 +53,7 @@
           ($ (goog.object/get semantic-ui "Grid") :Row)))
 (def Column (r/adapt-react-class
              ($ (goog.object/get semantic-ui "Grid") :Column)))
-
+(def Divider (r/adapt-react-class (goog.object/get semantic-ui "Divider")))
 ;; lists
 (def ListUI (r/adapt-react-class
              (goog.object/get semantic-ui "List")))

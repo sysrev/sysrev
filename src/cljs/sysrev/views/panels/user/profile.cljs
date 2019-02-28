@@ -6,12 +6,21 @@
             [re-frame.core :refer [subscribe]]
             [sysrev.base :refer [active-route]]
             [sysrev.markdown :refer [MarkdownComponent]]
-            [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Message MessageHeader Button Select]])
+            [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Message MessageHeader Button Select Divider]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:prviate panel [:state :panels :user :profile])
 
 (def state (r/cursor app-db [:state :panels panel]))
+
+(defn condensed-number
+  "Condense numbers over 1000 to be factors of k"
+  [i]
+  (when (= i 0)
+    (str 0))
+  (if (> i 999)
+    (-> (/ i 1000)  ($ toFixed 1) (str "K"))
+    (str i)))
 
 (defn get-project-invitations!
   "Get all of the invitations that have been sent by the project for which user-id is the admin of"
@@ -224,13 +233,41 @@
                           :mutable? mutable?
                           :blank? (r/track #(clojure.string/blank? @%) markdown)}]])))
 
+(defn ActivitySummary
+  [{:keys [articles labels annotations]}]
+  (let [header-margin-bottom "0.10em"]
+    (when (or (> articles 0)
+              (> annotations 0)
+              (> labels 0))
+      [Grid {:columns 3
+             :style {:display "block"}}
+       [Row
+        [Column
+         [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number articles)]
+         [:p "Articles Reviewed"]]
+        [Column
+         [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number labels)]
+         [:p "Labels Contributed"]]
+        [Column
+         [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number annotations)]
+         [:p "Annotations Contributed"]]]])))
+
 (defn Project
-  [{:keys [name project-id]}]
-  [Row [Column {:width 16} [:a {:href (str "/p/" project-id)} name]]])
+  [{:keys [name project-id articles labels annotations]
+    :or {articles 0
+         labels 0
+         annotations 0}}]
+  [:div
+   [:div {:style {:margin-bottom "1em"}}
+    [:a {:href (str "/p/" project-id)} name]]
+   [ActivitySummary {:articles articles
+                     :labels labels
+                     :annotations annotations}]
+   [Divider]])
 
 (defn UserProjects
   [{:keys [user-id]}]
-  (let [projects (r/atom [])
+  (let [projects (r/cursor state [:projects])
         error-message (r/atom "")
         retrieving-projects? (r/atom false)
         get-user-projects! (fn [user-id projects-atom]
@@ -247,7 +284,10 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [public private]} (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)]
+        (let [{:keys [public private]} (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)
+              ;; because we need to exclude anything that doesn't explicitly have a settings keyword
+              ;; non-public project summaries are given, but without identifying profile information
+              private (filter #(contains? % :settings) private)]
           (when-not (empty? @projects)
             [:div
              (when-not (empty? public)
@@ -255,22 +295,31 @@
                 [Header {:as "h4"
                          :dividing true}
                  "Projects"]
-                [Grid
-                 (map (fn [project]
-                        ^{:key (:project-id project)}
-                        [Project project]) public)]])
+                (map (fn [project]
+                       ^{:key (:project-id project)}
+                       [Project project]) public)])
              (when-not (empty? private)
                [Segment
                 [Header {:as "h4"
                          :dividing true}
                  "Private Projects"]
-                [Grid
-                 (map (fn [project]
-                        ^{:key (:project-id project)}
-                        [Project project]) private)]])])))
+                (map (fn [project]
+                       ^{:key (:project-id project)}
+                       [Project project]) private)])])))
       :component-will-receive-props
       (fn [this new-argv]
         (get-user-projects! (-> new-argv second :user-id) projects))})))
+
+(defn UserActivitySummary
+  [projects]
+  (let [count-items (fn [projects kw]
+                      (->> projects (map kw) (apply +)))
+        articles (count-items projects :articles)
+        labels (count-items projects :labels)
+        annotations (count-items projects :annotations)]
+    [Segment [ActivitySummary {:articles articles
+                               :labels labels
+                               :annotations annotations}]]))
 
 (defn ProfileSettings
   [{:keys [user-id email]}]
@@ -284,7 +333,7 @@
   (let [user (r/atom {})
         error-message (r/atom "")
         retrieving-users? (r/atom false)
-        projects (r/atom [])
+        projects (r/cursor state [:projects])
         mutable? (= user-id @(subscribe [:self/user-id]))
         get-user! (fn [user-id user-atom]
                     (reset! retrieving-users? true)
@@ -300,11 +349,11 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (.log js/console "user " (clj->js @user))
         (if (clojure.string/blank? @error-message)
           ;; display user
           [:div
            [ProfileSettings @user]
+           [UserActivitySummary @projects]
            [Introduction {:mutable? mutable?}]
            [UserProjects @user]]
           ;; error message
