@@ -4,12 +4,14 @@
             [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.util :refer [vector->hash-map]]
             [sysrev.views.semantic :as s :refer
-             [Grid Row Column Segment Header Message Button Label]])
+             [Grid Row Column Segment Header Message Button Label]]
+            [sysrev.util :as u])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def state (r/cursor app-db [:state :panels :user :email]))
+(def panel [:user :email])
+
+(def state (r/cursor app-db [:state :panels panel]))
 
 (defn verify-email
   [code]
@@ -36,7 +38,7 @@
           :handler (fn [response]
                      (reset! retrieving-addresses? false)
                      (dispatch [:fetch [:identity]])
-                     (reset! email-addresses (-> response :result :addresses (vector->hash-map :id))))
+                     (reset! email-addresses (-> response :result :addresses (u/vector->hash-map :id))))
           :error-handler (fn [error]
                            (reset! retrieving-addresses? false)
                            ($ js/console log "[get-email-addresses] There was an error"))})))
@@ -244,11 +246,10 @@
                                          (reset! new-email ($ event :target.value)))}]
               [Button {:disabled @sending-update?
                        :id "new-email-address-submit"} "Submit"]
-              [Button {:on-click (fn [event]
-                                   ($ event preventDefault)
-                                   (reset! adding-email? false)
-                                   (reset! update-error nil)
-                                   (reset! update-message nil))
+              [Button {:on-click (u/wrap-prevent-default
+                                  #(do (reset! adding-email? false)
+                                       (reset! update-error nil)
+                                       (reset! update-message nil)))
                        :disabled @sending-update?} "Cancel"]]]
             (when-not (clojure.string/blank? @update-message)
               [Message {:onDismiss #(reset! update-message nil)

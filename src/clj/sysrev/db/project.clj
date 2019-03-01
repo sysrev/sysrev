@@ -182,8 +182,8 @@
         (clear-query-cache)))))
 ;;;
 (s/fdef delete-project
-  :args (s/cat :project-id ::sc/project-id)
-  :ret integer?)
+  :args (s/cat :project-id (s/nilable ::sc/project-id))
+  :ret (s/coll-of integer?))
 
 (defn enable-project!
   "Set the enabled flag for project-id to false"

@@ -1,118 +1,117 @@
 (ns sysrev.views.panels.project.compensation
   (:require [ajax.core :refer [POST GET DELETE PUT]]
             [cljsjs.moment]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx trim-v dispatch]]
             [re-frame.db :refer [app-db]]
-            [sysrev.accounting :as accounting]
+            [sysrev.accounting :as acct]
             [sysrev.charts.chartjs :as chartjs]
-            [sysrev.util :refer [vector->hash-map continuous-update-until unix-epoch->date-string]]
             [sysrev.views.base :refer [panel-content]]
             [sysrev.views.charts :as charts]
-            [sysrev.paypal :as paypal :refer [AddFunds]]
-            [sysrev.views.semantic :refer [Form FormGroup FormInput Button Dropdown Message MessageHeader]]
-            [sysrev.views.panels.project.support :as support :refer [SupportFormOnce]])
+            [sysrev.paypal :as paypal]
+            [sysrev.views.semantic :as s :refer [Button Dropdown]]
+            [sysrev.views.panels.project.support :as support]
+            [sysrev.util :as u]
+            [sysrev.shared.util :as su :refer [in?]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:project :project :compensation])
 
-;; set this to defonce when done developing
 (def state (r/cursor app-db [:state :panels panel]))
 
 (def admin-fee 0.20)
 
-(def pending-transaction-check-interval 600000)
+(def check-pending-interval 600000)
 
 (defn admin-fee-text
   "amount is an integer amount in cents"
   [amount admin-fee]
-  (str (accounting/cents->string (* amount admin-fee)) " admin fee"))
+  (str (acct/cents->string (* amount admin-fee)) " admin fee"))
 
 (defn AdminFee
   [amount admin-fee]
   [:span {:style {:font-size "0.8em"
                   :color "red"
                   :font-weight "bold"}}
-   (str "(+" (accounting/cents->string (* amount admin-fee)) " admin fee)")])
+   (str "(+" (acct/cents->string (* amount admin-fee)) " admin fee)")])
 
 (defn CompensationAmount
   "Show the compensation text related to a compensation"
   [compensation admin-fee]
   (let [amount (get-in compensation [:rate :amount])
-        item (get-in compensation [:rate :item])]
-    [:div [:span {:style {:font-size "1.3em"}} (accounting/cents->string amount)]
+        item (get-in compensation [:rate :item])
+        style {:style {:font-size "1.3em"}}]
+    [:div
+     [:span style (acct/cents->string amount)]
      " " [AdminFee amount admin-fee]
-     [:span {:style {:font-size "1.3em"}} (str " / " item)]]))
+     [:span style (str " / " item)]]))
 
-(defn get-compensations!
-  "Retrieve the current compensations"
-  [state]
+(defn get-compensations! [state]
   (let [project-id @(subscribe [:active-project-id])
-        retrieving-compensations? (r/cursor state [:retrieving-compensations?])
+        loading? (r/cursor state [:loading :project-compensations])
         project-compensations (r/cursor state [:project-compensations])]
-    (reset! retrieving-compensations? true)
+    (reset! loading? true)
     (GET "/api/project-compensations"
          {:params {:project-id project-id}
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
-                     (reset! retrieving-compensations? false)
-                     (reset! project-compensations (vector->hash-map (get-in response [:result :compensations])
-                                                                     :id)))
-          :error-handler (fn [error-response]
-                           (reset! retrieving-compensations? false)
+                     (reset! loading? false)
+                     (reset! project-compensations
+                             (u/vector->hash-map (get-in response [:result :compensations]) :id)))
+          :error-handler (fn [response]
+                           (reset! loading? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
 
-(defn get-project-users-current-compensation!
-  "Retrieve the current compensations for project users"
-  [state]
+(defn get-project-users-current-compensation! [state]
   (let [project-id @(subscribe [:active-project-id])
-        retrieving-project-users-current-compensation? (r/cursor state [:retrieving-project-users-current-compensation?])
-        project-users-current-compensation (r/cursor state [:project-users-current-compensations])]
-    (reset! retrieving-project-users-current-compensation? true)
-    (GET "/api/project-users-current-compensation"
-         {:params {:project-id project-id}
-          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! retrieving-project-users-current-compensation? false)
-                     (reset! project-users-current-compensation
-                             (vector->hash-map (->> (get-in response [:result :project-users-current-compensation])
-                                                    ;; set compensation-id nil = none
-                                                    (map #(update % :compensation-id
-                                                                  (fn [val]
-                                                                    (if (nil? val)
-                                                                      "none"
-                                                                      val)))))
-                                               :user-id)))
-          :error-handler (fn [error-response]
-                           (reset! retrieving-project-users-current-compensation? false)
-                           ($ js/console log "[Error] retrieving project-users-current-compensation for project-id: " project-id))})))
+        loading? (r/cursor state [:loading :project-users-current-compensation])
+        users-current-comp (r/cursor state [:project-users-current-compensation])]
+    (reset! loading? true)
+    (GET
+     "/api/project-users-current-compensation"
+     {:params {:project-id project-id}
+      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+      :handler (fn [response]
+                 (reset! loading? false)
+                 (reset! users-current-comp
+                         (u/vector->hash-map
+                          (->> (get-in response [:result :project-users-current-compensation])
+                               (map #(update % :compensation-id
+                                             (fn [x] (if (nil? x) "none" x)))))
+                          :user-id)))
+      :error-handler (fn [error-response]
+                       (reset! loading? false)
+                       ($ js/console log
+                          "[Error] retrieving project-users-current-compensation for project-id: "
+                          project-id))})))
 
-(defn compensation-owed!
-  "Retrieve what is owed to users from start-date to end-date"
-  [state]
+(defn compensation-owed! [state]
   (let [project-id @(subscribe [:active-project-id])
-        retrieving-amount-owed? (r/cursor state [:retrieving-amount-owed?])
+        loading? (r/cursor state [:loading :compensation-owed])
         compensation-owed (r/cursor state [:compensation-owed])]
-    (reset! retrieving-amount-owed? true)
+    (reset! loading? true)
     (GET "/api/compensation-owed"
          {:params {:project-id project-id}
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
-                     (reset! retrieving-amount-owed? false)
-                     (reset! compensation-owed (get-in response [:result :compensation-owed])))
-          :error-handler (fn [error-response]
-                           (reset! retrieving-amount-owed? false)
-                           ($ js/console log "[Error] retrieving compensation-owed project-id: " project-id))})))
+                     (reset! loading? false)
+                     (reset! compensation-owed
+                             (get-in response [:result :compensation-owed])))
+          :error-handler (fn [response]
+                           (reset! loading? false)
+                           ($ js/console log
+                              "[Error] retrieving compensation-owed project-id: "
+                              project-id))})))
 
 (defn pay-user!
   "Pay the user the amount owed to them"
   [state user-id compensation admin-fee]
   (let [project-id @(subscribe [:active-project-id])
-        retrieving? (r/cursor state [:retrieving-pay? user-id])
+        loading? (r/cursor state [:retrieving-pay? user-id])
         pay-error (r/cursor state [:pay-error user-id])
         confirming? (r/cursor state [:confirming? user-id])]
-    (reset! retrieving? true)
+    (reset! loading? true)
     (reset! pay-error nil)
     (POST "/api/pay-user"
           {:params {:project-id project-id
@@ -121,47 +120,47 @@
                     :admin-fee admin-fee}
            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
            :handler (fn [response]
-                      (reset! retrieving? false)
+                      (reset! loading? false)
                       (compensation-owed! state)
                       (reset! confirming? false)
                       (dispatch [:project/get-funds]))
            :error-handler (fn [error-response]
-                            (reset! retrieving? false)
+                            (reset! loading? false)
                             (compensation-owed! state)
-                            (reset! pay-error (get-in error-response [:response :error :message])))})))
+                            (reset! pay-error (get-in error-response
+                                                      [:response :error :message])))})))
 
 (defn get-default-compensation!
-  "Get the default current compensation and set it"
+  "Load the current default compensation from server"
   [state]
-    (let [project-id @(subscribe [:active-project-id])
-          retrieving? (r/cursor state [:retrieving-project-compensations?])
-          default-compensation (r/cursor state [:default-project-compensation])]
-    (reset! retrieving? true)
+  (let [project-id @(subscribe [:active-project-id])
+        loading? (r/cursor state [:loading :project-compensations])
+        default-compensation (r/cursor state [:default-project-compensation])]
+    (reset! loading? true)
     (GET "/api/get-default-compensation"
          {:params {:project-id project-id}
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (let [compensation-id (get-in response [:result :compensation-id])]
-                       (reset! retrieving? false)
-                       (reset! default-compensation (if (nil? compensation-id)
-                                                      "none"
-                                                      compensation-id))))
-          :error-handler (fn [error-response]
-                           (reset! retrieving? false)
-                           ($ js/console log "[Error] retrieving default-compensation for project-id: " project-id))})))
+          :handler (fn [{:keys [result]}]
+                     (let [{:keys [compensation-id]} result]
+                       (reset! loading? false)
+                       (reset! default-compensation (or compensation-id "none"))))
+          :error-handler (fn [response]
+                           (reset! loading? false)
+                           ($ js/console log
+                              "[Error] retrieving default-compensation for project-id: "
+                              project-id))})))
+
 (reg-event-fx
  :project/get-funds
  [trim-v]
  (fn [cofx event]
-    (let [project-id @(subscribe [:active-project-id])
-          project-funds (r/cursor state [:project-funds])]
-    (GET "/api/project-funds"
-         {:params {:project-id project-id}
-          :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
-                     (reset! project-funds (get-in response [:result :project-funds])))
-          :error-handler (fn [error-response]
-                           ($ js/console log "[Error] retrieving get-project-funds"))}))
+   (let [project-id @(subscribe [:active-project-id])
+         project-funds (r/cursor state [:project-funds])]
+     (GET "/api/project-funds"
+          {:params {:project-id project-id}
+           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+           :handler #(reset! project-funds (get-in % [:result :project-funds]))
+           :error-handler #($ js/console log "[Error] retrieving get-project-funds")}))
    {}))
 
 (defn check-pending-transactions
@@ -170,24 +169,23 @@
   (PUT "/api/check-pending-transaction"
        {:params {:project-id @(subscribe [:active-project-id])}
         :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-        :handler (fn [response]
-                   (dispatch [:project/get-funds]))
-        :error-handler (fn [response]
-                         ($ js/console log "[[check-pending-transaction]]: error " response))}))
+        :handler #(dispatch [:project/get-funds])
+        :error-handler #($ js/console log "[[check-pending-transaction]]: error " %)}))
+
 (defn rate->string
   "Convert a rate to a human readable string"
   [rate]
-  (str (accounting/cents->string (:amount rate)) " / " (:item rate))
-  #_(str (accounting/cents->string (:amount rate)) " / " (:item rate) " + " (admin-fee-text (:amount rate) admin-fee)))
+  (str (acct/cents->string (:amount rate)) " / " (:item rate))
+  #_ (str (acct/cents->string (:amount rate)) " / " (:item rate)
+          " + " (admin-fee-text (:amount rate) admin-fee)))
 
-(defn ProjectFunds
-  [state]
+(defn ProjectFunds [state]
   (let [project-funds (r/cursor state [:project-funds])]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [current-balance compensation-outstanding available-funds admin-fees pending-funds]}
-              @project-funds]
+        (let [{:keys [current-balance compensation-outstanding available-funds
+                      admin-fees pending-funds]} @project-funds]
           [:div
            [:div.ui.segment
             [:div
@@ -199,28 +197,28 @@
                [:div.eight.wide.column]
                [:div.three.wide.column
                 {:style {:text-align "right"}}
-                (accounting/cents->string available-funds)]]
+                (acct/cents->string available-funds)]]
               [:div.ui.row
                [:div.five.wide.column
                 "Outstanding Compensations: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
                 {:style {:text-align "right"}}
-                (accounting/cents->string compensation-outstanding)]]
+                (acct/cents->string compensation-outstanding)]]
               [:div.ui.row
                [:div.five.wide.column
                 "Outstanding Admin Fees: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
                 {:style {:text-align "right"}}
-                (accounting/cents->string admin-fees)]]
+                (acct/cents->string admin-fees)]]
               [:div.ui.row
                [:div.five.wide.column
                 "Current Balance: "]
                [:div.eight.wide.column]
                [:div.three.wide.column
                 {:style {:text-align "right"}}
-                (accounting/cents->string current-balance)]]]]]
+                (acct/cents->string current-balance)]]]]]
            (when (> pending-funds 0)
              [:div.ui.segment
               [:div
@@ -233,126 +231,112 @@
                  [:div.eight.wide.column]
                  [:div.three.wide.column
                   {:style {:text-align "right"}}
-                  (accounting/cents->string pending-funds)]]]]])]))
-      :get-initial-state
-      (fn [this]
-        (when-not (nil? @project-funds)
-          (reset! project-funds nil))
-        (dispatch [:project/get-funds]))
+                  (acct/cents->string pending-funds)]]]]])]))
+      :get-initial-state (fn [this]
+                           (when-not (nil? @project-funds)
+                             (reset! project-funds nil))
+                           (dispatch [:project/get-funds]))
       :component-did-update (fn [this old-argv]
                               ;; do the initial check
                               (check-pending-transactions)
+                              ;; TODO: this starts a new timer each time ratom inputs change?
                               (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
-                                (continuous-update-until check-pending-transactions
-                                                         #(= @pending-funds 0)
-                                                         (constantly nil)
-                                                         pending-transaction-check-interval)))})))
+                                (u/continuous-update-until check-pending-transactions
+                                                           #(= @pending-funds 0)
+                                                           (constantly nil)
+                                                           check-pending-interval)))})))
 
-(defn ToggleCompensationActive
-  [compensation]
+(defn ToggleCompensationActive [{:keys [id] :as compensation}]
   (let [project-id @(subscribe [:active-project-id])
-        compensation-atom (r/cursor state [:project-compensations (:id compensation)])
+        compensation-atom (r/cursor state [:project-compensations id])
         active? (r/cursor compensation-atom [:active])
-        updating-compensation? (r/cursor compensation-atom [:updating-compensation?])
-        toggle-active (fn [cents]
-                        (swap! active? not)
-                        (reset! updating-compensation? true)
-                        (PUT "/api/toggle-compensation-active"
-                             {:params {:project-id project-id
-                                       :compensation-id (:id compensation)
-                                       :active @active?}
-                              :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                              :handler (fn [response]
-                                         (reset! updating-compensation? false)
-                                         (get-compensations! state))
-                              :error-handler (fn [error]
-                                               ($ js/console log (str "[Error] " "update-compensation!"))
-                                               (reset! updating-compensation? false))}))]
+        updating? (r/cursor compensation-atom [:updating?])]
     [Button {:toggle true
-              :active @active?
-              :disabled @updating-compensation?
-              :on-click toggle-active}
+             :active @active?
+             :disabled @updating?
+             :on-click (fn [_]
+                         (swap! active? not)
+                         (reset! updating? true)
+                         (PUT "/api/toggle-compensation-active"
+                              {:params {:project-id project-id
+                                        :compensation-id id
+                                        :active @active?}
+                               :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                               :handler (fn [response]
+                                          (reset! updating? false)
+                                          (get-compensations! state))
+                               :error-handler (fn [response]
+                                                ($ js/console log
+                                                   (str "[Error] " "update-compensation!"))
+                                                (reset! updating? false))}))}
      (if @active? "Active" "Disabled")]))
 
-(defn CreateCompensationForm
-  []
+(defn CreateCompensationForm []
   (let [project-id @(subscribe [:active-project-id])
         compensation-amount (r/cursor state [:compensation-amount])
-        creating-new-compensation? (r/cursor state [:creating-new-compensation?])
-        retrieving-compensations? (r/cursor state [:retrieving-compensations?])
+        creating? (r/cursor state [:creating-new-compensation?])
+        loading? (r/cursor state [:loading :project-compensations])
         error-message (r/cursor state [:create-compensation-error])
-        create-compensation! (fn [cents]
-                               (reset! creating-new-compensation? true)
-                               (reset! error-message nil)
-                               (POST "/api/project-compensation"
-                                     {:params {:project-id project-id
-                                               :rate {:item "article"
-                                                      :amount cents}}
-                                      :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                      :handler (fn [response]
-                                                 (reset! creating-new-compensation? false)
-                                                 (get-compensations! state)
-                                                 (reset! compensation-amount "$0.00"))
-                                      :error-handler (fn [error]
-                                                       (reset! error-message (get-in error [:response :error :message]))
-                                                       (reset! creating-new-compensation? false))}))]
+        create-compensation!
+        (fn [cents]
+          (reset! creating? true)
+          (reset! error-message nil)
+          (POST "/api/project-compensation"
+                {:params {:project-id project-id
+                          :rate {:item "article" :amount cents}}
+                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                 :handler (fn [response]
+                            (reset! creating? false)
+                            (get-compensations! state)
+                            (reset! compensation-amount "$0.00"))
+                 :error-handler (fn [error]
+                                  (reset! error-message (get-in error [:response :error :message]))
+                                  (reset! creating? false))}))]
     (r/create-class
      {:reagent-render
       (fn []
-        [Form {:on-submit (fn []
-                            (let [cents (accounting/string->cents @compensation-amount)]
-                              (cond (not (re-matches accounting/valid-usd-regex @compensation-amount))
-                                    (reset! error-message "Amount is not valid")
-                                    (= cents 0)
-                                    (reset! compensation-amount "$0.00")
-                                    (> cents 0)
-                                    (create-compensation! cents)
-                                    :else
-                                    (reset! compensation-amount (accounting/cents->string cents)))))}
+        [s/Form {:on-submit #(let [cents (acct/string->cents @compensation-amount)]
+                               (cond (not (re-matches acct/valid-usd-regex @compensation-amount))
+                                     (reset! error-message "Amount is not valid")
+                                     (= cents 0)
+                                     (reset! compensation-amount "$0.00")
+                                     (> cents 0)
+                                     (create-compensation! cents)
+                                     :else
+                                     (reset! compensation-amount (acct/cents->string cents))))}
          [:div.ui.relaxed.divided.list
           (when @error-message
-            [Message {:onDismiss #(reset! error-message nil)
-                      :negative true}
-             [MessageHeader "Creation Compensation Error"]
+            [s/Message {:onDismiss #(reset! error-message nil)
+                        :negative true}
+             [s/MessageHeader "Creation Compensation Error"]
              @error-message])
           [:div.item {:key "create"}
            [:div {:style {:width "6em"
                           :display "inline-block"}}
-            (let [on-change (fn [event]
-                              (let [value ($ event :target.value)
-                                    dollar-sign-on-front? (fn [value]
-                                                            (= ($ value indexOf "$")
-                                                               0))
-                                    new-value (cond
-                                                (not (dollar-sign-on-front? value))
-                                                (str "$" ($ event :target.value))
-                                                :else
-                                                value)]
-                                (reset! error-message nil)
-                                (reset! compensation-amount new-value)))]
-              [FormInput {:value @compensation-amount
-                          :id "create-compensation-amount"
-                          :on-change on-change
-                          :aria-label "compensation-amount"}])]
-           [:div {:style {:display "inline-block"
-                          :margin-left "0.5em"}}
-            (let [integer-compensation-amount (accounting/string->cents @compensation-amount)]
-              (when-not (= 0 integer-compensation-amount)
-                [:div [AdminFee integer-compensation-amount admin-fee] [:span {:style {:font-size "1.3em"}} " / article"]]))]
+            [s/FormInput {:id "create-compensation-amount"
+                          :value @compensation-amount
+                          :on-change #(let [value (-> ($ % :target.value) (su/ensure-prefix "$"))]
+                                        (reset! error-message nil)
+                                        (reset! compensation-amount value))
+                          :aria-label "compensation-amount"}]]
+           (let [cents-amount (acct/string->cents @compensation-amount)]
+             (when-not (= 0 cents-amount)
+               [:div {:style {:display "inline-block"
+                              :margin-left "0.5em"}}
+                [AdminFee cents-amount admin-fee]
+                [:span {:style {:font-size "1.3em"}} " / article"]]))
            [:div.right.floated.content
-            [Button {:disabled (or @creating-new-compensation?
-                                   @retrieving-compensations?)
-                     :color "blue"}
+            [Button {:color "blue"
+                     :disabled (or @creating? @loading?)}
              "Create"]]]]])
-      :component-will-mount (fn [this]
+      :component-will-mount (fn [_]
                               (reset! compensation-amount "$0.00")
                               (reset! error-message nil))})))
 
-(defn ProjectCompensations
-  []
+(defn ProjectCompensations []
   (let [project-id @(subscribe [:active-project-id])
-        retrieving-compensations? (r/cursor state [:retrieving-compensations?])
-        creating-new-compensation? (r/cursor state [:creating-new-compensation?])]
+        loading? (r/cursor state [:loading :project-compensations])
+        creating? (r/cursor state [:creating-new-compensation?])]
     (r/create-class
      {:reagent-render
       (fn []
@@ -364,23 +348,20 @@
            ;; display the current compensations
            (when-not (empty? project-compensations)
              [:div.ui.relaxed.divided.list
-              (map
-               (fn [compensation]
-                 [:div.item {:key (:id compensation)}
+              (doall
+               (for [c project-compensations]
+                 [:div.item {:key (:id c)}
                   [:div.right.floated.content
-                   [ToggleCompensationActive compensation]]
+                   [ToggleCompensationActive c]]
                   [:div.content {:style {:padding-top "4px"
                                          :padding-bottom "4px"}}
-                   (let [compensation-amount (get-in compensation [:rate :amount])]
-                     [CompensationAmount compensation admin-fee])]])
-               project-compensations)])
+                   [CompensationAmount c admin-fee]]]))])
            [:h4.ui.dividing.header "Create New Compensation"]
            [CreateCompensationForm]]))
-      :component-did-mount (fn [this]
-                             (get-compensations! state))})))
+      :component-did-mount (fn [_] (get-compensations! state))})))
 
 (defn CompensationGraph
-  "Labels is a list of names, amount-owed is a vector of amounts owed "
+  "Labels is a list of names, amount-owed is a vector of amounts owed."
   [labels amount-owed]
   (let [font-color (charts/graph-text-color)
         data {:labels labels
@@ -403,7 +384,7 @@
                                                 (= (apply max values)
                                                    value)
                                                 (= value 0))
-                                          (accounting/cents->string value)
+                                          (acct/cents->string value)
                                           ""))}}]
                   :xAxes
                   [{:maxBarThickness 10
@@ -411,15 +392,14 @@
                     :ticks {:fontColor font-color}
                     :gridLines {:color (charts/graph-border-color)}}]}
                  :legend {:display false}
-                 :tooltips {:callbacks {:label #(accounting/cents->string ($ % :yLabel))}}}]
+                 :tooltips {:callbacks {:label #(acct/cents->string ($ % :yLabel))}}}]
     [chartjs/bar
      {:data data
       :height (+ 50 (* 12 (count labels)))
       :width (* (count labels) 200)
       :options options}]))
 
-(defn CompensationSummary
-  []
+(defn CompensationSummary []
   (let [compensation-owed (r/cursor state [:compensation-owed])]
     (r/create-class
      {:reagent-render
@@ -431,11 +411,10 @@
             (doall
              (map
               (fn [user-owed]
-                (let [user-name (-> (:email user-owed)
-                                    (string/split #"@")
-                                    first)
-                      {:keys [email compensation-owed last-payment connected user-id admin-fee]} user-owed
-                      retrieving-amount-owed? @(r/cursor state [:retrieving-amount-owed?])
+                (let [user-name (-> (:email user-owed) (str/split #"@") first)
+                      {:keys [email compensation-owed last-payment connected
+                              user-id admin-fee]} user-owed
+                      retrieving-amount-owed? @(r/cursor state [:loading :compensation-owed])
                       confirming? (r/cursor state [:confirming? user-id])
                       retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
                       error-message (r/cursor state [:pay-error user-id])]
@@ -447,27 +426,26 @@
                         [:div.five.wide.column
                          "Compensation: "]
                         [:div.eight.wide.column]
-                        [:div.three.wide.column.right.aligned (accounting/cents->string compensation-owed)]]
+                        [:div.three.wide.column.right.aligned (acct/cents->string compensation-owed)]]
                        [:div.ui.row
                         [:div.five.wide.column
                          "Admin Fees: "]
                         [:div.eight.wide.column]
-                        [:div.three.wide.column.right.aligned (accounting/cents->string admin-fee)]]
+                        [:div.three.wide.column.right.aligned (acct/cents->string admin-fee)]]
                        [:div.ui.row
                         [:div.five.wide.column
                          "Total to be Deducted: "]
                         [:div.eight.wide.column]
                         [:div.three.wide.column.right.aligned
-                         [:span {:style {:font-weight "bold"}}
-                          (accounting/cents->string (+ compensation-owed admin-fee))]]]
+                         [:span.bold (acct/cents->string (+ compensation-owed admin-fee))]]]
                        [:div.ui.row
                         [:div.eight.wide.column]
                         [:div.four.wide.column
-                         [Button {:on-click #(pay-user! state user-id compensation-owed admin-fee)
-                                  :disabled (or retrieving-pay?
-                                                retrieving-amount-owed?)
-                                  :color "blue"
-                                  :class "fluid"}
+                         [Button
+                          {:on-click #(pay-user! state user-id compensation-owed admin-fee)
+                           :disabled (or retrieving-pay? retrieving-amount-owed?)
+                           :color "blue"
+                           :class "fluid"}
                           "Confirm"]]
                         [:div.four.wide.column
                          [Button {:on-click #(do (reset! confirming? false)
@@ -475,17 +453,16 @@
                                   :class "fluid"}
                           "Cancel"]]]
                        (when @error-message
-                         [:div {:class "ui red message"}
-                          @error-message])]])
+                         [:div.ui.red.message @error-message])]])
                    [:div.ui.grid
                     [:div.five.wide.column
                      [:i.user.icon]
                      email]
                     [:div.two.wide.column
-                     (accounting/cents->string compensation-owed)]
+                     (acct/cents->string compensation-owed)]
                     [:div.four.wide.column
                      (when last-payment
-                       (str "Last Payment: " (unix-epoch->date-string last-payment)))]
+                       (str "Last Payment: " (u/unix-epoch->date-string last-payment)))]
                     [:div.five.wide.column.right.align
                      (cond
                        (and (> compensation-owed 0)
@@ -495,9 +472,8 @@
                                 :disabled (or retrieving-pay?
                                               retrieving-amount-owed?)}
                         "Pay"])]]]))
-                    @compensation-owed))]]))
-      :component-did-mount (fn [this]
-                             (compensation-owed! state))})))
+              @compensation-owed))]]))
+      :component-did-mount (fn [_] (compensation-owed! state))})))
 
 (defn compensation-options
   [project-compensations]
@@ -513,21 +489,20 @@
 (defn UserCompensationDropdown [user-id]
   (let [project-id @(subscribe [:active-project-id])
         project-compensations (r/cursor state [:project-compensations])
-        project-users-current-compensation (r/cursor state [:project-users-current-compensations])
-        user-compensation (r/cursor project-users-current-compensation [user-id])
-        current-compensation-id (r/cursor user-compensation [:compensation-id])
-        updating? (r/cursor user-compensation [:updating?])
-        retrieving-project-users-current-compensation? (r/cursor state [:retrieving-project-users-current-compensation?])]
+        user-atom (r/cursor state [:project-users-current-compensation user-id])
+        compensation-id (r/cursor user-atom [:compensation-id])
+        updating? (r/cursor user-atom [:updating?])
+        loading? (r/cursor state [:loading :project-users-current-compensation])]
     [Dropdown {:fluid true
                :options (compensation-options @project-compensations)
                :selection true
-               :disabled (or @updating? @retrieving-project-users-current-compensation?)
+               :disabled (or @updating? @loading?)
                :loading @updating?
-               :value @current-compensation-id
+               :value @compensation-id
                :on-change (fn [event data]
                             (let [value ($ data :value)]
-                              (when-not (= value current-compensation-id)
-                                (reset! current-compensation-id value)
+                              (when-not (= value @compensation-id)
+                                (reset! compensation-id value)
                                 (reset! updating? true)
                                 (PUT "/api/set-user-compensation"
                                      {:params {:project-id project-id
@@ -539,12 +514,13 @@
                                                  (get-project-users-current-compensation! state))
                                       :error-handler (fn [error]
                                                        (reset! updating? false))}))))}]))
+
 (defn DefaultCompensationDropdown []
   (let [project-id @(subscribe [:active-project-id])
         project-compensations (r/cursor state [:project-compensations])
-        default-project-compensation (r/cursor state [:default-project-compensation])
-        updating? (r/cursor state [:updating-project-compensations?])
-        retrieving-default-compensations? (r/cursor state [:retrieving-project-compensations?])]
+        default-compensation (r/cursor state [:default-project-compensation])
+        updating? (r/cursor state [:updating :project-compensations])
+        loading? (r/cursor state [:loading :project-compensations])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -552,12 +528,12 @@
                    :options (compensation-options @project-compensations)
                    :selection true
                    :loading @updating?
-                   :disabled (or @updating? @retrieving-default-compensations?)
-                   :value @default-project-compensation
+                   :disabled (or @updating? @loading?)
+                   :value @default-compensation
                    :on-change (fn [event data]
                                 (let [value ($ data :value)]
-                                  (when-not (= value default-project-compensation)
-                                    (reset! default-project-compensation value)
+                                  (when-not (= value @default-compensation)
+                                    (reset! default-compensation value)
                                     (reset! updating? true)
                                     (PUT "/api/set-default-compensation"
                                          {:params {:project-id project-id
@@ -571,18 +547,15 @@
                                           :error-handler (fn [error]
                                                            (reset! updating? false))}))))}])
       :component-did-mount
-      (fn [this]
-        (get-default-compensation! state))})))
+      (fn [_] (get-default-compensation! state))})))
 
 (defn UsersCompensations []
-  (let [project-users-current-compensations
-        (r/cursor state [:project-users-current-compensations])
-        project-compensations (r/cursor state [:project-compensations])]
+  (let [project-compensations (r/cursor state [:project-compensations])
+        current-compensation (r/cursor state [:project-users-current-compensation])]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (when (and @project-compensations
-                   @project-users-current-compensations)
+        (when (and @project-compensations @current-compensation)
           [:div.ui.segment
            [:div
             [:h4.ui.dividing.header "User Compensations"]
@@ -593,19 +566,14 @@
               [:div.content {:style {:padding-bottom "4px"}}
                [:i.user.icon] "Default New User Compensation"]]
              (doall
-              (map
-               (fn [user-compensation-map]
-                 [:div.item {:key (:user-id user-compensation-map)}
-                  [:div.right.floated.content
-                   [UserCompensationDropdown (:user-id user-compensation-map)]]
-                  [:div.content
-                   {:style {:padding-top "4px"}}
-                   [:i.user.icon]
-                   (:email user-compensation-map)]])
-               (->> (vals @project-users-current-compensations))))]]]))
+              (for [{:keys [user-id email]} (vals @current-compensation)]
+                [:div.item {:key user-id}
+                 [:div.right.floated.content
+                  [UserCompensationDropdown user-id]]
+                 [:div.content {:style {:padding-top "4px"}}
+                  [:i.user.icon] email]]))]]]))
       :component-did-mount
-      (fn [this]
-        (get-project-users-current-compensation! state))})))
+      (fn [_] (get-project-users-current-compensation! state))})))
 
 (defmethod panel-content [:project :project :compensations] []
   (fn [child]
@@ -616,8 +584,8 @@
         [ProjectFunds state]]]
       [:div.ui.row
        [:div.ui.column
-        ;;[SupportFormOnce support/state]
-        [AddFunds paypal/state]]]]
+        #_ [support/SupportFormOnce support/state]
+        [paypal/AddFunds]]]]
      [:div.ui.two.column.stack.grid
       [:div.ui.row
        [:div.ui.column [ProjectCompensations]]

@@ -7,7 +7,8 @@
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
-            [sysrev.views.semantic :refer [Button]])
+            [sysrev.views.semantic :as s]
+            [sysrev.util :as u])
   (:require-macros [reagent.interop :refer [$]]))
 
 ;; based on: https://github.com/stripe/react-stripe-elements
@@ -108,14 +109,12 @@
                  (not (every? nil? (vals @(r/state-atom this)))))]
            [:form
             {:on-submit
-             (fn [e]
-               (.preventDefault e)
-               ;; make sure there aren't any errors
-               (when-not (errors?)
-                 (.then (this.props.stripe.createToken)
-                        (fn [payload]
-                          (when-not (:error (js->clj payload :keywordize-keys true))
-                            (dispatch [:action [:payments/stripe-token payload]]))))))
+             (u/wrap-prevent-default
+              #(when-not (errors?)
+                 (-> (this.props.stripe.createToken)
+                     (.then (fn [payload]
+                              (when-not (:error (js->clj payload :keywordize-keys true))
+                                (dispatch [:action [:payments/stripe-token payload]])))))))
              :class "StripeForm"}
             ;; In the case where the form elements themselves catch errors,
             ;; they are displayed below the input. Errors returned from the
@@ -123,19 +122,19 @@
             [:label "Card Number"
              [CardNumberElement {:style element-style
                                  :on-change element-on-change}]]
-            [:div {:class "ui red header"}
+            [:div.ui.red.header
              @(r/cursor (r/state-atom this) [:cardNumber :message])]
             [:label "Expiration date"
              [CardExpiryElement {:style element-style
                                  :on-change element-on-change}]]
-            [:div {:class "ui red header"}
+            [:div.ui.red.header
              @(r/cursor (r/state-atom this) [:cardExpiry :message])]
             [:label "CVC"
              [CardCVCElement {:style element-style
                               :on-change element-on-change}]]
             ;; this might not ever even generate an error, included here
             ;; for consistency
-            [:div {:class "ui red header"}
+            [:div.ui.red.header
              @(r/cursor (r/state-atom this) [:cardCvc :message])]
             ;; unexplained behavior: Why do you need a minimum of
             ;; 6 digits to be entered in the cardNumber input for
@@ -143,15 +142,13 @@
             [:label "Postal code"
              [PostalCodeElement {:style element-style
                                  :on-change element-on-change}]]
-            [:div {:class "ui red header"}
+            [:div.ui.red.header
              @(r/cursor (r/state-atom this) [:postalCode :message])]
-            [:button {:class (str "ui primary button "
-                                  (when (errors?)
-                                    "disabled"))} "Use Card"]
+            [:button.ui.primary.button.use-card {:class (when (errors?) "disabled")}
+             "Use Card"]
             ;; shows the errors returned from the server (our own, or stripe.com)
             (when @error-message
-              [:div {:class "ui red header"}
-               @error-message])]))})))))
+              [:div.ui.red.header @error-message])]))})))))
 
 (defn StripeCardInfo []
   (ensure-state)
@@ -163,17 +160,16 @@
 ;; use: phone number: 000-000-0000
 ;;      text confirm number: 000 000
 ;;      use debit card:  4000 0566 5566 5556
-(defn ConnectWithStripe
-  []
+(defn ConnectWithStripe []
   (let [params {"client_id" stripe-client-id
                 "response_type" "code"
                 "redirect_uri" (str js/window.location.origin "/user/settings")
                 "state" @(subscribe [:csrf-token])}]
-    [Button {:href (str "https://connect.stripe.com/express/oauth/authorize?" (generate-query-string params))}
+    [s/Button {:href (str "https://connect.stripe.com/express/oauth/authorize?"
+                          (generate-query-string params))}
      "Connect with Stripe"]))
 
-(defn check-if-stripe-user!
-  []
+(defn check-if-stripe-user! []
   (let [user-id @(subscribe [:self/user-id])
         connected? (r/cursor state [:connected?])
         retrieving-connected? (r/cursor state [:retrieving-connected?])]

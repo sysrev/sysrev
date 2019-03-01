@@ -132,3 +132,17 @@
       (str (subs s 0 (quot max-length 2))
            " " ellipsis " "
            (subs s (- (count s) (quot max-length 2)))))))
+
+(defn ensure-prefix
+  "Adds prefix at front of string s if not already present."
+  [s prefix]
+  (if (str/starts-with? s prefix)
+    s
+    (str prefix s)))
+
+(defn ensure-suffix
+  "Adds suffix at end of string s if not already present."
+  [s suffix]
+  (if (str/ends-with? s suffix)
+    s
+    (str s suffix)))

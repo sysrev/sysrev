@@ -75,7 +75,7 @@
           :else nil)))))
 ;;;
 (s/fdef to-project-id
-  :args (s/cat :project-id ::sc/project-id)
+  :args (s/cat :project-id (s/nilable ::sc/project-id))
   :ret (s/nilable ::sc/sql-serial-id))
 
 (defn to-label-id

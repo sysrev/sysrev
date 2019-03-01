@@ -5,8 +5,6 @@
 ;; for manual testing purposes, this is handy:
 ;; (do (stripe/unsubscribe-customer! (users/get-user-by-email "foo@bar.com")) (stripe/delete-customer! (users/get-user-by-email "foo@bar.com")) (users/delete-user (:user-id (users/get-user-by-email "foo@bar.com"))))
 
-(def use-card-button {:xpath "//button[contains(@class,'button') and contains(text(),'Use Card') and not(contains(@class,'disabled'))]"})
-
 ;; valid number
 (def valid-visa-cc "4242424242424242")
 
