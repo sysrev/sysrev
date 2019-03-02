@@ -290,8 +290,8 @@
       (when articles
         (importance-api/schedule-important-terms-update dest-id))
       (when (and articles answers)
-        (predict-api/schedule-predict-update dest-id))))
-  nil)
+        (predict-api/schedule-predict-update dest-id))
+      dest-id)))
 
 (defn clone-subproject-articles
   "Creates a copy of a project with a subset of the articles from a parent project.

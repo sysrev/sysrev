@@ -149,6 +149,8 @@
                :permissions ::sp/permissions)
   :ret (s/nilable (s/coll-of map? :max-count 1)))
 
+(s/def ::parent-project-id (s/nilable ::sc/project-id))
+
 (defn create-project
   "Create a new project entry."
   [project-name & {:keys [parent-project-id]}]
@@ -166,7 +168,8 @@
       (clear-query-cache))))
 ;;;
 (s/fdef create-project
-  :args (s/cat :project-name ::sp/name)
+  :args (s/cat :project-name ::sp/name
+               :keys (s/keys* :opt-un [::parent-project-id]))
   :ret ::sp/project)
 
 (defn delete-project
