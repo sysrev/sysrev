@@ -69,4 +69,4 @@
                 :file-id file-key
                 :user-id user-id})
         files/map->Filerec
-        files/insert-file-rec)))
+        files/insert-document-file-rec)))

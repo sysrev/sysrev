@@ -291,8 +291,9 @@
                (where [:= :pmcid pmcid])
                do-query first)))
 
-(defn pmcid->s3store-id
-  "Given a PMCID, return a s3store-id associated with it, if any"
+;; FIX: see docstring - add unique constraint or change function
+(defn pmcid->s3-id
+  "Returns first of any s3-id values associated with pmcid."
   [pmcid]
   (-> (select :s3-id)
       (from :pmcid-s3store)

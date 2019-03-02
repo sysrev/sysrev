@@ -6,11 +6,12 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb]]
+            [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
+            [sysrev.db.documents :as docs]
+            [sysrev.db.files :as files]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
-            [sysrev.db.documents :as docs]
-            [sysrev.db.queries :as q]
             [sysrev.source.core :as source]
             [sysrev.source.endnote :as endnote]
             [sysrev.biosource.predict :as predict-api]
@@ -174,13 +175,18 @@
                             parent-id [:= :article-uuid article-uuid] [:*]
                             {:include-disabled? true})
                            do-query first)]
-      (-> (insert-into :article)
-          (values [(-> article
-                       (assoc :project-id child-id
-                              :parent-article-uuid article-uuid)
-                       (dissoc :article-id :article-uuid :duplicate-of :text-search)
-                       (article/article-to-sql))])
-          do-execute))))
+      (when-let [new-article-id
+                 (-> (insert-into :article)
+                     (values [(-> article
+                                  (assoc :project-id child-id
+                                         :parent-article-uuid article-uuid)
+                                  (dissoc :article-id :article-uuid :duplicate-of :text-search)
+                                  (article/article-to-sql))])
+                     (returning :article-id)
+                     do-query first :article-id)]
+        (doseq [s3-file (files/get-article-file-maps (:article-id article))]
+          (when (:id s3-file)
+            (files/associate-s3-file-with-article (:id s3-file) new-article-id)))))))
 
 ;; TODO: copy actual sources instead of doing this
 (defn create-project-legacy-source

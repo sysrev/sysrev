@@ -4,7 +4,7 @@
              [wrap-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.db.core :refer
-             [do-query do-execute with-project-cache]]
+             [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
@@ -106,7 +106,7 @@
                    (project/project-users-info project-id)
                    (project/project-keywords project-id)
                    (project/project-notes project-id)
-                   (files/list-files-for-project project-id)
+                   (files/list-document-files-for-project project-id)
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
                    (source/project-sources project-id)
@@ -377,7 +377,7 @@
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                files (files/list-files-for-project project-id)]
+                files (files/list-document-files-for-project project-id)]
             {:result (vec files)}))))
 
 (dr (GET "/api/files/:project-id/download/:file-key/:filename" request
@@ -407,7 +407,7 @@
            request {:roles ["member"]}
            (let [project-id (active-project request)
                  key (-> request :params :key)
-                 deletion (files/mark-deleted (UUID/fromString key) project-id)]
+                 deletion (files/mark-document-file-deleted (UUID/fromString key) project-id)]
              {:result deletion}))))
 
 ;; TODO: replace this project export format
@@ -618,7 +618,7 @@
           (wrap-authorize
            request {:roles ["member"]}
            (let [{:keys [article-id key filename]} (:params request)]
-             (api/dissociate-pdf-article article-id key filename)))))
+             (api/dissociate-article-pdf article-id key filename)))))
 
 (dr (POST "/api/change-project-permissions" request
           (wrap-authorize
@@ -630,30 +630,29 @@
 (dr (POST "/api/annotation/create" request
           (wrap-authorize
            request {:roles ["member"]}
-           (let [{:keys [context annotation-map]} (-> request :body)
-                 {:keys [selection annotation semantic-class]} annotation-map
-                 {:keys [class article-id pdf-key]} context
-                 user-id (current-user-id request)
-                 project-id (active-project request)
-                 result
-                 (condp = class
-                   "abstract"
-                   (do (assert (nil? pdf-key))
-                       (api/save-article-annotation
-                        project-id article-id user-id selection annotation
-                        :context (:context annotation-map)))
-                   "pdf"
-                   (do (assert pdf-key)
-                       (api/save-article-annotation
-                        project-id article-id user-id selection annotation
-                        :context (:context annotation-map) :pdf-key pdf-key)))]
-             (when (and (string? semantic-class)
-                        (not-empty semantic-class)
-                        (-> result :result :annotation-id))
-               (api/update-annotation!
-                (-> result :result :annotation-id)
-                annotation semantic-class user-id))
-             result))))
+           (with-transaction
+             (let [{:keys [context annotation-map]} (-> request :body)
+                   {:keys [selection annotation semantic-class]} annotation-map
+                   {:keys [class article-id pdf-key]} context
+                   user-id (current-user-id request)
+                   project-id (active-project request)
+                   result (condp = class
+                            "abstract"
+                            (do (assert (nil? pdf-key))
+                                (api/save-article-annotation
+                                 project-id article-id user-id selection annotation
+                                 :context (:context annotation-map)))
+                            "pdf"
+                            (do (assert pdf-key)
+                                (api/save-article-annotation
+                                 project-id article-id user-id selection annotation
+                                 :context (:context annotation-map) :pdf-key pdf-key)))]
+               (when (and (string? semantic-class)
+                          (not-empty semantic-class)
+                          (-> result :result :annotation-id))
+                 (api/update-annotation! (-> result :result :annotation-id)
+                                         annotation semantic-class user-id))
+               result)))))
 
 (dr (POST "/api/annotation/update/:annotation-id" request
           (wrap-authorize

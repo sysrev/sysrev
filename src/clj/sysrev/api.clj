@@ -799,19 +799,17 @@
   "Handle saving a file on S3 and the associated accounting with it"
   [article-id file filename]
   (let [hash (util/file->sha-1-hash file)
-        s3-id (files/id-for-s3-filename-key-pair
+        s3-id (files/s3-id-from-filename-key
                filename hash)
-        article-s3-association (files/get-article-s3-association
-                                s3-id
-                                article-id)]
+        associated? (files/s3-article-association? s3-id article-id)]
     (cond
       ;; there is a file and it is already associated with this article
-      (not (nil? article-s3-association))
+      associated?
       {:result {:success true
                 :key hash}}
       ;; there is a file, but it is not associated with this article
       (not (nil? s3-id))
-      (try (do (files/associate-s3-with-article s3-id article-id)
+      (try (do (files/associate-s3-file-with-article s3-id article-id)
                {:result {:success true, :key hash}})
            (catch Throwable e
              {:error {:message "error (associate article file)"
@@ -824,8 +822,8 @@
               ;; the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
-              s3-id (files/id-for-s3-filename-key-pair filename hash)]
-          (files/associate-s3-with-article s3-id article-id)
+              s3-id (files/s3-id-from-filename-key filename hash)]
+          (files/associate-s3-file-with-article s3-id article-id)
           {:result {:success true, :key hash}})
         (catch Throwable e
           {:error {:message "error (associate filename)"
@@ -840,8 +838,8 @@
               ;; and the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
-              s3-id (files/id-for-s3-filename-key-pair filename hash)]
-          (files/associate-s3-with-article s3-id article-id)
+              s3-id (files/s3-id-from-filename-key filename hash)]
+          (files/associate-s3-file-with-article s3-id article-id)
           {:result {:success true, :key hash}})
         (catch Throwable e
           {:error {:message "error (store file)"
@@ -856,9 +854,7 @@
       ;; the pdf exists in the store already
       (article/pmcid-in-s3store? pmcid)
       {:result {:available? true
-                :key (-> pmcid
-                         (article/pmcid->s3store-id)
-                         (files/s3store-id->key))}}
+                :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
@@ -869,7 +865,7 @@
               bytes (util/slurp-bytes file)
               save-article-result (save-article-pdf article-id file filename)
               key (get-in save-article-result [:result :key])
-              s3store-id (files/id-for-s3-filename-key-pair filename key)]
+              s3store-id (files/s3-id-from-filename-key filename key)]
           ;; delete the temporary file
           (fs/delete filename)
           ;; associate the pmcid with the s3store item
@@ -877,13 +873,9 @@
            pmcid s3store-id)
           ;; finally, return the pdf from our own archive
           {:result {:available? true
-                    :key (-> pmcid
-                             (article/pmcid->s3store-id)
-                             (files/s3store-id->key))}})
+                    :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}})
         (catch Throwable e
-          {:error {:message (str "open-access-available?: " (type e))
-                   ;; :exception e
-                   }}))
+          {:error {:message (str "open-access-available?: " (type e))}}))
 
       ;; there was nothing available
       :else
@@ -893,24 +885,22 @@
   "Given an article-id, return a vector of maps that correspond to the
   files associated with article-id"
   [article-id]
-  (let [pmcid (-> article-id
-                  article/article-pmcid)
-        pmcid-s3store-id (article/pmcid->s3store-id pmcid)]
+  (let [pmcid-s3-id (some-> article-id article/article-pmcid article/pmcid->s3-id)]
     {:result {:success true
               :files (->> (files/get-article-file-maps article-id)
                           (mapv #(assoc % :open-access?
-                                        (if (= (:id %)
-                                               pmcid-s3store-id)
-                                          true
-                                          false))))}}))
+                                        (= (:id %) pmcid-s3-id))))}}))
 
-(defn dissociate-pdf-article
+(defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
   [article-id key filename]
-  (try (do (files/dissociate-file-from-article article-id key filename)
-           {:result {:success true}})
+  (try (if-let [s3-id (files/s3-id-from-filename-key filename key)]
+         (do (files/dissociate-s3-file-from-article s3-id article-id)
+             {:result {:success true}})
+         {:error {:status not-found
+                  :message (str "No file found: " (pr-str [filename key]))}})
        (catch Throwable e
-         {:error {:message "Exception in dissociate-pdf-article"
+         {:error {:message "Exception in dissociate-article-pdf"
                   :exception e}})))
 
 (defn process-annotation-context
@@ -936,7 +926,7 @@
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
       (when pdf-key
-        (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)]
+        (let [s3store-id (files/s3-id-from-article-key article-id pdf-key)]
           (db-annotations/associate-annotation-s3store! annotation-id s3store-id)))
       {:result {:success true
                 :annotation-id annotation-id}})
@@ -958,7 +948,7 @@
 
 (defn user-defined-pdf-annotations
   [article-id pdf-key]
-  (try (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)
+  (try (let [s3store-id (files/s3-id-from-article-key article-id pdf-key)
              annotations (db-annotations/user-defined-article-pdf-annotations
                           article-id s3store-id)]
          {:result {:success true
@@ -1039,13 +1029,14 @@
                                 :pmid :article-id :pdf-source :context :user-id])))))
 
 (defn project-annotation-status [project-id & {:keys [user-id]}]
-  (let [member? (and user-id (project/member-has-permission?
-                              project-id user-id "member"))]
-    {:result
-     {:status
-      (cond-> {:project (db-annotations/project-annotation-status project-id)}
-        member? (merge {:member (db-annotations/project-annotation-status
-                                 project-id :user-id user-id)}))}}))
+  (db/with-transaction
+    (let [member? (and user-id (project/member-has-permission?
+                                project-id user-id "member"))]
+      {:result
+       {:status
+        (cond-> {:project (db-annotations/project-annotation-status project-id)}
+          member? (merge {:member (db-annotations/project-annotation-status
+                                   project-id :user-id user-id)}))}})))
 
 (defn change-project-permissions [project-id users-map]
   (try
