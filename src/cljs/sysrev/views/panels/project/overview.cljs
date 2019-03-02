@@ -249,9 +249,9 @@
                         (mapv #(deref (subscribe [:member/exclude-count %]))))
         yss [includes excludes]
         ynames ["Include" "Exclude"]
-        member? @(subscribe [:self/member?])
         invite-url @(subscribe [:project/invite-url])
-        invite? (and member? invite-url)]
+        invite? (and invite-url (or @(subscribe [:self/member?])
+                                    @(subscribe [:user/admin?])))]
     [:div.ui.segments
      [:div.ui.segment
       [:h4.ui.dividing.header "Member Activity"]
