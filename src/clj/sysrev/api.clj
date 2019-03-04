@@ -1285,3 +1285,9 @@
                                          (util/vector->hash-map labeled-summary :project-id)
                                          (util/vector->hash-map annotations-summary :project-id))
                              vals)}}))
+
+(defn update-user-introduction!
+  "Change the introduction for user-id"
+  [user-id introduction]
+  (users/update-user-introduction! user-id introduction)
+  {:result {:success true}})

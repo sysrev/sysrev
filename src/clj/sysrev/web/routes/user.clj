@@ -66,6 +66,12 @@
                                   project-id
                                   amount
                                   frequency))))
+    (PUT "/introduction" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (let [{:keys [introduction]} (:body request)]
+            (api/update-user-introduction! user-id introduction))))
     (context "/groups/:group-name" [group-name]
              (GET "/active" [user-id :<< as-int group-name :as request]
                   (wrap-authorize

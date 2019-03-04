@@ -51,7 +51,7 @@
 (defn get-users-public-info
   [user-ids]
   "Given a coll of user-ids, return a coll of maps that represent the publicly viewable information for each user-id"
-  (-> (select :user-id :email :date-created :username)
+  (-> (select :user-id :email :date-created :username :introduction :affliation)
       (from :web-user)
       (where [:in :web-user.user-id user-ids])
       do-query))
@@ -597,3 +597,10 @@
       (group :a.project-id)
       (where [:= :awu.user_id user-id])
       do-query))
+
+(defn update-user-introduction!
+  [user-id introduction]
+  (-> (sqlh/update :web-user)
+      (sset {:introduction introduction})
+      (where [:= :user-id user-id])
+      do-execute))
