@@ -237,20 +237,23 @@
   [{:keys [articles labels annotations]}]
   (let [header-margin-bottom "0.10em"]
     (when (or (> articles 0)
-              (> annotations 0)
-              (> labels 0))
+              (> labels 0)
+              (> annotations 0))
       [Grid {:columns 3
              :style {:display "block"}}
        [Row
-        [Column
-         [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number articles)]
-         [:p "Articles Reviewed"]]
-        [Column
-         [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number labels)]
-         [:p "Labels Contributed"]]
-        [Column
-         [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number annotations)]
-         [:p "Annotations Contributed"]]]])))
+        (when (> articles 0)
+          [Column
+           [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number articles)]
+           [:p "Articles Reviewed"]])
+        (when (> labels 0)
+          [Column
+           [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number labels)]
+           [:p "Labels Contributed"]])
+        (when (> annotations 0)
+          [Column
+           [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number annotations)]
+           [:p "Annotations Contributed"]])]])))
 
 (defn Project
   [{:keys [name project-id articles labels annotations]
@@ -285,6 +288,10 @@
      {:reagent-render
       (fn [this]
         (let [{:keys [public private]} (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)
+              activity-summary (fn [{:keys [articles labels annotations]}]
+                                 (+ articles labels annotations))
+              sort-fn #(> (activity-summary %1)
+                          (activity-summary %2))
               ;; because we need to exclude anything that doesn't explicitly have a settings keyword
               ;; non-public project summaries are given, but without identifying profile information
               private (filter #(contains? % :settings) private)]
@@ -295,17 +302,21 @@
                 [Header {:as "h4"
                          :dividing true}
                  "Projects"]
-                (map (fn [project]
-                       ^{:key (:project-id project)}
-                       [Project project]) public)])
+                (->> public
+                     (sort sort-fn)
+                     (map (fn [project]
+                            ^{:key (:project-id project)}
+                            [Project project])))])
              (when-not (empty? private)
                [Segment
                 [Header {:as "h4"
                          :dividing true}
                  "Private Projects"]
-                (map (fn [project]
-                       ^{:key (:project-id project)}
-                       [Project project]) private)])])))
+                (->> private
+                     (sort sort-fn)
+                     (map (fn [project]
+                            ^{:key (:project-id project)}
+                            [Project project])))])])))
       :component-will-receive-props
       (fn [this new-argv]
         (get-user-projects! (-> new-argv second :user-id) projects))})))
