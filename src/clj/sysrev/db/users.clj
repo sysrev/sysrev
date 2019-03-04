@@ -51,7 +51,7 @@
 (defn get-users-public-info
   [user-ids]
   "Given a coll of user-ids, return a coll of maps that represent the publicly viewable information for each user-id"
-  (-> (select :user-id :email :date-created :username :introduction :affliation)
+  (-> (select :user-id :email :date-created :username :introduction)
       (from :web-user)
       (where [:in :web-user.user-id user-ids])
       do-query))
