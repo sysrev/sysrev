@@ -6,7 +6,7 @@
             [cljsjs.clipboard]
             [cljsjs.dropzone]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -119,7 +119,7 @@
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
         ;; n-tabs (count entries)
-        ;; n-tabs-word (su/num-to-english n-tabs)
+        ;; n-tabs-word (sutil/num-to-english n-tabs)
         render-entry
         (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
           (let [active? (= tab-id active-tab-id)
@@ -237,7 +237,7 @@
                content])))]
     [:div.tabbed-panel
      [:div.ui
-      {:class (str (su/num-to-english (count entries)) " item"
+      {:class (str (sutil/num-to-english (count entries)) " item"
                    " tabbed menu tabbed-panel " menu-class)}
       (doall
        (for [entry entries]
@@ -265,7 +265,7 @@
   }"
   [{:keys [set-answer! value]}]
   ;; nil for unset, true, false
-  (let [domid (su/random-id)]
+  (let [domid (sutil/random-id)]
     (fn [{:keys [set-answer! value]}]
       (let [size (if (util/full-size?) "large" "small")
             class (str "ui " size " buttons three-state")
@@ -619,7 +619,7 @@
 (defn UploadContainer
   "Create uploader form component."
   [childer upload-url on-success & args]
-  (let [id (su/random-id)
+  (let [id (sutil/random-id)
         csrf-token (subscribe [:csrf-token])
         opts {:url upload-url
               :headers (when-let [token @csrf-token] {"x-csrf-token" token})

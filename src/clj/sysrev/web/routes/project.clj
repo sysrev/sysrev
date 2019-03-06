@@ -28,7 +28,7 @@
             [sysrev.pubmed :as pubmed]
             [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in? parse-integer]]
+            [sysrev.shared.util :as sutil :refer [in? parse-integer]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -150,7 +150,7 @@
 (defn add-project-export [project-id export-type tempfile &
                           [{:keys [user-id filters] :as extra}]]
   (assert (isa? (type tempfile) java.io.File))
-  (let [entry (merge extra {:download-id (su/random-id 5)
+  (let [entry (merge extra {:download-id (sutil/random-id 5)
                             :export-type export-type
                             :tempfile-path (str tempfile)
                             :added-time (db/sql-now)})]

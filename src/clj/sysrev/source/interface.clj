@@ -9,7 +9,7 @@
             [sysrev.source.core :as s]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:import java.util.UUID))
 
 (defn- add-articles

@@ -10,7 +10,7 @@
             [sysrev.db.queries :as q]
             [sysrev.pubmed :as pubmed]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 (defn articles-matching-regex-clause [field-name regexs]
   (sql/raw

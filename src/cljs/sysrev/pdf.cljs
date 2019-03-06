@@ -15,7 +15,7 @@
             [sysrev.views.components :refer [UploadButton]]
             [sysrev.views.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.shared.util :as su])
+            [sysrev.shared.util :as sutil])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -37,7 +37,7 @@
 (defn pdf-url->article-id
   "Given a pdf-url, return the article-id"
   [pdf-url]
-  (su/parse-integer
+  (sutil/parse-integer
    (if (pdf-url-open-access? pdf-url)
      (second (re-find #"/api/open-access/(\d+)/view" pdf-url))
      (second (re-find #"/api/files/.*/article/(\d+)/view" pdf-url)))))
@@ -199,7 +199,7 @@
       (js/setTimeout #(render-page context pdf num) 25))))
 
 (defn PDFContent [{:keys [pdf-url]}]
-  (let [container-id (su/random-id)
+  (let [container-id (sutil/random-id)
         get-pdf-url #(:pdf-url (r/props %))
         project-id @(subscribe [:active-project-id])
         before-update

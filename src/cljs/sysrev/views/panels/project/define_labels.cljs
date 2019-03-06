@@ -14,7 +14,7 @@
             [sysrev.views.review :refer [label-help-popup inclusion-tag]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 ;; Convention - A (new) label that exists in the client but not on the
 ;; server has a label-id of type string
@@ -93,7 +93,7 @@
 (defn create-blank-label
   "Create a label map"
   [value-type]
-  (let [label-id (str "new-label-" (su/random-id))]
+  (let [label-id (str "new-label-" (sutil/random-id))]
     {:definition
      (cond-> {}
        (= value-type "boolean") (assoc :inclusion-values [])
@@ -102,7 +102,7 @@
                                            :multi? true)),
      :inclusion false
      :category "extra"
-     :name (str value-type (su/random-id))
+     :name (str value-type (sutil/random-id))
      :project-ordering (inc (max-project-ordering))
      :label-id label-id ;; this is a string, to distinguish unsaved labels
      :project-id (active-project-id @app-db)
@@ -381,7 +381,7 @@
          :error (get-in @errors [:definition :max-length])
          :value max-length
          :on-change #(let [value (-> % .-target .-value)]
-                       (reset! max-length (or (su/parse-integer value) value)))
+                       (reset! max-length (or (sutil/parse-integer value) value)))
          :placeholder "100"
          :label "Max length"}])
 

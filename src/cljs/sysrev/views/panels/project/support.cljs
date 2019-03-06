@@ -15,7 +15,7 @@
              [Form FormButton FormField FormGroup FormInput FormRadio Label]]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util :refer [wrap-prevent-default]]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
 (def panel [:project :project :support])
@@ -158,7 +158,7 @@
        [:div
         [FormInput {:value @user-support-level
                     :on-change #(reset! user-support-level (-> ($ % :target.value)
-                                                               (su/ensure-prefix "$")))
+                                                               (sutil/ensure-prefix "$")))
                     :on-click #(reset! support-level :user-defined)}]
         " per month"]]
       (when-not @confirming-cancel?
@@ -231,7 +231,7 @@
                        :value @user-defined-support-level
                        :on-change
                        #(reset! user-defined-support-level
-                                (-> ($ % :target.value) (su/ensure-prefix "$")))
+                                (-> ($ % :target.value) (sutil/ensure-prefix "$")))
                        :on-click #(reset! support-level :user-defined)}]]
           [:div.field
            (when-not @need-card?

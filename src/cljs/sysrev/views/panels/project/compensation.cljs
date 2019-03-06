@@ -13,7 +13,7 @@
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.views.panels.project.support :as support]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:project :project :compensation])
@@ -315,7 +315,7 @@
                           :display "inline-block"}}
             [s/FormInput {:id "create-compensation-amount"
                           :value @compensation-amount
-                          :on-change #(let [value (-> ($ % :target.value) (su/ensure-prefix "$"))]
+                          :on-change #(let [value (-> ($ % :target.value) (sutil/ensure-prefix "$"))]
                                         (reset! error-message nil)
                                         (reset! compensation-amount value))
                           :aria-label "compensation-amount"}]]

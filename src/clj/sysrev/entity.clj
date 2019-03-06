@@ -13,7 +13,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :as db :refer [do-query do-execute with-transaction]]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 (s/def ::table keyword?)
 (s/def ::entity ::table)

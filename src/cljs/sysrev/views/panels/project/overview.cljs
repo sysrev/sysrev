@@ -17,7 +17,7 @@
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def panel [:project :project :overview])

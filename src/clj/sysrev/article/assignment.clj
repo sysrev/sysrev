@@ -11,7 +11,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in? map-values]]
+            [sysrev.shared.util :as sutil :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]

@@ -15,7 +15,7 @@
             [sysrev.predict.report :as report]
             [sysrev.config.core :as config]
             [sysrev.biosource.core :refer [api-host]]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defonce predict-api (agent nil))
 

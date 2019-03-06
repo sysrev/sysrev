@@ -16,7 +16,7 @@
             [sysrev.db.project :as project]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test]
-            [sysrev.shared.util :as su :refer [parse-integer]])
+            [sysrev.shared.util :as sutil :refer [parse-integer]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]

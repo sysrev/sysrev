@@ -16,7 +16,7 @@
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as su :refer [in? map-values]])
+            [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -292,7 +292,7 @@
       [:div.field.selection
        [:label "Selection"]
        (let [display (when (string? selection)
-                       (su/string-ellipsis
+                       (sutil/string-ellipsis
                         selection 400
                         (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))]
          [:div.ui.small.label.selection-label
@@ -575,7 +575,7 @@
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
                 (set [:new-annotation] nil)
-                (let [entry {:id (str "new-ann-" (su/random-id))
+                (let [entry {:id (str "new-ann-" (sutil/random-id))
                              :selection (:selection selection-map)
                              :context (-> (dissoc selection-map :selection)
                                           (assoc :client-field field))

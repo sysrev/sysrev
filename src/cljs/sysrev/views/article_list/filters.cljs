@@ -12,7 +12,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.views.panels.project.add-articles :as source]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 (def group-statuses
   [:single :determined :conflict :consistent :resolved])
@@ -302,14 +302,14 @@
      value
      on-change
      multiple?
-     #(su/parse-integer %)]))
+     #(sutil/parse-integer %)]))
 
 (defn describe-source [source-id]
   (when source-id
     (let [{:keys [article-count]} @(subscribe [:project/sources source-id])
           source-type @(subscribe [:source/display-type source-id])
           description (or (some-> @(subscribe [:source/display-info source-id])
-                                  (su/string-ellipsis 70 "[.....]"))
+                                  (sutil/string-ellipsis 70 "[.....]"))
                           (str source-id))]
       (->> [(str "[" article-count "]")
             (when source-type
@@ -329,7 +329,7 @@
      (first value)
      on-change
      multiple?
-     #(su/parse-integer %)]))
+     #(sutil/parse-integer %)]))
 
 (defn- SelectLabelDropdown [context value on-change]
   (let [label-ids @(subscribe [:project/label-ids])

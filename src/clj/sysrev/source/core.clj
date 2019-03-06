@@ -11,7 +11,7 @@
             [sysrev.db.project :as p]
             [sysrev.article.core :as a]
             [sysrev.filestore :as fstore]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 (defn source-id->project-id
   [source-id]

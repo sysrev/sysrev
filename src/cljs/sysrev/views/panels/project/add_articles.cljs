@@ -14,7 +14,7 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components :as ui]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (def panel [:project :project :add-articles])
 
@@ -53,7 +53,7 @@
 (defn article-or-articles
   "Return either the singular or plural form of article"
   [item-count]
-  (su/pluralize item-count "article"))
+  (sutil/pluralize item-count "article"))
 
 (defn- source-import-timed-out? [source]
   (let [{:keys [meta source-id date-created
@@ -390,7 +390,7 @@
                         overlap-source-id :overlap-source-id} overlap-map]
                     (let [src-type @(subscribe [:source/display-type source-id])
                           src-info (some-> @(subscribe [:source/display-info source-id])
-                                           (su/string-ellipsis 40))]
+                                           (sutil/string-ellipsis 40))]
                       ^{:key [:shared source-id overlap-source-id]}
                       [:div.column
                        (str (.toLocaleString shared-count) " shared: ")

@@ -9,7 +9,7 @@
             [sysrev.article.core :as article]
             [sysrev.label.core :as l]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [map-values in?]]
+            [sysrev.shared.util :as sutil :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

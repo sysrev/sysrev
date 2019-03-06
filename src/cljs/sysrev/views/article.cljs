@@ -15,7 +15,7 @@
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [article-labels-view]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (reg-sub
@@ -134,7 +134,7 @@
    (let [{:keys [article-count]}
          @(subscribe [:project/sources source-id])
          source-info (some-> @(subscribe [:source/display-info source-id])
-                             (su/string-ellipsis 150 "[.....]"))
+                             (sutil/string-ellipsis 150 "[.....]"))
          has-info? (not (empty? source-info))]
      [:div
       [:h5.ui.header

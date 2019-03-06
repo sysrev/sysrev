@@ -15,7 +15,7 @@
             [sysrev.test.browser.review-articles :as review]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.define-labels :as define]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)

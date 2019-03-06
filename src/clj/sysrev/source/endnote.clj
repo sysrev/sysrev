@@ -9,7 +9,7 @@
             [sysrev.source.interface :refer [import-source import-source-impl]]
             [sysrev.util :as util :refer
              [xml-find xml-find-vector xml-find-vector parse-xml-str]]
-            [sysrev.shared.util :as su :refer [map-values to-uuid parse-integer]]))
+            [sysrev.shared.util :as sutil :refer [map-values to-uuid parse-integer]]))
 
 (defn parse-endnote-file [fname]
   (-> fname io/file io/reader dxml/parse))

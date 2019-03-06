@@ -3,7 +3,7 @@
             [sysrev.config.core :as config]
             [sysrev.db.files :as files]
             [sysrev.util :as util]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:import (java.io ByteArrayInputStream)
            java.util.UUID))
 

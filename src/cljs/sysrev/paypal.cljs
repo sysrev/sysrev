@@ -6,7 +6,7 @@
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as acct]
             [sysrev.views.semantic :as s]
-            [sysrev.shared.util :as su])
+            [sysrev.shared.util :as sutil])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def panel [:project :project :paypal])
@@ -46,7 +46,7 @@
                      (str "Your payment of "
                           @user-defined-support-level
                           " has been received and will be available after it has been processed"))
-             (reset! user-defined-support-level (-> minimum-amount (su/ensure-prefix "$")))
+             (reset! user-defined-support-level (-> minimum-amount (sutil/ensure-prefix "$")))
              (dispatch [:project/get-funds]))
            :error-handler
            (fn [error]
@@ -157,7 +157,7 @@
           [s/FormGroup
            [s/FormInput {:id "create-user-defined-support-level"
                          :value @user-defined-support-level
-                         :on-change #(let [value (-> ($ % :target.value) (su/ensure-prefix "$"))
+                         :on-change #(let [value (-> ($ % :target.value) (sutil/ensure-prefix "$"))
                                            validation-error (amount-validation value)]
                                        (if validation-error
                                          (reset! paypal-disabled? true)
