@@ -12,7 +12,7 @@
             [sysrev.paypal :as paypal]
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.views.panels.project.support :as support]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.shared.util :as su :refer [in?]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -58,7 +58,7 @@
           :handler (fn [response]
                      (reset! loading? false)
                      (reset! project-compensations
-                             (u/vector->hash-map (get-in response [:result :compensations]) :id)))
+                             (util/vector->hash-map (get-in response [:result :compensations]) :id)))
           :error-handler (fn [response]
                            (reset! loading? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
@@ -75,7 +75,7 @@
       :handler (fn [response]
                  (reset! loading? false)
                  (reset! users-current-comp
-                         (u/vector->hash-map
+                         (util/vector->hash-map
                           (->> (get-in response [:result :project-users-current-compensation])
                                (map #(update % :compensation-id
                                              (fn [x] (if (nil? x) "none" x)))))
@@ -241,10 +241,10 @@
                               (check-pending-transactions)
                               ;; TODO: this starts a new timer each time ratom inputs change?
                               (let [pending-funds (r/cursor state [:project-funds :pending-funds])]
-                                (u/continuous-update-until check-pending-transactions
-                                                           #(= @pending-funds 0)
-                                                           (constantly nil)
-                                                           check-pending-interval)))})))
+                                (util/continuous-update-until check-pending-transactions
+                                                              #(= @pending-funds 0)
+                                                              (constantly nil)
+                                                              check-pending-interval)))})))
 
 (defn ToggleCompensationActive [{:keys [id] :as compensation}]
   (let [project-id @(subscribe [:active-project-id])
@@ -462,7 +462,7 @@
                      (acct/cents->string compensation-owed)]
                     [:div.four.wide.column
                      (when last-payment
-                       (str "Last Payment: " (u/unix-epoch->date-string last-payment)))]
+                       (str "Last Payment: " (util/unix-epoch->date-string last-payment)))]
                     [:div.five.wide.column.right.align
                      (cond
                        (and (> compensation-owed 0)

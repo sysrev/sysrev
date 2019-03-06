@@ -15,7 +15,7 @@
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
-            [sysrev.util :as u :refer [nbsp]]
+            [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as su :refer [in? map-values]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
@@ -184,7 +184,7 @@
       {:db (-> db
                (assoc-in [:data :project project-id
                           :annotator :article article-id]
-                         (u/vector->hash-map annotations :id)))
+                         (util/vector->hash-map annotations :id)))
        :dispatch [:reload [:annotator/status project-id]]}
       {})))
 
@@ -214,7 +214,7 @@
       {:db (-> db
                (assoc-in [:data :project project-id
                           :annotator :article-pdf article-id pdf-key]
-                         (u/vector->hash-map annotations :id)))
+                         (util/vector->hash-map annotations :id)))
        :dispatch [:reload [:annotator/status project-id]]}
       {})))
 
@@ -274,7 +274,7 @@
                                        (:semantic-class active)]]))
         on-delete #(dispatch [:action [:annotator/delete-annotation
                                        context id]])
-        full-width? (>= (u/viewport-width) 1340)
+        full-width? (>= (util/viewport-width) 1340)
         button-class
         (if full-width?
           "ui fluid tiny labeled icon button"
@@ -285,7 +285,7 @@
      {:class (cond-> ""
                new? (str " new-annotation"))}
      [:form.ui.small.form.edit-annotation
-      {:on-submit (u/wrap-user-event
+      {:on-submit (util/wrap-user-event
                    on-save
                    :timeout false
                    :prevent-default true)}
@@ -314,7 +314,7 @@
                        (:semantic-class annotation)
                        (or (:semantic-class annotation)
                            (:semantic-class saved)))
-              :on-change #(set-ann [:semantic-class] (u/event-input-value %))
+              :on-change #(set-ann [:semantic-class] (util/event-input-value %))
               :read-only (not editing?)
               :disabled (not editing?)
               :placeholder (if editing? "New class name" nil)}]
@@ -341,7 +341,7 @@
            {:class (cond-> ""
                      (or (not editing?)
                          (empty? class-options)) (str " disabled"))
-            :on-click (u/wrap-user-event toggle-new-class)}
+            :on-click (util/wrap-user-event toggle-new-class)}
            (if text-input?
              [:i.list.ul.icon]
              [:i.plus.icon])]])]
@@ -349,7 +349,7 @@
        [:label "Value"]
        [ui/TextInput
         {:value (:annotation active)
-         :on-change #(set-ann [:annotation] (u/event-input-value %))
+         :on-change #(set-ann [:annotation] (util/event-input-value %))
          :read-only (not editing?)
          :disabled (not editing?)}]]
       (cond
@@ -366,7 +366,7 @@
          [:div.eight.wide.field
           [:button
            {:class button-class
-            :on-click (u/wrap-user-event
+            :on-click (util/wrap-user-event
                        #(do (set [:editing-id] nil)
                             (dispatch-sync [::clear-annotations context]))
                        :prevent-default true)}
@@ -378,7 +378,7 @@
           [:button
            {:class button-class
             :on-click
-            (u/wrap-user-event
+            (util/wrap-user-event
              #(do (dispatch-sync [::clear-annotations context])
                   (set [:editing-id] id))
              :prevent-default true)}
@@ -387,7 +387,7 @@
          [:div.eight.wide.field
           [:button
            {:class button-class
-            :on-click (u/wrap-user-event
+            :on-click (util/wrap-user-event
                        on-delete :prevent-default true)}
            [:i.red.circle.times.icon]
            (when full-width? "Delete")]]])]]))
@@ -412,7 +412,7 @@
         on-save
         (fn []
           (dispatch-sync [::set context [:selection] ""])
-          (u/clear-text-selection)
+          (util/clear-text-selection)
           (dispatch [:action [:annotator/create-annotation
                               context new-annotation]]))
 
@@ -448,10 +448,10 @@
       :style {:top (str y "px")
               :left (str x "px")
               :display (if (empty? selection) "none")}
-      :on-click (u/wrap-user-event on-save
-                                   :timeout false
-                                   :stop-propagation true
-                                   :prevent-default true)}
+      :on-click (util/wrap-user-event on-save
+                                      :timeout false
+                                      :stop-propagation true
+                                      :prevent-default true)}
      "Add Annotation"]))
 
 (defn AnnotationMenu
@@ -556,9 +556,9 @@
             (when false
               (let [ctarget ($ e :currentTarget)
                     {ct-x :left
-                     ct-y :top} (u/get-element-position ctarget)
+                     ct-y :top} (util/get-element-position ctarget)
                     {sc-x :left
-                     sc-y :top} (u/get-scroll-position)
+                     sc-y :top} (util/get-scroll-position)
                     c-x ($ e :clientX)
                     c-y ($ e :clientY)]
                 #_
@@ -599,15 +599,15 @@
 
 (defn AnnotationToggleButton
   [context & {:keys [on-change class]}]
-  (when (u/full-size?)
+  (when (util/full-size?)
     (let [enabled? @(subscribe [:annotator/enabled context])]
       [:div.ui.button.toggle-annotator
-       {:on-click (u/wrap-user-event
+       {:on-click (util/wrap-user-event
                    #(do (dispatch-sync [:annotator/init-view-state context])
                         (dispatch-sync [:annotator/enabled context (not enabled?)])
                         (when on-change (on-change))))
         :class (cond-> class
-                 (and (not enabled?) (not (u/annotator-size?)))
+                 (and (not enabled?) (not (util/annotator-size?)))
                  (str " disabled"))}
        (if enabled?
          "Disable Sidebar"

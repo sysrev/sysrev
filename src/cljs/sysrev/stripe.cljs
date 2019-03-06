@@ -8,7 +8,7 @@
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-redirect get-url-params nav-scroll-top]]
             [sysrev.views.semantic :as s]
-            [sysrev.util :as u])
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]))
 
 ;; based on: https://github.com/stripe/react-stripe-elements
@@ -109,7 +109,7 @@
                  (not (every? nil? (vals @(r/state-atom this)))))]
            [:form
             {:on-submit
-             (u/wrap-prevent-default
+             (util/wrap-prevent-default
               #(when-not (errors?)
                  (-> (this.props.stripe.createToken)
                      (.then (fn [payload]

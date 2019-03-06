@@ -11,7 +11,7 @@
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
             [sysrev.label.core :as label]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.shared.util :as su :refer [map-values in?]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]

@@ -14,7 +14,7 @@
             [sysrev.views.annotator :as annotator]
             [sysrev.views.components :refer [UploadButton]]
             [sysrev.views.list-pager :refer [ListPager]]
-            [sysrev.util :as u]
+            [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as su])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
@@ -328,7 +328,7 @@
              [:i.download.icon]
              filename]
             [:button.ui.icon.button
-             {:on-click (u/wrap-user-event #(reset! confirming? true))}
+             {:on-click (wrap-user-event #(reset! confirming? true))}
              [:i.times.icon]]])
          (when @confirming?
            [:div.ui.negative.message.delete-pdf
@@ -338,14 +338,14 @@
              [:div.column
               [:div.ui.fluid.button
                {:on-click
-                (u/wrap-user-event
+                (wrap-user-event
                  #(do (reset! confirming? false)
                       (dispatch [:action [:pdf/delete-pdf
                                           project-id article-id key filename]])))}
                "Yes"]]
              [:div.column
               [:div.ui.fluid.blue.button
-               {:on-click (u/wrap-user-event #(reset! confirming? false))}
+               {:on-click (wrap-user-event #(reset! confirming? false))}
                "No"]]]])]))))
 
 (defn ArticlePDFs [article-id]
@@ -367,7 +367,7 @@
       (with-loader [[:article project-id article-id]
                     [:pdf/article-pdfs project-id article-id]] {}
         (let [project-id @(subscribe [:active-project-id])
-              full-size? (u/full-size?)
+              full-size? (util/full-size?)
               inline-loader #(when (loading/any-loading? :only :pdf/open-access-available?)
                                [:div.ui.small.active.inline.loader
                                 {:style {:margin-right "1em" :margin-left "1em"}}])

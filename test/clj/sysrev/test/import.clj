@@ -12,7 +12,7 @@
             [sysrev.db.project :as project]
             [sysrev.source.import :as import]
             [sysrev.source.endnote :as endnote]
-            [sysrev.util :as u :refer [parse-xml-str xml-find]]))
+            [sysrev.util :as util :refer [parse-xml-str xml-find]]))
 
 (use-fixtures :once test/default-fixture)
 (use-fixtures :each test/database-rollback-fixture)
@@ -73,7 +73,7 @@
 
 (defn get-test-file [fname]
   (let [url (str "https://s3.amazonaws.com/sysrev-test-files/" fname)
-        tempfile (u/create-tempfile)]
+        tempfile (util/create-tempfile)]
     (spit tempfile (-> url http/get :body))
     {:filename fname, :file tempfile}))
 

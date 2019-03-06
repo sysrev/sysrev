@@ -10,7 +10,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
             [sysrev.nav :refer [nav nav-scroll-top]]
-            [sysrev.util :as u])
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -122,7 +122,7 @@
                            [:a.add-payment-method
                             {:style {:cursor "pointer"}
                              :on-click
-                             (u/wrap-prevent-default
+                             (util/wrap-prevent-default
                               #(do (dispatch [:payment/set-calling-route! "/user/plans"])
                                    (nav-scroll-top "/user/payment")))}
                             "Add a payment method"])
@@ -185,7 +185,7 @@
                      {:class (if no-default? "add-method" "change-method")
                       :style {:cursor "pointer"}
                       :on-click
-                      (u/wrap-prevent-default
+                      (util/wrap-prevent-default
                        #(do (dispatch [:payment/set-calling-route! "/user/plans"])
                             (reset! error-message nil)
                             (nav-scroll-top "/user/payment")))}

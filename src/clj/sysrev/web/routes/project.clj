@@ -27,7 +27,7 @@
             [sysrev.shared.transit :as sr-transit]
             [sysrev.pubmed :as pubmed]
             [sysrev.config.core :refer [env]]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.shared.util :as su :refer [in? parse-integer]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -158,7 +158,7 @@
     entry))
 
 (defn create-export-tempfile [content]
-  (let [tempfile (u/create-tempfile)]
+  (let [tempfile (util/create-tempfile)]
     (with-open [w (io/writer tempfile)]
       (.write w content))
     tempfile))
@@ -603,7 +603,7 @@
                  filename-ext (case export-type
                                 (:user-answers :group-answers)  ".csv"
                                 :endnote-xml                    ".xml")
-                 filename (str filename-base "_" project-id "_" (u/today-string)
+                 filename (str filename-base "_" project-id "_" (util/today-string)
                                "_" (:download-id entry) filename-ext)]
              {:result {:success true
                        :entry (-> entry

@@ -5,7 +5,7 @@
             [re-frame.core :refer [subscribe dispatch]]
             [cljsjs.clipboard]
             [cljsjs.dropzone]
-            [sysrev.util :as u :refer [nbsp]]
+            [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as su :refer [in?]]))
 
 (defn dangerous
@@ -65,7 +65,7 @@
           [:a.item
            {:href (when (string? action) action)
             :on-click
-            (u/wrap-user-event
+            (util/wrap-user-event
              (cond (and (seq? action)
                         (= (count action) 2))
                    #(dispatch [:navigate
@@ -133,7 +133,7 @@
                                 disabled (str " disabled"))
                        :href (when (string? action) action)
                        :on-click
-                       (u/wrap-user-event
+                       (util/wrap-user-event
                         (cond (and (seq? action)
                                    (= (count action) 2))
                               #(dispatch [:navigate (first action) (second action)])
@@ -176,7 +176,7 @@
                              " " (if class class ""))
                  :href (when (string? action) action)
                  :on-click
-                 (u/wrap-user-event
+                 (util/wrap-user-event
                   (cond (and (seq? action)
                              (= (count action) 2))
                         #(dispatch [:navigate
@@ -222,7 +222,7 @@
                             disabled (str " disabled"))
                    :href (when (string? action) action)
                    :on-click
-                   (u/wrap-user-event
+                   (util/wrap-user-event
                     (cond (and (seq? action)
                                (= (count action) 2))
                           #(dispatch [:navigate
@@ -245,14 +245,14 @@
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
-   (u/url-domain url) nbsp [:i.external.icon]])
+   (util/url-domain url) nbsp [:i.external.icon]])
 
 (defn document-link [url name]
   [:div.item>a.ui.large.label {:target "_blank" :href url}
    [:i.large.file.pdf.outline.icon] name])
 
 (defn updated-time-label [dt & [shorten?]]
-  (let [s (u/time-elapsed-string dt)
+  (let [s (util/time-elapsed-string dt)
         label (if shorten?
                 (->> (str/split s #" ") butlast (str/join " "))
                 s)]
@@ -267,7 +267,7 @@
   ;; nil for unset, true, false
   (let [domid (su/random-id)]
     (fn [{:keys [set-answer! value]}]
-      (let [size (if (u/full-size?) "large" "small")
+      (let [size (if (util/full-size?) "large" "small")
             class (str "ui " size " buttons three-state")
             bclass (fn [secondary? selected?]
                      (str "ui " size " "
@@ -291,7 +291,7 @@
                  (cond->
                      {:id (get-domid bvalue)
                       :class (bclass (nil? bvalue) (= curval bvalue))
-                      :on-click (u/wrap-user-event #(set-value-focus bvalue))
+                      :on-click (util/wrap-user-event #(set-value-focus bvalue))
                       :on-key-down
                       (when (= curval bvalue)
                         #(cond (->> % .-key (in? ["Backspace" "Delete" "Del"]))
@@ -322,7 +322,7 @@
                               nil   [:i.question.circle.outline.icon]
                               true  [:i.plus.circle.icon]}}}]
   ;; nil for unset, true, false
-  (let [size (if (u/full-size?) "large" "small")
+  (let [size (if (util/full-size?) "large" "small")
         class (str "ui " size " fluid buttons three-state-icon")
         bclass (fn [secondary? selected?]
                  (str "ui " size " "
@@ -332,13 +332,13 @@
                       " icon button"))]
     [:div {:class class}
      [:div.ui {:class (bclass false (false? curval))
-               :on-click (u/wrap-user-event #(on-change false))}
+               :on-click (util/wrap-user-event #(on-change false))}
       (get icons false)]
      [:div.ui {:class (bclass true (nil? curval))
-               :on-click (u/wrap-user-event #(on-change nil))}
+               :on-click (util/wrap-user-event #(on-change nil))}
       (get icons nil)]
      [:div.ui {:class (bclass false (true? curval))
-               :on-click (u/wrap-user-event #(on-change true))}
+               :on-click (util/wrap-user-event #(on-change true))}
       (get icons true)]]))
 
 (defn true-false-nil-tag
@@ -543,7 +543,7 @@
   [:div.ui.checkbox
    {:style {:margin-right "0.5em"}}
    [:input {:type "checkbox"
-            :on-change (u/wrap-user-event on-change :timeout false)
+            :on-change (util/wrap-user-event on-change :timeout false)
             :checked checked?}]
    [:label label]])
 
@@ -560,7 +560,7 @@
      :style {:width "100%"}
      :class (cond-> "" disabled? (str " disabled"))}
     [:input {:type "checkbox"
-             :on-change (u/wrap-user-event on-change :timeout false)
+             :on-change (util/wrap-user-event on-change :timeout false)
              :checked (boolean checked?)}]
     (if (nil? tooltip)
       [:label label]
@@ -579,13 +579,13 @@
      {:class (cond-> ""
                (not can-save?) (str " disabled")
                saving?         (str " loading"))
-      :on-click (u/wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
+      :on-click (util/wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
      "Save Changes"
      [:i.check.circle.outline.icon]]]
    [:div.column.reset
     [:button.ui.fluid.right.labeled.icon.button.cancel-changes
      {:class (if can-reset? "" "disabled")
-      :on-click (u/wrap-user-event #(when (and can-reset? on-reset) (on-reset)))}
+      :on-click (util/wrap-user-event #(when (and can-reset? on-reset) (on-reset)))}
      "Cancel"
      [:i.times.icon]]]])
 
@@ -610,10 +610,10 @@
      (when message [:p.bold {:style {:font-size "16px"}} message])]]
    [:div.ui.two.column.grid.confirm-cancel-form
     [:div.column>button.ui.fluid.button
-     {:on-click (u/wrap-user-event on-confirm) :class action-color}
+     {:on-click (util/wrap-user-event on-confirm) :class action-color}
      "Confirm"]
     [:div.column>button.ui.fluid.button
-     {:on-click (u/wrap-user-event on-cancel)}
+     {:on-click (util/wrap-user-event on-cancel)}
      "Cancel"]]])
 
 (defn UploadContainer
@@ -654,9 +654,9 @@
    [:div.dropzone {:id id}
     [:button.ui.button {:id (str id "-button")
                         :style {:cursor "pointer"}
-                        :class (str (cond (u/full-size?) ""
-                                          (u/mobile?)    "tiny"
-                                          :else          "small")
+                        :class (str (cond (util/full-size?) ""
+                                          (util/mobile?)    "tiny"
+                                          :else             "small")
                                     " " class)}
      [:i.green.add.circle.icon] text]
     [:div.dropzone-previews {:id (str id "-preview")}]]

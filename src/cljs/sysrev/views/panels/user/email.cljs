@@ -6,7 +6,7 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label]]
-            [sysrev.util :as u])
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def panel [:user :email])
@@ -26,7 +26,8 @@
                      (reset! verify-message "Thank you for verifying your email address."))
           :error-handler (fn [error-response]
                            (reset! verifying-code? false)
-                           (reset! verify-error (get-in error-response [:response :error :message])))})))
+                           (reset! verify-error (get-in error-response
+                                                        [:response :error :message])))})))
 
 (defn get-email-addresses!
   []
@@ -38,7 +39,8 @@
           :handler (fn [response]
                      (reset! retrieving-addresses? false)
                      (dispatch [:fetch [:identity]])
-                     (reset! email-addresses (-> response :result :addresses (u/vector->hash-map :id))))
+                     (reset! email-addresses (-> response :result :addresses
+                                                 (util/vector->hash-map :id))))
           :error-handler (fn [error]
                            (reset! retrieving-addresses? false)
                            ($ js/console log "[get-email-addresses] There was an error"))})))
@@ -69,9 +71,8 @@
     (reset! update-message nil)
     (reset! update-error nil)
     (cond (clojure.string/blank? new-email)
-          (do
-            (reset! update-error "New email address can not be blank!")
-            (reset! sending-update? false))
+          (do (reset! update-error "New email address can not be blank!")
+              (reset! sending-update? false))
           :else
           (POST (str "/api/user/" @(subscribe [:self/user-id]) "/email")
                 {:params {:email new-email}
@@ -83,7 +84,8 @@
                             (reset! update-message "You've successfully added a new email address"))
                  :error-handler (fn [error-response]
                                   (reset! sending-update? false)
-                                  (reset! update-error (get-in error-response [:response :error :message])))}))))
+                                  (reset! update-error
+                                          (get-in error-response [:response :error :message])))}))))
 
 (defn delete-email!
   [email-object]
@@ -118,7 +120,8 @@
                      (get-email-addresses!))
           :error-handler (fn [error-response]
                            (reset! setting-primary? false)
-                           (reset! set-primary-error (get-in error-response [:response :error :message])))})))
+                           (reset! set-primary-error
+                                   (get-in error-response [:response :error :message])))})))
 
 (defn VerifyEmail
   [code]
@@ -246,7 +249,7 @@
                                          (reset! new-email ($ event :target.value)))}]
               [Button {:disabled @sending-update?
                        :id "new-email-address-submit"} "Submit"]
-              [Button {:on-click (u/wrap-prevent-default
+              [Button {:on-click (util/wrap-prevent-default
                                   #(do (reset! adding-email? false)
                                        (reset! update-error nil)
                                        (reset! update-message nil)))

@@ -4,7 +4,7 @@
             [re-frame.core :refer [subscribe reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header]]))
 
@@ -107,7 +107,7 @@
     [Row
      [Column {:width 5} project-name]
      [Column {:width 8}
-      (str "Paid on: " (u/unix-epoch->date-string created)) ]
+      (str "Paid on: " (util/unix-epoch->date-string created)) ]
      [Column {:width 3 :align "right"}
       (accounting/cents->string total-paid)]]]])
 

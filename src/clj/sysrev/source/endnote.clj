@@ -7,7 +7,7 @@
             [sysrev.config.core :as config]
             [sysrev.source.core :as source :refer [make-source-meta]]
             [sysrev.source.interface :refer [import-source import-source-impl]]
-            [sysrev.util :as u :refer
+            [sysrev.util :as util :refer
              [xml-find xml-find-vector xml-find-vector parse-xml-str]]
             [sysrev.shared.util :as su :refer [map-values to-uuid parse-integer]]))
 
@@ -116,10 +116,10 @@
   (->> (load-endnote-library-xml reader)
        (map #(dissoc % :custom4 :custom5 :rec-number))
        ;; for testing missing titles and exception handling
-       #_ (map #(case (u/crypto-rand-int 3)
+       #_ (map #(case (util/crypto-rand-int 3)
                   0 %
                   1 (assoc % :primary-title nil)
-                  2 (assoc % :primary-title (u/crypto-rand-int 100))))))
+                  2 (assoc % :primary-title (util/crypto-rand-int 100))))))
 
 (defmethod make-source-meta :endnote-xml [_ {:keys [filename]}]
   {:source "EndNote file" :filename filename})

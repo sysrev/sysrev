@@ -19,7 +19,7 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
-            [sysrev.util :as u :refer [crypto-rand crypto-rand-nth]]
+            [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
             [sysrev.shared.util :as su :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]])
   (:import java.util.UUID))

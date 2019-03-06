@@ -16,7 +16,7 @@
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.shared.util :as su :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -371,10 +371,10 @@
           item [:project/important-terms project-id]
           updating? (fn [] (or @server-loading?
                                (loading/item-loading? item)))]
-      (u/continuous-update-until #(dispatch [:fetch item])
-                                 #(not (updating?))
-                                 #(reset! polling-important-terms? false)
-                                 500))))
+      (util/continuous-update-until #(dispatch [:fetch item])
+                                    #(not (updating?))
+                                    #(reset! polling-important-terms? false)
+                                    500))))
 
 (defn ImportantTermsChart [{:keys [entity data loading?]}]
   (when (not-empty data)
@@ -483,7 +483,7 @@
                 (filterv #(not (filtered-color? (:color %))) items))
               entries (->> processed-label-counts
                            color-filter-fn)
-              max-length (if (u/mobile?) 22 28)
+              max-length (if (util/mobile?) 22 28)
               labels (->> entries
                           (mapv :value)
                           (mapv str)
@@ -561,7 +561,8 @@
                                       (nth entries idx)]
                                   (articles/load-label-value-settings
                                    label-id value))))))}
-                       :animate? false #_ (boolean (and (< (count labels) 30) (u/full-size?)))
+                       :animate? false
+                       #_ (boolean (and (< (count labels) 30) (util/full-size?)))
                        :items-clickable? true)
               height (* 2 (+ 40
                              (* 10 (Math/round (/ (inc (count label-ids)) 3)))
@@ -569,7 +570,7 @@
           [:div.ui.segment
            [:h4.ui.dividing.header
             (ui/with-ui-help-tooltip
-              [:span "Answer Counts " u/nbsp [ui/ui-help-icon]]
+              [:span "Answer Counts " util/nbsp [ui/ui-help-icon]]
               :help-content ["Number of user answers that contain each label value"])]
            [unpad-chart [0.6 0.4]
             [chartjs/horizontal-bar

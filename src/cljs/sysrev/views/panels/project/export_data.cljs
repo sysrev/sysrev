@@ -6,7 +6,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer
              [with-ui-help-tooltip ui-help-icon]]
-            [sysrev.util :as u :refer [today-string nbsp]]))
+            [sysrev.util :as util :refer [today-string nbsp]]))
 
 (def-action :project/generate-export
   :uri (fn [project-id export-type _]
@@ -34,7 +34,7 @@
      [:div.ui.stackable.middle.aligned.grid.export-data-form
       [:div.six.wide.middle.aligned.column
        [:div.ui.fluid.primary.labeled.icon.button
-        {:on-click (when-not running? (u/wrap-user-event #(dispatch [:action action])))
+        {:on-click (when-not running? (util/wrap-user-event #(dispatch [:action action])))
          :class (when running? "loading")}
         [:i.sync.icon]
         "Generate"]]

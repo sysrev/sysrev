@@ -2,7 +2,7 @@
   (:require [sysrev.charts.chartjs :as chartjs]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
-            [sysrev.util :as u])
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]))
 
 ;; Paul Tol colors: https://personal.sron.nl/~pault/
@@ -69,7 +69,7 @@
   {:fontColor (graph-text-color)
    :fontFamily (if alternate (graph-font-family-alternate)
                    (graph-font-family))
-   :fontSize (if (u/mobile?) 12 13)})
+   :fontSize (if (util/mobile?) 12 13)})
 
 (defn tooltip-font-settings [& {:keys [alternate]}]
   (let [family (if alternate (graph-font-family-alternate)
@@ -81,7 +81,7 @@
 (defn wrap-default-options
   [options & {:keys [animate? items-clickable?]
               :or {animate? true items-clickable? false}}]
-  (let [mobile? (u/mobile?)
+  (let [mobile? (util/mobile?)
         duration (cond (not animate?) 0
                        mobile?        0
                        :else          1000)]
@@ -119,7 +119,7 @@
     :or {display-ticks true log-scale false}}]
   (let [font (graph-font-settings)
         datasets (get-datasets ynames yss colors)
-        max-length (if (u/mobile?) 22 28)
+        max-length (if (util/mobile?) 22 28)
         xlabels-short (->> xlabels (mapv #(if (<= (count %) max-length)
                                             % (str (subs % 0 (- max-length 2)) "..."))))
         data {:labels xlabels-short

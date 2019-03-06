@@ -13,7 +13,7 @@
             [sysrev.views.components :as ui]
             [sysrev.views.review :refer [label-help-popup inclusion-tag]]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.shared.util :as su :refer [in? map-values]]))
 
 ;; Convention - A (new) label that exists in the client but not on the
@@ -191,10 +191,10 @@
     (when-not (string? @label-id)
       [:button.ui.small.fluid.labeled.icon.button
        {:class (if @enabled? "" "primary")
-        :on-click (u/wrap-user-event #(do (reset-local-label! @label-id)
-                                          (swap! (r/cursor label [:enabled]) not)
-                                          (sync-to-server))
-                                     :prevent-default true)}
+        :on-click (util/wrap-user-event #(do (reset-local-label! @label-id)
+                                             (swap! (r/cursor label [:enabled]) not)
+                                             (sync-to-server))
+                                        :prevent-default true)}
        [:i {:class (str icon-class " icon")}]
        text])))
 
@@ -205,8 +205,8 @@
         enabled? (r/cursor label [:enabled])
         text (if (string? @label-id) "Discard" "Cancel")]
     [:button.ui.small.fluid.labeled.icon.button
-     {:on-click (u/wrap-user-event #(reset-local-label! @label-id)
-                                   :prevent-default true)}
+     {:on-click (util/wrap-user-event #(reset-local-label! @label-id)
+                                      :prevent-default true)}
      [:i.circle.times.icon]
      text]))
 
@@ -231,8 +231,8 @@
     [:div.ui.small.icon.button.edit-label-button
      {:class (when-not allow-edit? "disabled")
       :style {:margin-left 0 :margin-right 0}
-      :on-click (u/wrap-user-event #(do (when editing? (sync-to-server))
-                                        (swap! (r/cursor label [:editing?]) not)))}
+      :on-click (util/wrap-user-event #(do (when editing? (sync-to-server))
+                                           (swap! (r/cursor label [:editing?]) not)))}
      (if editing?
        (if synced?
          [:i.circle.check.icon]
@@ -243,7 +243,7 @@
   "Add a label of type"
   [value-type]
   [:button.ui.fluid.large.labeled.icon.button
-   {:on-click (u/wrap-user-event #(add-new-label! (create-blank-label value-type)))}
+   {:on-click (util/wrap-user-event #(add-new-label! (create-blank-label value-type)))}
    [:i.plus.circle.icon]
    (str "Add " (str/capitalize value-type) " Label")])
 
@@ -343,7 +343,7 @@
 
         errors (r/cursor label [:errors])]
     [:form.ui.form.define-label
-     {:on-submit (u/wrap-user-event
+     {:on-submit (util/wrap-user-event
                   #(if (not (labels-synced?))
                      ;; save on server
                      (sync-to-server)
@@ -545,7 +545,7 @@
           {:class (cond-> ""
                     (or (empty? @value)
                         (every? empty? @value)) (str " disabled"))
-           :on-click (u/wrap-user-event #(reset! value [""]))}
+           :on-click (util/wrap-user-event #(reset! value [""]))}
           [:i.times.icon]])
        [:input
         {:type "text"
@@ -589,14 +589,14 @@
                   vs))
               dom-id (str "label-edit-" label-id)
               dropdown-class (if (or (and (>= (count all-values) 25)
-                                          (u/desktop-size?))
+                                          (util/desktop-size?))
                                      (>= (count all-values) 40))
                                "search dropdown" "dropdown")]
           [:div.ui.fluid.multiple.selection
            {:id dom-id
             :class dropdown-class
             ;; hide dropdown on click anywhere in main dropdown box
-            :on-click (u/wrap-user-event
+            :on-click (util/wrap-user-event
                        #(let [target (-> % .-target)]
                           (when (or (= dom-id (.-id target))
                                     (-> (js/$ target) (.hasClass "default"))
@@ -631,7 +631,7 @@
   [label]
   (let [{:keys [value-type question short-label
                 label-id category required]} @label
-        on-click-help (u/wrap-user-event #(do nil) :timeout false)]
+        on-click-help (util/wrap-user-event #(do nil) :timeout false)]
     [:div.ui.column.label-edit {:class (when required "required")}
      [:div.ui.middle.aligned.grid.label-edit
       [ui/with-tooltip
@@ -640,7 +640,7 @@
               {:class (when (>= (count short-label) 30)
                         "small-text")}
               [:span.inner (str short-label)]]]
-         (if (and (u/mobile?) (>= (count short-label) 30))
+         (if (and (util/mobile?) (>= (count short-label) 30))
            [:div.ui.row.label-edit-name
             {:on-click on-click-help}
             [InclusionTag @label]
@@ -703,7 +703,7 @@
         admin? (or @(subscribe [:member/admin?])
                    @(subscribe [:user/admin?]))
         enabled? @(r/cursor label [:enabled])
-        [side-width center-width] (if (u/mobile?)
+        [side-width center-width] (if (util/mobile?)
                                     ["two wide" "twelve wide"]
                                     ["two wide" "twelve wide"])]
     [:div.ui.middle.aligned.grid.segment.label-item

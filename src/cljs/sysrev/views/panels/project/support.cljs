@@ -14,7 +14,7 @@
             [sysrev.views.semantic :refer
              [Form FormButton FormField FormGroup FormInput FormRadio Label]]
             [sysrev.stripe :as stripe]
-            [sysrev.util :as u]
+            [sysrev.util :as util :refer [wrap-prevent-default]]
             [sysrev.shared.util :as su :refer [in?]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
@@ -170,7 +170,7 @@
          (when @need-card?
            [:div.ui.primary.button.update-payment
             {:on-click
-             (u/wrap-prevent-default
+             (wrap-prevent-default
               #(do (dispatch [:payment/set-calling-route!
                               (project-uri @project-uri "/support")])
                    (dispatch [:navigate [:payment]])))}
@@ -178,7 +178,7 @@
          (when-not (nil? @current-support-level)
            [:button.ui.button
             {:class (when @loading? "disabled")
-             :on-click (u/wrap-prevent-default
+             :on-click (wrap-prevent-default
                         #(do (reset! error-message nil)
                              (reset! confirming-cancel? true)))}
             "Cancel Support"])])
@@ -189,12 +189,11 @@
          [:div.field
           [:button.ui.green.button
            {:class (when @loading? "disabled")
-            :on-click (u/wrap-prevent-default
-                       #(reset! confirming-cancel? false))}
+            :on-click (wrap-prevent-default #(reset! confirming-cancel? false))}
            "Continue to Support"]
           [:button.ui.red.button
            {:class (when @loading? "disabled")
-            :on-click (u/wrap-prevent-default
+            :on-click (wrap-prevent-default
                        #(do (reset! loading? true)
                             (dispatch [:action [:support/cancel]])))}
            "Stop Support"]]])
@@ -241,7 +240,7 @@
            (when @need-card?
              [:div.ui.primary.button.update-payment
               {:on-click
-               (u/wrap-prevent-default
+               (wrap-prevent-default
                 #(do (dispatch [:payment/set-calling-route!
                                 (project-uri @project-id "/compensations")])
                      (dispatch [:navigate [:payment]])))}

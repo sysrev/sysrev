@@ -14,7 +14,7 @@
             [sysrev.views.components :as ui]
             [sysrev.views.keywords :refer [render-keywords render-abstract]]
             [sysrev.views.labels :refer [article-labels-view]]
-            [sysrev.util :as u :refer [nbsp]]
+            [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as su :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -151,7 +151,7 @@
 (defn SourceLinkButton [source-id text]
   [WithProjectSourceTooltip source-id
    [:div.ui.tiny.button
-    {:on-click (u/wrap-user-event
+    {:on-click (util/wrap-user-event
                 #(dispatch [:articles/load-source-filters [source-id]]))}
     text]])
 
@@ -346,7 +346,7 @@
                  :or {show-score? true}}]
   (let [project-id @(subscribe [:active-project-id])
         status @(subscribe [:article/review-status article-id])
-        full-size? (u/full-size?)
+        full-size? (util/full-size?)
         score @(subscribe [:article/score article-id])
         duplicates @(subscribe [:article/duplicates article-id])
         annotator-context {:class "abstract"

@@ -13,7 +13,7 @@
             [sysrev.cassandra :as cdb]
             [sysrev.util :as util :refer
              [parse-xml-str xml-find xml-find-value xml-find-vector]]
-            [sysrev.util :as u]
+            [sysrev.util :as util]
             [sysrev.shared.util :as sutil
              :refer [in? map-values parse-integer]]))
 
@@ -299,7 +299,7 @@
   "Given a pmicd (PMC*), return the ftp link for the pdf, if it exists, nil otherwise"
   [pmcid]
   (when pmcid
-    (u/wrap-retry
+    (util/wrap-retry
      (fn []
        (let [parsed-html (-> (http/get oa-root-link
                                        {:query-params {"id" pmcid}})
