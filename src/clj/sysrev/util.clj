@@ -182,19 +182,24 @@
   []
   `(-> (Throwable.) .getStackTrace first .getClassName demunge))
 
-(defn today-string []
-  (let [now (t/now)
-        fmt (tformat/formatters :basic-date)]
-    (tformat/unparse fmt now)))
+(defn today-string
+  "Returns string of current date in the form YYYYMMDD"
+  []
+  (tformat/unparse (tformat/formatters :basic-date) (t/now)))
+
+(defn today-string-site-map
+  "Returns string of current date in the form YYYY-MM-DD"
+  []
+  (tformat/unparse (tformat/formatters :date) (t/now)))
+
+(defn today-string-short
+  "Returns string of current date in the form YYMMDD"
+  []
+  (tformat/unparse (tformat/formatter "yyMMdd") (t/now)))
 
 (defn now-unix-seconds
   []
   (-> (t/now) (tc/to-long) (/ 1000) int))
-
-(defn today-string-site-map
-  "Generate a string of the form YYYY-MM-DD"
-  []
-  (->> (t/now) (tformat/unparse (tformat/formatters :date))))
 
 ;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places
 (defn round

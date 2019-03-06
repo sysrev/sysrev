@@ -5,8 +5,8 @@
             [re-frame.core :refer [subscribe dispatch]]
             [cljsjs.clipboard]
             [cljsjs.dropzone]
-            [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.util :as u :refer [nbsp]]
+            [sysrev.shared.util :as su :refer [in?]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -65,7 +65,7 @@
           [:a.item
            {:href (when (string? action) action)
             :on-click
-            (util/wrap-user-event
+            (u/wrap-user-event
              (cond (and (seq? action)
                         (= (count action) 2))
                    #(dispatch [:navigate
@@ -119,7 +119,7 @@
         left-entries (remove nil? left-entries)
         right-entries (remove nil? right-entries)
         ;; n-tabs (count entries)
-        ;; n-tabs-word (sutil/num-to-english n-tabs)
+        ;; n-tabs-word (su/num-to-english n-tabs)
         render-entry
         (fn [{:keys [tab-id action content class disabled tooltip] :as entry}]
           (let [active? (= tab-id active-tab-id)
@@ -133,11 +133,10 @@
                                 disabled (str " disabled"))
                        :href (when (string? action) action)
                        :on-click
-                       (util/wrap-user-event
+                       (u/wrap-user-event
                         (cond (and (seq? action)
                                    (= (count action) 2))
-                              #(dispatch [:navigate
-                                          (first action) (second action)])
+                              #(dispatch [:navigate (first action) (second action)])
 
                               (vector? action)
                               #(dispatch [:navigate action])
@@ -177,7 +176,7 @@
                              " " (if class class ""))
                  :href (when (string? action) action)
                  :on-click
-                 (util/wrap-user-event
+                 (u/wrap-user-event
                   (cond (and (seq? action)
                              (= (count action) 2))
                         #(dispatch [:navigate
@@ -223,7 +222,7 @@
                             disabled (str " disabled"))
                    :href (when (string? action) action)
                    :on-click
-                   (util/wrap-user-event
+                   (u/wrap-user-event
                     (cond (and (seq? action)
                                (= (count action) 2))
                           #(dispatch [:navigate
@@ -238,27 +237,24 @@
                content])))]
     [:div.tabbed-panel
      [:div.ui
-      {:class
-       (str (sutil/num-to-english (count entries)) " item"
-            " tabbed menu tabbed-panel " menu-class)}
+      {:class (str (su/num-to-english (count entries)) " item"
+                   " tabbed menu tabbed-panel " menu-class)}
       (doall
        (for [entry entries]
          (render-entry entry)))]]))
 
 (defn out-link [url]
   [:div.item>a {:target "_blank" :href url}
-   (util/url-domain url) nbsp [:i.external.icon]])
+   (u/url-domain url) nbsp [:i.external.icon]])
 
 (defn document-link [url name]
   [:div.item>a.ui.large.label {:target "_blank" :href url}
    [:i.large.file.pdf.outline.icon] name])
 
 (defn updated-time-label [dt & [shorten?]]
-  (let [s (util/time-elapsed-string dt)
+  (let [s (u/time-elapsed-string dt)
         label (if shorten?
-                (->> (str/split s #" ")
-                     butlast
-                     (str/join " "))
+                (->> (str/split s #" ") butlast (str/join " "))
                 s)]
     [:div.ui.tiny.label label]))
 
@@ -269,9 +265,9 @@
   }"
   [{:keys [set-answer! value]}]
   ;; nil for unset, true, false
-  (let [domid (util/random-id)]
+  (let [domid (su/random-id)]
     (fn [{:keys [set-answer! value]}]
-      (let [size (if (util/full-size?) "large" "small")
+      (let [size (if (u/full-size?) "large" "small")
             class (str "ui " size " buttons three-state")
             bclass (fn [secondary? selected?]
                      (str "ui " size " "
@@ -295,8 +291,7 @@
                  (cond->
                      {:id (get-domid bvalue)
                       :class (bclass (nil? bvalue) (= curval bvalue))
-                      :on-click (util/wrap-user-event
-                                 #(set-value-focus bvalue))
+                      :on-click (u/wrap-user-event #(set-value-focus bvalue))
                       :on-key-down
                       (when (= curval bvalue)
                         #(cond (->> % .-key (in? ["Backspace" "Delete" "Del"]))
@@ -314,8 +309,7 @@
                                     (= bvalue nil))
                                (set-value-focus true)
                                :else true))}
-                     (= curval bvalue)
-                     (merge {:tabIndex "0"}))
+                   (= curval bvalue) (merge {:tabIndex "0"}))
                  (case bvalue false "No", nil "?", true "Yes")]))]
         [:div {:class class}
          [render false]
@@ -328,7 +322,7 @@
                               nil   [:i.question.circle.outline.icon]
                               true  [:i.plus.circle.icon]}}}]
   ;; nil for unset, true, false
-  (let [size (if (util/full-size?) "large" "small")
+  (let [size (if (u/full-size?) "large" "small")
         class (str "ui " size " fluid buttons three-state-icon")
         bclass (fn [secondary? selected?]
                  (str "ui " size " "
@@ -338,13 +332,13 @@
                       " icon button"))]
     [:div {:class class}
      [:div.ui {:class (bclass false (false? curval))
-               :on-click (util/wrap-user-event #(on-change false))}
+               :on-click (u/wrap-user-event #(on-change false))}
       (get icons false)]
      [:div.ui {:class (bclass true (nil? curval))
-               :on-click (util/wrap-user-event #(on-change nil))}
+               :on-click (u/wrap-user-event #(on-change nil))}
       (get icons nil)]
      [:div.ui {:class (bclass false (true? curval))
-               :on-click (util/wrap-user-event #(on-change true))}
+               :on-click (u/wrap-user-event #(on-change true))}
       (get icons true)]]))
 
 (defn true-false-nil-tag
@@ -549,8 +543,7 @@
   [:div.ui.checkbox
    {:style {:margin-right "0.5em"}}
    [:input {:type "checkbox"
-            :on-change (util/wrap-user-event
-                        on-change :timeout false)
+            :on-change (u/wrap-user-event on-change :timeout false)
             :checked checked?}]
    [:label label]])
 
@@ -566,11 +559,9 @@
     { ;; need width 100% to make room for tooltip element
      :style {:width "100%"}
      :class (cond-> "" disabled? (str " disabled"))}
-    [:input
-     {:type "checkbox"
-      :on-change (util/wrap-user-event
-                  on-change :timeout false)
-      :checked (boolean checked?)}]
+    [:input {:type "checkbox"
+             :on-change (u/wrap-user-event on-change :timeout false)
+             :checked (boolean checked?)}]
     (if (nil? tooltip)
       [:label label]
       [:label (doall (with-ui-help-tooltip
@@ -585,18 +576,16 @@
   [:div.ui.two.column.grid.save-reset-form
    [:div.column.save
     [:button.ui.fluid.right.labeled.positive.icon.button.save-changes
-     {:class (str (if can-save? "" "disabled")
-                  " "
-                  (if saving? "loading" ""))
-      :on-click (util/wrap-user-event
-                 #(when (and can-save? on-save (not saving?)) (on-save)))}
+     {:class (cond-> ""
+               (not can-save?) (str " disabled")
+               saving?         (str " loading"))
+      :on-click (u/wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
      "Save Changes"
      [:i.check.circle.outline.icon]]]
    [:div.column.reset
     [:button.ui.fluid.right.labeled.icon.button.cancel-changes
      {:class (if can-reset? "" "disabled")
-      :on-click (util/wrap-user-event
-                 #(when (and can-reset? on-reset) (on-reset)))}
+      :on-click (u/wrap-user-event #(when (and can-reset? on-reset) (on-reset)))}
      "Cancel"
      [:i.times.icon]]]])
 
@@ -618,50 +607,42 @@
     [:i.warning.icon {:class action-color}]
     [:div.content
      [:div.header title]
-     (when message
-       [:p {:style {:font-size "16px"
-                    :font-weight "bold"}}
-        message])]]
+     (when message [:p.bold {:style {:font-size "16px"}} message])]]
    [:div.ui.two.column.grid.confirm-cancel-form
-    [:div.column
-     [:button.ui.fluid.button
-      {:on-click (util/wrap-user-event on-confirm) :class action-color}
-      "Confirm"]]
-    [:div.column
-     [:button.ui.fluid.button
-      {:on-click (util/wrap-user-event on-cancel)}
-      "Cancel"]]]])
+    [:div.column>button.ui.fluid.button
+     {:on-click (u/wrap-user-event on-confirm) :class action-color}
+     "Confirm"]
+    [:div.column>button.ui.fluid.button
+     {:on-click (u/wrap-user-event on-cancel)}
+     "Cancel"]]])
 
 (defn UploadContainer
   "Create uploader form component."
   [childer upload-url on-success & args]
-  (let [id (util/random-id)
+  (let [id (su/random-id)
         csrf-token (subscribe [:csrf-token])
-        opts
-        {:url upload-url
-         :headers (when-let [token @csrf-token]
-                    {"x-csrf-token" token})
-         :maxFilesize (* 1000 10)
-         :timeout (* 1000 60 60 4)}
+        opts {:url upload-url
+              :headers (when-let [token @csrf-token] {"x-csrf-token" token})
+              :maxFilesize (* 1000 10)
+              :timeout (* 1000 60 60 4)}
         error-msg (r/atom nil)]
     (letfn [(init-dropzone [url]
-              (->
-               (js/Dropzone.
-                (str "#" id)
-                (clj->js
-                 (->> {:previewTemplate
-                       (-> js/document
-                           (.querySelector (str "#" id "-template"))
-                           .-innerHTML)
-                       :previewsContainer (str "#" id "-preview")
-                       :clickable (str "#" id "-button")}
-                      (merge opts))))
-               (.on "error"
-                    (fn [file msg _]
-                      (js/console.log (str "Upload error [" file "]: " msg))
-                      (reset! error-msg msg)
-                      true))
-               (.on "success" on-success)))]
+              (-> (js/Dropzone.
+                   (str "#" id)
+                   (clj->js
+                    (->> {:previewTemplate
+                          (-> js/document
+                              (.querySelector (str "#" id "-template"))
+                              .-innerHTML)
+                          :previewsContainer (str "#" id "-preview")
+                          :clickable (str "#" id "-button")}
+                         (merge opts))))
+                  (.on "error"
+                       (fn [file msg _]
+                         (js/console.log (str "Upload error [" file "]: " msg))
+                         (reset! error-msg msg)
+                         true))
+                  (.on "success" on-success)))]
       (r/create-class
        {:reagent-render (fn [childer upload-url _ & args]
                           (apply childer id upload-url error-msg args))
@@ -671,23 +652,17 @@
 (defn- UploadButtonImpl [id & [upload-url error-msg text class]]
   [:div
    [:div.dropzone {:id id}
-    [:button.ui.button
-     {:id (str id "-button")
-      ;; :type "submit"
-      :style {:cursor "pointer"}
-      :class (str (cond (util/full-size?) ""
-                        (util/mobile?)    "tiny"
-                        :else             "small")
-                  " "
-                  (if class class ""))}
-     [:i.green.add.circle.icon]
-     text]
+    [:button.ui.button {:id (str id "-button")
+                        :style {:cursor "pointer"}
+                        :class (str (cond (u/full-size?) ""
+                                          (u/mobile?)    "tiny"
+                                          :else          "small")
+                                    " " class)}
+     [:i.green.add.circle.icon] text]
     [:div.dropzone-previews {:id (str id "-preview")}]]
    [:div {:style {:display "none"}}
-    [:div.dz-preview.dz-file-preview
-     {:id (str id "-template")}
-     [:div.ui.center.aligned.segment
-      {:style {:margin-top "1em"}}
+    [:div.dz-preview.dz-file-preview {:id (str id "-template")}
+     [:div.ui.center.aligned.segment {:style {:margin-top "1em"}}
       [:div.dz-details
        [:div.dz-filename [:span {:data-dz-name ""}]]
        [:div.dz-size {:data-dz-size ""}]
@@ -713,11 +688,9 @@
                  (clj->js {:type "fixed"
                            :offset (or offset 0)
                            :continuous true
-                           :onUnfixed
-                           #(-> (js/$ el) (.removeAttr "style"))
-                           :onFixed
-                           #(let [width (-> (js/$ el) (.parent) (.width))]
-                              (-> (js/$ el) (.width width)))})))))]
+                           :onUnfixed #(-> (js/$ el) (.removeAttr "style"))
+                           :onFixed #(let [width (-> (js/$ el) (.parent) (.width))]
+                                       (-> (js/$ el) (.width width)))})))))]
     (r/create-class
      {:component-did-mount on-update
       :component-did-update on-update
@@ -728,11 +701,10 @@
   returning a component with a div containing both element and
   tooltip.
 
-  Note: Using inline false allows tooltip to extend outside immediate
-  parent element, but width must be specified manually."
+  Using inline false allows tooltip to extend outside immediate parent
+  element, but width must be specified manually."
   [element tooltip-content width &
-   {:keys [delay hide position hoverable options
-           props div-props]
+   {:keys [delay hide position hoverable options props div-props]
     :or {delay 500, hide 0, position "top center", hoverable false}}]
   (let [tooltip-key (name (gensym))]
     [:div.inline-block div-props
@@ -745,10 +717,9 @@
      [:div.ui.flowing.popup.transition.hidden.tooltip
       (merge {:id tooltip-key}
              props
-             {:style
-              (merge {:text-align "left"}
-                     (:style props)
-                     {:min-width width :max-width width})})
+             {:style (merge {:text-align "left"}
+                            (:style props)
+                            {:min-width width :max-width width})})
       tooltip-content]]))
 
 (defn TooltipElementManual
@@ -756,8 +727,8 @@
   returning a list of two functions (element, tooltip) allowing each
   to be rendered in an appropriate location manually.
 
-  Note: Using inline false allows tooltip to extend outside immediate
-  parent element, but width must be specified manually."
+  Using inline false allows tooltip to extend outside immediate parent
+  element, but width must be specified manually."
   [element tooltip-content width &
    {:keys [delay hide position hoverable options props]
     :or {delay 500, hide 0, position "top center", hoverable false}}]
@@ -773,8 +744,7 @@
             [:div.ui.flowing.popup.transition.hidden.tooltip
              (merge {:id tooltip-key}
                     props
-                    {:style
-                     (merge {:text-align "left"}
-                            (:style props)
-                            {:min-width width :max-width width})})
+                    {:style (merge {:text-align "left"}
+                                   (:style props)
+                                   {:min-width width :max-width width})})
              tooltip-content]))))

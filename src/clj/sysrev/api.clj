@@ -67,15 +67,15 @@
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
   [project-name user-id]
-  (let [{:keys [project-id] :as project}
-        (project/create-project project-name)]
-    (labels/add-label-overall-include project-id)
-    (project/add-project-note project-id {})
-    (project/add-project-member project-id user-id
-                                :permissions ["member" "admin"])
-    {:result
-     {:success true
-      :project (select-keys project [:project-id :name])}}))
+  (db/with-transaction
+    (let [{:keys [project-id] :as project} (project/create-project project-name)]
+      (labels/add-label-overall-include project-id)
+      (project/add-project-note project-id {})
+      (project/add-project-member project-id user-id
+                                  :permissions ["member" "admin"])
+      {:result
+       {:success true
+        :project (select-keys project [:project-id :name])}})))
 ;;;
 (s/fdef create-project-for-user!
   :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id)
@@ -347,17 +347,20 @@
   ;; best way to check for now
   (let [response (keywordize-keys response)]
     (cond (:id response)
-          (let [amount (-> response :transactions first (get-in [:amount :total]) read-string (* 100) (Math/round))
+          (let [amount (-> response :transactions first (get-in [:amount :total])
+                           read-string (* 100) (Math/round))
                 transaction-id (:id response)
-                created (-> response :transactions first :related_resources first :sale :create_time paypal/paypal-date->unix-epoch)]
+                created (-> response :transactions first :related_resources
+                            first :sale :create_time paypal/paypal-date->unix-epoch)]
             ;; all paypal transactions will be considered pending
-            (funds/create-project-fund-pending-entry! {:project-id project-id
-                                                       :user-id user-id
-                                                       :amount amount
-                                                       :transaction-id transaction-id
-                                                       :transaction-source (:paypal-payment funds/transaction-source-descriptor)
-                                                       :status "pending"
-                                                       :created created})
+            (funds/create-project-fund-pending-entry!
+             {:project-id project-id
+              :user-id user-id
+              :amount amount
+              :transaction-id transaction-id
+              :transaction-source (:paypal-payment funds/transaction-source-descriptor)
+              :status "pending"
+              :created created})
             {:result {:success true}})
           :else {:error {:status internal-server-error
                          :message "The PayPal response has an error"}})))
@@ -365,7 +368,8 @@
 (defn current-project-support-level
   "The current level of support of this user for project-id"
   [user project-id]
-  {:result (select-keys (plans/user-current-project-support user project-id) [:name :project-id :quantity])})
+  {:result (select-keys (plans/user-current-project-support user project-id)
+                        [:name :project-id :quantity])})
 
 (defn user-support-subscriptions
   "The current support subscriptions for user"
@@ -397,9 +401,10 @@
 
 (defn stripe-default-source
   [user-id]
-  {:result {:default-source (if-let [source-default (stripe/read-default-customer-source (users/get-user-by-id user-id))]
-                              source-default
-                              [])}})
+  {:result
+   {:default-source (or (-> (users/get-user-by-id user-id)
+                            (stripe/read-default-customer-source))
+                        [])}})
 
 (defn user-has-stripe-account?
   "Does the user have a stripe account associated with the platform?"
@@ -439,7 +444,8 @@
   the day (12:00:00AM) and end-date is until the end of the
   day (11:59:59AM)."
   [project-id start-date end-date]
-  (try {:result {:amount-owed (compensation/project-compensation-for-users project-id start-date end-date)}}
+  (try {:result {:amount-owed (compensation/project-compensation-for-users
+                               project-id start-date end-date)}}
        (catch Throwable e
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
@@ -448,13 +454,14 @@
   "Return compensations owed for all users"
   [project-id]
   (try-catch-response
-   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id))}}))
+   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
   [project-id]
   (try-catch-response
-   {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
+   {:result {:project-users-current-compensation
+             (compensation/project-users-current-compensation project-id)}}))
 
 (defn toggle-compensation-active!
   [project-id compensation-id active?]
@@ -469,7 +476,8 @@
        ;; nothing changed, do nothing
        (= active? (:active current-compensation))
        {:result {:success true
-                 :message (str "compensation-id " compensation-id " already has active set to " active?)}}
+                 :message (str "compensation-id " compensation-id
+                               " already has active set to " active?)}}
        ;; this compensation is being deactivated, so also disable all other compensations for users
        (= active? false)
        (do
@@ -523,7 +531,8 @@
        ;; there wasn't a compensation id found for the project, or it isn't active
        (nil? (project-compensations compensation-id))
        {:error {:status not-found
-                :message (str "compensation-id " compensation-id " is not active or doesn't exist for project-id " project-id)}}
+                :message (str "compensation-id " compensation-id
+                              " is not active or doesn't exist for project-id " project-id)}}
        ;; this is the same compensation-id as the user already has
        (= current-compensation-id compensation-id)
        {:result {:success true
@@ -585,26 +594,29 @@
        {:error {:status payment-required
                 :message "Not enough available funds to fulfill this payment"}}
        (<= total-amount available-funds)
-       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
+       (let [{:keys [status body]}
+             (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
          (if-not (= status 201)
            {:error {:status bad-request
                     :message (get-in body [:message])}}
            (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
                  created (util/now-unix-seconds)]
              ;; deduct for funds to the user
-             (funds/create-project-fund-entry! {:project-id project-id
-                                                :user-id user-id
-                                                :amount (- compensation)
-                                                :transaction-id payout-batch-id
-                                                :transaction-source (:paypal-payout funds/transaction-source-descriptor)
-                                                :created created})
+             (funds/create-project-fund-entry!
+              {:project-id project-id
+               :user-id user-id
+               :amount (- compensation)
+               :transaction-id payout-batch-id
+               :transaction-source (:paypal-payout funds/transaction-source-descriptor)
+               :created created})
              ;; deduct admin fee
-             (funds/create-project-fund-entry! {:project-id project-id
-                                                :user-id user-id
-                                                :amount (- admin-fee)
-                                                :transaction-id (str (UUID/randomUUID))
-                                                :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
-                                                :created created})
+             (funds/create-project-fund-entry!
+              {:project-id project-id
+               :user-id user-id
+               :amount (- admin-fee)
+               :transaction-id (str (UUID/randomUUID))
+               :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
+               :created created})
              {:result "success"})))))))
 
 (defn payments-owed
@@ -1107,12 +1119,13 @@
   (let [project-name (:name (project/get-project-by-id project-id))]
     (sendgrid/send-template-email
      email (str "You've been invited to " project-name " as a reviewer")
-     (str "You've been invited to <b>" project-name "</b> as a reviewer. You can view the invitation <a href='"
-          (sysrev-base-url)
+     (str "You've been invited to <b>" project-name
+          "</b> as a reviewer. You can view the invitation <a href='" (sysrev-base-url)
           "/user/settings/invitations'>here</a>."))))
 
 (defn create-invitation!
-  "Create an invitation from inviter to join project-id to invitee with optional description"
+  "Create an invitation from inviter to join project-id to invitee with
+  optional description"
   [invitee project-id inviter & [description]]
   (let [description (or description "view-project")
         project-invitation (->> invitee
@@ -1125,7 +1138,8 @@
         ;; send invitation email
         (send-invitation-email email project-id)
         ;; create invitation
-        {:result {:invitation-id (invitation/create-invitation! invitee project-id inviter description)}})
+        {:result {:invitation-id (invitation/create-invitation!
+                                  invitee project-id inviter description)}})
       {:error {:status bad-request
                :message "You can only send one invitation to a user per project"}})))
 
