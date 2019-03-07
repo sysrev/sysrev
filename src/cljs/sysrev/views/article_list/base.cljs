@@ -366,12 +366,20 @@
     (subscribe [::sort-dir context])])
  (fn [[filters display-offset text-search sort-by sort-dir]]
    (let [display-count (get-display-count)]
-     (merge {:filters filters
-             :text-search text-search
-             :sort-by sort-by
-             :sort-dir sort-dir
-             :n-offset display-offset
-             :n-count display-count}))))
+     {:filters filters
+      :text-search text-search
+      :sort-by sort-by
+      :sort-dir sort-dir
+      :n-offset display-offset
+      :n-count display-count})))
+
+(reg-sub
+ ::export-filter-args
+ (fn [[_ context]]
+   [(subscribe [::filters context])
+    (subscribe [::get context [:text-search]])])
+ (fn [[filters text-search]]
+   {:filters filters, :text-search text-search}))
 
 (reg-sub
  ::articles-query

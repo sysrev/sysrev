@@ -4,6 +4,7 @@
             [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
               reg-event-db reg-event-fx reg-fx trim-v]]
+            [sysrev.loading :as loading]
             [sysrev.nav :as nav]
             [sysrev.state.nav :refer
              [active-panel active-project-id project-uri]]
@@ -12,7 +13,8 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.views.panels.project.add-articles :as source]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]
+            [clojure.set :as set]))
 
 (def group-statuses
   [:single :determined :conflict :consistent :resolved])
@@ -859,16 +861,16 @@
           #(dispatch [::al/set context [:sort-by] %])]]
         [:div.seven.wide.field
          [:div.ui.tiny.fluid.buttons
-          [:button.ui.button
+          [:button.ui.icon.button
            {:class (when (= sort-dir :asc) "grey")
             :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :asc])
                            (al/reload-list context :transition))}
-           "Asc"]
-          [:button.ui.button
+           [:i.arrow.up.icon]]
+          [:button.ui.icon.button
            {:class (when (= sort-dir :desc) "grey")
             :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :desc])
                            (al/reload-list context :transition))}
-           "Desc"]]]]]]]))
+           [:i.arrow.down.icon]]]]]]]]))
 
 (defn ResetReloadForm [context]
   (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
@@ -979,6 +981,99 @@
     [:div.column
      [:i.fitted.angle.double.right.icon]]]])
 
+(defn filter-values-equal?
+  "Tests if two filter values are equivalent, treating missing and null
+  field values as identical."
+  [f1 f2]
+  (and (= (keys f1) (keys f2))
+       (->> (set/union (-> f1 vals first keys)
+                       (-> f2 vals first keys))
+            (every? #(= (-> f1 vals first (get %))
+                        (-> f2 vals first (get %)))))))
+
+(defn filter-sets-equal?
+  "Tests if two sets of filter values are equivalent, treating missing
+  and null field values as identical."
+  [fs1 fs2]
+  (and (= (count fs1) (count fs2))
+       (->> fs1 (every? (fn [f] (some #(filter-values-equal? % f) fs2))))
+       (->> fs2 (every? (fn [f] (some #(filter-values-equal? % f) fs1))))))
+
+(def export-type-default-filters
+  {:group-answers [{:has-label {:confirmed true}}
+                   {:consensus {:status :conflict, :negate true}}]
+   :user-answers  [{:has-label {:confirmed true}}]
+   :endnote-xml   []})
+
+(defn- ExportTypeForm [context export-type title file-format]
+  (let [project-id @(subscribe [:active-project-id])
+        options @(subscribe [::al/export-filter-args context])
+        action [:project/generate-export project-id export-type options]
+        running? (loading/action-running? action)
+        entry @(subscribe [:project/export-file project-id export-type options])
+        {:keys [filename url error]} entry
+        {:keys [expand-export]} @(subscribe [::al/display-options context])
+        expanded? (= expand-export (name export-type))
+        file? (and entry (not error))
+        defaults? (filter-sets-equal? @(subscribe [::al/filters context])
+                                      (get export-type-default-filters export-type))]
+    [:div.ui.segments.export-type
+     {:class (->> [(name export-type)
+                   (if expanded? "expanded" "collapsed")]
+                  (str/join " "))}
+     [:a.ui.middle.aligned.two.column.grid.secondary.segment.expander
+      {:on-click (util/wrap-user-event
+                  #(dispatch-sync [::al/set-display-option context :expand-export
+                                   (if expanded? true (name export-type))]))}
+      [:div.left.aligned.column>h5.ui.header title]
+      [:div.right.aligned.column>div.ui.small.grey.label file-format]]
+     (when expanded?
+       [:div.ui.segment.expanded>div.ui.small.form.export-type
+        [:div.field>div.fields.export-actions
+         [:div.eight.wide.field
+          [:button.ui.tiny.fluid.primary.labeled.icon.button
+           {:on-click (when-not running? (util/wrap-user-event #(dispatch [:action action])))
+            :class (when running? "loading")}
+           [:i.hdd.icon] "Generate"]]
+         [:div.eight.wide.field
+          [:button.ui.tiny.fluid.right.labeled.icon.button
+           {:on-click (when-not defaults?
+                        (util/wrap-user-event
+                         #(dispatch [:articles/load-export-settings export-type false])))
+            :class (when defaults? "disabled")}
+           [:i.icon {:class (if defaults? "circle check outline" "exchange")}]
+           "Set Defaults"]]]
+        (when (or running? file?)
+          [:div.field>div.ui.center.aligned.segment.file-download
+           (cond running?  [:span "Generating file..."]
+                 file?     [:a {:href url :target "_blank" :download filename}
+                            [:i.outline.file.icon] " " filename])])
+        (when error
+          [:div.field>div.ui.negative.message
+           (or (-> error :message)
+               "Sorry, an error occurred while generating the file.")])])]))
+
+(defn- ExportDataForm [context]
+  (let [{:keys [expand-export]} @(subscribe [::al/display-options context])]
+    [:div.ui.segments.export-data
+     [:div.ui.middle.aligned.grid.segment.expander
+      {:on-click (util/wrap-user-event
+                  #(dispatch-sync [::al/set-display-option
+                                   context :expand-export (not expand-export)]))}
+      [:div.ten.wide.left.aligned.column
+       [:h5.ui.header "Export Data"]]
+      [:div.six.wide.right.aligned.column
+       (if expand-export [:i.chevron.up.icon] [:i.chevron.down.icon])]]
+     (when expand-export
+       [:div.ui.segment.export-data-content
+        [:h6.ui.right.aligned.header
+         {:style {:margin "0px 0 12px 0"}}
+         [:a {:href @(subscribe [:project/uri nil "/export"])}
+          "What do these mean?"]]
+        [ExportTypeForm context :endnote-xml "Articles" "EndNote XML"]
+        [ExportTypeForm context :group-answers "Group Answers" "CSV"]
+        [ExportTypeForm context :user-answers "User Answers" "CSV"]])]))
+
 (defn- FilterColumnElement [context]
   (let [project-id @(subscribe [:active-project-id])
         active-filters @(subscribe [::al/filters context])
@@ -987,8 +1082,7 @@
     [:div.article-filters.article-filters-column.expanded
      [:a.ui.fluid.primary.left.labeled.icon.button
       {:href (project-uri project-id "/add-articles")}
-      [:i.list.icon]
-      "Add/Manage Articles"]
+      [:i.list.icon] "Add/Manage Articles"]
      [:div.ui.segment.filters-content
       [:div.ui.small.form
        {:on-submit (util/wrap-prevent-default #(do nil))}
@@ -1011,7 +1105,8 @@
          [ResetReloadForm context]]]]]
      [SortOptionsForm context]
      [DisplayOptionsForm context]
-     [FilterPresetsForm context]]))
+     [FilterPresetsForm context]
+     #_ [ExportDataForm]]))
 
 (defn ArticleListFiltersColumn [context expanded?]
   [:div

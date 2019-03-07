@@ -238,7 +238,16 @@
 
         > .ui.segment {
             padding: 3px 8px 5px 8px;
+        }
+        > .ui.segments > .ui.segment {
+            padding: 6px 8px;
+        }
+        > .ui.segments > .ui.segment.expander {
+            padding: 0px 8px;
+        }
 
+        > .ui.segment,
+        > .ui.segments > .ui.segment {
             .ui.form, .ui.form > .field, .ui.form > .field > .inner {
                 > .ui.grid {
                     margin: 0 -0.25em 0 -0.25em;
@@ -393,6 +402,76 @@
             }
             .ui.button {
                 padding: 0.75em 0.5em;
+            }
+        }
+    }
+
+    .ui.grid.segment.expander {
+        cursor: pointer;
+    }
+    .ui.grid.segment.expander:hover {
+        background-color: mix(@background, @text, 90);
+    }
+
+    div.ui.segments.export-data {
+        > .ui.grid.segment.expander {
+            cursor: pointer;
+
+            > .column {
+                padding: 0.5em 0.25em;
+            }
+        }
+        > .ui.grid.segment.expander:hover {
+            background-color: mix(@background, @text, 90);
+        }
+        > .ui.segment.export-data-content {
+            padding-top: 2px;
+            padding-bottom: 2px;
+
+            .ui.segments.export-type {
+                margin: 8px 0;
+
+                > .ui.grid.segment.expander {
+                    > .column {
+                        padding: 0.4em 0.7em;
+                    }
+                }
+                > .ui.segment.expanded {
+                    padding: 0.5em;
+                }
+            }
+            .ui.form.export-type {
+                padding-bottom: 1px;
+
+                > .field {
+                    margin-bottom: 0.75em;
+
+                    .ui.button {
+                        font-size: 13px;
+                    }
+                    > .fields.export-actions {
+                        margin: 0 -0.35em;
+                        > .field {
+                            padding: 0 0.35em;
+                        }
+                    }
+                }
+
+                > .field:last-child {
+                    margin-bottom: 0;
+                }
+
+                .ui.segment.file-download {
+                    padding: 0.6em 0.3em;
+
+                    > span {
+                        font-size: 14px;
+                    }
+                    > a {
+                        .medium-weight;
+                        font-size: 14px;
+                    }
+                }
             }
         }
     }

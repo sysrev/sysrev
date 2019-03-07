@@ -36,8 +36,7 @@
        [:div.ui.fluid.primary.labeled.icon.button
         {:on-click (when-not running? (util/wrap-user-event #(dispatch [:action action])))
          :class (when running? "loading")}
-        [:i.sync.icon]
-        "Generate"]]
+        [:i.hdd.icon] "Generate"]]
       [:div.ten.wide.middle.aligned.right.aligned.column
        (when (or running? error entry)
          [:div.ui.center.aligned.segment.file-download
@@ -51,6 +50,12 @@
           (-> error :message)
           "Sorry, an error occurred while generating the file.")])]))
 
+(defn ProjectExportNavigateForm [export-type]
+  [:a.ui.fluid.right.labeled.icon.primary.button
+   {:on-click (util/wrap-user-event
+               #(dispatch [:articles/load-export-settings export-type true]))}
+   [:i.arrow.circle.right.icon] "Configure Export..."])
+
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]
     (when-let [project-id @(subscribe [:active-project-id])]
@@ -58,21 +63,26 @@
        [:div.ui.two.column.stackable.grid.export-data
         [:div.column
          [:div.ui.segment
-          [:h4.ui.dividing.header
-           "Export Consensus Answers (CSV)"]
-          [:p "Download CSV file of label answers for non-conflicting articles."]
-          [:p "Contains one row per article. For labels where \"Require Consensus\" is not set, values for article are combined from all users."]
+          [:h4.ui.dividing.header "Group Answers"]
+          [:p "This provides a CSV file containing the label answers from all project members for each article."]
+          [:p "Each row contains answers for one article. Values are combined from all user answers; enabling \"Require Consensus\" for a label can ensure that user answers are identical."]
+          #_ [:p "By default, includes all labeled articles except those in Conflict status; this can be customized from the Articles page."]
+          #_ [ProjectExportNavigateForm :group-answers]
           [ProjectExportForm :group-answers []]]
          [:div.ui.segment
-          [:h4.ui.dividing.header
-           "Export User Answers (CSV)"]
-          [:p "Download CSV file of all user label answers and notes."]
-          [:p "Contains one row per pair of (article, user)."]
+          [:h4.ui.dividing.header "User Answers"]
+          [:p "This provides a CSV file containing the exact answers saved by each user for each article."]
+          [:p "Each row contains answers that one user saved for one article."]
+          #_ [:p "By default, includes all labeled articles; this can be customized from the Articles page."]
+          #_ [ProjectExportNavigateForm :user-answers]
           [ProjectExportForm :user-answers []]]]
         [:div.column
          [:div.ui.segment
-          [:h4.ui.dividing.header
-           "Export Articles (EndNote XML)"]
-          [:p "Download EndNote XML file of all project articles."]
+          [:h4.ui.dividing.header "Articles (EndNote XML)"]
+          [:p "This provides a set of articles in EndNote's XML format, for import to EndNote or other compatible software."]
+          #_ [:p "By default, includes all articles; this can be customized from the Articles page."]
+          #_ [ProjectExportNavigateForm :endnote-xml]
           [ProjectExportForm :endnote-xml []]]]]
        child])))
+
+
