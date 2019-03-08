@@ -43,6 +43,7 @@
     #_ [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/build/pdf.js"}]
     #_ [:script {:src "https://unpkg.com/pdfjs-dist@2.0.489/web/pdf_viewer.js"}]
     [:script {:src "https://unpkg.com/dompurify@1.0.7/dist/purify.min.js"}]
+    [:script {:src "https://unpkg.com/croppie@2.6.3/croppie.js"}]
     (index/favicon-headers)
     (apply page/include-css (index/css-paths :theme "default"))
     (page/include-js "/ga-blog.js")

@@ -62,16 +62,42 @@
           (wrap-authorize
            request {:authorize-fn (user-authd? user-id)}
            (let [{:keys [project-id amount frequency]} (:body request)]
-             (api/support-project user-id
-                                  project-id
-                                  amount
-                                  frequency))))
+             (api/support-project user-id project-id amount frequency))))
     (PUT "/introduction" request
          (wrap-authorize
           request
           {:authorize-fn (user-authd? user-id)}
           (let [{:keys [introduction]} (:body request)]
             (api/update-user-introduction! user-id introduction))))
+    (GET "/profile-image" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (api/read-profile-image user-id)))
+    (POST "/profile-image" request
+          (wrap-authorize
+           request
+           {:authorize-fn (user-authd? user-id)}
+           (let [{:keys [tempfile filename]} (get-in request [:params :file])]
+             (api/create-profile-image! user-id tempfile filename))))
+    (GET "/profile-image/meta" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (api/read-profile-image-meta user-id)))
+    (GET "/profile-image" request
+         (wrap-authorize
+          request
+          {:authorize-fn (user-authd? user-id)}
+          (api/read-profile-image user-id)))
+    (POST "/avatar" request
+          (wrap-authorize
+           request
+           {:authorize-fn (user-authd? user-id)}
+           (let [{:keys [file filename meta]} (get-in request [:params])]
+             (api/create-avatar! user-id (:tempfile file) filename meta))))
+    (GET "/avatar" request
+         (api/read-avatar user-id))
     (context "/groups/:group-name" [group-name]
              (GET "/active" [user-id :<< as-int group-name :as request]
                   (wrap-authorize

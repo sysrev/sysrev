@@ -7,9 +7,16 @@
   (:import (java.io ByteArrayInputStream)
            java.util.UUID))
 
+;; to create a new bucket:
+;; (s3/create-bucket (s3-credentials) <bucket-name>)
+;; to list contents of bucket:
+;; (:object-summaries (s3/list-objects (s3-credentials) (lookup-bucket <bucket-keyword>)))
+;; empty a bucket (note: you are limited to 1000 keys / transaction
+;; (let [bucket-name <bucket-keyword>] (map #(delete-file (:key %) bucket-name) (:object-summaries (s3/list-objects (s3-credentials) (lookup-bucket bucket-name)))))
 (defn sysrev-buckets []
   {:pdf       "sysrev.pdf"
    :import    "sysrev.imports"
+   :image     "sysrev.image"
    :document  (-> config/env :filestore :bucket-name)})
 
 (defn lookup-bucket [bucket]
@@ -31,6 +38,12 @@
                    :key file-key
                    :file file)
     file-key))
+
+(defn delete-file [key bucket]
+  (let [bucket-name (lookup-bucket bucket)]
+    (s3/delete-object (s3-credentials)
+                      bucket-name
+                      key)))
 
 (defn save-byte-array
   [byte-array bucket & {:keys [file-key]}]

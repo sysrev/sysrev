@@ -1291,3 +1291,102 @@
   [user-id introduction]
   (users/update-user-introduction! user-id introduction)
   {:result {:success true}})
+
+(defn create-profile-image!
+  [user-id file filename]
+  (let [hash (util/file->sha-1-hash file)
+        s3-id (files/id-for-s3-filename-key-pair
+               filename hash)
+        profile-s3-association (files/get-profile-image-s3-association
+                                s3-id
+                                user-id)]
+    (cond
+      ;; there is a file and it is already associated with this user
+      (not (nil? profile-s3-association))
+      (do (files/activate-profile-image s3-id user-id)
+          {:result {:success true
+                    :key hash}})
+      ;; there is a file, but it is not associated with this user
+      (not (nil? s3-id))
+      (do
+        ;; associate this file with the user
+        (files/associate-profile-image-s3-with-user s3-id user-id)
+        ;; activate this image
+        (files/activate-profile-image s3-id user-id)
+        {:result {:success true
+                  :key hash}})
+      ;; there is a file, but not with this filename
+      (and (nil? s3-id)
+           (files/s3-has-key? hash))
+      (let [;; create the association between this file name and the hash
+            _ (files/insert-file-hash-s3-record filename hash)
+            ;; get the new associations's id
+            s3-id (files/id-for-s3-filename-key-pair filename hash)]
+        (files/associate-profile-image-s3-with-user s3-id user-id)
+        (files/activate-profile-image user-id s3-id)
+        {:result {:success true
+                  :key hash}})
+      ;; the file does not exist in our s3 store
+      (and (nil? s3-id)
+           (not (files/s3-has-key? hash)))
+      (let [;; create a new file on the s3 store
+            _ (fstore/save-file file :image)
+            ;; create a new association between the file name and the hash
+            _ (files/insert-file-hash-s3-record filename hash)
+            ;; get the new associations's id
+            s3-id (files/id-for-s3-filename-key-pair filename hash)]
+        (files/associate-profile-image-s3-with-user s3-id user-id)
+        (files/activate-profile-image s3-id user-id)
+        {:result {:success true
+                  :key hash}})
+      :else
+      {:error {:message "Unexpected Event"}})))
+
+(defn read-profile-image
+  "Return the currently active profile image for user"
+  [user-id]
+  (let [{:keys [key filename]} (files/active-profile-image-key-filename user-id)]
+    (if-not (empty? key)
+      (-> (response/response (fstore/get-file key :image))
+          (response/header "Content-Disposition"
+                           (format "attachment: filenane=\"" filename "\"")))
+      {:error {:status not-found
+               :message "No profile image associated with user"}})))
+
+(defn read-profile-image-meta
+  "Read the current profile image meta data"
+  [user-id]
+  {:result {:success true
+            :meta (json/read-json (files/active-profile-image-meta user-id))}})
+
+(defn create-avatar!
+  [user-id file filename meta]
+  (let [hash (util/file->sha-1-hash file)
+        {:keys [s3-id]} (files/read-avatar user-id)
+        current-hash (files/s3store-id->key s3-id)]
+    ;; delete the current avatar
+    (when current-hash
+      (fstore/delete-file current-hash :image)
+      (files/delete-file! s3-id))
+    ;; write the avatar
+    (fstore/save-file file :image)
+    (files/insert-file-hash-s3-record filename hash)
+    ;; associate file with avatar
+    (files/associate-avatar-image-with-user (files/id-for-s3-filename-key-pair filename hash)
+                                            user-id)
+    ;; change the coords on active profile img
+    (files/update-profile-image-meta! (:id (files/active-profile-image-key-filename user-id))
+                                      meta)
+    {:result {:success true}}))
+
+(defn read-avatar
+  "Return the url for the profile avatar"
+  [user-id]
+  (let [{:keys [key filename]} (files/avatar-image-key-filename user-id)]
+    (if-not (empty? key)
+      (-> (response/response (fstore/get-file key :image))
+          (response/header "Content-Disposition"
+                           (format "attachment: filenane=\"" filename "\"")))
+      (-> (response/response (clojure.java.io/file "resources/public/default_profile.jpeg" ))
+          (response/header "Content-Disposition"
+                           (format "attachment: filenane=\"" "default-profile.jpeg" "\""))))))

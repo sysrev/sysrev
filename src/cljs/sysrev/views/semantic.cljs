@@ -18,6 +18,8 @@
 (def Header (r/adapt-react-class (goog.object/get semantic-ui "Header")))
 (def Icon (r/adapt-react-class (goog.object/get semantic-ui "Icon")))
 (def Loader (r/adapt-react-class (goog.object/get semantic-ui "Loader")))
+(def Image (r/adapt-react-class (goog.object/get semantic-ui "Image")))
+(def Popup (r/adapt-react-class (goog.object/get semantic-ui "Popup")))
 
 ;; forms
 (def Form (r/adapt-react-class (goog.object/get semantic-ui "Form")))
@@ -59,3 +61,12 @@
              (goog.object/get semantic-ui "List")))
 (def Item (r/adapt-react-class
            ($ (goog.object/get semantic-ui "List") :Item)))
+;; Modal
+(def Modal (r/adapt-react-class
+            (goog.object/get semantic-ui "Modal")))
+(def ModalContent (r/adapt-react-class
+                   ($ (goog.object/get semantic-ui "Modal") :Content)))
+(def ModalHeader (r/adapt-react-class
+                  ($ (goog.object/get semantic-ui "Modal") :Header)))
+(def ModalDescription (r/adapt-react-class
+                       ($ (goog.object/get semantic-ui "Modal") :Description)))

@@ -1,6 +1,6 @@
 (ns sysrev.db.files
   (:require [sysrev.db.core :as db :refer
-             [do-query do-execute sql-now clear-project-cache]]
+             [do-query do-execute sql-now clear-project-cache to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.shared.util :refer [map-values in?]]
             [honeysql.core :as sql]
@@ -128,3 +128,105 @@
       (from :s3store)
       (where [:= :id s3store-id])
       do-query first :key))
+
+(defn get-profile-image-s3-association
+  "Given an s3-id and user-id, return the association"
+  [s3-id user-id]
+  (-> (select :s3-id)
+      (from :web-user-profile-image)
+      (where [:and
+              [:= :s3-id s3-id]
+              [:= :user-id user-id]])
+      do-query first :s3-id))
+
+(defn associate-profile-image-s3-with-user
+  "Associate a s3store id with a user's profile image"
+  [s3-id user-id]
+  (-> (insert-into :web-user-profile-image)
+      (values [{:user-id user-id
+                :s3-id s3-id
+                :active true}])
+      do-execute))
+
+(defn deactivate-all-profile-images
+  "Deactivate all user profile images for user-id"
+  [user-id]
+  (-> (sqlh/update :web-user-profile-image)
+      (sset {:active false})
+      (where [:= :user-id user-id])
+      do-execute))
+
+(defn activate-profile-image
+  "Activate s3-id for user-id, deactivate all others"
+  [s3-id user-id]
+  (deactivate-all-profile-images user-id)
+  (-> (sqlh/update :web-user-profile-image)
+      (sset {:active true})
+      (where [:and
+              [:= :user-id user-id]
+              [:= :s3-id s3-id]])
+      do-execute))
+
+(defn active-profile-image-key-filename
+  "Return the key, filename associated with the active profile"
+  [user-id]
+  (let [s3-id (-> (select :s3-id)
+                  (from :web-user-profile-image)
+                  (where [:and
+                          [:= :user-id user-id]
+                          [:= :active true]])
+                  do-query first :s3-id)]
+    (-> (select :key :filename :id)
+        (from :s3store)
+        (where [:= :id s3-id])
+        do-query first)))
+
+(defn active-profile-image-meta
+  "Return image profile meta for user-id"
+  [user-id]
+  (-> (select :meta)
+      (from :web_user_profile_image)
+      (where [:= :user_id user-id])
+      do-query first :meta))
+
+(defn update-profile-image-meta!
+  [s3-id meta]
+  (-> (sqlh/update :web_user_profile_image)
+      (sset {:meta (to-jsonb meta)})
+      (where [:= :s3-id s3-id])
+      do-execute))
+
+(defn read-avatar
+  [user-id]
+  (-> (select :*)
+      (from :web_user_avatar_image)
+      (where [:= :user-id user-id])
+      do-query first))
+
+(defn associate-avatar-image-with-user
+  "Associate a s3store id with user's avatar image"
+  [s3-id user-id]
+  (-> (insert-into :web_user_avatar_image)
+      (values [{:s3-id s3-id
+                :user-id user-id}])
+      do-execute))
+
+(defn avatar-image-key-filename
+  "Return the key, filename associated with the active profile"
+  [user-id]
+  (let [s3-id (-> (select :s3-id)
+                  (from :web-user-avatar-image)
+                  (where [:and
+                          [:= :user-id user-id]
+                          [:= :active true]])
+                  do-query first :s3-id)]
+    (-> (select :key :filename :id)
+        (from :s3store)
+        (where [:= :id s3-id])
+        do-query first)))
+
+(defn delete-file!
+  [s3-id]
+  (-> (delete-from :s3store)
+      (where [:= :id s3-id])
+      do-execute))
