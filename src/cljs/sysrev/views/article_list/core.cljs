@@ -391,8 +391,9 @@
           [:div.row
            [:div.column.filters-column
             {:class (if expanded? "five wide" "one wide")}
-            [ui/WrapFixedVisibility 10
-             [f/ArticleListFiltersColumn context expanded?]]]
+            [f/ArticleListFiltersColumn context expanded?]
+            #_ [ui/WrapFixedVisibility 10
+                [f/ArticleListFiltersColumn context expanded?]]]
            [:div.column.content-column
             {:class (if expanded? "eleven wide" "fifteen wide")}
             [:div.ui.form

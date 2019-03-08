@@ -236,6 +236,9 @@
     div.article-filters-column {
         margin-top: 0px;
 
+        > .ui.segment, > .ui.segments {
+            margin: 0.7em 0;
+        }
         > .ui.segment {
             padding: 3px 8px 5px 8px;
         }
@@ -404,6 +407,12 @@
                 padding: 0.75em 0.5em;
             }
         }
+        .ui.dropdown.button.add-filter {
+            padding: 10px 12px;
+        }
+        .ui.dropdown.button.filter-dropdown {
+            padding: 9px 10px;
+        }
     }
 
     .ui.grid.segment.expander {
@@ -414,6 +423,7 @@
     }
 
     div.ui.segments.export-data {
+        margin: 0.6em 0;
         > .ui.grid.segment.expander {
             cursor: pointer;
 
@@ -465,12 +475,25 @@
                     padding: 0.6em 0.3em;
 
                     > span {
-                        font-size: 14px;
-                    }
-                    > a {
+                        .open-sans;
                         .medium-weight;
                         font-size: 14px;
                     }
+                    > a {
+                        .open-sans;
+                        .medium-weight;
+                        font-size: 14px;
+                    }
+                }
+            }
+        }
+        .ui.grid.segment.export-filters-info {
+            margin: 0 0 1em 0;
+            > .column {
+                padding: 5px 8px;
+
+                h5.ui.header {
+                    font-size: 13px;
                 }
             }
         }

@@ -7,7 +7,7 @@
             [sysrev.paypal :refer [paypal-env paypal-client-id]]
             [sysrev.resources :as res]
             [sysrev.stripe :refer [stripe-public-key stripe-client-id]]
-            [sysrev.util :refer [today-string-site-map]]
+            [sysrev.util :refer [today-string]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.shared.text :as text]))
@@ -129,7 +129,7 @@
   []
   (let [project->site-map-entry (fn [project]
                                   {:loc (str "https://sysrev.com/p/" (:project-id project))
-                                   :lastmod (today-string-site-map)
+                                   :lastmod (today-string :date)
                                    :changefreq "daily"})
         project-site-maps (map project->site-map-entry
                                (project/all-public-projects))]

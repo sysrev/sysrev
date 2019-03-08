@@ -54,7 +54,7 @@
   [:a.ui.fluid.right.labeled.icon.primary.button
    {:on-click (util/wrap-user-event
                #(dispatch [:articles/load-export-settings export-type true]))}
-   [:i.arrow.circle.right.icon] "Configure Export..."])
+   [:i.arrow.circle.right.icon] "Configure Export"])
 
 (defmethod panel-content [:project :project :export-data] []
   (fn [child]
@@ -66,23 +66,21 @@
           [:h4.ui.dividing.header "Group Answers"]
           [:p "This provides a CSV file containing the label answers from all project members for each article."]
           [:p "Each row contains answers for one article. Values are combined from all user answers; enabling \"Require Consensus\" for a label can ensure that user answers are identical."]
-          #_ [:p "By default, includes all labeled articles except those in Conflict status; this can be customized from the Articles page."]
-          #_ [ProjectExportNavigateForm :group-answers]
-          [ProjectExportForm :group-answers []]]
+          [:p "By default, includes all labeled articles except those in Conflict status; this can be customized from the Articles page."]
+          [ProjectExportNavigateForm :group-answers]
+          #_ [ProjectExportForm :group-answers []]]
          [:div.ui.segment
           [:h4.ui.dividing.header "User Answers"]
           [:p "This provides a CSV file containing the exact answers saved by each user for each article."]
           [:p "Each row contains answers that one user saved for one article."]
-          #_ [:p "By default, includes all labeled articles; this can be customized from the Articles page."]
-          #_ [ProjectExportNavigateForm :user-answers]
-          [ProjectExportForm :user-answers []]]]
+          [:p "By default, includes all labeled articles; this can be customized from the Articles page."]
+          [ProjectExportNavigateForm :user-answers]
+          #_ [ProjectExportForm :user-answers []]]]
         [:div.column
          [:div.ui.segment
           [:h4.ui.dividing.header "Articles (EndNote XML)"]
           [:p "This provides a set of articles in EndNote's XML format, for import to EndNote or other compatible software."]
-          #_ [:p "By default, includes all articles; this can be customized from the Articles page."]
-          #_ [ProjectExportNavigateForm :endnote-xml]
-          [ProjectExportForm :endnote-xml []]]]]
+          [:p "By default, includes all articles; this can be customized from the Articles page."]
+          [ProjectExportNavigateForm :endnote-xml]
+          #_ [ProjectExportForm :endnote-xml []]]]]
        child])))
-
-

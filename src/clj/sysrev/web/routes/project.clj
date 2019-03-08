@@ -16,7 +16,7 @@
             [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
             [sysrev.db.files :as files]
-            [sysrev.db.article_list :as alist]
+            [sysrev.db.article-list :as alist]
             [sysrev.db.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.export.endnote :as endnote-out]
@@ -580,20 +580,24 @@
                  user-id (current-user-id request)
                  export-type (-> request :params :export-type keyword)
                  {:keys [filters]} (:body request)
+                 article-ids (when filters
+                               (alist/query-project-article-ids
+                                {:project-id project-id}
+                                filters))
                  tempfile (case export-type
                             :user-answers
-                            (-> (export/export-user-answers project-id)
+                            (-> (export/export-user-answers
+                                 project-id :article-ids article-ids)
                                 (csv/write-csv)
                                 (create-export-tempfile))
-                            ;; TODO: accept filters as input instead of this article-ids filter
                             :group-answers
-                            (let [article-ids (export/all-nonconflict-article-ids project-id)]
-                              (-> (export/export-group-answers
-                                   project-id :article-ids article-ids)
-                                  (csv/write-csv)
-                                  (create-export-tempfile)))
+                            (-> (export/export-group-answers
+                                 project-id :article-ids article-ids)
+                                (csv/write-csv)
+                                (create-export-tempfile))
                             :endnote-xml
-                            (endnote-out/project-to-endnote-xml project-id :to-file true))
+                            (endnote-out/project-to-endnote-xml
+                             project-id :article-ids article-ids :to-file true))
                  entry (add-project-export project-id export-type tempfile
                                            {:user-id user-id :filters filters})
                  filename-base (case export-type
@@ -603,8 +607,13 @@
                  filename-ext (case export-type
                                 (:user-answers :group-answers)  ".csv"
                                 :endnote-xml                    ".xml")
-                 filename (str filename-base "_" project-id "_" (util/today-string)
-                               "_" (:download-id entry) filename-ext)]
+                 filename-project (str "P" project-id)
+                 filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
+                 filename-date (util/today-string "MMdd")
+                 filename (str filename-base "_"
+                               filename-project "_"
+                               filename-date "_"
+                               filename-articles filename-ext)]
              {:result {:success true
                        :entry (-> entry
                                   (select-keys [:download-id :export-type :added-time])

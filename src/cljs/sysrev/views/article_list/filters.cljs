@@ -173,7 +173,9 @@
            {filter-type value}
 
            :source
-           {filter-type value}
+           (let [{:keys [source-ids]} value]
+             (when (not-empty source-ids)
+               {filter-type value}))
 
            nil)
          (map-values #(dissoc % :editing?)))))
@@ -276,10 +278,12 @@
          (option-name x)])
       options)
      {:class
-      (cond-> "ui fluid"
-        multiple?          (str " multiple")
-        (not touchscreen?) (str " search")
-        true               (str " selection dropdown"))
+      (if multiple?
+        (cond-> "ui fluid"
+          multiple?          (str " multiple")
+          (not touchscreen?) (str " search")
+          true               (str " selection dropdown"))
+        "ui fluid floating dropdown button filter-dropdown")
       :onChange
       (fn [v t]
         (let [v (cond (= v "any")  nil
@@ -327,7 +331,7 @@
                 nil)]
     [FilterDropdown
      source-ids
-     #(describe-source %)
+     #(if (nil? %) "Select Source" (describe-source %))
      (first value)
      on-change
      multiple?
@@ -338,12 +342,8 @@
         {:keys [labels]} @(subscribe [:project/raw])]
     [FilterDropdown
      (concat [nil] label-ids)
-     #(if (nil? %)
-        "Any Label"
-        (get-in labels [% :short-label]))
-     value
-     on-change
-     false
+     #(if (nil? %) "Any Label" (get-in labels [% :short-label]))
+     value on-change false
      #(if (in? label-ids (uuid %))
         (uuid %) nil)]))
 
@@ -695,7 +695,7 @@
          [:div.middle.aligned.two.wide.column.delete-filter
           [:div.ui.tiny.fluid.icon.button
            {:on-click #(dispatch-sync [::delete-filter context filter-idx])}
-           [:i.times.icon]]]
+           [:i.times.circle.icon]]]
          [:div.middle.aligned.fourteen.wide.column.describe-filter
           [:button.ui.tiny.fluid.button
            {:on-click #(dispatch-sync [::edit-filter context filter-idx])}
@@ -725,14 +725,14 @@
   (when (not @(subscribe [::editing-filter? context]))
     (let [items [[:source "Source" "list"]
                  [:consensus "Consensus" "users"]
-                 [:has-user "User Content" "user"]
                  [:has-label "Labels" "tags"]
+                 [:has-user "User Content" "user"]
                  #_ [:has-annotation "Annotation" "quote left"]
                  ]
           touchscreen? @(subscribe [:touchscreen?])]
       [:div.ui.small.form.new-filter
        [ui/selection-dropdown
-        [:div.text "Filter by..."]
+        [:div.text "Add Filter"]
         (map-indexed
          (fn [i [ftype label icon]]
            [:div.item
@@ -742,6 +742,8 @@
             (str label)])
          items)
         {:class
+         "ui fluid floating dropdown primary button add-filter"
+         #_
          (if true #_ touchscreen?
              "ui fluid selection dropdown"
              "ui fluid search selection dropdown")
@@ -838,15 +840,15 @@
        [:label "Display Options"]
        [:div.ui.two.column.grid
         [:div.column
-         [make-button :self-only "Self Only" "user"]]
-        [:div.column
-         [make-button :show-inclusion "Inclusion" "circle plus"]]
-        [:div.column
          [make-button :show-labels "Labels" "tags"]]
         [:div.column
          [make-button :show-notes "Notes" "pencil alternate"]]
         [:div.column
-         [make-button :show-unconfirmed "Unconfirmed" nil]]]]]]))
+         [make-button :show-inclusion "Inclusion" "circle plus"]]
+        [:div.column
+         [make-button :show-unconfirmed "Unconfirmed" nil]]
+        [:div.column
+         [make-button :self-only "Self Only" "user"]]]]]]))
 
 (defn- SortOptionsForm [context]
   (let [sort-by @(subscribe [::al/sort-by context])
@@ -1005,9 +1007,16 @@
    :user-answers  [{:has-label {:confirmed true}}]
    :endnote-xml   []})
 
+(defn- ExportFiltersInfo [context]
+  (let [article-count @(al/sub-article-count (al/cached context))]
+    [:div.ui.two.column.middle.aligned.grid.raised.segment.export-filters-info
+     [:div.left.aligned.column>h5.ui.header "Active Filters"]
+     [:div.right.aligned.column
+      [:div.ui.label (str article-count " articles")]]]))
+
 (defn- ExportTypeForm [context export-type title file-format]
   (let [project-id @(subscribe [:active-project-id])
-        options @(subscribe [::al/export-filter-args context])
+        options @(subscribe [::al/export-filter-args (al/cached context)])
         action [:project/generate-export project-id export-type options]
         running? (loading/action-running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
@@ -1028,7 +1037,7 @@
       [:div.left.aligned.column>h5.ui.header title]
       [:div.right.aligned.column>div.ui.small.grey.label file-format]]
      (when expanded?
-       [:div.ui.segment.expanded>div.ui.small.form.export-type
+       [:div.ui.secondary.segment.expanded>div.ui.small.form.export-type
         [:div.field>div.fields.export-actions
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.primary.labeled.icon.button
@@ -1043,11 +1052,12 @@
             :class (when defaults? "disabled")}
            [:i.icon {:class (if defaults? "circle check outline" "exchange")}]
            "Set Defaults"]]]
-        (when (or running? file?)
+        (when-not error
           [:div.field>div.ui.center.aligned.segment.file-download
            (cond running?  [:span "Generating file..."]
                  file?     [:a {:href url :target "_blank" :download filename}
-                            [:i.outline.file.icon] " " filename])])
+                            [:i.outline.file.icon] " " filename]
+                 :else     [:span "<Generate file to download>"])])
         (when error
           [:div.field>div.ui.negative.message
            (or (-> error :message)
@@ -1067,9 +1077,10 @@
      (when expand-export
        [:div.ui.segment.export-data-content
         [:h6.ui.right.aligned.header
-         {:style {:margin "0px 0 12px 0"}}
+         {:style {:margin "2px 0 8px 0"}}
          [:a {:href @(subscribe [:project/uri nil "/export"])}
           "What do these mean?"]]
+        [ExportFiltersInfo context]
         [ExportTypeForm context :endnote-xml "Articles" "EndNote XML"]
         [ExportTypeForm context :group-answers "Group Answers" "CSV"]
         [ExportTypeForm context :user-answers "User Answers" "CSV"]])]))
@@ -1083,30 +1094,31 @@
      [:a.ui.fluid.primary.left.labeled.icon.button
       {:href (project-uri project-id "/add-articles")}
       [:i.list.icon] "Add/Manage Articles"]
-     [:div.ui.segment.filters-content
-      [:div.ui.small.form
-       {:on-submit (util/wrap-prevent-default #(do nil))}
-       [:div.sixteen.wide.field
-        [:label "Filters"]
-        [:div.inner
-         [NewFilterElement context]
-         [TextSearchDescribeElement context]
-         (if (empty? input-filters)
-           [FilterDescribeElement context nil]
-           (doall
-            (map-indexed
-             (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
-               (if (in? active-filters fr)
-                 ^{:key [:filter-text filter-idx]}
-                 [FilterDescribeElement context filter-idx]
-                 ^{:key [:filter-editor filter-idx]}
-                 [FilterEditElement context filter-idx]))
-             input-filters)))
-         [ResetReloadForm context]]]]]
-     [SortOptionsForm context]
+     [:div.ui.segments
+      [:div.ui.segment.filters-content
+       [:div.ui.small.form
+        {:on-submit (util/wrap-prevent-default #(do nil))}
+        [:div.sixteen.wide.field
+         [:label "Article Filters"]
+         [:div.inner
+          [NewFilterElement context]
+          [TextSearchDescribeElement context]
+          (if (empty? input-filters)
+            [FilterDescribeElement context nil]
+            (doall
+             (map-indexed
+              (fn [filter-idx fr] ^{:key [:filter-element filter-idx]}
+                (if (in? active-filters fr)
+                  ^{:key [:filter-text filter-idx]}
+                  [FilterDescribeElement context filter-idx]
+                  ^{:key [:filter-editor filter-idx]}
+                  [FilterEditElement context filter-idx]))
+              input-filters)))
+          #_ [ResetReloadForm context]]]]]
+      [SortOptionsForm context]]
      [DisplayOptionsForm context]
      [FilterPresetsForm context]
-     #_ [ExportDataForm]]))
+     [ExportDataForm]]))
 
 (defn ArticleListFiltersColumn [context expanded?]
   [:div

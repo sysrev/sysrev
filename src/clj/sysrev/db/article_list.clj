@@ -1,4 +1,4 @@
-(ns sysrev.db.article_list
+(ns sysrev.db.article-list
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -281,3 +281,18 @@ WHERE project_id=%d
                  context filters sort-by sort-dir)]
     {:entries (->> entries (drop n-offset) (take n-count))
      :total-count (count entries)}))
+
+(defn query-project-article-ids
+  [{:keys [project-id] :as context} filters &
+   {:keys [sort-by sort-dir]}]
+  (let [sort-fn (if sort-by
+                  (get-sort-fn sort-by sort-dir)
+                  identity)
+        filter-fns (mapv (get-filter-fn context) filters)
+        filter-all-fn (if (empty? filters)
+                        (constantly true)
+                        (apply every-pred filter-fns))]
+    (->> (vals (project-full-article-list project-id))
+         (filter filter-all-fn)
+         (sort-fn)
+         (map :article-id))))

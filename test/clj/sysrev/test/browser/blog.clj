@@ -17,7 +17,8 @@
    entry-link ".ui.segment.blog-list-entry h3 a"
    list-button (xpath "//a[contains(@class,'button')"
                       " and contains(text(),'All Blog Entries')]")
-   entry {:url "https://s3.amazonaws.com/sysrev-blog/browser-test.html"
+   entry {;; :url "https://s3.amazonaws.com/sysrev-blog/browser-test.html"
+          :url "https://s3.amazonaws.com/sysrev-blog/NERGenes_Training.html"
           :title "Browser Test Entry"
           :description "Test entry for [Sysrev](http://sysrev.com/) blog."}]
   (if (test/db-connected?)

@@ -79,7 +79,7 @@
          content))
 
 (defn article-to-endnote-xml
-  [article-id {:keys [filename] :or {filename "SR_Articles"}}]
+  [article-id {:keys [filename] :or {filename "Articles"}}]
   (let [article (article/get-article article-id :items [:locations])]
     [:record
      [:database {:name (str filename ".enl")}
@@ -161,12 +161,15 @@
         :else            (io/file to-file)))
 
 (defn project-to-endnote-xml
-  [project-id & {:keys [to-file]}]
-  (let [filename (str "SR_Articles_" project-id "_" (util/today-string))
-        article-ids (-> (q/select-project-articles project-id [:article-id])
-                        (->> do-query (map :article-id)))
-        file (some-> to-file make-out-file)]
-    (article-ids-to-endnote-xml article-ids filename :file file)))
+  [project-id & {:keys [to-file article-ids filename]}]
+  (let [article-ids (some-> article-ids (set))
+        export-ids (->> (q/select-project-articles project-id [:article-id])
+                        do-query (map :article-id)
+                        (filter (if article-ids #(contains? article-ids %) identity)))]
+    (article-ids-to-endnote-xml
+     export-ids
+     (or filename (str "Articles_" project-id "_" (util/today-string)))
+     :file (some-> to-file (make-out-file)))))
 
 ;; TODO: add export functionality in web Articles interface, delete this
 (defn project-included-to-endnote-xml

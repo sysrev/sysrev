@@ -89,8 +89,10 @@
 (defn export-user-answers
   "Returns CSV-printable list of raw user article answers. The first row
   contains column names; each following row contains answers for one
-  value of (user,article)."
-  [project-id]
+  value of (user,article). article-ids optionally specifies a subset
+  of articles within project to include; by default, all enabled
+  articles will be included."
+  [project-id & {:keys [article-ids]}]
   (with-transaction
     (let [all-labels (-> (q/select-label-where
                           project-id true
@@ -142,6 +144,9 @@
                 (map :short-label all-labels)
                 ["User Note" "Title" "Journal" "Authors"])]
        (->> user-answers
+            (filter (if (empty? article-ids)
+                      (constantly true)
+                      #(in? article-ids (-> % first :article-id))))
             (mapv
              (fn [user-article]
                (let [{:keys [article-id user-id email]}

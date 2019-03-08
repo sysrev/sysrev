@@ -25,7 +25,7 @@
    :sort-dir :desc})
 
 (defn get-display-count []
-  (if (util/mobile?) 10 20))
+  (if (util/mobile?) 10 10))
 
 (reg-sub
  ::panel
@@ -230,7 +230,7 @@
  (fn [db [context]]
    (-> (set-state db context [:filters] nil)
        (set-state context [:display-offset] nil)
-       (set-state context [:display] nil))))
+       #_ (set-state context [:display] nil))))
 
 (defn- get-url-params-impl [db context]
   (let [{:keys [display-offset active-article

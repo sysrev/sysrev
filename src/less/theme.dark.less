@@ -148,3 +148,10 @@ div.article-answers {
 .ui.menu .item.disabled:hover {
     color: rgba(200, 200, 200, 0.4) !important;
 }
+
+@boxShadowColor: rgba(10,10,10,0.385);
+
+.ui.raised.segment {
+    -webkit-box-shadow: 0 2px 5px 0 @boxShadowColor, 0 2px 8px 0 @boxShadowColor !important;
+    box-shadow:         0 2px 5px 0 @boxShadowColor, 0 2px 8px 0 @boxShadowColor !important;
+}
