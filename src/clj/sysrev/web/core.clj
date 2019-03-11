@@ -62,6 +62,13 @@
         (default/wrap-defaults config)
         (wrap-transit-body {:opts {}}))))
 
+(defn wrap-force-json-request
+  "Modifies request map to set header \"Content-Type\" as
+  \"application/json\" before processing request."
+  [handler]
+  (fn [request]
+    (handler (assoc-in request [:headers "content-type"] "application/json"))))
+
 (defn wrap-sysrev-api
   "Ring handler wrapper for JSON API (non-browser) routes"
   [handler]
@@ -76,7 +83,8 @@
         wrap-multipart-params
         wrap-no-cache
         (default/wrap-defaults config)
-        (wrap-json-body {:keywords? true}))))
+        (wrap-json-body {:keywords? true})
+        wrap-force-json-request)))
 
 (defn wrap-sysrev-html
   "Ring handler wrapper for web HTML responses"
