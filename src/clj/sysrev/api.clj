@@ -1357,7 +1357,7 @@
   "Read the current profile image meta data"
   [user-id]
   {:result {:success true
-            :meta (json/read-json (files/active-profile-image-meta user-id))}})
+            :meta (json/read-json (or (files/active-profile-image-meta user-id) "{}"))}})
 
 (defn create-avatar!
   [user-id file filename meta]
@@ -1382,11 +1382,19 @@
 (defn read-avatar
   "Return the url for the profile avatar"
   [user-id]
-  (let [{:keys [key filename]} (files/avatar-image-key-filename user-id)]
-    (if-not (empty? key)
-      (-> (response/response (fstore/get-file key :image))
-          (response/header "Content-Disposition"
-                           (format "attachment: filenane=\"" filename "\"")))
-      (-> (response/response (clojure.java.io/file "resources/public/default_profile.jpeg" ))
-          (response/header "Content-Disposition"
-                           (format "attachment: filenane=\"" "default-profile.jpeg" "\""))))))
+  (let [email (:email (users/get-user-by-id user-id))
+        gravatar-img (files/gravatar-link email)
+        {:keys [key filename]} (files/avatar-image-key-filename user-id)]
+    (cond (not (empty? key))
+          (-> (response/response (fstore/get-file key :image))
+              (response/header "Content-Disposition"
+                               (format "attachment: filenane=\"" filename "\"")))
+          (not (nil? gravatar-img))
+          (-> (response/response gravatar-img)
+              (response/header "Content-Disposition"
+                               (str "attachment: filenane=\"" (str user-id "-gravatar.jpeg") "\"")))
+
+          :else
+          (-> (response/response (clojure.java.io/file "resources/public/default_profile.jpeg" ))
+              (response/header "Content-Disposition"
+                               (format "attachment: filenane=\"" "default-profile.jpeg" "\""))))))

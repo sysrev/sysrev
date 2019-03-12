@@ -74,7 +74,8 @@
                  [bouncer "1.0.1"] ;; validation
                  [hickory "0.7.1"] ;; html parser
                  [kanwei/sitemap "0.3.1"] ;; sitemap alternative with clojure.spec fix
-                 [org.clojure/core.memoize "0.7.1"]]
+                 [org.clojure/core.memoize "0.7.1"]
+                 [gravatar "1.1.1"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-Xms800m"

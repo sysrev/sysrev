@@ -184,7 +184,8 @@
     [Image {:src (str "/api/user/" user-id "/avatar")
             :size "medium"
             :circular true
-            :style {:cursor "pointer"}}]))
+            :style {:cursor "pointer"}
+            :alt "error"}]))
 
 (defn User
   [{:keys [email user-id]}]
@@ -196,11 +197,10 @@
      [Grid
       [Row
        [Column {:width 2}
-        ;;[Image {:circular true}]
         (if mutable?
           [Modal {:trigger
                   (r/as-component
-                   [:div.ui {:data-tooltip "Change your Avatar"
+                   [:div.ui {:data-tooltip "Change Your Avatar"
                              :data-position "bottom center"}
                     [Avatar {:user-id user-id
                              :reload-avatar? reload-avatar?
@@ -208,7 +208,7 @@
                   :open @modal-open
                   :on-open #(reset! modal-open true)
                   :on-close #(reset! modal-open false)}
-           [ModalHeader "Select a Photo"]
+           [ModalHeader "Edit Your Avatar"]
            [ModalContent
             [ModalDescription
              [CroppieComponent {:user-id user-id

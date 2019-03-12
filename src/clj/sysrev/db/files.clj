@@ -1,8 +1,11 @@
 (ns sysrev.db.files
-  (:require [sysrev.db.core :as db :refer
+  (:require [clj-http.client :as http]
+            [gravatar.core :as gr]
+            [sysrev.db.core :as db :refer
              [do-query do-execute sql-now clear-project-cache to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.util :as u]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -186,7 +189,9 @@
   [user-id]
   (-> (select :meta)
       (from :web_user_profile_image)
-      (where [:= :user_id user-id])
+      (where [:and
+              [:= :active true]
+              [:= :user_id user-id]])
       do-query first :meta))
 
 (defn update-profile-image-meta!
@@ -224,6 +229,18 @@
         (from :s3store)
         (where [:= :id s3-id])
         do-query first)))
+
+(defn gravatar-link
+  [email]
+  (let [gravatar-link (gr/avatar-url email :default 404 :https true)
+        response (http/get gravatar-link
+                           {:throw-exceptions false
+                            :as :byte-array
+                            ;; needed to prevent 403 (permission denied)
+                            :headers {"User-Agent"
+                                      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.152 Safari/537.36"}})]
+    (if-not (= (:status response) 404)
+      (:body response))))
 
 (defn delete-file!
   [s3-id]
