@@ -102,7 +102,7 @@
       (switch-user user2)
       ;; check article list interface (Conflict filter)
       (b/click conflicts)
-      (b/click "a.article-list-article")
+      (b/click "div.article-list-article")
       ;; check for conflict label in article component
       (is (b/exists? ".label.review-status.orange"))
       ;; change answers (remove value for categorical label)
@@ -120,7 +120,7 @@
       (check-status 1 0 0)
       ;; check article list interface (Include Full filter)
       (b/click include-full)
-      (is (b/exists? "a.article-list-article"))
+      (is (b/exists? "div.article-list-article"))
       (nav/go-project-route "/articles")
       ;; re-enable label consensus setting
       (define/edit-label @label-id-1
@@ -129,7 +129,7 @@
       (check-status 0 1 0)
       ;; resolve article conflict
       (b/click conflicts)
-      (b/click "a.article-list-article")
+      (b/click "div.article-list-article")
       (is (b/exists? ".button.change-labels"))
       (is (= "Resolve Labels" (taxi/text ".button.change-labels")))
       (b/click ".button.change-labels")
@@ -139,8 +139,8 @@
       (check-status 1 0 1)
       ;; check article list interface (Resolved filter)
       (b/click resolved)
-      (is (b/exists? "a.article-list-article"))
-      (b/click "a.article-list-article")
+      (is (b/exists? "div.article-list-article"))
+      (b/click "div.article-list-article")
       ;; check for resolved labels in article component
       (is (b/exists? ".ui.label.review-status.purple"))
       (is (b/exists? ".ui.label.labels-status.purple")))

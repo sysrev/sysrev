@@ -16,7 +16,7 @@
             [sysrev.views.labels :as labels]
             [sysrev.views.article-list.base :as al]
             [sysrev.views.article-list.filters :as f]
-            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink]]
+            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.util :as util :refer [nbsp]]
             [sysrev.shared.util :as sutil :refer [in? map-values]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
@@ -108,9 +108,13 @@
              (when (or (not= answer-class "resolved")
                        (:resolve entry))
                [:div.item {:key [:answer article-id user-id]}
-                (AnswerCellIcon inclusion)
+                ;;(AnswerCellIcon inclusion)
                 [:div.content>div.header
-                 [UserPublicProfileLink {:user-id user-id :display-name @(subscribe [:user/display user-id])}]]])))
+                 [:div {:style {:display "inline-block"}}
+                  [Avatar {:user-id user-id}]
+                  [UserPublicProfileLink {:user-id user-id :display-name @(subscribe [:user/display user-id])}]
+                  [:div {:style {:margin-left "0.25em"
+                                 :display "inline-block"}} (AnswerCellIcon inclusion)]]]])))
          labels))])
 
 (defn ChangeLabelsButton [context article-id & {:keys [sidebar]}]
@@ -212,8 +216,12 @@
        [:div.sixteen.wide.column.article-entry
         [:div.ui.middle.aligned.grid.article-main
          [:div.row
-          [:div.column.article-title
-           {:class (if inclusion-column? "thirteen wide" "sixteen wide")}
+          [:a.column.article-title.black-text
+           {:class (if inclusion-column? "thirteen wide" "sixteen wide")
+            :href (al/get-base-uri context article-id)
+            :on-click (util/wrap-user-event
+                       #(dispatch [:article-list/set-recent-article
+                                   context article-id]))}
            [:div.ui.middle.aligned.grid
             [:div.row
              [:div.fourteen.wide.column
@@ -296,7 +304,7 @@
                  last? (= i (dec (count articles)))]
              (doall
               (list
-               [:a.ui.middle.aligned.grid.segment.article-list-article
+               [:div.ui.middle.aligned.grid.segment.article-list-article
                 {:key [:list-row article-id]
                  :class (cond-> ""
                           recent? (str " active")
@@ -304,10 +312,10 @@
                           labels? (str " with-labels")
                           first?  (str " first")
                           last?   (str " last"))
-                 :href (al/get-base-uri context article-id)
-                 :on-click (util/wrap-user-event
-                            #(dispatch [:article-list/set-recent-article
-                                        context article-id]))
+                 ;;:href (al/get-base-uri context article-id)
+                 ;; :on-click (util/wrap-user-event
+                 ;;            #(dispatch [:article-list/set-recent-article
+                 ;;                        context article-id]))
                  #_
                  (util/wrap-user-event
                   (if active?

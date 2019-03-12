@@ -1349,7 +1349,7 @@
     (if-not (empty? key)
       (-> (response/response (fstore/get-file key :image))
           (response/header "Content-Disposition"
-                           (format "attachment: filenane=\"" filename "\"")))
+                           (format "attachment: filename=\"" filename "\"")))
       {:error {:status not-found
                :message "No profile image associated with user"}})))
 
@@ -1388,13 +1388,15 @@
     (cond (not (empty? key))
           (-> (response/response (fstore/get-file key :image))
               (response/header "Content-Disposition"
-                               (format "attachment: filenane=\"" filename "\"")))
+                               (format "attachment: filename=\"" filename "\"")))
           (not (nil? gravatar-img))
           (-> (response/response gravatar-img)
               (response/header "Content-Disposition"
-                               (str "attachment: filenane=\"" (str user-id "-gravatar.jpeg") "\"")))
+                               (str "attachment: filename=\"" (str user-id "-gravatar.jpeg") "\"")))
 
           :else
-          (-> (response/response (clojure.java.io/file "resources/public/default_profile.jpeg" ))
+          (-> (response/response (-> "public/default_profile.jpeg"
+                                     (clojure.java.io/resource)
+                                     (clojure.java.io/file)))
               (response/header "Content-Disposition"
-                               (format "attachment: filenane=\"" "default-profile.jpeg" "\""))))))
+                               (format "attachment: filename=\"" "default-profile.jpeg" "\""))))))

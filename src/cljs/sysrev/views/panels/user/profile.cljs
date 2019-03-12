@@ -175,9 +175,15 @@
 (defn UserPublicProfileLink
   "Should also handle permissions and determine whether or not to display a link"
   [{:keys [user-id display-name]}]
-  [:a {:href (str "/users/" user-id)} display-name])
+  [:a {:href (str "/users/" user-id)
+       :style {:margin-left "0.25em"}} display-name])
 
 (defn Avatar
+  [{:keys [user-id]}]
+  [Image {:src (str "/api/user/" user-id "/avatar")
+          :avatar true}])
+
+(defn ProfileAvatar
   [{:keys [user-id reload-avatar? modal-open]}]
   (if @reload-avatar?
     (reset! reload-avatar? false)
@@ -202,7 +208,7 @@
                   (r/as-component
                    [:div.ui {:data-tooltip "Change Your Avatar"
                              :data-position "bottom center"}
-                    [Avatar {:user-id user-id
+                    [ProfileAvatar {:user-id user-id
                              :reload-avatar? reload-avatar?
                              :modal-open #(reset! modal-open true)}]])
                   :open @modal-open
@@ -214,9 +220,9 @@
              [CroppieComponent {:user-id user-id
                                 :modal-open modal-open
                                 :reload-avatar? reload-avatar?}]]]]
-          [Avatar {:user-id user-id
-                   :reload-avatar? reload-avatar?
-                   :modal-open (constantly false)}])]
+          [ProfileAvatar {:user-id user-id
+                          :reload-avatar? reload-avatar?
+                          :modal-open (constantly false)}])]
        [Column {:width 12}
         [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
         [:div

@@ -20,7 +20,7 @@
   (test/db-connected?)
   [project-name "Annotator Test"
    search-term "foo bar enthalpic mesoporous"
-   article-title-div {:xpath "//div[contains(@class,'article-title')]"}
+   article-title-div {:xpath "//a[contains(@class,'article-title')]"}
    select-text-to-annotate {:xpath "//div[contains(text(),'Select text to annotate')]"}
    selected-text {:xpath "//span[contains(text(),'Journal of the American Chemical Society')]"}
    semantic-class-input {:xpath "//div[contains(@class,'semantic-class')]//input"}

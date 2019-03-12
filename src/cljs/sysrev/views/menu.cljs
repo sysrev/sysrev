@@ -5,6 +5,7 @@
             [sysrev.loading :as loading]
             [sysrev.nav :refer [nav nav-scroll-top]]
             [sysrev.views.components :refer [dropdown-menu with-tooltip]]
+            [sysrev.views.panels.user.profile :refer [Avatar]]
             [sysrev.util :as util])
   (:require-macros [sysrev.macros :refer [with-mount-hook]]))
 
@@ -80,7 +81,10 @@
          [:a.item {:id "user-name-link"
                    ;; :on-click #(dispatch [:navigate [:user-settings]])
                    :href "/user/settings"}
-          [:span.blue-text [:i.user.icon] user-display]]
+          [:div
+           [Avatar {:user-id user-id}]
+           [:span.blue-text
+            {:style {:margin-left "0.25em"}} user-display]]]
          [:a.item {:id "log-out-link"
                    :on-click #(dispatch [:action [:auth/log-out]])}
           "Log Out"]
