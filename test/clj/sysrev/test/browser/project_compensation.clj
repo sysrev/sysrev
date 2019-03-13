@@ -28,9 +28,13 @@
 ;; PayPal
 ;;(def paypal-checkout-window {:title "PayPal Checkout"})
 (def cardnumber-input (xpath "//input[@id='cc']"))
-(def visa-cardnumber "4032033511927936")
+;; test information associated with:  james+sandbox@insilica.co
+;; visa number: 4032034996959212
+;; exp: 10/23
+;; everything else you can make up, except the city must match the zip code
+(def visa-cardnumber "4032034996959212")
 (def card-exp-input (xpath "//input[@id='expiry_value']"))
-(def card-exp "11/23")
+(def card-exp "10/23")
 (def cvv-input (xpath "//input[@id='cvv']"))
 (def first-name-input (xpath "//input[@id='firstName']"))
 (def last-name-input (xpath "//input[@id='lastName']"))
@@ -585,14 +589,16 @@
         (nav/go-route "/user/settings/compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-paid? user2 project1)
-        (correct-payments-owed? user2 project2)))
+        (correct-payments-owed? user2 project2))
+      )
   :cleanup
   (do (doseq [{:keys [project-id]} projects]
         (when @project-id
           (delete-project-compensations @project-id)
           (project/delete-project @project-id)))
       (doseq [{:keys [email]} test-users]
-        (b/delete-test-user :email email))))
+          (b/delete-test-user :email email))
+      ))
 
 ;; for deleting during manual test
 ;; (doall (map #(do (delete-project-compensations %) (project/delete-project %)) [113 114])) ; manual input of project-id

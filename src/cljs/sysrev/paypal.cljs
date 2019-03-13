@@ -63,12 +63,7 @@
 
 ;; https://developer.paypal.com/docs/checkout/quick-start/
 ;; this also depends on [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
-;; being in index.clj
-
-;; test information associated with:  james+sandbox+1@insilica.co
-;; visa number: 4032033511927936
-;; exp: 11/2023
-;; everything else you can make up, except the city must match the zip code
+;; in index.clj
 (defn PayPalButton
   "Create a PayPalButton where amount-atom derefs to an integer amount of cents. Optional on-authorize is a fn
   of data and actions (fn [data actions] ...) to pass to onAuthorize"
