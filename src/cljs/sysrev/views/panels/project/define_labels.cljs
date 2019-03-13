@@ -93,7 +93,7 @@
 (defn create-blank-label
   "Create a label map"
   [value-type]
-  (let [label-id (str "new-label-" (util/random-id))]
+  (let [label-id (str "new-label-" (sutil/random-id))]
     {:definition
      (cond-> {}
        (= value-type "boolean") (assoc :inclusion-values [])
@@ -102,7 +102,7 @@
                                            :multi? true)),
      :inclusion false
      :category "extra"
-     :name (str value-type (util/random-id))
+     :name (str value-type (sutil/random-id))
      :project-ordering (inc (max-project-ordering))
      :label-id label-id ;; this is a string, to distinguish unsaved labels
      :project-id (active-project-id @app-db)
@@ -134,7 +134,8 @@
   [labels]
   (->> labels
        vals
-       ;; TODO: run db migration to fix label `category` values
+       ;; FIX: run db migration to fix label `category` values;
+       ;; may affect label tooltips and sorting
        (map (fn [{:keys [definition] :as label}]
               (let [{:keys [inclusion-values]} definition]
                 ;; set correct `category` value based on `inclusion-values`
@@ -190,12 +191,10 @@
     (when-not (string? @label-id)
       [:button.ui.small.fluid.labeled.icon.button
        {:class (if @enabled? "" "primary")
-        :on-click
-        (util/wrap-user-event
-         #(do (reset-local-label! @label-id)
-              (swap! (r/cursor label [:enabled]) not)
-              (sync-to-server))
-         :prevent-default true)}
+        :on-click (util/wrap-user-event #(do (reset-local-label! @label-id)
+                                             (swap! (r/cursor label [:enabled]) not)
+                                             (sync-to-server))
+                                        :prevent-default true)}
        [:i {:class (str icon-class " icon")}]
        text])))
 
@@ -206,9 +205,8 @@
         enabled? (r/cursor label [:enabled])
         text (if (string? @label-id) "Discard" "Cancel")]
     [:button.ui.small.fluid.labeled.icon.button
-     {:on-click
-      (util/wrap-user-event #(reset-local-label! @label-id)
-                            :prevent-default true)}
+     {:on-click (util/wrap-user-event #(reset-local-label! @label-id)
+                                      :prevent-default true)}
      [:i.circle.times.icon]
      text]))
 
@@ -231,16 +229,10 @@
   (let [{:keys [editing?]} @label
         synced? (labels-synced?)]
     [:div.ui.small.icon.button.edit-label-button
-     {:class (if allow-edit? "" "disabled")
-      :on-click
-      (util/wrap-user-event
-       #(do (when editing?
-              ;; save the labels
-              (sync-to-server))
-            ;; set the editing? to its boolean opposite
-            (swap! (r/cursor label [:editing?]) not)))
-      :style {:margin-left 0
-              :margin-right 0}}
+     {:class (when-not allow-edit? "disabled")
+      :style {:margin-left 0 :margin-right 0}
+      :on-click (util/wrap-user-event #(do (when editing? (sync-to-server))
+                                           (swap! (r/cursor label [:editing?]) not)))}
      (if editing?
        (if synced?
          [:i.circle.check.icon]
@@ -251,9 +243,7 @@
   "Add a label of type"
   [value-type]
   [:button.ui.fluid.large.labeled.icon.button
-   {:on-click
-    (util/wrap-user-event
-     #(add-new-label! (create-blank-label value-type)))}
+   {:on-click (util/wrap-user-event #(add-new-label! (create-blank-label value-type)))}
    [:i.plus.circle.icon]
    (str "Add " (str/capitalize value-type) " Label")])
 
@@ -390,12 +380,8 @@
         {:field-class "max-length"
          :error (get-in @errors [:definition :max-length])
          :value max-length
-         :on-change (fn [event]
-                      (let [value (-> event .-target .-value)
-                            parse-value (if (util/parse-to-number? value)
-                                          (sutil/parse-integer value)
-                                          value)]
-                        (reset! max-length parse-value)))
+         :on-change #(let [value (-> % .-target .-value)]
+                       (reset! max-length (or (sutil/parse-integer value) value)))
          :placeholder "100"
          :label "Max length"}])
 
@@ -407,31 +393,26 @@
          :default-value (str/join "," @examples)
          :type "text"
          :placeholder "example one,example two"
-         :on-change (fn [event]
-                      (let [value (-> event .-target .-value)]
-                        (if (empty? value)
-                          (reset! examples nil)
-                          (reset! examples
-                                  (str/split value #",")))))
+         :on-change #(let [value (-> % .-target .-value)]
+                       (if (empty? value)
+                         (reset! examples nil)
+                         (reset! examples (str/split value #","))))
          :label "Examples (comma-separated)"
          :tooltip ["Examples of possible label values for reviewers."
                    "Displayed as tooltip in review interface."]}])
 
      (when (= @value-type "categorical")
-       ;; TODO: whitespace not trimmed from input strings
+       ;; FIX: whitespace not trimmed from input strings;
        ;; need to run db migration to fix all existing values
        [ui/TextInputField
         {:field-class "categories"
          :error (get-in @errors [:definition :all-values])
          :default-value (str/join "," @all-values)
          :placeholder "one,two,three"
-         :on-change (fn [event]
-                      (let [value (-> event .-target .-value)]
-                        (if (empty? value)
-                          (reset! all-values nil)
-                          (reset! all-values
-                                  (->> (str/split value #",")
-                                       #_ (map str/trim))))))
+         :on-change #(let [value (-> % .-target .-value)]
+                       (if (empty? value)
+                         (reset! all-values nil)
+                         (reset! all-values (str/split value #","))))
          :label "Categories (comma-separated options)"
          :tooltip ["List of values allowed for label."
                    "Reviewers may select multiple values in their answers."]}])
@@ -524,21 +505,13 @@
          ["Select which value should indicate article inclusion."])
         [ui/LabeledCheckbox
          {:checked? (contains? (set @inclusion-values) false)
-          :on-change (fn [event]
-                       (let [checked? (-> event .-target .-checked)]
-                         (reset! inclusion-values
-                                 (if checked?
-                                   [false]
-                                   []))))
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (reset! inclusion-values (if checked? [false] [])))
           :label "No"}]
         [ui/LabeledCheckbox
          {:checked? (contains? (set @inclusion-values) true)
-          :on-change (fn [event]
-                       (let [checked? (-> event .-target .-checked)]
-                         (reset! inclusion-values
-                                 (if checked?
-                                   [true]
-                                   []))))
+          :on-change #(let [checked? (-> % .-target .-checked)]
+                        (reset! inclusion-values (if checked? [true] [])))
           :label "Yes"}]
         [show-error-msg (get-in @errors [:definition :inclusion-values])]])
      [:div.field {:style {:margin-bottom "0.75em"}}
@@ -572,8 +545,7 @@
           {:class (cond-> ""
                     (or (empty? @value)
                         (every? empty? @value)) (str " disabled"))
-           :on-click (util/wrap-user-event
-                      #(reset! value [""]))}
+           :on-click (util/wrap-user-event #(reset! value [""]))}
           [:i.times.icon]])
        [:input
         {:type "text"
@@ -624,17 +596,15 @@
            {:id dom-id
             :class dropdown-class
             ;; hide dropdown on click anywhere in main dropdown box
-            :on-click
-            (util/wrap-user-event
-             #(when (or (= dom-id (-> % .-target .-id))
-                        (-> (js/$ (-> % .-target))
-                            (.hasClass "default"))
-                        (-> (js/$ (-> % .-target))
-                            (.hasClass "label")))
-                (let [dd (js/$ (str "#" dom-id))]
-                  (when (.dropdown dd "is visible")
-                    (.dropdown dd "hide"))))
-             :timeout false)}
+            :on-click (util/wrap-user-event
+                       #(let [target (-> % .-target)]
+                          (when (or (= dom-id (.-id target))
+                                    (-> (js/$ target) (.hasClass "default"))
+                                    (-> (js/$ target) (.hasClass "label")))
+                            (let [dd (js/$ (str "#" dom-id))]
+                              (when (.dropdown dd "is visible")
+                                (.dropdown dd "hide")))))
+                       :timeout false)}
            [:input
             {:name (str "label-edit(" dom-id ")")
              :value (str/join "," @value)
@@ -660,10 +630,8 @@
 (defn Label
   [label]
   (let [{:keys [value-type question short-label
-                label-id category required]}
-        @label
-        on-click-help (util/wrap-user-event
-                       #(do nil) :timeout false)]
+                label-id category required]} @label
+        on-click-help (util/wrap-user-event #(do nil) :timeout false)]
     [:div.ui.column.label-edit {:class (when required "required")}
      [:div.ui.middle.aligned.grid.label-edit
       [ui/with-tooltip
@@ -803,7 +771,7 @@
                 active-ids))]
        (when (not-empty disabled-ids)
          [:h4.ui.block.header "Disabled Labels"])
-       ;; TODO: collapse disabled labels by default, display on click
+       ;; FIX: collapse disabled labels by default, display on click
        (when (not-empty disabled-ids)
          [:div.ui.two.column.stackable.grid.label-items
           (doall (map-indexed

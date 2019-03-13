@@ -2,8 +2,8 @@
   (:require [amazonica.aws.s3 :as s3]
             [sysrev.config.core :as config]
             [sysrev.db.files :as files]
-            [sysrev.util :as u]
-            [sysrev.shared.util :as su :refer [in?]])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:import (java.io ByteArrayInputStream)
            java.util.UUID))
 
@@ -31,8 +31,8 @@
   (let [bucket-name (lookup-bucket bucket)
         file-key (or (some-> file-key str)
                      (-> file
-                         u/file->byte-array
-                         u/byte-array->sha-1-hash ))]
+                         util/file->byte-array
+                         util/byte-array->sha-1-hash))]
     (s3/put-object (s3-credentials)
                    :bucket-name bucket-name
                    :key file-key
@@ -49,7 +49,7 @@
   [byte-array bucket & {:keys [file-key]}]
   (let [bucket-name (lookup-bucket bucket)
         file-key (or (some-> file-key str)
-                     (u/byte-array->sha-1-hash byte-array))
+                     (util/byte-array->sha-1-hash byte-array))
         byte-array-input-stream (ByteArrayInputStream. byte-array)]
     (s3/put-object (s3-credentials)
                    :bucket-name bucket-name
@@ -69,7 +69,7 @@
   "Given a file-key and bucket specifier, return byte array of file data"
   [file-key bucket]
   (-> (lookup-file file-key bucket)
-      :object-content u/slurp-bytes))
+      :object-content util/slurp-bytes))
 
 ;; TODO: move this somewhere else?
 (defn save-document-file [project-id user-id name file]
@@ -82,4 +82,4 @@
                 :file-id file-key
                 :user-id user-id})
         files/map->Filerec
-        files/insert-file-rec)))
+        files/insert-document-file-rec)))

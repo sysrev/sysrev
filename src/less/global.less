@@ -158,6 +158,10 @@ a:hover { color: darken(@blue, 8); }
     margin-right: auto !important;
 }
 
+.inline-block {
+    display: inline-block !important;
+}
+
 .flex-center-children {
     display: flex;
     -webkit-box-align: center;
@@ -184,13 +188,21 @@ h4 {
 }
 
 .ui.label.small {
-    padding-left: 7px;
-    padding-right: 7px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.tooltip-dark-text {
+    font-size: 14px;
+    color: @darkText;
 }
 
 .ui.popup.tooltip {
-    font-size: 14px;
-    color: @darkText;
+    .tooltip-dark-text;
+
+    .ui.header {
+        .tooltip-dark-text;
+    }
 }
 
 .ui.inverted.popup.tooltip {
@@ -254,6 +266,10 @@ span.attention {
 
 .ui.list > .item .description {
     color: @text;
+}
+
+h6.ui.header {
+    font-size: 13px;
 }
 
 @media only screen and (max-width: 900px) {

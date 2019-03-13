@@ -12,7 +12,7 @@
         sysrev.db.export
         sysrev.db.files
         sysrev.source.core
-        sysrev.db.article_list
+        sysrev.db.article-list
         sysrev.db.annotations
         sysrev.cassandra
         sysrev.clone-project

@@ -100,13 +100,13 @@
     false [:i.orange.circle.minus.icon]
     [:i.grey.question.mark.icon]))
 
-(defn- AnswerCell [article-id labels answer-class]
+(defn- AnswerCell [article-id labels answer-class resolve]
   [:div.ui.divided.list
    (doall
     (map (fn [entry]
            (let [{:keys [user-id inclusion]} entry]
              (when (or (not= answer-class "resolved")
-                       (:resolve entry))
+                       (= user-id (:user-id resolve)))
                [:div.item {:key [:answer article-id user-id]}
                 ;;(AnswerCellIcon inclusion)
                 [:div.content>div.header
@@ -193,7 +193,7 @@
         active-article @(subscribe [::al/get context [:active-article]])
         overall-id @(subscribe [:project/overall-label-id])
         {:keys [article-id primary-title labels notes
-                consensus updated-time]} article
+                consensus updated-time resolve]} article
         notes (cond->> notes
                 self-only (filterv #(= (:user-id %) self-id)))
         labels (cond->> labels
@@ -244,7 +244,7 @@
             [:div.three.wide.center.aligned.middle.aligned.column.article-answers
              {:class answer-class}
              [:div.ui.middle.aligned.grid>div.row>div.column
-              [AnswerCell article-id overall-labels answer-class]]])]]
+              [AnswerCell article-id overall-labels answer-class resolve]]])]]
         (when labels?
           [:div.article-labels
            [ArticleLabelsNotes context article full-size?]])]]
@@ -260,7 +260,7 @@
           {:class answer-class})
         (when (not-empty overall-labels)
           [:div.ui.middle.aligned.grid>div.row>div.column
-           [AnswerCell article-id overall-labels answer-class]])]])))
+           [AnswerCell article-id overall-labels answer-class resolve]])]])))
 
 (defn- ArticleListContent [context]
   (let [{:keys [recent-article active-article]}
@@ -400,8 +400,9 @@
           [:div.row
            [:div.column.filters-column
             {:class (if expanded? "five wide" "one wide")}
-            [ui/WrapFixedVisibility 10
-             [f/ArticleListFiltersColumn context expanded?]]]
+            [f/ArticleListFiltersColumn context expanded?]
+            #_ [ui/WrapFixedVisibility 10
+                [f/ArticleListFiltersColumn context expanded?]]]
            [:div.column.content-column
             {:class (if expanded? "eleven wide" "fifteen wide")}
             [:div.ui.form
@@ -409,7 +410,7 @@
               [f/TextSearchInput context]]]
             [ArticleListContent context]]]]
          [:div
-          ;; TODO: make filters interface for mobile/tablet
+          ;; FIX: add filters interface for mobile/tablet
           #_ [f/ArticleListFiltersRow context]
           [ArticleListContent context]]))]))
 
@@ -425,7 +426,7 @@
 
 (defn ArticleListPanel [context]
   (let [single-article? @(subscribe [::al/get (al/cached context) [:single-article?]])]
-    [:div.article-list-toplevel-new
+    [:div.article-list-toplevel
      (require-all-data context)
      (if single-article?
        [SingleArticlePanel context]

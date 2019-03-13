@@ -1,33 +1,32 @@
 (ns sysrev.web.routes.api.handlers
   (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [clojure.data.json :as json]
             [clojure.walk :as walk]
+            [compojure.core :refer :all]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.web-api :as swa]
-            [compojure.core :refer :all]
-            [sysrev.shared.util :refer [map-values in? to-uuid]]
             [sysrev.db.core :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
+            [sysrev.label.core :as labels]
+            [sysrev.clone-project :as clone]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
             [sysrev.predict.core :as predict]
             [sysrev.web.app :refer
              [current-user-id active-project make-error-response]]
-            [sysrev.util :refer
-             [integerify-map-keys uuidify-map-keys]]
-            [sysrev.shared.util :refer [parse-integer]]
-            [clojure.string :as str]
-            [sysrev.config.core :refer [env]]
-            [clojure.data.json :as json]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.web.routes.api.core :refer
              [def-webapi web-api-routes web-api-routes-order]]
-            [sysrev.label.core :as labels]))
+            [sysrev.config.core :refer [env]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
 ;; weird bug in cider:
 ;; If you (run-tests) in sysrev.test.web.routes.api.handlers
@@ -462,7 +461,7 @@
   (fn [request]
     (let [{:keys [project-id predict-run-id label-id article-values] :as body}
           (-> request :body)
-          label-id (to-uuid label-id)]
+          label-id (sutil/to-uuid label-id)]
       (assert (integer? project-id))
       (assert (integer? predict-run-id))
       (assert (uuid? label-id))
@@ -476,7 +475,7 @@
   :project-annotations :get
   {:require [:project-id]
    :require-token? false
-   :allow-public true ; TODO: implement this
+   :allow-public true ;; FIX: not implemented, full anonymous access
    :doc
    "Returns a list of annotations for a project.
 
@@ -496,6 +495,103 @@
               :query-params
               walk/keywordize-keys)]
       {:result (api/project-annotations (parse-integer project-id))})))
+
+(def-webapi
+  :clone-project :post
+  {:required [:project-id :new-project-name
+              :articles :labels :members :answers]
+   :optional [:admin-members-only :user-names-only :user-ids-only]
+   :require-admin? true
+   :doc (->> ["\"project-id\": Integer, source project to clone from"
+              "\"new-project-name\": String, title for cloned project"
+              "\"articles\": Boolean, whether to copy articles"
+              "\"labels\": Boolean, whether to copy label definitions"
+              "\"members\": Boolean, whether to copy project members"
+              "\"answers\": Boolean, whether to copy user label answers"
+              ""
+              "\"admin-members-only\": Optional boolean, skip copying non-admin members"
+              "\"user-names-only\": Optional array of strings, copy only members with display names contained in array"
+              "\"user-ids-only\": Optional array of integers, copy only members with user-id contained in array"
+              ""
+              "On success, returns the newly created project-id."]
+             (str/join "\n"))}
+  (fn [request]
+    (let [{:keys [api-token project-id new-project-name
+                  articles labels answers members
+                  admin-members-only user-names-only user-ids-only] :as body}
+          (-> request :body)]
+      (cond
+        (not (string? new-project-name))
+        (make-error-response
+         500 :api "new-project-name: String value must be provided")
+
+        (not (boolean? articles))
+        (make-error-response
+         500 :api "articles: Boolean value must be provided")
+
+        (not (boolean? labels))
+        (make-error-response
+         500 :api "labels: Boolean value must be provided")
+
+        (not (boolean? members))
+        (make-error-response
+         500 :api "members: Boolean value must be provided")
+
+        (not (boolean? answers))
+        (make-error-response
+         500 :api "answers: Boolean value must be provided")
+
+        (and answers (not members))
+        (make-error-response
+         500 :api "answers: Inconsistent option, members must be true")
+
+        (not (or (nil? admin-members-only)
+                 (boolean? admin-members-only)))
+        (make-error-response
+         500 :api "admin-members-only: Must be boolean")
+
+        (not (or (nil? user-names-only)
+                 (and (sequential? user-names-only)
+                      (every? string? user-names-only))))
+        (make-error-response
+         500 :api "user-names-only: Must be array of strings")
+
+        (not (or (nil? user-ids-only)
+                 (and (sequential? user-ids-only)
+                      (every? integer? user-ids-only))))
+        (make-error-response
+         500 :api "user-ids-only: Must be array of integers")
+
+        (< 1 (count (->> [admin-members-only user-names-only user-ids-only]
+                         (remove nil?))))
+        (make-error-response
+         500 :api "Only one of admin-members-only, user-names-only, user-ids-only may be used")
+
+        :else
+        (let [to-user-ids
+              (fn [user-names]
+                ;; TODO: will need to update this for customizable user names
+                (->> (q/select-project-members project-id [:u.user-id :u.email])
+                     do-query
+                     (filter
+                      #(and (-> % :email string?)
+                            (in? user-names
+                                 (-> % :email (str/split #"@") first))))
+                     (map :user-id)))
+              user-ids
+              (or user-ids-only
+                  (and user-names-only (to-user-ids user-names-only)))
+              new-project-id (clone/clone-project
+                              new-project-name project-id
+                              :articles articles
+                              :labels labels
+                              :answers answers
+                              :members members
+                              :user-ids-only user-ids)]
+          {:result {:success true
+                    :new-project {:project-id new-project-id
+                                  :name new-project-name
+                                  :url (str "https://sysrev.com/p/" new-project-id)}}})))))
 
 ;; Prevent Cider compile command from returning a huge def-webapi map
 nil

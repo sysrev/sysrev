@@ -11,7 +11,7 @@
             [sysrev.db.project :as p]
             [sysrev.article.core :as a]
             [sysrev.filestore :as fstore]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 (defn source-id->project-id
   [source-id]
@@ -261,9 +261,10 @@
                (apply merge {}))))))
 
 (defn project-source-overlap
-  "Given a project-id and base-source-id, determine the amount of articles that overlap with source-id.
-  The source associated with source-id must be enabled, otherwise the overlap is ignored and this fn
-  will return 0"
+  "Given a project-id and base-source-id, determine the amount of
+  articles that overlap with source-id.  The source associated with
+  source-id must be enabled, otherwise the overlap is ignored and this
+  fn will return 0."
   [project-id base-source-id source-id]
   (count (-> (select :%count.*)
              (from [:article-source :ars])

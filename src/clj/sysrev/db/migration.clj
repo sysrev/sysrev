@@ -10,6 +10,7 @@
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-sql-array
               with-debug-sql to-jsonb sql-cast]]
+            [sysrev.db.queries :as q]
             [sysrev.db.project :as project :refer
              [add-project-member set-member-permissions
               default-project-settings]]
@@ -20,11 +21,11 @@
             [sysrev.label.migrate :refer [migrate-all-project-article-resolve]]
             [sysrev.shared.util :refer [map-values in?]]
             [sysrev.util :refer [parse-xml-str]]
+            [sysrev.source.core :as source]
             [sysrev.source.endnote :refer [load-endnote-record]]
+            [sysrev.clone-project :as clone]
             [sysrev.pubmed :refer
              [extract-article-location-entries parse-pmid-xml]]
-            [sysrev.db.queries :as q]
-            [sysrev.source.core :as source]
             [sysrev.stripe :as stripe])
   (:import java.util.UUID))
 
@@ -184,83 +185,24 @@
           (-> (select :project-id)
               (from [:project :p])
               (where
-               [:not
-                [:exists
-                 (-> (select :*)
-                     (from [:project-source :ps])
-                     (where [:= :ps.project-id :p.project-id]))]])
-              (->> do-query (mapv :project-id)))]
-      (when (not-empty project-ids)
-        (log/info (str "Creating legacy source entries for "
-                       (count project-ids) " projects")))
-      (doseq [project-id project-ids]
-        (let [article-ids (-> (q/select-project-articles
-                               project-id [:a.article-id]
-                               {:include-disabled? true})
-                              (->> do-query (mapv :article-id)))
-              source-id (source/create-source
-                         project-id
-                         (source/make-source-meta :legacy {}))]
-          (when (not-empty article-ids)
-            (log/info (str "Creating " (count article-ids)
-                           " article source entries for project #"
-                           project-id)))
-          (doseq [article-id article-ids]
-            (source/add-article-to-source article-id source-id)))))))
-
-(defn ensure-article-flag-disable-entries []
-  (with-transaction
-    (let [project-ids
-          ;; TODO: update after changes to enabled logic
-          (-> (select :project-id)
-              (from [:project :p])
-              (where
                [:and
+                [:not
+                 [:exists
+                  (-> (select :*)
+                      (from [:project-source :ps])
+                      (where [:= :ps.project-id :p.project-id]))]]
                 [:exists
                  (-> (select :*)
                      (from [:article :a])
-                     (where
-                      [:and
-                       [:= :a.project-id :p.project-id]
-                       [:= :a.enabled false]
-                       [:not
-                        [:exists
-                         (-> (select :*)
-                             (from [:article-flag :aflag])
-                             (where
-                              [:and
-                               [:= :aflag.article-id :a.article-id]
-                               [:= :aflag.disable true]]))]]
-                       #_
-                       [:not [:exists disabled article source entry]]]))]])
+                     (where [:= :a.project-id :p.project-id]))]])
               (->> do-query (mapv :project-id)))]
-      (when (not-empty project-ids)
-        (log/info (str "Creating article-flag entries for "
-                       (count project-ids) " legacy projects")))
+      (if (empty? project-ids)
+        (log/info "No projects found with missing source entry")
+        (log/info "Creating legacy source entries for"
+                  (count project-ids) "projects"))
       (doseq [project-id project-ids]
-        (let [article-ids
-              (-> (select :article-id)
-                  (from [:article :a])
-                  (where
-                   [:and
-                    [:= :a.project-id project-id]
-                    [:= :a.enabled false]
-                    [:not
-                     [:exists
-                      (-> (select :*)
-                          (from [:article-flag :aflag])
-                          (where
-                           [:and
-                            [:= :aflag.article-id :a.article-id]
-                            [:= :aflag.disable true]]))]]])
-                  (->> do-query (mapv :article-id)))]
-          (log/info (str "Creating " (count article-ids)
-                         " article-flag disable entries for project #"
-                         project-id))
-          (doseq [article-id article-ids]
-            (article/set-article-flag article-id "legacy-disable" true)))))))
+        (clone/create-project-legacy-source project-id)))))
 
-;; TODO: this doesn't work for replacing existing stripe_plan entries
 (defn update-stripe-plans-table
   "Update the stripe_plans table based upon what is stored on stripe. We
   never delete plans, even though they may no longer exist on stripe
@@ -344,9 +286,9 @@
                       ;; #'ensure-label-inclusion-values
                       ;; #'ensure-no-null-authors
                       #'update-stripe-plans-table
+                      #'clone/delete-empty-legacy-sources
                       #'ensure-project-sources-exist
                       #'ensure-web-user-email-entries
-                      ;; #'ensure-article-flag-disable-entries
                       #'ensure-groups
                       #'migrate-all-project-article-resolve]]
     (log/info "Running " (str migrate-fn))

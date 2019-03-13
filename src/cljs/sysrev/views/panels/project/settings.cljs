@@ -8,9 +8,7 @@
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.components :refer
-             [with-tooltip wrap-dropdown selection-dropdown
-              SaveResetForm ConfirmationDialog]]
+            [sysrev.views.components :as ui]
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.panels.project.compensation
              :refer [ProjectCompensations CompensationSummary UsersCompensations]]
@@ -214,39 +212,33 @@
     :value 1.0
     :tooltip "Prioritize fully reviewed articles"}])
 
-(defn- SettingsButtonTooltip [{:keys [setting key tooltip]}]
-  (let [tooltip-key (str (name setting) "--" (name key))]
-    [:div.ui.flowing.popup.transition.hidden.tooltip.project-settings
-     {:id tooltip-key}
-     [:p tooltip]]))
-
 (defn- SettingsButton [{:keys [setting key label value tooltip]}]
   (let [active? (= (render-setting setting)
                    (render-setting-value setting value))
-        tooltip-key (str (name setting) "--" (name key))
         admin? (admin?)]
-    [with-tooltip
+    (ui/TooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
        :class (if active? "active" "")
        :on-click (if admin? #(edit-setting setting value) nil)}
       label]
-     {:inline false
-      :popup (str "#" tooltip-key)}]))
+     [:p tooltip]
+     "20em"
+     :props {:style {:text-align "center"}})))
 
 (defn- SettingsField [{:keys [setting label entries]} entries]
-  [:div.field {:id (str "project-setting_" (name setting))
-               :class (input-field-class setting)}
-   [:label label]
-   [:div.ui.fluid.buttons.selection
-    (doall
-     (for [entry entries]
-       ^{:key (:key entry)}
-       [SettingsButton (merge entry {:setting setting})]))]
-   (doall
-    (for [entry entries]
-      ^{:key [:tooltip (:key entry)]}
-      [SettingsButtonTooltip (merge entry {:setting setting})]))])
+  (let [elements (->> entries
+                      (map #(SettingsButton (merge % {:setting setting}))))]
+    [:div.field {:id (str "project-setting_" (name setting))
+                 :class (input-field-class setting)}
+     [:label label]
+     [:div.ui.fluid.buttons.selection
+      (doall
+       (for [[button _] elements]
+         ^{:key [:button (hash button)]} [button]))]
+     (doall
+      (for [[_ tooltip] elements]
+        ^{:key [:tooltip (hash tooltip)]} [tooltip]))]))
 
 (defn- DoubleReviewPriorityField []
   [SettingsField
@@ -256,11 +248,11 @@
 
 (def public-access-buttons
   [{:key :public
-    :label [:span #_ [:i.globe.icon] "Public"]
+    :label [:span "Public"]
     :value true
     :tooltip "Allow anyone to view project"}
    {:key :private
-    :label [:span #_ [:i.lock.icon] "Private"]
+    :label [:span "Private"]
     :value false
     :tooltip "Allow access only for project members"}])
 
@@ -334,7 +326,7 @@
                     "yellow"]
 
                    nil)]
-             [ConfirmationDialog
+             [ui/ConfirmationDialog
               {:on-cancel #(reset! confirming? false)
                :on-confirm
                (fn []
@@ -370,7 +362,7 @@
          (when admin?
            [:div
             [:div.ui.divider]
-            [SaveResetForm
+            [ui/SaveCancelForm
              :can-save? (and (misc-valid?) modified?)
              :can-reset? modified?
              :on-save #(do (reset! saving? true)
@@ -405,7 +397,7 @@
          (when admin?
            [:div
             [:div.ui.divider]
-            [SaveResetForm
+            [ui/SaveCancelForm
              :can-save? (and valid? modified?)
              :can-reset? modified?
              :on-save #(do (reset! saving? true)
@@ -526,7 +518,7 @@
 (defn- UserSelectDropdown []
   (let [{:keys [selected-user]} @members-state
         user-ids (all-project-user-ids)]
-    [selection-dropdown
+    [ui/selection-dropdown
      [:div.default.text "User"]
      (->> user-ids
           (mapv
@@ -548,7 +540,7 @@
 
 (defn- MemberPermissionDropdown []
   (let [{:keys [selected-user selected-permission]} @members-state]
-    [selection-dropdown
+    [ui/selection-dropdown
      [:div.default.text "Permission"]
      (->> permission-values
           (mapv
@@ -608,7 +600,7 @@
      [:div.ui.divider]
      (let [project-id @(subscribe [:active-project-id])
            changed? (permissions-changed?)]
-       [SaveResetForm
+       [ui/SaveCancelForm
         :can-save? changed?
         :can-reset? changed?
         :on-save #(save-permissions)

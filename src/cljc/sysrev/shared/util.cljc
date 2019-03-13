@@ -1,6 +1,7 @@
 (ns sysrev.shared.util
   (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [clojure.test.check.generators :as gen])
   #?(:clj (:import java.util.UUID)))
 
 (defn parse-integer
@@ -19,7 +20,7 @@
 
            :cljs
            (let [val (js/parseInt s)]
-             (when (and (integer? val) (not= val ##NaN))
+             (when (and (integer? val) (not= val ##NaN) (not (js/isNaN val)))
                val))))))
 
 (defn parse-number
@@ -34,7 +35,7 @@
 
              :cljs
              (let [val (js/parseFloat s)]
-               (when (and (number? val) (not= val ##NaN))
+               (when (and (number? val) (not= val ##NaN) (not (js/isNaN val)))
                  val)))))))
 
 #?(:clj
@@ -123,3 +124,35 @@
   (when string
     (cond-> string (not= item-count 1) (str "s"))))
 
+(defn string-ellipsis
+  "Shorten s using ellipsis in the middle when length is >= max-length."
+  [s max-length & [ellipsis]]
+  (let [ellipsis (or ellipsis "[...]")]
+    (if (< (count s) max-length)
+      s
+      (str (subs s 0 (quot max-length 2))
+           " " ellipsis " "
+           (subs s (- (count s) (quot max-length 2)))))))
+
+(defn ensure-prefix
+  "Adds prefix at front of string s if not already present."
+  [s prefix]
+  (if (str/starts-with? s prefix)
+    s
+    (str prefix s)))
+
+(defn ensure-suffix
+  "Adds suffix at end of string s if not already present."
+  [s suffix]
+  (if (str/ends-with? s suffix)
+    s
+    (str s suffix)))
+
+(defn random-id
+  "Generate a random string id from uppercase/lowercase letters"
+  ([len]
+   (let [length (or len 6)
+         char-gen (gen/fmap char (gen/one-of [(gen/choose 65 90)
+                                              (gen/choose 97 122)]))]
+     (apply str (gen/sample char-gen length))))
+  ([] (random-id 6)))

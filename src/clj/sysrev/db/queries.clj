@@ -75,7 +75,7 @@
           :else nil)))))
 ;;;
 (s/fdef to-project-id
-  :args (s/cat :project-id ::sc/project-id)
+  :args (s/cat :project-id (s/nilable ::sc/project-id))
   :ret (s/nilable ::sc/sql-serial-id))
 
 (defn to-label-id
@@ -279,6 +279,13 @@
   (-> m (merge-join [:article-label tname-al]
                     [:=
                      (sql-field tname-al :article-id)
+                     (sql-field tname-a :article-id)])))
+
+(defn join-article-source [m & [{:keys [tname-a tname-asrc]
+                                 :or {tname-a :a tname-asrc :asrc}}]]
+  (-> m (merge-join [:article-source tname-asrc]
+                    [:=
+                     (sql-field tname-asrc :article-id)
                      (sql-field tname-a :article-id)])))
 
 (defn join-article-label-defs [m]

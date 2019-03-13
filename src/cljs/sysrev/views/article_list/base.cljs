@@ -25,7 +25,7 @@
    :sort-dir :desc})
 
 (defn get-display-count []
-  (if (util/mobile?) 10 20))
+  (if (util/mobile?) 10 10))
 
 (reg-sub
  ::panel
@@ -230,7 +230,7 @@
  (fn [db [context]]
    (-> (set-state db context [:filters] nil)
        (set-state context [:display-offset] nil)
-       (set-state context [:display] nil))))
+       #_ (set-state context [:display] nil))))
 
 (defn- get-url-params-impl [db context]
   (let [{:keys [display-offset active-article
@@ -366,12 +366,20 @@
     (subscribe [::sort-dir context])])
  (fn [[filters display-offset text-search sort-by sort-dir]]
    (let [display-count (get-display-count)]
-     (merge {:filters filters
-             :text-search text-search
-             :sort-by sort-by
-             :sort-dir sort-dir
-             :n-offset display-offset
-             :n-count display-count}))))
+     {:filters filters
+      :text-search text-search
+      :sort-by sort-by
+      :sort-dir sort-dir
+      :n-offset display-offset
+      :n-count display-count})))
+
+(reg-sub
+ ::export-filter-args
+ (fn [[_ context]]
+   [(subscribe [::filters context])
+    (subscribe [::get context [:text-search]])])
+ (fn [[filters text-search]]
+   {:filters filters, :text-search text-search}))
 
 (reg-sub
  ::articles-query

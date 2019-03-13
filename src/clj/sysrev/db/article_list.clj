@@ -1,4 +1,4 @@
-(ns sysrev.db.article_list
+(ns sysrev.db.article-list
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -33,6 +33,14 @@
               (->> do-query
                    (group-by :article-id)
                    (map-values first)))
+          asources
+          (-> (q/select-project-articles
+               project-id [:a.article-id :asrc.source-id])
+              (q/join-article-source)
+              (merge-where [:= :a.project-id project-id])
+              (->> do-query
+                   (group-by :article-id)
+                   (map-values #(do {:sources (mapv :source-id %)}))))
           alabels
           (-> (q/select-project-articles
                project-id [:al.article-id :al.label-id :al.user-id
@@ -54,7 +62,12 @@
                (map (fn [article-id]
                       {article-id
                        {:consensus
-                        (label/article-consensus-status project-id article-id)}}))
+                        (label/article-consensus-status project-id article-id)
+                        :resolve
+                        (merge
+                         (label/article-resolved-status project-id article-id)
+                         {:labels
+                          (label/article-resolved-labels project-id article-id)})}}))
                (apply merge {}))
           anotes
           (-> (q/select-project-articles
@@ -72,7 +85,8 @@
           annotations
           (->> (ann/project-annotation-articles project-id)
                (map-values #(do {:annotations %})))]
-      (->> (-> (merge-with merge articles alabels anotes annotations aconsensus)
+      (->> (-> (merge-with merge articles alabels anotes annotations
+                           aconsensus asources)
                ;; ensure all map keys are present in primary articles map
                (select-keys (keys articles)))
            (map-values
@@ -154,6 +168,10 @@ WHERE project_id=%d
     (not-empty user-ids)
     (filter #(in? user-ids (:user-id %)))))
 
+(defn article-source-filter [context {:keys [source-ids]}]
+  (fn [article]
+    (some #(in? source-ids %) (:sources article))))
+
 ;; TODO: include user notes in search
 (defn article-text-filter [context text]
   (let [{:keys [project-id]} context
@@ -229,6 +247,7 @@ WHERE project_id=%d
           make-filter
           (case filter-name
             :text-search       article-text-filter
+            :source            article-source-filter
             :has-user          article-user-filter
             :consensus         article-consensus-filter
             :has-label         article-labels-filter
@@ -262,3 +281,18 @@ WHERE project_id=%d
                  context filters sort-by sort-dir)]
     {:entries (->> entries (drop n-offset) (take n-count))
      :total-count (count entries)}))
+
+(defn query-project-article-ids
+  [{:keys [project-id] :as context} filters &
+   {:keys [sort-by sort-dir]}]
+  (let [sort-fn (if sort-by
+                  (get-sort-fn sort-by sort-dir)
+                  identity)
+        filter-fns (mapv (get-filter-fn context) filters)
+        filter-all-fn (if (empty? filters)
+                        (constantly true)
+                        (apply every-pred filter-fns))]
+    (->> (vals (project-full-article-list project-id))
+         (filter filter-all-fn)
+         (sort-fn)
+         (map :article-id))))

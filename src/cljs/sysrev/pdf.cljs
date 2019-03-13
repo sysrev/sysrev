@@ -14,7 +14,7 @@
             [sysrev.views.annotator :as annotator]
             [sysrev.views.components :refer [UploadButton]]
             [sysrev.views.list-pager :refer [ListPager]]
-            [sysrev.util :as util]
+            [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as sutil])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
@@ -32,18 +32,15 @@
 (defn pdf-url-open-access?
   "Given a pdf-url, is it an open access pdf?"
   [pdf-url]
-  (boolean (re-matches #"/api/open-access/(\d+)/view/.*"
-                       pdf-url)))
+  (boolean (re-matches #"/api/open-access/(\d+)/view/.*" pdf-url)))
 
 (defn pdf-url->article-id
   "Given a pdf-url, return the article-id"
   [pdf-url]
   (sutil/parse-integer
    (if (pdf-url-open-access? pdf-url)
-     (second (re-find #"/api/open-access/(\d+)/view"
-                      pdf-url))
-     (second (re-find #"/api/files/.*/article/(\d+)/view"
-                      pdf-url)))))
+     (second (re-find #"/api/open-access/(\d+)/view" pdf-url))
+     (second (re-find #"/api/files/.*/article/(\d+)/view" pdf-url)))))
 
 (defn pdf-url->key
   "Given a pdf url, extract the key from it, if it is provided, nil otherwise"
@@ -196,14 +193,13 @@
   "Renders page, or queues it to render next if a page is currently rendering."
   [context pdf num]
   (let [{:keys [page-rendering page-queue]} @(subscribe [::get context])]
-    (dispatch-sync
-     [::set context [:page-queue] (concat page-queue [num])])
+    (dispatch-sync [::set context [:page-queue] (concat page-queue [num])])
     (when-not page-rendering
       (dispatch-sync [::set context [:page-rendering] true])
       (js/setTimeout #(render-page context pdf num) 25))))
 
 (defn PDFContent [{:keys [pdf-url]}]
-  (let [container-id (util/random-id)
+  (let [container-id (sutil/random-id)
         get-pdf-url #(:pdf-url (r/props %))
         project-id @(subscribe [:active-project-id])
         before-update
@@ -247,8 +243,8 @@
              [:div.pdf-container {:id container-id}]
              ;; if annotations are ever capturable in a pdf
              ;; enable them here
-             #_[annotator/AnnotationCapture context
-              [:div.pdf-container {:id container-id}]]]]]))
+             #_ [annotator/AnnotationCapture context
+                 [:div.pdf-container {:id container-id}]]]]]))
       :component-will-mount
       (fn [this]
         (let [pdf-url (get-pdf-url this)
@@ -280,33 +276,29 @@
 (defn ViewPDF [{:keys [pdf-url entry] :as args}]
   (when pdf-url
     (let [context (get-ann-context pdf-url)
-          {:keys [pdf-doc page-num page-count
-                  page-rendering]} @(subscribe [::get context])
+          {:keys [pdf-doc page-num page-count page-rendering]} @(subscribe [::get context])
           panel @(subscribe [:active-panel])]
       [:div.ui.segments.view-pdf-wrapper
        [:div.ui.attached.two.column.grid.segment
         [:div.column
          [:h4 (:filename entry)]]
         [:div.right.aligned.column
-         [ListPager
-          {:panel panel
-           :instance-key [pdf-url]
-           :offset (dec page-num)
-           :total-count (or page-count 1)
-           :items-per-page 1
-           :item-name-string ""
-           :set-offset #(do (dispatch-sync [::set context [:page-num] (inc %)])
-                            (queue-render-page context pdf-doc (inc %)))
-           :loading? nil}]]]
+         [ListPager {:panel panel
+                     :instance-key [pdf-url]
+                     :offset (dec page-num)
+                     :total-count (or page-count 1)
+                     :items-per-page 1
+                     :item-name-string ""
+                     :set-offset #(do (dispatch-sync [::set context [:page-num] (inc %)])
+                                      (queue-render-page context pdf-doc (inc %)))
+                     :loading? nil}]]]
        [:div.ui.center.aligned.attached.segment.pdf-content-wrapper
         [PDFContent args]]])))
 
-(defn view-open-access-pdf-url
-  [article-id key]
+(defn view-open-access-pdf-url [article-id key]
   (str "/api/open-access/" article-id "/view/" key))
 
-(defn OpenAccessPDF
-  [article-id]
+(defn OpenAccessPDF [article-id]
   (when @(subscribe [:article/open-access-available? article-id])
     [:div.field>div.fields
      [:div
@@ -318,12 +310,10 @@
        [:i.download.icon]
        (str article-id ".pdf")]]]))
 
-(defn view-s3-pdf-url
-  [project-id article-id key filename]
+(defn view-s3-pdf-url [project-id article-id key filename]
   (str "/api/files/" project-id "/article/" article-id  "/view/" key "/" filename))
 
-(defn S3PDF
-  [{:keys [article-id key filename]}]
+(defn S3PDF [{:keys [article-id key filename]}]
   (let [confirming? (r/atom false)]
     (fn [{:keys [article-id key filename]}]
       (let [project-id @(subscribe [:active-project-id])]
@@ -338,8 +328,7 @@
              [:i.download.icon]
              filename]
             [:button.ui.icon.button
-             {:on-click (util/wrap-user-event
-                         #(reset! confirming? true))}
+             {:on-click (wrap-user-event #(reset! confirming? true))}
              [:i.times.icon]]])
          (when @confirming?
            [:div.ui.negative.message.delete-pdf
@@ -349,30 +338,28 @@
              [:div.column
               [:div.ui.fluid.button
                {:on-click
-                (util/wrap-user-event
+                (wrap-user-event
                  #(do (reset! confirming? false)
                       (dispatch [:action [:pdf/delete-pdf
                                           project-id article-id key filename]])))}
                "Yes"]]
              [:div.column
               [:div.ui.fluid.blue.button
-               {:on-click (util/wrap-user-event
-                           #(reset! confirming? false))}
+               {:on-click (wrap-user-event #(reset! confirming? false))}
                "No"]]]])]))))
 
 (defn ArticlePDFs [article-id]
   (let [article-pdfs @(subscribe [:article/pdfs article-id])]
     (when (not-empty article-pdfs)
-      [:div
-       (doall
-        (map-indexed
-         (fn [i file-map]
-           ^{:key (gensym i)}
-           [:div.field>div.fields>div
-            [S3PDF {:article-id article-id
-                    :key (:key file-map)
-                    :filename (:filename file-map)}]])
-         (filter #(not (:open-access? %)) article-pdfs)))])))
+      [:div (doall
+             (map-indexed
+              (fn [i file-map]
+                ^{:key (gensym i)}
+                [:div.field>div.fields>div
+                 [S3PDF {:article-id article-id
+                         :key (:key file-map)
+                         :filename (:filename file-map)}]])
+              (filter #(not (:open-access? %)) article-pdfs)))])))
 
 (defn PDFs [article-id]
   (when article-id
@@ -381,26 +368,23 @@
                     [:pdf/article-pdfs project-id article-id]] {}
         (let [project-id @(subscribe [:active-project-id])
               full-size? (util/full-size?)
-              inline-loader #(when (loading/any-loading?
-                                    :only :pdf/open-access-available?)
+              inline-loader #(when (loading/any-loading? :only :pdf/open-access-available?)
                                [:div.ui.small.active.inline.loader
-                                {:style {:margin-right "1em"
-                                         :margin-left "1em"}}])
-              upload-form
-              (fn []
-                [:div.field>div.fields
-                 [UploadButton
-                  (str "/api/files/" project-id "/article/" article-id "/upload-pdf")
-                  #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
-                  "Upload PDF"]])
+                                {:style {:margin-right "1em" :margin-left "1em"}}])
+              upload-form (fn []
+                            [:div.field>div.fields
+                             [UploadButton
+                              (str "/api/files/" project-id
+                                   "/article/" article-id "/upload-pdf")
+                              #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
+                              "Upload PDF"]])
               open-access? @(subscribe [:article/open-access-available? article-id])
               logged-in? @(subscribe [:self/logged-in?])
-              member? @(subscribe [:self/member?])]
+              member? @(subscribe [:self/member?])
+              authorized? (and logged-in? member?)]
           (dispatch [:require [:pdf/open-access-available?
                                project-id article-id]])
-          (when (if (or (not logged-in?) (not member?))
-                  open-access?
-                  true)
+          (when (or authorized? open-access?)
             [:div#article-pdfs.ui.segment
              {:style {:min-height "60px"}}
              [:div.ui.grid

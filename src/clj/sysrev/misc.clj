@@ -9,8 +9,8 @@
              [do-query do-execute with-transaction to-sql-array to-jsonb]]
             [sysrev.db.queries :as q]
             [sysrev.pubmed :as pubmed]
-            [sysrev.util :as u]
-            [sysrev.shared.util :as su :refer [in? map-values]]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? map-values]]))
 
 (defn articles-matching-regex-clause [field-name regexs]
   (sql/raw
@@ -49,9 +49,9 @@
     (->> articles
          (pmap
           (fn [{:keys [article-id raw]}]
-            (let [pxml (-> raw u/parse-xml-str :content first)
+            (let [pxml (-> raw util/parse-xml-str :content first)
                   abstract
-                  (-> (u/xml-find
+                  (-> (util/xml-find
                        pxml [:MedlineCitation :Article :Abstract :AbstractText])
                       pubmed/parse-abstract)]
               (when-not (empty? abstract)

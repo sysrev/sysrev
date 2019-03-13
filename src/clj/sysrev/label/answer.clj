@@ -8,8 +8,8 @@
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
             [sysrev.label.core :as l]
-            [sysrev.util :as u]
-            [sysrev.shared.util :as su :refer [map-values in?]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -30,7 +30,7 @@
               (when (every? (in? allowed) answer)
                 {label-id answer}))
             :else nil)
-      ;; TODO check that answer value matches label regex
+      ;; TODO: check that answer value matches label regex
       "string" (when (coll? answer)
                  (let [filtered (->> answer
                                      (filter string?)
@@ -189,9 +189,9 @@
       (db/clear-project-cache project-id)
       true)))
 
-;; FIX:  can inclusion-values be changed with existing answers?
-;;       if yes, need to run this.
-;;       if no, can delete this.
+;; FIX: can inclusion-values be changed with existing answers?
+;;      if yes, need to run this.
+;;      if no, can delete this.
 (defn update-label-answer-inclusion [label-id]
   (with-transaction
     (let [entries (-> (select :article-label-id :answer)

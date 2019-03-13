@@ -19,8 +19,8 @@
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
-            [sysrev.util :as u :refer [crypto-rand crypto-rand-nth]]
-            [sysrev.shared.util :as su :refer [map-values in?]]
+            [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
+            [sysrev.shared.util :as sutil :refer [map-values in?]]
             [sysrev.shared.labels :refer [cleanup-label-answer]])
   (:import java.util.UUID))
 
@@ -295,7 +295,7 @@
                     (map-values
                      (fn [resolve]
                        (when resolve
-                         (update resolve :label-ids #(mapv su/to-uuid %))))))))]
+                         (update resolve :label-ids #(mapv sutil/to-uuid %))))))))]
       (->> (keys all-labels)
            (filter #(contains? all-articles %))
            (map
@@ -362,7 +362,7 @@
         (limit 1)
         (some-> do-query
                 first
-                (update :label-ids #(mapv su/to-uuid %))))
+                (update :label-ids #(mapv sutil/to-uuid %))))
     (-> (query-public-article-labels project-id)
         (get article-id)
         :resolve)))

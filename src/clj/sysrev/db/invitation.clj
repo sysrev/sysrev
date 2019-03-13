@@ -2,7 +2,7 @@
   (:require [sysrev.db.core :refer [do-query do-execute sql-now]]
             [honeysql.helpers :as sqlh :refer [select from insert-into where values join sset]]
             [honeysql-postgres.helpers :refer [returning]]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (defn create-invitation!
   "Invite invitee to project-id by inviter. The inviter is the invitee

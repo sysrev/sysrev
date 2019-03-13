@@ -32,3 +32,6 @@
        ($ js/accounting formatMoney (/ (if (neg? number)
                                          (- number)
                                          number) 100))))
+
+(defn format-money [amount unit]
+  ($ js/accounting formatMoney amount unit))

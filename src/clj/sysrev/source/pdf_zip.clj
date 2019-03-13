@@ -31,34 +31,33 @@
   [{:keys [article-id filename byte-array]}]
   (with-transaction
     (let [file-hash (util/byte-array->sha-1-hash byte-array)
-          s3-id (files/id-for-s3-filename-key-pair filename file-hash)
-          article-s3-association (files/get-article-s3-association
-                                  s3-id article-id)]
+          s3-id (files/s3-id-from-filename-key filename file-hash)
+          associated? (files/s3-article-association? s3-id article-id)]
       (cond
         ;; file is already associated with this article
-        article-s3-association nil
+        associated? nil
 
         ;; file exists but not associated with this article
-        s3-id (files/associate-s3-with-article s3-id article-id)
+        s3-id (files/associate-s3-file-with-article s3-id article-id)
 
         ;; file exists but under a different name
         (files/s3-has-key? file-hash)
         (do (files/insert-file-hash-s3-record filename file-hash)
-            (-> (files/id-for-s3-filename-key-pair filename file-hash)
-                (files/associate-s3-with-article article-id)))
+            (-> (files/s3-id-from-filename-key filename file-hash)
+                (files/associate-s3-file-with-article article-id)))
 
         ;; file does not exist on s3
         :else
         (do (fstore/save-byte-array byte-array :pdf)
             (files/insert-file-hash-s3-record filename file-hash)
-            (-> (files/id-for-s3-filename-key-pair filename file-hash)
-                (files/associate-s3-with-article article-id))))
+            (-> (files/s3-id-from-filename-key filename file-hash)
+                (files/associate-s3-file-with-article article-id))))
       {:result {:success true :key file-hash :filename filename}})))
 
 (defmethod make-source-meta :pdf-zip [_ {:keys [filename]}]
   {:source "PDF Zip file" :filename filename})
 
-;; TODO: want this to return an error if no pdfs found - does it?
+;; FIX: want this to return an error if no pdfs found - does it?
 (defmethod import-source :pdf-zip
   [stype project-id {:keys [file filename]} {:as options}]
   (let [project-sources (source/project-sources project-id)

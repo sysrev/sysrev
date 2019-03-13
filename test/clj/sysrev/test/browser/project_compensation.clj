@@ -28,6 +28,7 @@
 ;; PayPal
 ;;(def paypal-checkout-window {:title "PayPal Checkout"})
 (def cardnumber-input (xpath "//input[@id='cc']"))
+;; https://developer.paypal.com/developer/accounts/
 ;; test information associated with:  james+sandbox@insilica.co
 ;; visa number: 4032034996959212
 ;; exp: 10/23

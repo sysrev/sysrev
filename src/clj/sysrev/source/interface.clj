@@ -1,15 +1,15 @@
 (ns sysrev.source.interface
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction *conn*
               clear-project-cache]]
             [sysrev.article.core :as article]
             [sysrev.source.core :as s]
-            [sysrev.shared.util :as su :refer [in?]]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance]
-            [clojure.string :as str])
+            [sysrev.shared.util :as sutil :refer [in?]])
   (:import java.util.UUID))
 
 (defn- add-articles

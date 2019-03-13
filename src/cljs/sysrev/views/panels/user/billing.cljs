@@ -4,9 +4,12 @@
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.views.semantic :refer [Grid Row Column Button ListUI Item Segment Header Icon Loader]]))
+            [sysrev.views.semantic :as s :refer
+             [Segment Grid Row Column Button Icon]]))
 
-(def state (r/cursor app-db [:state :panels :user :billing]))
+(def panel [:user :billing])
+
+(def state (r/cursor app-db [:state :panels panel]))
 
 (reg-sub :billing/default-source (fn [db] @(r/cursor state [:default-source])))
 
@@ -29,7 +32,7 @@
      {:reagent-render
       (fn [this]
         [:div {:style {:font-weight "bold"}}
-         [Icon {:name "credit card"}]
+         [s/Icon {:name "credit card"}]
          (if-not (empty? @default-source)
            (let [{:keys [brand exp_month exp_year last4]}
                  @default-source]
@@ -51,15 +54,16 @@
          (if (nil? @default-source)
            [Row
             [Column {:width 2} "Payment"]
-            [Column {:width 14} [Loader {:active true
-                                         :inline "centered"}]]]
+            [Column {:width 14} [s/Loader {:active true
+                                           :inline "centered"}]]]
            [Row
             [Column {:width 2} "Payment"]
             [Column {:width 8} [DefaultSource]]
             [Column {:width 6 :align "right"}
-             [Button {:on-click (fn [event]
-                                  (dispatch [:payment/set-calling-route! (str "/user/settings/billing")])
-                                  (dispatch [:navigate [:payment]]))}
+             [Button {:on-click
+                      ;; TODO: change to href with on-click
+                      #(do (dispatch [:payment/set-calling-route! "/user/settings/billing"])
+                           (dispatch [:navigate [:payment]]))}
               (if-not (empty? @default-source)
                 [:div [Icon {:name "credit card"}] "Change payment method"]
                 [:div [Icon {:name "credit card"}] "Add payment method"])]]])])
@@ -68,41 +72,35 @@
         (get-default-source state))})))
 
 ;; TODO: shows Loader forever on actual null plan value (show error message?)
-(defn Plan
-  []
-  (let [current-plan (:name @(subscribe [:plans/current-plan]))]
+(defn Plan []
+  (let [current-plan (:name @(subscribe [:plans/current-plan]))
+        basic? (= current-plan "Basic")
+        unlimited? (= current-plan "Unlimited")]
     (dispatch [:fetch [:current-plan]])
     [Grid {:stackable true}
      (if (nil? current-plan)
        [Row
         [Column {:width 2} "Plan"]
-        [Column {:width 14} [Loader {:active true
-                                     :inline "centered"}]]]
+        [Column {:width 14} [s/Loader {:active true
+                                       :inline "centered"}]]]
        [Row
         [Column {:width 2} "Plan"]
         [Column {:width 8}
-         (cond
-           (= current-plan "Basic")
-           "Free Plan, unlimited public projects"
-           (= current-plan "Unlimited")
-           "Unlimited Plan, unlimited public and private projects")]
+         (cond basic?      "Free Plan, unlimited public projects"
+               unlimited?  "Unlimited Plan, unlimited public and private projects")]
         [Column {:width 6 :align "right"}
-         [Button {:on-click (fn [event]
-                              (nav-scroll-top "/user/plans"))
-                  :color (if (= current-plan "Basic")
-                           "green")}
-          (cond (= current-plan "Basic")
-                "Get private projects"
-                (= current-plan "Unlimited")
-                "Unsubscribe")]]])]))
+         [Button {:class (cond-> "nav-plans"
+                           basic?     (str " subscribe")
+                           unlimited? (str " unsubscribe"))
+                  :color (when basic? "green")
+                  :href "/user/plans"}
+          (cond basic?      "Get private projects"
+                unlimited?  "Unsubscribe")]]])]))
 
-(defn Billing
-  []
+(defn Billing []
   [Segment
-   [Header {:as "h4"
-            :dividing true}
+   [s/Header {:as "h4" :dividing true}
     "Billing"]
-   [ListUI {:divided true
-            :relaxed true}
-    [Item [Plan]]
-    [Item [PaymentSource]]]])
+   [s/ListUI {:divided true :relaxed true}
+    [s/ListItem [Plan]]
+    [s/ListItem [PaymentSource]]]])

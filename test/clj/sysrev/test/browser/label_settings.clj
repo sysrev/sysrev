@@ -1,9 +1,12 @@
 (ns sysrev.test.browser.label-settings
   (:require [clojure.test :refer :all]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [clojure-csv.core :as csv]
             [clj-webdriver.taxi :as taxi]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
+            [sysrev.db.export :as export]
             [sysrev.source.import :as import]
             [sysrev.test.core :as test]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
@@ -12,7 +15,7 @@
             [sysrev.test.browser.review-articles :as review]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.define-labels :as define]
-            [sysrev.shared.util :as su :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -23,6 +26,7 @@
    label-id-1 (atom nil)
    test-users (mapv #(str "user" % "@fake.com") [1 2 3])
    [user1 user2 user3] test-users
+   to-user-name #(-> % (str/split #"@") first)
    project-name "Label Consensus Test"
    switch-user (fn [email]
                  (nav/log-out)
@@ -45,6 +49,7 @@
    conflicts ".label-status-help .conflict-button"
    resolved ".label-status-help .resolve-button"
    check-status (fn [n-full n-conflict n-resolved]
+                  (Thread/sleep 250)
                   (nav/go-project-route "")
                   (is (b/exists? include-full))
                   (is (= (format "Full (%d)" n-full)
@@ -80,6 +85,22 @@
       (switch-user user1)
       (nav/go-project-route "/review")
       (review/set-article-answers lvalues-1)
+      (let [uanswers (export/export-user-answers @project-id)
+            [_ u1] uanswers
+            ganswers (export/export-group-answers @project-id)
+            [_ g1] ganswers]
+        (is (= 1 (-> uanswers rest count)))
+        (is (in? u1 "true"))
+        (is (in? u1 (to-user-name user1)))
+        (is (in? u1 "One"))
+        (is (= 1 (-> ganswers rest count)))
+        (is (in? g1 "true"))
+        (is (in? g1 "One"))
+        (is (in? g1 "single")) ;; consensus status
+        (is (in? g1 "1"))      ;; user count
+        (is (in? g1 (to-user-name user1)))
+        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
+        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
       ;; review article from user2 (different categorical answer)
       (switch-user user2)
       (nav/go-project-route "/review")
@@ -87,6 +108,22 @@
       (is (b/exists? ".no-review-articles"))
       ;; check for no conflict
       (check-status 1 0 0)
+      (let [uanswers (export/export-user-answers @project-id)
+            ganswers (export/export-group-answers @project-id)
+            [_ g1] ganswers]
+        (is (= 2 (-> uanswers rest count)))
+        (is (= 1 (-> ganswers rest count)))
+        (is (in? g1 "true"))
+        (let [values ["One" "Two"]]
+          (is (or (in? g1 (str/join ", " values))
+                  (in? g1 (str/join ", " (reverse values))))))
+        (is (in? g1 "consistent")) ;; consensus status
+        (is (in? g1 "2"))          ;; user count
+        (let [names (map to-user-name [user1 user2])]
+          (is (or (in? g1 (str/join ", " names))
+                  (in? g1 (str/join ", " (reverse names))))))
+        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
+        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
       ;; enable label consensus setting
       (switch-user user1)
       (reset! label-id-1 (->> (vals (project/project-labels @project-id))
@@ -98,6 +135,22 @@
         (merge label1 {:consensus true}))
       ;; check that article now shows as conflict
       (check-status 0 1 0)
+      (let [uanswers (export/export-user-answers @project-id)
+            ganswers (export/export-group-answers @project-id)
+            [_ g1] ganswers]
+        (is (= 2 (-> uanswers rest count)))
+        (is (= 1 (-> ganswers rest count)))
+        (is (in? g1 "true"))
+        (let [values ["One" "Two"]]
+          (is (or (in? g1 (str/join ", " values))
+                  (in? g1 (str/join ", " (reverse values))))))
+        (is (in? g1 "conflict")) ;; consensus status
+        (is (in? g1 "2"))          ;; user count
+        (let [names (map to-user-name [user1 user2])]
+          (is (or (in? g1 (str/join ", " names))
+                  (in? g1 (str/join ", " (reverse names))))))
+        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
+        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
       ;; switch to non-admin user to use "Change Labels"
       (switch-user user2)
       ;; check article list interface (Conflict filter)
@@ -137,6 +190,20 @@
       (nav/go-project-route "/articles")
       ;; check that article is resolved
       (check-status 1 0 1)
+      (let [uanswers (export/export-user-answers @project-id)
+            ganswers (export/export-group-answers @project-id)
+            [_ g1] ganswers]
+        (is (= 2 (-> uanswers rest count)))
+        (is (= 1 (-> ganswers rest count)))
+        (is (in? g1 "true"))
+        (is (in? g1 "One"))
+        (is (in? g1 "resolved")) ;; consensus status
+        (is (in? g1 "2"))          ;; user count
+        (let [names (map to-user-name [user1 user2])]
+          (is (or (in? g1 (str/join ", " names))
+                  (in? g1 (str/join ", " (reverse names))))))
+        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
+        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
       ;; check article list interface (Resolved filter)
       (b/click resolved)
       (is (b/exists? "div.article-list-article"))

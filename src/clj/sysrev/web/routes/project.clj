@@ -1,10 +1,10 @@
 (ns sysrev.web.routes.project
   (:require [sysrev.api :as api]
-            [sysrev.web.app :refer
+            [sysrev.web.app :as web :refer
              [wrap-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
-            [sysrev.db.core :refer
-             [do-query do-execute with-project-cache]]
+            [sysrev.db.core :as db :refer
+             [do-query do-execute with-transaction with-project-cache]]
             [sysrev.db.queries :as q]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
@@ -16,7 +16,7 @@
             [sysrev.article.assignment :as assign]
             [sysrev.source.core :as source]
             [sysrev.db.files :as files]
-            [sysrev.db.article_list :as alist]
+            [sysrev.db.article-list :as alist]
             [sysrev.db.annotations :as annotations]
             [sysrev.biosource.importance :as importance]
             [sysrev.export.endnote :as endnote-out]
@@ -27,8 +27,8 @@
             [sysrev.shared.transit :as sr-transit]
             [sysrev.pubmed :as pubmed]
             [sysrev.config.core :refer [env]]
-            [sysrev.util :refer :all]
-            [sysrev.shared.util :refer [map-values in? parse-integer to-uuid]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? parse-integer]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -41,9 +41,12 @@
             [clojure-csv.core :as csv]
             [clojure.tools.logging :as log])
   (:import [java.util UUID]
-           [java.io InputStream]
-           [java.io ByteArrayInputStream]
+           (java.io Writer InputStream ByteArrayInputStream)
            [org.apache.commons.io IOUtils]))
+
+;;;
+;;; Functions for project routes
+;;;
 
 (defn update-user-default-project [request]
   (let [user-id (current-user-id request)
@@ -106,7 +109,7 @@
                    (project/project-users-info project-id)
                    (project/project-keywords project-id)
                    (project/project-notes project-id)
-                   (files/list-files-for-project project-id)
+                   (files/list-document-files-for-project project-id)
                    (docs/all-article-document-paths project-id)
                    (labels/query-progress-over-time project-id 30)
                    (source/project-sources project-id)
@@ -135,9 +138,43 @@
                  :url-ids url-ids}
        :users users})))
 
+;;;
+;;; Manage references to export files generated for download.
+;;;
+
+(defonce project-export-refs (atom {}))
+
+(defn get-project-exports [project-id]
+  (get @project-export-refs project-id))
+
+(defn add-project-export [project-id export-type tempfile &
+                          [{:keys [user-id filters] :as extra}]]
+  (assert (isa? (type tempfile) java.io.File))
+  (let [entry (merge extra {:download-id (sutil/random-id 5)
+                            :export-type export-type
+                            :tempfile-path (str tempfile)
+                            :added-time (db/sql-now)})]
+    (swap! project-export-refs update-in [project-id] #(conj % entry))
+    entry))
+
+(defn create-export-tempfile [content]
+  (let [tempfile (util/create-tempfile)]
+    (with-open [w (io/writer tempfile)]
+      (.write w content))
+    tempfile))
+
+;;;
+;;; Route definitions
+;;;
+
 (setup-local-routes {:routes project-routes
                      :define dr
                      :finalize finalize-routes})
+
+(dr (GET "/api/public-projects" request
+         (wrap-authorize
+          request {}
+          (api/public-projects))))
 
 (dr (GET "/api/project-info" request
          (wrap-authorize
@@ -185,6 +222,101 @@
                  user-id (current-user-id request)]
              (api/delete-project! project-id user-id)))))
 
+(dr (GET "/api/lookup-project-url" request
+         (wrap-authorize
+          request {}
+          {:result
+           (when-let [url-id (-> request :params :url-id)]
+             (when-let [project-id
+                        (try
+                          (project/project-id-from-url-id url-id)
+                          (catch Throwable e
+                            nil))]
+               {:project-id project-id}))})))
+
+(dr (GET "/api/query-register-project" request
+         (wrap-authorize
+          request {}
+          (let [register-hash (-> request :params :register-hash)
+                project-id (project/project-id-from-register-hash register-hash)]
+            (if (nil? project-id)
+              {:result {:project nil}}
+              (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+                {:result {:project {:project-id project-id :name name}}}))))))
+
+;; Returns map with full information on an article
+(dr (GET "/api/article-info/:article-id" request
+         (wrap-authorize
+          request {:allow-public true}
+          (let [project-id (active-project request)
+                article-id (-> request :params :article-id Integer/parseInt)]
+            (let [{:keys [article] :as result}
+                  (article-info-full project-id article-id)]
+              (when (= (:project-id article) project-id)
+                (update-user-default-project request)
+                result))))))
+
+(dr (POST "/api/project-articles" request
+          (wrap-authorize
+           request {:allow-public true}
+           (let [project-id (active-project request)
+                 exclude-hours (if (= :dev (:profile env))
+                                 nil nil)
+                 args (-> request :body)
+                 n-count (some-> (:n-count args) parse-integer)
+                 n-offset (some-> (:n-offset args) parse-integer)
+                 {:keys [sort-by sort-dir]} args
+                 lookup-count (let [value (:lookup-count args)]
+                                (boolean (or (true? value) (= value "true"))))
+                 text-search
+                 (when-let [text-search (:text-search args)]
+                   (when (not-empty text-search)
+                     text-search))
+                 filters
+                 (->> [(:filters args)
+                       (when text-search
+                         [{:text-search text-search}])]
+                      (apply concat)
+                      (remove nil?)
+                      vec)
+                 query-result
+                 (alist/query-project-article-list
+                  project-id (cond-> {}
+                               n-count (merge {:n-count n-count})
+                               n-offset (merge {:n-offset n-offset})
+                               (not-empty filters) (merge {:filters filters})
+                               sort-by (merge {:sort-by sort-by})
+                               sort-dir (merge {:sort-dir sort-dir})))]
+             (update-user-default-project request)
+             {:result
+              (if lookup-count
+                (:total-count query-result)
+                (:entries query-result))}))))
+
+;;;
+;;; Charts data
+;;;
+
+(dr (GET "/api/important-terms" request
+         (wrap-authorize
+          request {:allow-public true}
+          (let [{:keys [n]} (-> request :params)]
+            (api/important-terms (active-project request) (parse-integer n))))))
+
+(dr (GET "/api/prediction-histograms" request
+         (wrap-authorize
+          request {:allow-public true}
+          (api/prediction-histogram (active-project request)))))
+
+(dr (GET "/api/charts/label-count-data" request
+         (wrap-authorize
+          request {:allow-public true}
+          (api/label-count-data (active-project request)))))
+
+;;;
+;;; Article import
+;;;
+
 (dr (POST "/api/import-articles/pubmed" request
           (wrap-authorize
            request {:roles ["admin"]}
@@ -213,7 +345,10 @@
                  {:keys [tempfile filename]} (get-in request [:params :file])]
              (api/import-articles-from-pdf-zip-file project-id tempfile filename)))))
 
-;; Returns an article for user to label
+;;;
+;;; Article review
+;;;
+
 (dr (GET "/api/label-task" request
          (wrap-authorize
           request {:roles ["member"]}
@@ -263,17 +398,9 @@
              (article/set-user-article-note article-id user-id name content)
              {:result body}))))
 
-;; Returns map with full information on an article
-(dr (GET "/api/article-info/:article-id" request
-         (wrap-authorize
-          request {:allow-public true}
-          (let [project-id (active-project request)
-                article-id (-> request :params :article-id Integer/parseInt)]
-            (let [{:keys [article] :as result}
-                  (article-info-full project-id article-id)]
-              (when (= (:project-id article) project-id)
-                (update-user-default-project request)
-                result))))))
+;;;
+;;; PubMed search
+;;;
 
 ;; Note that transit-clj is not used with query params.
 ;; Therefore, the string request parameter 'page-number' is converted to an integer
@@ -299,16 +426,9 @@
             (pubmed/get-pmids-summary (mapv #(Integer/parseInt %)
                                             (clojure.string/split pmids #",")))))))
 
-(dr (POST "/api/delete-member-labels" request
-          (wrap-authorize
-           request {:roles ["member"]
-                    :developer true}
-           (let [user-id (current-user-id request)
-                 project-id (active-project request)
-                 {:keys [verify-user-id]} (:body request)]
-             (assert (= user-id verify-user-id) "verify-user-id mismatch")
-             (project/delete-member-labels-notes project-id user-id)
-             {:result {:success true}}))))
+;;;
+;;; Project settings
+;;;
 
 (dr (GET "/api/project-settings" request
          (wrap-authorize
@@ -342,6 +462,36 @@
               {:success true
                :project-name project-name}}))))
 
+(dr (POST "/api/change-project-permissions" request
+          (wrap-authorize
+           request {:roles ["admin"]}
+           (let [project-id (active-project request)
+                 {:keys [users-map]} (:body request)]
+             (api/change-project-permissions project-id users-map)))))
+
+(dr (POST "/api/sync-project-labels" request
+          (wrap-authorize
+           request {:roles ["admin"]}
+           (let [project-id (active-project request)
+                 {:keys [labels]} (:body request)]
+             (api/sync-labels project-id labels)))))
+
+(dr (GET "/api/project-description" request
+         (wrap-authorize
+          request {:allow-public true}
+          (api/read-project-description (active-project request)))))
+
+(dr (POST "/api/project-description" request
+          (wrap-authorize
+           request {:roles ["admin"]}
+           (let [project-id (active-project request)
+                 markdown (-> request :body :markdown)]
+             (api/set-project-description! project-id markdown)))))
+
+;;;
+;;; Project sources
+;;;
+
 (dr (GET "/api/project-sources" request
          (wrap-authorize
           request {:allow-public true}
@@ -373,11 +523,15 @@
                  "Content-Disposition"
                  (format "attachment; filename=\"%s\"" filename)))))))
 
+;;;
+;;; Project document files
+;;;
+
 (dr (GET "/api/files/:project-id" request
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                files (files/list-files-for-project project-id)]
+                files (files/list-document-files-for-project project-id)]
             {:result (vec files)}))))
 
 (dr (GET "/api/files/:project-id/download/:file-key/:filename" request
@@ -407,118 +561,103 @@
            request {:roles ["member"]}
            (let [project-id (active-project request)
                  key (-> request :params :key)
-                 deletion (files/mark-deleted (UUID/fromString key) project-id)]
+                 deletion (files/mark-document-file-deleted (UUID/fromString key) project-id)]
              {:result deletion}))))
 
-(dr (GET "/api/export-project/:project-id/:filename" request
+;;
+;; Project export files
+;;
+
+(dr (GET "/api/project-exports" request
          (wrap-authorize
           request {:allow-public true}
-          (let [filename (-> request :params :filename)
-                project-id (-> request :params :project-id Integer/parseInt)
-                ;; project-id (active-project request)
-                data (json/write-str (export/export-project project-id))]
-            (-> (response/response data)
-                (response/header "Content-Type" "application/json; charset=utf-8")
-                (response/header "Content-Disposition"
-                                 (format "attachment; filename=\"%s\"" filename)))))))
+          (get-project-exports (active-project request)))))
 
-(dr (GET "/api/export-answers-csv/:project-id/:filename" request
-         (wrap-authorize
-          request {:allow-public true}
-          (let [filename (-> request :params :filename)
-                project-id (-> request :params :project-id Integer/parseInt)
-                ;; project-id (active-project request)
-                data (->> (export/export-project-answers project-id)
-                          (csv/write-csv))]
-            (-> (response/response data)
-                (response/header "Content-Type" "text/csv; charset=utf-8")
-                (response/header "Content-Disposition"
-                                 (format "attachment; filename=\"%s\"" filename)))))))
-
-(dr (GET "/api/export-endnote-xml/:project-id/:filename" request
-         (wrap-authorize
-          request {:allow-public true}
-          (let [filename (-> request :params :filename)
-                project-id (-> request :params :project-id Integer/parseInt)
-                ;; project-id (active-project request)
-                file (endnote-out/project-to-endnote-xml project-id :to-file true)]
-            (-> (response/response (io/reader file))
-                (response/header "Content-Type" "text/xml; charset=utf-8")
-                (response/header "Content-Disposition"
-                                 (format "attachment; filename=\"%s\"" filename)))))))
-
-(dr (POST "/api/project-articles" request
+(dr (POST "/api/generate-project-export/:project-id/:export-type" request
           (wrap-authorize
            request {:allow-public true}
            (let [project-id (active-project request)
-                 exclude-hours (if (= :dev (:profile env))
-                                 nil nil)
-                 args (-> request :body)
-                 n-count (some-> (:n-count args) parse-integer)
-                 n-offset (some-> (:n-offset args) parse-integer)
-                 {:keys [sort-by sort-dir]} args
-                 lookup-count (let [value (:lookup-count args)]
-                                (boolean (or (true? value) (= value "true"))))
-                 text-search
-                 (when-let [text-search (:text-search args)]
-                   (when (not-empty text-search)
-                     text-search))
-                 filters
-                 (->> [(:filters args)
-                       (when text-search
-                         [{:text-search text-search}])]
-                      (apply concat)
-                      (remove nil?)
-                      vec)
-                 query-result
-                 (alist/query-project-article-list
-                  project-id (cond-> {}
-                               n-count (merge {:n-count n-count})
-                               n-offset (merge {:n-offset n-offset})
-                               (not-empty filters) (merge {:filters filters})
-                               sort-by (merge {:sort-by sort-by})
-                               sort-dir (merge {:sort-dir sort-dir})))]
-             (update-user-default-project request)
-             {:result
-              (if lookup-count
-                (:total-count query-result)
-                (:entries query-result))}))))
+                 user-id (current-user-id request)
+                 export-type (-> request :params :export-type keyword)
+                 {:keys [filters]} (:body request)
+                 article-ids (when filters
+                               (alist/query-project-article-ids
+                                {:project-id project-id}
+                                filters))
+                 tempfile (case export-type
+                            :user-answers
+                            (-> (export/export-user-answers
+                                 project-id :article-ids article-ids)
+                                (csv/write-csv)
+                                (create-export-tempfile))
+                            :group-answers
+                            (-> (export/export-group-answers
+                                 project-id :article-ids article-ids)
+                                (csv/write-csv)
+                                (create-export-tempfile))
+                            :endnote-xml
+                            (endnote-out/project-to-endnote-xml
+                             project-id :article-ids article-ids :to-file true))
+                 entry (add-project-export project-id export-type tempfile
+                                           {:user-id user-id :filters filters})
+                 filename-base (case export-type
+                                 :user-answers   "UserAnswers"
+                                 :group-answers  "Answers"
+                                 :endnote-xml    "Articles")
+                 filename-ext (case export-type
+                                (:user-answers :group-answers)  ".csv"
+                                :endnote-xml                    ".xml")
+                 filename-project (str "P" project-id)
+                 filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
+                 filename-date (util/today-string "MMdd")
+                 filename (str filename-base "_"
+                               filename-project "_"
+                               filename-date "_"
+                               filename-articles filename-ext)]
+             {:result {:success true
+                       :entry (-> entry
+                                  (select-keys [:download-id :export-type :added-time])
+                                  (assoc :filename filename
+                                         :url (str "/api/download-project-export/" project-id
+                                                   "/" (name export-type)
+                                                   "/" (:download-id entry)
+                                                   "/" filename)))}}))))
 
-(dr (POST "/api/sync-project-labels" request
-          (wrap-authorize
-           request {:roles ["admin"]}
-           (let [project-id (active-project request)
-                 {:keys [labels]} (:body request)]
-             (api/sync-labels project-id labels)))))
-
-(dr (GET "/api/lookup-project-url" request
+(dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
          (wrap-authorize
-          request {}
-          {:result
-           (when-let [url-id (-> request :params :url-id)]
-             (when-let [project-id
-                        (try
-                          (project/project-id-from-url-id url-id)
-                          (catch Throwable e
-                            nil))]
-               {:project-id project-id}))})))
+          request {:allow-public true}
+          (let [project-id (active-project request)
+                export-type (-> request :params :export-type keyword)
+                {:keys [download-id filename]} (-> request :params)
+                entry (->> (get-project-exports project-id)
+                           (filter #(and (= (:export-type %) export-type)
+                                         (= (:download-id %) download-id)))
+                           first)
+                file (some-> entry :tempfile-path io/file)]
+            (cond (empty? filename)
+                  (web/make-error-response api/bad-request :file "No filename given")
+                  (nil? file)
+                  (web/make-error-response api/not-found :file "Export file not found")
+                  :else
+                  (case export-type
+                    (:user-answers :group-answers)
+                    (-> (io/reader file)
+                        (web/csv-file-response filename))
+                    :endnote-xml
+                    (-> (io/reader file)
+                        (web/xml-file-response filename))))))))
 
-(dr (GET "/api/query-register-project" request
+;; Legacy route for existing API code
+(dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
          (wrap-authorize
-          request {}
-          (let [register-hash (-> request :params :register-hash)
-                project-id (project/project-id-from-register-hash register-hash)]
-            (if (nil? project-id)
-              {:result {:project nil}}
-              (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-                {:result {:project {:project-id project-id :name name}}}))))))
+          request {:allow-public true}
+          (-> (export/export-user-answers (active-project request))
+              (csv/write-csv)
+              (web/csv-file-response (-> request :params :filename))))))
 
-(dr (POST "/api/paypal/add-funds" request
-          (wrap-authorize
-           request {:logged-in true}
-           (let [project-id (active-project request)
-                 {:keys [user-id response]} (:body request)]
-             (api/add-funds-paypal project-id user-id response)))))
+;;;
+;;; Project support subscriptions
+;;;
 
 (dr (GET "/api/user-support-subscriptions" request
          (wrap-authorize
@@ -540,21 +679,9 @@
             (users/get-user-by-id (current-user-id request))
             (active-project request)))))
 
-(dr (GET "/api/important-terms" request
-         (wrap-authorize
-          request {:allow-public true}
-          (let [{:keys [n]} (-> request :params)]
-            (api/important-terms (active-project request) (parse-integer n))))))
-
-(dr (GET "/api/prediction-histograms" request
-         (wrap-authorize
-          request {:allow-public true}
-          (api/prediction-histogram (active-project request)))))
-
-(dr (GET "/api/charts/label-count-data" request
-         (wrap-authorize
-          request {:allow-public true}
-          (api/label-count-data (active-project request)))))
+;;;
+;;; PDF files
+;;;
 
 (dr (GET "/api/open-access/:article-id/availability" [article-id]
          (api/open-access-available? (parse-integer article-id))))
@@ -599,42 +726,38 @@
           (wrap-authorize
            request {:roles ["member"]}
            (let [{:keys [article-id key filename]} (:params request)]
-             (api/dissociate-pdf-article article-id key filename)))))
+             (api/dissociate-article-pdf article-id key filename)))))
 
-(dr (POST "/api/change-project-permissions" request
-          (wrap-authorize
-           request {:roles ["admin"]}
-           (let [project-id (active-project request)
-                 {:keys [users-map]} (:body request)]
-             (api/change-project-permissions project-id users-map)))))
+;;;
+;;; Article annotations
+;;;
 
 (dr (POST "/api/annotation/create" request
           (wrap-authorize
            request {:roles ["member"]}
-           (let [{:keys [context annotation-map]} (-> request :body)
-                 {:keys [selection annotation semantic-class]} annotation-map
-                 {:keys [class article-id pdf-key]} context
-                 user-id (current-user-id request)
-                 project-id (active-project request)
-                 result
-                 (condp = class
-                   "abstract"
-                   (do (assert (nil? pdf-key))
-                       (api/save-article-annotation
-                        project-id article-id user-id selection annotation
-                        :context (:context annotation-map)))
-                   "pdf"
-                   (do (assert pdf-key)
-                       (api/save-article-annotation
-                        project-id article-id user-id selection annotation
-                        :context (:context annotation-map) :pdf-key pdf-key)))]
-             (when (and (string? semantic-class)
-                        (not-empty semantic-class)
-                        (-> result :result :annotation-id))
-               (api/update-annotation!
-                (-> result :result :annotation-id)
-                annotation semantic-class user-id))
-             result))))
+           (with-transaction
+             (let [{:keys [context annotation-map]} (-> request :body)
+                   {:keys [selection annotation semantic-class]} annotation-map
+                   {:keys [class article-id pdf-key]} context
+                   user-id (current-user-id request)
+                   project-id (active-project request)
+                   result (condp = class
+                            "abstract"
+                            (do (assert (nil? pdf-key))
+                                (api/save-article-annotation
+                                 project-id article-id user-id selection annotation
+                                 :context (:context annotation-map)))
+                            "pdf"
+                            (do (assert pdf-key)
+                                (api/save-article-annotation
+                                 project-id article-id user-id selection annotation
+                                 :context (:context annotation-map) :pdf-key pdf-key)))]
+               (when (and (string? semantic-class)
+                          (not-empty semantic-class)
+                          (-> result :result :annotation-id))
+                 (api/update-annotation! (-> result :result :annotation-id)
+                                         annotation semantic-class user-id))
+               result)))))
 
 (dr (POST "/api/annotation/update/:annotation-id" request
           (wrap-authorize
@@ -673,22 +796,16 @@
           (let [article-id (-> request :params :article-id parse-integer)]
             (api/article-abstract-annotations article-id)))))
 
-(dr (GET "/api/public-projects" request
-         (wrap-authorize
-          request {}
-          (api/public-projects))))
+;;;
+;;; Funding and compensation
+;;;
 
-(dr (GET "/api/project-description" request
-         (wrap-authorize
-          request {:allow-public true}
-          (api/read-project-description (active-project request)))))
-
-(dr (POST "/api/project-description" request
+(dr (POST "/api/paypal/add-funds" request
           (wrap-authorize
-           request {:roles ["admin"]}
+           request {:logged-in true}
            (let [project-id (active-project request)
-                 markdown (-> request :body :markdown)]
-             (api/set-project-description! project-id markdown)))))
+                 {:keys [user-id response]} (:body request)]
+             (api/add-funds-paypal project-id user-id response)))))
 
 (dr (POST "/api/project-compensation" request
           (wrap-authorize
@@ -756,17 +873,20 @@
                  {:keys [user-id compensation admin-fee]} (-> request :body)]
              (api/pay-user! project-id user-id compensation admin-fee)))))
 
-(dr (POST "/api/stripe/finalize-user" request
-          (wrap-authorize
-           request {:logged-in true}
-           (let [{:keys [user-id stripe-code]} (-> request :body)]
-             (api/finalize-stripe-user! user-id stripe-code)))))
+;;;
+;;; Developer-only requests
+;;;
 
-(dr (GET "/api/stripe/connected/:user-id" request
-         (wrap-authorize
-          request {:logged-in true}
-          (let [user-id (-> request :params :user-id Integer/parseInt)]
-            (api/user-has-stripe-account? user-id)))))
+(dr (POST "/api/delete-member-labels" request
+          (wrap-authorize
+           request {:roles ["member"]
+                    :developer true}
+           (let [user-id (current-user-id request)
+                 project-id (active-project request)
+                 {:keys [verify-user-id]} (:body request)]
+             (assert (= user-id verify-user-id) "verify-user-id mismatch")
+             (project/delete-member-labels-notes project-id user-id)
+             {:result {:success true}}))))
 
 (dr (POST "/api/update-project-predictions" request
           (wrap-authorize

@@ -27,7 +27,8 @@
             [re-frame.core :as re-frame :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [cognitect.transit :as transit])
-  (:require-macros [sysrev.macros :refer [import-vars]]))
+  (:require-macros [sysrev.macros :refer [import-vars]]
+                   [reagent.interop :refer [$]]))
 
 (defn populate-user-ns []
   (import-vars 'sysrev.base)

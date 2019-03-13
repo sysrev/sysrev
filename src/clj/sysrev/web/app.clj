@@ -26,8 +26,7 @@
       (-> request :body :project-id))
     (let [project-id (or (-> request :params :project-id)
                          (and (-> request :body map?)
-                              (-> request :body :project-id))
-                         #_ (-> request :session :identity :default-project-id))]
+                              (-> request :body :project-id)))]
       (cond
         (integer? project-id) project-id
         (string? project-id)  (parse-integer project-id)
@@ -46,6 +45,18 @@
       (r/status 404)
       (r/header "Content-Type" "text/html; charset=utf-8")
       (cond-> (= (:request-method request) :head) (assoc :body nil))))
+
+(defn file-download-response [data filename content-type]
+  (-> (r/response data)
+      (r/header "Content-Type" content-type)
+      (r/header "Content-Disposition"
+                (format "attachment; filename=\"%s\"" filename))))
+
+(defn csv-file-response [data filename]
+  (file-download-response data filename "text/csv; charset=utf-8"))
+
+(defn xml-file-response [data filename]
+  (file-download-response data filename "text/xml; charset=utf-8"))
 
 (defn wrap-no-cache [handler]
   #(some-> (handler %)

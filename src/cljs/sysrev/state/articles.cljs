@@ -44,6 +44,12 @@
    (get articles article-id)))
 
 (reg-sub
+ :article/sources
+ (fn [[_ article-id]]
+   [(subscribe [:article/raw article-id])])
+ (fn [[article]] (:sources article)))
+
+(reg-sub
  :article/review-status
  (fn [[_ article-id]]
    [(subscribe [:article/raw article-id])])

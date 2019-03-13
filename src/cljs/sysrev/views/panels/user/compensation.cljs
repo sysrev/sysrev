@@ -4,8 +4,9 @@
             [re-frame.core :refer [subscribe reg-event-fx reg-sub trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.accounting :as accounting]
-            [sysrev.util :refer [vector->hash-map continuous-update-until unix-epoch->date-string]]
-            [sysrev.views.semantic :refer [Grid Row Column Button ListUI Item Segment Header]]))
+            [sysrev.util :as util]
+            [sysrev.views.semantic :as s :refer
+             [Grid Row Column Segment Header]]))
 
 (def ^:private panel [:user :compensation])
 
@@ -69,7 +70,7 @@
   "Display a payment-owed map"
   [{:keys [total-owed project-id project-name]}]
   ^{:key (gensym project-id)}
-  [Item
+  [s/ListItem
    [Grid
     [Row
      [Column {:width 5}
@@ -86,11 +87,9 @@
      {:reagent-render
       (fn [this]
         [Segment
-         [Header {:as "h4"
-                  :dividing true} "Payments Owed"]
+         [Header {:as "h4" :dividing true} "Payments Owed"]
          (if-not (empty? @payments-owed)
-           [ListUI {:divided true
-                    :relaxed true}
+           [s/ListUI {:divided true :relaxed true}
             (doall (map
                     (partial PaymentOwed)
                     @payments-owed))]
@@ -103,33 +102,26 @@
   "Display a payment-owed map"
   [{:keys [total-paid project-id project-name created]}]
   ^{:key (gensym project-id)}
-  [Item
+  [s/ListItem
    [Grid
     [Row
-     [Column {:width 5}
-      project-name]
+     [Column {:width 5} project-name]
      [Column {:width 8}
-      (str "Paid on: " (unix-epoch->date-string created)) ]
-     [Column {:width 3
-              :align "right"}
+      (str "Paid on: " (util/unix-epoch->date-string created)) ]
+     [Column {:width 3 :align "right"}
       (accounting/cents->string total-paid)]]]])
 
-(defn PaymentsPaid
-  []
+(defn PaymentsPaid []
   (let [payments-paid (r/cursor state [:payments-paid])]
     (r/create-class
      {:reagent-render
       (fn [this]
         (when-not (empty? @payments-paid)
           [Segment
-           [Header {:as "h4"
-                    :dividing true}
+           [Header {:as "h4" :dividing true}
             "Payments Paid"]
-           [ListUI {:divided true
-                    :relaxed true}
-            (doall (map
-                    (partial PaymentPaid)
-                    @payments-paid))]]))
+           [s/ListUI {:divided true :relaxed true}
+            (doall (map (partial PaymentPaid) @payments-paid))]]))
       :component-did-mount
       (fn [this]
         (get-payments-paid!))})))

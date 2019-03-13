@@ -193,18 +193,49 @@
       (wait-until-loading-completes))
     result))
 
+(defn is-xpath?
+  "Test whether q is taxi query in xpath form."
+  [q]
+  (let [s (cond (string? q)                q
+                (and (map? q) (:xpath q))  (:xpath q))]
+    (boolean (and s (str/starts-with? s "//")))))
+
+(defn not-class
+  "If taxi query q is CSS form, add restriction against class c."
+  [q c]
+  (let [suffix (format ":not([class*=\"%s\"])" c)
+        alter-css #(cond-> %
+                     (not (str/includes? % suffix))
+                     (str suffix))]
+    (cond (is-xpath? q)            q
+          (string? q)              (alter-css q)
+          (and (map? q) (:css q))  (update q :css alter-css)
+          :else                    q)))
+
+(defn not-disabled
+  "If taxi query q is CSS form, add restriction against \"disabled\" class."
+  [q]
+  (not-class q "disabled"))
+
+(defn not-loading
+  "If taxi query q is CSS form, add restriction against \"loading\" class."
+  [q]
+  (not-class q "loading"))
+
 (defn click [q & {:keys [if-not-exists delay displayed?]
                   :or {if-not-exists :wait
                        delay 25
                        displayed? false}}]
-  (letfn [(go []
-              (when (= if-not-exists :wait)
-                (if displayed?
-                  (wait-until-displayed q)
-                  (wait-until-exists q)))
-              (when-not (and (= if-not-exists :skip)
-                             (not (taxi/exists? q)))
-                (taxi/click q)))]
+  (let [;; Auto-exclude "disabled" class when q is CSS query
+        q (not-disabled q)
+        go (fn []
+             (when (= if-not-exists :wait)
+               (if displayed?
+                 (wait-until-displayed q)
+                 (wait-until-exists q)))
+             (when-not (and (= if-not-exists :skip)
+                            (not (taxi/exists? q)))
+               (taxi/click q)))]
     (try
       (go)
       (catch Throwable e
@@ -223,18 +254,20 @@
   true)
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
-  `(deftest ~name
-     (when ~enable
-       (let ~bindings
-         (try
-           ~body
-           (catch Throwable e#
-             (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-               (log/info "Saving screenshot:" filename#)
-               (taxi/take-screenshot :file filename#)
-               (throw e#)))
-           (finally
-             ~cleanup))))))
+  (let [name-str (clojure.core/name name)]
+    `(deftest ~name
+       (when ~enable
+         (let ~bindings
+           (try
+             (do (log/info "running" ~name-str)
+                 ~body)
+             (catch Throwable e#
+               (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
+                 (log/info "Saving screenshot:" filename#)
+                 (taxi/take-screenshot :file filename#)
+                 (throw e#)))
+             (finally
+               ~cleanup)))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")

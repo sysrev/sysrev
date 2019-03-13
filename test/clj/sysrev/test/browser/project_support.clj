@@ -13,7 +13,7 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.plans :as test-plans]
-            [sysrev.test.browser.stripe :as browser-stripe]))
+            [sysrev.test.browser.stripe :as bstripe]))
 
 ;; if a user is created in the db, they won't have a stripe customer associated with them
 ;; to add them: (users/create-sysrev-stripe-customer! (users/get-user-by-email "browser+test@insilica.co"))
@@ -83,12 +83,12 @@
       (b/click support-submit-button)
       (is (b/exists? (test-plans/error-msg-xpath test-plans/no-payment-method)))
 ;;; update with a valid cc number and see if we can support a project
-      (b/click test-plans/update-payment-button)
-      (browser-stripe/enter-cc-information {:cardnumber browser-stripe/valid-visa-cc
-                                            :exp-date "0120"
-                                            :cvc "123"
-                                            :postal "11111"})
-      (b/click browser-stripe/use-card-button)
+      (b/click ".button.update-payment")
+      (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
+                                     :exp-date "0120"
+                                     :cvc "123"
+                                     :postal "11111"})
+      (b/click ".button.use-card")
       ;; support the project at $10 per month
       (b/click {:xpath "//label[contains(text(),'$10')]/parent::div"})
       (b/click support-submit-button)

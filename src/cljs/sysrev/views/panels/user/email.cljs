@@ -4,11 +4,14 @@
             [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe dispatch]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.util :refer [vector->hash-map]]
-            [sysrev.views.semantic :refer [Segment Header Grid Row Column Label Button Message MessageHeader ListUI Item FormGroup FormInput Form]])
+            [sysrev.views.semantic :as s :refer
+             [Grid Row Column Segment Header Message Button Label]]
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def state (r/cursor app-db [:state :panels :user :email]))
+(def panel [:user :email])
+
+(def state (r/cursor app-db [:state :panels panel]))
 
 (defn verify-email
   [code]
@@ -23,7 +26,8 @@
                      (reset! verify-message "Thank you for verifying your email address."))
           :error-handler (fn [error-response]
                            (reset! verifying-code? false)
-                           (reset! verify-error (get-in error-response [:response :error :message])))})))
+                           (reset! verify-error (get-in error-response
+                                                        [:response :error :message])))})))
 
 (defn get-email-addresses!
   []
@@ -35,7 +39,8 @@
           :handler (fn [response]
                      (reset! retrieving-addresses? false)
                      (dispatch [:fetch [:identity]])
-                     (reset! email-addresses (-> response :result :addresses (vector->hash-map :id))))
+                     (reset! email-addresses (-> response :result :addresses
+                                                 (util/vector->hash-map :id))))
           :error-handler (fn [error]
                            (reset! retrieving-addresses? false)
                            ($ js/console log "[get-email-addresses] There was an error"))})))
@@ -66,9 +71,8 @@
     (reset! update-message nil)
     (reset! update-error nil)
     (cond (clojure.string/blank? new-email)
-          (do
-            (reset! update-error "New email address can not be blank!")
-            (reset! sending-update? false))
+          (do (reset! update-error "New email address can not be blank!")
+              (reset! sending-update? false))
           :else
           (POST (str "/api/user/" @(subscribe [:self/user-id]) "/email")
                 {:params {:email new-email}
@@ -80,7 +84,8 @@
                             (reset! update-message "You've successfully added a new email address"))
                  :error-handler (fn [error-response]
                                   (reset! sending-update? false)
-                                  (reset! update-error (get-in error-response [:response :error :message])))}))))
+                                  (reset! update-error
+                                          (get-in error-response [:response :error :message])))}))))
 
 (defn delete-email!
   [email-object]
@@ -115,7 +120,8 @@
                      (get-email-addresses!))
           :error-handler (fn [error-response]
                            (reset! setting-primary? false)
-                           (reset! set-primary-error (get-in error-response [:response :error :message])))})))
+                           (reset! set-primary-error
+                                   (get-in error-response [:response :error :message])))})))
 
 (defn VerifyEmail
   [code]
@@ -127,12 +133,10 @@
         [:div
          (when-not (clojure.string/blank? @verify-message)
            (js/setTimeout #(nav-scroll-top "/user/settings/email") 1000)
-           [Message
-            @verify-message])
+           [Message @verify-message])
          (when-not (clojure.string/blank? @verify-error)
            (js/setTimeout #(nav-scroll-top "/user/settings/email") 1000)
-           [Message {:negative true}
-            @verify-error])
+           [Message {:negative true} @verify-error])
          [:div {:style {:margin-top "1em"}}
           "Redirecting to email settings..."]])
       :get-initial-state
@@ -160,16 +164,16 @@
             [Column {:width 11}
              [:h4 {:class "email-entry"}
               email " " (if verified
-                          [Label {:color "green"}
-                           "Verified"]
-                          [Label {:color "red"}
-                           "Unverified"])
+                          [Label {:color "green"} "Verified"]
+                          [Label {:color "red"} "Unverified"])
               (when principal
                 [Label "Primary"])
-              " " (when (not verified) [Button {:size "mini"
-                                                :basic true
-                                                :on-click #(resend-verification-code! email-object)
-                                                :disabled @resending-code?} "Resend Verification Email"])]]
+              " " (when (not verified)
+                    [Button {:size "mini"
+                             :basic true
+                             :on-click #(resend-verification-code! email-object)
+                             :disabled @resending-code?}
+                     "Resend Verification Email"])]]
             [Column {:width 5}
              (when-not principal
                [:div
@@ -232,24 +236,23 @@
             "Add a New Email Address"])
          (when @adding-email?
            [:div
-            [Form {:on-submit #(do
-                                 (reset! update-error nil)
-                                 (reset! update-message nil)
-                                 (create-email! @new-email))}
-             [FormGroup
-              [FormInput {:id "new-email-address"
-                          :value @new-email
-                          :width 8
-                          :placeholder "New Email Address"
-                          :on-change (fn [event]
-                                       (reset! new-email ($ event :target.value)))}]
+            [s/Form {:on-submit #(do
+                                   (reset! update-error nil)
+                                   (reset! update-message nil)
+                                   (create-email! @new-email))}
+             [s/FormGroup
+              [s/FormInput {:id "new-email-address"
+                            :value @new-email
+                            :width 8
+                            :placeholder "New Email Address"
+                            :on-change (fn [event]
+                                         (reset! new-email ($ event :target.value)))}]
               [Button {:disabled @sending-update?
                        :id "new-email-address-submit"} "Submit"]
-              [Button {:on-click (fn [event]
-                                   ($ event preventDefault)
-                                   (reset! adding-email? false)
-                                   (reset! update-error nil)
-                                   (reset! update-message nil))
+              [Button {:on-click (util/wrap-prevent-default
+                                  #(do (reset! adding-email? false)
+                                       (reset! update-error nil)
+                                       (reset! update-message nil)))
                        :disabled @sending-update?} "Cancel"]]]
             (when-not (clojure.string/blank? @update-message)
               [Message {:onDismiss #(reset! update-message nil)
@@ -280,14 +283,13 @@
                                                       (sort-by :email))
                             email-object-fn (fn [email-object]
                                               ^{:key (:id email-object)}
-                                              [Item [EmailAddress email-object]])]
-                        [ListUI {:divided true
-                                 :relaxed true}
+                                              [s/ListItem [EmailAddress email-object]])]
+                        [s/ListUI {:divided true :relaxed true}
                          (when-not (empty? primary-email-address)
                            (doall (map email-object-fn primary-email-address)))
                          (when-not (empty? rest-email-addresses)
                            (doall (map email-object-fn rest-email-addresses)))
-                         [Item [CreateEmailAddress]]]))
+                         [s/ListItem [CreateEmailAddress]]]))
     :get-initial-state
     (fn [this]
       (get-email-addresses!))}))
@@ -295,7 +297,5 @@
 (defn EmailSettings
   []
   [Segment
-   [Header {:as "h4"
-            :dividing true}
-    "Email"]
+   [Header {:as "h4" :dividing true} "Email"]
    [EmailAddresses]])

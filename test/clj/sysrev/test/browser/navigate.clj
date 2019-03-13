@@ -30,7 +30,7 @@
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (init-route path)
           (not= current (path->full-url path))
-          (do (b/wait-until-loading-completes :pre-wait 10)
+          (do (b/wait-until-loading-completes :pre-wait 50)
               (log/info "navigating:" path)
               #_ (taxi/get-url (path->full-url path))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))

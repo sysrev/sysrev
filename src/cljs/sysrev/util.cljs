@@ -96,12 +96,8 @@
     (dissoc m (last ks))
     (update-in m (butlast ks) #(dissoc % (last ks)))))
 
-(def date-from-string tformat/parse)
-
 (defn today-string []
-  (let [now (t/now)
-        fmt (tformat/formatters :basic-date)]
-    (tformat/unparse fmt now)))
+  (tformat/unparse (tformat/formatters :basic-date) (t/now)))
 
 (defn is-today? [utc-date]
   (let [today (t/today)
@@ -110,15 +106,6 @@
      (= (t/day today) (t/day date))
      (= (t/month today) (t/month date))
      (= (t/year today) (t/year date)))))
-
-(defn random-id
-  "Generate a random-id to use for manually rendered components."
-  ([len]
-   (let [length (or len 6)
-         char-gen (gen/fmap char (gen/one-of [(gen/choose 65 90)
-                                              (gen/choose 97 122)]))]
-     (apply str (gen/sample char-gen length))))
-  ([] (random-id 6)))
 
 (defn url-domain [url]
   "Gets the example.com part of a url"
@@ -216,22 +203,6 @@
                     (do (f)
                         (continuous-update-until f pred on-success n)))
                  n))
-
-(defn parse-to-number?
-  "Will s parse to a number?
-  ex:
-  (parse-to-number? '1234') => true
-  (parse-to-number? '1234aasdf') => false
-
-  note: returns false for blank strings
-  "
-  [s]
-  (if (str/blank? s)
-    false
-    (-> s
-        js/Number
-        js/isNaN
-        not)))
 
 (defn event-input-value
   [event]

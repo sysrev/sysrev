@@ -6,12 +6,13 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-jsonb]]
+            [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
+            [sysrev.db.documents :as docs]
+            [sysrev.db.files :as files]
             [sysrev.article.core :as article]
             [sysrev.label.core :as labels]
-            [sysrev.db.documents :as docs]
-            [sysrev.db.queries :as q]
-            [sysrev.db.migration :as migrate]
+            [sysrev.source.core :as source]
             [sysrev.source.endnote :as endnote]
             [sysrev.biosource.predict :as predict-api]
             [sysrev.biosource.importance :as importance-api]
@@ -174,13 +175,68 @@
                             parent-id [:= :article-uuid article-uuid] [:*]
                             {:include-disabled? true})
                            do-query first)]
-      (-> (insert-into :article)
-          (values [(-> article
-                       (assoc :project-id child-id
-                              :parent-article-uuid article-uuid)
-                       (dissoc :article-id :article-uuid :duplicate-of :text-search)
-                       (article/article-to-sql))])
-          do-execute))))
+      (when-let [new-article-id
+                 (-> (insert-into :article)
+                     (values [(-> article
+                                  (assoc :project-id child-id
+                                         :parent-article-uuid article-uuid)
+                                  (dissoc :article-id :article-uuid :duplicate-of :text-search)
+                                  (article/article-to-sql))])
+                     (returning :article-id)
+                     do-query first :article-id)]
+        (doseq [s3-file (files/get-article-file-maps (:article-id article))]
+          (when (:id s3-file)
+            (files/associate-s3-file-with-article (:id s3-file) new-article-id)))))))
+
+;; TODO: copy actual sources instead of doing this
+(defn create-project-legacy-source
+  "Create a new legacy source in project and add all articles to it, if
+  project has no sources already."
+  [project-id]
+  (with-transaction
+    (let [n-sources (-> (select :%count.*)
+                        (from [:project-source :ps])
+                        (where [:= :ps.project-id project-id])
+                        do-query first :count)]
+      (when (= 0 n-sources)
+        (log/info "Creating legacy source entry for project" project-id)
+        (let [article-ids (-> (q/select-project-articles
+                               project-id [:a.article-id]
+                               {:include-disabled? true})
+                              (->> do-query (mapv :article-id)))]
+          (if (empty? article-ids)
+            (log/info "No articles in project")
+            (let [source-id (source/create-source
+                             project-id
+                             (source/make-source-meta :legacy {}))]
+              (log/info "Creating" (count article-ids)
+                        "article source entries for project" project-id)
+              (doseq [ids-group (partition-all 200 article-ids)]
+                (source/add-articles-to-source ids-group source-id)))))))))
+
+(defn all-empty-legacy-sources
+  "Gets list of legacy sources with no articles."
+  []
+  (-> (select :ps.*)
+      (from [:project-source :ps])
+      (where
+       [:not
+        [:exists
+         (-> (select :*)
+             (from [:article-source :as])
+             (where [:= :as.source-id :ps.source-id]))]])
+      (->> do-query (filter #(-> % :meta :source (= "legacy"))))))
+
+(defn delete-empty-legacy-sources
+  "Deletes all legacy sources with no articles. This is needed because
+  these were being unintentionally created at one point."
+  []
+  (with-transaction
+    (let [source-ids (->> (all-empty-legacy-sources) (mapv :source-id))]
+      (when (not-empty source-ids)
+        (log/info "Deleting" (count source-ids) "empty legacy sources")
+        (doseq [source-id source-ids]
+          (source/delete-source source-id))))))
 
 ;; TODO: should copy "Project Documents" files
 ;; TODO: should copy project sources (not just articles)
@@ -230,12 +286,12 @@
       (when (and labels answers articles)
         (copy-project-article-labels src-id dest-id))
       (log/info "clone-project done")
-      (migrate/ensure-project-sources-exist)
+      (create-project-legacy-source dest-id)
       (when articles
         (importance-api/schedule-important-terms-update dest-id))
       (when (and articles answers)
-        (predict-api/schedule-predict-update dest-id))))
-  nil)
+        (predict-api/schedule-predict-update dest-id))
+      dest-id)))
 
 (defn clone-subproject-articles
   "Creates a copy of a project with a subset of the articles from a parent project.

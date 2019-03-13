@@ -10,8 +10,8 @@
             [sysrev.db.project :as project]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.util :as u]
-            [sysrev.shared.util :as su :refer [in? map-values]]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? map-values]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -102,7 +102,7 @@
                (->> articles
                     (sort-by sort-keyfn <)
                     (take n-closest)
-                    (#(when-not (empty? %) (u/crypto-rand-nth %)))
+                    (#(when-not (empty? %) (util/crypto-rand-nth %)))
                     :article-id)]
       (-> (article/get-article
            article-id :predict-run-id predict-run-id)
@@ -181,7 +181,7 @@
         (cond
           unlimited-reviews [unlimited :unlimited]
           (and pending unlabeled)
-          (if (<= (u/crypto-rand) second-review-prob)
+          (if (<= (util/crypto-rand) second-review-prob)
             [pending :single] [unlabeled :unreviewed])
           pending [pending :single]
           unlabeled [unlabeled :unreviewed]

@@ -18,5 +18,5 @@
 (s/def ::project
   (s/keys
    :req-un [::sc/project-id ::members
-            ;; TODO: more
+            ;; more fields here
             ]))

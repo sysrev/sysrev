@@ -5,10 +5,12 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.stripe :as stripe]
-            [sysrev.views.semantic :refer [Segment Grid Column Row ListUI Item Button Message MessageHeader]]
+            [sysrev.views.semantic :as s :refer
+             [Segment Grid Column Row ListUI ListItem Button]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.user.billing :refer [DefaultSource]]
-            [sysrev.nav :refer [nav nav-scroll-top]])
+            [sysrev.nav :refer [nav nav-scroll-top]]
+            [sysrev.util :as util])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -94,10 +96,10 @@
                            [Column {:width 8}
                             [:b "Business Unlimited"]
                             [ListUI
-                             [Item "Unlimited public projects"]
-                             [Item "Unlimited private projects"]]]
-                           [Column {:width 8
-                                    :align "right"} [:h2 "$30 / month"]]]]]]]]
+                             [ListItem "Unlimited public projects"]
+                             [ListItem "Unlimited private projects"]]]
+                           [Column {:width 8 :align "right"}
+                            [:h2 "$30 / month"]]]]]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [Segment
@@ -106,35 +108,35 @@
                            [Column {:width 8}
                             [:b "Basic"]
                             [ListUI
-                             [Item "Unlimited public projects"]]]
-                           [Column {:width 8
-                                    :align "right"} [:h2 "$0 / month"]]]]]
+                             [ListItem "Unlimited public projects"]]]
+                           [Column {:width 8 :align "right"}
+                            [:h2 "$0 / month"]]]]]
                         [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
                         [ListUI {:divided true}
                          [:h4 "New Monthly Bill"]
-                         [Item [:p "Basic plan ($0 / month)"]]
+                         [ListItem [:p "Basic plan ($0 / month)"]]
                          (when (empty? @default-source)
-                           [:a {:on-click
-                                (fn [event]
-                                  ($ event preventDefault)
-                                  (dispatch [:payment/set-calling-route! (str "/user/plans")])
-                                  (nav-scroll-top "/user/payment"))
-                                :style {:cursor "pointer"}} "Add a payment method"])
-                         [:div {:style {:margin-top "1em"
-                                        :width "100%"}}
-                          [Button {:color "green"
-                                   :on-click (fn [event]
-                                               (reset! changing-plan? true)
-                                               (dispatch [:action [:subscribe-plan "Basic"]]))
-                                   :disabled (or (empty? @default-source)
-                                                 @changing-plan?)}
+                           [:a.add-payment-method
+                            {:style {:cursor "pointer"}
+                             :on-click
+                             (util/wrap-prevent-default
+                              #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                   (nav-scroll-top "/user/payment")))}
+                            "Add a payment method"])
+                         [:div {:style {:margin-top "1em" :width "100%"}}
+                          [Button
+                           {:class "unsubscribe-plan"
+                            :color "green"
+                            :on-click #(do (reset! changing-plan? true)
+                                           (dispatch [:action [:subscribe-plan "Basic"]]))
+                            :disabled (or (empty? @default-source) @changing-plan?)}
                            "Unsubscribe"]]
                          (when @error-message
-                           [Message {:negative true}
-                            [MessageHeader "Upgrade Plan Error"]
+                           [s/Message {:negative true}
+                            [s/MessageHeader "Upgrade Plan Error"]
                             [:p @error-message]])]]]]]]]])
       :get-initial-state
       (fn [this]
@@ -146,56 +148,62 @@
         error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
-     {:reagent-render (fn [this]
-                        [:div
-                         [:h1 "Upgrade your plan"]
-                         [Grid
-                          [Row [Column {:width 8}
-                                [Grid [Row [Column
-                                            [:h3 "UPGRADING TO"]
-                                            [Segment
-                                             [Grid {:stackable true}
-                                              [Row
-                                               [Column {:width 8}
-                                                [:b "Business Unlimited"]
-                                                [ListUI
-                                                 [Item "Unlimited public projects"]
-                                                 [Item "Unlimited private projects"]]]
-                                               [Column {:width 8
-                                                        :align "right"} [:h2 "$30 / month"]]]]]
-                                            [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+     {:reagent-render
+      (fn [this]
+        [:div
+         [:h1 "Upgrade your plan"]
+         [Grid
+          [Row
+           [Column {:width 8}
+            [Grid [Row [Column
+                        [:h3 "UPGRADING TO"]
+                        [Segment
+                         [Grid {:stackable true}
+                          [Row
                            [Column {:width 8}
-                            [Grid [Row [Column
-                                        [:h3 "Upgrade Summary"]
-                                        [ListUI {:divided true}
-                                         [:h4 "New Monthly Bill"]
-                                         [Item [:p "Unlimited plan ($30 / month)"]]
-                                         [:h4 "Billing Information"]
-                                         [Item [DefaultSource]]
-                                         (when (or (empty? @default-source)
-                                                   ((comp not nil?) @error-message))
-                                           [:a {:on-click
-                                                (fn [event]
-                                                  ($ event preventDefault)
-                                                  (dispatch [:payment/set-calling-route! (str "/user/plans")])
-                                                  (reset! error-message nil)
-                                                  (nav-scroll-top "/user/payment"))
-                                                :style {:cursor "pointer"}} (if (empty? @default-source)
-                                                                              "Add a payment method"
-                                                                              "Change payment method")])
-                                         [:div {:style {:margin-top "1em"
-                                                        :width "100%"}}
-                                          [Button {:color "green"
-                                                   :on-click (fn [event]
-                                                               (reset! changing-plan? true)
-                                                               (dispatch [:action [:subscribe-plan "Unlimited"]]))
-                                                   :disabled (or (empty? @default-source)
-                                                                 @changing-plan?)}
-                                           "Upgrade Plan"]]
-                                         (when @error-message
-                                           [Message {:negative true}
-                                            [MessageHeader "Upgrade Plan Error"]
-                                            [:p @error-message]])]]]]]]]])
+                            [:b "Business Unlimited"]
+                            [ListUI
+                             [ListItem "Unlimited public projects"]
+                             [ListItem "Unlimited private projects"]]]
+                           [Column {:width 8 :align "right"}
+                            [:h2 "$30 / month"]]]]]
+                        [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+           [Column {:width 8}
+            (let [no-default? (empty? @default-source)]
+              [Grid
+               [Row
+                [Column
+                 [:h3 "Upgrade Summary"]
+                 [ListUI {:divided true}
+                  [:h4 "New Monthly Bill"]
+                  [ListItem [:p "Unlimited plan ($30 / month)"]]
+                  [:h4 "Billing Information"]
+                  [ListItem [DefaultSource]]
+                  (when (or no-default?
+                            ((comp not nil?) @error-message))
+                    [:a.payment-method
+                     {:class (if no-default? "add-method" "change-method")
+                      :style {:cursor "pointer"}
+                      :on-click
+                      (util/wrap-prevent-default
+                       #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                            (reset! error-message nil)
+                            (nav-scroll-top "/user/payment")))}
+                     (if no-default?
+                       "Add a payment method"
+                       "Change payment method")])
+                  [:div {:style {:margin-top "1em" :width "100%"}}
+                   [Button
+                    {:class "upgrade-plan"
+                     :color "green"
+                     :on-click #(do (reset! changing-plan? true)
+                                    (dispatch [:action [:subscribe-plan "Unlimited"]]))
+                     :disabled (or no-default? @changing-plan?)}
+                    "Upgrade Plan"]]
+                  (when @error-message
+                    [s/Message {:negative true}
+                     [s/MessageHeader "Upgrade Plan Error"]
+                     [:p @error-message]])]]]])]]]])
       :get-initial-state
       (fn [this]
         (reset! changing-plan? false)

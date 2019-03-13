@@ -67,15 +67,15 @@
   "Create a new project for user-id using project-name and insert a
   minimum label, returning the project in a response map"
   [project-name user-id]
-  (let [{:keys [project-id] :as project}
-        (project/create-project project-name)]
-    (labels/add-label-overall-include project-id)
-    (project/add-project-note project-id {})
-    (project/add-project-member project-id user-id
-                                :permissions ["member" "admin"])
-    {:result
-     {:success true
-      :project (select-keys project [:project-id :name])}}))
+  (db/with-transaction
+    (let [{:keys [project-id] :as project} (project/create-project project-name)]
+      (labels/add-label-overall-include project-id)
+      (project/add-project-note project-id {})
+      (project/add-project-member project-id user-id
+                                  :permissions ["member" "admin"])
+      {:result
+       {:success true
+        :project (select-keys project [:project-id :name])}})))
 ;;;
 (s/fdef create-project-for-user!
   :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id)
@@ -347,17 +347,20 @@
   ;; best way to check for now
   (let [response (keywordize-keys response)]
     (cond (:id response)
-          (let [amount (-> response :transactions first (get-in [:amount :total]) read-string (* 100) (Math/round))
+          (let [amount (-> response :transactions first (get-in [:amount :total])
+                           read-string (* 100) (Math/round))
                 transaction-id (:id response)
-                created (-> response :transactions first :related_resources first :sale :create_time paypal/paypal-date->unix-epoch)]
+                created (-> response :transactions first :related_resources
+                            first :sale :create_time paypal/paypal-date->unix-epoch)]
             ;; all paypal transactions will be considered pending
-            (funds/create-project-fund-pending-entry! {:project-id project-id
-                                                       :user-id user-id
-                                                       :amount amount
-                                                       :transaction-id transaction-id
-                                                       :transaction-source (:paypal-payment funds/transaction-source-descriptor)
-                                                       :status "pending"
-                                                       :created created})
+            (funds/create-project-fund-pending-entry!
+             {:project-id project-id
+              :user-id user-id
+              :amount amount
+              :transaction-id transaction-id
+              :transaction-source (:paypal-payment funds/transaction-source-descriptor)
+              :status "pending"
+              :created created})
             {:result {:success true}})
           :else {:error {:status internal-server-error
                          :message "The PayPal response has an error"}})))
@@ -365,7 +368,8 @@
 (defn current-project-support-level
   "The current level of support of this user for project-id"
   [user project-id]
-  {:result (select-keys (plans/user-current-project-support user project-id) [:name :project-id :quantity])})
+  {:result (select-keys (plans/user-current-project-support user project-id)
+                        [:name :project-id :quantity])})
 
 (defn user-support-subscriptions
   "The current support subscriptions for user"
@@ -397,9 +401,10 @@
 
 (defn stripe-default-source
   [user-id]
-  {:result {:default-source (if-let [source-default (stripe/read-default-customer-source (users/get-user-by-id user-id))]
-                              source-default
-                              [])}})
+  {:result
+   {:default-source (or (-> (users/get-user-by-id user-id)
+                            (stripe/read-default-customer-source))
+                        [])}})
 
 (defn user-has-stripe-account?
   "Does the user have a stripe account associated with the platform?"
@@ -439,7 +444,8 @@
   the day (12:00:00AM) and end-date is until the end of the
   day (11:59:59AM)."
   [project-id start-date end-date]
-  (try {:result {:amount-owed (compensation/project-compensation-for-users project-id start-date end-date)}}
+  (try {:result {:amount-owed (compensation/project-compensation-for-users
+                               project-id start-date end-date)}}
        (catch Throwable e
          {:error {:status internal-server-error
                   :message (.getMessage e)}})))
@@ -448,13 +454,14 @@
   "Return compensations owed for all users"
   [project-id]
   (try-catch-response
-   {:result {:compensation-owed (->> (compensation/compensation-owed-by-project project-id))}}))
+   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
   [project-id]
   (try-catch-response
-   {:result {:project-users-current-compensation (compensation/project-users-current-compensation project-id)}}))
+   {:result {:project-users-current-compensation
+             (compensation/project-users-current-compensation project-id)}}))
 
 (defn toggle-compensation-active!
   [project-id compensation-id active?]
@@ -469,7 +476,8 @@
        ;; nothing changed, do nothing
        (= active? (:active current-compensation))
        {:result {:success true
-                 :message (str "compensation-id " compensation-id " already has active set to " active?)}}
+                 :message (str "compensation-id " compensation-id
+                               " already has active set to " active?)}}
        ;; this compensation is being deactivated, so also disable all other compensations for users
        (= active? false)
        (do
@@ -523,7 +531,8 @@
        ;; there wasn't a compensation id found for the project, or it isn't active
        (nil? (project-compensations compensation-id))
        {:error {:status not-found
-                :message (str "compensation-id " compensation-id " is not active or doesn't exist for project-id " project-id)}}
+                :message (str "compensation-id " compensation-id
+                              " is not active or doesn't exist for project-id " project-id)}}
        ;; this is the same compensation-id as the user already has
        (= current-compensation-id compensation-id)
        {:result {:success true
@@ -585,26 +594,29 @@
        {:error {:status payment-required
                 :message "Not enough available funds to fulfill this payment"}}
        (<= total-amount available-funds)
-       (let [{:keys [status body]} (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
+       (let [{:keys [status body]}
+             (paypal/paypal-oauth-request (paypal/send-payout! user compensation))]
          (if-not (= status 201)
            {:error {:status bad-request
                     :message (get-in body [:message])}}
            (let [payout-batch-id (get-in body [:batch_header :payout_batch_id])
                  created (util/now-unix-seconds)]
              ;; deduct for funds to the user
-             (funds/create-project-fund-entry! {:project-id project-id
-                                                :user-id user-id
-                                                :amount (- compensation)
-                                                :transaction-id payout-batch-id
-                                                :transaction-source (:paypal-payout funds/transaction-source-descriptor)
-                                                :created created})
+             (funds/create-project-fund-entry!
+              {:project-id project-id
+               :user-id user-id
+               :amount (- compensation)
+               :transaction-id payout-batch-id
+               :transaction-source (:paypal-payout funds/transaction-source-descriptor)
+               :created created})
              ;; deduct admin fee
-             (funds/create-project-fund-entry! {:project-id project-id
-                                                :user-id user-id
-                                                :amount (- admin-fee)
-                                                :transaction-id (str (UUID/randomUUID))
-                                                :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
-                                                :created created})
+             (funds/create-project-fund-entry!
+              {:project-id project-id
+               :user-id user-id
+               :amount (- admin-fee)
+               :transaction-id (str (UUID/randomUUID))
+               :transaction-source (:sysrev-admin-fee funds/transaction-source-descriptor)
+               :created created})
              {:result "success"})))))))
 
 (defn payments-owed
@@ -799,19 +811,17 @@
   "Handle saving a file on S3 and the associated accounting with it"
   [article-id file filename]
   (let [hash (util/file->sha-1-hash file)
-        s3-id (files/id-for-s3-filename-key-pair
+        s3-id (files/s3-id-from-filename-key
                filename hash)
-        article-s3-association (files/get-article-s3-association
-                                s3-id
-                                article-id)]
+        associated? (files/s3-article-association? s3-id article-id)]
     (cond
       ;; there is a file and it is already associated with this article
-      (not (nil? article-s3-association))
+      associated?
       {:result {:success true
                 :key hash}}
       ;; there is a file, but it is not associated with this article
       (not (nil? s3-id))
-      (try (do (files/associate-s3-with-article s3-id article-id)
+      (try (do (files/associate-s3-file-with-article s3-id article-id)
                {:result {:success true, :key hash}})
            (catch Throwable e
              {:error {:message "error (associate article file)"
@@ -824,8 +834,8 @@
               ;; the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
-              s3-id (files/id-for-s3-filename-key-pair filename hash)]
-          (files/associate-s3-with-article s3-id article-id)
+              s3-id (files/s3-id-from-filename-key filename hash)]
+          (files/associate-s3-file-with-article s3-id article-id)
           {:result {:success true, :key hash}})
         (catch Throwable e
           {:error {:message "error (associate filename)"
@@ -840,8 +850,8 @@
               ;; and the hash
               _ (files/insert-file-hash-s3-record filename hash)
               ;; get the new association's id
-              s3-id (files/id-for-s3-filename-key-pair filename hash)]
-          (files/associate-s3-with-article s3-id article-id)
+              s3-id (files/s3-id-from-filename-key filename hash)]
+          (files/associate-s3-file-with-article s3-id article-id)
           {:result {:success true, :key hash}})
         (catch Throwable e
           {:error {:message "error (store file)"
@@ -856,9 +866,7 @@
       ;; the pdf exists in the store already
       (article/pmcid-in-s3store? pmcid)
       {:result {:available? true
-                :key (-> pmcid
-                         (article/pmcid->s3store-id)
-                         (files/s3store-id->key))}}
+                :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}}
       ;; there is an open access pdf filename, but we don't have it yet
       (pubmed/pdf-ftp-link pmcid)
       (try
@@ -869,7 +877,7 @@
               bytes (util/slurp-bytes file)
               save-article-result (save-article-pdf article-id file filename)
               key (get-in save-article-result [:result :key])
-              s3store-id (files/id-for-s3-filename-key-pair filename key)]
+              s3store-id (files/s3-id-from-filename-key filename key)]
           ;; delete the temporary file
           (fs/delete filename)
           ;; associate the pmcid with the s3store item
@@ -877,13 +885,9 @@
            pmcid s3store-id)
           ;; finally, return the pdf from our own archive
           {:result {:available? true
-                    :key (-> pmcid
-                             (article/pmcid->s3store-id)
-                             (files/s3store-id->key))}})
+                    :key (-> pmcid article/pmcid->s3-id files/s3-id->key)}})
         (catch Throwable e
-          {:error {:message (str "open-access-available?: " (type e))
-                   ;; :exception e
-                   }}))
+          {:error {:message (str "open-access-available?: " (type e))}}))
 
       ;; there was nothing available
       :else
@@ -893,24 +897,22 @@
   "Given an article-id, return a vector of maps that correspond to the
   files associated with article-id"
   [article-id]
-  (let [pmcid (-> article-id
-                  article/article-pmcid)
-        pmcid-s3store-id (article/pmcid->s3store-id pmcid)]
+  (let [pmcid-s3-id (some-> article-id article/article-pmcid article/pmcid->s3-id)]
     {:result {:success true
               :files (->> (files/get-article-file-maps article-id)
                           (mapv #(assoc % :open-access?
-                                        (if (= (:id %)
-                                               pmcid-s3store-id)
-                                          true
-                                          false))))}}))
+                                        (= (:id %) pmcid-s3-id))))}}))
 
-(defn dissociate-pdf-article
+(defn dissociate-article-pdf
   "Remove the association between an article and PDF file."
   [article-id key filename]
-  (try (do (files/dissociate-file-from-article article-id key filename)
-           {:result {:success true}})
+  (try (if-let [s3-id (files/s3-id-from-filename-key filename key)]
+         (do (files/dissociate-s3-file-from-article s3-id article-id)
+             {:result {:success true}})
+         {:error {:status not-found
+                  :message (str "No file found: " (pr-str [filename key]))}})
        (catch Throwable e
-         {:error {:message "Exception in dissociate-pdf-article"
+         {:error {:message "Exception in dissociate-article-pdf"
                   :exception e}})))
 
 (defn process-annotation-context
@@ -936,7 +938,7 @@
       (db-annotations/associate-annotation-article! annotation-id article-id)
       (db-annotations/associate-annotation-user! annotation-id user-id)
       (when pdf-key
-        (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)]
+        (let [s3store-id (files/s3-id-from-article-key article-id pdf-key)]
           (db-annotations/associate-annotation-s3store! annotation-id s3store-id)))
       {:result {:success true
                 :annotation-id annotation-id}})
@@ -958,7 +960,7 @@
 
 (defn user-defined-pdf-annotations
   [article-id pdf-key]
-  (try (let [s3store-id (files/id-for-s3-article-id-s3-key-pair article-id pdf-key)
+  (try (let [s3store-id (files/s3-id-from-article-key article-id pdf-key)
              annotations (db-annotations/user-defined-article-pdf-annotations
                           article-id s3store-id)]
          {:result {:success true
@@ -1039,13 +1041,14 @@
                                 :pmid :article-id :pdf-source :context :user-id])))))
 
 (defn project-annotation-status [project-id & {:keys [user-id]}]
-  (let [member? (and user-id (project/member-has-permission?
-                              project-id user-id "member"))]
-    {:result
-     {:status
-      (cond-> {:project (db-annotations/project-annotation-status project-id)}
-        member? (merge {:member (db-annotations/project-annotation-status
-                                 project-id :user-id user-id)}))}}))
+  (db/with-transaction
+    (let [member? (and user-id (project/member-has-permission?
+                                project-id user-id "member"))]
+      {:result
+       {:status
+        (cond-> {:project (db-annotations/project-annotation-status project-id)}
+          member? (merge {:member (db-annotations/project-annotation-status
+                                   project-id :user-id user-id)}))}})))
 
 (defn change-project-permissions [project-id users-map]
   (try
@@ -1119,12 +1122,13 @@
   (let [project-name (:name (project/get-project-by-id project-id))]
     (sendgrid/send-template-email
      email (str "You've been invited to " project-name " as a reviewer")
-     (str "You've been invited to <b>" project-name "</b> as a reviewer. You can view the invitation <a href='"
-          (sysrev-base-url)
+     (str "You've been invited to <b>" project-name
+          "</b> as a reviewer. You can view the invitation <a href='" (sysrev-base-url)
           "/user/settings/invitations'>here</a>."))))
 
 (defn create-invitation!
-  "Create an invitation from inviter to join project-id to invitee with optional description"
+  "Create an invitation from inviter to join project-id to invitee with
+  optional description"
   [invitee project-id inviter & [description]]
   (let [description (or description "view-project")
         project-invitation (->> invitee
@@ -1137,7 +1141,8 @@
         ;; send invitation email
         (send-invitation-email email project-id)
         ;; create invitation
-        {:result {:invitation-id (invitation/create-invitation! invitee project-id inviter description)}})
+        {:result {:invitation-id (invitation/create-invitation!
+                                  invitee project-id inviter description)}})
       {:error {:status bad-request
                :message "You can only send one invitation to a user per project"}})))
 
@@ -1295,7 +1300,7 @@
 (defn create-profile-image!
   [user-id file filename]
   (let [hash (util/file->sha-1-hash file)
-        s3-id (files/id-for-s3-filename-key-pair
+        s3-id (files/s3-id-from-filename-key
                filename hash)
         profile-s3-association (files/get-profile-image-s3-association
                                 s3-id
@@ -1321,7 +1326,7 @@
       (let [;; create the association between this file name and the hash
             _ (files/insert-file-hash-s3-record filename hash)
             ;; get the new associations's id
-            s3-id (files/id-for-s3-filename-key-pair filename hash)]
+            s3-id (files/s3-id-from-filename-key filename hash)]
         (files/associate-profile-image-s3-with-user s3-id user-id)
         (files/activate-profile-image user-id s3-id)
         {:result {:success true
@@ -1334,7 +1339,7 @@
             ;; create a new association between the file name and the hash
             _ (files/insert-file-hash-s3-record filename hash)
             ;; get the new associations's id
-            s3-id (files/id-for-s3-filename-key-pair filename hash)]
+            s3-id (files/s3-id-from-filename-key filename hash)]
         (files/associate-profile-image-s3-with-user s3-id user-id)
         (files/activate-profile-image s3-id user-id)
         {:result {:success true
@@ -1363,7 +1368,7 @@
   [user-id file filename meta]
   (let [hash (util/file->sha-1-hash file)
         {:keys [s3-id]} (files/read-avatar user-id)
-        current-hash (files/s3store-id->key s3-id)]
+        current-hash (files/s3-id->key s3-id)]
     ;; delete the current avatar
     (when current-hash
       (fstore/delete-file current-hash :image)
@@ -1372,7 +1377,7 @@
     (fstore/save-file file :image)
     (files/insert-file-hash-s3-record filename hash)
     ;; associate file with avatar
-    (files/associate-avatar-image-with-user (files/id-for-s3-filename-key-pair filename hash)
+    (files/associate-avatar-image-with-user (files/s3-id-from-filename-key filename hash)
                                             user-id)
     ;; change the coords on active profile img
     (files/update-profile-image-meta! (:id (files/active-profile-image-key-filename user-id))

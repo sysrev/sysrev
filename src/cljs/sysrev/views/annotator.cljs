@@ -292,11 +292,9 @@
       [:div.field.selection
        [:label "Selection"]
        (let [display (when (string? selection)
-                       (if (<= (count selection) 400)
-                         selection
-                         (str (subs selection 0 200)
-                              nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp
-                              (subs selection (- (count selection) 200)))))]
+                       (sutil/string-ellipsis
+                        selection 400
+                        (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))]
          [:div.ui.small.label.selection-label
           {:class (cond-> "basic"
                     new? (str " new-annotation"))}
@@ -577,7 +575,7 @@
               (set [:selection] (:selection selection-map))
               (if (empty? (:selection selection-map))
                 (set [:new-annotation] nil)
-                (let [entry {:id (str "new-ann-" (util/random-id))
+                (let [entry {:id (str "new-ann-" (sutil/random-id))
                              :selection (:selection selection-map)
                              :context (-> (dissoc selection-map :selection)
                                           (assoc :client-field field))
@@ -604,14 +602,12 @@
   (when (util/full-size?)
     (let [enabled? @(subscribe [:annotator/enabled context])]
       [:div.ui.button.toggle-annotator
-       {:on-click
-        (util/wrap-user-event
-         #(do (dispatch-sync [:annotator/init-view-state context])
-              (dispatch-sync [:annotator/enabled context (not enabled?)])
-              (when on-change (on-change))))
+       {:on-click (util/wrap-user-event
+                   #(do (dispatch-sync [:annotator/init-view-state context])
+                        (dispatch-sync [:annotator/enabled context (not enabled?)])
+                        (when on-change (on-change))))
         :class (cond-> class
-                 (and (not (util/annotator-size?))
-                      (not enabled?))
+                 (and (not enabled?) (not (util/annotator-size?)))
                  (str " disabled"))}
        (if enabled?
          "Disable Sidebar"

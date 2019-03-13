@@ -12,7 +12,7 @@
 
 (e/def-entity-value :article :pdfs
   (fn [article-id]
-    (let [pmcid-s3store-id (some-> article-id a/article-pmcid a/pmcid->s3store-id)]
+    (let [pmcid-s3store-id (some-> article-id a/article-pmcid a/pmcid->s3-id)]
       (->> (files/get-article-file-maps article-id)
            (mapv #(assoc % :open-access?
                          (= (:id %) pmcid-s3store-id)))))))

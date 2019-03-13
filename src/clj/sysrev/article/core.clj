@@ -159,23 +159,6 @@
                :meta (s/? ::sa/meta))
   :ret map?)
 
-#_
-(defn article-review-status [article-id]
-  (let [entries
-        (-> (q/select-article-by-id
-             article-id [:al.user-id :al.resolve :al.answer])
-            (q/join-article-labels)
-            (q/join-article-label-defs)
-            (q/filter-valid-article-label true)
-            (q/filter-overall-label)
-            do-query)]
-    (cond
-      (empty? entries) :unreviewed
-      (some :resolve entries) :resolved
-      (= 1 (count entries)) :single
-      (= 1 (->> entries (map :answer) distinct count)) :consistent
-      :else :conflict)))
-
 (defn article-locations-map [article-id]
   (->> (q/query-article-locations-by-id
         article-id [:al.source :al.external-id])
@@ -190,6 +173,11 @@
            (group-by :flag-name)
            (map-values first)
            (map-values #(dissoc % :flag-name)))))
+
+(defn article-sources-list [article-id]
+  (-> (q/select-article-by-id article-id [:asrc.source-id])
+      (q/join-article-source)
+      (->> do-query (mapv :source-id))))
 
 (defn article-score
   [article-id & {:keys [predict-run-id] :as opts}]
@@ -208,9 +196,9 @@
   `predict-run-id` allows for specifying a non-default prediction run to
   use for the prediction score."
   [article-id & {:keys [items predict-run-id]
-                 :or {items [:locations :score :review-status :flags]}
+                 :or {items [:locations :score :flags :sources]}
                  :as opts}]
-  (assert (->> items (every? #(in? [:locations :score :review-status :flags] %))))
+  (assert (->> items (every? #(in? [:locations :score :flags :sources] %))))
   (let [article (-> (q/query-article-by-id article-id [:a.*])
                     (dissoc :text-search))
         get-item (fn [item-key f] (when (in? items item-key)
@@ -226,10 +214,10 @@
                           #(or (article-score
                                 article-id :predict-run-id predict-run-id)
                                0.0))
-                #_ (get-item :review-status
-                             #(article-review-status article-id))
                 (get-item :flags
-                          #(article-flags-map article-id))]
+                          #(article-flags-map article-id))
+                (get-item :sources
+                          #(article-sources-list article-id))]
                (remove nil?) (apply pcalls) doall (apply merge {})))]
     (when (not-empty article)
       (merge article item-values))))
@@ -303,8 +291,9 @@
                (where [:= :pmcid pmcid])
                do-query first)))
 
-(defn pmcid->s3store-id
-  "Given a PMCID, return a s3store-id associated with it, if any"
+;; FIX: see docstring - add unique constraint or change function
+(defn pmcid->s3-id
+  "Returns first of any s3-id values associated with pmcid."
   [pmcid]
   (-> (select :s3-id)
       (from :pmcid-s3store)
