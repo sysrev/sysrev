@@ -259,6 +259,7 @@
   (when mutable?
     (when (not @editing?)
       [:a {:href "#"
+           :id "edit-introduction"
            :on-click (fn [event]
                        ($ event preventDefault)
                        (swap! editing? not))}
@@ -280,7 +281,6 @@
         set-markdown! (fn [user-id]
                         (fn [draft-introduction]
                           (reset! loading? true)
-                          ;;(reset! editing? true)
                           (PUT (str "/api/user/" user-id "/introduction")
                                {:params {:introduction draft-introduction}
                                 :headers {"x-csrf-token" @(subscribe [:csrf-token])}
@@ -288,9 +288,7 @@
                                            (get-user! user-id))
                                 :error-handler (fn [error-response]
                                                  (reset! loading? false)
-                                                 (reset! editing? false)
-                                                 #_(reset! error-message
-                                                           (str "There was an error trying to edit your introduction")))})))]
+                                                 (reset! editing? false))})))]
     (r/create-class
      {:reagent-render
       (fn [this]

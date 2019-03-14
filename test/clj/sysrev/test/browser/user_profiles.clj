@@ -6,6 +6,7 @@
             [sysrev.db.users :as users]
             [sysrev.test.browser.annotator :as annotator]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
+            [sysrev.test.browser.markdown :as markdown]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.review-articles :as ra]
@@ -24,6 +25,8 @@
 (defn project-activity-summary-div [project-name] (xpath "//a[contains(text(),'" project-name "')]"
                                                          "/ancestor::div[contains(@id,'project-')]"
                                                          activity-values))
+(def edit-introduction (xpath "//a[@id='edit-introduction']"))
+
 (defn private-project-names
   []
   (b/wait-until-displayed private-project-divs)
@@ -59,7 +62,10 @@
   (with-transaction
     (users/create-email-verification! user-id email)
     (users/verify-email! email (:verify-code (users/read-email-verification-code user-id email)) user-id)
-    (users/set-primary-email! user-id email)))
+    (users/set-primary-email! user-id email)
+    (if-let [web-user-group-id (:id (users/read-web-user-group-name user-id "public-reviewer"))]
+      (users/update-web-user-group! web-user-group-id true)
+      (users/create-web-user-group! user-id "public-reviewer"))))
 
 (deftest-browser correct-project-activity
   (test/db-connected?)
@@ -162,3 +168,39 @@
       (is (= project-name-2 (first (private-project-names)))))
   :cleanup
   (do (->> (users/projects-member user-id) (mapv :project-id) (mapv project/delete-project))))
+
+(deftest-browser user-description
+  (test/db-connected?)
+  [email-browser+test (:email b/test-login)
+   password-browser+test (:password b/test-login)
+   email-test-user "test@insilica.co"
+   password-test-user "testinsilica"
+   user-id-browser+test (-> (:email b/test-login)
+                            users/get-user-by-email
+                            :user-id)
+   user-introduction "I am the browser test"]
+  (do ;; create another test user
+    (b/create-test-user :email email-test-user :password password-test-user)
+    ;; make them a public reviewer
+    (make-public-reviewer user-id-browser+test email-browser+test)
+    (nav/log-in)
+    ;; go to the user profile
+    (b/click user-name-link)
+    (b/click user-profile-tab)
+    ;; edit introduction
+    (b/click edit-introduction)
+    (b/wait-until-displayed "textarea")
+    (b/set-input-text "textarea" user-introduction :delay 100)
+    (markdown/click-save)
+    (b/exists? (xpath "//p[text()='" user-introduction "']"))
+    ;; log in as another user
+    (nav/log-in email-test-user password-test-user)
+    ;; go to user
+    (nav/go-route "/users")
+    (b/click (xpath "//a[@href='/users/" user-id-browser+test "']"))
+    ;; the introduction still reads the same
+    (b/exists? (xpath "//p[text()='" user-introduction "']"))
+    ;; there is no edit introduction option
+    (is (not (taxi/exists? edit-introduction))))
+  :cleanup
+  (do (b/delete-test-user :email email-test-user)))

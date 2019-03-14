@@ -103,8 +103,11 @@
               [RenderMarkdown @draft-markdown]]]]
            (when-not (clojure.string/blank? @markdown)
              [:div [RenderMarkdown @markdown]]))])
-      :get-initial-state
+      :component-did-mount
       (fn [this]
-        (reset! draft-markdown (or @markdown ""))
-        {})})))
+        (reset! draft-markdown (or @markdown "")))
+      :component-will-receive-props
+      (fn [this new-argv]
+        (reset! draft-markdown (or @(-> new-argv second :markdown) ""))
+        )})))
 

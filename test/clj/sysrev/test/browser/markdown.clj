@@ -13,6 +13,21 @@
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(def save-button (xpath "//button[contains(text(),'Save')]"))
+(def disabled-save (xpath "//button[contains(text(),'Save') and contains(@class,'disabled')]"))
+(def loading-save (xpath "//button[contains(text(),'Save') and contains(@class,'loading')]"))
+
+(defn click-save
+  []
+  (Thread/sleep 200)
+  (taxi/wait-until #(and (taxi/exists? save-button)
+                         (taxi/displayed? save-button)
+                         (not (taxi/exists? disabled-save))
+                         (not (taxi/exists? loading-save)))
+                   2000 25)
+  (b/click save-button)
+  (b/wait-until-loading-completes :pre-wait 200))
+
 (deftest-browser happy-path-project-description
   true
   [input "textarea"
@@ -21,20 +36,6 @@
    create-project-description
    {:xpath "//div[contains(text(),'Create Project Description')]"}
    edit-markdown-icon {:xpath "//i[contains(@class,'pencil icon')]"}
-   save-button {:xpath "//button[contains(text(),'Save')]"}
-   disabled-save
-   {:xpath "//button[contains(text(),'Save') and contains(@class,'disabled')]"}
-   loading-save
-   {:xpath "//button[contains(text(),'Save') and contains(@class,'loading')]"}
-   click-save (fn []
-                (Thread/sleep 200)
-                (taxi/wait-until #(and (taxi/exists? save-button)
-                                       (taxi/displayed? save-button)
-                                       (not (taxi/exists? disabled-save))
-                                       (not (taxi/exists? loading-save)))
-                                 2000 25)
-                (b/click save-button)
-                (b/wait-until-loading-completes :pre-wait 200))
    markdown-description "#foo bar\n##baz qux"
    edited-markdown-description (str markdown-description "\nquxx quzz corge")
    overview-tab {:xpath "//span[contains(text(),'Overview')]"}]
