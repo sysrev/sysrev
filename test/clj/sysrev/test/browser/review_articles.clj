@@ -171,6 +171,7 @@
   (nav/go-project-route "/review")
   (Thread/sleep 200)
   (when (test/remote-test?) (Thread/sleep 500))
+  (b/click x/review-labels-tab :delay 100 :displayed? true)
   (mapv #(set-label-answer %) label-settings)
   (Thread/sleep 200)
   (when (test/remote-test?) (Thread/sleep 500))

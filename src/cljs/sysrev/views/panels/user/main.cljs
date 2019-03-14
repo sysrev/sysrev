@@ -238,22 +238,26 @@
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
            [:a {:key "#general"
+                :id "user-general"
                 :class (cond-> "item"
                          (= @current-path "/user/settings") (str " active"))
                 :href "/user/settings"}
             "General"]
            [:a {:key "#profile"
+                :id "user-profile"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/profile") (str " active"))
                 :href "/user/settings/profile"}
             "Profile"]
            [:a {:key "#billing"
+                :id "user-billing"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/billing")
                          (str " active"))
                 :href "/user/settings/billing"}
             "Billing"]
            [:a {:key "#email"
+                :id "user-email"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/email")
                          (str " active"))

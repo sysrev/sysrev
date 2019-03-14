@@ -317,7 +317,7 @@
         {})})))
 
 (defn ActivitySummary
-  [{:keys [articles labels annotations]}]
+  [{:keys [articles labels annotations count-font-size]}]
   (let [header-margin-bottom "0.10em"]
     (when (or (> articles 0)
               (> labels 0)
@@ -327,15 +327,21 @@
        [Row
         (when (> articles 0)
           [Column
-           [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number articles)]
+           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
+                          count-font-size (assoc :font-size count-font-size))
+                 :class "articles-reviewed"} (condensed-number articles)]
            [:p "Articles Reviewed"]])
         (when (> labels 0)
           [Column
-           [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number labels)]
+           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
+                          count-font-size (assoc :font-size count-font-size))
+                 :class "labels-contributed"} (condensed-number labels)]
            [:p "Labels Contributed"]])
         (when (> annotations 0)
           [Column
-           [:h2 {:style {:margin-bottom header-margin-bottom}} (condensed-number annotations)]
+           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
+                          count-font-size (assoc :font-size count-font-size))
+                 :class "annotations-contributed"} (condensed-number annotations)]
            [:p "Annotations Contributed"]])]])))
 
 (defn Project
@@ -343,12 +349,15 @@
     :or {articles 0
          labels 0
          annotations 0}}]
-  [:div
-   [:div {:style {:margin-bottom "1em"}}
-    [:a {:href (str "/p/" project-id)} name]]
+  [:div {:style {:margin-bottom "1em"}
+         :id (str "project-" project-id)}
+   [:a {:href (str "/p/" project-id)
+        :style {:margin-bottom "0.5em"
+                :display "block"}} name]
    [ActivitySummary {:articles articles
                      :labels labels
-                     :annotations annotations}]
+                     :annotations annotations
+                     :count-font-size "1em"}]
    [Divider]])
 
 (defn UserProjects
@@ -381,28 +390,32 @@
           (when-not (empty? @projects)
             [:div.projects
              (when-not (empty? public)
-               [Segment {:class "public-projects"}
+               [Segment
                 [Header {:as "h4"
                          :dividing true}
                  "Projects"]
-                (->> public
-                     (sort sort-fn)
-                     (map (fn [project]
-                            ^{:key (:project-id project)}
-                            [Project project])))])
+                [:div {:id "public-projects"}
+                 (->> public
+                      (sort sort-fn)
+                      (map (fn [project]
+                             ^{:key (:project-id project)}
+                             [Project project])))]])
              (when-not (empty? private)
-               [Segment {:class "private-projects"}
+               [Segment
                 [Header {:as "h4"
                          :dividing true}
                  "Private Projects"]
-                (->> private
-                     (sort sort-fn)
-                     (map (fn [project]
-                            ^{:key (:project-id project)}
-                            [Project project])))])])))
+                [:div {:id "private-projects"}
+                 (->> private
+                      (sort sort-fn)
+                      (map (fn [project]
+                             ^{:key (:project-id project)}
+                             [Project project])))]])])))
       :component-will-receive-props
       (fn [this new-argv]
-        (get-user-projects! (-> new-argv second :user-id) projects))})))
+        (get-user-projects! (-> new-argv second :user-id) projects))
+      :component-did-mount (fn [this]
+                             (get-user-projects! user-id projects))})))
 
 (defn UserActivitySummary
   [projects]
@@ -411,8 +424,8 @@
         articles (count-items projects :articles)
         labels (count-items projects :labels)
         annotations (count-items projects :annotations)]
-    (when (> 0 (+ articles labels annotations))
-      [Segment {:class "user-activity-summary"}
+    (when (> (+ articles labels annotations) 0)
+      [Segment {:id "user-activity-summary"}
        [ActivitySummary {:articles articles
                          :labels labels
                          :annotations annotations}]])))

@@ -15,20 +15,41 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
-;; disabled for now
+(def article-title-div (xpath "//a[contains(@class,'article-title')]"))
+(def select-text-to-annotate (xpath "//div[contains(text(),'Select text to annotate')]"))
+(def blue-pencil-icon (xpath "//i[contains(@class,'pencil')]"))
+(def submit-button (xpath "//button[contains(@class,'positive')]"))
+(def semantic-class-input (xpath "//div[contains(@class,'semantic-class')]//input"))
+(def annotation-value-input (xpath "//div[contains(@class,'value')]//input"))
+
+(defn annotate-article [semantic-class annotation-value & {:keys [offset-x]
+                                                           :or {offset-x 671}}]
+  (b/wait-until-loading-completes :pre-wait 200)
+  (b/click x/enable-sidebar-button
+           :if-not-exists :skip :delay 100)
+  (Thread/sleep 100)
+  (b/click x/review-annotator-tab)
+  (b/wait-until-displayed select-text-to-annotate)
+  ;;(b/wait-until-displayed selected-text)
+  (Thread/sleep 100)
+  (->actions @b/active-webdriver
+             (move-to-element (taxi/find-element @b/active-webdriver (xpath "//div[@data-field='primary-title']")) 0 0)
+             (click-and-hold) (move-by-offset offset-x 0) (release) (perform))
+  (Thread/sleep 100)
+  (b/input-text semantic-class-input semantic-class :delay 50)
+  (b/input-text annotation-value-input annotation-value :delay 50)
+  (b/click submit-button)
+  (Thread/sleep 50)
+  (b/wait-until-exists blue-pencil-icon)
+  (Thread/sleep 250))
+
 (deftest-browser happy-path-project-annotator
   (test/db-connected?)
   [project-name "Annotator Test"
    search-term "foo bar enthalpic mesoporous"
-   article-title-div {:xpath "//a[contains(@class,'article-title')]"}
-   select-text-to-annotate {:xpath "//div[contains(text(),'Select text to annotate')]"}
    selected-text {:xpath "//span[contains(text(),'Journal of the American Chemical Society')]"}
-   semantic-class-input {:xpath "//div[contains(@class,'semantic-class')]//input"}
    semantic-class "foo"
-   annotation-value-input {:xpath "//div[contains(@class,'value')]//input"}
-   annotation-value "bar"
-   submit-button {:xpath "//button[contains(@class,'positive')]"}
-   blue-pencil-icon {:xpath "//i[contains(@class,'pencil')]"}]
+   annotation-value "bar"]
   (do
     (nav/log-in)
     (nav/new-project project-name)
@@ -47,24 +68,27 @@
     (nav/go-project-route "/articles")
     (b/wait-until-loading-completes :pre-wait 200)
     (b/click article-title-div :delay 200)
-    (b/wait-until-loading-completes :pre-wait 200)
-    (b/click x/enable-sidebar-button
-             :if-not-exists :skip :delay 100)
-    (Thread/sleep 100)
-    (b/click x/review-annotator-tab)
-    (b/wait-until-displayed select-text-to-annotate)
-    (b/wait-until-displayed selected-text)
-    (Thread/sleep 100)
-    (->actions @b/active-webdriver
-               (move-to-element (taxi/find-element @b/active-webdriver {:xpath "//div[@data-field='primary-title']"}) 0 0)
-               (click-and-hold) (move-by-offset 671 0) (release) (perform))
-    (Thread/sleep 100)
-    (b/input-text semantic-class-input semantic-class :delay 50)
-    (b/input-text annotation-value-input annotation-value :delay 50)
-    (b/click submit-button)
-    (Thread/sleep 50)
-    (b/wait-until-exists blue-pencil-icon)
-    (Thread/sleep 250)
+    (annotate-article semantic-class annotation-value)
+    ;; (b/wait-until-loading-completes :pre-wait 200)
+    ;; (b/click article-title-div :delay 200)
+    ;; (b/wait-until-loading-completes :pre-wait 200)
+    ;; (b/click x/enable-sidebar-button
+    ;;          :if-not-exists :skip :delay 100)
+    ;; (Thread/sleep 100)
+    ;; (b/click x/review-annotator-tab)
+    ;; (b/wait-until-displayed select-text-to-annotate)
+    ;; (b/wait-until-displayed selected-text)
+    ;; (Thread/sleep 100)
+    ;; (->actions @b/active-webdriver
+    ;;            (move-to-element (taxi/find-element @b/active-webdriver {:xpath "//div[@data-field='primary-title']"}) 0 0)
+    ;;            (click-and-hold) (move-by-offset 671 0) (release) (perform))
+    ;; (Thread/sleep 100)
+    ;; (b/input-text semantic-class-input semantic-class :delay 50)
+    ;; (b/input-text annotation-value-input annotation-value :delay 50)
+    ;; (b/click submit-button)
+    ;; (Thread/sleep 50)
+    ;; (b/wait-until-exists blue-pencil-icon)
+    ;; (Thread/sleep 250)
     ;;check the annotation
     (let [{:keys [email password]} b/test-login
           user-id (:user-id (users/get-user-by-email email))
