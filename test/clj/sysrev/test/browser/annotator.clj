@@ -1,6 +1,7 @@
 (ns sysrev.test.browser.annotator
   (:require [clj-webdriver.taxi :as taxi]
-            [clj-webdriver.core :refer [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
+            [clj-webdriver.core :refer
+             [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
             [clojure.string :as string]
             [clojure.test :refer :all]
             [sysrev.api :as api]
@@ -20,15 +21,10 @@
   (test/db-connected?)
   [project-name "Annotator Test"
    search-term "foo bar enthalpic mesoporous"
-   article-title-div {:xpath "//div[contains(@class,'article-title')]"}
    select-text-to-annotate {:xpath "//div[contains(text(),'Select text to annotate')]"}
    selected-text {:xpath "//span[contains(text(),'Journal of the American Chemical Society')]"}
-   semantic-class-input {:xpath "//div[contains(@class,'semantic-class')]//input"}
    semantic-class "foo"
-   annotation-value-input {:xpath "//div[contains(@class,'value')]//input"}
-   annotation-value "bar"
-   submit-button {:xpath "//button[contains(@class,'positive')]"}
-   blue-pencil-icon {:xpath "//i[contains(@class,'pencil')]"}]
+   annotation-value "bar"]
   (do
     (nav/log-in)
     (nav/new-project project-name)
@@ -37,33 +33,33 @@
     ;; review the single article result
     ;; note: if issues start arising with this part of the test
     ;; check to see that the search-term still returns only one result
-    (b/click review-articles/review-articles-button)
+    (b/click (x/project-menu-item :review))
     (b/wait-until-exists {:xpath "//div[@id='project_review']"})
     (review-articles/set-article-answers
      [(merge review-articles/include-label-definition
              {:value true})])
-    (b/wait-until-exists review-articles/no-articles-need-review)
+    (b/wait-until-exists ".no-review-articles")
     ;; select one article and annotate it
     (nav/go-project-route "/articles")
     (b/wait-until-loading-completes :pre-wait 200)
-    (b/click article-title-div :delay 200)
+    (b/click "div.article-title" :delay 200)
     (b/wait-until-loading-completes :pre-wait 200)
-    (b/click x/enable-sidebar-button
-             :if-not-exists :skip :delay 100)
+    (b/click x/enable-sidebar-button :if-not-exists :skip :delay 100)
     (Thread/sleep 100)
     (b/click x/review-annotator-tab)
     (b/wait-until-displayed select-text-to-annotate)
     (b/wait-until-displayed selected-text)
     (Thread/sleep 100)
-    (->actions @b/active-webdriver
-               (move-to-element (taxi/find-element @b/active-webdriver {:xpath "//div[@data-field='primary-title']"}) 0 0)
-               (click-and-hold) (move-by-offset 671 0) (release) (perform))
+    (as-> (taxi/find-element {:xpath "//div[@data-field='primary-title']"}) e
+      (->actions @b/active-webdriver
+                 (move-to-element e 0 0)
+                 (click-and-hold) (move-by-offset 671 0) (release) (perform)))
     (Thread/sleep 100)
-    (b/input-text semantic-class-input semantic-class :delay 50)
-    (b/input-text annotation-value-input annotation-value :delay 50)
-    (b/click submit-button)
+    (b/input-text "div.semantic-class input" semantic-class :delay 50)
+    (b/input-text "div.value input" annotation-value :delay 50)
+    (b/click ".ui.button.positive")
     (Thread/sleep 50)
-    (b/wait-until-exists blue-pencil-icon)
+    (b/wait-until-exists "i.pencil")
     (Thread/sleep 250)
     ;;check the annotation
     (let [{:keys [email password]} b/test-login

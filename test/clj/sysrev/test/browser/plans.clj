@@ -17,20 +17,29 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(defn get-user-customer [email]
+  (some-> email (users/get-user-by-email) :stripe-id
+          (customers/get-customer)
+          (stripe/execute-action)))
+
+(defn customer-plan [customer]
+  (some-> customer :subscriptions :data first :items :data first :plan))
+
+(defn user-stripe-plan [email]
+  (some-> (get-user-customer email) (customer-plan) :name))
+
+(defn user-db-plan [email]
+  (some-> email (users/get-user-by-email) (plans/get-current-plan) :name))
+
 (defn wait-until-stripe-id
+  "Wait until stripe has customer entry for email."
   [email]
-  (test/wait-until #((comp not nil?)
-                     (:email (stripe/execute-action
-                              (customers/get-customer
-                               (:stripe-id (users/get-user-by-email email))))))))
+  (test/wait-until #(:email (get-user-customer email)) 5000 100))
 
 (defn wait-until-plan
+  "Wait until stripe customer entry matches plan value."
   [email plan]
-  (test/wait-until #(= plan
-                       (-> (stripe/execute-action
-                            (customers/get-customer
-                             (:stripe-id (users/get-user-by-email email))))
-                           :subscriptions :data first :items :data first :plan :name))))
+  (test/wait-until #(= plan (user-stripe-plan email)) 5000 100))
 
 (defn label-input
   "Given a label, return an xpath for its input"
@@ -42,75 +51,51 @@
   [error-msg]
   (xpath "//div[contains(@class,'red') and contains(text(),\"" error-msg "\")]"))
 
-(defn subscribed-to?
-  "Is the customer subscribed to plan-name?"
-  [plan-name]
-  (b/exists? (xpath "//span[contains(text(),'" plan-name "')]"
-                    "/ancestor::div[contains(@class,'plan')]"
-                    "/descendant::div[contains(text(),'Subscribed')]")))
-
 ;; need to disable sending emails in this test
 (deftest-browser register-and-check-basic-plan-subscription
   (and (test/db-connected?)
        (not= :remote-test (-> env :profile)))
-  [{:keys [email password]} b/test-login]
-  (do (b/delete-test-user)
-      (Thread/sleep 200)
-      (b/create-test-user email password)
-      (users/create-sysrev-stripe-customer! (users/get-user-by-email email))
-      (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
-      #_ (nav/register-user email password)
+  [{:keys [email password]} b/test-login
+   get-user #(users/get-user-by-email email)
+   get-customer #(get-user-customer email)]
+  (do #_ (b/delete-test-user)
+      #_ (nav/register-user)
+      (users/create-sysrev-stripe-customer! (get-user))
+      (stripe/subscribe-customer! (get-user) api/default-plan)
       ;; after registering, does the stripe customer exist?
       (wait-until-stripe-id email)
-      (is (= email
-             (:email (stripe/execute-action
-                      (customers/get-customer
-                       (:stripe-id (users/get-user-by-email email)))))))
+      (is (= email (:email (get-customer))))
       ;; does stripe think the customer is registered to a basic plan?
       (wait-until-plan email api/default-plan)
-      (is (= api/default-plan
-             (-> (stripe/execute-action
-                  (customers/get-customer
-                   (:stripe-id (users/get-user-by-email email))))
-                 :subscriptions :data first :items :data first :plan :name)))
+      (is (= api/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan
-             (:name (plans/get-current-plan (users/get-user-by-email email))))))
-  :cleanup
-  (do (b/delete-test-user)
-      (test/wait-until #(nil? (users/get-user-by-email email)))))
+      (is (= api/default-plan (user-db-plan email)))))
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
   (and (test/db-connected?)
        (not= :remote-test (-> env :profile)))
   [{:keys [email password]} b/test-login
+   get-user #(users/get-user-by-email email)
+   get-customer #(get-user-customer email)
+   get-stripe-plan #(user-stripe-plan email)
+   get-db-plan #(user-db-plan email)
    use-card ".button.use-card"]
-  (do (b/delete-test-user)
-      (Thread/sleep 200)
-      (b/create-test-user email password)
-      (users/create-sysrev-stripe-customer! (users/get-user-by-email email))
-      (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
-      ;;(nav/register-user email password)
-      (nav/log-in email password)
-      (assert stripe/stripe-secret-key)
+  (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
+      #_ (b/delete-test-user)
+      #_ (nav/register-user)
+      (users/create-sysrev-stripe-customer! (get-user))
+      (stripe/subscribe-customer! (get-user) api/default-plan)
+      (nav/log-in)
       (wait-until-stripe-id email)
       ;; after registering, does the stripe customer exist?
-      (is (= email
-             (:email (stripe/execute-action
-                      (customers/get-customer
-                       (:stripe-id (users/get-user-by-email email)))))))
+      (is (= email (:email (get-customer))))
       ;; does stripe think the customer is registered to a basic plan?
       (wait-until-plan email api/default-plan)
-      (is (= api/default-plan
-             (-> (stripe/execute-action
-                  (customers/get-customer
-                   (:stripe-id (users/get-user-by-email email))))
-                 :subscriptions :data first :items :data first :plan :name)))
+      (is (= api/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan
-             (:name (plans/get-current-plan (users/get-user-by-email email)))))
+      (is (= api/default-plan (get-db-plan)))
 ;;; upgrade plan
       (nav/go-route "/user/settings/billing")
       (b/click ".button.nav-plans.subscribe" :displayed? true)
@@ -174,7 +159,7 @@
         (is (b/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
 ;;; let's update our payment information (again) with a fraudulent card
         (b/click "a.payment-method.change-method")
-        (b/wait-until-displayed (-> use-card b/not-disabled))
+        (b/wait-until-displayed (b/not-disabled use-card))
         (bstripe/enter-cc-information
          {:cardnumber bstripe/highest-risk-fraudulent-cc
           :exp-date "0121"
@@ -186,7 +171,7 @@
         ;; card was declined
         (is (b/exists? {:xpath "//p[contains(text(),'Your card was declined.')]"}))
         (b/click "a.payment-method.change-method")
-        (b/wait-until-displayed (-> use-card b/not-disabled)))
+        (b/wait-until-displayed (b/not-disabled use-card)))
 ;;; finally, update with a valid cc number and see if we can subscribe
 ;;; to plans
       (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
@@ -198,28 +183,17 @@
       (b/click ".button.upgrade-plan")
       ;; this time is goes through, confirm we are subscribed to the
       ;; pro plan now
-      (b/wait-until-displayed ".button.nav-plans.unsubscribe")
+      (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000)
       ;; Let's check to see if our db thinks the customer is subscribed to the Unlimited
-      (is (= "Unlimited"
-             (:name (plans/get-current-plan (users/get-user-by-email email)))))
+      (is (= "Unlimited" (get-db-plan)))
       ;; Let's check that stripe.com thinks the customer is subscribed to the Unlimited plan
-      (is (= "Unlimited"
-             (-> (stripe/execute-action
-                  (customers/get-customer
-                   (:stripe-id (users/get-user-by-email email))))
-                 :subscriptions :data first :items :data first :plan :name)))
+      (is (= "Unlimited" (get-stripe-plan)))
 ;;; Subscribe back down to the Basic Plan
       (b/click ".button.nav-plans.unsubscribe")
       (b/click ".button.unsubscribe-plan")
       (b/click ".button.nav-plans.subscribe" :displayed? true)
       ;; does stripe think the customer is registered to a basic plan?
       (wait-until-plan email api/default-plan)
-      (is (= api/default-plan
-             (-> (stripe/execute-action
-                  (customers/get-customer
-                   (:stripe-id (users/get-user-by-email email))))
-                 :subscriptions :data first :items :data first :plan :name)))
+      (is (= api/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan
-             (:name (plans/get-current-plan (users/get-user-by-email email)))))
-      #_ (nav/log-out)))
+      (is (= api/default-plan (get-db-plan)))))

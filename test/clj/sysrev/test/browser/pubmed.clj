@@ -17,8 +17,8 @@
   "Enter and submit a PubMed search query"
   [query]
   (log/info "running PubMed search:" (pr-str query))
-  (taxi/wait-until #(and (taxi/exists? x/pubmed-search-form)
-                         (taxi/exists? x/pubmed-search-input)))
+  (b/wait-until #(and (taxi/exists? x/pubmed-search-form)
+                      (taxi/exists? x/pubmed-search-input)))
   (-> {:xpath "//div[contains(@class,'button') and contains(text(),'Close')]"}
       (b/click :if-not-exists :skip))
   (b/set-input-text x/pubmed-search-input query)
@@ -148,7 +148,7 @@
   (count (taxi/find-elements x/project-source)))
 
 (defn check-source-count [n]
-  (taxi/wait-until #(= n (get-source-count)) 15000 25)
+  (b/wait-until #(= n (get-source-count)) 15000)
   (is (= n (get-source-count))))
 
 (defn add-articles-from-search-term [search-term]

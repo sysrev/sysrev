@@ -86,8 +86,7 @@
 
 (s/def ::uuid uuid?)
 
-(s/def ::uuid-or-str (s/or :uuid ::uuid
-                           :str string?))
+(s/def ::uuid-or-str (s/or :uuid ::uuid :str string?))
 
 (defn to-uuid [uuid-or-str]
   (let [in (conform-map ::uuid-or-str uuid-or-str)]
@@ -156,3 +155,49 @@
                                               (gen/choose 97 122)]))]
      (apply str (gen/sample char-gen length))))
   ([] (random-id 6)))
+
+(s/def ::class-condition (s/and vector? #(-> % count (mod 2) (= 0))))
+(s/def ::class-form (s/or :null nil? :string string? :condition ::class-condition))
+
+(defn css
+  "Combines class forms into a space-separated CSS classes string.
+  Each value should be of type string, vector, or nil. Vector forms
+  are handled as if passing the values as arguments to cond; the
+  values form pairs of (condition string), and the string from the
+  first matching condition will be used. If no condition matches then
+  no value will be included."
+  [& class-forms]
+  (->> class-forms
+       (map (fn [x]
+              (if (vector? x)
+                (->> (partition 2 x) ;; group elements into (condition value) pairs
+                     (filter first)  ;; filter by condition
+                     (map second)    ;; extract class string value
+                     first           ;; use first matching value (if any)
+                     )
+                x)))
+       (remove #(contains? #{nil ""} %))
+       (str/join " ")))
+;;;
+(s/fdef css
+  :args (s/cat :class-forms (s/* ::class-form))
+  :ret string?)
+
+(defn keyword-argseq
+  "Converts a keyword map to a flat sequence as used in syntax for
+  function calls."
+  [keyword-argmap]
+  (->> keyword-argmap vec (apply concat)))
+
+(defn apply-keyargs
+  "Similar to apply but convenient for [... & {:keys ...}]
+  functions. The last element of args must be a map of keyword args,
+  which will be combined with the other args into a flat sequence
+  before passing to apply."
+  [f & args]
+  (let [keyargs (last args)
+        mainargs (butlast args)]
+    (assert (and (map? keyargs)
+                 (every? keyword? (keys keyargs)))
+            (str "args has invalid last value: " (pr-str keyargs)))
+    (apply f (concat mainargs (keyword-argseq keyargs)))))

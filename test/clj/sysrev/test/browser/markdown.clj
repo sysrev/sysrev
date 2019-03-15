@@ -28,11 +28,10 @@
    {:xpath "//button[contains(text(),'Save') and contains(@class,'loading')]"}
    click-save (fn []
                 (Thread/sleep 200)
-                (taxi/wait-until #(and (taxi/exists? save-button)
-                                       (taxi/displayed? save-button)
-                                       (not (taxi/exists? disabled-save))
-                                       (not (taxi/exists? loading-save)))
-                                 2000 25)
+                (b/wait-until #(and (b/displayed-now? save-button)
+                                    (not (taxi/exists? disabled-save))
+                                    (not (taxi/exists? loading-save)))
+                              2500)
                 (b/click save-button)
                 (b/wait-until-loading-completes :pre-wait 200))
    markdown-description "#foo bar\n##baz qux"

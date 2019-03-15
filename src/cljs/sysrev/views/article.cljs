@@ -129,7 +129,7 @@
                               (re-matches #"new-ann.*" (str (:id %))))))))
 
 (defn WithProjectSourceTooltip [source-id element]
-  [ui/TooltipElement
+  [ui/FixedTooltipElement
    element
    (let [{:keys [article-count]}
          @(subscribe [:project/sources source-id])

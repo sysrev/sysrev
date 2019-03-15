@@ -20,7 +20,10 @@
     (taxi/to full-url)
     (b/wait-until-loading-completes :pre-wait 100)
     (b/wait-until-loading-completes :pre-wait 100)
-    (taxi/execute-script "sysrev.base.toggle_analytics(false);"))
+    (taxi/execute-script "sysrev.base.toggle_analytics(false);")
+    (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
+      #_ (log/info "instrumented" fn-count "cljs functions")
+      (assert (> fn-count 0) "no spec functions were instrumented")))
   nil)
 
 (defn go-route [& [path wait-ms]]
@@ -34,12 +37,12 @@
               (log/info "navigating:" path)
               #_ (taxi/get-url (path->full-url path))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
-              (b/wait-until-loading-completes :pre-wait (or wait-ms 50))))
+              (b/wait-until-loading-completes :pre-wait (or wait-ms true))))
     nil))
 
 (defn go-project-route [suburi & [project-id]]
   (when (nil? project-id)
-    (taxi/wait-until #(integer? (b/current-project-id)) 2000 25))
+    (b/wait-until #(integer? (b/current-project-id)) 2500))
   (let [project-id (or project-id (b/current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))
@@ -70,26 +73,22 @@
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))))
+    (b/wait-until-exists "form.create-project")))
 
 (defn wait-until-overview-ready []
-  (let [overview (xpath "//span[contains(text(),'Overview')]")
-        disabled (xpath overview "/ancestor::a[contains(@class,'item disabled')]")]
-    (taxi/wait-until #(and (taxi/exists? overview)
-                           (not (taxi/exists? disabled)))
-                     10000 25)))
+  (-> (b/not-disabled (x/project-menu-item :overview))
+      (b/wait-until-exists 10000)))
 
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
   (go-route "/")
-  (b/wait-until-exists x/create-project-text)
-  (b/set-input-text "input[placeholder='Project Name']" project-name)
-  (b/click (xpath "//button[text()='Create']"))
+  (b/wait-until-exists "form.create-project")
+  (b/set-input-text "form.create-project input.project-name" project-name)
+  (b/click "form.create-project .button.create-project")
   (Thread/sleep 100)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/wait-until-exists
-   (xpath (format "//span[contains(@class,'project-title') and text()='%s']"
-                  project-name)
+   (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
   (b/wait-until-loading-completes :pre-wait 100))
 
@@ -104,11 +103,10 @@
     (go-project-route "/settings")
     (b/click (xpath "//button[contains(text(),'Project...')]"))
     (b/click (xpath "//button[text()='Confirm']"))
-    (b/wait-until-exists x/create-project-text)))
+    (b/wait-until-exists "form.create-project")))
 
 (defn panel-name [panel-keys]
   (str/join "_" (map name panel-keys)))
 
 (defn panel-exists? [panel & {:keys [wait?] :or {wait? true}}]
-  (b/exists? {:css (str "div#" (panel-name panel))}
-             :wait? wait?))
+  (b/exists? (str "div#" (panel-name panel)) :wait? wait?))

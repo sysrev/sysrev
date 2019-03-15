@@ -14,16 +14,9 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (defn root-panel-exists? []
-  (taxi/wait-until
-   #(or (nav/panel-exists? [:project :project :overview]
-                           :wait? false)
-        (nav/panel-exists? [:project :project :add-articles]
-                           :wait? false))
-   10000 100)
-  (or (nav/panel-exists? [:project :project :overview]
-                         :wait? false)
-      (nav/panel-exists? [:project :project :add-articles]
-                         :wait? false)))
+  (b/try-wait b/wait-until (fn [] (some #(nav/panel-exists? % :wait? false)
+                                        [[:project :project :overview]
+                                         [:project :project :add-articles]]))))
 
 (deftest-browser project-routes
   true []
