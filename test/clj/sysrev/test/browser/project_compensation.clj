@@ -351,7 +351,7 @@
 
 
 ;; these are disabled for now due to a problem with PayPal's test service
-#_(deftest-browser multiple-project-compensations
+(deftest-browser multiple-project-compensations
   (test/db-connected?)
   [projects
    (->> [{:name "Sysrev Compensation Test 1"
