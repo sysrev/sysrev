@@ -80,7 +80,8 @@
              "-Xms800m"
              "-Xmx1500m"
              "-XX:+TieredCompilation"
-             "-XX:+AggressiveOpts"]
+             "-XX:+AggressiveOpts"
+             "-Xverify:none"]
   :source-paths ["src/clj" "src/cljc"]
   :aliases {"junit"
             ["with-profile" "+test,+test-all" "run"]
@@ -118,9 +119,9 @@
              :test-s3-dev
              {:resource-paths ["config/test-s3-dev"]}
              :dev
-             {:jvm-opts ["-Xms800m" "-Xmx1500m" #_ "-client"
-                         "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"
-                         #_ "-XX:+CMSClassUnloadingEnabled" "-Xverify:none"]
+             {:jvm-opts ["-Xms1000m" "-Xmx2000m" "-server" #_ "-client"
+                         #_ "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"
+                         #_ "-XX:+CMSClassUnloadingEnabled"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
@@ -141,19 +142,12 @@
                                org.bouncycastle/bcprov-jdk15on
                                org.seleniumhq.selenium/selenium-api
                                org.seleniumhq.selenium/selenium-support]]]}
-             :dev-jvm
-             {:jvm-opts ["-Xms1000m" "-Xmx2000m"]}
              :repl
-             {:dependencies [#_ [figwheel-sidecar "0.5.16"]
-                             #_ [org.clojure/tools.nrepl "0.2.13"]
-                             #_ [com.cemerick/piggieback "0.2.2"]
+             {:dependencies [#_ [org.clojure/tools.nrepl "0.2.13"]
                              #_ [acyclic/squiggly-clojure "0.1.8"
                                  :exclusions [org.clojure/tools.reader]]]
-              :plugins [#_ [lein-figwheel "0.5.16"]
-                        #_ [cider/cider-nrepl "0.17.0"]
+              :plugins [#_ [cider/cider-nrepl "0.17.0"]
                         [lein-environ "1.1.0"]]}
-             :figwheel
-             {:jvm-opts ["-Xms300m" "-Xmx600m"]}
              :dev-spark
              {:source-paths ["src/clj" "src/cljc" "src-spark" "test/clj"]
               :test-paths ["test/clj"]
@@ -171,7 +165,9 @@
               :aot [sysrev.spark.core
                     sysrev.spark.similarity]}
              :test
-             {:resource-paths ["config/test" "resources/test"]
+             {:jvm-opts [#_ "-server" "-client"
+                         "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"]
+              :resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
               :dependencies []}})
