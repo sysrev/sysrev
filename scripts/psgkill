@@ -1,6 +1,0 @@
-#!/bin/bash
-for arg in $*; do
-    for pid in `./scripts/psg $arg | grep -v "$0" | perl -pe 's/[^ ]*//' | perl -pe 's/[ ]*//' | perl -ne 'print "$&\n" if /[0-9]*/'`; do
-    kill -9 "$pid";
-    done
-done

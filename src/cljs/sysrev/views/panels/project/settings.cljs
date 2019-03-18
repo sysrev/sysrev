@@ -216,7 +216,7 @@
   (let [active? (= (render-setting setting)
                    (render-setting-value setting value))
         admin? (admin?)]
-    (ui/TooltipElementManual
+    (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
        :class (if active? "active" "")

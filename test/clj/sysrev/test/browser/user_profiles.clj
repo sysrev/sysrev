@@ -87,11 +87,11 @@
       (is (= project-name-1 (first (private-project-names))))
       ;; do some work to see if it shows up in the user profile
       (b/click (xpath "//a[contains(text(),'" project-name-1 "')]"))
-      (b/click ra/review-articles-button :delay 50)
+      (b/click (x/project-menu-item :review) :delay 50)
       ;; set three article labels
       (dotimes [n 3]
         (ra/set-article-answers [(merge ra/include-label-definition
-                                                     {:value true})]))
+                                        {:value true})]))
       ;; go back to profile, check activity
       (b/click user-name-link)
       (b/click user-profile-tab)
@@ -128,9 +128,9 @@
       (is (= project-name-2 (->> (private-project-names)
                                  (filter #(= % project-name-2))
                                  first)))
-            ;; do some work to see if it shows up in the user profile
+      ;; do some work to see if it shows up in the user profile
       (b/click (xpath "//a[contains(text(),'" project-name-2 "')]"))
-      (b/click ra/review-articles-button :delay 50)
+      (b/click (x/project-menu-item :review) :delay 50)
       ;; set two article labels
       (dotimes [n 2]
         (ra/set-article-answers [(merge ra/include-label-definition

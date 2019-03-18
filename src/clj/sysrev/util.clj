@@ -314,3 +314,8 @@
   (let [file (File/createTempFile "sysrev-" suffix)]
     (.deleteOnExit file)
     file))
+
+(defn ex-summary
+  "Returns string showing type and message from exception."
+  [ex]
+  (str (type ex) " - " (.getMessage ex)))

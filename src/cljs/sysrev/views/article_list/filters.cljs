@@ -803,7 +803,7 @@
                                   context (merge preset {:text-search text-search})])))}
              #_ [:i {:class (str icon-class " icon")}]
              text]))]
-    [:div.ui.segment.filter-presets
+    [:div.ui.segments>div.ui.segment.filter-presets
      [:form.ui.small.form
       {:on-submit (util/wrap-prevent-default #(do nil))}
       [:div.sixteen.wide.field
@@ -834,7 +834,7 @@
                [:i.grey.circle.icon])
              #_ [:span [:i {:class (str icon-class " icon")}]]
              text]))]
-    [:div.ui.segment.display-options
+    [:div.ui.segments>div.ui.segment.display-options
      [:div.ui.small.form
       [:div.sixteen.wide.field
        [:label "Display Options"]

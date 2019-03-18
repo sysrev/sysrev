@@ -20,6 +20,7 @@
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
+           [org.openqa.selenium StaleElementReferenceException]
            [java.util.logging Level]))
 
 (defonce active-webdriver (atom nil))
@@ -95,58 +96,72 @@
     (delete-test-user :email email)
     (users/create-user email password :project-id project-id)))
 
-(defn current-project-id []
+(defn current-project-id
+  "Reads project id from current url."
+  []
   (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
     (some-> id-str parse-integer)))
 
-(defn current-project-route []
+(defn current-project-route
+  "Returns substring of current url after base url for project."
+  []
   (when-let [project-id (current-project-id)]
     (-> (re-matches (re-pattern
                      (format ".*/p/%d(.*)$" project-id))
                     (taxi/current-url))
         second)))
 
-(defn wait-until-exists
-  "Given a query q, wait until the element it represents exists"
-  [q & [timeout interval]]
-  (let [timeout (or timeout 10000)
+(defn displayed-now?
+  "Wrapper for taxi/displayed? to handle common exceptions. Returns true
+  if an element matching q currently exists and is displayed, false if
+  not."
+  [q]
+  (boolean (some #(boolean (try (and (taxi/exists? %) (taxi/displayed? %))
+                                (catch StaleElementReferenceException e false)))
+                 (taxi/elements q))))
+
+(defn try-wait
+  "Runs a wait function in try-catch block to avoid exception on
+  timeout; returns true on success, false on timeout."
+  [wait-fn & args]
+  (try (apply wait-fn args) true
+       (catch Throwable e
+         (log/info "try-wait" wait-fn "timed out")
+         false)))
+
+(defn wait-until
+  "Wrapper for taxi/wait-until with default values for timeout and
+  interval. Waits until function pred evaluates as true, testing every
+  interval ms until timeout ms have elapsed, or throws exception on
+  timeout."
+  [pred & [timeout interval]]
+  (let [timeout (or timeout (if (test/remote-test?) 10000 5000))
         interval (or interval 20)]
-    (when-not (taxi/exists? q)
-      (Thread/sleep 20)
-      (taxi/wait-until
-       #(taxi/exists? q)
-       timeout interval))))
+    (when-not (pred)
+      (Thread/sleep interval)
+      (taxi/wait-until pred timeout interval))))
+
+(defn wait-until-exists
+  "Waits until an element matching q exists, or throws exception on
+  timeout."
+  [q & [timeout interval]]
+  (wait-until #(taxi/exists? q) timeout interval))
 
 (defn wait-until-displayed
-  "Given a query q, wait until the element it represents exists
-  and is displayed"
+  "Waits until an element matching q exists and is displayed, or throws
+  exception on timeout."
   [q & [timeout interval]]
-  (let [timeout (or timeout 10000)
-        interval (or interval 20)]
-    (wait-until-exists q timeout interval)
-    (Thread/sleep 25)
-    (when-not (and (taxi/exists? q) (taxi/displayed? q))
-      (taxi/wait-until
-       #(and (taxi/exists? q) (taxi/displayed? q))
-       timeout interval))))
+  (wait-until #(displayed-now? q) timeout interval))
 
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait]
-      :or {timeout 10000, interval 20, pre-wait false}}]
+      :or {pre-wait false}}]
   (let [timeout (if (test/remote-test?) 45000 timeout)]
-    (when pre-wait
-      (if (integer? pre-wait)
-        (Thread/sleep pre-wait)
-        (Thread/sleep 75)))
-    (taxi/wait-until
-     #(and
-       (not (taxi/exists?
-             {:xpath "//div[contains(@class,'loader') and contains(@class,'active')]"}))
-       (not (taxi/exists?
-             {:xpath "//div[contains(@class,'dimmer') and contains(@class,'active')]"}))
-       (not (taxi/exists?
-             {:xpath "//div[contains(@class,'button') and contains(@class,'loading')]"})))
-     timeout interval)))
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 75)))
+    (wait-until #(every? (complement displayed-now?) ["div.ui.loader.active"
+                                                      "div.ui.dimmer.active"
+                                                      ".ui.button.loading"])
+                timeout interval)))
 
 (defn webdriver-fixture-once [f]
   (f)
@@ -165,7 +180,7 @@
           (reset! db/query-cache-enabled cache?)))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
-  (wait-until-exists q)
+  (wait-until-displayed q)
   (when clear? (taxi/clear q))
   (Thread/sleep delay)
   (taxi/input-text q text)
@@ -173,24 +188,23 @@
 
 (defn set-input-text-per-char
   [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
-  (wait-until-exists q)
+  (wait-until-displayed q)
   (when clear? (taxi/clear q))
   (Thread/sleep delay)
-  (doall (map (fn [c]
-                (taxi/input-text q (str c))
-                (Thread/sleep 20)) text))
+  (let [e (taxi/element q)]
+    (doseq [c text]
+      (taxi/input-text e (str c))
+      (Thread/sleep 20)))
   (Thread/sleep delay))
 
 (defn input-text [q text & {:keys [delay] :as opts}]
-  (apply set-input-text q text
-         (->> (merge opts {:clear? false}) vec (apply concat))))
+  (sutil/apply-keyargs set-input-text
+                       q text (merge opts {:clear? false})))
 
-(defn exists? [q & {:keys [wait?] :or {wait? true}}]
-  (when wait?
-    (wait-until-exists q))
+(defn exists? [q & {:keys [wait? timeout interval] :or {wait? true}}]
+  (when wait? (wait-until-exists q timeout interval))
   (let [result (taxi/exists? q)]
-    (when wait?
-      (wait-until-loading-completes))
+    (when wait? (wait-until-loading-completes :pre-wait true))
     result))
 
 (defn is-xpath?
@@ -233,8 +247,8 @@
                (if displayed?
                  (wait-until-displayed q)
                  (wait-until-exists q)))
-             (when-not (and (= if-not-exists :skip)
-                            (not (taxi/exists? q)))
+             (when-not (and (not (taxi/exists? q))
+                            (= if-not-exists :skip))
                (taxi/click q)))]
     (try
       (go)
@@ -247,7 +261,7 @@
 (defn backspace-clear
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
-  (wait-until-exists input-element)
+  (wait-until-displayed input-element)
   (doall (repeatedly length
                      #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
                           (Thread/sleep 20))))
@@ -258,23 +272,22 @@
     `(deftest ~name
        (when ~enable
          (let ~bindings
-           (try
-             (do (log/info "running" ~name-str)
-                 ~body)
-             (catch Throwable e#
-               (let [filename# (str "/tmp/" "screenshot" "-" (System/currentTimeMillis) ".png")]
-                 (log/info "Saving screenshot:" filename#)
-                 (taxi/take-screenshot :file filename#)
-                 (throw e#)))
-             (finally
-               ~cleanup)))))))
+           (try (log/info "running" ~name-str)
+                ~body
+                (catch Throwable e#
+                  (let [filename# (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")]
+                    (log/error "Saving screenshot:" filename#)
+                    (try (taxi/take-screenshot :file filename#)
+                         (catch Throwable e1#
+                           (log/error "Screenshot failed:" (type e1#) (.getMessage e1#))))
+                    (throw e#)))
+                (finally ~cleanup)))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")
   (when-let [test-user-id (:user-id (users/get-user-by-email
                                      "browser+test@insilica.co"))]
     (project/delete-solo-projects-from-user test-user-id)))
-
 
 (defn current-frame-names
   []

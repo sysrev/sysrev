@@ -124,10 +124,10 @@
         cur-status (get-in db [:ajax :loading-status] true)
         new-status
         (cond
-          ;; enable indicator when ajax active for >= 75ms
-          (>= (- time-active time-inactive) 75) true
-          ;; disable indicator when ajax inactive for >= 200ms
-          (>= (- time-inactive time-active) 200) false
+          ;; enable indicator when ajax active for >= minimum time
+          (>= (- time-active time-inactive) 50) true
+          ;; disable indicator when ajax inactive for >= minimum time
+          (>= (- time-inactive time-active) 125) false
           ;; otherwise maintain existing indicator status
           :else cur-status)]
     (swap! ajax-db (fn [db]
@@ -143,7 +143,7 @@
 
 (defn schedule-loading-update [& [times]]
   (let [times (if (vector? times) times
-                  [5 25 50 75 100 150 200 275 350 500])]
+                  [5 15 30 45 60 80 100 125 150 175 250 350 500])]
     (doseq [ms times]
       (js/setTimeout #(update-loading-status) ms))))
 

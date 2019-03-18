@@ -41,16 +41,6 @@
 ;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
 ;; (def article-id (-> (labels/query-public-article-labels project-id) keys first))
 
-(def review-articles-button
-  (xpath "//span[text()='Review']"))
-(def no-articles-need-review
-  (xpath "//h4[text()='No articles found needing review']"))
-
-(def save-button
-  (xpath "//button[contains(text(),'Save')]"))
-(def disabled-save-button
-  (xpath "//button[contains(@class,'disabled') and contains(text(),'Save')]"))
-
 (defn label-div-with-name
   [name]
   (xpath "//span[contains(@class,'name')]"
@@ -209,13 +199,13 @@
    boolean-label-value true
    string-label-value "Baz"
    categorical-label-value "Qux"
-   have-errors? #(= (set (define/get-all-error-messages))
-                    (set %))
-   {:keys [user-id]} (users/get-user-by-email (:email b/test-login))
-   _ (nav/log-in)
-   _ (nav/new-project project-name)
-   new-label "//div[contains(@id,'new-label-')]"]
-  (do (reset! project-id (b/current-project-id))
+   have-errors-now? #(= (set %) (set (define/get-all-error-messages)))
+   have-errors? (fn [errors] (b/try-wait b/wait-until #(have-errors-now? errors) 2500))
+   new-label "//div[contains(@id,'new-label-')]"
+   {:keys [user-id]} (users/get-user-by-email (:email b/test-login))]
+  (do (nav/log-in)
+      (nav/new-project project-name)
+      (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
       (nav/go-project-route "/add-articles")
       (pm/add-articles-from-search-term search-term-first)
@@ -227,22 +217,16 @@
       (b/click define/add-boolean-label-button)
       (define/save-label)
       ;; there should be some errors
-      (taxi/wait-until #(have-errors? [no-display no-question])
-                       5000 25)
       (is (have-errors? [no-display no-question]))
       (define/discard-label)
       ;; change the type of the label to string, check error messages
       (b/click define/add-string-label-button)
       (define/save-label)
-      (taxi/wait-until #(have-errors? [no-display no-question no-max-length])
-                       5000 25)
-      (is (have-errors? [no-display no-question no-max-length]))
+      (is (have-errors? [no-display no-question]))
       (define/discard-label)
       ;; change the type of the label to categorical, check error message
       (b/click define/add-categorical-label-button)
       (define/save-label)
-      (taxi/wait-until #(have-errors? [no-display no-question no-options])
-                       5000 25)
       (is (have-errors? [no-display no-question no-options]))
       (define/discard-label)
       ;; create a boolean label
@@ -261,13 +245,11 @@
       ;; create a categorical label
       (define/define-label categorical-label-definition)
       ;; there is a new categorical label
-      (is (b/exists? (x/match-text
-                      "span" (:short-label categorical-label-definition))))
+      (is (b/exists? (x/match-text "span" (:short-label categorical-label-definition))))
 ;;;; review an article
       (nav/go-project-route "")
-      (b/click review-articles-button :delay 50)
-      (b/click x/enable-sidebar-button
-               :if-not-exists :skip :delay 100)
+      (b/click (x/project-menu-item :review) :delay 50)
+      (b/click x/enable-sidebar-button :if-not-exists :skip :delay 100)
       (b/click x/review-labels-tab)
       (b/wait-until-displayed
        (label-div-with-name (:short-label include-label-definition)))
@@ -283,7 +265,7 @@
                             (merge categorical-label-definition
                                    {:value categorical-label-value})])
       ;;verify we are on the next article
-      (is (b/exists? disabled-save-button))
+      (is (b/exists? ".ui.button.save-labels.disabled"))
 ;;;; check in the database for the labels
       ;; we have labels for just one article
       (is (= 1 (count (labels/query-public-article-labels @project-id))))
@@ -301,31 +283,25 @@
                   (short-label-answer @project-id article-id user-id
                                       (:short-label boolean-label-definition))))
         (is (= string-label-value
-               (-> (short-label-answer @project-id article-id user-id
-                                       (:short-label string-label-definition))
-                   first)))
+               (first (short-label-answer @project-id article-id user-id
+                                          (:short-label string-label-definition)))))
         (is (= categorical-label-value
-               (-> (short-label-answer @project-id article-id user-id
-                                       (:short-label categorical-label-definition))
-                   first)))
+               (first (short-label-answer @project-id article-id user-id
+                                          (:short-label categorical-label-definition)))))
         (log/info "checking label values from editor")
 ;;;; Let's check the actual UI for this
         (nav/go-project-route "/articles")
         (b/click (article-title-div article-title))
-        (b/wait-until-displayed
-         (xpath "//div[contains(@class,'button') and contains(text(),'Change Labels')]"))
+        (b/wait-until-displayed ".ui.button.change-labels")
         ;; check overall include
         ;; note: booleans value name have ? appended to them
         (is (= include-label-value
-               (-> (label-button-value (str (:short-label include-label-definition) "?"))
-                   read-string
-                   boolean)))
+               (-> (str (:short-label include-label-definition) "?")
+                   label-button-value read-string boolean)))
         ;; check a boolean value
         #_ (is (= boolean-label-value
-                  (-> (label-button-value
-                       (str (:short-label boolean-label-definition) "?"))
-                      read-string
-                      boolean)))
+                  (-> (str (:short-label boolean-label-definition) "?")
+                      label-button-value read-string boolean)))
         ;; check a string value
         (is (= string-label-value
                (label-button-value (:short-label string-label-definition))))
@@ -339,25 +315,23 @@
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"
   [label-definitions]
-  (b/click review-articles-button)
-  (b/wait-until-exists {:xpath "//div[@id='project_review']"})
-  (while (not (taxi/exists? no-articles-need-review))
-    (do (randomly-set-article-labels label-definitions)
-        (taxi/wait-until #(or (taxi/exists? disabled-save-button)
-                              (taxi/exists? no-articles-need-review))
-                         5000 50))))
+  (b/click (x/project-menu-item :review))
+  (b/wait-until-displayed "#project_review")
+  (while (not (b/displayed-now? ".no-review-articles"))
+    (randomly-set-article-labels label-definitions)
+    (b/wait-until #(or (b/displayed-now? ".ui.button.save-labels.disabled")
+                       (b/displayed-now? ".no-review-articles")))))
 
 (defn randomly-review-n-articles
   "Randomly sets labels for n articles using a vector of label-definitions"
   [n label-definitions]
   (nav/go-project-route "/review")
-  (b/wait-until-exists "#project_review")
+  (b/wait-until-displayed "#project_review")
   (dotimes [i n]
-    (do
+    (when-not (b/displayed-now? ".no-review-articles")
       (randomly-set-article-labels label-definitions)
-      (taxi/wait-until #(or (taxi/exists? disabled-save-button)
-                            (taxi/exists? no-articles-need-review))
-                       5000 50))))
+      (b/wait-until #(or (b/displayed-now? ".ui.button.save-labels.disabled")
+                         (b/displayed-now? ".no-review-articles"))))))
 
 ;; (randomly-review-all-articles [(merge include-label-definition {:all-values [true false]})
 ;; (randomly-review-n-articles 15 [(merge include-label-definition {:all-values [true false]})])

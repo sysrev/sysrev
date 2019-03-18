@@ -104,11 +104,13 @@
         ^{:key [:project-primary-menu]}
         [primary-tabbed-menu
          [{:tab-id [:project :overview]
+           :class "overview"
            :content [:span "Overview"]
            :action (project-uri project-id "")
            :disabled (not ready?)
            :tooltip not-ready-msg}
           {:tab-id [:project :articles]
+           :class "articles"
            :content [:span
                      (when-not mobile?
                        [:span [:i.unordered.list.icon] " "])
@@ -117,15 +119,16 @@
            :disabled (not ready?)
            :tooltip not-ready-msg}
           {:tab-id [:review]
+           :class "review"
            :content [:span
                      (when-not mobile?
                        [:span [:i.pencil.alternate.icon]])
                      "Review"]
            :action (project-uri project-id "/review")
-           :class "review-articles"
            :disabled (or (not ready?) (not member?))
            :tooltip (or not-ready-msg not-member-msg)}]
          [{:tab-id :manage
+           :class "manage"
            :content (if mobile?
                       [:span [:i.cog.icon]]
                       [:span [:i.cog.icon] " Manage"])

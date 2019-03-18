@@ -10,8 +10,12 @@
 @mutedTextColor : rgba(60, 60, 60, 0.85);
 @mutedInvertedTextColor: rgba(200, 200, 200, 0.85);
 
-@inputPlaceholderColor : rgba(120, 120, 120, 0.85);
-@inputPlaceholderFocusColor : rgba(90, 90, 90, 0.85);
+// @inputPlaceholderColor : rgba(120, 120, 120, 0.85);
+// @inputPlaceholderFocusColor : rgba(90, 90, 90, 0.85);
+
+@inputColor: @siteTextColor;
+@inputPlaceholderColor: rgba(0, 0, 0, 0.65);
+@inputPlaceholderFocusColor: rgba(0, 0, 0, 0.725);
 
 @subtleShadow: 0 1px 2px 0 rgba(34,36,38,.05);
 

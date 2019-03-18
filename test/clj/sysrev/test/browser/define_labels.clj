@@ -101,19 +101,19 @@
          :or {inclusion-values [true]}} definition]
     ;; Enter the display name
     (b/set-input-text
-     (field-input-xpath xpath "label-name")
+     (field-input-xpath xpath "field-short-label")
      short-label)
     ;; enter the question
     (b/set-input-text
-     (field-input-xpath xpath "label-question")
+     (field-input-xpath xpath "field-question")
      question)
     ;; required setting
     (set-checkbox-button
-     (field-input-xpath xpath "require-answer")
+     (field-input-xpath xpath "field-required")
      required)
     ;; inclusion values
     (set-checkbox-button
-     (field-input-xpath xpath "inclusion-criteria")
+     (field-input-xpath xpath "field-inclusion")
      (-> inclusion-values empty? not))
     (when (not-empty inclusion-values)
       (set-boolean-inclusion xpath (first inclusion-values)))))
@@ -131,27 +131,27 @@
               max-length ""}} definition]
     ;; Enter the display name
     (b/set-input-text
-     (field-input-xpath xpath "label-name")
+     (field-input-xpath xpath "field-short-label")
      short-label)
     ;; required setting
     (set-checkbox-button
-     (field-input-xpath xpath "require-answer")
+     (field-input-xpath xpath "field-required")
      required)
     ;; allow multiple values?
     (set-checkbox-button
-     (field-input-xpath xpath "allow-multiple")
+     (field-input-xpath xpath "field-multi")
      multi?)
     ;; enter the question
     (b/set-input-text
-     (field-input-xpath xpath "label-question")
+     (field-input-xpath xpath "field-question")
      question)
     ;; enter the max length
     (b/set-input-text
-     (field-input-xpath xpath "max-length")
+     (field-input-xpath xpath "field-max-length")
      (str max-length))
     ;; Examples
     (b/set-input-text
-     (field-input-xpath xpath "examples")
+     (field-input-xpath xpath "field-examples")
      (str/join "," examples)
      :delay 50)))
 
@@ -168,32 +168,30 @@
               inclusion-values []}} definition]
     ;; Enter the display name
     (b/set-input-text
-     (field-input-xpath xpath "label-name")
+     (field-input-xpath xpath "field-short-label")
      short-label)
     ;; required setting
     (set-checkbox-button
-     (field-input-xpath xpath "require-answer")
+     (field-input-xpath xpath "field-required")
      required)
     ;; consensus setting
     (set-checkbox-button
-     (field-input-xpath xpath "consensus")
+     (field-input-xpath xpath "field-consensus")
      (boolean consensus))
     ;; enter the question
     (b/set-input-text
-     (field-input-xpath xpath "label-question")
+     (field-input-xpath xpath "field-question")
      question)
     ;; enter the categories
     (b/set-input-text
-     (field-input-xpath xpath "categories")
+     (field-input-xpath xpath "field-all-values")
      (str/join "," all-values)
      :delay 50)
     ;;  inclusion values
-    (taxi/wait-until
-     #(= (taxi/value (field-input-xpath xpath "categories"))
-         (str/join "," all-values))
-     5000 25)
+    (b/wait-until #(= (taxi/value (field-input-xpath xpath "field-all-values"))
+                      (str/join "," all-values)))
     (set-checkbox-button
-     (field-input-xpath xpath "inclusion-criteria")
+     (field-input-xpath xpath "field-inclusion")
      (-> inclusion-values empty? not))
     (when (not-empty inclusion-values)
       ;; set the inclusion values

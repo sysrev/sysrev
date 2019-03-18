@@ -1,4 +1,4 @@
-@inputColor            : rgba(0, 0, 0, 0.925);
-@placeholderColor      : rgba(0, 0, 0, 0.65);
-@focusColor            : rgba(0, 0, 0, 0.925);
-@placeholderFocusColor : rgba(0, 0, 0, 0.725);
+@inputColor            : @siteTextColor;
+@placeholderColor      : @inputPlaceholderColor;
+@focusColor            : @siteTextColor;
+@placeholderFocusColor : @inputPlaceholderFocusColor;

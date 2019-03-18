@@ -1,20 +1,19 @@
 (ns sysrev.base
-  (:require [pushy.core :as pushy]
+  (:require [clojure.string :as str]
+            [pushy.core :as pushy]
             [secretary.core :as secretary]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
+            [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [re-frame.db :refer [app-db]]
-            [clojure.string :as str]
-            [reagent.core :as r])
+            [re-frame.db :refer [app-db]])
   (:require-macros [secretary.core :refer [defroute]]))
 
 (defonce sysrev-hostname "sysrev.com")
 (defonce sysrev-blog-hostname "blog.sysrev.com")
 
-(def debug?
-  ^boolean js/goog.DEBUG)
+(def debug? ^boolean js/goog.DEBUG)
 
 (defn app-id []
   (cond (-> js/document

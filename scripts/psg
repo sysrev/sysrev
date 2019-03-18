@@ -1,3 +1,0 @@
-#!/bin/bash
-p=$1
-ps -ouser,pid,command -e | grep -i "[${p:0:1}]${p:1}" | grep -v "psg $1"

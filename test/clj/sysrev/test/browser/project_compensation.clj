@@ -349,8 +349,6 @@
       (project/delete-project @project-id)
       (b/delete-test-user :email (:email test-user))))
 
-
-;; these are disabled for now due to a problem with PayPal's test service
 (deftest-browser multiple-project-compensations
   (test/db-connected?)
   [projects
