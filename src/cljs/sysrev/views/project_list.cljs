@@ -68,15 +68,12 @@
             member-projects (->> all-projects (filter :member?))
             available-projects (->> all-projects (remove :member?))]
         [:div.ui.stackable.grid
-         [:div.row
-          {:style {:padding-bottom "0"}}
+         [:div.row {:style {:padding-bottom "0"}}
           [:div.sixteen.wide.column
            [CreateProject]]]
          [:div.row
           [:div.nine.wide.column.user-projects
-           {:style {:margin-top "-1em"}}
            [ProjectsListSegment "Your Projects" member-projects true]
            [ProjectsListSegment "Available Projects" available-projects false]]
           [:div.seven.wide.column.public-projects
-           {:style {:margin-top "-1em"}}
            [PublicProjectsList]]]]))))
