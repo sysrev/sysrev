@@ -1,7 +1,11 @@
 (ns sysrev.test.browser.user_profiles
-  (:require [clj-webdriver.taxi :as taxi]
+  (:require [clj-webdriver.core :refer [->actions move-to-element click-and-hold move-by-offset release perform]]
+            [clj-webdriver.taxi :as taxi]
+            [clojure.data.json :as json]
             [clojure.test :refer :all]
+            [sysrev.api :as api]
             [sysrev.db.core :refer [with-transaction]]
+            [sysrev.db.files :as files]
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
             [sysrev.test.browser.annotator :as annotator]
@@ -11,7 +15,8 @@
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
-            [sysrev.test.core :as test]))
+            [sysrev.test.core :as test]
+            [sysrev.util :as util]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -26,6 +31,49 @@
                                                          "/ancestor::div[contains(@id,'project-')]"
                                                          activity-values))
 (def edit-introduction (xpath "//a[@id='edit-introduction']"))
+
+;; avatar
+;; (def avatar (xpath "//img[contains(@src,'avatar')]"))
+(def avatar (xpath "//div[@data-tooltip='Change Your Avatar']"))
+(def upload-button (xpath "//button[contains(text(),'Upload Profile Image')]"))
+
+;; from https://github.com/remvee/clj-base64/blob/master/src/remvee/base64.clj
+
+(def alphabet
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+
+(defn encode
+  "Encode sequence of bytes to a sequence of base64 encoded
+  characters."
+  [bytes]
+  (when (seq bytes)
+    (let [t (->> bytes (take 3) (map #(bit-and (int %) 0xff)))
+          v (int (reduce (fn [a b] (+ (bit-shift-left (int a) 8) (int b))) t))
+          f #(nth alphabet (bit-and (if (pos? %)
+                                      (bit-shift-right v %)
+                                      (bit-shift-left v (* % -1)))
+                                    0x3f))
+          r (condp = (count t)
+              1 (concat (map f [2 -4])    [\= \=])
+              2 (concat (map f [10 4 -2]) [\=])
+              3         (map f [18 12 6 0]))]
+      (concat r (lazy-seq (encode (drop 3 bytes)))))))
+
+(def image-base-64  (->> "test-files/demo-1.jpg"
+                         clojure.java.io/resource
+                         clojure.java.io/file
+                         util/slurp-bytes
+                         encode
+                         (apply str)))
+
+;; http://blog.fermium.io/how-to-send-files-to-a-dropzone-js-element-in-selenium/
+(def upload-image-blob-js
+  (str "var myZone, blob, base64Image; myZone = Dropzone.forElement('.dropzone');"
+       "base64Image = '" image-base-64 "';"
+       "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e});return c}"
+       "blob = base64toBlob(base64Image, 'image / png');"
+       "blob.name = 'testfile.png';"
+       "myZone.addFile(blob);"))
 
 (defn private-project-names
   []
@@ -204,3 +252,34 @@
     (is (not (taxi/exists? edit-introduction))))
   :cleanup
   (do (b/delete-test-user :email email-test-user)))
+
+(deftest-browser user-avatar
+  (test/db-connected?)
+  [user-id (-> (:email b/test-login)
+               users/get-user-by-email
+               :user-id)]
+  (do
+    (nav/log-in)
+    ;; go to the user profile
+    (b/click user-name-link)
+    (b/click user-profile-tab)
+    ;; click the user profile avatar
+    (b/click avatar)
+    ;; "upload" file
+    (taxi/execute-script upload-image-blob-js)
+    ;; set position of avatar
+    (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))
+    (->actions @b/active-webdriver
+               (move-to-element (taxi/find-element @b/active-webdriver (xpath "//div[contains(@class,'cr-viewport')]")) 0 0)
+               (click-and-hold) (move-by-offset 83 0) (release)
+               (perform))
+    ;; set avatar
+    (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
+    ;; check manually that the avatar matches what we would expect
+    (= (:key (files/avatar-image-key-filename user-id))
+       "52d799d26a9a24d1a09b6bb88383cce385c7fb1b")
+    (= (-> (api/read-profile-image-meta user-id) :result :meta)
+       {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
+  :cleanup
+  (do
+    (api/delete-avatar! user-id)))

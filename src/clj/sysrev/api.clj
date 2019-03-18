@@ -1384,6 +1384,17 @@
                                       meta)
     {:result {:success true}}))
 
+(defn delete-avatar!
+  [user-id]
+  (let [{:keys [s3-id]} (files/read-avatar user-id)
+        current-hash (files/s3-id->key s3-id)]
+    (if-not (nil? s3-id)
+      (do
+        (fstore/delete-file current-hash :image)
+        (files/delete-file! s3-id)
+        {:result {:success true}})
+      {:error {:status internal-server-error}})))
+
 (defn read-avatar
   "Return the url for the profile avatar"
   [user-id]
