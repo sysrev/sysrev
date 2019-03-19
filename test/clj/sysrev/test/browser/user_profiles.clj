@@ -268,7 +268,7 @@
     ;; "upload" file
     (taxi/execute-script upload-image-blob-js)
     ;; set position of avatar
-    (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]"))
+    (b/wait-until-displayed (xpath "//button[contains(text(),'Set Avatar')]") 30000)
     (->actions @b/active-webdriver
                (move-to-element (taxi/find-element @b/active-webdriver (xpath "//div[contains(@class,'cr-viewport')]")) 0 0)
                (click-and-hold) (move-by-offset 83 0) (release)
