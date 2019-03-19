@@ -90,7 +90,6 @@
     (favicon-headers)
     (apply page/include-css (css-paths :theme (user-theme request)))
     (page/include-js "/ga.js")
-    (page/include-css "/css/croppie.css")
     (when @lucky-orange-enabled
       (page/include-js "/lo.js"))]
    [:body
