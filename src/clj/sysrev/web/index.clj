@@ -71,9 +71,6 @@
                  :src "https://apis.google.com/js/platform.js"}]
     [:script {:src "https://js.stripe.com/v3/"}]
     [:script {:src "https://www.paypalobjects.com/api/checkout.js"}]
-    ;; croppie
-    ;;[:script {:src "https://unpkg.com/croppie@2.6.3/croppie.min.js"}]
-    [:script {:src "https://unpkg.com/croppie@2.6.3/croppie.js"}]
     ;; issues with SRI: https://shkspr.mobi/blog/2018/11/major-sites-running-unauthenticated-javascript-on-their-payment-pages/
     ;; to get sri from unpkg:
     ;; see: https://github.com/unpkg/unpkg.com/issues/48
