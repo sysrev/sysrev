@@ -423,7 +423,7 @@
       ;; add funds to the project
       (b/wait-until-exists project-funds-header)
       (add-paypal-funds "$20.00")
-      (b/wait-until-exists payment-processed 30000 500)
+      (b/wait-until-exists payment-processed 60000 500)
       ;; create users
       (doseq [{:keys [email password]} test-users]
         (b/create-test-user :email email :password password
