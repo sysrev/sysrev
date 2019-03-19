@@ -201,13 +201,9 @@
            (-> source :meta :filename str)))))
 
 (defn SourceArticlesLink [source-id]
-  [:div.ui.primary.tiny.left.labeled.icon.button
-   {:style {:margin-left "0.4em"
-            :padding-top "10px"
-            :padding-bottom "9px"}
-    :on-click
-    (util/wrap-user-event
-     #(dispatch [:articles/load-source-filters [source-id]]))}
+  [:div.ui.primary.tiny.left.labeled.icon.button.view-articles
+   {:on-click (util/wrap-user-event
+               #(dispatch [:articles/load-source-filters [source-id]]))}
    [:i.list.icon]
    "View Articles"])
 
@@ -219,7 +215,8 @@
     [:div.ui.middle.aligned.stackable.grid.segment.source-info
      [:div.row
       [:div.six.wide.middle.aligned.left.aligned.column
-       [:div.ui.large.label (str source-type)]
+       {:style {:padding-right "0.25rem"}}
+       [:div.ui.large.label.source-type (str source-type)]
        (when enabled
          [SourceArticlesLink source-id])]
       [:div.ten.wide.right.aligned.middle.aligned.column

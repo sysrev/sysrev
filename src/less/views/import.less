@@ -38,8 +38,15 @@
     margin-bottom: -1em;
 }
 
+
 .ui.segments.project-source {
     margin-bottom: 1em;
+
+    .ui.button.view-articles {
+        margin-left: 0.4em;
+        padding-top: 11px;
+        padding-bottom: 9px;
+    }
 
     > .ui.segment.source-info {
         > .row {
@@ -137,6 +144,17 @@ div#import-articles {
 div#add-articles {
     .ui.large.block.header {
         padding: 1em;
+    }
+}
+
+@media only screen and (max-width: 991px) {
+    .ui.segments.project-source {
+        .ui.button.view-articles {
+            padding-top: 7px;
+            padding-bottom: 6px;
+            margin: 0.35em 0;
+            margin-left: 2px;
+        }
     }
 }
 

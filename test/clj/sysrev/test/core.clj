@@ -199,34 +199,36 @@
 ;; wait-until macro modified from
 ;; https://gist.github.com/kornysietsma/df45bbea3196adb5821b
 
-(def default-timeout (time/seconds 10))
-(def default-wait-delay-ms 100)
+(def default-timeout 10000)
+(def default-interval 100)
 
 (defn wait-until*
-  ([name pred] (wait-until* name pred default-timeout))
-  ([name pred timeout]
-   (let [die (time/plus (time/now) timeout)]
-     (loop []
-       (if-let [result (pred)]
-         result
-         (do
-           (Thread/sleep default-wait-delay-ms)
-           (if (time/after? (time/now) die)
-             (throw (Exception. (str "timed out waiting for: " name)))
-             (recur))))))))
+  ([name pred] (wait-until* name pred default-timeout default-interval))
+  ([name pred timeout] (wait-until* name pred timeout default-interval))
+  ([name pred timeout interval]
+   (let [timeout (or timeout default-timeout)
+         interval (or interval default-interval)
+         die (time/plus (time/now) (time/millis timeout))]
+     (loop [] (if-let [result (pred)] result
+                      (do (Thread/sleep interval)
+                          (if (time/after? (time/now) die)
+                            (throw (ex-info (str "timed out waiting for " name)
+                                            {:name name :timeout timeout :interval interval}))
+                            (recur))))))))
 
 (defmacro wait-until
-  "wait until pred has become true with optional :timeout"
-  [pred]
-  `(wait-until* ~(pr-str pred) ~pred))
-
-
+  "Waits until function pred evaluates as true and returns result, or
+  throws exception on timeout. timeout and interval may be passed as
+  millisecond values, otherwise default values are used."
+  ([pred] `(wait-until* ~(pr-str pred) ~pred))
+  ([pred timeout] `(wait-until* ~(pr-str pred) ~pred ~timeout))
+  ([pred timeout interval] `(wait-until* ~(pr-str pred) ~pred ~timeout ~interval)))
 
 (defn add-test-label [project-id entry-values]
-  (let [add-label (case (:value-type entry-values)
+  (let [{:keys [value-type short-label]} entry-values
+        add-label (case value-type
                     "boolean" labels/add-label-entry-boolean
                     "categorical" labels/add-label-entry-categorical
                     "string" labels/add-label-entry-string)]
-    (add-label project-id (merge entry-values
-                                 {:name (str (:short-label entry-values)
-                                             "_" (rand-int 1000))}))))
+    (->> (merge entry-values {:name (str short-label "_" (rand-int 1000))})
+         (add-label project-id))))

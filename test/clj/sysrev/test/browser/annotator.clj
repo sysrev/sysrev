@@ -1,6 +1,7 @@
 (ns sysrev.test.browser.annotator
   (:require [clj-webdriver.taxi :as taxi]
-            [clj-webdriver.core :refer [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
+            [clj-webdriver.core :refer
+             [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
             [clojure.string :as string]
             [clojure.test :refer :all]
             [sysrev.api :as api]
@@ -58,12 +59,12 @@
     ;; review the single article result
     ;; note: if issues start arising with this part of the test
     ;; check to see that the search-term still returns only one result
-    (b/click review-articles/review-articles-button)
+    (b/click (x/project-menu-item :review))
     (b/wait-until-exists {:xpath "//div[@id='project_review']"})
     (review-articles/set-article-answers
      [(merge review-articles/include-label-definition
              {:value true})])
-    (b/wait-until-exists review-articles/no-articles-need-review)
+    (b/wait-until-exists ".no-review-articles")
     ;; select one article and annotate it
     (nav/go-project-route "/articles")
     (b/wait-until-loading-completes :pre-wait 200)

@@ -12,7 +12,7 @@
 
 @siteTextColor: rgba(230, 230, 230, 0.925);
 @textColor : @siteTextColor;
-@invertedTextColor: rgba(0, 0, 0, 0.925);
+@invertedTextColor: rgba(35, 35, 35, 0.925);
 @mutedTextColor : rgba(200, 200, 200, 0.85);
 @mutedInvertedTextColor: fadeout(@invertedTextColor, 20%, relative);
 
@@ -24,8 +24,8 @@
 
 @inputBackground : rgba(245,245,245,1.0);
 @inputColor: @invertedTextColor;
-@inputPlaceholderColor: rgba(50,50,50,1.0);
-@inputPlaceholderFocusColor: rgba(30,30,30,1.0);
+@inputPlaceholderColor: rgba(0, 0, 0, 0.65);
+@inputPlaceholderFocusColor: rgba(0, 0, 0, 0.725);
 
 // Dark control elements
 /*

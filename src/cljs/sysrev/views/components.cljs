@@ -6,7 +6,7 @@
             [cljsjs.clipboard]
             [cljsjs.dropzone]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in? css]]))
 
 (defn dangerous
   "Produces a react component using dangerouslySetInnerHTML
@@ -52,7 +52,7 @@
   [wrap-dropdown
    [:div.ui {:class dropdown-class :style style}
     label
-    [:i {:class (str icon-class " icon")
+    [:i {:class (css icon-class "icon")
          :style (when-not (and (seqable? label)
                                (empty? label))
                   {:margin-left "0.7em"
@@ -126,11 +126,10 @@
                 item
                 (when entry
                   [:a {:key tab-id
-                       :class (cond-> ""
-                                active?  (str " active")
-                                true     (str " item")
-                                class    (str " " class)
-                                disabled (str " disabled"))
+                       :class (css [active? "active"]
+                                   "item"
+                                   [class class]
+                                   [disabled "disabled"])
                        :href (when (string? action) action)
                        :on-click
                        (util/wrap-user-event
@@ -149,7 +148,7 @@
               (WrapMenuItemTooltip item tooltip tab-id)
               (list item))))]
     [:div.ui.secondary.pointing.menu.primary-menu
-     {:class (str menu-class " " (if mobile? "tiny" ""))}
+     {:class (css menu-class [mobile? "tiny"])}
      (doall
       (for [entry left-entries]
         (render-entry entry)))
@@ -171,16 +170,13 @@
         (fn [{:keys [tab-id action content class] :as entry}]
           (when entry
             [:a {:key tab-id
-                 :class (str (if (= tab-id active-tab-id)
-                               "active item" "item")
-                             " " (if class class ""))
+                 :class (css [(= tab-id active-tab-id) "active"] "item" class)
                  :href (when (string? action) action)
                  :on-click
                  (util/wrap-user-event
                   (cond (and (seq? action)
                              (= (count action) 2))
-                        #(dispatch [:navigate
-                                    (first action) (second action)])
+                        #(dispatch [:navigate (first action) (second action)])
 
                         (vector? action)
                         #(dispatch [:navigate action])
@@ -189,11 +185,7 @@
 
                         :else action))}
              content]))]
-    [:div.ui
-     {:class
-      (str (if mobile? "" "")
-           " secondary pointing menu secondary-menu "
-           menu-class)}
+    [:div.ui.secondary.pointing.menu.secondary-menu {:class menu-class}
      (doall
       (for [entry left-entries]
         (render-entry entry)))
@@ -215,11 +207,7 @@
           (let [active? (= tab-id active-tab-id)]
             (when entry
               [:a {:key tab-id
-                   :class (cond-> ""
-                            active?  (str " active")
-                            true     (str " item")
-                            class    (str " " class)
-                            disabled (str " disabled"))
+                   :class (css [active? "active"] "item" [class class] [disabled "disabled"])
                    :href (when (string? action) action)
                    :on-click
                    (util/wrap-user-event
@@ -236,9 +224,8 @@
                           :else action))}
                content])))]
     [:div.tabbed-panel
-     [:div.ui
-      {:class (str (sutil/num-to-english (count entries)) " item"
-                   " tabbed menu tabbed-panel " menu-class)}
+     [:div {:class (css "ui" (sutil/num-to-english (count entries))
+                        "item tabbed menu tabbed-panel" menu-class)}
       (doall
        (for [entry entries]
          (render-entry entry)))]]))
@@ -358,7 +345,7 @@
                  false "minus circle icon"
                  "question circle icon")]
     [:div.ui.label
-     {:class (str vclass " " size)
+     {:class (css vclass size)
       :style style}
      (str label " ")
      (when (and iclass show-icon?)
@@ -368,7 +355,7 @@
                     :margin-right "0"}}])]))
 
 (defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
-  [:i.ui.grey.circle.question.mark.icon {:class (str size " " (or class ""))
+  [:i.ui.grey.circle.question.mark.icon {:class (css size class)
                                          :style style}])
 
 (defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
@@ -436,7 +423,7 @@
   This is done by wrapping the column content in a nested grid with CSS styles
   applied to several components."
   [content class]
-  [:div {:class (str class " vertical-column")}
+  [:div {:class (css class "vertical-column")}
    [:div.ui.middle.aligned.grid>div.row>div.middle.aligned.column
     [:div.vertical-column-content content]]])
 
@@ -447,9 +434,27 @@
   This is done by wrapping the column content in a nested grid with CSS styles
   applied to several components."
   [content class]
-  [:div {:class (str class " vertical-column")}
+  [:div {:class (css class "vertical-column")}
    [:div.ui.top.aligned.grid>div.row>div.top.aligned.column
     [:div.vertical-column-content.top content]]])
+
+(defn FormLabelInfo
+  "Renders label for a form field, optionally with a tooltip and
+  informational tags (optional) attached."
+  [label & {:keys [tooltip optional] :or {optional false}}]
+  (let [label-with-tooltip
+        (if (nil? tooltip) label
+            (doall (with-ui-help-tooltip
+                     [:span {:style {:width "100%"}}
+                      label " " [ui-help-icon]]
+                     :help-content tooltip
+                     :popup-options {:delay {:show 750 :hide 0}})))]
+    (if-not optional
+      [:label label-with-tooltip]
+      [:label [:div.ui.middle.aligned.grid
+               [:div.ten.wide.left.aligned.column label-with-tooltip]
+               [:div.six.wide.right.aligned.column
+                [:div.ui.small.basic.label "Optional"]]]])))
 
 (defn TextInput
   "Props:
@@ -468,8 +473,7 @@
   [:input.ui.input
    (cond-> {:type "text"
             :on-change on-change
-            :class (cond-> ""
-                     disabled (str " disabled"))}
+            :class (css [disabled "disabled"])}
      (not (nil? default-value)) (merge {:default-value default-value})
      (and (nil? default-value)
           (not (nil? value)))
@@ -499,26 +503,18 @@
    :autofocus     <boolean>      ; should this start focused?
    :disabled      <boolean>      ; set disabled state on input
    :read-only     <boolean>      ; set readOnly attribute on input
+   :tooltip       <sequence>     ; tooltip strings, optional
+   :optional      <boolean>      ; indicate value is not required
   }"
   [{:keys [error value on-change on-mouse-up on-mouse-down
            placeholder default-value label autofocus disabled read-only
-           field-class tooltip]}]
-  [:div.field
-   {:class (cond-> ""
-             error (str " error")
-             field-class (str " " field-class))}
-   (if (nil? tooltip)
-     [:label label]
-     [:label (doall (with-ui-help-tooltip
-                      [:span {:style {:width "100%"}}
-                       label " " [ui-help-icon]]
-                      :help-content tooltip
-                      :popup-options {:delay {:show 750 :hide 0}}))])
+           field-class tooltip optional]}]
+  [:div.field {:class (css field-class [error "error"])}
+   [FormLabelInfo label :tooltip tooltip :optional optional]
    [:input.ui.input
     (cond-> {:type "text"
              :on-change on-change
-             :class (cond-> ""
-                      disabled (str " disabled"))}
+             :class (css [disabled "disabled"])}
       (not (nil? default-value)) (merge {:default-value default-value})
       (and (nil? default-value)
            (not (nil? value)))
@@ -540,8 +536,7 @@
 (defn LabeledCheckbox
   "Checkbox input element with label."
   [{:keys [checked? on-change label]}]
-  [:div.ui.checkbox
-   {:style {:margin-right "0.5em"}}
+  [:div.ui.checkbox {:style {:margin-right "0.5em"}}
    [:input {:type "checkbox"
             :on-change (util/wrap-user-event on-change :timeout false)
             :checked checked?}]
@@ -549,26 +544,15 @@
 
 (defn LabeledCheckboxField
   "Form field with labeled checkbox and optional tooltip."
-  [{:keys [error on-change checked? label tooltip disabled? field-class]}]
-  [:div.field
-   {:key [:label label]
-    :class (cond-> ""
-             error (str " error")
-             field-class (str " " field-class))}
-   [:div.ui.checkbox
-    { ;; need width 100% to make room for tooltip element
-     :style {:width "100%"}
-     :class (cond-> "" disabled? (str " disabled"))}
+  [{:keys [error on-change checked? label tooltip disabled? field-class optional]}]
+  [:div.field {:key [:label label]
+               :class (css field-class [error "error"])}
+   [:div.ui.checkbox {:style {:width "100%"} ;; need width 100% to fit tooltip
+                      :class (css [disabled? "disabled"])}
     [:input {:type "checkbox"
              :on-change (util/wrap-user-event on-change :timeout false)
              :checked (boolean checked?)}]
-    (if (nil? tooltip)
-      [:label label]
-      [:label (doall (with-ui-help-tooltip
-                       [:span {:style {:width "100%"}}
-                        label " " [ui-help-icon]]
-                       :help-content tooltip
-                       :popup-options {:delay {:show 750 :hide 0}}))])]
+    [FormLabelInfo label :tooltip tooltip :optional optional]]
    (when error
      [:div.ui.red.message error])])
 
@@ -576,15 +560,14 @@
   [:div.ui.two.column.grid.save-reset-form
    [:div.column.save
     [:button.ui.fluid.right.labeled.positive.icon.button.save-changes
-     {:class (cond-> ""
-               (not can-save?) (str " disabled")
-               saving?         (str " loading"))
+     {:class (css [(not can-save?) "disabled"]
+                  [saving? "loading"])
       :on-click (util/wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
      "Save Changes"
      [:i.check.circle.outline.icon]]]
    [:div.column.reset
     [:button.ui.fluid.right.labeled.icon.button.cancel-changes
-     {:class (if can-reset? "" "disabled")
+     {:class (css [(not can-reset?) "disabled"])
       :on-click (util/wrap-user-event #(when (and can-reset? on-reset) (on-reset)))}
      "Cancel"
      [:i.times.icon]]]])
@@ -654,10 +637,9 @@
    [:div.dropzone {:id id}
     [:button.ui.button {:id (str id "-button")
                         :style {:cursor "pointer"}
-                        :class (str (cond (util/full-size?) ""
-                                          (util/mobile?)    "tiny"
-                                          :else             "small")
-                                    " " class)}
+                        :class (css [(util/mobile?)          "tiny"
+                                     (not (util/full-size?)) "small"]
+                                    class)}
      [:i.green.add.circle.icon] text]
     [:div.dropzone-previews {:id (str id "-preview")}]]
    [:div {:style {:display "none"}}
@@ -696,7 +678,7 @@
       :component-did-update on-update
       :reagent-render (fn [offset child] [:div.visibility-wrapper child])})))
 
-(defn TooltipElement
+(defn FixedTooltipElement
   "Wraps element component to add a fixed-width non-inline tooltip,
   returning a component with a div containing both element and
   tooltip.
@@ -722,7 +704,7 @@
                             {:min-width width :max-width width})})
       tooltip-content]]))
 
-(defn TooltipElementManual
+(defn FixedTooltipElementManual
   "Wraps element component to add a fixed-width non-inline tooltip,
   returning a list of two functions (element, tooltip) allowing each
   to be rendered in an appropriate location manually.

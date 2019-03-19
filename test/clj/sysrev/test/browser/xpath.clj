@@ -48,9 +48,6 @@
 (def pubmed-search-form
   (xpath "//form[@id='search-bar']"))
 
-(def create-project-text
-  (xpath "//h4[contains(text(),'Create a New Project')]"))
-
 (defn match-text [element text]
   (xpath (format "//%s[text()='%s']" element text)))
 
@@ -67,3 +64,6 @@
 
 (def disable-sidebar-button
   {:xpath "//div[contains(@class,'button') and contains(text(),'Disable Sidebar')]"})
+
+(defn project-menu-item [item-class]
+  (str ".ui.menu.project-menu > .item." (name item-class)))

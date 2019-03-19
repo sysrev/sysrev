@@ -47,7 +47,6 @@
         sysrev.shared.keywords
         sysrev.shared.transit
         sysrev.test.core
-        sysrev.test.browser.core
         sysrev.test.browser.navigate)
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.test.alpha :as t]
@@ -86,7 +85,8 @@
             [sysrev.shared.spec.notes :as snt]
             sysrev.test.all
             [sysrev.db.queries :as q]
-            [sysrev.api :as api])
+            [sysrev.api :as api]
+            [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
 
 (try
