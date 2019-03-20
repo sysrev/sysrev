@@ -1,6 +1,6 @@
 (ns sysrev.croppie
   (:require [ajax.core :refer [GET POST HEAD]]
-            [cljsjs.croppie]
+            [jborden.croppie]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
             [sysrev.views.components :refer [UploadButton]]

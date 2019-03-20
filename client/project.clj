@@ -27,7 +27,7 @@
                  [cljsjs/clipboard "1.6.1-1"]
                  [cljsjs/accounting "0.4.1-1"]
                  [cljsjs/moment "2.22.2-1"]
-                 [jborden/croppie "2.6.3-0"]
+                 [jborden/croppie "2.6.3-1"]
                  [com.andrewmcveigh/cljs-time "0.5.2"]
                  ;; markdown converter
                  [cljsjs/showdown "1.8.6-0"]]
