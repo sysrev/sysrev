@@ -41,7 +41,7 @@
              #_ "-XX:TieredStopAtLevel=1"
              #_ "-XX:+UseConcMarkSweepGC"
              "-Xverify:none"]
-  :source-paths ["src/clj" "src/cljc"]
+  :source-paths ["src/cljs" "src/cljc"]
   :aliases {}
   :plugins [[lein-cljsbuild "1.1.7"]]
   :clean-targets ^{:protect false}
@@ -52,7 +52,7 @@
   :cljsbuild
   {:builds
    [{:id "dev"
-     :source-paths ["src/cljs" "src/cljc" "src/clj"]
+     :source-paths ["src/cljs" "src/cljc"]
      :figwheel {:on-jsload "sysrev.core/mount-root"}
      :compiler {:main "sysrev.user"
                 :output-to "resources/public/out-dev/sysrev.js"
