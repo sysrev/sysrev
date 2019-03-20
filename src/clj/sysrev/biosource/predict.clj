@@ -66,25 +66,27 @@
              (apply concat)
              (apply hash-map)))))
 
+(defn predict-model-request-body [project-id]
+  (with-transaction
+    (let [label-id (project/project-overall-label-id project-id)
+          article-texts (get-article-texts true project-id label-id)]
+      {"project_id" project-id
+       "feature" (str label-id)
+       "documents" (->> (get-training-label-values project-id label-id)
+                        (mapv (fn [[article-id answer]]
+                                {"text" (get article-texts article-id)
+                                 "tag" answer}))
+                        (filterv #(and (string? (get % "text"))
+                                       (boolean? (get % "tag")))))})))
+
 ;; Note: the prediction model will need a minimum of an article with a true
 ;; tag and false tag, otherwise it will fail
 (defn create-predict-model [project-id]
-  (with-transaction
-    (let [label-id (project/project-overall-label-id project-id)
-          article-texts (get-article-texts true project-id label-id)
-          body (json/write-str
-                {"project_id" project-id
-                 "feature" (str label-id)
-                 "documents" (->> (get-training-label-values project-id label-id)
-                                  (mapv (fn [[article-id answer]]
-                                          {"text" (get article-texts article-id)
-                                           "tag" answer}))
-                                  (filterv #(and (string? (get % "text"))
-                                                 (boolean? (get % "tag")))))})]
-      (http/post
-       (str api-host "sysrev/modelService/v2")
-       {:content-type "application/json"
-        :body body}))))
+  (http/post
+   (str api-host "sysrev/modelService/v2")
+   #_ (str api-host "service/modelservice/model")
+   {:content-type "application/json"
+    :body (json/write-str (predict-model-request-body project-id))}))
 
 (defn fetch-model-predictions [project-id label-id article-texts article-ids]
   (log/info "fetching" (count article-ids) "article predictions")
