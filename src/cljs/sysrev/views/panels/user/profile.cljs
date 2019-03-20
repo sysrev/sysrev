@@ -8,6 +8,7 @@
             [sysrev.base :refer [active-route]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
+            [sysrev.util :as util]
             [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Image Message MessageHeader
                                            Button Select Divider Popup
                                            Modal ModalContent ModalHeader ModalDescription]])
@@ -173,63 +174,81 @@
         nil)})))
 
 (defn UserPublicProfileLink
-  "Should also handle permissions and determine whether or not to display a link"
   [{:keys [user-id display-name]}]
   [:a {:href (str "/users/" user-id)
        :style {:margin-left "0.25em"}} display-name])
 
 (defn Avatar
   [{:keys [user-id]}]
-  [Image {:src (str "/api/user/" user-id "/avatar")
-          :avatar true}])
+  (let [reload-avatar? (r/cursor state [:reload-avatar?])]
+    (if @reload-avatar?
+      (reset! reload-avatar? false)
+      [Image {:src (str "/api/user/" user-id "/avatar")
+              :avatar true
+              :display (str @reload-avatar?)}])))
 
 (defn ProfileAvatar
-  [{:keys [user-id reload-avatar? modal-open]}]
-  (if @reload-avatar?
-    (reset! reload-avatar? false)
-    [Image {:src (str "/api/user/" user-id "/avatar")
-            :size "medium"
-            :circular true
-            :style {:cursor "pointer"}
-            :alt "error"}]))
+  [{:keys [user-id modal-open]}]
+  (let [reload-avatar? (r/cursor state [:reload-avatar?])]
+    (if @reload-avatar?
+      (reset! reload-avatar? false)
+      [Image {:src (str "/api/user/" user-id "/avatar")
+              :circular true
+              :style {:cursor "pointer"}
+              :alt "error"}])))
+
+(defn AvatarModal
+  [{:keys [user-id modal-open]}]
+  [Modal {:trigger
+          (r/as-component
+           [:div.ui {:data-tooltip "Change Your Avatar"
+                     :data-position "bottom center"}
+            [ProfileAvatar {:user-id user-id
+                            :modal-open #(reset! modal-open true)}]])
+          :open @modal-open
+          :on-open #(reset! modal-open true)
+          :on-close #(reset! modal-open false)}
+   [ModalHeader "Edit Your Avatar"]
+   [ModalContent
+    [ModalDescription
+     [CroppieComponent {:user-id user-id
+                        :modal-open modal-open
+                        :reload-avatar? (r/cursor state [:reload-avatar?])}]]]])
+
+(defn UserAvatar
+  [{:keys [mutable? user-id modal-open]}]
+  (if mutable?
+    [AvatarModal {:user-id user-id
+                  :modal-open modal-open}]
+    [ProfileAvatar {:user-id user-id
+                    :modal-open (constantly false)}]))
+
+(defn UserInteraction
+  [{:keys [user-id email]}]
+  [:div
+   [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
+   [:div
+    (when-not (= user-id @(subscribe [:self/user-id]))
+      [InviteUser user-id])
+    [:div {:style {:margin-top "1em"}}
+     [Invitations user-id]]]])
 
 (defn User
   [{:keys [email user-id]}]
   (let [editing? (r/cursor state [:editing-profile?])
         mutable? (= user-id @(subscribe [:self/user-id]))
-        modal-open (r/cursor state [:avatar-model-open])
-        reload-avatar? (r/cursor state [:reload-avatar?])]
+        modal-open (r/cursor state [:avatar-model-open])]
     [Segment {:class "user"}
      [Grid
-      [Row
-       [Column {:width 2}
-        (if mutable?
-          [Modal {:trigger
-                  (r/as-component
-                   [:div.ui {:data-tooltip "Change Your Avatar"
-                             :data-position "bottom center"}
-                    [ProfileAvatar {:user-id user-id
-                             :reload-avatar? reload-avatar?
-                             :modal-open #(reset! modal-open true)}]])
-                  :open @modal-open
-                  :on-open #(reset! modal-open true)
-                  :on-close #(reset! modal-open false)}
-           [ModalHeader "Edit Your Avatar"]
-           [ModalContent
-            [ModalDescription
-             [CroppieComponent {:user-id user-id
-                                :modal-open modal-open
-                                :reload-avatar? reload-avatar?}]]]]
-          [ProfileAvatar {:user-id user-id
-                          :reload-avatar? reload-avatar?
-                          :modal-open (constantly false)}])]
-       [Column {:width 12}
-        [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
-        [:div
-         (when-not (= user-id @(subscribe [:self/user-id]))
-           [InviteUser user-id])
-         [:div {:style {:margin-top "1em"}}
-          [Invitations user-id]]]]]]]))
+      ;; computer / tablet
+      [Row (cond-> {}
+             (util/mobile?) (assoc :columns 3))
+       [Column (cond-> {}
+                 (not (util/mobile?)) (assoc :width 2))
+        [UserAvatar
+         {:mutable? mutable? :user-id user-id :modal-open modal-open}]]
+       [Column
+        [UserInteraction {:user-id user-id :email email}]]]]]))
 
 (defn EditingUser
   [{:keys [user-id email]}]
