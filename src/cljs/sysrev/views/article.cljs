@@ -103,7 +103,7 @@
        vals
        (map first)))
 
-(defn get-annotations
+#_(defn get-annotations
   "Get annotations with a delay of seconds"
   [article-id & {:keys [delay]
                  :or {delay 3}}]
@@ -207,7 +207,7 @@
                           @(subscribe [:view-field :article [article-id :visible-pdf]]))
             pdf-only? (and title visible-url filename
                            (= (str/trim title) (str/trim filename)))]
-        (get-annotations article-id)
+        ;;(get-annotations article-id)
         [:div {:data-article-id article-id}
          [:div {:style {:margin-bottom "0.5em"}}
           (when (and (not-empty pdfs) (not-empty abstract))

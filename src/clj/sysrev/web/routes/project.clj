@@ -790,7 +790,7 @@
                pdf-key (-> request :params :pdf-key)]
            (api/user-defined-pdf-annotations article-id pdf-key))))
 
-(dr (GET "/api/annotations/:article-id" request
+#_(dr (GET "/api/annotations/:article-id" request
          (wrap-authorize
           request {:allow-public true}
           (let [article-id (-> request :params :article-id parse-integer)]
