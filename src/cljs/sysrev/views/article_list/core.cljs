@@ -18,7 +18,7 @@
             [sysrev.views.article-list.filters :as f]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values]])
+            [sysrev.shared.util :as sutil :refer [in? map-values css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (reg-sub-raw
@@ -95,26 +95,24 @@
         :total-count count-cached}}]]))
 
 (defn- AnswerCellIcon [value]
-  (case value
-    true  [:i.green.circle.plus.icon]
-    false [:i.orange.circle.minus.icon]
-    [:i.grey.question.mark.icon]))
+  [:i {:class (css [(true? value)   "green circle plus"
+                    (false? value)  "orange circle minus"
+                    :else           "grey question mark"]
+                   "icon answer-cell")}])
 
 (defn- AnswerCell [article-id labels answer-class resolve]
   [:div.ui.divided.list
    (doall
     (map (fn [entry]
-           (let [{:keys [user-id inclusion]} entry]
+           (let [{:keys [user-id inclusion]} entry
+                 user-name @(subscribe [:user/display user-id])]
              (when (or (not= answer-class "resolved")
                        (= user-id (:user-id resolve)))
-               [:div.item {:key [:answer article-id user-id]}
-                ;;(AnswerCellIcon inclusion)
-                [:div.content>div.header
-                 [:div {:style {:display "inline-block"}}
-                  [Avatar {:user-id user-id}]
-                  [UserPublicProfileLink {:user-id user-id :display-name @(subscribe [:user/display user-id])}]
-                  [:div {:style {:margin-left "0.25em"
-                                 :display "inline-block"}} (AnswerCellIcon inclusion)]]]])))
+               [:div.item.answer-cell {:key [:answer article-id user-id]}
+                [:div.content>div.header>div.flex-wrap
+                 [Avatar {:user-id user-id}]
+                 [UserPublicProfileLink {:user-id user-id :display-name user-name}]
+                 [AnswerCellIcon inclusion]]])))
          labels))])
 
 (defn ChangeLabelsButton [context article-id & {:keys [sidebar]}]
@@ -123,7 +121,7 @@
         resolving-allowed? @(subscribe [::resolving-allowed? context article-id])]
     (when (and editing-allowed? (not editing?))
       [:div.ui.fluid.left.labeled.icon.button.change-labels
-       {:class (when sidebar "small")
+       {:class (css [sidebar "small"])
         :style {:margin-top "1em"}
         :on-click (util/wrap-user-event
                    #(do (dispatch [:review/enable-change-labels
@@ -188,9 +186,9 @@
 (defn- ArticleListEntry
   [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
-        {:keys [show-inclusion show-labels show-notes self-only show-unconfirmed]}
-        @(subscribe [::al/display-options (al/cached context)])
-        active-article @(subscribe [::al/get context [:active-article]])
+        {:keys [show-inclusion show-labels show-notes self-only
+                show-unconfirmed]} @(subscribe [::al/display-options (al/cached context)])
+        {:keys [recent-article active-article]} @(subscribe [::al/get (al/cached context)])
         overall-id @(subscribe [:project/overall-label-id])
         {:keys [article-id primary-title labels notes
                 consensus updated-time resolve]} article
@@ -198,69 +196,36 @@
                 self-only (filterv #(= (:user-id %) self-id)))
         labels (cond->> labels
                  self-only (filterv #(= (:user-id %) self-id))
-                 (not show-unconfirmed)
-                 (filterv #(not (in? [0 nil] (:confirm-time %)))))
-        consensus-labels
-        (->> labels
-             (filterv #(not (in? [0 nil] (:confirm-time %)))))
+                 (not show-unconfirmed) (filterv #(not (in? [0 nil] (:confirm-time %)))))
+        consensus-labels (->> labels (filterv #(not (in? [0 nil] (:confirm-time %)))))
         overall-labels (->> consensus-labels (filter #(= (:label-id %) overall-id)))
         active? (and active-article (= article-id active-article))
-        answer-class (if consensus (name consensus) "conflict")
-        labels? (and (not active?)
-                     (or (and show-labels (not-empty labels))
-                         (and show-notes (not-empty notes))))
-        inclusion-column? (and show-inclusion (not-empty overall-labels))]
-    (if full-size?
-      ;; non-mobile view
-      [:div.ui.row
-       [:div.sixteen.wide.column.article-entry
-        [:div.ui.middle.aligned.grid.article-main
-         [:div.row
-          [:a.column.article-title.black-text
-           {:class (if inclusion-column? "thirteen wide" "sixteen wide")
-            :href (al/get-base-uri context article-id)
-            :on-click (util/wrap-user-event
-                       #(dispatch [:article-list/set-recent-article
-                                   context article-id]))}
-           [:div.ui.middle.aligned.grid
-            [:div.row
-             [:div.fourteen.wide.column
-              {:style {:padding-right "0"}}
-              [:div.ui.middle.aligned.grid>div.row
-               [:div.one.wide.center.aligned.column
-                [:div.ui.fluid.labeled.center.aligned.button
-                 [:i.fitted.center.aligned
-                  {:class (str (if active? "down" "right")
-                               " chevron icon")
-                   :style {:width "100%"}}]]]
-               [:div.fifteen.wide.column
-                {:style {:padding-left "0"}}
-                [:span.article-title primary-title]]]]
-             [:div.two.wide.right.aligned.column.article-updated-time
-              (when (and updated-time (not= updated-time 0))
-                [ui/updated-time-label
-                 (util/time-from-epoch updated-time) true])]]]]
-          (when inclusion-column?
-            [:div.three.wide.center.aligned.middle.aligned.column.article-answers
-             {:class answer-class}
-             [:div.ui.middle.aligned.grid>div.row>div.column
-              [AnswerCell article-id overall-labels answer-class resolve]]])]]
-        (when labels?
-          [:div.article-labels
-           [ArticleLabelsNotes context article full-size?]])]]
-      ;; mobile view
-      [:div.row
-       [:div.eleven.wide.column.article-title
-        [:span.article-title primary-title]
-        (when (and updated-time (not= updated-time 0))
-          [ui/updated-time-label
-           (util/time-from-epoch updated-time) true])]
-       [:div.five.wide.center.aligned.middle.aligned.column.article-answers
-        (when (not-empty overall-labels)
-          {:class answer-class})
-        (when (not-empty overall-labels)
-          [:div.ui.middle.aligned.grid>div.row>div.column
-           [AnswerCell article-id overall-labels answer-class resolve]])]])))
+        recent? (and recent-article (= article-id recent-article))
+        answer-class (css (or (some-> consensus name) "conflict"))
+        labels? (and (not active?) (or (and show-labels (not-empty labels))
+                                       (and show-notes (not-empty notes))))
+        inclusion-column? (and show-inclusion (not-empty overall-labels))
+        link-props {:href (al/get-base-uri context article-id)
+                    :on-click (util/wrap-user-event
+                               #(dispatch [:article-list/set-recent-article context article-id]))}
+        time-label (fn []  [ui/updated-time-label (util/time-from-epoch updated-time) true])]
+    [:div.row
+     [:div.sixteen.wide.column.article-entry
+      [:div.ui.middle.aligned.grid.article-main>div.row
+       [:a.column.article-title
+        (-> {:class (css [(not full-size?) "eleven" inclusion-column? "twelve" :else "sixteen"]
+                         "wide" [recent? "active"])}
+            (merge link-props))
+        [:div.flex-wrap
+         #_ [:i.fitted.center.aligned.right.chevron.icon]
+         [:div.article-title primary-title (when-not full-size? [time-label])]
+         (when full-size? [time-label])]]
+       (when inclusion-column?
+         [:div.article-answers
+          {:class (css answer-class [full-size? "four" :else "five"] "wide column")}
+          [:div.answer-cell [AnswerCell article-id overall-labels answer-class resolve]]])]
+      (when (and full-size? labels?)
+        [:div.article-labels [ArticleLabelsNotes context article full-size?]])]]))
 
 (defn- ArticleListContent [context]
   (let [{:keys [recent-article active-article]}
@@ -270,75 +235,47 @@
         project-id @(subscribe [:active-project-id])
         articles @(al/sub-articles (al/cached context))
         recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
-        loading? (or (= recent-nav-action :refresh)
-                     (= recent-nav-action :transition))
+        list-loading? (or (= recent-nav-action :refresh)
+                          (= recent-nav-action :transition))
         full-size? (util/full-size?)]
     [:div.ui.segments.article-list-segments
-     [:div.ui.dimmer
-      {:class (when loading? "active")}
+     [:div.ui.dimmer {:class (css [list-loading? "active"])}
       [:div.ui.loader]]
      (doall
       (concat
-       (list
-        ^{:key :article-nav-header}
-        [ArticleListNavHeader context])
-       (->>
-        articles
-        (map-indexed
-         (fn [i {:keys [article-id labels notes] :as article}]
-           (let [recent? (= article-id recent-article)
-                 active? (= article-id active-article)
-                 have? @(subscribe [:have? [:article project-id article-id]])
-                 classes (if (or active? recent?) "active" "")
-                 loading? (loading/item-loading? [:article project-id article-id])
-                 labels? (or show-labels show-notes)
-                 {:keys [next-id prev-id]}
-                 @(subscribe [::prev-next-article-ids context])
-                 go-next
-                 (when next-id
-                   #(dispatch-sync [::al/set-active-article context next-id]))
-                 go-prev
-                 (when prev-id
-                   #(dispatch-sync [::al/set-active-article context prev-id]))
-                 first? (= i 0)
-                 last? (= i (dec (count articles)))]
-             (doall
-              (list
-               [:div.ui.middle.aligned.grid.segment.article-list-article
-                {:key [:list-row article-id]
-                 :class (cond-> ""
-                          recent? (str " active")
-                          active? (str " expanded")
-                          labels? (str " with-labels")
-                          first?  (str " first")
-                          last?   (str " last"))
-                 ;;:href (al/get-base-uri context article-id)
-                 ;; :on-click (util/wrap-user-event
-                 ;;            #(dispatch [:article-list/set-recent-article
-                 ;;                        context article-id]))
-                 #_
-                 (util/wrap-user-event
-                  (if active?
-                    #(dispatch-sync [::al/set-active-article context nil])
-                    #(do (dispatch-sync [::al/set-display-option
-                                         context :expand-filters false])
-                         (dispatch-sync [::al/set-active-article context article-id]))))}
-                [:div.ui.inverted.dimmer
-                 {:class (when loading? "active")}
-                 [:div.ui.loader]]
-                [ArticleListEntry (al/cached context) article full-size?]]
-               (when active?
+       (list ^{:key :article-nav-header}
+             [ArticleListNavHeader context])
+       (->> articles
+            (map-indexed
+             (fn [i {:keys [article-id labels notes] :as article}]
+               (let [recent? (= article-id recent-article)
+                     active? (= article-id active-article)
+                     have? @(subscribe [:have? [:article project-id article-id]])
+                     loading? (loading/item-loading? [:article project-id article-id])
+                     labels? (or show-labels show-notes)
+                     {:keys [next-id prev-id]} @(subscribe [::prev-next-article-ids context])
+                     go-next (when next-id
+                               #(dispatch-sync [::al/set-active-article context next-id]))
+                     go-prev (when prev-id
+                               #(dispatch-sync [::al/set-active-article context prev-id]))
+                     first? (= i 0)
+                     last? (= i (dec (count articles)))]
                  (doall
                   (list
-                   [:div.ui.middle.aligned.grid.segment.article-list-full-article
-                    {:key [:article-row article-id]
-                     :class (str (if recent? "active" "")
-                                 " "
-                                 (if loading? "article-loading" ""))}
-                    (when (and loading? (not have?))
-                      [:div.ui.active.inverted.dimmer
-                       [:div.ui.loader]])
-                    [ArticleContent (al/cached context) article-id]])))))))))))]))
+                   [:div.ui.middle.aligned.grid.segment.article-list-article
+                    {:key [:list-row article-id]
+                     :class (css [recent? "active"] [active? "expanded"] [labels? "with-labels"]
+                                 [first? "first"] [last? "last"])}
+                    [:div.ui.inverted.dimmer {:class (css [loading? "active"])}
+                     [:div.ui.loader]]
+                    [ArticleListEntry (al/cached context) article full-size?]]
+                   (when active?
+                     [:div.ui.middle.aligned.grid.segment.article-list-full-article
+                      {:key [:article-row article-id]
+                       :class (css [recent? "active"] [loading? "article-loading"])}
+                      (when (and loading? (not have?))
+                        [:div.ui.active.inverted.dimmer>div.ui.loader])
+                      [ArticleContent (al/cached context) article-id]])))))))))]))
 
 (defn- ArticleListExpandedEntry [context article]
   (let [base-context (al/no-cache context)
@@ -355,22 +292,17 @@
      (list
       [:a.ui.middle.aligned.grid.segment.article-list-article
        {:key [:list-row article-id]
-        :class (str (if recent? "active" ""))
-        :on-click
-        (util/wrap-user-event
-         (if active?
-           #(dispatch-sync [::al/set-active-article base-context nil])
-           #(dispatch-sync [::al/set-active-article base-context article-id])))}
+        :class (css [recent? "active"])
+        :on-click (util/wrap-user-event
+                   #(dispatch-sync [::al/set-active-article
+                                    base-context (if active? nil article-id)]))}
        [ArticleListEntry context article full-size?]]
       (when active?
         [:div.ui.middle.aligned.grid.segment.article-list-full-article
          {:key [:article-row article-id]
-          :class (str (if recent? "active" "")
-                      " "
-                      (if loading? "article-loading" ""))}
+          :class (css [recent? "active"] [loading? "article-loading"])}
          (when (and loading? (not have?))
-           [:div.ui.active.inverted.dimmer
-            [:div.ui.loader]])
+           [:div.ui.active.inverted.dimmer>div.ui.loader])
          [ArticleContent context article-id]])))))
 
 (defn- SingleArticlePanel [context]
@@ -386,29 +318,23 @@
 
 (defn- MultiArticlePanel [context]
   (let [ready-state @(subscribe [::al/ready-state context])
-        expand-filters @(subscribe [::al/display-options
-                                    (al/cached context) :expand-filters])
+        expanded? @(subscribe [::al/display-options (al/cached context) :expand-filters])
         count-item (subscribe [::al/count-query (al/cached context)])
         data-item (subscribe [::al/articles-query (al/cached context)])
-        active-article @(subscribe [::al/get (al/cached context) [:active-article]])
-        expanded? (and expand-filters #_ (nil? active-article))]
+        active-article @(subscribe [::al/get (al/cached context) [:active-article]])]
     [:div.article-list-view
      (al/update-ready-state context)
      (with-loader [@count-item @data-item] {}
        (if (util/full-size?)
-         [:div.ui.grid.article-list-grid
-          [:div.row
-           [:div.column.filters-column
-            {:class (if expanded? "five wide" "one wide")}
-            [f/ArticleListFiltersColumn context expanded?]
-            #_ [ui/WrapFixedVisibility 10
-                [f/ArticleListFiltersColumn context expanded?]]]
-           [:div.column.content-column
-            {:class (if expanded? "eleven wide" "fifteen wide")}
-            [:div.ui.form
-             [:div.field>div.fields>div.sixteen.wide.field
-              [f/TextSearchInput context]]]
-            [ArticleListContent context]]]]
+         [:div.ui.grid.article-list-grid>div.row
+          [:div.column.filters-column {:class (css [expanded? "five" :else "one"] "wide")}
+           [f/ArticleListFiltersColumn context expanded?]
+           #_ [ui/WrapFixedVisibility 10
+               [f/ArticleListFiltersColumn context expanded?]]]
+          [:div.column.content-column {:class (css [expanded? "eleven" :else "fifteen"] "wide")}
+           [:div.ui.form [:div.field>div.fields>div.sixteen.wide.field
+                          [f/TextSearchInput context]]]
+           [ArticleListContent context]]]
          [:div
           ;; FIX: add filters interface for mobile/tablet
           #_ [f/ArticleListFiltersRow context]
@@ -467,10 +393,7 @@
    (let [{:keys [self-only]} display]
      (when (= article-id active-id)
        (boolean
-        (and can-edit?
-             (or change-labels?
-                 (and #_ self-only
-                      (= user-status :unconfirmed)))))))))
+        (and can-edit? (or change-labels? (= user-status :unconfirmed))))))))
 
 (reg-sub
  :article-list/resolving?

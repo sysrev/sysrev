@@ -25,7 +25,7 @@
    :sort-dir :desc})
 
 (defn get-display-count []
-  (if (util/mobile?) 10 10))
+  (if (util/mobile?) 10 15))
 
 (reg-sub
  ::panel
@@ -123,10 +123,7 @@
  ::set-active-article
  [trim-v]
  (fn [{:keys [db]} [context article-id]]
-   (cond-> {:db (set-state db context [:active-article] article-id)}
-     false #_ article-id
-     (merge {:dispatch
-             [::set-display-option context :expand-filters false]}))))
+   {:db (set-state db context [:active-article] article-id)}))
 
 (defn get-base-uri [context & [article-id]]
   (let [{:keys [base-uri article-base-uri]} context]
@@ -225,12 +222,14 @@
    (active-filters-impl state context key)))
 
 (reg-event-db
- ::reset-filters
+ ::reset-all
  [trim-v]
  (fn [db [context]]
    (-> (set-state db context [:filters] nil)
        (set-state context [:display-offset] nil)
-       #_ (set-state context [:display] nil))))
+       (set-state context [:display] nil)
+       (set-state context [:sort-by] nil)
+       (set-state context [:sort-dir] nil))))
 
 (defn- get-url-params-impl [db context]
   (let [{:keys [display-offset active-article
@@ -428,13 +427,11 @@
 
 (defn reload-list-count [context]
   (let [item @(subscribe [::count-query context])]
-    #_ (dispatch [:require item])
     (dispatch [:reload item])))
 (reg-fx ::reload-list-count reload-list-count)
 
 (defn reload-list-data [context]
   (let [item @(subscribe [::articles-query context])]
-    #_ (dispatch [:require item])
     (dispatch [:reload item])))
 (reg-fx ::reload-list-data reload-list-data)
 
@@ -458,48 +455,43 @@
    (cond-> (set-state db context [:ready] new-state)
      reset-pager? (set-state context [:display-offset] 0))))
 
+(defn cache=
+  "Tests if subscription value is equal for context and its cache."
+  [sub context & args]
+  (= @(subscribe (vec (concat [sub context] args)))
+     @(subscribe (vec (concat [sub (cached context)] args)))))
+
+(defn ready=
+  "Tests if path-keys value is equal for ::get and ::ready-state."
+  [context path-keys & [nil-value]]
+  (let [get-value #(as-> (get-in % path-keys) v
+                     (if (nil? v) nil-value v))]
+    (= (get-value @(subscribe [::get context]))
+       (get-value @(subscribe [::ready-state context])))))
+
 (defn update-ready-state [context]
-  (let [ready? @(subscribe [::state-ready? context])
-        ready-state @(subscribe [::ready-state context])
+  (let [{:keys [base-uri]} context
+        project-id @(subscribe [:active-project-id])
         state @(subscribe [::get context])
+        ready-state @(subscribe [::ready-state context])
         cleaned (-> state (dissoc :ready :inputs :recent-nav-action))
         changed? (not= ready-state cleaned)
-
-        sort-by-now @(subscribe [::sort-by context])
-        sort-by-cached @(subscribe [::sort-by (cached context)])
-        sort-dir-now @(subscribe [::sort-dir context])
-        sort-dir-cached @(subscribe [::sort-dir (cached context)])
-        count-now @(subscribe [::count-query context])
-        count-cached @(subscribe [::count-query (cached context)])
-        article-now @(subscribe [::get context [:active-article]])
-        article-cached @(subscribe [::get (cached context) [:active-article]])
-        project-id @(subscribe [:active-project-id])
-        {:keys [base-uri]} context]
-    (when (and ready? changed?
-               (or (= @active-route base-uri)
-                   (str/starts-with? @active-route (str base-uri "/"))
-                   (str/starts-with? @active-route (str base-uri "?"))))
-      #_ (println (str "current = " (pr-str ready-state)))
-      #_ (println (str "next = " (pr-str cleaned)))
-      (let [redirect?
-            (if (or (not= (:active-article ready-state)
-                          (:active-article state))
-                    (not= (or (:display-offset ready-state) 0)
-                          (or (:display-offset state) 0))
-                    (not= (:filters ready-state)
-                          (:filters state))
-                    (not= sort-by-now sort-by-cached)
-                    (not= sort-dir-now sort-dir-cached))
-              false true)
-            reset-pager? false
-            #_ (and (not-empty ready-state)
-                    (not= count-now count-cached))
-            reload-article?
-            (and article-now
-                 (not= article-now article-cached)
-                 (not-empty ready-state))]
+        ready? @(subscribe [::state-ready? context])
+        active-article @(subscribe [::get context [:active-article]])]
+    (when (and ready? changed? (or (= @active-route base-uri)
+                                   (str/starts-with? @active-route (str base-uri "/"))
+                                   (str/starts-with? @active-route (str base-uri "?"))))
+      (let [redirect? (and (ready= context [:active-article])
+                           (ready= context [:display-offset] 0)
+                           (ready= context [:filters])
+                           (cache= ::sort-by context)
+                           (cache= ::sort-dir context))
+            reload-article? (and active-article
+                                 (not (cache= ::get context [:active-article]))
+                                 (not-empty ready-state))
+            reset-pager? false]
         (dispatch-sync [::set-ready-state context cleaned reset-pager?])
         (sync-url-params context :redirect? redirect?)
         (when reload-article?
-          (dispatch [:reload [:article project-id article-now]]))))
+          (dispatch [:reload [:article project-id active-article]]))))
     nil))

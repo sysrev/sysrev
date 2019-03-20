@@ -50,8 +50,7 @@
     (-> (http/post (str api-host "sysrev/importance")
                    {:content-type "application/json"
                     :body (json/write-str pmids)})
-        :body
-        (json/read-str :key-fn keyword))
+        :body (json/read-str :key-fn keyword))
     (catch Throwable e
       (if-let [{:keys [status reason-phrase body]} (ex-data e)]
         (do (log/warn "error in fetch-important-terms")

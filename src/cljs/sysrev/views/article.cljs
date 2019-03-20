@@ -209,8 +209,8 @@
                            (= (str/trim title) (str/trim filename)))]
         ;;(get-annotations article-id)
         [:div {:data-article-id article-id}
-         [:div {:style {:margin-bottom "0.5em"}}
-          (when (and (not-empty pdfs) (not-empty abstract))
+         (when (and (not-empty pdfs) (not-empty abstract))
+           [:div {:style {:margin-bottom "0.5em"}}
             [ui/tabbed-panel-menu
              [{:tab-id :abstract
                :content "Abstract"
@@ -221,7 +221,7 @@
                :action #(dispatch [:set-view-field :article
                                    [article-id :visible-pdf] pdf-url])}]
              (if (nil? visible-url) :abstract :pdf)
-             "article-content-tab"])]
+             "article-content-tab"]])
          [:h3.header {:style {:margin-top "0px"}}
           (when-not (or pdf-only? (empty? title))
             (if-not annotator-enabled?

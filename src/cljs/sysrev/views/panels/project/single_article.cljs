@@ -7,7 +7,7 @@
             [sysrev.views.article-list.base :as alist-b]
             [sysrev.views.article-list.core :as alist-c]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values]])
+            [sysrev.shared.util :as sutil :refer [in? map-values css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def panel [:project :project :single-article])
@@ -68,13 +68,15 @@
 (defn ArticlePanel []
   (let [context @(subscribe [::article-list-context])
         article-id @(subscribe [:article-view/article-id])
-        project-id @(subscribe [:active-project-id])]
+        project-id @(subscribe [:active-project-id])
+        mobile? (util/mobile?)]
     (when (and project-id (integer? article-id))
       (with-loader [[:article project-id article-id]] {}
         [:div
          [:a.ui.fluid.left.labeled.icon.button
           {:href (:base-uri context)
-           :style {:margin-bottom "1em"}}
+           :style {:margin-bottom (if mobile? "0.75em" "1em")}
+           :class (css [mobile? "small"])}
           [:i.left.arrow.icon]
           "Back to Article List"]
          [alist-c/ArticleContent context article-id]]))))

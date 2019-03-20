@@ -175,8 +175,7 @@
 
 (defn UserPublicProfileLink
   [{:keys [user-id display-name]}]
-  [:a {:href (str "/users/" user-id)
-       :style {:margin-left "0.25em"}} display-name])
+  [:a.user-public-profile {:href (str "/users/" user-id)} display-name])
 
 (defn Avatar
   [{:keys [user-id]}]

@@ -238,7 +238,7 @@
   (doall (ui/with-ui-help-tooltip
            [:label text " " [ui/ui-help-icon]]
            :help-content tooltip-content
-           :popup-options {:delay {:show 750 :hide 0}})))
+           :popup-options {:delay {:show 500 :hide 0}})))
 
 (def label-settings-config
   {:short-label  {:display "Name"}

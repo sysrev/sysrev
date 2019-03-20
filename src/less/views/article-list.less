@@ -52,18 +52,15 @@
         }
     }
 
-    div.article-list-article {
+    .ui.grid.segment.article-list-article {
         color: @text;
-        cursor: pointer;
 
         .article-title {
-            // .medium-weight;
             font-size: 13px;
             .noselect;
         }
 
         .ui.segment.article-labels {
-            margin: 0.7rem -0.4rem;
             padding: 0.4rem 0.5rem;
             background-color: @partialSegmentBackground;
         }
@@ -73,20 +70,20 @@
             padding-bottom: 0px;
 
             > .column.article-entry {
+                padding: 0;
                 > .ui.grid.article-main {
-                    margin-top: 0;
-                    margin-bottom: 0;
+                    margin: 0;
                     > .row {
                         padding-top: 0px;
                         padding-bottom: 0px;
                         > .column.article-title .grid .column.article-updated-time {
-                            padding-left: 0;
-                            padding-right: 8px;
+                            padding: 0;
                         }
                     }
                 }
 
-                > div.article-labels, > div.article-notes {
+                > .article-labels, > .article-notes {
+                    padding: 0.5rem;
                     > .ui.divider {
                         margin: 0.5rem 0;
                     }
@@ -97,68 +94,80 @@
             }
         }
 
-        .column.article-title {
-            padding: 0.75em 1em 0.75em 1em;
+        a.column.article-title {
+            .black-text;
+            .flex-center-children;
+            height: 100%;
+            cursor: pointer;
+            padding: 0.8em 0.4em 0.8em 0.8em;
+            div.flex-wrap {
+                padding-left: 0.1em;
+                > i.icon {
+                    min-height: 1.33em;
+                }
+                > div.article-title {
+                    max-width: 85%;
+                }
+                .ui.label.updated-time {
+                    margin-left: auto;
+                }
+            }
         }
 
-        .ui.row.user-article {
-            padding: 10px;
+        .ui.list > .item.answer-cell {
+            padding: 0.4em 0;
+            > .content > .header {
+                color: @text !important;
+                > div.flex-wrap {
+                    > i.icon.answer-cell {
+                        padding-top: 1px;
+                        font-size: 15px;
+                        margin-left: auto;
+                        margin-right: 0;
+                    }
+                }
+            }
+        }
+        .ui.list > .item.answer-cell:first-child {
+            padding-top: 0;
+        }
+        .ui.list > .item.answer-cell:last-child {
+            padding-bottom: 0;
         }
 
-        > div.ui.row i.chevron.icon {
-            color: @text;
-        }
-
-        .ui.list > .item .header {
-            color: @text !important;
-        }
-
-        div.article-title div.ui.fitted.divider {
+        .article-title .ui.fitted.divider {
             margin-top: 0.6em;
             margin-bottom: 0.6em;
         }
     }
-    .article-list-article.active {
+    .article-list-article.article-loading {
+        .row { visibility: hidden; }
+    }
+
+    a.column.article-title.active {
         background-color: mix(@background, @text, 94);
     }
-    .article-list-article.active:hover {
+    a.column.article-title.active:hover {
         background-color: mix(@background, @text, 91);
     }
     .article-list-article:hover {
         background-color: mix(@background, @text, 96);
     }
-    .article-list-article.article-loading {
-        .ui.row {
-            visibility: hidden;
-        }
-    }
 
-    div.ui.segments.article-list-segments {
-        margin-top: 10px;
-        margin-bottom: 10px;
-    }
-
-    div.column.article-answers {
+    .ui.grid > .row > .column.article-answers,
+    .ui.grid > .column.article-answers {
         font-size: 13px;
         height: 100%;
+        padding: 0;
+        border-left: 1px solid @solidInternalBorderColor;
 
-        > div.ui.grid {
-            margin-top: 0;
-            margin-bottom: 0;
+        > div.answer-cell {
             height: 100%;
-
-            > div.row {
-                padding-top: 5px;
-                padding-bottom: 5px;
-                border-left: 1px solid @solidInternalBorderColor;
-
-                > div.column {
-                    padding: 0 0.8em;
-
-                    .item > .content {
-                        text-align: left;
-                    }
-                }
+            .flex-center-children;
+            justify-content: left;
+            > .ui.divided.list {
+                padding: 0.5em 0.5em 0.5em 0.6em;
+                width: 100%;
             }
         }
 
@@ -177,6 +186,11 @@
     }
     .article-answers.resolved {
         background-color: @purpleBackground;
+    }
+
+    .ui.segments.article-list-segments {
+        margin-top: 10px;
+        margin-bottom: 10px;
     }
 
     .article-filters-row {
@@ -227,13 +241,10 @@
         }
         .ui.form .field.control-buttons {
             padding-right: 0;
-
-            .ui.button {
-            }
         }
     }
 
-    div.article-filters-column {
+    .article-filters-column {
         margin-top: 0px;
 
         > .ui.segment, > .ui.segments {
@@ -277,10 +288,9 @@
         }
 
         > .ui.segment.filters-content {
-            // padding-top: 7px;
-            div.inner {
-                > div.ui.label,
-                > div.ui.fluid.button {
+            .inner {
+                > .ui.label,
+                > .ui.fluid.button {
                     margin-top: 5px;
                     margin-bottom: 5px;
                 }
@@ -296,8 +306,7 @@
             padding-top: 0.5em;
             padding-bottom: 0.5em;
         }
-        > a.ui.grid.segment.collapse-header,
-        > div.ui.grid.segment.expand-filters {
+        > .ui.grid.segment.expand-filters {
             > .column {
                 padding: 0;
                 > i.icon {
@@ -305,22 +314,12 @@
                 }
             }
         }
-        > div.ui.grid.segment.expand-filters {
+        > .ui.grid.segment.expand-filters {
             padding-top: 0.5em;
             padding-bottom: 0.5em;
         }
-        > a.ui.segment.collapse-header {
-            cursor: pointer;
-        }
-        > a.ui.segment.collapse-header:hover {
-            background-color: mix(@background, @text, 90);
-        }
-        > .ui.button.expand-filters {
-            padding-top: 1.5em;
-            padding-bottom: 1.5em;
-        }
 
-        div.ui.segment.edit-filter {
+        .ui.segment.edit-filter {
             padding: 5px;
             margin: 8px -2px;
             background-color: @partialSegmentBackground;
@@ -419,7 +418,7 @@
         background-color: mix(@background, @text, 90);
     }
 
-    div.ui.segments.export-data {
+    .ui.segments.export-data {
         margin: 0.6em 0;
         > .ui.grid.segment.expander {
             cursor: pointer;
@@ -496,24 +495,19 @@
         }
     }
 
-    div.ui.segments.article-filters-column.collapsed > div.segment {
+    .ui.segments.article-filters-column.collapsed > .ui.segment {
         padding-left: 0.25em;
         padding-right: 0.25em;
     }
 
-    div.ui.segments.article-filters-column.collapsed,
-    div.ui.segments.article-filters-column.collapsed > div.segment {
+    .ui.segments.article-filters-column.collapsed,
+    .ui.segments.article-filters-column.collapsed > .ui.segment {
         cursor: pointer;
     }
 
-    div.ui.segments.article-filters-column.collapsed:hover,
-    div.ui.segments.article-filters-column.collapsed:hover > div.segment {
+    .ui.segments.article-filters-column.collapsed:hover,
+    .ui.segments.article-filters-column.collapsed:hover > .ui.segment {
         background-color: mix(@background, @text, 90);
-    }
-
-    .ui.segments.article-filters {
-        .ui.grid {
-        }
     }
 
     .ui.grid.article-list-grid {
@@ -561,97 +555,57 @@
 }
 
 @media only screen and (max-width: 767px) {
+    .article-list-toplevel {
+        .ui.grid.segment.article-list-article {
+            a.column.article-title {
+                padding: 0.6em;
+                div.flex-wrap {
+                    > div.article-title {
+                        font-size: 13px;
+                        max-width: 100%;
+                    }
+                    .ui.label.updated-time {
+                        margin-left: 0.3em;
+                    }
+                }
+            }
+        }
+        .ui.grid > .row > .column.article-answers {
+            > div.answer-cell {
+                > .ui.divided.list {
+                    padding: 0.4em;
+                    > .item.answer-cell {
+                        .ui.avatar.image { display: none; }
+                        a.user-public-profile { margin-right: auto; }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @media only screen and (max-width: 900px) {
     .article-list-toplevel {
-        div.column.article-answers >div.ui.grid > div.row > div.column {
-            padding-left: 10px;
-            padding-right: 10px;
+        .column.article-answers > .ui.grid > .row > .column {
+            padding-left: 5px;
+            padding-right: 5px;
             font-size: 13px;
         }
 
-        div.column.article-answers > div.ui.grid > div.row > div.column > .ui.list > .item > div.content {
+        .column.article-answers > .ui.grid > .row > .column > .ui.list > .item > div.content {
             padding-left: 3px;
         }
 
-        div.article-filters .ui.buttons,
-        div.article-filters .ui.button {
-            font-size: 12px;
-        }
+        .article-list-article  {
+            .article-title {
+                font-size: 12px;
 
-        div.article-filters div.ui.selection.dropdown,
-        div.article-filters div.ui.selection.dropdown div.text,
-        div.article-filters div.ui.selection.dropdown div.menu,
-        div.article-filters div.ui.input,
-        div.article-filters div.ui.input input[type=text],
-        div.article-filters div.ui.input i.icon
-        {
-            font-size: 12px;
-        }
-
-        div.article-filters .ui.buttons.three-state-icon .ui.button i.icon {
-            font-size: 12px;
-        }
-
-        div.article-filters .ui.form .field .fields {
-            margin-top: 0;
-            margin-bottom: 0.5em;
-        }
-
-        div.article-filters .ui.form .field .fields .field {
-            padding-top: 0.25em;
-            padding-bottom: 0.25em;
-        }
-
-        .article-list-article .ui.row.user-article {
-            padding: 0.6em;
-        }
-
-        .article-list-article .ui.row.user-article > .column {
-            padding: 0;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .grid {
-            margin: -0.6em;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .ui.fitted.divider {
-            margin-top: 0.3em;
-            margin-bottom: 0.3em;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .grid > .row {
-            padding-top: 0.8em;
-            padding-bottom: 0.8em;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .grid > .row > .column {
-            padding-left: 0.6em;
-            padding-right: 0.6em;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .grid > .row > .column.label-values {
-            margin-left: -3px;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column {
-            padding-left: 0;
-        }
-
-        .article-list-article .ui.row.user-article > .column > .grid > .row > .right.aligned.column > .ui.label {
-            margin-top: 1px;
-            margin-bottom: 2px;
-        }
-
-        .article-list-article .article-title {
-            font-size: 12px;
-        }
-
-        .article-list-article .article-title div.ui.tiny.label {
-            margin-left: 5px;
-            margin-top: 1px;
-            margin-bottom: 1px;
+                .ui.label.updated-time {
+                    margin-left: 5px;
+                    margin-top: 1px;
+                    margin-bottom: 1px;
+                }
+            }
         }
     }
 }

@@ -1,38 +1,21 @@
-@darkText: rgba(35, 35, 35, 0.925);
-@lightText: rgba(230, 230, 230, 0.925);
-
-@mutedDarkText: rgba(60, 60, 60, 0.85);
-@mutedLightText: rgba(200, 200, 200, 0.85);
-
-@fadedDarkText: rgba(100, 100, 100, 0.3);
-@fadedLightText: rgba(160, 160, 160, 0.3);
-
 @text: @lightText;
 @invertedText: @darkText;
-
 @mutedText: @mutedLightText;
 @mutedInvertedText: @mutedDarkText;
-
 @fadedText: @fadedLightText;
 @fadedInvertedText: @fadedDarkText;
 
-@green: rgba(33, 186, 69, 1);
-@orange: #f2711c;
-
 @blue: rgba(70, 140, 216, 1);
-@brightBlue: rgba(70, 150, 250, 1);
-@darkerBlue: darken(@blue, 6);
+@brightBlue: rgba(75, 160, 255, 1);
+@darkerBlue: darken(@blue, 5);
 
-@mediumGrey: rgba(100, 100, 100, 1);
-@lightGrey: rgba(130, 130, 130, 0.7);
-
-@pageBackground : rgba(45, 45, 45, 1.0);
+@pageBackground : rgba(35, 36, 37, 1.0);
 @background: lighten(@pageBackground, 3);
 @menuBackground: lighten(@pageBackground, 2);
 @background1: lighten(@pageBackground, 6);
 @background2: lighten(@pageBackground, 10);
 @partialSegmentBackground: lighten(@pageBackground, 1);
-@secondarySegmentBackground: rgb(60, 60, 60);
+@secondarySegmentBackground: lighten(@pageBackground, 6);
 
 @footerBackground: lighten(@pageBackground,3);
 @footerBorder: rgba(75,75,75,1.0);
@@ -46,11 +29,6 @@
 @inputBackground: rgba(245,245,245,1.0);
 @disabledInputBackground: rgba(210,210,210,1.0);
 
-// Dark control elements
-/*
-@inputBackground: rgba(80, 80, 80, 1.0);
-*/
-
 @menuActiveBorder: @darkerBlue;
 @menuActiveBackground: rgba(255,255,255,0.75);
 @secondaryMenuColor: fadeout(@lightText, 10%, relative);
@@ -60,13 +38,14 @@
 @greyButtonBackground: rgba(130, 130, 130, 1.0);
 
 @internalBorderColor: rgba(34, 36, 38, 0.1);
-// @internalBorderColor: rgba(130, 130, 130, 0.5);
 @solidInternalBorderColor: rgba(130, 130, 130, 0.5);
 
 @buttonBackground: rgb(224, 225, 226);
 
-@subtleButtonColor: rgba(75, 75, 75, 1.0);
+@subtleButtonColor: rgba(75, 76, 77, 1.0);
 @subtleButtonHoverColor: lighten(@subtleButtonColor, 2);
+
+@boxShadowColor: rgba(10,10,10,0.385);
 
 .ui.segment,
 .ui.segments,
@@ -77,7 +56,6 @@
 
 .ui.buttons.selection {
     .ui.active.button {
-        // color: @darkText;
         background-color: #a8a9aa;
     }
 }
@@ -133,25 +111,16 @@
     background-color: @background2;
 }
 
-div.article-answers {
-    .ui.divided.list {
-        > .item {
-            // border-top: 1px solid rgba(200,200,200,0.4);
-        }
-        > .item:first-child {
-            border-top: 0;
-        }
-    }
-}
-
 .ui.menu .item.disabled,
 .ui.menu .item.disabled:hover {
     color: rgba(200, 200, 200, 0.4) !important;
 }
 
-@boxShadowColor: rgba(10,10,10,0.385);
-
 .ui.raised.segment {
     -webkit-box-shadow: 0 2px 5px 0 @boxShadowColor, 0 2px 8px 0 @boxShadowColor !important;
     box-shadow:         0 2px 5px 0 @boxShadowColor, 0 2px 8px 0 @boxShadowColor !important;
+}
+
+.ui.button {
+    color: rgba(0,0,0,.66);
 }

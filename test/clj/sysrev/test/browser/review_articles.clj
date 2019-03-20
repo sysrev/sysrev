@@ -17,6 +17,7 @@
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
+
 ;; Note: There are different classes / ids / etc. for elements in mobile versus desktop
 ;;       If you are having an issue with not finding elements that should be there,
 ;;       try resizing the window to desktop to see if there is a discrepancy and then fix it
@@ -41,8 +42,7 @@
 ;; (def article-title (-> (labels/query-public-article-labels project-id) vals first :title))
 ;; (def article-id (-> (labels/query-public-article-labels project-id) keys first))
 
-(defn label-div-with-name
-  [name]
+(defn label-div-with-name [name]
   (xpath "//span[contains(@class,'name')]"
          "/span[contains(@class,'inner') and text()='" name "']"
          "/ancestor::div[contains(@class,'label-edit')"
@@ -52,19 +52,17 @@
   "Use boolean select? to set the value of label with name.
   select? being true corresponds to 'Yes', false corresponds to 'No'"
   [name select?]
-  (b/click
-   (xpath (label-div-with-name name)
-          "/descendant::div[contains(text(),'"
-          (if select? "Yes" "No") "')]"))
+  (b/click (xpath (label-div-with-name name)
+                  "/descendant::div[contains(text(),'"
+                  (if select? "Yes" "No") "')]"))
   (Thread/sleep 25))
 
 (defn input-string-with-label-name
   "Input string into label with name"
   [name string]
-  (b/set-input-text
-   (xpath (label-div-with-name name)
-          "/descendant::input[@type='text']")
-   string :delay 50))
+  (b/set-input-text (xpath (label-div-with-name name)
+                           "/descendant::input[@type='text']")
+                    string :delay 50))
 
 (defn select-with-text-label-name
   "select text from the dropdown for label with name"
@@ -78,18 +76,13 @@
     (b/click entry-div :displayed? true)
     (Thread/sleep 200)))
 
-(defn article-title-div
-  [title]
-  (xpath "//span[contains(@class,'article-title') and contains(text(),'"
-         title "')]"))
+(defn article-title-div [title]
+  (xpath "//div[contains(@class,'article-title') and contains(text(),'" title "')]"))
 
-(defn label-button-value
-  [label]
-  (taxi/text
-   (xpath "//div[contains(@class,'button') and contains(text(),'"
-          label "')]"
-          "/parent::div[contains(@class,'label-answer-tag')]"
-          "/div[contains(@class,'label')]")))
+(defn label-button-value [label]
+  (taxi/text (xpath "//div[contains(@class,'button') and contains(text(),'" label "')]"
+                    "/parent::div[contains(@class,'label-answer-tag')]"
+                    "/div[contains(@class,'label')]")))
 
 ;;;; end element definitions
 
@@ -124,15 +117,11 @@
 (defn short-label-answer
   "Get label answer for short-label set for article-id in project-id by user-id"
   [project-id article-id user-id short-label]
-  (let [label-uuid (->> (project/project-labels project-id)
-                        vals
+  (let [label-uuid (->> (vals (project/project-labels project-id))
                         (filter #(= short-label (:short-label %)))
-                        first
-                        :label-id)]
-    (-> (labels/article-user-labels-map project-id article-id)
-        (get user-id)
-        (get label-uuid)
-        :answer)))
+                        first :label-id)]
+    (get-in (labels/article-user-labels-map project-id article-id)
+            [user-id label-uuid :answer])))
 
 (defn get-user-project-id
   "Return the first project-id of user-id"
@@ -142,17 +131,12 @@
 (defn set-label-answer
   "Set answer value for a single label on current article."
   [{:keys [short-label value value-type]}]
-  (condp = value-type
-    "boolean" (select-boolean-with-label-name
-               short-label
-               value)
-    "string" (input-string-with-label-name
-              short-label
-              value)
-    "categorical" (select-with-text-label-name
-                   short-label
-                   value))
-  (Thread/sleep 50))
+  (as-> (case value-type
+          "boolean" select-boolean-with-label-name
+          "string" input-string-with-label-name
+          "categorical" select-with-text-label-name) f
+    (f short-label value)
+    (Thread/sleep 50)))
 
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
@@ -182,8 +166,7 @@
                               (or (get-in label [:all-values])
                                   (get-in label [:definition :all-values])
                                   (get-in label [:definition :examples])))]
-             (merge label {:value
-                           (nth all-values (rand-int (count all-values)))})))
+             (merge label {:value (nth all-values (rand-int (count all-values)))})))
          label-settings)))
 
 (deftest-browser create-project-and-review-article

@@ -92,12 +92,7 @@
             ["with-profile" "+test,+test-browser,+test-aws-prod" "run"]
             "test-aws-dev-all"
             ["with-profile" "+test,+test-all,+test-aws-dev" "run"]}
-  :plugins [[lein-cljsbuild "1.1.7"]]
-  :clean-targets ^{:protect false}
-  ["target"
-   #_ "resources/public/out-dev"
-   #_ "resources/public/integration"
-   #_ "resources/public/out-production"]
+  :clean-targets ^{:protect false} ["target"]
   :repl-options {:timeout 120000
                  :init-ns sysrev.user}
   :profiles {:prod

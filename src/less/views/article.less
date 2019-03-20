@@ -230,6 +230,10 @@ div.label-values {
     margin-right: 0.5em;
 }
 
+div#article-pdfs {
+    min-height: 40px;
+}
+
 div#article-pdfs div.field > div.fields {
     margin-left: 0;
     margin-right: 0;
@@ -281,6 +285,23 @@ div#article-pdfs div.ui.grid > div.row {
             padding-left: 1em;
             padding-right: 1em;
             min-width: 3em;
+        }
+    }
+}
+
+@media only screen and (max-width: 767px) {
+    div#article-pdfs.ui.segment {
+        padding: 0.5em;
+        > .ui.grid > .row {
+            padding: 0.25em 0;
+            > .column {
+                padding: 0 0.5em;
+            }
+        }
+        .dropzone {
+            .ui.button.upload-button {
+                i.icon { display: none; }
+            }
         }
     }
 }

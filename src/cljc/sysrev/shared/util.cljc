@@ -201,3 +201,13 @@
                  (every? keyword? (keys keyargs)))
             (str "args has invalid last value: " (pr-str keyargs)))
     (apply f (concat mainargs (keyword-argseq keyargs)))))
+
+(defn space-join
+  "Joins a collection of strings after removing any empty values."
+  [coll & {:keys [separator] :or {separator " "}}]
+  (->> coll (map str) (remove empty?) (str/join separator)))
+
+(defn wrap-parens
+  "Wraps a string in directional paren characters."
+  [s & {:keys [parens] :or {parens "()"}}]
+  (when s (str (subs parens 0 1) s (subs parens 1 2))))

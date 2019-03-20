@@ -51,8 +51,7 @@
              {:on-click #(toggle-ui-theme logged-in? settings)}
              [:span {:style {:font-size "22px"}}
               [:i.fitted.lightbulb.outline.icon]]]
-            {:delay {:show 600
-                     :hide 0}
+            {:delay {:show 500 :hide 0}
              :hoverable false
              :position "left center"
              :transition "fade"

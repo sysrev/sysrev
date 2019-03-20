@@ -246,6 +246,11 @@ span.attention {
     .ui.form .field {
         margin-bottom: 7px !important;
     }
+
+    .ui.container {
+        margin-left: 0.75em !important;
+        margin-right: 0.75em !important;
+    }
 }
 
 @media only screen and (min-width: 1160px) {
@@ -406,4 +411,24 @@ div:focus, a:focus, input:focus, form:focus, span:focus {
 
 .field .ui.checkbox label {
     .noselect;
+}
+
+.flex-wrap {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+}
+
+a.user-public-profile {
+    .medium-weight;
+    .open-sans;
+    margin-left: 0.25em;
+}
+
+@media only screen and (max-width: 767px) {
+    a.user-public-profile {
+        font-size: 12px;
+        margin-left: 0.25em;
+    }
 }

@@ -15,7 +15,7 @@
             [sysrev.views.components :refer [UploadButton]]
             [sysrev.views.list-pager :refer [ListPager]]
             [sysrev.util :as util :refer [wrap-user-event]]
-            [sysrev.shared.util :as sutil])
+            [sysrev.shared.util :as sutil :refer [css]])
   (:require-macros [reagent.interop :refer [$ $!]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -377,7 +377,8 @@
                               (str "/api/files/" project-id
                                    "/article/" article-id "/upload-pdf")
                               #(dispatch [:reload [:pdf/article-pdfs project-id article-id]])
-                              "Upload PDF"]])
+                              "Upload PDF"
+                              nil {:margin 0}]])
               open-access? @(subscribe [:article/open-access-available? article-id])
               logged-in? @(subscribe [:self/logged-in?])
               member? @(subscribe [:self/member?])
@@ -385,17 +386,16 @@
           (dispatch [:require [:pdf/open-access-available?
                                project-id article-id]])
           (when (or authorized? open-access?)
-            [:div#article-pdfs.ui.segment
-             {:style {:min-height "60px"}}
-             [:div.ui.grid
-              [:div.row
-               [:div.twelve.wide.left.aligned.column
-                [:div.ui.small.form
-                 [OpenAccessPDF article-id]
-                 ;; need better permissions for PDFs, for now, simple don't allow
-                 ;; people who aren't logged in to view PDFs
-                 (when logged-in?
-                   [ArticlePDFs article-id])]]
+            [:div#article-pdfs.ui.segment>div.ui.grid>div.row
+             [:div.left.aligned
+              {:class (css [full-size? "twelve" :else "eleven"] "wide column")}
+              [:div {:class (css "ui" [full-size? "small" :else "tiny"] "form")}
+               [OpenAccessPDF article-id]
+               ;; need better permissions for PDFs, for now, simple don't allow
+               ;; people who aren't logged in to view PDFs
                (when logged-in?
-                 [:div.four.wide.right.aligned.column
-                  [upload-form]])]]]))))))
+                 [ArticlePDFs article-id])]]
+             (when logged-in?
+               [:div.right.aligned
+                {:class (css [full-size? "four" :else "five"] "wide column")}
+                [upload-form]])]))))))

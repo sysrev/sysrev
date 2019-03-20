@@ -13,7 +13,7 @@
             [sysrev.views.article-list.base :as al]
             [sysrev.views.panels.project.add-articles :as source]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]
+            [sysrev.shared.util :as sutil :refer [in? map-values css space-join wrap-parens]]
             [clojure.set :as set]))
 
 (def group-statuses
@@ -240,24 +240,20 @@
         set-input #(dispatch-sync [::al/set context [:inputs :text-search] %])
         curval @(subscribe [::al/get context [:text-search]])
         synced? (or (nil? @input) (= @input curval))]
-    [:div.ui.fluid.left.icon.input
-     {:class (when-not synced? "loading")}
-     [:input
-      {:type "text"
-       :id "article-search"
-       :value (or @input curval)
-       :placeholder "Search articles"
-       :on-change
-       (util/wrap-prevent-default
-        (fn [event]
-          (let [value (-> event .-target .-value)]
-            (set-input value)
-            (js/setTimeout
-             #(let [later-value (if (empty? @input) nil @input)
-                    value (if (empty? value) nil value)]
-                (when (= value later-value)
-                  (dispatch-sync [::set-text-search context value])))
-             1000))))}]
+    [:div.ui.fluid.left.icon.input {:class (css [(not synced?) "loading"])}
+     [:input {:type "text"
+              :id "article-search"
+              :value (or @input curval)
+              :placeholder "Search articles"
+              :on-change (util/wrap-prevent-default
+                          (fn [event]
+                            (let [value (-> event .-target .-value)]
+                              (set-input value)
+                              (-> #(let [later-value (if (empty? @input) nil @input)
+                                         value (if (empty? value) nil value)]
+                                     (when (= value later-value)
+                                       (dispatch-sync [::set-text-search context value])))
+                                  (js/setTimeout 1000)))))}]
      [:i.search.icon]]))
 
 (defn- FilterDropdown [options option-name active on-change multiple? read-value]
@@ -270,27 +266,18 @@
      [:div.text (option-name active)]
      (map-indexed
       (fn [i x]
-        [:div.item
-         {:key [:filter-item i]
-          :data-value (to-data-value x)
-          :class (when (= x active)
-                   "active selected")}
+        [:div.item {:key [:filter-item i]
+                    :data-value (to-data-value x)
+                    :class (css [(= x active) "active selected"])}
          (option-name x)])
       options)
-     {:class
-      (if multiple?
-        (cond-> "ui fluid"
-          multiple?          (str " multiple")
-          (not touchscreen?) (str " search")
-          true               (str " selection dropdown"))
-        "ui fluid floating dropdown button filter-dropdown")
-      :onChange
-      (fn [v t]
-        (let [v (cond (= v "any")  nil
-                      read-value   (read-value v)
-                      :else        v)]
-          (when on-change
-            (on-change v))))}]))
+     {:class (if multiple?
+               (css "ui fluid multiple" [(not touchscreen?) "search"] "selection dropdown")
+               "ui fluid floating dropdown button filter-dropdown")
+      :onChange (fn [v t]
+                  (and on-change (on-change (cond (= v "any")  nil
+                                                  read-value   (read-value v)
+                                                  :else        v))))}]))
 
 (defn- SelectUserDropdown [context value on-change multiple?]
   (let [user-ids @(subscribe [:project/member-user-ids nil true])
@@ -317,24 +304,17 @@
           description (or (some-> @(subscribe [:source/display-info source-id])
                                   (sutil/string-ellipsis 70 "[.....]"))
                           (str source-id))]
-      (->> [(str "[" article-count "]")
-            (when source-type
-              (str "[" source-type "]"))
-            description]
-           (remove nil?)
-           (str/join " ")))))
+      (space-join [(wrap-parens article-count :parens "[]")
+                   (wrap-parens source-type :parens "[]")
+                   description]))))
 
 (defn- SelectSourceDropdown [context value on-change multiple?]
   (let [source-ids @(subscribe [:project/source-ids true])
-        value (if (and (sequential? value) (not-empty value))
-                value
-                nil)]
+        value (when (sequential? value) (not-empty value))]
     [FilterDropdown
      source-ids
      #(if (nil? %) "Select Source" (describe-source %))
-     (first value)
-     on-change
-     multiple?
+     (first value) on-change multiple?
      #(sutil/parse-integer %)]))
 
 (defn- SelectLabelDropdown [context value on-change]
@@ -351,19 +331,16 @@
   (let [boolean? @(subscribe [:label/boolean? label-id])
         categorical? @(subscribe [:label/categorical? label-id])
         all-values @(subscribe [:label/all-values label-id])
-        entries
-        (cond boolean?      [nil true false]
-              categorical?  (concat [nil] all-values)
-              :else         [nil])]
+        entries (cond boolean?      [nil true false]
+                      categorical?  (concat [nil] all-values)
+                      :else         [nil])]
     [FilterDropdown
      entries
      #(cond (nil? %)   "Any Value"
             (true? %)  "Yes"
             (false? %) "No"
             :else      %)
-     value
-     on-change
-     false
+     value on-change false
      (if boolean?
        #(cond (= % "true")  true
               (= % "false") false
@@ -377,9 +354,7 @@
       :labels "Labels"
       :annotations "Annotations"
       "Any")
-   value
-   on-change
-   false
+   value on-change false
    #(keyword %)])
 
 (defn- BooleanDropdown [context value on-change]
@@ -388,9 +363,7 @@
    #(cond (= % true)  "Yes"
           (= % false) "No"
           :else       "Any")
-   value
-   on-change
-   false
+   value on-change false
    #(cond (= % "true")  true
           (= % "false") false
           :else         nil)])
@@ -401,9 +374,7 @@
    #(if (keyword? %)
       (str/capitalize (name %))
       "Any")
-   value
-   on-change
-   false
+   value on-change false
    #(some-> % keyword)])
 
 (defn- SortByDropdown [context value on-change]
@@ -412,9 +383,7 @@
    #(case %
       :content-updated "Content Updated"
       :article-added "Article Added")
-   value
-   on-change
-   false
+   value on-change false
    #(some-> % keyword)])
 
 (defn- ifilter-valid? [ifilter]
@@ -425,28 +394,22 @@
                     (nth filter-idx) ifilter-valid?)
         valid? (-> ifilter ifilter-valid?)
         filters (vec @(subscribe [::al/filters]))
-        unchanged?
-        (when (contains? filters filter-idx)
-          (= (process-filter-input ifilter)
-             (process-filter-input (nth filters filter-idx))))]
+        unchanged? (when (contains? filters filter-idx)
+                     (= (process-filter-input ifilter)
+                        (process-filter-input (nth filters filter-idx))))
+        can-save? (and valid? (not unchanged?))]
     [:div.ui.small.form
      [:div.field.edit-buttons>div.fields
       [:div.eight.wide.field
        [:button.ui.tiny.fluid.labeled.icon.positive.button
-        {:class (when (or unchanged? (not valid?)) "disabled")
-         :on-click
-         (when valid?
-           (util/wrap-user-event
-            #(dispatch [::sync-filters-input context])))}
-        [:i.circle.check.icon]
-        "Save"]]
+        {:class (css [(not can-save?) "disabled"])
+         :on-click (when can-save?
+                     (util/wrap-user-event #(dispatch [::sync-filters-input context])))}
+        [:i.circle.check.icon] "Save"]]
       [:div.eight.wide.field
        [:button.ui.tiny.fluid.labeled.icon.button
-        {:on-click
-         (util/wrap-user-event
-          #(dispatch [::reset-filters-input context]))}
-        [:i.times.icon]
-        "Cancel"]]]]))
+        {:on-click (util/wrap-user-event #(dispatch [::reset-filters-input context]))}
+        [:i.times.icon] "Cancel"]]]]))
 
 (defmulti FilterEditorFields
   (fn [context filter-idx ifilter update-filter]
@@ -457,7 +420,7 @@
     [:div.ui.small.form
      [:div.sixteen.wide.field
       [:button.ui.tiny.fluid.button
-       (str "editing filter (" (pr-str ftype) ")")]]]))
+       (space-join ["editing filter" (some-> ftype pr-str wrap-parens)])]]]))
 
 (defmethod FilterEditorFields :has-user [context filter-idx ifilter update-filter]
   (let [[[_ value]] (vec ifilter)
@@ -543,46 +506,33 @@
            (update-filter #(assoc % :confirmed new-value)))]]]]]))
 
 (defmethod FilterEditorFields :consensus [context filter-idx ifilter update-filter]
-  (let [[[_ value]] (vec ifilter)
-        {:keys [status inclusion]} value]
-    [:div.ui.small.form
-     [:div.field
-      [:div.fields
-       [:div.eight.wide.field
-        [:label "Consensus Status"]
-        [ConsensusStatusDropdown context status
-         (fn [new-value]
-           (update-filter #(assoc % :status new-value)))]]
-       [:div.eight.wide.field
-        [:label "Inclusion"]
-        [BooleanDropdown context inclusion
-         (fn [new-value]
-           (update-filter #(assoc % :inclusion new-value)))]]]]]))
+  (let [[[_ {:keys [status inclusion] :as value}]] (vec ifilter)]
+    [:div.ui.small.form>div.field>div.fields
+     [:div.eight.wide.field
+      [:label "Consensus Status"]
+      [ConsensusStatusDropdown context status
+       (fn [new-value] (update-filter #(assoc % :status new-value)))]]
+     [:div.eight.wide.field
+      [:label "Inclusion"]
+      [BooleanDropdown context inclusion
+       (fn [new-value] (update-filter #(assoc % :inclusion new-value)))]]]))
 
 (defn- FilterEditNegationControl [context filter-idx ifilter update-filter]
-  (let [[[_ value]] (vec ifilter)
-        {:keys [negate]} value]
-    [:div.ui.small.form
-     [:div.field.filter-negation>div.fields
-      [:div.sixteen.wide.field
-       [:div.ui.fluid.buttons
-        [:button.ui.tiny.fluid.button
-         {:class (if negate nil "primary")
-          :on-click
-          (util/wrap-user-event
-           (fn [] (update-filter #(dissoc % :negate))))}
-         "Match"]
-        [:button.ui.tiny.fluid.button
-         {:class (if negate "primary" nil)
-          :on-click
-          (util/wrap-user-event
-           (fn [] (update-filter #(assoc % :negate true))))}
-         "Exclude"]]]]]))
+  (let [[[_ {:keys [negate] :as value}]] (vec ifilter)]
+    [:div.ui.small.form>div.field.filter-negation
+     [:div.fields>div.sixteen.wide.field>div.ui.fluid.buttons
+      [:button.ui.tiny.fluid.button
+       {:class (css [(not negate) "primary"])
+        :on-click (util/wrap-user-event (fn [] (update-filter #(dissoc % :negate))))}
+       "Match"]
+      [:button.ui.tiny.fluid.button
+       {:class (css [negate "primary"])
+        :on-click (util/wrap-user-event (fn [] (update-filter #(assoc % :negate true))))}
+       "Exclude"]]]))
 
-(defn- FilterEditElement
-  [context filter-idx]
-  (let [filters @(subscribe [::filters-input context])
-        ifilter (nth filters filter-idx)
+(defn- FilterEditElement [context filter-idx]
+  (let [ifilter (-> @(subscribe [::filters-input context])
+                    (nth filter-idx))
         update-filter #(dispatch [::update-filter-input context filter-idx %])]
     [:div.ui.secondary.segment.edit-filter
      [FilterEditNegationControl context filter-idx ifilter update-filter]
@@ -592,7 +542,7 @@
 (defmulti filter-description (fn [context ftype value] ftype))
 
 (defmethod filter-description :default [context ftype value]
-  (str "unknown filter (" (pr-str ftype) ")"))
+  (space-join ["unknown filter" (some-> ftype pr-str wrap-parens)]))
 
 (defmethod filter-description :has-user [context ftype value]
   (let [{:keys [user content confirmed]} value
@@ -601,86 +551,58 @@
                             (false? confirmed)        "unconfirmed"
                             :else                     nil)
         content-str (case content
-                      :labels "labels"
-                      :annotations "annotations"
+                      :labels       "labels"
+                      :annotations  "annotations"
                       "content")
-        user-name (when (integer? user)
-                    @(subscribe [:user/display user]))
-        user-str (if (integer? user)
-                   (str "user " (pr-str user-name))
-                   "any user")]
-    (->> ["has" confirmed-str content-str "from" user-str]
-         (remove nil?)
-         (str/join " "))))
+        user-name (and (integer? user) @(subscribe [:user/display user]))
+        user-str (if-not (integer? user) "any user"
+                         (str "user " (pr-str user-name)))]
+    (space-join ["has" confirmed-str content-str "from" user-str])))
 
 (defmethod filter-description :source [context ftype value]
-  (let [sources @(subscribe [:project/sources])
-        {:keys [source-ids]} value]
-    (->> ["is present in source "
-          (->> (mapv describe-source source-ids)
-               (str/join " OR "))]
-         (remove nil?)
-         (str/join " "))))
+  (let [{:keys [source-ids]} value]
+    (space-join ["is present in source" (->> (mapv describe-source source-ids)
+                                             (str/join " OR "))])))
 
 (defmethod filter-description :has-label [context ftype value]
   (let [{:keys [label-id users values inclusion confirmed]} value
-        confirmed-str (cond (true? confirmed)  "confirmed"
-                            (false? confirmed) "unconfirmed"
-                            :else              nil)
-        label-str (if (nil? label-id)
-                    (->> ["any" confirmed-str "label"]
-                         (remove nil?)
-                         (str/join " "))
-                    (str (if (nil? confirmed-str)
-                           "" (str confirmed-str " "))
-                         "label ("
-                         (pr-str @(subscribe [:label/display label-id]))
-                         ")"))
+        confirmed-str (cond (true? confirmed)   "confirmed"
+                            (false? confirmed)  "unconfirmed"
+                            :else               nil)
+        label-str (if (nil? label-id) (space-join ["any" confirmed-str "label"])
+                      (space-join [confirmed-str (-> @(subscribe [:label/display label-id])
+                                                     pr-str wrap-parens)]))
         inclusion-str (case inclusion
-                        true "with positive inclusion"
-                        false "with negative inclusion"
+                        true   "with positive inclusion"
+                        false  "with negative inclusion"
                         nil)
         values-str (when (not-empty values)
-                     (str
-                      (if inclusion-str "and" "with")
-                      " value ("
-                      (->> values (map pr-str) (str/join " OR "))
-                      ")"))
-        users-str (if (empty? users)
-                    "any user"
-                    (str
-                     "user ("
-                     (->> users
-                          (map #(pr-str @(subscribe [:user/display %])))
-                          (str/join " OR "))
-                     ")"))]
-    (->> ["has" label-str
-          inclusion-str values-str
-          "from" users-str]
-         (remove nil?)
-         (str/join " "))))
+                     (space-join [(if inclusion-str "and" "with") "value"
+                                  (->> values (map pr-str) (str/join " OR ") wrap-parens)]))
+        users-str (if (empty? users) "any user"
+                      (space-join ["user" (->> users
+                                               (map #(pr-str @(subscribe [:user/display %])))
+                                               (str/join " OR ")
+                                               wrap-parens)]))]
+    (space-join ["has" label-str inclusion-str values-str "from" users-str])))
 
 (defmethod filter-description :consensus [context ftype value]
   (let [{:keys [status inclusion]} value
-        status-str (-> (cond (= status :determined)
-                             "Consistent OR Resolved"
-                             (keyword? status)
-                             (-> status name str/capitalize)
-                             :else "Any")
-                       (#(str "(" % ")")))
+        status-str (cond (= status :determined)  "Consistent OR Resolved"
+                         (keyword? status)       (-> status name str/capitalize)
+                         :else                   "Any")
         inclusion-str (case inclusion
                         true "positive inclusion"
                         false "negative inclusion"
                         nil)]
-    (cond-> (str "has consensus status " status-str)
-      inclusion-str (str " for " inclusion-str))))
+    (space-join (concat ["has consensus status" (wrap-parens status-str)]
+                        (when inclusion-str ["for" inclusion-str])))))
 
 (defn- FilterDescribeElement
   [context filter-idx]
   [:div.describe-filter
    (if (nil? filter-idx)
-     [:div.ui.tiny.fluid.button
-      "all articles"]
+     [:div.ui.tiny.fluid.button "all articles"]
      (let [{:keys [labels]} @(subscribe [:project/raw])
            filters @(subscribe [::filters-input context])
            fr (nth filters filter-idx)
@@ -703,23 +625,16 @@
 
 (defn- TextSearchDescribeElement [context]
   (let [text-search @(subscribe [::al/get context [:text-search]])]
-    (when (and (string? text-search)
-               (not-empty text-search))
-      [:div.describe-filter
-       [:div.ui.center.aligned.middle.aligned.grid
-        [:div.row
-         [:div.middle.aligned.two.wide.column.delete-filter
-          [:div.ui.tiny.fluid.icon.button
-           {:on-click #(dispatch-sync [::set-text-search context nil])}
-           [:i.times.icon]]]
-         [:div.middle.aligned.fourteen.wide.column
-          [:div.ui.tiny.fluid.button
-           {:on-click
-            #(-> (js/$ "#article-search") (.focus))}
-           (str "text contains "
-                (->> (str/split text-search #"[ \t\r\n]+")
-                     (map pr-str)
-                     (str/join " AND ")))]]]]])))
+    (when ((every-pred string? not-empty) text-search)
+      [:div.describe-filter>div.ui.center.aligned.middle.aligned.grid>div.row
+       [:div.middle.aligned.two.wide.column.delete-filter
+        [:div.ui.tiny.fluid.icon.button {:on-click #(dispatch-sync [::set-text-search context nil])}
+         [:i.times.icon]]]
+       [:div.middle.aligned.fourteen.wide.column
+        [:button.ui.tiny.fluid.button {:on-click #(-> (js/$ "#article-search") (.focus))}
+         (space-join ["text contains" (->> (str/split text-search #"[ \t\r\n]+")
+                                           (map pr-str)
+                                           (str/join " AND "))])]]])))
 
 (defn- NewFilterElement [context]
   (when (not @(subscribe [::editing-filter? context]))
@@ -733,24 +648,12 @@
       [:div.ui.small.form.new-filter
        [ui/selection-dropdown
         [:div.text "Add Filter"]
-        (map-indexed
-         (fn [i [ftype label icon]]
-           [:div.item
-            {:key [:new-filter-item i]
-             :data-value (name ftype)}
-            [:i {:class (str icon " icon")}]
-            (str label)])
-         items)
-        {:class
-         "ui fluid floating dropdown primary button add-filter"
-         #_
-         (if true #_ touchscreen?
-             "ui fluid selection dropdown"
-             "ui fluid search selection dropdown")
-         :onChange
-         (fn [v t]
-           (when (not-empty v)
-             (dispatch-sync [::add-filter context (keyword v)])))}]])))
+        (->> items (map-indexed (fn [i [ftype label icon]]
+                                  [:div.item {:key i, :data-value (name ftype)}
+                                   [:i {:class (css icon "icon")}] (str label)])))
+        {:class "ui fluid floating dropdown primary button add-filter"
+         :onChange (fn [v t] (some-> v not-empty keyword
+                                     (#(dispatch-sync [::add-filter context %]))))}]])))
 
 (reg-event-fx
  :article-list/load-settings [trim-v]
@@ -791,34 +694,25 @@
         (fn [pkey text icon-class enabled?]
           (let [preset (get presets pkey)]
             [:button.ui.tiny.fluid.button
-             {:class (cond-> ""
-                       (and enabled? (= filters (:filters preset)))
-                       (str " grey")
-                       (not enabled?)
-                       (str " disabled"))
-              :on-click
-              (when enabled?
-                (util/wrap-user-event
-                 #(dispatch-sync [:article-list/load-settings
-                                  context (merge preset {:text-search text-search})])))}
+             {:class (css [(not enabled?) "disabled"
+                           (= filters (:filters preset)) "grey"])
+              :on-click (when enabled?
+                          (util/wrap-user-event
+                           #(dispatch-sync [:article-list/load-settings
+                                            context (merge preset {:text-search text-search})])))}
              #_ [:i {:class (str icon-class " icon")}]
-             text]))]
+             text]))
+        member? @(subscribe [:self/member?])]
     [:div.ui.segments>div.ui.segment.filter-presets
-     [:form.ui.small.form
-      {:on-submit (util/wrap-prevent-default #(do nil))}
+     [:form.ui.small.form {:on-submit (util/wrap-prevent-default #(do nil))}
       [:div.sixteen.wide.field
        [:label "Presets"]
        [:div.ui.three.column.grid
-        [:div.column
-         (let [enabled? (and @(subscribe [:self/user-id])
-                             @(subscribe [:self/member?]))]
-           (WrapFilterDisabled
-            [make-button :self "Self" "user" enabled?]
-            enabled? "Not a member of this project" "15em"))]
-        [:div.column
-         [make-button :content "Labeled" "tags" true]]
-        [:div.column
-         [make-button :inclusion "Inclusion" "circle plus" true]]]]]]))
+        [:div.column (WrapFilterDisabled
+                      [make-button :self "Self" "user" member?]
+                      member? "Not a member of this project" "15em")]
+        [:div.column [make-button :content "Labeled" "tags" true]]
+        [:div.column [make-button :inclusion "Inclusion" "circle plus" true]]]]]]))
 
 (defn- DisplayOptionsForm [context]
   (let [options @(subscribe [::al/display-options context])
@@ -832,7 +726,7 @@
              (if enabled?
                [:i.green.circle.icon]
                [:i.grey.circle.icon])
-             #_ [:span [:i {:class (str icon-class " icon")}]]
+             #_ [:span [:i {:class (css icon-class "icon")}]]
              text]))]
     [:div.ui.segments>div.ui.segment.display-options
      [:div.ui.small.form
@@ -864,12 +758,12 @@
         [:div.seven.wide.field
          [:div.ui.tiny.fluid.buttons
           [:button.ui.icon.button
-           {:class (when (= sort-dir :asc) "grey")
+           {:class (css [(= sort-dir :asc) "grey"])
             :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :asc])
                            (al/reload-list context :transition))}
            [:i.arrow.up.icon]]
           [:button.ui.icon.button
-           {:class (when (= sort-dir :desc) "grey")
+           {:class (css [(= sort-dir :desc) "grey"])
             :on-click #(do (dispatch-sync [::al/set context [:sort-dir] :desc])
                            (al/reload-list context :transition))}
            [:i.arrow.down.icon]]]]]]]]))
@@ -878,110 +772,82 @@
   (let [recent-nav-action @(subscribe [::al/get context [:recent-nav-action]])
         any-filters? (not-empty @(subscribe [::filters-input context]))
         display @(subscribe [::al/display-options (al/cached context)])
-        can-reset? (or any-filters? (not= display (:display al/default-options)))]
-    [:div.ui.small.form
-     [:div.sixteen.wide.field
-      [:div.ui.grid.reset-reload
-       [:div.thirteen.wide.column
-        [:button.ui.small.fluid.icon.labeled.button
-         {:on-click (when can-reset?
-                      #(do (dispatch [::al/reset-filters context])
-                           (al/reload-list context :transition)
-                           (dispatch [::reset-filters-input context])))
-          :class (if can-reset? nil "disabled")}
-         [:i.times.icon]
-         "Reset All"]]
-       [:div.three.wide.column
-        [:button.ui.small.fluid.icon.button
-         {:class (when (= recent-nav-action :refresh) "loading")
-          :on-click (util/wrap-user-event
-                     #(al/reload-list context :refresh))}
-         [:i.repeat.icon]]]]]]))
+        can-reset? (or any-filters? (not= display (:display al/default-options)))
+        reloading? (= recent-nav-action :refresh)]
+    [:div.ui.small.form>div.sixteen.wide.field>div.ui.grid.reset-reload
+     [:div.thirteen.wide.column
+      [:button.ui.small.fluid.icon.labeled.button
+       {:on-click (when can-reset? #(do (dispatch [::al/reset-filters context])
+                                        (al/reload-list context :transition)
+                                        (dispatch [::reset-filters-input context])))
+        :class (css [(not can-reset?) "disabled"])}
+       [:i.times.icon] "Reset All"]]
+     [:div.three.wide.column
+      [:button.ui.small.fluid.icon.button
+       {:class (css [reloading? "loading"])
+        :on-click (util/wrap-user-event #(al/reload-list context :refresh))}
+       [:i.repeat.icon]]]]))
 
 (defn- ArticleListFiltersRow [context]
   (let [get-val #(deref (subscribe [::al/get context %]))
         recent-nav-action (get-val [:recent-nav-action])
-        {:keys [expand-filters]
-         :as display-options} @(subscribe [::al/display-options context])
+        {:keys [expand-filters] :as display-options} @(subscribe [::al/display-options context])
         project-id @(subscribe [:active-project-id])
         {:keys [labels]} @(subscribe [:project/raw])
         filters @(subscribe [::al/filters context])
         loading? (= recent-nav-action :refresh)
-        view-button
-        (fn [option-key label]
-          (let [status (get display-options option-key)]
-            [:button.ui.small.labeled.icon.button
-             {:on-click
-              (util/wrap-user-event
-               #(dispatch [::al/set-display-option
-                           context option-key (not status)]))}
-             (if status
-               [:i.green.circle.icon]
-               [:i.grey.circle.icon])
-             label]))]
+        view-button (fn [option-key label]
+                      (let [status (get display-options option-key)]
+                        [:button.ui.small.labeled.icon.button
+                         {:on-click (util/wrap-user-event
+                                     #(dispatch [::al/set-display-option
+                                                 context option-key (not status)]))}
+                         [:i {:class (css [status "green" :else "grey"] "circle icon")}]
+                         label]))]
     [:div.ui.segments.article-filters.article-filters-row
-     [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal
-      [:div.row
-       [:div.one.wide.column.medium-weight.filters-header
-        "Filters"]
-       [:div.nine.wide.column.filters-summary
-        [:span
-         #_
-         (doall
-          (for [filter-idx ...]
-            [FilterDescribeElement context filter-idx]))]]
-       [:div.six.wide.column.right.aligned.control-buttons
-        [:button.ui.small.icon.button
-         {:class (if (and loading? (= recent-nav-action :refresh))
-                   "loading" "")
-          :on-click (util/wrap-user-event
-                     #(al/reload-list context :refresh))}
-         [:i.repeat.icon]]
-        [:button.ui.small.icon.button
-         {:on-click (util/wrap-user-event
-                     #(do (dispatch [::al/reset-filters context])
-                          (al/reload-list context :transition)))}
-         [:i.times.icon]]]]]
+     [:div.ui.secondary.middle.aligned.grid.segment.filters-minimal>div.row
+      [:div.one.wide.column.medium-weight.filters-header "Filters"]
+      [:div.nine.wide.column.filters-summary
+       [:span #_ (doall (for [filter-idx ...]
+                          [FilterDescribeElement context filter-idx]))]]
+      [:div.six.wide.column.right.aligned.control-buttons
+       [:button.ui.small.icon.button
+        {:class (css [loading? "loading"])
+         :on-click (util/wrap-user-event #(al/reload-list context :refresh))}
+        [:i.repeat.icon]]
+       [:button.ui.small.icon.button
+        {:on-click (util/wrap-user-event #(do (dispatch [::al/reset-filters context])
+                                              (al/reload-list context :transition)))}
+        [:i.times.icon]]]]
      [:div.ui.secondary.segment.no-padding
       [:button.ui.tiny.fluid.icon.button
        {:style (cond-> {:border-top-left-radius "0"
                         :border-top-right-radius "0"}
-                 expand-filters
-                 (merge {:border-bottom-left-radius "0"
-                         :border-bottom-right-radius "0"}))
+                 expand-filters (merge {:border-bottom-left-radius "0"
+                                        :border-bottom-right-radius "0"}))
         :on-click (util/wrap-user-event
                    #(dispatch [::al/set-display-option
                                context :expand-filters (not expand-filters)]))}
-       (if expand-filters
-         [:i.chevron.up.icon]
-         [:i.chevron.down.icon])]]
+       [:i {:class (css "chevron" [expand-filters "up" :else "down"] "icon")}]]]
      (when expand-filters
-       [:div.ui.secondary.segment.filters-content
-        [:div.ui.small.form
-         [:div.field
-          [:div.fields
-           [:div.four.wide.field
-            [:label "Text search"]
-            [TextSearchInput context]]
-           [:div.six.wide.field
-            [:label "View Options"]
-            [view-button :show-inclusion "Inclusion"]
-            [view-button :show-labels "Labels"]
-            [view-button :show-notes "Notes"]]
-           [:div.six.wide.field]]]]])]))
+       [:div.ui.secondary.segment.filters-content>div.ui.small.form>div.field>div.fields
+        [:div.four.wide.field
+         [:label "Text search"]
+         [TextSearchInput context]]
+        [:div.six.wide.field
+         [:label "View Options"]
+         [view-button :show-inclusion "Inclusion"]
+         [view-button :show-labels "Labels"]
+         [view-button :show-notes "Notes"]]
+        [:div.six.wide.field]])]))
 
 (defn- FilterColumnCollapsed [context]
   [:div.ui.segments.article-filters.article-filters-column.collapsed
-   {:on-click
-    (util/wrap-user-event
-     #(do (dispatch-sync [::al/set-display-option
-                          context :expand-filters true])
-          #_ (dispatch-sync [::al/set-active-article context nil])))}
-   [:div.ui.center.aligned.header.segment
-    "Filters"]
+   {:on-click (util/wrap-user-event
+               #(dispatch-sync [::al/set-display-option context :expand-filters true]))}
+   [:div.ui.center.aligned.header.segment "Filters"]
    [:div.ui.one.column.center.aligned.grid.segment.expand-filters
-    [:div.column
-     [:i.fitted.angle.double.right.icon]]]])
+    [:div.column>i.fitted.angle.double.right.icon]]])
 
 (defn filter-values-equal?
   "Tests if two filter values are equivalent, treating missing and null
@@ -1027,9 +893,7 @@
         defaults? (filter-sets-equal? @(subscribe [::al/filters context])
                                       (get export-type-default-filters export-type))]
     [:div.ui.segments.export-type
-     {:class (->> [(name export-type)
-                   (if expanded? "expanded" "collapsed")]
-                  (str/join " "))}
+     {:class (css (name export-type) [expanded? "expanded" :else "collapsed"])}
      [:a.ui.middle.aligned.two.column.grid.secondary.segment.expander
       {:on-click (util/wrap-user-event
                   #(dispatch-sync [::al/set-display-option context :expand-export
@@ -1042,15 +906,15 @@
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.primary.labeled.icon.button
            {:on-click (when-not running? (util/wrap-user-event #(dispatch [:action action])))
-            :class (when running? "loading")}
+            :class (css [running? "loading"])}
            [:i.hdd.icon] "Generate"]]
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.right.labeled.icon.button
            {:on-click (when-not defaults?
                         (util/wrap-user-event
                          #(dispatch [:articles/load-export-settings export-type false])))
-            :class (when defaults? "disabled")}
-           [:i.icon {:class (if defaults? "circle check outline" "exchange")}]
+            :class (css [defaults? "disabled"])}
+           [:i {:class (css [defaults? "circle check outline" :else "exchange"] "icon")}]
            "Set Defaults"]]]
         (when-not error
           [:div.field>div.ui.center.aligned.segment.file-download
@@ -1115,7 +979,13 @@
                   [FilterEditElement context filter-idx]))
               input-filters)))
           #_ [ResetReloadForm context]]]]]
-      [SortOptionsForm context]]
+      [SortOptionsForm context]
+      [:div.ui.segment.reset-all
+       [:button.ui.small.fluid.right.labeled.icon.button
+        {:style {:margin-top "2px"}
+         :on-click (util/wrap-user-event #(dispatch [::al/reset-all context]))}
+        [:i.times.icon]
+        "Reset All"]]]
      [DisplayOptionsForm context]
      [FilterPresetsForm context]
      [ExportDataForm]]))

@@ -96,8 +96,7 @@
                {:inline true
                 :hoverable true
                 :position "top center"
-                :delay {:show 400
-                        :hide 0}
+                :delay {:show 400 :hide 0}
                 :transition "fade up"}
                (or popup-options {}))))
     :reagent-render
@@ -239,11 +238,10 @@
    [:i.large.file.pdf.outline.icon] name])
 
 (defn updated-time-label [dt & [shorten?]]
-  (let [s (util/time-elapsed-string dt)
-        label (if shorten?
-                (->> (str/split s #" ") butlast (str/join " "))
-                s)]
-    [:div.ui.tiny.label label]))
+  (when (some-> dt (not= 0))
+    (let [s (util/time-elapsed-string dt)]
+      [:div.ui.tiny.label.updated-time
+       (if-not shorten? s (->> (str/split s #" ") butlast (str/join " ")))])))
 
 (defn three-state-selection
   "props are:
@@ -448,7 +446,7 @@
                      [:span {:style {:width "100%"}}
                       label " " [ui-help-icon]]
                      :help-content tooltip
-                     :popup-options {:delay {:show 750 :hide 0}})))]
+                     :popup-options {:delay {:show 500 :hide 0}})))]
     (if-not optional
       [:label label-with-tooltip]
       [:label [:div.ui.middle.aligned.grid
@@ -632,14 +630,14 @@
         :component-did-mount #(init-dropzone upload-url)
         :display-name "upload-container"}))))
 
-(defn- UploadButtonImpl [id & [upload-url error-msg text class]]
+(defn- UploadButtonImpl [id & [upload-url error-msg text class style]]
   [:div
    [:div.dropzone {:id id}
-    [:button.ui.button {:id (str id "-button")
-                        :style {:cursor "pointer"}
-                        :class (css [(util/mobile?)          "tiny"
-                                     (not (util/full-size?)) "small"]
-                                    class)}
+    [:button.ui.button.upload-button {:id (str id "-button")
+                                      :style (-> {:cursor "pointer"} (merge style))
+                                      :class (css [(util/mobile?)          "tiny"
+                                                   (not (util/full-size?)) "small"]
+                                                  class)}
      [:i.green.add.circle.icon] text]
     [:div.dropzone-previews {:id (str id "-preview")}]]
    [:div {:style {:display "none"}}
@@ -658,8 +656,8 @@
       [:div.dz-error-message
        [:span {:data-dz-errormessage ""}]]]]]])
 
-(defn UploadButton [upload-url on-success text & [class]]
-  [UploadContainer UploadButtonImpl upload-url on-success text class])
+(defn UploadButton [upload-url on-success text & [class style]]
+  [UploadContainer UploadButtonImpl upload-url on-success text class style])
 
 (defn WrapFixedVisibility [offset child]
   (let [on-update

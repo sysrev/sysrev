@@ -1,17 +1,13 @@
 /*******************************
      User Global Variables
 *******************************/
+@siteTextColor: rgba(30, 30, 30, 0.925);
+@textColor : @siteTextColor;
+@invertedTextColor: rgba(250, 250, 250, 0.925);
+@mutedTextColor : rgba(45, 45, 45, 0.85);
+@mutedInvertedTextColor: rgba(230, 230, 230, 0.85);
 
 @pageBackground: rgba(240,241,243,1.0);
-
-@siteTextColor: rgba(35, 35, 35, 0.925);
-@textColor : @siteTextColor;
-@invertedTextColor: rgba(230, 230, 230, 0.925);
-@mutedTextColor : rgba(60, 60, 60, 0.85);
-@mutedInvertedTextColor: rgba(200, 200, 200, 0.85);
-
-// @inputPlaceholderColor : rgba(120, 120, 120, 0.85);
-// @inputPlaceholderFocusColor : rgba(90, 90, 90, 0.85);
 
 @inputColor: @siteTextColor;
 @inputPlaceholderColor: rgba(0, 0, 0, 0.65);
