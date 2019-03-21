@@ -238,7 +238,7 @@
         mutable? (= user-id @(subscribe [:self/user-id]))
         modal-open (r/cursor state [:avatar-model-open])]
     [Segment {:class "user"}
-     [Grid
+     [Grid {:columns "equal"}
       ;; computer / tablet
       [Row (cond-> {}
              (util/mobile?) (assoc :columns 3))
