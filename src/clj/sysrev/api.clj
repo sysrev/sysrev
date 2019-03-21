@@ -1412,7 +1412,7 @@
 
           :else
           (-> (response/response (-> "public/default_profile.jpeg"
-                                     (clojure.java.io/resource)
-                                     (clojure.java.io/file)))
+                                     clojure.java.io/resource
+                                     clojure.java.io/input-stream))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" "default-profile.jpeg" "\""))))))
