@@ -1364,36 +1364,36 @@
   {:result {:success true
             :meta (json/read-json (or (files/active-profile-image-meta user-id) "{}"))}})
 
-(defn create-avatar!
-  [user-id file filename meta]
-  (let [hash (util/file->sha-1-hash file)
-        {:keys [s3-id]} (files/read-avatar user-id)
-        current-hash (files/s3-id->key s3-id)]
-    ;; delete the current avatar
-    (when current-hash
-      (fstore/delete-file current-hash :image)
-      (files/delete-file! s3-id))
-    ;; write the avatar
-    (fstore/save-file file :image)
-    (files/insert-file-hash-s3-record filename hash)
-    ;; associate file with avatar
-    (files/associate-avatar-image-with-user (files/s3-id-from-filename-key filename hash)
-                                            user-id)
-    ;; change the coords on active profile img
-    (files/update-profile-image-meta! (:id (files/active-profile-image-key-filename user-id))
-                                      meta)
-    {:result {:success true}}))
-
-(defn delete-avatar!
-  [user-id]
-  (let [{:keys [s3-id]} (files/read-avatar user-id)
-        current-hash (files/s3-id->key s3-id)]
-    (if-not (nil? s3-id)
-      (do
+(defn create-avatar! [user-id file filename meta]
+  (db/with-transaction
+    (let [hash (util/file->sha-1-hash file)
+          {:keys [s3-id]} (files/read-avatar user-id)
+          current-hash (files/s3-id->key s3-id)]
+      ;; delete the current avatar
+      (when current-hash
+        ;; NOTE: what if multiple users with an image? include user-id in hash input?
         (fstore/delete-file current-hash :image)
-        (files/delete-file! s3-id)
-        {:result {:success true}})
-      {:error {:status internal-server-error}})))
+        (files/delete-file! s3-id))
+      ;; write the avatar
+      (fstore/save-file file :image :file-key hash)
+      (files/insert-file-hash-s3-record filename hash)
+      ;; associate file with avatar
+      (-> (files/s3-id-from-filename-key filename hash)
+          (files/associate-avatar-image-with-user user-id))
+      ;; change the coords on active profile img
+      (-> (:id (files/active-profile-image-key-filename user-id))
+          (files/update-profile-image-meta! meta))
+      {:result {:success true}})))
+
+(defn delete-avatar! [user-id]
+  (db/with-transaction
+    (let [{:keys [s3-id]} (files/read-avatar user-id)
+          current-hash (files/s3-id->key s3-id)]
+      (if s3-id
+        (do (fstore/delete-file current-hash :image)
+            (files/delete-file! s3-id)
+            {:result {:success true}})
+        {:error {:status internal-server-error}}))))
 
 (defn read-avatar
   "Return the url for the profile avatar"

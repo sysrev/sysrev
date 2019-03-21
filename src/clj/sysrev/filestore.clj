@@ -30,9 +30,7 @@
 (defn save-file [file bucket & {:keys [file-key]}]
   (let [bucket-name (lookup-bucket bucket)
         file-key (or (some-> file-key str)
-                     (-> file
-                         util/file->byte-array
-                         util/byte-array->sha-1-hash))]
+                     (some-> file util/file->sha-1-hash))]
     (s3/put-object (s3-credentials)
                    :bucket-name bucket-name
                    :key file-key
@@ -42,8 +40,8 @@
 (defn delete-file [key bucket]
   (let [bucket-name (lookup-bucket bucket)]
     (s3/delete-object (s3-credentials)
-                      bucket-name
-                      key)))
+                      :bucket-name bucket-name
+                      :key key)))
 
 (defn save-byte-array
   [byte-array bucket & {:keys [file-key]}]

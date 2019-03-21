@@ -248,9 +248,10 @@
 (defn file->byte-array
   "Convert a file into a byte-array"
   [^java.io.File file]
-  (let [ary (byte-array (.length file))
-        is (java.io.FileInputStream. file)]
-    (.read is ary) (.close is) ary))
+  (let [ary (byte-array (.length file))]
+    (with-open [istream (java.io.FileInputStream. file)]
+      (.read istream ary))
+    ary))
 
 (defn file->sha-1-hash
   "Convert a file into a sha-1 hash"
