@@ -83,7 +83,7 @@
                 ^{:key (:id invitation)}
                 [Invitation invitation])
               (filter #(= user-id (:user-id %)) @invitations))])
-      :get-initial-state
+      :component-did-mount
       (fn [this]
         (when (and (nil? @invitations)
                    (not @retrieving-invitations?))
@@ -456,6 +456,7 @@
 (defn Profile
   [{:keys [user-id email]}]
   (let [user (r/cursor state [:user])
+        projects (r/cursor state [:projects])
         introduction (r/cursor state [:user :introduction])
         error-message (r/cursor state [:user :error-message])
         projects (r/cursor state [:projects])
@@ -465,17 +466,31 @@
       (fn [this]
         (if (clojure.string/blank? @error-message)
           ;; display user
-          [:div
-           [ProfileSettings @user]
-           [UserActivitySummary @projects]
-           [Introduction {:mutable? mutable?
-                          :introduction introduction
-                          :user-id user-id}]
-           [UserProjects @user]]
+          (when-not (nil? @user)
+            [:div
+             [ProfileSettings @user]
+             [UserActivitySummary @projects]
+             [Introduction {:mutable? mutable?
+                            :introduction introduction
+                            :user-id user-id}]
+             [UserProjects @user]])
           ;; error message
           [Message {:negative true}
            [MessageHeader "Error Retrieving User"]
            @error-message]))
+      :component-will-receive-props
+      (fn [this new-argv]
+        (get-user! (-> new-argv second :user-id)))
+      :component-did-mount
+      (fn [this]
+        (reset! user nil)
+        (reset! projects nil)
+        (get-user! user-id))
+      :component-did-umount
+      (fn [this]
+        (reset! user nil)
+        (reset! projects nil))
       :get-initial-state
       (fn [this]
-        (get-user! user-id))})))
+        (reset! user nil)
+        {})})))
