@@ -211,3 +211,10 @@
   "Wraps a string in directional paren characters."
   [s & {:keys [parens] :or {parens "()"}}]
   (when s (str (subs parens 0 1) s (subs parens 1 2))))
+
+(defn ensure-value
+  "Returns value if (test value) evaluates as logical true, otherwise
+  returns nil. With one argument, returns a function using test that
+  can be applied to a value."
+  ([test] #(ensure-value test %))
+  ([test value] (when (test value) value)))

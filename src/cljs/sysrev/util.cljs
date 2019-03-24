@@ -205,6 +205,7 @@
                  n))
 
 (defn event-input-value
+  "Returns event.target.value from a DOM event."
   [event]
   (-> event ($ :target) ($ :value)))
 
@@ -320,6 +321,18 @@
             true)
         stop-propagation (wrap-stop-propagation)
         prevent-default (wrap-prevent-default)))))
+
+(defn on-event-value
+  "Convenience function for processing input values from events. Takes a
+  function which receives event input value and performs some side
+  effect; returns a DOM event handler function (for :on-change etc)."
+  [handler]
+  (wrap-prevent-default #(-> % event-input-value (handler))))
+
+(defn no-submit
+  "Returns on-submit handler to block default action on forms."
+  []
+  (wrap-prevent-default (fn [_] nil)))
 
 ;; https://www.kirupa.com/html5/get_element_position_using_javascript.htm
 (defn get-element-position [el]

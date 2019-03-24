@@ -75,8 +75,13 @@
        (mapv :label-id)))
 
 (defn project-label-ids [db & [project-id include-disabled?]]
-  (sort-project-labels (project-labels db project-id)
-                       include-disabled?))
+  (-> (project-labels db project-id)
+      (sort-project-labels include-disabled?)))
+
+(defn project-overall-label-id [db & [project-id]]
+  (->> (vals (project-labels db project-id))
+       (filter #(= (:name %) "overall include"))
+       first :label-id))
 
 ;; Use this to get a sequence of label-id in project, in a consistent
 ;; sorted order.

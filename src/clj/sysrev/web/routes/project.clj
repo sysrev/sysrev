@@ -581,47 +581,40 @@
                  export-type (-> request :params :export-type keyword)
                  {:keys [filters]} (:body request)
                  article-ids (when filters
-                               (alist/query-project-article-ids
-                                {:project-id project-id}
-                                filters))
+                               (alist/query-project-article-ids {:project-id project-id} filters))
                  tempfile (case export-type
                             :user-answers
-                            (-> (export/export-user-answers
-                                 project-id :article-ids article-ids)
+                            (-> (export/export-user-answers project-id :article-ids article-ids)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :group-answers
-                            (-> (export/export-group-answers
-                                 project-id :article-ids article-ids)
+                            (-> (export/export-group-answers project-id :article-ids article-ids)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :endnote-xml
                             (endnote-out/project-to-endnote-xml
                              project-id :article-ids article-ids :to-file true))
-                 entry (add-project-export project-id export-type tempfile
-                                           {:user-id user-id :filters filters})
+                 {:keys [download-id]
+                  :as entry} (add-project-export project-id export-type tempfile
+                                                 {:user-id user-id :filters filters})
                  filename-base (case export-type
                                  :user-answers   "UserAnswers"
                                  :group-answers  "Answers"
                                  :endnote-xml    "Articles")
                  filename-ext (case export-type
-                                (:user-answers :group-answers)  ".csv"
-                                :endnote-xml                    ".xml")
+                                (:user-answers :group-answers)  "csv"
+                                :endnote-xml                    "xml")
                  filename-project (str "P" project-id)
                  filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
                  filename-date (util/today-string "MMdd")
-                 filename (str filename-base "_"
-                               filename-project "_"
-                               filename-date "_"
-                               filename-articles filename-ext)]
-             {:result {:success true
-                       :entry (-> entry
-                                  (select-keys [:download-id :export-type :added-time])
-                                  (assoc :filename filename
-                                         :url (str "/api/download-project-export/" project-id
-                                                   "/" (name export-type)
-                                                   "/" (:download-id entry)
-                                                   "/" filename)))}}))))
+                 filename (-> (->> [filename-base filename-project filename-date filename-articles]
+                                   (str/join "_"))
+                              (str "." filename-ext))]
+             {:entry (-> (select-keys entry [:download-id :export-type :added-time])
+                         (assoc :filename filename
+                                :url (->> ["/api/download-project-export" project-id
+                                           (name export-type) download-id filename]
+                                          (str/join "/" ))))}))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
          (wrap-authorize

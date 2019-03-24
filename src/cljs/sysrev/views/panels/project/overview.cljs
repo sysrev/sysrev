@@ -557,12 +557,9 @@
                           (let [elts (-> elts js->clj)]
                             (when (and (coll? elts) (not-empty elts))
                               (when-let [idx (-> elts first (aget "_index"))]
-                                (let [{:keys [label-id value]}
-                                      (nth entries idx)]
-                                  (articles/load-label-value-settings
-                                   label-id value))))))}
+                                (let [{:keys [label-id value]} (nth entries idx)]
+                                  (articles/load-label-value-settings label-id value))))))}
                        :animate? false
-                       #_ (boolean (and (< (count labels) 30) (util/full-size?)))
                        :items-clickable? true)
               height (* 2 (+ 40
                              (* 10 (Math/round (/ (inc (count label-ids)) 3)))

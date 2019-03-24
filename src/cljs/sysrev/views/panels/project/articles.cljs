@@ -82,9 +82,6 @@
    {:dispatch [:article-list/set-active-article
                (get-context-from-db db) nil]}))
 
-(defn reset-filters []
-  (dispatch [::al/reset-filters (get-context)]))
-
 (defn- load-settings-and-navigate
   "Loads article list settings and navigates to the page from another panel,
   while maintaining clean browser navigation history for Back/Forward."

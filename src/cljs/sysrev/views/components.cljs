@@ -238,10 +238,9 @@
    [:i.large.file.pdf.outline.icon] name])
 
 (defn updated-time-label [dt & [shorten?]]
-  (when (some-> dt (not= 0))
-    (let [s (util/time-elapsed-string dt)]
-      [:div.ui.tiny.label.updated-time
-       (if-not shorten? s (->> (str/split s #" ") butlast (str/join " ")))])))
+  (when-let [s (some-> dt util/time-elapsed-string)]
+    [:div.ui.tiny.label.updated-time
+     (if-not shorten? s (->> (str/split s #" ") butlast (str/join " ")))]))
 
 (defn three-state-selection
   "props are:

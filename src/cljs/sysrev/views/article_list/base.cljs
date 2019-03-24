@@ -158,12 +158,8 @@
  (fn [db [context key value]]
    (let [state (get-state db context)]
      (if (nil? value)
-       (set-state
-        db context nil
-        (util/dissoc-in state [:display key]))
-       (set-state
-        db context [:display key]
-        value)))))
+       (set-state db context nil (util/dissoc-in state [:display key]))
+       (set-state db context [:display key] value)))))
 
 (defn- filter-to-json [entry]
   (let [[[k v]] (vec entry)
@@ -171,12 +167,8 @@
                   (if (contains? m field)
                     (update m field #(some-> % f))
                     m))]
-    {k
-     (cond->
-         (-> v
-             (convert :label-id str))
-       (= k :consensus)
-       (convert :status name))}))
+    {k (cond-> (convert v :label-id str)
+         (= k :consensus) (convert :status name))}))
 
 (defn- filter-from-json [entry]
   (let [[[k v]] (vec entry)
@@ -184,29 +176,16 @@
                   (if (contains? m field)
                     (update m field #(some-> % f))
                     m))]
-    {k
-     (cond->
-         (-> v
-             (convert :label-id sutil/to-uuid)
-             (convert :content keyword)
-             (convert :confirmed #(case %
-                                    "true" true
-                                    "false" false
-                                    "any" nil
-                                    "null" nil
-                                    %)))
-         (= k :consensus)
-         (convert :status keyword))}))
+    {k (cond-> (-> (convert v :label-id sutil/to-uuid)
+                   (convert :content keyword)
+                   (convert :confirmed #(case % "true" true, "false" false, "any" nil,
+                                              "null" nil, %)))
+         (= k :consensus)   (convert :status keyword)
+         (= k :prediction)  (convert :direction keyword))}))
 
 (defn- active-filters-impl [state context & [key]]
-  (as-> (cond (-> state :filters not-empty)
-              (-> state :filters)
-
-              (-> context :defaults :filters not-empty)
-              (-> context :defaults :filters)
-
-              :else [])
-      filters
+  (as-> (or (-> state :filters not-empty)
+            (-> context :defaults :filters not-empty)) filters
     (if (nil? key)
       (vec filters)
       (->> filters (filterv #(in? (keys %) key))))))
@@ -226,82 +205,51 @@
  [trim-v]
  (fn [db [context]]
    (-> (set-state db context [:filters] nil)
+       (set-state context [:inputs :filters] nil)
        (set-state context [:display-offset] nil)
        (set-state context [:display] nil)
        (set-state context [:sort-by] nil)
        (set-state context [:sort-dir] nil))))
 
 (defn- get-url-params-impl [db context]
-  (let [{:keys [display-offset active-article
-                text-search]
+  (let [{:keys [display-offset active-article text-search]
          :as state} (get-state db context)
         sort-by (active-sort-by state context)
         sort-dir (active-sort-dir state context)
-        filters (-> (get-active-filters db context)
-                    (#(mapv filter-to-json %)))
+        filters (->> (get-active-filters db context) (mapv filter-to-json))
         display (get-display-options db context)
         display-defaults (get-display-options db context nil true)
         display-changes (->> (keys display)
-                             (filter
-                              #(not= (boolean (get display %))
-                                     (boolean (get display-defaults %))))
+                             (filter #(not= (boolean (get display %))
+                                            (boolean (get display-defaults %))))
                              (select-keys display))]
     (cond-> []
-      display-offset
-      (conj [:offset display-offset])
-
-      active-article
-      (conj [:show-article active-article])
-
-      sort-by
-      (conj [:sort-by (name sort-by)])
-
-      sort-by
-      (conj [:sort-dir (name sort-dir)])
-
-      (not-empty text-search)
-      (conj [:text-search text-search])
-
-      (not-empty display-changes)
-      (conj [:display (util/write-json display-changes)])
-
-      (not-empty filters)
-      (conj [:filters (util/write-json filters)]))))
+      display-offset              (conj [:offset display-offset])
+      active-article              (conj [:show-article active-article])
+      sort-by                     (conj [:sort-by (name sort-by)])
+      sort-dir                    (conj [:sort-dir (name sort-dir)])
+      (not-empty text-search)     (conj [:text-search text-search])
+      (not-empty display-changes) (conj [:display (util/write-json display-changes)])
+      (not-empty filters)         (conj [:filters (util/write-json filters)]))))
 ;;
 (defn- get-url-params [db context]
   (get-url-params-impl db context))
 
 (defn get-params-from-url []
-  (let [{:keys [filters text-search display offset show-article
-                sort-by sort-dir]}
+  (let [{:keys [filters text-search display offset show-article sort-by sort-dir]}
         (nav/get-url-params)]
     (cond-> {}
-      (string? offset)
-      (assoc :offset (sutil/parse-integer offset))
-
-      (string? text-search)
-      (assoc :text-search text-search)
-
-      (string? sort-by)
-      (assoc :sort-by (keyword sort-by))
-
-      (string? sort-dir)
-      (assoc :sort-dir (keyword sort-dir))
-
-      (string? show-article)
-      (assoc :show-article (sutil/parse-integer show-article))
-
-      (string? filters)
-      (assoc :filters (->> (util/read-json filters)
-                           (mapv filter-from-json)))
-
-      (string? display)
-      (assoc :display (util/read-json display)))))
+      (string? offset)        (assoc :offset (sutil/parse-integer offset))
+      (string? text-search)   (assoc :text-search text-search)
+      (string? sort-by)       (assoc :sort-by (keyword sort-by))
+      (string? sort-dir)      (assoc :sort-dir (keyword sort-dir))
+      (string? show-article)  (assoc :show-article (sutil/parse-integer show-article))
+      (string? filters)       (assoc :filters (->> filters util/read-json (mapv filter-from-json)))
+      (string? display)       (assoc :display (util/read-json display)))))
 
 (defn- get-nav-url [db context & [article-id]]
-  (let [url-params (get-url-params db context)
-        base-uri (get-base-uri context article-id)]
-    (nav/make-url base-uri url-params)))
+  (nav/make-url (get-base-uri context article-id)
+                (get-url-params db context)))
 
 (reg-event-fx
  ::navigate
@@ -319,13 +267,11 @@
    (let [current-filters (get-state db context [:filters])
          current-text-search (get-state db context [:text-search])
          {:keys [filters display offset text-search show-article
-                 sort-by sort-dir]}
-         (get-params-from-url)]
+                 sort-by sort-dir]} (get-params-from-url)]
      (if show-article
        ;; show-article url param here is no longer used.
        ;; This will redirect to valid url for the article.
-       {:nav-scroll-top (str (:article-base-uri context)
-                             "/" show-article)}
+       {:nav-scroll-top (str (:article-base-uri context) "/" show-article)}
        (cond-> {:db (-> (set-state db context [:active-article] show-article)
                         (set-state context [:filters] filters)
                         (set-state context [:text-search] text-search)
