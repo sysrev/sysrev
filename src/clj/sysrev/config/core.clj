@@ -1,58 +1,23 @@
+;;
+;; Wrapper interface of https://github.com/weavejester/environ
+;;
+
 (ns sysrev.config.core
-  (:require [clojure.java.io :as io]
-            [clojure.edn :as edn]
-            [clojure.string :as s]
-            [clojure.tools.logging :as log])
+  (:require [environ.core :as environ]
+            [clojure.java.io :as io]
+            [clojure.edn :as edn])
   (:import java.io.PushbackReader))
 
-(defn- keywordize [s]
-  (-> (s/lower-case s)
-      (s/replace "_" "-")
-      (s/replace "." "-")
-      (keyword)))
-
-(defn- sanitize-key [k]
-  (let [s (keywordize (name k))]
-    (if-not (= k s) (println "Warning: environ key" k "has been corrected to" s))
-    s))
-
-(defn- read-system-env []
-  (->> (System/getenv)
-       (map (fn [[k v]] [(keywordize k) v]))
-       (into {})))
-
-(defn- read-system-props []
-  (->> (System/getProperties)
-       (map (fn [[k v]] [(keywordize k) v]))
-       (into {})))
-
-(defn- read-env-file [f]
-  (try
-    (when-let [env-file (io/file f)]
-      (when (.exists env-file)
-        (into {} (for [[k v] (edn/read-string (slurp env-file))]
-                   [(sanitize-key k) v]))))
-    (catch Exception e
-      (log/warn (str "WARNING: failed to parse " f " " (.getLocalizedMessage e))))))
-
 (defn read-config-file [f]
-  (try
-    (when-let [url (io/resource f)]
-      (with-open [r (-> url io/reader PushbackReader.)]
-        (edn/read r)))
-    (catch Exception e
-      (log/warn (str "WARNING: failed to parse " f " " (.getLocalizedMessage e))))))
+  (when-let [url (io/resource f)]
+    (with-open [r (-> url io/reader PushbackReader.)]
+      (edn/read r))))
 
 (defonce ^{:doc "A map of environment variables."
            :dynamic true}
   env
-  (let [env-props (merge (read-system-env) (read-system-props))
-        primary-config (read-config-file "config.edn")
-        private-config (:private-config primary-config)]
+  (let [config (read-config-file "config.edn")]
     (merge
-     primary-config
-     (when private-config (read-config-file private-config))
-     (read-env-file (:config env-props))
-     (read-env-file ".lein-env")
-     (read-env-file (io/resource ".boot-env"))
-     env-props)))
+     config
+     (some-> (:private-config config) (read-config-file))
+     environ/env)))

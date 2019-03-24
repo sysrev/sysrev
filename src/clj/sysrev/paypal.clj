@@ -4,7 +4,7 @@
             [clj-time.core :as t]
             [clj-time.format :as f]
             [clj-time.local :as l]
-            [environ.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [sysrev.db.funds :as funds]
             [sysrev.util :as util]))
 
@@ -22,26 +22,20 @@
 ;; https://developer.paypal.com/developer/applications
 ;; REST API apps -> click on <app-name>
 ;; Client ID
-(def paypal-client-id (or (System/getProperty "PAYPAL_CLIENT_ID")
-                          (env :paypal-client-id)))
+(def paypal-client-id (env :paypal-client-id))
 ;; Secret (click 'Show')
-(def paypal-secret (or (System/getProperty "PAYPAL_SECRET")
-                       (env :paypal-secret)))
+(def paypal-secret (env :paypal-secret))
 
-(def paypal-url (or (System/getProperty "PAYPAL_URL")
-                    (env :paypal-url)))
+(def paypal-url (env :paypal-url))
 
 ;; this is for client code
 (def paypal-env (condp = paypal-url
-                  "https://api.sandbox.paypal.com"
-                  "sandbox"
-                  "https://api.paypal.com"
-                  "production"))
+                  "https://api.sandbox.paypal.com"  "sandbox"
+                  "https://api.paypal.com"          "production"))
 
 (defonce current-access-token (atom nil))
 
-(defn get-access-token
-  []
+(defn get-access-token []
   (-> (client/post (str paypal-url "/v1/oauth2/token")
                    {:headers {"Accept" "application/json"
                               "Accept-Language" "en_US"}

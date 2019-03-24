@@ -8,21 +8,18 @@
             [clj-stripe.subscriptions :as subscriptions]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
-            [environ.core :refer [env]]
+            [sysrev.config.core :refer [env]]
             [sysrev.db.funds :as funds]
             [sysrev.db.plans :as db-plans]
             [sysrev.db.project :as project]
             [sysrev.util :refer [current-function-name]]))
 
-(def stripe-secret-key (or (System/getProperty "STRIPE_SECRET_KEY")
-                           (env :stripe-secret-key)))
+(def stripe-secret-key (env :stripe-secret-key))
 
-(def stripe-public-key (or (System/getProperty "STRIPE_PUBLIC_KEY")
-                           (env :stripe-public-key)))
+(def stripe-public-key (env :stripe-public-key))
 
 ;; https://dashboard.stripe.com/account/applications/settings
-(def stripe-client-id (or (System/getProperty "STRIPE_CLIENT_ID")
-                          (env :stripe-client-id)))
+(def stripe-client-id (env :stripe-client-id))
 
 (def stripe-url "https://api.stripe.com/v1")
 
