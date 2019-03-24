@@ -95,7 +95,7 @@
 
   :content
   (fn [search-term page-number pmids]
-    {:pmids (clojure.string/join "," pmids)})
+    {:pmids (str/join "," pmids)})
 
   :process
   (fn [_ [search-term page-number pmids] response]

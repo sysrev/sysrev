@@ -1,5 +1,16 @@
 (ns sysrev.web.routes.project
-  (:require [sysrev.api :as api]
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]
+            [clojure.data.json :as json]
+            [clojure-csv.core :as csv]
+            [clojure.tools.logging :as log]
+            [compojure.core :refer :all]
+            [ring.util.response :as response]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+            [sysrev.api :as api]
             [sysrev.web.app :as web :refer
              [wrap-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
@@ -28,20 +39,9 @@
             [sysrev.pubmed :as pubmed]
             [sysrev.config.core :refer [env]]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? parse-integer]]
-            [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [compojure.core :refer :all]
-            [ring.util.response :as response]
-            [clojure.string :as str]
-            [clojure.java.io :as io]
-            [clojure.data.json :as json]
-            [clojure-csv.core :as csv]
-            [clojure.tools.logging :as log])
+            [sysrev.shared.util :as sutil :refer [in? parse-integer]])
   (:import [java.util UUID]
-           (java.io Writer InputStream ByteArrayInputStream)
+           (java.io File Writer InputStream ByteArrayInputStream)
            [org.apache.commons.io IOUtils]))
 
 ;;;
@@ -149,7 +149,7 @@
 
 (defn add-project-export [project-id export-type tempfile &
                           [{:keys [user-id filters] :as extra}]]
-  (assert (isa? (type tempfile) java.io.File))
+  (assert (isa? (type tempfile) File))
   (let [entry (merge extra {:download-id (sutil/random-id 5)
                             :export-type export-type
                             :tempfile-path (str tempfile)
@@ -249,7 +249,7 @@
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                article-id (-> request :params :article-id Integer/parseInt)]
+                article-id (-> request :params :article-id parse-integer)]
             (let [{:keys [article] :as result}
                   (article-info-full project-id article-id)]
               (when (= (:project-id article) project-id)
@@ -416,15 +416,14 @@
          (wrap-authorize
           request {}
           (let [{:keys [term page-number]} (-> :params request)]
-            (pubmed/get-search-query-response term (Integer/parseInt page-number))))))
+            (pubmed/get-search-query-response term (parse-integer page-number))))))
 
 ;; Return article summaries for a list of PMIDs
 (dr (GET "/api/pubmed/summaries" request
          (wrap-authorize
           request {}
           (let [{:keys [pmids]} (-> :params request)]
-            (pubmed/get-pmids-summary (mapv #(Integer/parseInt %)
-                                            (clojure.string/split pmids #",")))))))
+            (pubmed/get-pmids-summary (mapv parse-integer (str/split pmids #",")))))))
 
 ;;;
 ;;; Project settings

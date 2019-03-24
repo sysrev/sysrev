@@ -10,7 +10,6 @@
             [sysrev.loading :as loading]
             [sysrev.state.ui :as ui-state]
             [sysrev.state.articles :as articles]
-            [sysrev.state.nav :refer [active-project-id]]
             [sysrev.views.annotator :as annotator]
             [sysrev.views.components :refer [UploadButton]]
             [sysrev.views.list-pager :refer [ListPager]]
@@ -135,7 +134,7 @@
   :uri (fn [project-id article-id key filename]
          (str "/api/files/" project-id "/article/"
               article-id "/delete/" key "/" filename))
-  :process (fn [{:keys [db]} [project-id article-id key filename] result]
+  :process (fn [_ [project-id article-id _ _] _]
              {:dispatch [:reload [:pdf/article-pdfs project-id article-id]]}))
 
 ;; search PubMed by PMID with PMC database: <pmid>[pmid]
@@ -368,9 +367,7 @@
                     [:pdf/article-pdfs project-id article-id]] {}
         (let [project-id @(subscribe [:active-project-id])
               full-size? (util/full-size?)
-              inline-loader #(when (loading/any-loading? :only :pdf/open-access-available?)
-                               [:div.ui.small.active.inline.loader
-                                {:style {:margin-right "1em" :margin-left "1em"}}])
+              #_ loading? #_ #(loading/any-loading? :only :pdf/open-access-available?)
               upload-form (fn []
                             [:div.field>div.fields
                              [UploadButton

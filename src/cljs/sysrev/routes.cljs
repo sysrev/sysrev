@@ -1,17 +1,14 @@
 (ns sysrev.routes
   (:require [re-frame.core :as re-frame :refer
              [subscribe dispatch dispatch-sync reg-event-db reg-event-fx]]
-            [re-frame.db :refer [app-db]]
             [sysrev.nav :as nav :refer [nav nav-scroll-top nav-redirect]]
             [sysrev.state.nav :refer [set-subpanel-default-uri project-uri]]
             [sysrev.views.article-list.base :as article-list]
             [sysrev.views.panels.project.articles :as project-articles]
             [sysrev.views.panels.project.define-labels :as define-labels]
-            [sysrev.util :refer [scroll-top ensure-dom-elt-visible-soon]]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.macros])
-  (:require-macros [secretary.core :refer [defroute]]
-                   [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
+  (:require-macros [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
 
 (defn- go-project-panel [project-id]
   (let [panel [:project :project :overview]
@@ -31,13 +28,10 @@
 
 (sr-defroute
  home "/" []
- (let [logged-in? (subscribe [:self/logged-in?])
-       recent-project-id (subscribe [:recent-active-project])
-       default-project-id (subscribe [:self/default-project-id])]
-   (dispatch [:set-active-panel [:root]])
-   (dispatch [:require [:identity]])
-   (dispatch [:reload [:identity]])
-   (dispatch [:reload [:public-projects]])))
+ (dispatch [:set-active-panel [:root]])
+ (dispatch [:require [:identity]])
+ (dispatch [:reload [:identity]])
+ (dispatch [:reload [:public-projects]]))
 
 ;;
 ;; project routes
@@ -55,7 +49,6 @@
        context (project-articles/get-context)
        active-panel @(subscribe [:active-panel])
        panel-changed? (not= panel active-panel)
-       count-item @(subscribe [::article-list/count-query context])
        data-item @(subscribe [::article-list/articles-query context])
        set-panel [:set-active-panel panel]
        have-project? @(subscribe [:have? [:project project-id]])

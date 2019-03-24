@@ -72,8 +72,6 @@
       (clear-project-cache project-id)
       (let [max-count 100
             pmids (project/project-pmids project-id)
-            #_ entities #_ {:gene "gene", :mesh "mesh", :chemical "chemical"}
-            #_ {:keys [geneCounts chemicalCounts meshCounts]}
             response-entries (some-> pmids not-empty fetch-important-terms)
             ;; currently the response will only contain mesh entries
             entries
@@ -88,49 +86,10 @@
                      (filter #(and %
                                    (-> % :entity-type string?)
                                    (-> % :instance-name string?)
-                                   (or (-> % :instance-count integer?)
-                                       #_ (-> % :instance-count nil?))
+                                   (-> % :instance-count integer?)
                                    (or (-> % :instance-score number?)
-                                       (-> % :instance-score nil?))
-                                   #_ (or (-> % :instance-count integer?)
-                                          (-> % :instance-score number?))))
-                     (mapv #(assoc % :project-id project-id)))
-            ;; old response format
-            #_ (->> [(->> geneCounts
-                          (mapv (fn [{:keys [gene count tfidf]}]
-                                  {:entity-type (-> entities :gene)
-                                   :instance-name (:symbol gene)
-                                   :instance-count count
-                                   :instance-score tfidf}))
-                          (sort-by :instance-count >)
-                          (take max-count))
-                     (->> chemicalCounts
-                          (mapv (fn [{:keys [term count tfidf]}]
-                                  {:entity-type (-> entities :chemical)
-                                   :instance-name term
-                                   :instance-count count
-                                   :instance-score tfidf}))
-                          (sort-by :instance-count >)
-                          (take max-count))
-                     (->> meshCounts
-                          (mapv (fn [{:keys [term count tfidf]}]
-                                  {:entity-type (-> entities :mesh)
-                                   :instance-name term
-                                   :instance-count count
-                                   :instance-score tfidf}))
-                          (sort-by :instance-count >)
-                          (take max-count))]
-                    (apply concat)
-                    (filter #(and %
-                                  (-> % :entity-type string?)
-                                  (-> % :instance-name string?)
-                                  (or (-> % :instance-count integer?)
-                                      (-> % :instance-count nil?))
-                                  (or (-> % :instance-score number?)
-                                      (-> % :instance-score nil?))
-                                  (or (-> % :instance-count integer?)
-                                      (-> % :instance-score number?))))
-                    (mapv #(assoc % :project-id project-id)))]
+                                       (-> % :instance-score nil?))))
+                     (mapv #(assoc % :project-id project-id)))]
         (with-transaction
           (when (and (not-empty entries)
                      (project/project-exists? project-id :include-disabled? true))

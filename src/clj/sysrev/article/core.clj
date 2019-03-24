@@ -261,8 +261,7 @@
       (where [:and
               [:= :a.project-id project-id]
               [:= :lp.predict-run-id predict-run-id]
-              (when (not include-disabled?)
-                [:= :a.enabled true])])
+              (when-not include-disabled? [:= :a.enabled true])])
       do-query))
 
 ;; TODO: replace with a generic select-by-field-values function
@@ -321,7 +320,7 @@
   "Runs SQL update setting `values` on articles in `article-ids`."
   [article-ids values]
   (doseq [id-group (partition-all 100 article-ids)]
-    (when-not (empty? id-group)
+    (when (seq id-group)
       (-> (sqlh/update :article)
           (sset values)
           (where [:in :article-id (vec id-group)])

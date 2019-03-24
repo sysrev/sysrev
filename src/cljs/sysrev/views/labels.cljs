@@ -1,14 +1,12 @@
 (ns sysrev.views.labels
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer [subscribe dispatch]]
-   [cljs-time.core :as t]
-   [sysrev.views.components :refer [updated-time-label note-content-label]]
-   [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
-   [sysrev.state.labels :refer [real-answer?]]
-   [sysrev.util :refer [time-from-epoch time-elapsed-string]]
-   [sysrev.shared.util :refer [in?]])
+  (:require [clojure.string :as str]
+            [re-frame.core :as re-frame :refer [subscribe dispatch]]
+            [cljs-time.core :as t]
+            [sysrev.views.components :refer [updated-time-label note-content-label]]
+            [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
+            [sysrev.state.labels :refer [real-answer?]]
+            [sysrev.util :refer [time-from-epoch time-elapsed-string]]
+            [sysrev.shared.util :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn label-answer-tag

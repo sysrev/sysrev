@@ -133,7 +133,7 @@
           validators [#_ ["Cannot run tests with pg on port 5432"
                           #(not (= postgres-port 5432))]
                       ["Db name must include _test in configuration"
-                       #(clojure.string/includes? dbname "_test")]]
+                       #(str/includes? dbname "_test")]]
           validates #(-> % second (apply []))
           error (->> validators (remove validates) first first)]
       (assert (not error) error)
@@ -154,7 +154,7 @@
             protocol :protocol} :selenium} env]
       (when (or (= selenium-host "sysrev.com")
                 (= postgres-port 5470))
-        (assert (clojure.string/includes? dbname "_test")
+        (assert (str/includes? dbname "_test")
                 "Connecting to 'sysrev' db on production server is not allowed"))
       (t/instrument)
       (if (db-connected?)
@@ -182,18 +182,18 @@
 ;; for why this is, see
 ;; https://stackoverflow.com/questions/449346/mysql-auto-increment-does-not-rollback
 ;; https://www.postgresql.org/message-id/501B1494.9040502@ringerc.id.au
-(defn database-rollback-fixture [test]
+(defn database-rollback-fixture [test-fn]
   (db/with-rollback-transaction
-    (test)))
+    (test-fn)))
 
 (defmacro completes? [form]
   `(do ~form true))
 
-(defn s3-bucket-fixture [test]
+(defn s3-bucket-fixture [test-fn]
   (let [bucket-name (str (UUID/randomUUID))]
     (binding [env (assoc-in env [:filestore :bucket-name] bucket-name)]
       (s3/create-bucket bucket-name)
-      (test)
+      (test-fn)
       (s3/delete-bucket bucket-name))))
 
 ;; wait-until macro modified from

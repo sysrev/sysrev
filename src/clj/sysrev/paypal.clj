@@ -77,17 +77,17 @@
 (defn send-payout!
   "Send a payout to a user"
   [user amount]
-  (-> (client/post (str paypal-url "/v1/payments/payouts")
-                   {:content-type :json
-                    :headers (default-headers (:access_token @current-access-token))
-                    :form-params {:sender_batch_header
-                                  {:sender_batch_id (str (gensym 1))
-                                   :email_subject "You've been paid by InSilica"
-                                   :email_message "Thank you for your work on sysrev.com, we've sent your payment!"}
-                                  :items [(payout-item user amount)]}
-                    :throw-exceptions false
-                    :as :json
-                    :coerce :always})))
+  (client/post (str paypal-url "/v1/payments/payouts")
+               {:content-type :json
+                :headers (default-headers (:access_token @current-access-token))
+                :form-params {:sender_batch_header
+                              {:sender_batch_id (str (gensym 1))
+                               :email_subject "You've been paid by InSilica"
+                               :email_message "Thank you for your work on sysrev.com, we've sent your payment!"}
+                              :items [(payout-item user amount)]}
+                :throw-exceptions false
+                :as :json
+                :coerce :always}))
 
 (defn date->paypal-start-date
   [date]
@@ -109,14 +109,14 @@
   [& {:keys [start-date end-date]
       :or {start-date "2018-01-01"
            end-date "2018-05-11"}}]
-  (-> (client/get (str paypal-url "/v1/reporting/transactions")
-                  {:content-type :json
-                   :headers (default-headers (:access_token @current-access-token))
-                   :query-params {"start_date" (date->paypal-start-date start-date)
-                                  "end_date" (date->paypal-end-date end-date)}
-                   :throw-exceptions false
-                   :as :json
-                   :coerce :always})))
+  (client/get (str paypal-url "/v1/reporting/transactions")
+              {:content-type :json
+               :headers (default-headers (:access_token @current-access-token))
+               :query-params {"start_date" (date->paypal-start-date start-date)
+                              "end_date" (date->paypal-end-date end-date)}
+               :throw-exceptions false
+               :as :json
+               :coerce :always}))
 
 (defn get-transactions-max
   []
@@ -143,12 +143,12 @@
 ;; https://developer.paypal.com/docs/api/payments/v1/#payment_get
 (defn get-payment
   [payment-id]
-  (-> (client/get (str paypal-url "/v1/payments/payment/" payment-id)
-                  {:content-type :json
-                   :headers (default-headers (:access_token @current-access-token))
-                   :throw-exceptions false
-                   :as :json
-                   :coerce :always})))
+  (client/get (str paypal-url "/v1/payments/payment/" payment-id)
+              {:content-type :json
+               :headers (default-headers (:access_token @current-access-token))
+               :throw-exceptions false
+               :as :json
+               :coerce :always}))
 
 (defn check-transaction!
   "Given a payment-id, check to see what the current status of the sale is. Update its status if it has changed, if it has changed to complete, insert it into the project-fund"

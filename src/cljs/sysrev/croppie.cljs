@@ -1,5 +1,6 @@
 (ns sysrev.croppie
-  (:require [ajax.core :refer [GET POST HEAD]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET POST HEAD]]
             [jborden.croppie]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
@@ -42,7 +43,7 @@
       (fn [this]
         [:div
          [:div {:id "croppie-target"}]
-         (when-not (clojure.string/blank? @profile-picture-error)
+         (when-not (str/blank? @profile-picture-error)
            [:div [:h1 {:style {:color "black"}} @profile-picture-error]])
          (when @profile-picture-loaded?
            [:div
@@ -69,7 +70,7 @@
                          ($ result catch (fn [error]
                                            (reset! profile-picture-error
                                                    "Error in setting avatar")))))}
-                  "Set Avatar"]
+             "Set Avatar"]
             [Button {:on-click (fn [e]
                                  (reset! profile-picture-exists? false))}
              "Upload New Image"]])])
@@ -114,7 +115,7 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (cond (not (clojure.string/blank? @error-message))
+        (cond (not (str/blank? @error-message))
               [:div [:h1 {:style {:color "black"}}
                      @error-message]]
               @checking-profile-picture?

@@ -1,12 +1,13 @@
 (ns sysrev.db.migration
-  (:require [honeysql.core :as sql]
-            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [clojure.stacktrace :refer [print-cause-trace]]
             [clojure.data.json :as json]
             [clojure.data.xml :as dxml]
-            [clojure.tools.logging :as log]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.db.core :refer
              [do-query do-execute with-transaction to-sql-array
               with-debug-sql to-jsonb sql-cast]]
@@ -228,11 +229,11 @@
         endnote-extract-date
         #(-> % dxml/parse-str load-endnote-record :date)
         article-xml-extract-date
-        #(cond (clojure.string/blank? %)
+        #(cond (str/blank? %)
                nil
-               (not (clojure.string/blank? (pubmed-extract-date %)))
+               (not (str/blank? (pubmed-extract-date %)))
                (pubmed-extract-date %)
-               (not (clojure.string/blank? (endnote-extract-date %)))
+               (not (str/blank? (endnote-extract-date %)))
                (endnote-extract-date %)
                :else nil)]
     (log/info "Started Converting dates... ")
@@ -241,7 +242,7 @@
                         (order-by [:a.article-id :desc])
                         do-query)]
       (let [date (article-xml-extract-date (:raw article))]
-        (when-not (clojure.string/blank? date)
+        (when-not (str/blank? date)
           (-> (sqlh/update :article)
               (sset {:date date})
               (where [:= :article-id (:article-id article)])

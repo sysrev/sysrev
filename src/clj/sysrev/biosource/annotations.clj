@@ -1,7 +1,8 @@
 (ns sysrev.biosource.annotations
-  (:require [clj-http.client :as http]
+  (:require [clojure.string :as str]
             [clojure.data.json :as json]
             [clojure.tools.logging :as log]
+            [clj-http.client :as http]
             [sysrev.biosource.core :refer [api-host]]))
 
 (def annotations-route (str api-host "nlp/ner"))
@@ -10,15 +11,13 @@
   "Given a string of text, return a vector of annotation maps"
   [string]
   (try
-    (if (clojure.string/blank? string)
-      nil
+    (when-not (str/blank? string)
       (-> (http/post annotations-route
                      {:content-type "application/json"
-                      :body (json/write-str {:postData (-> string
-                                                           (clojure.string/replace "\n" ""))})})
+                      :body (json/write-str {:postData (-> string (str/replace "\n" ""))})})
           :body
           (json/read-str :key-fn keyword)
-          (->> (mapv #(assoc % :name (clojure.string/replace (:name %) #"\"" ""))))))
+          (->> (mapv #(assoc % :name (str/replace (:name %) #"\"" ""))))))
     (catch Throwable e
-      (log/info (str "error loading annotations from " annotations-route) )
+      (log/warn (str "error loading annotations from " annotations-route) )
       nil)))

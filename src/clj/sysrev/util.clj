@@ -320,3 +320,25 @@
   "Returns string showing type and message from exception."
   [ex]
   (str (type ex) " - " (.getMessage ex)))
+
+;; from https://github.com/remvee/clj-base64/blob/master/src/remvee/base64.clj
+(def base64-alphabet
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
+;;
+(defn bytes->base64
+  "Encode sequence of bytes to a sequence of base64 encoded characters."
+  [bytes]
+  (letfn [(encode [bytes]
+            (when (seq bytes)
+              (let [t (->> bytes (take 3) (map #(bit-and (int %) 0xff)))
+                    v (int (reduce (fn [a b] (+ (bit-shift-left (int a) 8) (int b))) t))
+                    f #(nth base64-alphabet (bit-and (if (pos? %)
+                                                       (bit-shift-right v %)
+                                                       (bit-shift-left v (* % -1)))
+                                                     0x3f))
+                    r (condp = (count t)
+                        1 (concat (map f [2 -4])    [\= \=])
+                        2 (concat (map f [10 4 -2]) [\=])
+                        3         (map f [18 12 6 0]))]
+                (concat r (lazy-seq (encode (drop 3 bytes)))))))]
+    (apply str (encode bytes))))

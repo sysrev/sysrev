@@ -1,13 +1,9 @@
 (ns sysrev.views.project-list
   (:require [re-frame.core :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
-            [reagent.core :as r]
             [sysrev.loading :as loading]
             [sysrev.state.nav :refer [project-uri]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.create-project :refer [CreateProject]]
-            [sysrev.util :refer [go-back]])
+            [sysrev.views.create-project :refer [CreateProject]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (defn- ProjectListItem [{:keys [project-id name member?]}]

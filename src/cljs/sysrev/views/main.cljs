@@ -4,7 +4,6 @@
             [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-sub reg-event-db trim-v]]
-            [re-frame.db :refer [app-db]]
             [sysrev.loading :as loading]
             [sysrev.pdf :as pdf]
             [sysrev.blog :as blog]

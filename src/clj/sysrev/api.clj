@@ -2,6 +2,7 @@
   ^{:doc "An API for generating response maps that are common to /api/* and web-api/* endpoints"}
   (:require [bouncer.core :as b]
             [clojure.data.json :as json]
+            [clojure.java.io :as io]
             [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
@@ -574,10 +575,9 @@
 (defn check-pending-project-transactions!
   "Check the pending project transactions and update them accordingly"
   [project-id]
-  (let [pending-funds (funds/pending-funds project-id)]
-    (doall (map #(paypal/check-transaction! (:transaction-id %))
-                pending-funds))
-    {:result {:success true}}))
+  (doseq [{:keys [transaction-id]} (funds/pending-funds project-id)]
+    (paypal/check-transaction! transaction-id))
+  {:result {:success true}})
 
 ;; to manually add funds:
 ;;  (funds/create-project-fund-entry! {:project-id <project-id> :user-id <user-id> :transaction-id (str (UUID/randomUUID)) :transaction-source "Manual Entry" :amount 20000 :created (util/now-unix-seconds)})
@@ -1006,18 +1006,12 @@
       (when-let [project-id (db-annotations/annotation-id->project-id annotation-id)]
         (db/clear-project-cache project-id)))))
 
-(defn pdf-download-url
-  [article-id filename key]
-  (str "/api/files/article/"
-       article-id
-       "/download/"
-       key
-       "/"
-       filename))
+(defn pdf-download-url [article-id filename key]
+  (str "/api/files/article/" article-id "/download/" key "/" filename))
 
 (defn project-annotations
-  [project-id]
   "Retrieve all annotations for a project"
+  [project-id]
   (let [annotations (db-annotations/project-annotations project-id)]
     (->> annotations
          (mapv #(assoc % :pmid (parse-integer (:public-id %))))
@@ -1411,8 +1405,6 @@
                                (str "attachment: filename=\"" (str user-id "-gravatar.jpeg") "\"")))
 
           :else
-          (-> (response/response (-> "public/default_profile.jpeg"
-                                     clojure.java.io/resource
-                                     clojure.java.io/input-stream))
+          (-> (response/response (-> "public/default_profile.jpeg" io/resource io/input-stream))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" "default-profile.jpeg" "\""))))))

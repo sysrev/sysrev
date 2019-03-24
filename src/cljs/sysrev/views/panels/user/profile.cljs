@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.profile
-  (:require [ajax.core :refer [GET POST PUT]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET POST PUT]]
             [cljsjs.moment]
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
@@ -14,7 +15,7 @@
                                            Modal ModalContent ModalHeader ModalDescription]])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def ^:prviate panel [:state :panels :user :profile])
+(def ^:private panel [:state :panels :user :profile])
 
 (def state (r/cursor app-db [:state :panels panel]))
 
@@ -163,7 +164,7 @@
                          :color "red"
                          :disabled (or @loading? @retrieving-invitations?)
                          :size "tiny"} "Cancel"]])
-             (when-not (clojure.string/blank? @error-message)
+             (when-not (str/blank? @error-message)
                [Message {:onDismiss #(reset! error-message nil)
                          :negative true}
                 [MessageHeader "Invitation Error"]
@@ -184,7 +185,8 @@
       (reset! reload-avatar? false)
       [Image {:src (str "/api/user/" user-id "/avatar")
               :avatar true
-              :display (str @reload-avatar?)}])))
+              :display (str @reload-avatar?)
+              :alt ""}])))
 
 (defn ProfileAvatar
   [{:keys [user-id modal-open]}]
@@ -194,7 +196,7 @@
       [Image {:src (str "/api/user/" user-id "/avatar")
               :circular true
               :style {:cursor "pointer"}
-              :alt "error"}])))
+              :alt ""}])))
 
 (defn AvatarModal
   [{:keys [user-id modal-open]}]
@@ -225,7 +227,7 @@
 (defn UserInteraction
   [{:keys [user-id email]}]
   [:div
-   [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
+   [UserPublicProfileLink {:user-id user-id :display-name (first (str/split email #"@"))}]
    [:div
     (when-not (= user-id @(subscribe [:self/user-id]))
       [InviteUser user-id])
@@ -259,7 +261,7 @@
         [Icon {:name "user icon"
                :size "huge"}]]
        [Column {:width 12}
-        [UserPublicProfileLink {:user-id user-id :display-name (first (clojure.string/split email #"@"))}]
+        [UserPublicProfileLink {:user-id user-id :display-name (first (str/split email #"@"))}]
         [:div
          [:a {:on-click (fn [e]
                           ($ e :preventDefault)
@@ -310,7 +312,7 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (when (or (not (clojure.string/blank? @introduction))
+        (when (or (not (str/blank? @introduction))
                   mutable?)
           [Segment {:class "introduction"}
            [Header {:as "h4"
@@ -325,7 +327,7 @@
                                :editing? editing?}]
            [EditIntroduction {:editing? editing?
                               :mutable? mutable?
-                              :blank? (r/track #(clojure.string/blank? @%) introduction)}]]))
+                              :blank? (r/track #(str/blank? @%) introduction)}]]))
       :get-initial-state
       (fn [this]
         (reset! editing? false)
@@ -464,7 +466,7 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (if (clojure.string/blank? @error-message)
+        (if (str/blank? @error-message)
           ;; display user
           (when-not (nil? @user)
             [:div

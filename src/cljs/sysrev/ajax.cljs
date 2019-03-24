@@ -1,6 +1,6 @@
 (ns sysrev.ajax
   (:require [clojure.spec.alpha :as s]
-            [cognitect.transit :as transit]
+            [cognitect.transit]
             [ajax.core :as ajax]
             [day8.re-frame.http-fx]
             [re-frame.core :as re-frame :refer

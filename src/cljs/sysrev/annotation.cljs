@@ -1,17 +1,10 @@
 (ns sysrev.annotation
-  (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+  (:require [clojure.string :as str]
+            [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch reg-sub reg-sub-raw reg-event-db
-              reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
-            [sysrev.loading :as loading]
-            [sysrev.data.core :refer [def-data]]
-            [sysrev.action.core :refer [def-action]]
-            [sysrev.state.nav :refer [active-project-id]]
-            [sysrev.state.ui :as ui-state]
-            [sysrev.views.components :as ui]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-db
+                                   reg-event-fx trim-v]]
             [sysrev.util :as util :refer [vector->hash-map]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
@@ -47,22 +40,21 @@
   ([string word]
    ;; if the string or word is blank, this results in non-sense,
    ;; return nil
-   (if (or (clojure.string/blank? string)
-           (clojure.string/blank? word))
+   (if (or (str/blank? string)
+           (str/blank? word))
      nil
      ;; otherwise, start processing
      (word-indices string word [] 0)))
   ([string word indices offset]
-   (let [begin-position (clojure.string/index-of
-                         (clojure.string/lower-case string)
-                         (clojure.string/lower-case word))
+   (let [begin-position (str/index-of (str/lower-case string)
+                                      (str/lower-case word))
          end-position (+ begin-position (count word))
          remaining-string (subs string end-position)
          new-index [(+ begin-position offset)
                     (+ end-position offset)]]
      (cond
 ;;; we're done
-       (clojure.string/blank? remaining-string)
+       (str/blank? remaining-string)
        {:word word
         ;; if we are at the end of the string and have a capture, put
         ;; it in indices
@@ -92,8 +84,7 @@
        :else
        (word-indices remaining-string word
                      indices
-                     (+ end-position offset)
-                     )))))
+                     (+ end-position offset))))))
 
 (defn word-indices->word-indices-map
   "Given a word-indices map returned by word-indices, create a vector of
@@ -205,21 +196,15 @@
      (sort-by #(first (:index %)))
      (into []))))
 
-(defn Annotation
-  [{:keys [text content text-decoration]
-    :or {text-decoration
-         "underline dotted #909090"}}]
-  (let [highlight-text [:span
-                        {:style
-                         {:text-decoration text-decoration
-                          :cursor (if-not
-                                      (clojure.string/blank? content)
-                                      "pointer"
-                                      "text")}} text]]
-    (if-not (clojure.string/blank? content)
-      [Popup {:trigger
-              (r/as-element
-               highlight-text)
+(defn Annotation [{:keys [text content text-decoration]
+                   :or {text-decoration "underline dotted #909090"}}]
+  (let [highlight-text [:span {:style
+                               {:text-decoration text-decoration
+                                :cursor (if-not (str/blank? content)
+                                          "pointer" "text")}}
+                        text]]
+    (if-not (str/blank? content)
+      [Popup {:trigger (r/as-element highlight-text)
               :content content}]
       highlight-text)))
 
@@ -257,22 +242,21 @@
         contexts (->> annotations
                       (map #(get-in % [:context :text-context]))
                       set
-                      (map #(hash-map % (let [start (clojure.string/index-of text %)
+                      (map #(hash-map % (let [start (str/index-of text %)
                                               end (+ start (count %))]
                                           [start end])))
-                      (apply merge))
-        processed-annotations (map #(let [{:keys [selection context semantic-class annotation]} %
-                                          {:keys [start-offset end-offset text-context]} context
-                                          start (+ start-offset (first (get contexts text-context)))
-                                          end (+ end-offset (first (get contexts text-context)))]
-                                         (hash-map :start start
-                                                   :end end
-                                                   :semantic-class semantic-class
-                                                   :annotation annotation
-                                                   :selection selection
-                                                   :text-context text-context))
-                                      annotations)]
-    processed-annotations))
+                      (apply merge))]
+    (map #(let [{:keys [selection context semantic-class annotation]} %
+                {:keys [start-offset end-offset text-context]} context
+                start (+ start-offset (first (get contexts text-context)))
+                end (+ end-offset (first (get contexts text-context)))]
+            (hash-map :start start
+                      :end end
+                      :semantic-class semantic-class
+                      :annotation annotation
+                      :selection selection
+                      :text-context text-context))
+         annotations)))
 
 (defn html-text->text
   "Strip all html tags and convert all character entity references (e.g. &lt;) to their single char representation
@@ -295,7 +279,7 @@
   "Generate the string to pass to cljs.reader for a div that contains text highlighted with annotations."
   [annotations text]
   (let [text (-> text
-                 (clojure.string/replace #"\n+" "")
+                 (str/replace #"\n+" "")
                  html-text->text)
         annotations (-> (convert-annotations annotations text)
                         remove-overlaps)

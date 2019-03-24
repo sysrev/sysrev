@@ -1,5 +1,6 @@
 (ns sysrev.test.web.routes.project
   (:require [clojure.test :refer :all]
+            [clojure.string :as str]
             [sysrev.db.project :as project]
             [sysrev.source.core :as source]
             [sysrev.source.import :as import]
@@ -36,10 +37,8 @@
                :pmids count)))
     ;; the user can get article summaries from pubmed
     (is (= (-> (route-response :get "/api/pubmed/summaries"
-                               {:pmids
-                                (clojure.string/join
-                                 ","
-                                 (:pmids (pubmed/get-search-query-response "foo bar" 1)))})
+                               {:pmids (->> (pubmed/get-search-query-response "foo bar" 1)
+                                            :pmids (str/join ","))})
                :result (get 25706626) :authors first)
            {:name "Aung T", :authtype "Author", :clusterid ""}))))
 

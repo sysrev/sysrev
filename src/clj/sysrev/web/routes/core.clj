@@ -9,9 +9,10 @@
   within the namespace. finalize provides a function name that must be
   run after all definition forms to define the routes var."
   [{:keys [routes define finalize]}]
-  `(do (defonce ^:private atom-name# (atom []))
+  `(do (defonce ~routes nil)
+       (defonce ^:private atom-name# (atom []))
        (reset! atom-name# [])
        (defn- ~define [route#]
          (swap! atom-name# conj route#))
        (defn- ~finalize []
-         (def ~routes (apply c/routes (deref atom-name#))))))
+         (alter-var-root (var ~routes) (constantly (apply c/routes (deref atom-name#)))))))

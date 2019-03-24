@@ -262,9 +262,9 @@
   "Hit backspace in input-element length times. Always returns true"
   [length input-element]
   (wait-until-displayed input-element)
-  (doall (repeatedly length
-                     #(do (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
-                          (Thread/sleep 20))))
+  (dotimes [_ length]
+    (taxi/send-keys input-element org.openqa.selenium.Keys/BACK_SPACE)
+    (Thread/sleep 20))
   true)
 
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]

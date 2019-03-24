@@ -99,14 +99,16 @@
   (assert (s/valid? ifn? value-fn))
   (update-entity-def entity #(assoc-in % [:values field] value-fn)))
 
-(defn- custom-value-fn [entity field]
+(defn- custom-value-fn
   "Returns value function for a custom entity field."
+  [entity field]
   (get-in @entity-defs [entity :values field]))
 
 ;; TODO: support user-defined default list of columns to include
-(defn- get-with-custom [entity primary-key custom-fields]
+(defn- get-with-custom
   "Returns value map for an instance of entity using primary-key,
   including values for the specified custom fields."
+  [entity primary-key custom-fields]
   (let [def (get @entity-defs entity)
         pkey-field (get def :primary-key)
         ;; TODO: support field-combination primary keys

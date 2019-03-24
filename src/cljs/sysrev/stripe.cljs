@@ -55,10 +55,9 @@
 
 (def-action :payments/stripe-token
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id])  "/stripe/payment-method"))
-  :content (fn [token]
-             {:token token})
+  :content (fn [token] {:token token})
   :process
-  (fn [{:keys [db]} _ {:keys [success] :as result}]
+  (fn [{:keys [db]} _ _]
     (let [;; calling-route should be set by the :payment/set-calling-route! event
           ;; this is just in case it wasn't set
           ;; e.g. user went directly to /payment route
@@ -71,8 +70,7 @@
       ;; clear any error message that was present in plans
       ;;(dispatch [:plans/clear-error-message!])
       ;; go back to where this panel was called from
-      (if (= (type calling-route)
-             (type "string"))
+      (if (string? calling-route)
         (nav-scroll-top calling-route)
         (dispatch [:navigate calling-route]))
       ;; empty map, just interested in causing side effects

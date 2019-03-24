@@ -53,9 +53,9 @@
 (defn discard-label []
   (b/click discard-button :delay 50))
 
-(defn field-input-xpath [xpath field-class & {:keys [input-type]}]
-  "Searches inside xpath for an input element within a div.field
-  where the field contains field-class."
+(defn field-input-xpath
+  "Searches within xpath for an input element inside a div.field.<field-class>"
+  [xpath field-class & {:keys [input-type]}]
   (x/xpath xpath
            (format "/descendant::div[contains(@class,'field') and contains(@class,'%s')]"
                    field-class)

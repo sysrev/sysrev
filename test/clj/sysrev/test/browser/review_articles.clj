@@ -146,7 +146,7 @@
   (Thread/sleep 200)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click x/review-labels-tab :delay 100 :displayed? true)
-  (mapv #(set-label-answer %) label-settings)
+  (doseq [x label-settings] (set-label-answer x))
   (Thread/sleep 200)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click ".button.save-labels" :delay 100 :displayed? true)

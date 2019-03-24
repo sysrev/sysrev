@@ -1,10 +1,8 @@
 (ns sysrev.views.keywords
-  (:require
-   [clojure.spec.alpha :as s]
-   [clojure.string :as str]
-   [re-frame.core :as re-frame :refer [subscribe dispatch]]
-   [sysrev.views.components :refer [with-tooltip dangerous]]
-   [sysrev.util :refer [full-size? nbsp]]))
+  (:require [clojure.string :as str]
+            [re-frame.core :refer [subscribe dispatch]]
+            [sysrev.views.components :refer [with-tooltip dangerous]]
+            [sysrev.util :refer [full-size? nbsp]]))
 
 (defn- with-keyword-tooltip [content label-name label-value]
   [[with-tooltip content

@@ -42,7 +42,7 @@
 
 (defn pending-funds
   [project-id]
-    (-> (select :*)
+  (-> (select :*)
       (from :project-fund-pending)
       (where [:and
               [:= :project-id project-id]

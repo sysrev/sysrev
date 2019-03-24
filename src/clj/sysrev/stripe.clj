@@ -239,13 +239,13 @@
 (defn finalize-stripe-user!
   "finalize the stripe user on stripe, return the stripe customer-id"
   [stripe-code]
-  (-> (http/post "https://connect.stripe.com/oauth/token"
-                 {:form-params {"client_secret" stripe-secret-key
-                                "code" stripe-code
-                                "grant_type" "authorization_code"}
-                  :throw-exceptions false
-                  :as :json
-                  :coerce :always})))
+  (http/post "https://connect.stripe.com/oauth/token"
+             {:form-params {"client_secret" stripe-secret-key
+                            "code" stripe-code
+                            "grant_type" "authorization_code"}
+              :throw-exceptions false
+              :as :json
+              :coerce :always}))
 
 ;; https://stripe.com/docs/api/transfers/create
 (defn pay-stripe-user!

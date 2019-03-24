@@ -5,8 +5,7 @@
             [re-frame.core :refer [reg-event-db reg-fx]]
             [cljs-http.client :as hc]
             [sysrev.base :refer [history]]
-            [sysrev.util :refer [scroll-top]]
-            [sysrev.shared.util :refer [map-values]]))
+            [sysrev.util :refer [scroll-top]]))
 
 (defn force-dispatch [uri]
   (secretary/dispatch! uri))

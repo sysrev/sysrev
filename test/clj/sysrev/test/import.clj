@@ -17,7 +17,7 @@
 (use-fixtures :once test/default-fixture)
 (use-fixtures :each test/database-rollback-fixture)
 
-(def ss (partial clojure.string/join "\n"))
+(def ss (partial str/join "\n"))
 
 (def xml-vector-node
   (ss ["<doc>"

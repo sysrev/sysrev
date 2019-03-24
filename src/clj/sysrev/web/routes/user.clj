@@ -31,7 +31,6 @@
                   {:logged-in true}
                   (api/users-in-group "public-reviewer")))
             (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
-                 request
                  (wrap-authorize
                   request
                   {:authorize-fn (user-in-group? user-id "public-reviewer")}

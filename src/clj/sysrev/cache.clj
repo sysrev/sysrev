@@ -1,8 +1,7 @@
 (ns sysrev.cache
-  (:require [clojure.core.cache :as cache :refer [defcache
-                                                  CacheProtocol]]
+  (:require [clojure.string :as str]
+            [clojure.core.cache :as cache :refer [defcache CacheProtocol]]
             [clojure.core.memoize :refer [build-memoizer]]
-            [clojure.java.jdbc :refer [query insert!]]
             [clojure.main :refer [demunge]]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query do-execute]])
@@ -30,26 +29,21 @@
 ;; This is so that you can clear out the cache after a certain time
 ;; interval
 
-(def cache-table :memo_cache)
+(def cache-table :memo-cache)
 
 (defn fn->string
   "Given a fn, return a string representation of that function"
   [f]
-  (-> (type f)
-      str
-      demunge
-      (clojure.string/replace #"class " "")))
+  (-> (type f) str demunge (str/replace #"class " "")))
 
 ;; see also:
 ;; https://github.com/boxuk/groxy/blob/master/src/clojure/groxy/cache/db.clj
 
-(defn find-results [db f params]
+(defn find-results
   "Given a database definition,db, a string representing a function
   name f (i.e. string returned by fn->string) and params, look up any
   result associated with it in the db"
-  #_(let [sql (format "select params, result from %s where f = ? and params = ?;"
-                      (name cache-table))]
-      (query db [sql (pr-str f) (pr-str params)]))
+  [db f params]
   ;; note: this is sysrev specific
   (-> (select :params :result)
       (from cache-table)
@@ -68,10 +62,6 @@
        not-found))))
 
 (defn store [db f params result]
-  #_(insert! db cache-table
-             {:params (pr-str params)
-              :result (pr-str @result)
-              :f (pr-str f)})
   ;; this is sysrev specific
   (-> (insert-into cache-table)
       (values [{:params (pr-str params)

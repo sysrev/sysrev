@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.users
-  (:require [ajax.core :refer [GET]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe]]
             [re-frame.db :refer [app-db]]
@@ -36,7 +37,7 @@
         [:div
          [Segment
           [:h4 "Users"]]
-         (when-not (clojure.string/blank? @error-message)
+         (when-not (str/blank? @error-message)
            [Message {:onDismiss #(reset! error-message nil)
                      :negative true}
             [MessageHeader "Retrieving Users Error"]

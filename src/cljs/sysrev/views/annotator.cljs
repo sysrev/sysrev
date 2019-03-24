@@ -1,18 +1,12 @@
 (ns sysrev.views.annotator
-  (:require [cljsjs.semantic-ui-react :as cljsjs.semantic-ui-react]
+  (:require [cljsjs.semantic-ui-react]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
-            [reagent.core :as r]
-            [reagent.ratom :refer [reaction]]
-            [re-frame.core :as re-frame :refer
-             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-              reg-event-db trim-v]]
-            [re-frame.db :refer [app-db]]
-            [sysrev.loading :as loading]
+            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
+                                   reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
-            [sysrev.state.nav :refer [active-project-id]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
             [sysrev.util :as util :refer [nbsp]]
@@ -493,7 +487,8 @@
 (def js-text-type (type (new js/Text)))
 
 (defn previous-text
-  "Get all previous text from nodes up until node with attribute data-field = field. Return result as a string"
+  "Get all previous text from nodes up until node with attribute
+  data-field = field. Return result as a string"
   ([node field]
    (previous-text (gdom/getPreviousNode node) field ""))
   ([node field string]
@@ -506,9 +501,7 @@
      (= ($ node getAttribute "data-field") field)
      string
      ;; skip this node, it isn't a text node
-     :else
-     (previous-text (gdom/getPreviousNode node) field
-                      string))))
+     :else (previous-text (gdom/getPreviousNode node) field string))))
 
 ;; see: https://developer.mozilla.org/en-US/docs/Web/API/Selection
 ;;      https://developer.mozilla.org/en-US/docs/Web/API/Range
@@ -535,8 +528,10 @@
          :end-offset end-offset}))))
 
 (defn AnnotationCapture
-  "Create an Annotator using state. A child is a single reagent component which has text
-  to be captured. field corresponds to the article column on the server and the data-field attribute of the root node."
+  "Create an Annotator using state. A child is a single reagent
+  component which has text to be captured. field corresponds to the
+  article column on the server and the data-field attribute of the
+  root node."
   [context field child]
   (let [set (fn [path value]
               (dispatch-sync [::set context path value]))

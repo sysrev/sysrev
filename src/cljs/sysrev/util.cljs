@@ -1,8 +1,6 @@
 (ns sysrev.util
   (:require [clojure.string :as str]
-            [clojure.test.check.generators :as gen]
             [cognitect.transit :as transit]
-            [re-frame.core :as re-frame]
             [goog.string :refer [unescapeEntities]]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]

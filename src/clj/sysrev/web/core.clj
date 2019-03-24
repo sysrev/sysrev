@@ -27,14 +27,14 @@
               wrap-sysrev-response not-found-response]]
             [sysrev.config.core :refer [env]]))
 
-(declare app-routes)
+(defonce app-routes nil)
 
 (defn load-app-routes []
-  (defroutes app-routes
-    auth-routes
-    site-routes
-    project-routes
-    user-routes))
+  (alter-var-root #'app-routes (constantly
+                                (routes auth-routes
+                                        site-routes
+                                        project-routes
+                                        user-routes))))
 
 (load-app-routes)
 

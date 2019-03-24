@@ -78,49 +78,42 @@
   (fn [request]
     (try
       (let [{{{:keys [status type message exception]
-               :or {status 500
-                    type :api
-                    message "Error processing request"}
+               :or {status 500, type :api, message "Error processing request"}
                :as error} :error
               result :result :as body} :body
              :as response} (handler request)
             response
-            (cond->
-                (cond
-                  ;; Return error if body has :error field
-                  error (do (when exception
-                              (println "************************")
-                              (println (pr-str request))
-                              (print-cause-trace exception)
-                              (println "************************"))
-                            (make-error-response
-                             status type message exception response))
-                  ;; Otherwise return result if body has :result field
-                  result response
-                  ;; If no :error or :result key, wrap the value in :result
-                  (map? body) (update response :body #(hash-map :result %))
-                  ;;
-                  ;; If handler gave HTTP redirect response, return it
-                  (= (:status response) 302) response
-                  ;;
-                  (and (seqable? body) (empty? body))
-                  (make-error-response
-                   500 :empty "Server error (no data returned)"
-                   nil response)
-                  :else response))
+            (cond
+              ;; Return error if body has :error field
+              error (do (when exception
+                          (println "************************")
+                          (println (pr-str request))
+                          (print-cause-trace exception)
+                          (println "************************"))
+                        (make-error-response
+                         status type message exception response))
+              ;; Otherwise return result if body has :result field
+              result response
+              ;; If no :error or :result key, wrap the value in :result
+              (map? body) (update response :body #(hash-map :result %))
+              ;; If handler gave HTTP redirect response, return it
+              (= 302 (:status response)) response
+              ;; Return error on empty response body
+              (and (seqable? body)
+                   (empty? body)) (make-error-response
+                                   500 :empty "Server error (no data returned)"
+                                   nil response)
+              ;; Otherwise return response unchanged
+              :else response)
             session-meta (or (-> body meta :session)
                              (-> response meta :session))]
-        ;; If the request handler attached a :session meta value to the result,
-        ;; set that session value in the response.
-        (merge
-         (cond-> response
-           session-meta (assoc :session session-meta)
-           
-           (and (map? body) res/build-id)
-           (assoc-in [:body :build-id] res/build-id)
-           
-           (and (map? body) res/build-time)
-           (assoc-in [:body :build-time] res/build-time))))
+        (cond-> response
+          ;; If the request handler attached a :session meta value to
+          ;; the result, set that session value in the response.
+          session-meta                      (assoc :session session-meta)
+          ;; Attach :build-id and :build-time fields to all response maps
+          (and (map? body) res/build-id)    (assoc-in [:body :build-id] res/build-id)
+          (and (map? body) res/build-time)  (assoc-in [:body :build-time] res/build-time)))
       (catch Throwable e
         (println "************************")
         (println (pr-str request))

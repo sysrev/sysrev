@@ -67,10 +67,9 @@
   (let [labels
         (->> article-ids
              (mapv (fn [article-id]
-                     (->>
-                      (-> (q/select-article-by-id article-id [:al.*])
-                          (q/join-article-labels)
-                          do-query))))
+                     (-> (q/select-article-by-id article-id [:al.*])
+                         (q/join-article-labels)
+                         do-query)))
              (apply concat)
              (group-by :user-id)
              (map-values #(group-by :article-id %))

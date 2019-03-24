@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.main
-  (:require [ajax.core :refer [GET PUT]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET PUT]]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
@@ -211,7 +212,7 @@
                                    @loading?)
                      :on-change (fn [e]
                                   (put-opt-in!))}]
-             (when-not (clojure.string/blank? @error-message)
+             (when-not (str/blank? @error-message)
                [Message {:onDismiss #(reset! error-message nil)
                          :negative true}
                 [MessageHeader "Opt-In Error"]

@@ -8,15 +8,12 @@
             [sysrev.state.nav :refer [set-subpanel-default-uri]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.views.base :refer [panel-content]]
-            [sysrev.routes :as routes]
             [sysrev.markdown :refer [RenderMarkdown]]
             [sysrev.views.menu :refer [loading-indicator]]
-            [sysrev.shared.components :refer [loading-content]]
-            [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util]
+            [sysrev.shared.util :as sutil]
             [sysrev.macros])
-  (:require-macros [secretary.core :refer [defroute]]
-                   [sysrev.macros :refer [defroute-app-id with-loader]]))
+  (:require-macros [sysrev.macros :refer [defroute-app-id with-loader]]))
 
 (defn init-blog []
   (dispatch [:blog/load-default-panels])

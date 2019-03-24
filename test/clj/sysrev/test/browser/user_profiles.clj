@@ -1,5 +1,6 @@
 (ns sysrev.test.browser.user-profiles
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.java.io :as io]
+            [clojure.tools.logging :as log]
             [clj-webdriver.core :refer [->actions move-to-element click-and-hold move-by-offset
                                         release perform]]
             [clj-webdriver.taxi :as taxi]
@@ -40,39 +41,13 @@
 (def avatar (xpath "//div[@data-tooltip='Change Your Avatar']"))
 (def upload-button (xpath "//button[contains(text(),'Upload Profile Image')]"))
 
-;; from https://github.com/remvee/clj-base64/blob/master/src/remvee/base64.clj
-
-(def alphabet
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
-
-(defn encode
-  "Encode sequence of bytes to a sequence of base64 encoded
-  characters."
-  [bytes]
-  (when (seq bytes)
-    (let [t (->> bytes (take 3) (map #(bit-and (int %) 0xff)))
-          v (int (reduce (fn [a b] (+ (bit-shift-left (int a) 8) (int b))) t))
-          f #(nth alphabet (bit-and (if (pos? %)
-                                      (bit-shift-right v %)
-                                      (bit-shift-left v (* % -1)))
-                                    0x3f))
-          r (condp = (count t)
-              1 (concat (map f [2 -4])    [\= \=])
-              2 (concat (map f [10 4 -2]) [\=])
-              3         (map f [18 12 6 0]))]
-      (concat r (lazy-seq (encode (drop 3 bytes)))))))
-
-(def image-base-64  (->> "test-files/demo-1.jpg"
-                         clojure.java.io/resource
-                         clojure.java.io/file
-                         util/slurp-bytes
-                         encode
-                         (apply str)))
+(def image-base64
+  (->> "test-files/demo-1.jpg" io/resource io/file util/slurp-bytes util/bytes->base64))
 
 ;; http://blog.fermium.io/how-to-send-files-to-a-dropzone-js-element-in-selenium/
 (def upload-image-blob-js
   (str "var myZone, blob, base64Image; myZone = Dropzone.forElement('.dropzone');"
-       "base64Image = '" image-base-64 "';"
+       "base64Image = '" image-base64 "';"
        "function base64toBlob(r,e,n){e=e||\"\",n=n||512;for(var t=atob(r),a=[],o=0;o<t.length;o+=n){for(var l=t.slice(o,o+n),h=new Array(l.length),b=0;b<l.length;b++)h[b]=l.charCodeAt(b);var v=new Uint8Array(h);a.push(v)}var c=new Blob(a,{type:e});return c}"
        "blob = base64toBlob(base64Image, 'image / png');"
        "blob.name = 'testfile.png';"

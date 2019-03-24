@@ -1,8 +1,9 @@
 (ns sysrev.test.browser.project-compensation
   (:require [clojure.test :refer :all]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [clj-time.local :as l]
             [clj-time.format :as f]
-            [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.api :as api]
@@ -68,16 +69,16 @@
 ;;;
 (defn delete-compensation-by-id [project-id compensation-id]
   ;; delete from compensation-user-period
-  (-> (delete-from :compensation_user_period)
-      (where [:= :compensation_id compensation-id])
+  (-> (delete-from :compensation-user-period)
+      (where [:= :compensation-id compensation-id])
       do-execute)
   ;; delete from compensation-project-default
-  (-> (delete-from :compensation_project_default)
-      (where [:= :compensation_id compensation-id])
+  (-> (delete-from :compensation-project-default)
+      (where [:= :compensation-id compensation-id])
       do-execute)
   ;; delete from compensation-project
-  (-> (delete-from :compensation_project)
-      (where [:= :compensation_id compensation-id])
+  (-> (delete-from :compensation-project)
+      (where [:= :compensation-id compensation-id])
       do-execute)
   ;; delete from compensation
   (-> (delete-from :compensation)
@@ -85,11 +86,11 @@
       do-execute))
 
 (defn delete-project-compensations [project-id]
-  (mapv #(delete-compensation-by-id project-id %)
-        (-> (select :compensation-id)
-            (from :compensation-project)
-            (where [:= :project-id project-id])
-            (->> do-query (map :compensation-id)))))
+  (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
+                                        (from :compensation-project)
+                                        (where [:= :project-id project-id])
+                                        do-query)]
+    (delete-compensation-by-id project-id compensation-id)))
 
 (defn cents->string
   "Convert an integer amount of cents to a string dollar amount"
@@ -99,12 +100,7 @@
 (defn string->cents
   "Convert a string dollar amount to an integer amount of cents"
   [string]
-  (-> string
-      (subs 1)
-      (clojure.string/replace #"," "")
-      read-string
-      (* 100)
-      int))
+  (-> string (subs 1) (str/replace #"," "") read-string (* 100) int))
 
 (defn create-compensation
   "Create a compensation in an integer amount of cents"
@@ -233,6 +229,8 @@
 
 ;; this function is incomplete as it only handles the case of boolean labels
 ;; this can only create, not update labels
+;;
+;; FIX: remove this function
 (defn randomly-set-labels
   [project-id user-id article-id]
   (try
@@ -415,7 +413,7 @@
       (pm/add-articles-from-search-term (:search project1))
       #_ (create-labels @(:project-id project1))
       ;; create three compensations
-      (mapv create-compensation (:amounts project1))
+      (doseq [amt (:amounts project1)] (create-compensation amt))
       ;; set the first compensation amount to the default
       (select-compensation-for-user
        "Default New User Compensation" (-> project1 :amounts (nth 0)))
@@ -448,7 +446,7 @@
         (pm/add-articles-from-search-term (:search project2))
         (create-labels @(:project-id project2))
         ;; create three compensations
-        (mapv create-compensation (:amounts project2))
+        (doseq [amt (:amounts project2)] (create-compensation amt))
         ;; set the first compensation amount to the default
         (select-compensation-for-user
          "Default New User Compensation" (-> project2 :amounts (nth 0)))
@@ -589,16 +587,14 @@
         (nav/go-route "/user/settings/compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-paid? user2 project1)
-        (correct-payments-owed? user2 project2))
-      )
+        (correct-payments-owed? user2 project2)))
   :cleanup
   (do (doseq [{:keys [project-id]} projects]
         (when @project-id
           (delete-project-compensations @project-id)
           (project/delete-project @project-id)))
       (doseq [{:keys [email]} test-users]
-          (b/delete-test-user :email email))
-      ))
+        (b/delete-test-user :email email))))
 
 ;; for deleting during manual test
 ;; (doall (map #(do (delete-project-compensations %) (project/delete-project %)) [113 114])) ; manual input of project-id

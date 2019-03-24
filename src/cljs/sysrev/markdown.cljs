@@ -1,5 +1,6 @@
 (ns sysrev.markdown
-  (:require [cljsjs.showdown]
+  (:require [clojure.string :as str]
+            [cljsjs.showdown]
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
             [sysrev.views.semantic :refer [Segment TextArea]])
@@ -101,13 +102,12 @@
               [:h5.ui.header "Preview"]]
              [:div.ui.secondary.segment
               [RenderMarkdown @draft-markdown]]]]
-           (when-not (clojure.string/blank? @markdown)
+           (when-not (str/blank? @markdown)
              [:div [RenderMarkdown @markdown]]))])
       :component-did-mount
       (fn [this]
         (reset! draft-markdown (or @markdown "")))
       :component-will-receive-props
       (fn [this new-argv]
-        (reset! draft-markdown (or @(-> new-argv second :markdown) ""))
-        )})))
+        (reset! draft-markdown (or @(-> new-argv second :markdown) "")))})))
 

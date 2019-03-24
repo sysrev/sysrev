@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.invitations
-  (:require [ajax.core :refer [GET PUT]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET PUT]]
             [cljsjs.moment]
             [reagent.core :as r]
             [re-frame.core :refer [subscribe reg-event-fx reg-sub dispatch]]
@@ -86,7 +87,7 @@
                  :color "red"
                  :disabled @putting-invitation?
                  :size "mini"} "Decline"]])
-     (when-not (clojure.string/blank? @error-message)
+     (when-not (str/blank? @error-message)
        [Message {:onDismiss #(reset! error-message nil)
                  :negative true}
         [MessageHeader "Invitation Error"]

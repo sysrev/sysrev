@@ -49,8 +49,9 @@
       first))
 
 (defn get-users-public-info
+  "Given a coll of user-ids, return a coll of maps that represent the
+  publicly viewable information for each user-id"
   [user-ids]
-  "Given a coll of user-ids, return a coll of maps that represent the publicly viewable information for each user-id"
   (-> (select :user-id :email :date-created :username :introduction)
       (from :web-user)
       (where [:in :web-user.user-id user-ids])
@@ -141,13 +142,6 @@
         do-query)
     (finally
       (db/clear-query-cache))))
-
-(defn set-user-default-project [user-id project-id]
-  (-> (sqlh/update :web-user)
-      (sset {:default-project-id project-id})
-      (where [:= :user-id user-id])
-      (returning :user-id :default-project-id)
-      do-query))
 
 (defn valid-password? [email password-attempt]
   (let [entry (get-user-by-email email)

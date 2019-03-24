@@ -142,15 +142,15 @@
                  (apply concat)
                  (apply hash-map)))
         name-to-dest-id
-        (-> (-> (q/select-label-where
-                 dest-project-id true
-                 [:label-id :name]
-                 {:include-disabled? true})
-                (->> do-query
-                     (map (fn [{:keys [label-id name]}]
-                            [name label-id]))
-                     (apply concat)
-                     (apply hash-map))))
+        (-> (q/select-label-where
+             dest-project-id true
+             [:label-id :name]
+             {:include-disabled? true})
+            (->> do-query
+                 (map (fn [{:keys [label-id name]}]
+                        [name label-id]))
+                 (apply concat)
+                 (apply hash-map)))
         convert-label-id
         #(-> % src-id-to-name name-to-dest-id)
         entries

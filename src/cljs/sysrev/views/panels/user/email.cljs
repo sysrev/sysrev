@@ -1,5 +1,6 @@
 (ns sysrev.views.panels.user.email
-  (:require [ajax.core :refer [GET PUT POST DELETE]]
+  (:require [clojure.string :as str]
+            [ajax.core :refer [GET PUT POST DELETE]]
             [reagent.core :as r]
             [re-frame.db :refer [app-db]]
             [re-frame.core :refer [subscribe dispatch]]
@@ -70,7 +71,7 @@
     (reset! sending-update? true)
     (reset! update-message nil)
     (reset! update-error nil)
-    (cond (clojure.string/blank? new-email)
+    (cond (str/blank? new-email)
           (do (reset! update-error "New email address can not be blank!")
               (reset! sending-update? false))
           :else
@@ -131,10 +132,10 @@
      {:reagent-render
       (fn [this]
         [:div
-         (when-not (clojure.string/blank? @verify-message)
+         (when-not (str/blank? @verify-message)
            (js/setTimeout #(nav-scroll-top "/user/settings/email") 1000)
            [Message @verify-message])
-         (when-not (clojure.string/blank? @verify-error)
+         (when-not (str/blank? @verify-error)
            (js/setTimeout #(nav-scroll-top "/user/settings/email") 1000)
            [Message {:negative true} @verify-error])
          [:div {:style {:margin-top "1em"}}
@@ -190,25 +191,25 @@
                            :on-click #(set-primary! email-object)
                            :disabled @setting-primary?}
                    "Make Primary"])])]]
-           (when (some false? (mapv clojure.string/blank? [@resend-error
-                                                           @resend-message
-                                                           @delete-error
-                                                           @set-primary-error]))
+           (when (some false? (mapv str/blank? [@resend-error
+                                                @resend-message
+                                                @delete-error
+                                                @set-primary-error]))
              [Row
               [Column {:width 16}
-               (when-not (clojure.string/blank? @resend-error)
+               (when-not (str/blank? @resend-error)
                  [Message {:onDismiss #(reset! resend-error nil)
                            :negative true}
                   @resend-error])
-               (when-not (clojure.string/blank? @resend-message)
+               (when-not (str/blank? @resend-message)
                  [Message {:onDismiss #(reset! resend-message nil)
                            :positive true}
                   @resend-message])
-               (when-not (clojure.string/blank? @delete-error)
+               (when-not (str/blank? @delete-error)
                  [Message {:onDismiss #(reset! delete-error nil)
                            :negative true}
                   @delete-error])
-               (when-not (clojure.string/blank? @set-primary-error)
+               (when-not (str/blank? @set-primary-error)
                  [Message {:onDismiss #(reset! set-primary-error nil)
                            :negative true}
                   @set-primary-error])]])]))
@@ -254,11 +255,11 @@
                                        (reset! update-error nil)
                                        (reset! update-message nil)))
                        :disabled @sending-update?} "Cancel"]]]
-            (when-not (clojure.string/blank? @update-message)
+            (when-not (str/blank? @update-message)
               [Message {:onDismiss #(reset! update-message nil)
                         :positive true}
                @update-message])
-            (when-not (clojure.string/blank? @update-error)
+            (when-not (str/blank? @update-error)
               [Message {:onDismiss #(reset! update-error nil)
                         :negative true}
                @update-error])])])

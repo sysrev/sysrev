@@ -42,8 +42,9 @@
                 :article-id article-id}])
       do-execute))
 
-(defn annotation-semantic-class [annotation-id]
+(defn annotation-semantic-class
   "Get the semantic-class associated with annotation-id"
+  [annotation-id]
   (with-transaction
     (let [semantic-class-id
           (-> (select :*)

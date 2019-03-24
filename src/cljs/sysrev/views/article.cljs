@@ -1,11 +1,8 @@
 (ns sysrev.views.article
-  (:require [clojure.spec.alpha :as s]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             goog.object
-            [reagent.core :as r]
             [re-frame.core :as re-frame :refer
              [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
-            [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.annotation :as annotation]
@@ -20,9 +17,9 @@
 
 (reg-sub
  ::article-annotations
- (fn [[_ article-id project-id]]
+ (fn [[_ _ project-id]]
    [(subscribe [:project/raw project-id])])
- (fn [[project] [_ article-id project-id]]
+ (fn [[project] [_ article-id _]]
    (get-in project [:annotations article-id])))
 
 (def-data :article/annotations
@@ -35,7 +32,7 @@
   :prereqs (fn [_ _ _] [[:identity]])
   :content (fn [project-id _ _] {:project-id project-id})
   :process
-  (fn [{:keys [db]} [project-id article-id _] {:keys [annotations] :as result}]
+  (fn [{:keys [db]} [project-id article-id _] {:keys [annotations]}]
     {:db (assoc-in db [:data :project project-id :annotations article-id]
                    (or annotations []))}))
 
@@ -84,8 +81,7 @@
   "Convert a slug string into a normal English sentence.
   ex: gene_or_gene_product -> Gene or gene product"
   [string]
-  (-> string
-      (clojure.string/replace #"_" " ")))
+  (-> string (str/replace #"_" " ")))
 
 (defn process-annotations
   [raw-annotations]
@@ -99,7 +95,7 @@
                      :annotation
                      (str (slug-string->sentence-string (:semantic_class %)))))
        ;; remove duplicates
-       (group-by #(clojure.string/lower-case (:word %)))
+       (group-by #(str/lower-case (:word %)))
        vals
        (map first)))
 
@@ -181,8 +177,6 @@
             documents @(subscribe [:article/documents article-id])
             date @(subscribe [:article/date article-id])
             pdfs @(subscribe [:article/pdfs article-id])
-            on-review? (= @(subscribe [:active-panel]) [:project :review])
-            self-id @(subscribe [:self/user-id])
             ;; annotations-raw @(subscribe [::article-annotations article-id])
             ;; annotations (condp = context
             ;;               :article-list
@@ -192,10 +186,9 @@
             ;;                    vals
             ;;                    (mapv :value)
             ;;                    (mapv #(hash-map :word %))))
-            annotator-context
-            {:class "abstract"
-             :project-id project-id
-             :article-id article-id}
+            annotator-context {:class "abstract"
+                               :project-id project-id
+                               :article-id article-id}
             annotator-enabled?
             (and @(subscribe [:annotator/enabled annotator-context])
                  (= :annotations @(subscribe [:review-interface])))
