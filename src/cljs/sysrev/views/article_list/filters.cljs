@@ -853,10 +853,12 @@
        (->> fs2 (every? (fn [f] (some #(filter-values-equal? % f) fs1))))))
 
 (def export-type-default-filters
-  {:group-answers [{:has-label {:confirmed true}}
-                   {:consensus {:status :conflict, :negate true}}]
-   :user-answers  [{:has-label {:confirmed true}}]
-   :endnote-xml   []})
+  {:group-answers    [{:has-label {:confirmed true}}
+                      {:consensus {:status :conflict, :negate true}}]
+   :user-answers     [{:has-label {:confirmed true}}]
+   :endnote-xml      []
+   :articles-csv     []
+   :annotations-csv  [{:has-user {:content :annotations}}]})
 
 (defn- ExportFiltersInfo [context]
   (let [article-count @(al/sub-article-count (al/cached context))]
@@ -931,8 +933,10 @@
           "What do these mean?"]]
         [ExportFiltersInfo context]
         [ExportTypeForm context :endnote-xml "Articles" "EndNote XML"]
+        [ExportTypeForm context :articles-csv "Articles" "CSV"]
         [ExportTypeForm context :group-answers "Group Answers" "CSV"]
-        [ExportTypeForm context :user-answers "User Answers" "CSV"]])]))
+        [ExportTypeForm context :user-answers "User Answers" "CSV"]
+        [ExportTypeForm context :annotations-csv "Annotations" "CSV"]])]))
 
 (defn- FilterColumnElement [context]
   (let [project-id @(subscribe [:active-project-id])

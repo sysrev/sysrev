@@ -225,14 +225,10 @@
 (dr (GET "/api/lookup-project-url" request
          (wrap-authorize
           request {}
-          {:result
-           (when-let [url-id (-> request :params :url-id)]
-             (when-let [project-id
-                        (try
-                          (project/project-id-from-url-id url-id)
-                          (catch Throwable e
-                            nil))]
-               {:project-id project-id}))})))
+          {:result (when-let [project-id (try (some-> request :params :url-id
+                                                      project/project-id-from-url-id)
+                                              (catch Throwable e nil))]
+                     {:project-id project-id})})))
 
 (dr (GET "/api/query-register-project" request
          (wrap-authorize
@@ -250,8 +246,7 @@
           request {:allow-public true}
           (let [project-id (active-project request)
                 article-id (-> request :params :article-id parse-integer)]
-            (let [{:keys [article] :as result}
-                  (article-info-full project-id article-id)]
+            (let [{:keys [article] :as result} (article-info-full project-id article-id)]
               (when (= (:project-id article) project-id)
                 (update-user-default-project request)
                 result))))))
@@ -260,38 +255,26 @@
           (wrap-authorize
            request {:allow-public true}
            (let [project-id (active-project request)
-                 exclude-hours (if (= :dev (:profile env))
-                                 nil nil)
-                 args (-> request :body)
-                 n-count (some-> (:n-count args) parse-integer)
-                 n-offset (some-> (:n-offset args) parse-integer)
-                 {:keys [sort-by sort-dir]} args
-                 lookup-count (let [value (:lookup-count args)]
-                                (boolean (or (true? value) (= value "true"))))
-                 text-search
-                 (when-let [text-search (:text-search args)]
-                   (when (not-empty text-search)
-                     text-search))
-                 filters
-                 (->> [(:filters args)
-                       (when text-search
-                         [{:text-search text-search}])]
-                      (apply concat)
-                      (remove nil?)
-                      vec)
-                 query-result
-                 (alist/query-project-article-list
-                  project-id (cond-> {}
-                               n-count (merge {:n-count n-count})
-                               n-offset (merge {:n-offset n-offset})
-                               (not-empty filters) (merge {:filters filters})
-                               sort-by (merge {:sort-by sort-by})
-                               sort-dir (merge {:sort-dir sort-dir})))]
+                 {:keys [text-search sort-by sort-dir lookup-count
+                         n-count n-offset] :as args} (-> request :body)
+                 n-count (some-> n-count parse-integer)
+                 n-offset (some-> n-offset parse-integer)
+                 lookup-count (some-> lookup-count str (= "true"))
+                 text-search (not-empty text-search)
+                 filters (vec (->> [(:filters args)
+                                    (when text-search [{:text-search text-search}])]
+                                   (apply concat) (remove nil?)))
+                 query-result (alist/query-project-article-list
+                               project-id (cond-> {}
+                                            n-count (merge {:n-count n-count})
+                                            n-offset (merge {:n-offset n-offset})
+                                            (not-empty filters) (merge {:filters filters})
+                                            sort-by (merge {:sort-by sort-by})
+                                            sort-dir (merge {:sort-dir sort-dir})))]
              (update-user-default-project request)
-             {:result
-              (if lookup-count
-                (:total-count query-result)
-                (:entries query-result))}))))
+             {:result (if lookup-count
+                        (:total-count query-result)
+                        (:entries query-result))}))))
 
 ;;;
 ;;; Charts data
@@ -354,13 +337,9 @@
           request {:roles ["member"]}
           (update-user-default-project request)
           (if-let [{:keys [article-id today-count] :as task}
-                   (assign/get-user-label-task (active-project request)
-                                               (current-user-id request))]
-            {:result
-             (let [project-id (active-project request)
-                   result (article-info-full project-id article-id)]
-               (merge result
-                      {:today-count today-count}))}
+                   (assign/get-user-label-task (active-project request) (current-user-id request))]
+            {:result (merge (article-info-full (active-project request) article-id)
+                            {:today-count today-count})}
             {:result :none}))))
 
 ;; Sets and optionally confirms label values for an article
@@ -578,16 +557,26 @@
            (let [project-id (active-project request)
                  user-id (current-user-id request)
                  export-type (-> request :params :export-type keyword)
-                 {:keys [filters]} (:body request)
+                 {:keys [filters text-search]} (:body request)
+                 text-search (not-empty text-search)
+                 filters (vec (concat filters (when text-search [{:text-search text-search}])))
                  article-ids (when filters
                                (alist/query-project-article-ids {:project-id project-id} filters))
                  tempfile (case export-type
                             :user-answers
-                            (-> (export/export-user-answers project-id :article-ids article-ids)
+                            (-> (export/export-user-answers-csv project-id :article-ids article-ids)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :group-answers
-                            (-> (export/export-group-answers project-id :article-ids article-ids)
+                            (-> (export/export-group-answers-csv project-id :article-ids article-ids)
+                                (csv/write-csv)
+                                (create-export-tempfile))
+                            :articles-csv
+                            (-> (export/export-articles-csv project-id :article-ids article-ids)
+                                (csv/write-csv)
+                                (create-export-tempfile))
+                            :annotations-csv
+                            (-> (export/export-annotations-csv project-id :article-ids article-ids)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :endnote-xml
@@ -597,18 +586,23 @@
                   :as entry} (add-project-export project-id export-type tempfile
                                                  {:user-id user-id :filters filters})
                  filename-base (case export-type
-                                 :user-answers   "UserAnswers"
-                                 :group-answers  "Answers"
-                                 :endnote-xml    "Articles")
+                                 :user-answers     "UserAnswers"
+                                 :group-answers    "Answers"
+                                 :endnote-xml      "Articles"
+                                 :articles-csv     "Articles"
+                                 :annotations-csv  "Annotations")
                  filename-ext (case export-type
-                                (:user-answers :group-answers)  "csv"
-                                :endnote-xml                    "xml")
+                                (:user-answers
+                                 :group-answers
+                                 :articles-csv
+                                 :annotations-csv)  "csv"
+                                :endnote-xml        "xml")
                  filename-project (str "P" project-id)
                  filename-articles (if article-ids (str "A" (count article-ids)) "ALL")
                  filename-date (util/today-string "MMdd")
-                 filename (-> (->> [filename-base filename-project filename-date filename-articles]
-                                   (str/join "_"))
-                              (str "." filename-ext))]
+                 filename (str (->> [filename-base filename-project filename-date filename-articles]
+                                    (str/join "_"))
+                               "." filename-ext)]
              {:entry (-> (select-keys entry [:download-id :export-type :added-time])
                          (assoc :filename filename
                                 :url (->> ["/api/download-project-export" project-id
@@ -626,24 +620,21 @@
                                          (= (:download-id %) download-id)))
                            first)
                 file (some-> entry :tempfile-path io/file)]
-            (cond (empty? filename)
-                  (web/make-error-response api/bad-request :file "No filename given")
-                  (nil? file)
-                  (web/make-error-response api/not-found :file "Export file not found")
-                  :else
-                  (case export-type
-                    (:user-answers :group-answers)
-                    (-> (io/reader file)
-                        (web/csv-file-response filename))
-                    :endnote-xml
-                    (-> (io/reader file)
-                        (web/xml-file-response filename))))))))
+            (cond (empty? filename) (web/make-error-response
+                                     api/bad-request :file "No filename given")
+                  (nil? file) (web/make-error-response
+                               api/not-found :file "Export file not found")
+                  :else (case export-type
+                          (:user-answers :group-answers :articles-csv :annotations-csv)
+                          (-> (io/reader file) (web/csv-file-response filename))
+                          :endnote-xml
+                          (-> (io/reader file) (web/xml-file-response filename))))))))
 
 ;; Legacy route for existing API code
 (dr (GET "/api/export-user-answers-csv/:project-id/:filename" request
          (wrap-authorize
           request {:allow-public true}
-          (-> (export/export-user-answers (active-project request))
+          (-> (export/export-user-answers-csv (active-project request))
               (csv/write-csv)
               (web/csv-file-response (-> request :params :filename))))))
 

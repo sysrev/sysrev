@@ -634,24 +634,19 @@
       (->> do-query
            (filter (fn [{:keys [project-id project-uuid]}]
                      (= register-hash (short-uuid project-uuid))))
-           first
-           :project-id)))
+           first :project-id)))
 
 (defn project-exists?
   "Does a project with project-id exist?"
   [project-id & {:keys [include-disabled?]
                  :or {include-disabled? true}}]
-  (= project-id
-     (-> (select :project-id)
-         (from [:project :p])
-         (where [:and
-                 [:= :p.project-id project-id]
-                 (if include-disabled?
-                   true
-                   [:= :p.enabled true])])
-         do-query
-         first
-         :project-id)))
+  (= project-id (-> (select :project-id)
+                    (from [:project :p])
+                    (where [:and
+                            [:= :p.project-id project-id]
+                            (if include-disabled? true
+                                [:= :p.enabled true])])
+                    do-query first :project-id)))
 ;;;
 (s/fdef project-exists?
   :args (s/cat :project-id int?

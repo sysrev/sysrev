@@ -49,11 +49,23 @@
           [:p "This provides a CSV file containing the exact answers saved by each user for each article."]
           [:p "Each row contains answers that one user saved for one article."]
           [:p "By default, includes all labeled articles; this can be customized from the Articles page."]
-          [ProjectExportNavigateForm :user-answers]]]
+          [ProjectExportNavigateForm :user-answers]]
+         [:div.ui.segment
+          [:h4.ui.dividing.header "Annotations"]
+          [:p "This provides a CSV file containing the annotations users have attached to articles."]
+          [:p "Each row contains the fields for one annotation."]
+          [:p "By default, includes all annotated articles; this can be customized from the Articles page."]
+          [ProjectExportNavigateForm :annotations-csv]]]
         [:div.column
          [:div.ui.segment
           [:h4.ui.dividing.header "Articles (EndNote XML)"]
           [:p "This provides a set of articles in EndNote's XML format, for import to EndNote or other compatible software."]
           [:p "By default, includes all articles; this can be customized from the Articles page."]
-          [ProjectExportNavigateForm :endnote-xml]]]]
+          [ProjectExportNavigateForm :endnote-xml]]
+         [:div.ui.segment
+          [:h4.ui.dividing.header "Articles (CSV)"]
+          [:p "This provides a set of articles in CSV format, with the basic fields associated with the article from its import."]
+          [:p "This file also includes any label prediction scores for each article."]
+          [:p "By default, includes all articles; this can be customized from the Articles page."]
+          [ProjectExportNavigateForm :articles-csv]]]]
        child])))
