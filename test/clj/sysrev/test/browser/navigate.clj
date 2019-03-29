@@ -41,8 +41,6 @@
     nil))
 
 (defn go-project-route [suburi & [project-id]]
-  (when (nil? project-id)
-    (b/wait-until #(integer? (b/current-project-id)) 2500))
   (let [project-id (or project-id (b/current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))
@@ -98,7 +96,7 @@
   (b/click (x/project-title-value name)))
 
 (defn delete-current-project []
-  (when (b/current-project-id)
+  (when (b/current-project-id true)
     (log/info "deleting current project")
     (go-project-route "/settings")
     (b/click (xpath "//button[contains(text(),'Project...')]"))

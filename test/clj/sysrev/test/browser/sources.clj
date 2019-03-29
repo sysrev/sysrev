@@ -3,13 +3,16 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.test :refer :all]
+            [clojure-csv.core :as csv]
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.pubmed :as pm]
+            [sysrev.db.export :as export]
+            [sysrev.db.project :as project]
             [clojure.tools.logging :as log]
-            [sysrev.shared.util :as util]))
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -20,10 +23,13 @@
    query1 "foo bar"
    query2 "grault"
    query3 "foo bar Aung"
-   query4 "foo bar Jones"]
+   query4 "foo bar Jones"
+   project-id (atom nil)]
   (do (nav/log-in)
 ;;; create a project
       (nav/new-project project-name)
+      (reset! project-id (b/current-project-id))
+      (assert (integer? @project-id))
       (nav/go-project-route "/add-articles")
 ;;; add sources
       ;; create a new source
@@ -67,6 +73,15 @@
              {:unique-articles 0, :reviewed-articles 0, :total-articles 1,
               #_ :overlap-maps
               #_ (set [{:overlap 1, :source "PubMed Search \"foo bar\""}])}))
+      ;; check articles csv export
+      (let [articles-csv (rest (export/export-articles-csv @project-id))
+            article-ids (project/project-article-ids @project-id)]
+        (is (= (count articles-csv) (count article-ids)))
+        (is (every? (fn [article-id]
+                      (some #(in? % (str article-id)) articles-csv))
+                    article-ids))
+        (is (= articles-csv (-> (csv/write-csv articles-csv)
+                                (csv/parse-csv :strict true)))))
       (when false
         (pm/delete-search-term-source query2)
         (pm/check-source-count 2)
