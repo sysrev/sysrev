@@ -10,6 +10,7 @@
             [sysrev.db.core :refer [with-transaction]]
             [sysrev.db.files :as files]
             [sysrev.filestore :as fstore]
+            [sysrev.db.groups :as groups]
             [sysrev.db.project :as project]
             [sysrev.db.users :as users]
             [sysrev.test.browser.annotator :as annotator]
@@ -89,9 +90,9 @@
     (users/create-email-verification! user-id email)
     (users/verify-email! email (:verify-code (users/read-email-verification-code user-id email)) user-id)
     (users/set-primary-email! user-id email)
-    (if-let [web-user-group-id (:id (users/read-web-user-group-name user-id "public-reviewer"))]
-      (users/update-web-user-group! web-user-group-id true)
-      (users/create-web-user-group! user-id "public-reviewer"))))
+    (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id "public-reviewer"))]
+      (groups/update-web-user-group! web-user-group-id true)
+      (groups/create-web-user-group! user-id "public-reviewer"))))
 
 (deftest-browser correct-project-activity
   (test/db-connected?)

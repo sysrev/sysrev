@@ -15,6 +15,7 @@
             [sysrev.db.project :as project :refer
              [add-project-member set-member-permissions
               default-project-settings]]
+            [sysrev.db.groups :as groups]
             [sysrev.article.core :as article]
             [sysrev.db.users :as users]
             [sysrev.label.core :as label]
@@ -268,14 +269,8 @@
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
   []
-  (when-not (= (-> (select :group-name)
-                   (from :groups)
-                   (where [:= :group-name "public-reviewer"])
-                   do-query first :group-name)
-               "public-reviewer")
-    (-> (insert-into :groups)
-        (values [{:group-name "public-reviewer"}])
-        do-execute)))
+  (when-not (groups/get-group-id "public-reviewer")
+    (groups/create-group! "public-reviewer")))
 
 (defn ensure-updated-db
   "Runs everything to update database entries to latest format."

@@ -7,6 +7,7 @@
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.components :refer [with-tooltip selection-dropdown]]
             [sysrev.views.semantic :refer [Segment Header Grid Row Column Radio Message MessageHeader Icon]]
+            [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.panels.project.support :refer [UserSupportSubscriptions]]
             [sysrev.views.panels.user.billing :refer [Billing]]
             [sysrev.views.panels.user.compensation :refer [PaymentsOwed PaymentsPaid]]
@@ -289,10 +290,12 @@
              [Grid {:stackable true}
               [Row
                [Column {:width 8} [user-options-box]]
-               [Column {:width 8} [user-dev-tools-box]]]
+               [Column {:width 8}
+                [user-dev-tools-box]]]
               [Row
                [Column {:width 8}
-                [PublicReviewerOptIn]]]]]
+                [PublicReviewerOptIn]
+                [CreateOrg]]]]]
             #"/user/settings/compensation"
             [:div
              [PaymentsOwed]

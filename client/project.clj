@@ -48,7 +48,8 @@
   ["target"
    #_ "resources/public/out-dev"
    #_ "resources/public/integration"
-   "resources/public/out-production"]
+   "resources/public/out-production"
+   "resources/public/out-dev"]
   :cljsbuild
   {:builds
    [{:id "dev"

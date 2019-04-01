@@ -11,6 +11,7 @@
             sysrev.test.browser.annotator
             sysrev.test.browser.simple
             sysrev.test.browser.sources
+            sysrev.test.browser.orgs
             sysrev.test.browser.plans
             sysrev.test.browser.project-compensation
             sysrev.test.browser.project-support

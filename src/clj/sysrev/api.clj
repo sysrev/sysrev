@@ -17,9 +17,10 @@
             [sysrev.article.core :as article]
             [sysrev.db.annotations :as db-annotations]
             [sysrev.db.compensation :as compensation]
-            [sysrev.db.core :as db]
+            [sysrev.db.core :as db :refer [with-transaction]]
             [sysrev.db.files :as files]
             [sysrev.db.funds :as funds]
+            [sysrev.db.groups :as groups]
             [sysrev.db.invitation :as invitation]
             [sysrev.label.core :as labels]
             [sysrev.label.define :as ldefine]
@@ -53,6 +54,7 @@
 (def precondition-failed 412)
 (def internal-server-error 500)
 (def bad-request 400)
+(def conflict 409)
 
 (def max-import-articles (:max-import-articles env))
 
@@ -1075,32 +1077,28 @@
 (defn user-group-name-active?
   "What is the opt-in value of opt-in-type for user-id"
   [user-id group-name]
-  {:result {:active (boolean (:active (users/read-web-user-group-name user-id group-name)))}})
+  {:result {:active (boolean (:active (groups/read-web-user-group-name user-id group-name)))}})
 
 (defn set-web-user-group!
   "Set with opt-in-type for user-id"
   [user-id group-name active?]
   (condp = group-name
     "public-reviewer"
-    (if-let [web-user-group-id (:id (users/read-web-user-group-name user-id group-name))]
-      (users/update-web-user-group! web-user-group-id active?)
-      (users/create-web-user-group! user-id group-name))
+    (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id group-name))]
+      (groups/update-web-user-group! web-user-group-id active?)
+      (groups/create-web-user-group! user-id group-name))
     {:error {:message "That group can't be modified"}})
-  {:result {:active (:active (users/read-web-user-group-name user-id group-name))}})
+  {:result {:active (:active (groups/read-web-user-group-name user-id group-name))}})
 
 (defn users-in-group
   "Get the users in group-name"
   [group-name]
-  (condp = group-name
-    "public-reviewer"
-    {:result {:users (users/read-users-in-group group-name)}}
-    {:error {:status 403
-             :message "That group's users can not viewed"}}))
+  {:result {:users (groups/read-users-in-group group-name)}})
 
 (defn user-active-in-group?
   "Is the user-id active in group-name?"
   [user-id group-name]
-  (users/user-active-in-group? user-id group-name))
+  (groups/user-active-in-group? user-id group-name))
 
 (defn read-user-public-info
   "Get the users public info"
@@ -1408,3 +1406,25 @@
           (-> (response/response (-> "public/default_profile.jpeg" io/resource io/input-stream))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" "default-profile.jpeg" "\""))))))
+
+(defn read-orgs
+  "Return all organzations user-id is a member of"
+  [user-id]
+  {:result {:orgs
+            (filterv #(not= (:group-name %) "public-reviewer")
+                     (groups/read-groups user-id))}})
+
+(defn create-org!
+  [user-id org-name]
+  ;; check to see if group already existsa
+  (if (groups/get-group-id org-name)
+    ;; alredy exists
+    {:error {:status conflict
+             :message (str "An organization with the name '" org-name "' already exists")}}
+    (with-transaction
+      ;; create the group
+      (let [new-org-id (groups/create-group! org-name)]
+        ;; set the user as group admin
+        (groups/create-web-user-group! user-id org-name :permissions ["owner"])
+        {:result {:success true
+                  :id new-org-id}}))))

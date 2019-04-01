@@ -198,6 +198,10 @@
  (dispatch [:set-active-panel [:user-settings]]))
 
 (sr-defroute
+ org-settings "/org/*" []
+ (dispatch [:set-active-panel [:org-settings]]))
+
+(sr-defroute
  users "/users*" []
  (dispatch [:set-active-panel [:users]]))
 
@@ -266,7 +270,11 @@
          "/user/settings*"]
 
         [[:users]
-         "/users*"]]
+         "/users*"]
+
+        [[:org-settings]
+         "/org/*"]]
+
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))

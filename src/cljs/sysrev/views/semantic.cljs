@@ -27,6 +27,8 @@
 (def FormRadio (adapt :Form #($ % :Radio)))
 (def TextArea (adapt :TextArea))
 
+;; input
+(def Input (adapt :Input))
 ;; components
 (def Label (adapt :Label))
 (def Button (adapt :Button))
@@ -54,3 +56,7 @@
 (def ModalHeader (adapt :Modal #($ % :Header)))
 (def ModalContent (adapt :Modal #($ % :Content)))
 (def ModalDescription (adapt :Modal #($ % :Description)))
+
+;; menu
+(def Menu (adapt :Menu))
+(def MenuItem (adapt :Menu #($ % :Item)))
