@@ -24,17 +24,24 @@
 (defroutes user-routes
   (context
    "/api" []
-   (context "/users/group" []
-            (GET "/public-reviewer" request
+   (context "/users" []
+            (context "/group" []
+                     (GET "/public-reviewer" request
+                          (wrap-authorize
+                           request
+                           {:logged-in true}
+                           (api/users-in-group "public-reviewer")))
+                     (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
+                          (wrap-authorize
+                           request
+                           {:authorize-fn (user-in-group? user-id "public-reviewer")}
+                           (api/read-user-public-info user-id))))
+            (GET "/search" request
                  (wrap-authorize
                   request
                   {:logged-in true}
-                  (api/users-in-group "public-reviewer")))
-            (GET "/public-reviewer/:user-id" [user-id :<< as-int :as request]
-                 (wrap-authorize
-                  request
-                  {:authorize-fn (user-in-group? user-id "public-reviewer")}
-                  (api/read-user-public-info user-id))))
+                  (let [{:keys [term]} (-> :params request)]
+                    (api/search-users term)))))
    (GET "/user/:user-id" [user-id :<< as-int :as request]
         (wrap-authorize
          request

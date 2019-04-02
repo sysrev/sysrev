@@ -186,6 +186,7 @@
       [Image {:src (str "/api/user/" user-id "/avatar")
               :avatar true
               :display (str @reload-avatar?)
+              :class "sysrev-avatar"
               :alt ""}])))
 
 (defn ProfileAvatar

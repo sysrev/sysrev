@@ -60,3 +60,14 @@
 ;; menu
 (def Menu (adapt :Menu))
 (def MenuItem (adapt :Menu #($ % :Item)))
+
+;; tables
+(def Table (adapt :Table))
+(def TableHeader (adapt :Table #($ % :Header)))
+(def TableHeaderCell (adapt :Table #($ % :HeaderCell)))
+(def TableRow (adapt :Table #($ % :Row)))
+(def TableBody (adapt :Table #($ % :Body)))
+(def TableCell (adapt :Table #($ % :Cell)))
+
+;; search
+(def Search (adapt :Search))

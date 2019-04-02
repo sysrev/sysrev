@@ -9,7 +9,7 @@
             [clj-time.coerce :as tc]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.format :as pformat :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db
@@ -535,3 +535,20 @@
       (sset {:introduction introduction})
       (where [:= :user-id user-id])
       do-execute))
+
+(defn search-users
+  "Return users whose email matches term"
+  [term]
+  (with-transaction
+    (let [user-ids (-> (select :user-id)
+                       (from :web-user)
+                       (where [:like :email (str term "%")])
+                       (order-by :email)
+                       ;; don't want to overwhelm with options
+                       (limit 5)
+                       do-query
+                       (->> (map :user-id)))]
+      ;; check to see if we have results before returning the public info
+      (if (empty? user-ids)
+        user-ids
+        (get-users-public-info user-ids)))))

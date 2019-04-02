@@ -20,5 +20,9 @@
 
   ;; only an owner can change permissions, not a member
 
+  ;; when an org is switched, the correct user list shows up
+  ;; a) when creating a new org
+  ;; b) when switching between orgs in org view
+
   :cleanup
   (println "Cleanup Here"))

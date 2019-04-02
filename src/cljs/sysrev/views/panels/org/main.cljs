@@ -97,7 +97,6 @@
             [:h1 "foo"]
             )]])
       :component-did-mount (fn [this]
-                             (.log js/console "component did mount")
                              (read-orgs!))})))
 
 (defmethod logged-out-content [:org-settings] []

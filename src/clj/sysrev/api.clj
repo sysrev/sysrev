@@ -1428,3 +1428,7 @@
         (groups/create-web-user-group! user-id org-name :permissions ["owner"])
         {:result {:success true
                   :id new-org-id}}))))
+
+(defn search-users [term]
+  {:result {:success true
+            :users (users/search-users term)}})
