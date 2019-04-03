@@ -210,7 +210,7 @@
                                           (apply max 0) tc/from-epoch tc/to-sql-time)
                           :count (count entries)})))))
 
-(defn project-annotation-articles [project-id & {:keys [include-disabled?]}]
+(defn project-article-annotations [project-id & {:keys [include-disabled?]}]
   (with-project-cache
     project-id [:annotations :articles]
     (-> (select :an.created :aa.article-id :sc.definition :au.user-id)
