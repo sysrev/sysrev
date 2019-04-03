@@ -2,6 +2,7 @@
   (:use sysrev.util
         sysrev.entity
         sysrev.article.core
+        sysrev.article.assignment
         sysrev.db.core
         sysrev.db.queries
         sysrev.db.documents
