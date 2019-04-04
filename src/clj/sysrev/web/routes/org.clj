@@ -5,6 +5,17 @@
             [sysrev.db.groups :as groups]
             [sysrev.web.app :refer [current-user-id wrap-authorize]]))
 
+(defn user-has-org-permission?
+  "Returns true if the current user has a group permission that matches the argument vector permission"
+  [org-id permission]
+  (fn [request]
+    (boolean
+     (let [user-id (current-user-id request)
+           group-name (groups/get-group-name org-id)]
+       (if (groups/user-active-in-group? user-id group-name)
+         ;; test if they have the correct permissions
+         (some (set permission) (groups/user-group-permission user-id org-id)))))))
+
 (defroutes org-routes
   (context
    "/api" []
@@ -13,16 +24,22 @@
          request
          {:logged-in true}
          (api/read-orgs (current-user-id request))))
+   (POST "/org" request
+         (wrap-authorize
+          request
+          {:logged-in true}
+          (let [{:keys [org-name]} (:body request)]
+            (api/create-org! (current-user-id request) org-name))))
    (context "/org/:org-id" [org-id :<< as-int :as request]
             (GET "/users" request
                  (wrap-authorize
                   request
                   {:logged-in true}
                   (-> (groups/get-group-name org-id)
-                      (api/users-in-group)))))
-   (POST "/org" request
-         (wrap-authorize
-          request
-          {:logged-in true}
-          (let [{:keys [org-name]} (:body request)]
-            (api/create-org! (current-user-id request) org-name))))))
+                      (api/users-in-group))))
+            (POST "/project" request
+                  (wrap-authorize
+                   request {:authorize-fn (user-has-org-permission? org-id ["admin" "owner"])}
+                   (let [project-name (-> request :body :project-name)
+                         user-id (current-user-id request)]
+                     (api/create-project-for-org! project-name user-id org-id)))))))

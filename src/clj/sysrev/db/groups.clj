@@ -31,7 +31,6 @@
       (returning :id)
       do-query first :id))
 
-
 (defn read-web-user-group-name
   "Read the id for the web-user-group for user-id and group-name"
   [user-id group-name]
@@ -97,3 +96,21 @@
       (values [{:group-name group-name}])
       (returning :id)
       do-query first :id))
+
+(defn create-project-group!
+  [project-id group-id]
+  (-> (insert-into :project-group)
+      (values [{:project-id project-id
+                :group-id group-id}])
+      (returning :id)
+      do-query first :id))
+
+(defn user-group-permission
+  "Return the permissions for user-id in group-id"
+  [user-id group-id]
+  (-> (select :permissions)
+      (from :web-user-group)
+      (where [:and
+              [:= :user-id user-id]
+              [:= :group-id group-id]])
+      do-query first :permissions))

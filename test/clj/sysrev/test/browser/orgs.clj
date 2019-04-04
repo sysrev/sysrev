@@ -24,5 +24,6 @@
   ;; a) when creating a new org
   ;; b) when switching between orgs in org view
 
+  ;; only an owner or admin of an org can create projects for that org
   :cleanup
   (println "Cleanup Here"))

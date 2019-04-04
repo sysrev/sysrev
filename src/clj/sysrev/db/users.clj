@@ -7,14 +7,13 @@
             crypto.random
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [honeysql-postgres.format :as pformat :refer :all]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.config.core :refer [env]]
             [sysrev.db.core :as db
              :refer [do-query do-execute with-transaction
-                     sql-now to-sql-array to-jsonb]]
+                     sql-now to-sql-array to-jsonb raw-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer [add-project-member]]
             [sysrev.shared.spec.core :as sc]
@@ -540,14 +539,19 @@
   "Return users whose email matches term"
   [term]
   (with-transaction
-    (let [user-ids (-> (select :user-id)
-                       (from :web-user)
-                       (where [:like :email (str term "%")])
-                       (order-by :email)
-                       ;; don't want to overwhelm with options
-                       (limit 5)
-                       do-query
-                       (->> (map :user-id)))]
+    (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (email ilike ?) ORDER BY email LIMIT ?"
+                         (str term "%")
+                         5]
+                        raw-query
+                        (map :user-id))
+          ;; original query, except using ilike instead of like for case insensitivity
+          #_(-> (select :user-id)
+              (from :web-user)
+              (where [:like :email (str term "%")])
+              (order-by :email)
+              ;; don't want to overwhelm with options
+              (limit 5)
+              (sql/format))]
       ;; check to see if we have results before returning the public info
       (if (empty? user-ids)
         user-ids

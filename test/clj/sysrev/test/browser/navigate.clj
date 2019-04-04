@@ -83,7 +83,7 @@
   (log/info "creating project" (pr-str project-name))
   (go-route "/")
   (b/wait-until-exists "form.create-project")
-  (b/set-input-text "form.create-project input.project-name" project-name)
+  (b/set-input-text "form.create-project div.project-name input" project-name)
   (b/click "form.create-project .button.create-project")
   (Thread/sleep 100)
   (when (test/remote-test?) (Thread/sleep 500))

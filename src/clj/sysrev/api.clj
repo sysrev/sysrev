@@ -75,7 +75,7 @@
       (labels/add-label-overall-include project-id)
       (project/add-project-note project-id {})
       (project/add-project-member project-id user-id
-                                  :permissions ["member" "admin"])
+                                  :permissions ["member" "admin" "owner"])
       {:result
        {:success true
         :project (select-keys project [:project-id :name])}})))
@@ -84,6 +84,30 @@
   :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id)
   :ret ::sp/project)
 
+(defn create-project-for-org!
+  "Create a new project for org-id using project-name and insert a
+  minimum label, returning the project in a response map"
+  [project-name user-id group-id]
+  (db/with-transaction
+    (let [{:keys [project-id] :as project} (project/create-project project-name)]
+      (labels/add-label-overall-include project-id)
+      (project/add-project-note project-id {})
+      (groups/create-project-group! project-id group-id)
+      (project/add-project-member project-id user-id
+                                  ;; NOT owner, create-project-group!
+                                  ;; group projects shouldn't have
+                                  ;; a project_member entry with
+                                  ;; an "owner" permission
+                                  :permissions ["member" "admin"])
+      {:result
+       {:success true
+        :project (select-keys project [:project-id :name])}})))
+;;;
+(s/fdef create-project-for-org!
+  :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id, :org-id ::sc/org-id)
+  :ret ::sp/project)
+
+;; this needs modified (maybe?) to also check 
 (defn delete-project!
   "Delete a project with project-id by user-id. Checks to ensure the
   user is an admin of that project. If there are reviewed articles in

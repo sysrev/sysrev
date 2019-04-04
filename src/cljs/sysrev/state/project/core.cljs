@@ -147,17 +147,6 @@
   :process (fn [_ [project-id _] result]
              {:dispatch [:reload [:project/files project-id]]}))
 
-(def-action :create-project
-  :uri (fn [_] "/api/create-project")
-  :content (fn [project-name] {:project-name project-name})
-  :process (fn [_ _ {:keys [success message project] :as result}]
-             (if success
-               {:dispatch-n
-                (list [:fetch [:identity]]
-                      [:project/navigate (:project-id project)])}
-               ;; TODO: do something on error
-               {})))
-
 (def-action :sources/delete
   :uri (fn [_ _] "/api/delete-source")
   :content (fn [project-id source-id]

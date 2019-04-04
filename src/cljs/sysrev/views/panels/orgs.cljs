@@ -41,7 +41,7 @@
            [Input {:placeholder "Organization Name"
                    :value @new-org
                    :action (r/as-element [Button {:primary true
-                                                  :class "create-project"} "Create"])
+                                                  :class "create-organization"} "Create"])
                    :on-change #(reset! new-org
                                        (-> ($ % :target.value)))}]]]
          (when-not (empty? @create-org-error)

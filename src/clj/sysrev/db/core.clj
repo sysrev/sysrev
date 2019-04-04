@@ -144,6 +144,14 @@
            {:identifiers sql-identifier-to-clj
             :result-set-fn vec}))
 
+(defn raw-query
+  "Run a raw sql query for when there is no HoneySQL implementation of a SQL feature"
+  [raw-sql & [conn]]
+  (j/query (or conn *conn* @active-db)
+           raw-sql
+           {:identifiers sql-identifier-to-clj
+            :result-set-fn vec}))
+
 (defmacro with-debug-sql
   "Runs body with exception handler to print SQL error details."
   [& body]

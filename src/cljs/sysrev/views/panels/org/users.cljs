@@ -55,15 +55,17 @@
   [term]
   (let [retrieving? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])]
-    (reset! retrieving? true)
-    (GET "/api/users/search"
-         {:params {:term term}
-          :handler (fn [response]
-                     (reset! retrieving? false)
-                     (reset! user-search-results (get-in response [:result :users])))
-          :error-handler (fn [response]
-                           (reset! retrieving? false)
-                           ($ js/console log "[sysrev.views.panels.org.users/user-suggestions] Error retrieving search results"))})))
+    (when-not (empty? term)
+      (reset! retrieving? true)
+      (reset! user-search-results [])
+      (GET "/api/users/search"
+           {:params {:term term}
+            :handler (fn [response]
+                       (reset! retrieving? false)
+                       (reset! user-search-results (get-in response [:result :users])))
+            :error-handler (fn [response]
+                             (reset! retrieving? false)
+                             ($ js/console log "[sysrev.views.panels.org.users/user-suggestions] Error retrieving search results"))}))))
 
 (defn OrgUsers
   []
@@ -86,7 +88,6 @@
                                       (let [input-value (-> value
                                                             (js->clj :keywordize-keys true)
                                                             :value)]
-                                        (reset! user-search-results [])
                                         (reset! user-search-value input-value)
                                         (user-suggestions! input-value)))
                   :result-renderer (fn [item]

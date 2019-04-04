@@ -39,7 +39,16 @@
           :error-handler (fn [error-response]
                            (reset! retrieving-orgs? false)
                            (reset! orgs-error (get-in error-response
-                                                               [:response :error :message])))})))
+                                                      [:response :error :message])))})))
+
+(reg-sub :orgs
+         (fn [db] @(r/cursor state [:orgs])))
+
+(reg-event-fx
+ :read-orgs!
+ (fn [_ _]
+   (read-orgs!)
+   {}))
 
 (defn OrgContent
   []
