@@ -669,8 +669,7 @@
 (defn ProjectOverviewContent []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]
-                  [:project/markdown-description
-                   project-id {:panel panel}]] {}
+                  [:project/markdown-description project-id {:panel panel}]] {}
       [:div.project-content
        [ProjectDescription {:panel panel}]
        [:div.ui.two.column.stackable.grid.project-overview

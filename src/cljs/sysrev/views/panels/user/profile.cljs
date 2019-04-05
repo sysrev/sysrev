@@ -258,16 +258,11 @@
      [Grid
       [Row
        [Column {:width 2}
-        [Icon {:name "user icon"
-               :size "huge"}]]
+        [Icon {:name "user icon" :size "huge"}]]
        [Column {:width 12}
         [UserPublicProfileLink {:user-id user-id :display-name (first (str/split email #"@"))}]
-        [:div
-         [:a {:on-click (fn [e]
-                          ($ e :preventDefault)
-                          (swap! editing? not))
-              :href "#"}
-          "Save Profile"]]
+        [:div>a {:href "#" :on-click (util/wrap-prevent-default #(swap! editing? not))}
+         "Save Profile"]
         [:div
          (when-not (= user-id @(subscribe [:self/user-id]))
            [InviteUser user-id])
@@ -318,11 +313,9 @@
            [Header {:as "h4"
                     :dividing true}
             "Introduction"]
-           [MarkdownComponent {:markdown introduction
-                               :set-markdown! (set-markdown! user-id)
-                               :loading? (fn []
-                                           (or @loading?
-                                               @retrieving-users?))
+           [MarkdownComponent {:content @introduction
+                               :set-content! (set-markdown! user-id)
+                               :loading? (boolean (or @loading? @retrieving-users?))
                                :mutable? mutable?
                                :editing? editing?}]
            [EditIntroduction {:editing? editing?
