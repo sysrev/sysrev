@@ -325,8 +325,7 @@
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
       project-id [:labels :overall-label-id]
-      (:label-id
-       (q/query-label-by-name project-id "overall include" [:label-id])))))
+      (:label-id (q/query-label-by-name project-id "overall include" [:label-id])))))
 ;;;
 (s/fdef project-overall-label-id
   :args (s/cat :project-id ::sc/project-id)

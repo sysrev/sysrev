@@ -302,7 +302,7 @@
                       [:!= :al.answer nil]
                       [:!= :al.answer (to-jsonb nil)]
                       [:!= :al.answer (to-jsonb [])]
-                      [:!= :al.answer (to-jsonb {})]])))
+                      #_ [:!= :al.answer (to-jsonb {})]])))
 
 (defn filter-label-user [m user-id]
   (-> m (merge-where [:= :al.user-id user-id])))
