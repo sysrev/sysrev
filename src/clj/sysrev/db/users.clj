@@ -54,7 +54,10 @@
   (-> (select :user-id :email :date-created :username :introduction)
       (from :web-user)
       (where [:in :web-user.user-id user-ids])
-      do-query))
+      do-query
+      (->> (map #(-> %
+                     (dissoc :email)
+                     (assoc :username (first (clojure.string/split (:email %) #"@"))))))))
 
 (defn get-user-by-reset-code [reset-code]
   (assert (string? reset-code))
@@ -370,7 +373,6 @@
               [:= :email email]])
       do-query first))
 
-;; needed in auth.clj
 (defn primary-email-verified?
   "Is the primary email for this user verified?"
   [user-id]

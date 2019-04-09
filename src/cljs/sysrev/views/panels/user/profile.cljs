@@ -226,9 +226,9 @@
                     :modal-open (constantly false)}]))
 
 (defn UserInteraction
-  [{:keys [user-id email]}]
+  [{:keys [user-id username]}]
   [:div
-   [UserPublicProfileLink {:user-id user-id :display-name (first (str/split email #"@"))}]
+   [UserPublicProfileLink {:user-id user-id :display-name username}]
    [:div
     (when-not (= user-id @(subscribe [:self/user-id]))
       [InviteUser user-id])
@@ -236,7 +236,7 @@
      [Invitations user-id]]]])
 
 (defn User
-  [{:keys [email user-id]}]
+  [{:keys [username user-id]}]
   (let [editing? (r/cursor state [:editing-profile?])
         mutable? (= user-id @(subscribe [:self/user-id]))
         modal-open (r/cursor state [:avatar-model-open])]
@@ -250,10 +250,10 @@
         [UserAvatar
          {:mutable? mutable? :user-id user-id :modal-open modal-open}]]
        [Column
-        [UserInteraction {:user-id user-id :email email}]]]]]))
+        [UserInteraction {:user-id user-id :username username}]]]]]))
 
 (defn EditingUser
-  [{:keys [user-id email]}]
+  [{:keys [user-id username]}]
   (let [editing? (r/cursor state [:editing-profile?])]
     [Segment {:class "editing-user"}
      [Grid
@@ -262,7 +262,7 @@
         [Icon {:name "user icon"
                :size "huge"}]]
        [Column {:width 12}
-        [UserPublicProfileLink {:user-id user-id :display-name (first (str/split email #"@"))}]
+        [UserPublicProfileLink {:user-id user-id :display-name username}]
         [:div
          [:a {:on-click (fn [e]
                           ($ e :preventDefault)
@@ -450,14 +450,14 @@
                          :annotations annotations}]])))
 
 (defn ProfileSettings
-  [{:keys [user-id email]}]
+  [{:keys [user-id username]}]
   (let [editing? (r/cursor state [:editing-profile?])]
     (if @editing?
-      [EditingUser {:user-id user-id :email email }]
-      [User {:user-id user-id :email email}])))
+      [EditingUser {:user-id user-id :username username }]
+      [User {:user-id user-id :username username}])))
 
 (defn Profile
-  [{:keys [user-id email]}]
+  [{:keys [user-id username]}]
   (let [user (r/cursor state [:user])
         projects (r/cursor state [:projects])
         introduction (r/cursor state [:user :introduction])

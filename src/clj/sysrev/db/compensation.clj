@@ -59,7 +59,7 @@
       do-execute))
 
 (defn project-users
-  "A list of user for project-id"
+  "A list of users for project-id"
   [project-id]
   (-> (select :pm.user-id :wu.email)
       (from [:project-member :pm])
@@ -230,14 +230,12 @@
 (defn compensation-owed-by-project
   "Return the name, amount owed and last paid values for each user"
   [project-id]
-  (let [project-users (project-users project-id)
-        email-user-id-map (util/vector->hash-map project-users :user-id)]
+  (let [project-users (project-users project-id)]
     (map #(let [compensation-owed (compensation-owed-to-user-by-project project-id (:user-id %))
                 admin-fee (Math/round (* admin-fee compensation-owed))]
             (hash-map :compensation-owed compensation-owed
                       :admin-fee admin-fee
                       :last-payment (last-payment project-id (:user-id %))
-                      :email (:email (get email-user-id-map (:user-id %)))
                       :user-id (:user-id %)))
          project-users)))
 

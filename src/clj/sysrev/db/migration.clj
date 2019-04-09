@@ -269,7 +269,7 @@
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
   []
-  (when-not (groups/get-group-id "public-reviewer")
+  (when-not (groups/group-name->group-id "public-reviewer")
     (groups/create-group! "public-reviewer")))
 
 (defn ensure-updated-db

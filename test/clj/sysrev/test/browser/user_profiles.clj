@@ -92,7 +92,7 @@
     (users/set-primary-email! user-id email)
     (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id "public-reviewer"))]
       (groups/update-web-user-group! web-user-group-id true)
-      (groups/create-web-user-group! user-id "public-reviewer"))))
+      (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
 
 (deftest-browser correct-project-activity
   (test/db-connected?)
@@ -264,13 +264,9 @@
       (Thread/sleep 1500)
       ;; check manually that the avatar matches what we would expect
       ;; TODO: change this back to fail on incorrect value
-      (is (or (= (:key (files/avatar-image-key-filename user-id))
-                 "52d799d26a9a24d1a09b6bb88383cce385c7fb1b")
-              (do (log/error "expected:" (pr-str '(= (:key (files/avatar-image-key-filename user-id))
-                                                     "52d799d26a9a24d1a09b6bb88383cce385c7fb1b")))
-                  (log/error "actual:  " (pr-str `(= ~(:key (files/avatar-image-key-filename user-id))
-                                                     "52d799d26a9a24d1a09b6bb88383cce385c7fb1b")))
-                  true)))
+      (is (contains? #{"52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
+                       "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"}
+                     (:key (files/avatar-image-key-filename user-id))))
       (log/info "got file key")
       (is (= (-> user-id api/read-profile-image-meta :result :meta)
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))

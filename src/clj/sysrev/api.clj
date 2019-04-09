@@ -478,10 +478,15 @@
                   :message (.getMessage e)}})))
 
 (defn compensation-owed
-  "Return compensations owed for all users"
+  "Return compensations owed for all users by project-id"
   [project-id]
-  (try-catch-response
-   {:result {:compensation-owed (compensation/compensation-owed-by-project project-id)}}))
+  (let [project-users (project/project-user-ids project-id)
+        public-info (-> project-users
+                        (users/get-users-public-info)
+                        (util/vector->hash-map :user-id))
+        compensation-owed-by-project (compensation/compensation-owed-by-project project-id)]
+    {:result {:compensation-owed (map #(merge % (get public-info (:user-id %)))
+                                      compensation-owed-by-project)}}))
 
 (defn project-users-current-compensation
   "Return the compensation-id for each user"
@@ -1103,6 +1108,8 @@
   [user-id group-name]
   {:result {:active (boolean (:active (groups/read-web-user-group-name user-id group-name)))}})
 
+;; note: this needs to be refactored to only work with public-reviewer
+;;       along with entries in web/routes/user.clj
 (defn set-web-user-group!
   "Set with opt-in-type for user-id"
   [user-id group-name active?]
@@ -1110,7 +1117,7 @@
     "public-reviewer"
     (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id group-name))]
       (groups/update-web-user-group! web-user-group-id active?)
-      (groups/create-web-user-group! user-id group-name))
+      (groups/add-user-to-group! user-id (groups/group-name->group-id group-name)))
     {:error {:message "That group can't be modified"}})
   {:result {:active (:active (groups/read-web-user-group-name user-id group-name))}})
 
@@ -1440,8 +1447,8 @@
 
 (defn create-org!
   [user-id org-name]
-  ;; check to see if group already existsa
-  (if (groups/get-group-id org-name)
+  ;; check to see if group already exists
+  (if (groups/group-name->group-id org-name)
     ;; alredy exists
     {:error {:status conflict
              :message (str "An organization with the name '" org-name "' already exists")}}
@@ -1449,10 +1456,17 @@
       ;; create the group
       (let [new-org-id (groups/create-group! org-name)]
         ;; set the user as group admin
-        (groups/create-web-user-group! user-id org-name :permissions ["owner"])
+        (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
         {:result {:success true
                   :id new-org-id}}))))
 
 (defn search-users [term]
   {:result {:success true
             :users (users/search-users term)}})
+
+(defn add-user-to-org!
+  [user-id org-id]
+  ;; this adds users to the group, but we should actually have an invitation!
+  ;; by default, add them as members
+  (groups/add-user-to-group! user-id org-id)
+  {:result {:success true}})

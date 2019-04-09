@@ -5,7 +5,7 @@
    [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array]]
    [sysrev.db.users :as users]))
 
-(defn get-group-id
+(defn group-name->group-id
   "Given a group-name, get the group-id associated with it"
   [group-name]
   (-> (select :id)
@@ -13,7 +13,7 @@
       (where [:= :group-name group-name])
       do-query first :id))
 
-(defn get-group-name
+(defn group-id->group-name
   "Given a group-id, the the group name"
   [group-id]
   (-> (select :group-name)
@@ -21,12 +21,12 @@
       (where [:= :id group-id])
       do-query first :group-name))
 
-(defn create-web-user-group!
+(defn add-user-to-group!
   "Create an association between group-name and user-id in web-user-group with optional :permissions vector that default to {'member'}"
-  [user-id group-name & {:keys [permissions]}]
+  [user-id group-id & {:keys [permissions]}]
   (-> (insert-into :web-user-group)
       (values [(cond-> {:user-id user-id
-                        :group-id (get-group-id group-name)}
+                        :group-id group-id}
                  permissions (assoc :permissions (to-sql-array "text" permissions) ))])
       (returning :id)
       do-query first :id))
@@ -38,7 +38,7 @@
       (from :web-user-group)
       (where [:and
               [:= :user-id user-id]
-              [:= :group-id (get-group-id group-name)]])
+              [:= :group-id (group-name->group-id group-name)]])
       do-query
       first))
 
@@ -58,11 +58,11 @@
                            (from :web-user-group)
                            (where [:and
                                    [:= :active true]
-                                   [:= :group-id (get-group-id group-name)]])
+                                   [:= :group-id (group-name->group-id group-name)]])
                            do-query
                            (->> (map :user-id)))]
     (if-not (empty? users-in-group)
-      (doall (map #(assoc % :primary-email-verified (users/verified-primary-email? (:email %)))
+      (doall (map #(assoc % :primary-email-verified (users/primary-email-verified? (:user-id %)))
                   (users/get-users-public-info users-in-group)))
       [])))
 
@@ -73,7 +73,7 @@
       (from :web-user-group)
       (where [:and
               [:= :user-id user-id]
-              [:= :group-id (get-group-id group-name)]])
+              [:= :group-id (group-name->group-id group-name)]])
       do-query
       first
       boolean))

@@ -411,14 +411,13 @@
             (doall
              (map
               (fn [user-owed]
-                (let [user-name (-> (:email user-owed) (str/split #"@") first)
-                      {:keys [email compensation-owed last-payment connected
-                              user-id admin-fee]} user-owed
+                (let [{:keys [compensation-owed last-payment connected
+                              user-id admin-fee username]} user-owed
                       retrieving-amount-owed? @(r/cursor state [:loading :compensation-owed])
                       confirming? (r/cursor state [:confirming? user-id])
                       retrieving-pay? @(r/cursor state [:retrieving-pay? user-id])
                       error-message (r/cursor state [:pay-error user-id])]
-                  [:div.item {:key user-name}
+                  [:div.item {:key username}
                    (when @confirming?
                      [:div.ui.message {:position "absolute"}
                       [:div.ui.grid
@@ -457,7 +456,7 @@
                    [:div.ui.grid
                     [:div.five.wide.column
                      [:i.user.icon]
-                     email]
+                     username]
                     [:div.two.wide.column
                      (acct/cents->string compensation-owed)]
                     [:div.four.wide.column

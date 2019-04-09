@@ -50,6 +50,12 @@
    (read-orgs!)
    {}))
 
+(reg-sub :current-org-name
+         (fn [db] (->> @(subscribe [:orgs])
+                       (filter #(= (:id %)
+                                   @(subscribe [:current-org])))
+                       first
+                       :group-name)))
 (defn OrgContent
   []
   (let [current-path active-route
