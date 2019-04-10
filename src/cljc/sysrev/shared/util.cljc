@@ -218,3 +218,11 @@
   can be applied to a value."
   ([test] #(ensure-value test %))
   ([test value] (when (test value) value)))
+
+(defn filter-values
+  "Filters map key-value entries by testing values against f."
+  [f m]
+  (->> (seq m)
+       (filter (fn [[k v]] (f v)))
+       (apply concat)
+       (apply hash-map)))

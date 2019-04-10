@@ -7,7 +7,7 @@
             [cljs-time.format :as tformat]
             [cljsjs.jquery]
             [cljsjs.moment]
-            [sysrev.shared.util :refer [parse-integer]])
+            [sysrev.shared.util :refer [parse-integer ensure-value]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (defn integerify-map-keys
@@ -107,18 +107,12 @@
 
 (defn url-domain [url]
   "Gets the example.com part of a url"
-  (let [domain
-        (-> url
-            (str/split "//")
-            second
-            (str/split "/")
-            first
-            (str/split ".")
-            (->>
-             (take-last 2)
-             (str/join ".")))]
-    (if (string? domain)
-      domain url)))
+  (let [sp str/split]
+    (or (some-> url (sp "//") second (sp "/") first (sp ".")
+                (some->> (take-last 2)
+                         (str/join ".")
+                         (ensure-value string?)))
+        url)))
 
 (defn validate
   "Validate takes a map, and a map of validator/error message pairs, and
@@ -370,11 +364,9 @@
 
 (defn get-scroll-position []
   {:top  (or ($ js/window :pageYOffset)
-             (-> ($ js/document :documentElement)
-                 ($ :scrollTop)))
+             (-> ($ js/document :documentElement) ($ :scrollTop)))
    :left (or ($ js/window :pageXOffset)
-             (-> ($ js/document :documentElement)
-                 ($ :scrollLeft)))})
+             (-> ($ js/document :documentElement) ($ :scrollLeft)))})
 
 (defn get-url-path []
   (str js/window.location.pathname
@@ -385,15 +377,13 @@
   (js/JSON.stringify (clj->js x)))
 
 (defn read-json [s]
-  (js->clj (js/JSON.parse s)
-           :keywordize-keys true))
+  (js->clj (js/JSON.parse s) :keywordize-keys true))
 
 (defn write-transit-str [x]
   (transit/write (transit/writer :json) x))
 
 (defn parse-css-px [px-str]
-  (-> (second (re-matches #"(\d+)px" px-str))
-      (parse-integer)))
+  (parse-integer (second (re-matches #"(\d+)px" px-str))))
 
 (defn update-sidebar-height []
   (when (pos? (-> (js/$ ".column.panel-side-column") .-length))
@@ -417,13 +407,8 @@
                             body-font)
           label-height-em (/ (* 1.0 max-height-px) label-font)
           annotate-height-em (/ (* 1.0 max-height-px) annotate-font)]
-      (-> (js/$ label-css)
-          (.css "max-height" (str label-height-em "em")))
-      (-> (js/$ annotate-css)
-          (.css "max-height" (str annotate-height-em "em"))))))
+      (-> (js/$ label-css)    (.css "max-height" (str label-height-em "em")))
+      (-> (js/$ annotate-css) (.css "max-height" (str annotate-height-em "em"))))))
 
-(defn unix-epoch->date-string
-  [unix]
-  (-> unix
-      (js/moment.unix)
-      ($ format "YYYY-MM-DD HH:mm:ss")))
+(defn unix-epoch->date-string [unix]
+  (-> unix (js/moment.unix) ($ format "YYYY-MM-DD HH:mm:ss")))

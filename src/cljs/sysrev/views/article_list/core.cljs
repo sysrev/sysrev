@@ -10,7 +10,7 @@
              [active-panel active-project-id]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.article :refer [ArticleInfo]]
-            [sysrev.views.review :as review :refer [LabelEditor]]
+            [sysrev.views.review :as review]
             [sysrev.views.components :as ui]
             [sysrev.views.list-pager :refer [ListPager]]
             [sysrev.views.labels :as labels]
@@ -29,15 +29,8 @@
           active-id @(subscribe [::al/get context [:active-article]])
           visible-ids (map :article-id articles)]
       (when (in? visible-ids active-id)
-        {:prev-id
-         (->> visible-ids
-              (take-while #(not= % active-id))
-              last)
-         :next-id
-         (->> visible-ids
-              (drop-while #(not= % active-id))
-              (drop 1)
-              first)})))))
+        {:prev-id (->> visible-ids (take-while #(not= % active-id)) last)
+         :next-id (->> visible-ids (drop-while #(not= % active-id)) (drop 1) first)})))))
 
 (reg-sub
  ::resolving-allowed?
@@ -50,23 +43,24 @@
       [_ context article-id]]
    (let [{:keys [self-only]} display]
      (when (= article-id active-id)
-       (boolean
-        (and (not self-only)
-             (= :conflict review-status)
-             resolver?))))))
+       (boolean (and (not self-only) (= :conflict review-status) resolver?))))))
 
-(reg-sub
+(reg-sub-raw
  ::editing-allowed?
- (fn [[_ context article-id]]
-   [(subscribe [::al/get context [:active-article]])
-    (subscribe [::resolving-allowed? context article-id])
-    (subscribe [:article/user-status article-id])])
- (fn [[active-id can-resolve? user-status]
-      [_ context article-id]]
-   (when (= article-id active-id)
-     (boolean
-      (or can-resolve?
-          (in? [:confirmed :unconfirmed] user-status))))))
+ (fn [_ [_ context article-id]]
+   (reaction
+    (let [{:keys [active-article]} @(subscribe [::al/get context])
+          can-resolve? @(subscribe [::resolving-allowed? context article-id])
+          user-status @(subscribe [:article/user-status article-id])
+          project-id @(subscribe [:active-project-id])
+          ann-context {:class "abstract" :project-id project-id :article-id article-id}
+          self-id @(subscribe [:self/user-id])
+          self-annotations (and self-id @(subscribe [:annotator/user-annotations
+                                                     ann-context self-id]))]
+      (when (= article-id active-article)
+        (boolean (or can-resolve?
+                     (in? [:confirmed :unconfirmed] user-status)
+                     (seq self-annotations))))))))
 
 (defn- ArticleListNavHeader [context]
   (let [count-now @(al/sub-article-count context)
@@ -82,17 +76,15 @@
        :item-name-string "articles"
        :set-offset #(do (dispatch-sync [::al/set context [:display-offset] %])
                         (al/reload-list-data context))
-       :on-nav-action
-       (fn [action offset]
-         (dispatch-sync [::al/set-recent-nav-action context action])
-         (dispatch-sync [::al/set-active-article context nil]))
+       :on-nav-action (fn [action offset]
+                        (dispatch-sync [::al/set-recent-nav-action context action])
+                        (dispatch-sync [::al/set-active-article context nil]))
        :recent-nav-action recent-action
        :loading? (or ((comp not nil?) recent-action)
                      (loading/any-loading? :only :project/article-list)
                      (loading/any-loading? :only :project/article-list-count))
-       :message-overrides
-       {:offset @(subscribe [::al/display-offset (al/cached context)])
-        :total-count count-cached}}]]))
+       :message-overrides {:offset @(subscribe [::al/display-offset (al/cached context)])
+                           :total-count count-cached}}]]))
 
 (defn- AnswerCellIcon [value]
   [:i {:class (css [(true? value)   "green circle plus"
@@ -102,48 +94,41 @@
 
 (defn- AnswerCell [article-id labels answer-class resolve]
   [:div.ui.divided.list
-   (doall
-    (map (fn [entry]
-           (let [{:keys [user-id inclusion]} entry
-                 user-name @(subscribe [:user/display user-id])]
-             (when (or (not= answer-class "resolved")
-                       (= user-id (:user-id resolve)))
-               [:div.item.answer-cell {:key [:answer article-id user-id]}
-                [:div.content>div.header>div.flex-wrap
-                 [Avatar {:user-id user-id}]
-                 [UserPublicProfileLink {:user-id user-id :display-name user-name}]
-                 [AnswerCellIcon inclusion]]])))
-         labels))])
+   (doall (for [entry labels]
+            (let [{:keys [user-id inclusion]} entry
+                  user-name @(subscribe [:user/display user-id])]
+              (when (or (not= answer-class "resolved")
+                        (= user-id (:user-id resolve)))
+                [:div.item.answer-cell {:key [:answer article-id user-id]}
+                 [:div.content>div.header>div.flex-wrap
+                  [Avatar {:user-id user-id}]
+                  [UserPublicProfileLink {:user-id user-id :display-name user-name}]
+                  [AnswerCellIcon inclusion]]]))))])
 
 (defn ChangeLabelsButton [context article-id & {:keys [sidebar]}]
   (let [editing? @(subscribe [:article-list/editing? context article-id])
         editing-allowed? @(subscribe [::editing-allowed? context article-id])
         resolving-allowed? @(subscribe [::resolving-allowed? context article-id])]
     (when (and editing-allowed? (not editing?))
-      [:div.ui.fluid.left.labeled.icon.button.change-labels
-       {:class (css [sidebar "small"])
+      [:div.ui.fluid.left.labeled.icon.button.primary.change-labels
+       {:class (css [sidebar "small"] [resolving-allowed? "resolve-labels"])
         :style {:margin-top "1em"}
         :on-click (util/wrap-user-event
-                   #(do (dispatch [:review/enable-change-labels
-                                   article-id (:panel context)])
-                        (when (review/display-sidebar?)
-                          (dispatch [:set-review-interface :labels]))))}
+                   #(do (dispatch [:review/enable-change-labels article-id (:panel context)])
+                        (dispatch [:set-review-interface :labels])))}
        [:i.pencil.icon]
        (if resolving-allowed? "Resolve Labels" "Change Labels")])))
 
 (defn ArticleContent [context article-id]
   (let [editing? @(subscribe [:article-list/editing? context article-id])
-        {:keys [self-only]}
-        @(subscribe [::al/display-options (al/cached context)])]
+        {:keys [self-only]} @(subscribe [::al/display-options (al/cached context)])]
     [:div {:style {:width "100%"}}
      [ArticleInfo article-id
       :show-labels? true
       :private-view? self-only
-      :context :article-list]
-     (if editing?
-       [LabelEditor article-id]
-       (when (not (review/display-sidebar?))
-         [ChangeLabelsButton context article-id]))]))
+      :context :article-list
+      :change-labels-button (fn [] [ChangeLabelsButton context article-id])]
+     (when editing? [review/LabelAnswerEditor article-id])]))
 
 (defn ArticleLabelsNotes [context article full-size?]
   (let [self-id @(subscribe [:self/user-id])
@@ -176,7 +161,7 @@
               resolved? (= user-id resolver-id)]
           (when (or user-note (not-empty user-labels))
             ^{:key [:user-labels user-id]}
-            [labels/label-values-component
+            [labels/LabelValuesView
              user-labels
              :user-name user-name
              :notes (when user-note

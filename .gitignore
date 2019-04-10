@@ -5,7 +5,7 @@
 target/
 
 /out/
-/flyway-4.0.1/
+/flyway-*/
 /flyway
 /flyway.conf
 /deploy/

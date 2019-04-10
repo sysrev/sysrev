@@ -66,8 +66,7 @@
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
       ;; import one article
-      (import/import-pmid-vector
-       @project-id {:pmids [25706626]} {:use-future? false})
+      (import/import-pmid-vector @project-id {:pmids [25706626]} {:use-future? false})
       (nav/go-project-route "/manage")  ; test "Manage" button
       ;; create a categorical label
       (define/define-label label1)

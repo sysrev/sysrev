@@ -3,14 +3,14 @@
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
             [goog.dom :as gdom]
-            [re-frame.core :refer [subscribe dispatch dispatch-sync reg-sub reg-sub-raw
-                                   reg-event-db trim-v]]
+            [re-frame.core :refer
+             [subscribe dispatch dispatch-sync reg-sub reg-sub-raw reg-event-db trim-v]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.state.ui :as ui-state]
             [sysrev.views.components :as ui]
             [sysrev.util :as util :refer [nbsp]]
-            [sysrev.shared.util :as sutil :refer [in? map-values]])
+            [sysrev.shared.util :as sutil :refer [in? map-values filter-values css]])
   (:require-macros [reagent.interop :refer [$]]
                    [sysrev.macros :refer [with-loader]]))
 
@@ -47,18 +47,6 @@
  (fn [db [context id]]
    (update-field db context [:annotations] #(dissoc % id))))
 
-(reg-sub
- :annotator/enabled
- (fn [db [_ {:keys [class] :as context}]]
-   (-> (get-in db [:state :annotator nil #_ class :enabled])
-       false? not)))
-
-(reg-event-db
- :annotator/enabled
- (fn [db [_ {:keys [class] :as context} enabled?]]
-   (assoc-in db [:state :annotator nil #_ class :enabled]
-             (boolean enabled?))))
-
 (reg-event-db
  :annotator/init-view-state [trim-v]
  (fn [db [context & [panel]]]
@@ -81,9 +69,7 @@
               :annotation-map annotation-map})
   :process (fn [_ [context annotation-map] {:keys [annotation-id]}]
              {:dispatch-n
-              (list [:data/after-load
-                     (annotator-data-item context)
-                     ::clear-on-create
+              (list [:data/after-load (annotator-data-item context) ::clear-on-create
                      [::clear-annotations context]]
                     [:reload (annotator-data-item context)])}))
 
@@ -101,27 +87,20 @@
 (def-action :annotator/delete-annotation
   :uri (fn [_ annotation-id]
          (str "/api/annotation/delete/" annotation-id))
-  ;; :content (fn [annotation-id] annotation-id)
-  :content (fn [context _]
-             {:project-id (:project-id context)})
+  :content (fn [context _] {:project-id (:project-id context)})
   :process (fn [_ [context annotation-id] result]
-             {:dispatch-n
-              (list [::remove-ann context annotation-id]
-                    [:reload (annotator-data-item context)])}))
+             {:dispatch-n (list [::remove-ann context annotation-id]
+                                [:reload (annotator-data-item context)])}))
 
 (def-data :annotator/status
   :loaded? (fn [db project-id]
              (-> (get-in db [:data :project project-id :annotator])
                  (contains? :status)))
   :uri (fn [_] "/api/annotation/status")
-  :prereqs (fn [project-id]
-             [[:identity]
-              [:project project-id]])
-  :content (fn [project-id]
-             {:project-id project-id})
+  :prereqs (fn [project-id] [[:identity] [:project project-id]])
+  :content (fn [project-id] {:project-id project-id})
   :process (fn [{:keys [db]} [project-id] {:keys [status]}]
-             {:db (assoc-in db [:data :project project-id :annotator :status]
-                            status)}))
+             {:db (assoc-in db [:data :project project-id :annotator :status] status)}))
 
 (reg-sub
  :annotator/status
@@ -131,16 +110,11 @@
    (-> project :annotator :status)))
 
 (defn- sort-class-options [entries]
-  (->> entries
-       (map-values
-        (fn [fields]
-          (update fields :last-used
-                  #(when % (tc/to-long %)))))
-       (sort-by
-        (fn [[class {:keys [last-used count]}]]
-          [(if last-used last-used 0)
-           count]))
-       reverse vec))
+  (vec (->> entries
+            (map-values (fn [x] (update x :last-used #(some-> % tc/to-long))))
+            (sort-by (fn [[class {:keys [last-used count]}]]
+                       [(or last-used 0) count]))
+            reverse)))
 
 (reg-sub
  :annotator/semantic-class-options
@@ -150,67 +124,48 @@
    (when (or member project)
      (let [member-sorted (when member
                            (->> (sort-class-options member)
-                                (filterv
-                                 (fn [[class {:keys [last-used count]}]]
-                                   (and last-used (not= 0 last-used)
-                                        count (not= 0 count))))))
-           project-sorted (when project
-                            (sort-class-options project))]
+                                (filterv (fn [[class {:keys [last-used count]}]]
+                                           (and last-used (not= 0 last-used)
+                                                count (not= 0 count))))))
+           project-sorted (when project (sort-class-options project))]
        (->> (concat member-sorted project-sorted)
             (mapv first) distinct vec)))))
 
 (def-data :annotator/article
   :loaded? (fn [db project-id article-id]
-             (-> (get-in db [:data :project project-id
-                             :annotator :article])
+             (-> (get-in db [:data :project project-id :annotator :article])
                  (contains? article-id)))
   :uri (fn [_ article-id]
          (str "/api/annotations/user-defined/" article-id))
   :prereqs (fn [project-id article-id]
-             [[:identity]
-              [:project project-id]
-              [:article project-id article-id]])
-  :content (fn [project-id _]
-             {:project-id project-id})
-  :process
-  (fn [{:keys [db]} [project-id article-id] {:keys [annotations]}]
-    (if annotations
-      {:db (-> db
-               (assoc-in [:data :project project-id
-                          :annotator :article article-id]
-                         (util/vector->hash-map annotations :id)))
-       :dispatch [:reload [:annotator/status project-id]]}
-      {})))
+             [[:identity] [:project project-id] [:article project-id article-id]])
+  :content (fn [project-id _] {:project-id project-id})
+  :process (fn [{:keys [db]} [project-id article-id] {:keys [annotations]}]
+             (when annotations
+               {:db (assoc-in db [:data :project project-id :annotator :article article-id]
+                              (util/vector->hash-map annotations :id))
+                :dispatch [:reload [:annotator/status project-id]]})))
 
 (reg-sub
  :annotator/article
  (fn [db [_ project-id article-id]]
-   (get-in db [:data :project project-id
-               :annotator :article article-id])))
+   (get-in db [:data :project project-id :annotator :article article-id])))
 
 (def-data :annotator/article-pdf
   :loaded? (fn [db project-id article-id pdf-key]
-             (-> (get-in db [:data :project project-id
-                             :annotator :article-pdf article-id])
+             (-> (get-in db [:data :project project-id :annotator :article-pdf article-id])
                  (contains? pdf-key)))
   :uri (fn [_ article-id pdf-key]
-         (str "/api/annotations/user-defined/" article-id
-              "/pdf/" pdf-key))
+         (str "/api/annotations/user-defined/" article-id "/pdf/" pdf-key))
   :prereqs (fn [project-id article-id _]
-             [[:identity]
-              [:project project-id]
-              [:article project-id article-id]])
-  :content (fn [project-id _ _]
-             {:project-id project-id})
+             [[:identity] [:project project-id] [:article project-id article-id]])
+  :content (fn [project-id _ _] {:project-id project-id})
   :process
   (fn [{:keys [db]} [project-id article-id pdf-key] {:keys [annotations]}]
-    (if annotations
-      {:db (-> db
-               (assoc-in [:data :project project-id
-                          :annotator :article-pdf article-id pdf-key]
-                         (util/vector->hash-map annotations :id)))
-       :dispatch [:reload [:annotator/status project-id]]}
-      {})))
+    (when annotations
+      {:db (assoc-in db [:data :project project-id :annotator :article-pdf article-id pdf-key]
+                     (util/vector->hash-map annotations :id))
+       :dispatch [:reload [:annotator/status project-id]]})))
 
 (reg-sub
  :annotator/article-pdf
@@ -218,26 +173,20 @@
    (get-in db [:data :project project-id
                :annotator :article-pdf article-id pdf-key])))
 
-(defn AnnotationEditor
-  [context id]
-  (let [set (fn [path value]
-              (dispatch-sync [::set context path value]))
-        set-ann (fn [path value]
-                  (dispatch-sync [::set context
-                                  (concat [:annotations id] path)
-                                  value]))
+(defn AnnotationEditor [context id]
+  (let [set (fn [path value] (dispatch-sync [::set context path value]))
+        set-ann (fn [path value] (set (concat [:annotations id] path) value))
         {:keys [new-annotation editing-id]} @(subscribe [::get context])
         data @(subscribe (annotator-data-item context))
         saved (get data id)
         new? (empty? saved)
         initial-new (when new? new-annotation)
-        selection (if new?
-                    (:selection initial-new)
-                    (:selection saved))
+        selection (:selection (if new? initial-new saved))
         editing? (or (= id editing-id)
                      (and new? (nil? editing-id)))
-        current-user @(subscribe [:self/user-id])
-        original-user-id (if new? current-user (:user-id saved))
+        self-id @(subscribe [:self/user-id])
+        user-id (if new? self-id (:user-id saved))
+        self? (= user-id self-id)
         fields [:annotation :semantic-class]
         annotation @(subscribe [::get context [:annotations id]])
         class-options @(subscribe [:annotator/semantic-class-options])
@@ -266,225 +215,186 @@
                                        context id
                                        (:annotation active)
                                        (:semantic-class active)]]))
-        on-delete #(dispatch [:action [:annotator/delete-annotation
-                                       context id]])
+        on-delete #(dispatch [:action [:annotator/delete-annotation context id]])
         full-width? (>= (util/viewport-width) 1340)
-        button-class
-        (if full-width?
-          "ui fluid tiny labeled icon button"
-          "ui fluid tiny icon button")
+        button-class (css "ui fluid tiny" [full-width? "labeled"] "icon button")
         dark-theme? @(subscribe [:self/dark-theme?])
         touchscreen? @(subscribe [:touchscreen?])]
     [:div.ui.secondary.segment.annotation-view
-     {:class (cond-> ""
-               new? (str " new-annotation"))}
+     {:class (css [new? "new-annotation"])}
      [:form.ui.small.form.edit-annotation
-      {:on-submit (util/wrap-user-event
-                   on-save
-                   :timeout false
-                   :prevent-default true)}
+      {:on-submit (util/wrap-user-event on-save :prevent-default true)}
       [:div.field.selection
        [:label "Selection"]
-       (let [display (when (string? selection)
+       [:div.ui.small.basic.label.selection-label
+        {:class (css [new? "new-annotation"])}
+        (pr-str (str (when (string? selection)
                        (sutil/string-ellipsis
-                        selection 400
-                        (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))]
-         [:div.ui.small.label.selection-label
-          {:class (cond-> "basic"
-                    new? (str " new-annotation"))}
-          (str "\"" display "\"")])]
+                        selection 400 (str nbsp nbsp nbsp "[..........]" nbsp nbsp nbsp)))))]]
       [:div.field.semantic-class
        [:label "Semantic Class"]
        (let [{:keys [new-class]} annotation
              toggle-new-class #(do (set-ann [:new-class] (not new-class))
                                    (set-ann [:semantic-class] nil))
-             text-input? (or (not editing?)
-                             (empty? class-options)
-                             new-class)]
+             text-input? (or (not editing?) (empty? class-options) new-class)]
          [:div.fields
           (if text-input?
-            [ui/TextInput
-             {:value (if editing?
-                       (:semantic-class annotation)
-                       (or (:semantic-class annotation)
-                           (:semantic-class saved)))
-              :on-change #(set-ann [:semantic-class] (util/event-input-value %))
-              :read-only (not editing?)
-              :disabled (not editing?)
-              :placeholder (if editing? "New class name" nil)}]
+            [ui/TextInput {:value (if editing?
+                                    (:semantic-class annotation)
+                                    (or (:semantic-class annotation)
+                                        (:semantic-class saved)))
+                           :on-change (util/on-event-value #(set-ann [:semantic-class] %))
+                           :read-only (not editing?)
+                           :disabled (not editing?)
+                           :placeholder (when editing? "New class name")}]
             [ui/selection-dropdown
              [:div.text (:semantic-class active)]
-             (map-indexed
-              (fn [i class]
-                [:div.item
-                 {:key [:semantic-class-option i]
-                  :data-value (str class)
-                  :class (when (= class (:semantic-class active))
-                           "active selected")}
-                 [:span (str class)]])
-              class-options)
-             {:class
-              (cond-> (if touchscreen?
-                        "ui fluid selection dropdown"
-                        "ui fluid search selection dropdown")
-                (not editing?) (str " disabled"))
-              :onChange
-              (fn [v t]
-                (set-ann [:semantic-class] v))}])
+             (map-indexed (fn [i class]
+                            [:div.item
+                             {:key [:semantic-class-option i]
+                              :data-value (str class)
+                              :class (css [(= class (:semantic-class active)) "active selected"])}
+                             [:span (str class)]])
+                          class-options)
+             {:class (css "ui fluid" [(not touchscreen?) "search"] "selection dropdown"
+                          [(not editing?) "disabled"])
+              :onChange (fn [v t] (set-ann [:semantic-class] v))}])
           [:div.ui.tiny.icon.button.new-semantic-class
-           {:class (cond-> ""
-                     (or (not editing?)
-                         (empty? class-options)) (str " disabled"))
+           {:class (css [(or (not editing?) (empty? class-options)) "disabled"])
             :on-click (util/wrap-user-event toggle-new-class)}
-           (if text-input?
-             [:i.list.ul.icon]
-             [:i.plus.icon])]])]
+           [:i {:class (css [text-input? "list ul" :else "plus"] "icon")}]]])]
       [:div.field.value
        [:label "Value"]
-       [ui/TextInput
-        {:value (:annotation active)
-         :on-change #(set-ann [:annotation] (util/event-input-value %))
-         :read-only (not editing?)
-         :disabled (not editing?)}]]
-      (cond
-        editing?
-        [:div.field.buttons>div.fields
-         [:div.eight.wide.field
-          [:button
-           {:type "submit"
-            :class (cond-> (str button-class " positive")
-                     (and (not changed?) (not new?))
-                     (str " disabled"))}
-           [:i.check.circle.outline.icon]
-           (when full-width? "Save")]]
-         [:div.eight.wide.field
-          [:button
-           {:class button-class
-            :on-click (util/wrap-user-event
-                       #(do (set [:editing-id] nil)
-                            (dispatch-sync [::clear-annotations context]))
-                       :prevent-default true)}
-           [:i.times.icon]
-           (when full-width? "Cancel")]]]
-        (= current-user original-user-id)
-        [:div.field.buttons>div.fields
-         [:div.eight.wide.field
-          [:button
-           {:class button-class
-            :on-click
-            (util/wrap-user-event
-             #(do (dispatch-sync [::clear-annotations context])
-                  (set [:editing-id] id))
-             :prevent-default true)}
-           [:i.blue.pencil.alternate.icon]
-           (when full-width? "Edit")]]
-         [:div.eight.wide.field
-          [:button
-           {:class button-class
-            :on-click (util/wrap-user-event
-                       on-delete :prevent-default true)}
-           [:i.red.circle.times.icon]
-           (when full-width? "Delete")]]])]]))
+       [ui/TextInput {:value (:annotation active)
+                      :on-change (util/on-event-value #(set-ann [:annotation] %))
+                      :read-only (not editing?)
+                      :disabled (not editing?)}]]
+      (cond editing? [:div.field.buttons>div.fields
+                      [:div.eight.wide.field
+                       [:button {:type "submit"
+                                 :class (css button-class "positive"
+                                             [(and (not changed?) (not new?)) "disabled"])}
+                        [:i.check.circle.outline.icon]
+                        (when full-width? "Save")]]
+                      [:div.eight.wide.field
+                       [:button {:class button-class
+                                 :on-click (util/wrap-user-event
+                                            #(do (set [:editing-id] nil)
+                                                 (dispatch-sync [::clear-annotations context]))
+                                            :prevent-default true)}
+                        [:i.times.icon]
+                        (when full-width? "Cancel")]]]
+            self?    [:div.field.buttons>div.fields
+                      [:div.eight.wide.field
+                       [:button {:class button-class
+                                 :on-click (util/wrap-user-event
+                                            #(do (dispatch-sync [::clear-annotations context])
+                                                 (set [:editing-id] id))
+                                            :prevent-default true)}
+                        [:i.blue.pencil.alternate.icon]
+                        (when full-width? "Edit")]]
+                      [:div.eight.wide.field
+                       [:button {:class button-class
+                                 :on-click (util/wrap-user-event on-delete :prevent-default true)}
+                        [:i.red.circle.times.icon]
+                        (when full-width? "Delete")]]])]]))
 
-#_
 (defn AddAnnotation
   "Render absolute-positioned \"Add Annotation\" button
   within AnnotationCapture container."
   [{:keys [class] :as context}]
-  (let [pdf? (= class "pdf")
+  (when (seq @(subscribe [::get context [:selection]]))
+    (let [pdf? (= class "pdf")
+          {:keys [new-annotation selection positions]} @(subscribe [::get context])
+          {:keys [client-x client-y ctarget-x ctarget-y scroll-x scroll-y]} positions
+          dark-theme? @(subscribe [:self/dark-theme?])
+          on-save (fn []
+                    (dispatch-sync [::set context [:selection] ""])
+                    (util/clear-text-selection)
+                    (dispatch [:action [:annotator/create-annotation context new-annotation]]))
+          [x y] [;; position values all recorded from the latest mouse selection event
+                 (+
+                  ;; mouse position from selection event
+                  client-x
+                  ;; take the difference from position of `div.annotation-capture`
+                  ;; (direct parent element of this)
+                  (- ctarget-x)
+                  ;; add the window scroll offset
+                  ;;
+                  ;; (except don't for PDF, because this is all positioned inside
+                  ;;  a Semantic modal, which has taken over scrolling for all
+                  ;;  the content inside it.
+                  ;;
+                  ;;  apparently the `clientX` and `get-element-position` calculations
+                  ;;  already account for the scrolling in this context.)
+                  (if pdf? 0 scroll-x)
+                  ;; subtract ~half the width of the popup element for centering
+                  (- 60))
+                 ;; y calculations same as x
+                 (+
+                  client-y
+                  (- ctarget-y)
+                  (if pdf? 0 scroll-y)
+                  ;; shift the popup element slightly above the selection
+                  (- 50))]]
+      [:div.ui.button.add-annotation-popup
+       {:class (css [(and dark-theme? (not pdf?)) "dark-theme" :else "secondary"])
+        :style {:top (str y "px")
+                :left (str x "px")
+                :display (if (empty? selection) "none")}
+        :on-click (util/wrap-user-event on-save
+                                        :stop-propagation true
+                                        :prevent-default true)}
+       "Add Annotation"])))
 
-        {:keys [new-annotation selection positions]}
-        @(subscribe [::get context])
+;; Returns map of all annotations for context.
+;; Includes new-annotation entry when include-new is true.
+(reg-sub
+ :annotator/all-annotations
+ (fn [[_ context _]]
+   [(subscribe [::get context [:new-annotation]])
+    (subscribe (annotator-data-item context))])
+ (fn [[new-annotation annotations]
+      [_ _ include-new]]
+   (cond->> annotations
+     (and new-annotation include-new)
+     (merge {(:id new-annotation) new-annotation}))))
 
-        {:keys [client-x client-y ctarget-x ctarget-y scroll-x scroll-y]}
-        positions
-
-        #_ (println (pr-str {:positions positions}))
-
-        dark-theme? @(subscribe [:self/dark-theme?])
-
-        on-save
-        (fn []
-          (dispatch-sync [::set context [:selection] ""])
-          (util/clear-text-selection)
-          (dispatch [:action [:annotator/create-annotation
-                              context new-annotation]]))
-
-        [x y]
-        ;; position values all recorded from the latest mouse selection event
-        [(+
-          ;; mouse position from selection event
-          client-x
-          ;; take the difference from position of `div.annotation-capture`
-          ;; (direct parent element of this)
-          (- ctarget-x)
-          ;; add the window scroll offset
-          ;;
-          ;; (except don't for PDF, because this is all positioned inside
-          ;;  a Semantic modal, which has taken over scrolling for all
-          ;;  the content inside it.
-          ;;
-          ;;  apparently the `clientX` and `get-element-position` calculations
-          ;;  already account for the scrolling in this context.)
-          (if pdf? 0 scroll-x)
-          ;; subtract ~half the width of the popup element for centering
-          (- 60))
-         ;; y calculations same as x
-         (+
-          client-y
-          (- ctarget-y)
-          (if pdf? 0 scroll-y)
-          ;; shift the popup element slightly above the selection
-          (- 50))]]
-    [:div.ui.button.add-annotation-popup
-     {:class (if (and dark-theme? (not pdf?))
-               "dark-theme" "secondary")
-      :style {:top (str y "px")
-              :left (str x "px")
-              :display (if (empty? selection) "none")}
-      :on-click (util/wrap-user-event on-save
-                                      :timeout false
-                                      :stop-propagation true
-                                      :prevent-default true)}
-     "Add Annotation"]))
+;; Returns map of annotations for context filtered by user-id.
+;; Includes new-annotation entry for self-id unless only-saved is true.
+(reg-sub
+ :annotator/user-annotations
+ (fn [[_ context _ & _]]
+   [(subscribe [:self/user-id])
+    (subscribe [::get context [:new-annotation]])
+    (subscribe (annotator-data-item context))])
+ (fn [[self-id new-annotation annotations]
+      [_ _ user-id & [{:keys [only-saved]}]]]
+   (cond->> (filter-values #(= (:user-id %) user-id) annotations)
+     (and new-annotation (= user-id self-id) (not only-saved))
+     (merge {(:id new-annotation) new-annotation}))))
 
 (defn AnnotationMenu
-  "Create an annotation menu using state."
+  "Full component for editing and viewing annotations."
   [context class]
+  (dispatch [:require [:annotator/status (:project-id context)]])
+  (dispatch [:require (annotator-data-item context)])
   (let [self-id @(subscribe [:self/user-id])
-        on-review? (= @(subscribe [:active-panel]) [:project :review])
-        annotations (cond-> @(subscribe (annotator-data-item context))
-                      on-review?
-                      (->> vals
-                           (filter #(= (:user-id %) self-id))
-                           (group-by :id)
-                           (map-values first)))
-        enabled? @(subscribe [:annotator/enabled context])
         {:keys [new-annotation]} @(subscribe [::get context])
-        status-item [:annotator/status (:project-id context)]
-        visible? (and @(subscribe [:have? status-item])
-                      @(subscribe [:have? (annotator-data-item context)]))]
-    (when enabled?
-      (dispatch [:require status-item])
-      [:div.ui.segments.annotation-menu
-       {:class class}
-       [:div.ui.center.aligned.secondary.segment.menu-header
-        [:div.ui.large.fluid.label
-         "Select text to annotate"]]
-       (when (and (:id new-annotation) visible?)
-         [AnnotationEditor context (:id new-annotation)])
-       (when visible?
-         (doall (map
-                 (fn [{:keys [id]}]
-                   ^{:key (str id)}
-                   [AnnotationEditor context id])
-                 (->> (vals annotations)
-                      (filter #(integer? (:id %)))
-                      (sort-by :id)
-                      reverse))))
-       #_ [:div.ui.secondary.segment]])))
+        annotations @(subscribe [:annotator/user-annotations context self-id
+                                 {:only-saved true}])]
+    [:div.ui.segments.annotation-menu {:class class}
+     [:div.ui.center.aligned.secondary.segment.menu-header
+      [:div.ui.large.fluid.label "Select text to annotate"]]
+     (when-let [new-id (:id new-annotation)]
+       [AnnotationEditor context new-id])
+     (doall (for [{:keys [id]} (->> (vals annotations)
+                                    (filter #(integer? (:id %)))
+                                    (sort-by :id)
+                                    reverse)]
+              ^{:key id} [AnnotationEditor context id]))]))
 
-(def js-text-type (type (new js/Text)))
+(def js-text-type (type (js/Text.)))
 
 (defn previous-text
   "Get all previous text from nodes up until node with attribute
@@ -533,20 +443,12 @@
   article column on the server and the data-field attribute of the
   root node."
   [context field child]
-  (let [set (fn [path value]
-              (dispatch-sync [::set context path value]))
-        set-ann (fn [id path value]
-                  (dispatch-sync [::set context
-                                  (concat [:annotations id] path)
-                                  value]))
-        set-pos (fn [key value]
-                  (dispatch-sync [::set context [:positions key] value]))
-        data (subscribe (annotator-data-item context))
+  (let [set (fn [path value] (dispatch-sync [::set context path value]))
+        set-ann (fn [id path value] (set (concat [:annotations id] path) value))
+        set-pos (fn [key value] (set [:positions key] value))
         touchscreen? @(subscribe [:touchscreen?])
         update-selection
-        (when (and @(subscribe [:self/logged-in?])
-                   @(subscribe [:self/member?])
-                   @(subscribe [:annotator/enabled context]))
+        (when @(subscribe [:review-interface])
           (fn [e]
             (when false
               (let [ctarget ($ e :currentTarget)
@@ -556,10 +458,6 @@
                      sc-y :top} (util/get-scroll-position)
                     c-x ($ e :clientX)
                     c-y ($ e :clientY)]
-                #_
-                (do (println (str "ctarget = (" ct-x ", " ct-y ")"))
-                    (println (str "scroll = (" sc-x ", " sc-y ")"))
-                    (println (str "position = (" c-x ", " c-y ")")))
                 (set-pos :scroll-x sc-x)
                 (set-pos :scroll-y sc-y)
                 (set-pos :ctarget-x ct-x)
@@ -579,31 +477,10 @@
                   (set [:new-annotation] entry)
                   (set-ann (:id entry) nil entry)
                   (when (not touchscreen?)
-                    (js/setTimeout #(-> (js/$ (str ".annotation-view.new-annotation"
-                                                   " .field.value input"))
-                                        (.focus))
-                                   50)))))
+                    (-> #(.focus (js/$ ".annotation-view.new-annotation .field.value input"))
+                        (js/setTimeout 50))))))
             true))]
-    [:div.annotation-capture
-     {:on-mouse-up update-selection
-      :on-touch-end update-selection}
-     #_
-     (when-not (empty? @(subscribe [::get context [:selection]]))
-       [AddAnnotation context])
+    [:div.annotation-capture {:on-mouse-up update-selection
+                              :on-touch-end update-selection}
+     #_ [AddAnnotation context]
      child]))
-
-(defn AnnotationToggleButton
-  [context & {:keys [on-change class]}]
-  (when (util/full-size?)
-    (let [enabled? @(subscribe [:annotator/enabled context])]
-      [:div.ui.button.toggle-annotator
-       {:on-click (util/wrap-user-event
-                   #(do (dispatch-sync [:annotator/init-view-state context])
-                        (dispatch-sync [:annotator/enabled context (not enabled?)])
-                        (when on-change (on-change))))
-        :class (cond-> class
-                 (and (not enabled?) (not (util/annotator-size?)))
-                 (str " disabled"))}
-       (if enabled?
-         "Disable Sidebar"
-         "Enable Sidebar")])))

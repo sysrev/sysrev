@@ -82,12 +82,6 @@
        "boolean"      {:db (set-label-value db article-id label-id label-value)}
        "categorical"  {::select-categorical-value [article-id label-id label-value]}))))
 
-(defn display-sidebar? []
-  (and @(subscribe [:active-project-id])
-       (int? @(subscribe [:visible-article-id]))
-       @(subscribe [:annotator/enabled nil])
-       (util/annotator-size?)))
-
 ;; Renders input component for label
 (defmulti label-input-el
   (fn [label-id article-id] @(subscribe [:label/value-type label-id])))
@@ -458,53 +452,45 @@
          [:span]
          "right aligned four wide column"]])]))
 
-(defn make-label-columns
-  [article-id label-ids n-cols]
+(defn make-label-columns [article-id label-ids n-cols]
   (doall (for [row (partition-all n-cols label-ids)]
            ^{:key [(first row)]}
            [:div.row
-            (doall
-             (concat (map-indexed (fn [i label-id]
-                                    (label-column article-id label-id
-                                                  (cond (= i 0)            :left
-                                                        (= i (dec n-cols)) :right
-                                                        :else              :middle)
-                                                  n-cols
-                                                  (->> label-ids (take-while #(not= % label-id)) count)
-                                                  (count label-ids)))
-                                  row)
-                     (when (< (count row) n-cols)
-                       [^{:key {:label-row-end (last row)}}
-                        [:div.column]])))])))
+            (doall (for [i (range (count row))]
+                     (let [label-id (nth row i)]
+                       (label-column article-id
+                                     label-id
+                                     (cond (= i 0)            :left
+                                           (= i (dec n-cols)) :right
+                                           :else              :middle)
+                                     n-cols
+                                     (->> label-ids (take-while #(not= % label-id)) count)
+                                     (count label-ids)))))
+            (when (< (count row) n-cols) [:div.column])])))
 
-(defn LabelsColumns
-  [article-id & {:keys [n-cols class] :or {class "segment"}}]
+(defn LabelsColumns [article-id & {:keys [n-cols class] :or {class "segment"}}]
   (let [n-cols (or n-cols (cond (util/full-size?) 4
                                 (util/mobile?)    2
                                 :else             3))
         label-ids @(subscribe [:project/label-ids])]
     [:div.label-section
-     {:class (str "ui " (sutil/num-to-english n-cols) " column"
-                  " celled grid " class)}
+     {:class (css "ui" (sutil/num-to-english n-cols) "column celled grid" class)}
      (when (some-> article-id (= @(subscribe [:review/editing-id])))
        (make-label-columns article-id label-ids n-cols))]))
 
 (defn LabelDefinitionsButton []
-  (let [project-id @(subscribe [:active-project-id])]
-    [:a.ui.tiny.icon.button
-     {:href (project-uri project-id "/labels/edit")
-      :on-click #(do (util/scroll-top) true)
-      :class (if (util/full-size?) "labeled" nil)
-      :tabIndex "-1"}
-     [:i.tags.icon]
-     (when (util/full-size?) "Definitions")]))
+  [:a.ui.tiny.icon.button {:href (project-uri nil "/labels/edit")
+                           :on-click #(do (util/scroll-top) true)
+                           :class (css [(util/full-size?) "labeled"])
+                           :tabIndex "-1"}
+   [:i.tags.icon] (when (util/full-size?) "Definitions")])
 
 (defn ViewAllLabelsButton []
   (let [panel @(subscribe [:active-panel])
         project-id @(subscribe [:active-project-id])]
     (when (not= panel [:project :project :articles])
       [:a.ui.tiny.primary.button
-       {:class (if (util/full-size?) "labeled icon" nil)
+       {:class (css [(util/full-size?) "labeled icon"])
         :on-click
         (util/wrap-user-event
          #(dispatch [:project-articles/load-preset :self]))
@@ -512,8 +498,11 @@
        (when (util/full-size?) [:i.user.icon])
        (if (util/full-size?) "View All Labels" "View Labels")])))
 
+(defn display-sidebar? []
+  (and (util/annotator-size?) @(subscribe [:review-interface])))
+
 ;; Top-level component for label editor
-(defn LabelEditor [article-id]
+(defn LabelAnswerEditor [article-id]
   (when article-id
     (when-let [project-id @(subscribe [:active-project-id])]
       (with-loader [[:article project-id article-id]] {}
@@ -549,27 +538,21 @@
              (when-not (display-sidebar?)
                [label-editor-buttons-view article-id])]))))))
 
-(defn LabelEditorColumn [article-id]
+(defn LabelAnswerEditorColumn [article-id]
   (r/create-class
-   {:component-did-mount
-    (fn [] (util/update-sidebar-height))
-    :reagent-render
-    (fn [article-id]
-      [:div.label-editor-column
-       [:div.ui.segments.label-editor-view
-        [LabelsColumns article-id
-         :n-cols 1
-         :class "attached segment"]]])}))
+   {:component-did-mount (fn [] (util/update-sidebar-height))
+    :reagent-render (fn [article-id]
+                      [:div.label-editor-column>div.ui.segments.label-editor-view
+                       [LabelsColumns article-id
+                        :n-cols 1
+                        :class "attached segment"]])}))
 
 (defn SaveSkipColumnSegment [article-id]
   (let [review-task? @(subscribe [:review/on-review-task?])
         editing? @(subscribe [:review/editing?])]
     (when editing?
       [:div.label-editor-buttons-view
-       {:class (cond-> "ui"
-                 review-task?       (str " two column")
-                 (not review-task?) (str " one column")
-                 true               (str " grid"))
+       {:class (css "ui" [review-task? "two" :else "one"] "column grid")
         :style {:margin-top "0em"}}
        [:div.column (SaveButton article-id true true)]
        (when review-task?

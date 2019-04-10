@@ -35,9 +35,7 @@
                  [postgre-types "0.0.4"]
                  [hikari-cp "2.6.0"]
                  [clj-postgresql "0.7.0"
-                  :exclusions [org.clojure/java.jdbc
-                               cheshire
-                               prismatic/schema]]
+                  :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.4"]
                  [nilenso/honeysql-postgres "0.2.5"]
 
@@ -121,8 +119,7 @@
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[binaryage/devtools "0.9.10"]
-                             [clj-webdriver "0.7.2"]
+              :dependencies [[clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.8.1"]
                              [org.seleniumhq.selenium/selenium-support "3.8.1"]
                              [org.seleniumhq.selenium/selenium-java "3.8.1"
