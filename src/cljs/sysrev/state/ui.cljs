@@ -43,7 +43,9 @@
        (get-in pstate path)))))
 
 (defn set-panel-field [db path val & [panel]]
-  (let [panel (or panel (nav/active-panel db))]
+  (let [panel (or panel (nav/active-panel db))
+        path (if (or (nil? path) (sequential? path))
+               path [path])]
     (assoc-in db (concat [:state :panels panel] path) val)))
 
 (reg-event-db

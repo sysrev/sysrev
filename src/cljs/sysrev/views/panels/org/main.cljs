@@ -1,9 +1,10 @@
 (ns sysrev.views.panels.org.main
   (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
-            [re-frame.core :refer [dispatch reg-sub reg-event-fx subscribe]]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
+            [sysrev.state.ui :refer [get-panel-field set-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.org.users :refer [OrgUsers]]
             [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown]])
@@ -13,13 +14,15 @@
 
 (def state (r/cursor app-db [:state :panel panel]))
 
-(reg-sub :current-org
-         (fn [db] @(r/cursor state [:current-org-id])))
+(defn get-field [db path] (get-panel-field db path panel))
+(defn set-field [db path val] (set-panel-field db path val panel))
 
-(reg-event-fx
+(reg-sub :current-org #(get-field % [:current-org-id]))
+
+(reg-event-db
  :set-current-org!
- (fn [_ [_ org-id]] (reset! (r/cursor state [:current-org-id]) org-id)
-   {}))
+ (fn [db [_ org-id]]
+   (set-field db [:current-org-id] org-id)))
 
 (defn read-orgs!
   []
@@ -41,21 +44,20 @@
                            (reset! orgs-error (get-in error-response
                                                       [:response :error :message])))})))
 
-(reg-sub :orgs
-         (fn [db] @(r/cursor state [:orgs])))
+(reg-sub :orgs #(get-field % [:orgs]))
 
-(reg-event-fx
- :read-orgs!
- (fn [_ _]
-   (read-orgs!)
-   {}))
+(reg-event-fx :read-orgs! (fn [_ _] (read-orgs!) {}))
 
 (reg-sub :current-org-name
-         (fn [db] (->> @(subscribe [:orgs])
-                       (filter #(= (:id %)
-                                   @(subscribe [:current-org])))
-                       first
-                       :group-name)))
+         (fn []
+           [(subscribe [:orgs])
+            (subscribe [:current-org])])
+         (fn [[orgs current-org]]
+           (->> orgs
+                (filter #(= (:id %) current-org))
+                first
+                :group-name)))
+
 (defn OrgContent
   []
   (let [current-path active-route
