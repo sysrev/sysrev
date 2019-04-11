@@ -104,17 +104,17 @@
              (api/create-avatar! user-id (:tempfile file) filename meta))))
     (GET "/avatar" request
          (api/read-avatar user-id))
-    (context "/groups/:group-name" [group-name]
-             (GET "/active" [user-id :<< as-int group-name :as request]
+    (context "/groups/public-reviewer" []
+             (GET "/active" [user-id :<< as-int :as request]
                   (wrap-authorize
                    request
                    {:authorize-fn (user-authd? user-id)}
-                   (api/user-group-name-active? user-id group-name)))
+                   (api/user-group-name-active? user-id "public-reviewer")))
              (PUT "/active" request
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
                    (let [{:keys [active]} (:body request)]
-                     (api/set-web-user-group! user-id group-name active)))))
+                     (api/set-web-user-group! user-id "public-reviewer" active)))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize

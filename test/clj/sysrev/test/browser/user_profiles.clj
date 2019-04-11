@@ -91,7 +91,7 @@
     (users/verify-email! email (:verify-code (users/read-email-verification-code user-id email)) user-id)
     (users/set-primary-email! user-id email)
     (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id "public-reviewer"))]
-      (groups/update-web-user-group! web-user-group-id true)
+      (groups/set-active-web-user-group! web-user-group-id true)
       (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
 
 (deftest-browser correct-project-activity

@@ -32,6 +32,7 @@
 (def FormInput (component "Form" "Input"))
 (def FormRadio (component "Form" "Radio"))
 (def TextArea (component "TextArea"))
+(def Checkbox (component "Checkbox"))
 
 ;; input
 (def Input (component "Input"))

@@ -1108,18 +1108,16 @@
   [user-id group-name]
   {:result {:active (boolean (:active (groups/read-web-user-group-name user-id group-name)))}})
 
-;; note: this needs to be refactored to only work with public-reviewer
-;;       along with entries in web/routes/user.clj
 (defn set-web-user-group!
   "Set with opt-in-type for user-id"
   [user-id group-name active?]
-  (condp = group-name
-    "public-reviewer"
-    (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id group-name))]
-      (groups/update-web-user-group! web-user-group-id active?)
-      (groups/add-user-to-group! user-id (groups/group-name->group-id group-name)))
-    {:error {:message "That group can't be modified"}})
-  {:result {:active (:active (groups/read-web-user-group-name user-id group-name))}})
+  (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id group-name))]
+    (groups/set-active-web-user-group! web-user-group-id active?)
+    (groups/add-user-to-group! user-id (groups/group-name->group-id group-name)))
+  ;; change any existing permissions to default permission of "member"
+  (let [web-user-group (groups/read-web-user-group-name user-id group-name)]
+    (groups/set-user-group-permissions! (:id web-user-group) ["member"])
+    {:result {:active (:active web-user-group)}}))
 
 (defn users-in-group
   "Get the users in group-name"
@@ -1464,9 +1462,9 @@
   {:result {:success true
             :users (users/search-users term)}})
 
-(defn add-user-to-org!
-  [user-id org-id]
-  ;; this adds users to the group, but we should actually have an invitation!
-  ;; by default, add them as members
-  (groups/add-user-to-group! user-id org-id)
-  {:result {:success true}})
+(defn set-user-group-permissions!
+  [user-id org-id permissions]
+  (with-transaction
+    (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id (groups/group-id->group-name org-id)))]
+      {:result {:group-perm-id (groups/set-user-group-permissions! web-user-group-id permissions)}}
+      {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
