@@ -12,7 +12,7 @@
 
 (def ^:private panel [:org :main])
 
-(def state (r/cursor app-db [:state :panel panel]))
+(def state (r/cursor app-db [:state :panels panel]))
 
 (defn get-field [db path] (get-panel-field db path panel))
 (defn set-field [db path val] (set-panel-field db path val panel))

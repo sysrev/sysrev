@@ -11,7 +11,7 @@
 
 (def ^:private panel [:org :users])
 
-(def state (r/cursor app-db [:state :panel panel]))
+(def state (r/cursor app-db [:state :panels panel]))
 
 (defn get-user-id-permissions
   [user-id]

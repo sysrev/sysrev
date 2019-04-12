@@ -9,7 +9,7 @@
 
 (def ^:private panel [:orgs])
 
-(def state (r/cursor app-db [:state :panel panel]))
+(def state (r/cursor app-db [:state :panels panel]))
 
 (defn create-org!
   [org-name]
