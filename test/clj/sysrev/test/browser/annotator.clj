@@ -14,6 +14,7 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.review-articles :as review-articles]
+            [sysrev.test.browser.pubmed :as pm]
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -55,8 +56,10 @@
   (do (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
-      (import/import-pmid-vector @project-id {:pmids [25215519]} {:use-future? false})
-      (nav/init-route (str "/p/" @project-id "/add-articles"))
+      (pm/add-articles-from-search-term "foo bar enthalpic mesoporous")
+      ;; This doesn't work against staging.sysrev.com - cache not cleared?
+      #_ (import/import-pmid-vector @project-id {:pmids [25215519]} {:use-future? false})
+      #_ (nav/init-route (str "/p/" @project-id "/add-articles"))
 ;;;; start annotating articles
       ;; review the single article result
       (b/click (x/project-menu-item :review))
