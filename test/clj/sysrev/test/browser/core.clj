@@ -275,6 +275,14 @@
     (Thread/sleep 20))
   true)
 
+(defn take-screenshot [& [error?]]
+  (let [filename (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")
+        level (if error? :error :info)]
+    (log/logp level "Saving screenshot:" filename)
+    (try (taxi/take-screenshot :file filename)
+         (catch Throwable e
+           (log/error "Screenshot failed:" (type e) (.getMessage e))))))
+
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)]
     `(deftest ~name
@@ -283,12 +291,8 @@
            (try (log/info "running" ~name-str)
                 ~body
                 (catch Throwable e#
-                  (let [filename# (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")]
-                    (log/error "Saving screenshot:" filename#)
-                    (try (taxi/take-screenshot :file filename#)
-                         (catch Throwable e1#
-                           (log/error "Screenshot failed:" (type e1#) (.getMessage e1#))))
-                    (throw e#)))
+                  (take-screenshot true)
+                  (throw e#))
                 (finally ~cleanup)))))))
 
 (defn cleanup-browser-test-projects []

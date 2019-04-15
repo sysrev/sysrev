@@ -51,15 +51,12 @@
    check-status (fn [n-full n-conflict n-resolved]
                   (Thread/sleep 250)
                   (nav/go-project-route "")
-                  (is (b/exists? include-full))
-                  (is (= (format "Full (%d)" n-full)
-                         (taxi/text include-full)))
-                  (is (b/exists? conflicts))
-                  (is (= (format "Conflict (%d)" n-conflict)
-                         (taxi/text conflicts)))
-                  (is (b/exists? resolved))
-                  (is (= (format "Resolved (%d)" n-resolved)
-                         (taxi/text resolved))))]
+                  (b/exists? include-full)
+                  (is (= (format "Full (%d)" n-full) (taxi/text include-full)))
+                  (b/exists? conflicts)
+                  (is (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
+                  (b/exists? resolved)
+                  (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))]
   (do (nav/log-in)
       ;; create project
       (nav/new-project project-name)

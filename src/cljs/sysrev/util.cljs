@@ -1,6 +1,5 @@
 (ns sysrev.util
   (:require [clojure.string :as str]
-            [cognitect.transit :as transit]
             [goog.string :refer [unescapeEntities]]
             [cljs-time.core :as t]
             [cljs-time.coerce :as tc]
@@ -378,9 +377,6 @@
 
 (defn read-json [s]
   (js->clj (js/JSON.parse s) :keywordize-keys true))
-
-(defn write-transit-str [x]
-  (transit/write (transit/writer :json) x))
 
 (defn parse-css-px [px-str]
   (parse-integer (second (re-matches #"(\d+)px" px-str))))

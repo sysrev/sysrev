@@ -273,16 +273,21 @@
 (defn add-paypal-funds
   "Add dollar amount of funds (e.g. $20.00) to project using paypal"
   [amount]
+  (log/info "adding paypal funds" (str "(" amount ")"))
   (b/set-input-text-per-char add-funds-input amount)
   (Thread/sleep 100)
   (click-paypal-visa)
   (Thread/sleep 500)
-  (taxi/wait-until #(try (taxi/switch-to-window 1)
-                         true
+  (log/info "waiting for paypal window")
+  (taxi/wait-until #(try (taxi/switch-to-window 1) true
                          (catch Exception e false))
                    2000 200)
-  (b/wait-until-exists cardnumber-input 30000)
+  (b/wait-until #(or (and (taxi/exists? cardnumber-input)
+                          (do (println) true))
+                     (do (print ".") (flush) false))
+                30000 500)
   (Thread/sleep 2500)
+  (log/info "setting payment fields")
   (b/set-input-text-per-char cardnumber-input visa-cardnumber)
   (b/set-input-text-per-char card-exp-input card-exp)
   (b/set-input-text-per-char cvv-input "123")
@@ -297,7 +302,8 @@
   (b/click guest-signup-2-radio)
   (b/click pay-now-button)
   (taxi/switch-to-window 0)
-  (taxi/switch-to-default))
+  (taxi/switch-to-default)
+  (log/info "finished paypal interaction"))
 
 (defn pay-user
   "Pay the user with email address"
@@ -421,7 +427,11 @@
       ;; add funds to the project
       (b/wait-until-exists project-funds-header)
       (add-paypal-funds "$20.00")
-      (b/wait-until-exists payment-processed 60000 500)
+      (log/info "waiting for paypal to return")
+      (b/wait-until #(or (and (taxi/exists? payment-processed)
+                              (do (println) true))
+                         (do (print ".") (flush) false))
+                    60000 500)
       ;; create users
       (doseq [{:keys [email password]} test-users]
         (b/create-test-user :email email :password password

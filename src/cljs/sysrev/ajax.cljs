@@ -6,7 +6,7 @@
             [re-frame.core :as re-frame :refer
              [dispatch reg-sub reg-event-db reg-event-fx trim-v reg-fx]]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? to-uuid]]))
+            [sysrev.shared.util :as sutil :refer [in? to-uuid]]))
 
 (s/def ::method (and keyword? (in? [:get :post])))
 (s/def ::uri string?)
@@ -171,7 +171,7 @@
           :on-failure (cond-> on-failure
                         action-params (conj action-params))}
        force-body?
-       (merge {:body (util/write-transit-str content)})
+       (merge {:body (sutil/write-transit-str content)})
        (not force-body?)
        (merge {:params content}))}))
 ;;;

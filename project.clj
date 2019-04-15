@@ -78,6 +78,7 @@
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-Xms800m"
              "-Xmx1500m"
+             #_ "-XX:+UseParallelGC"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"
              "-Xverify:none"]

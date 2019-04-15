@@ -164,17 +164,6 @@
 (defn crypto-rand-nth [coll]
   (nth coll (crypto-rand-int (count coll))))
 
-(defn write-transit-str [x]
-  (with-open [os (ByteArrayOutputStream.)]
-    (let [w (transit/writer os :json)]
-      (transit/write w x)
-      (.toString os))))
-
-(defn read-transit-str [s]
- (-> (ByteArrayInputStream. (.getBytes s "UTF-8"))
-     (transit/reader :json)
-     (transit/read)))
-
 ;; see: https://groups.google.com/forum/#!topic/clojure/ORRhWgYd2Dk
 ;;      https://stackoverflow.com/questions/22116257/how-to-get-functions-name-as-string-in-clojure
 (defmacro current-function-name
