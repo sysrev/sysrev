@@ -13,7 +13,7 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-(defn get-user-id-permissions
+#_(defn get-user-id-permissions
   [user-id]
   (let [org-users (r/cursor state [:org-users])]
     (->> @org-users
@@ -140,7 +140,7 @@
                         :radio true
                         :style {:display "block"}}]]
             [:p {:style {:margin-top "0px"
-                         :margin-left "1.5rem"}} "Has full administrative access to the entire organization."]
+                         :margin-left "1.5rem"}} "Has full administrative access to the entire organization. Can add, remove, and edit users and projects"]
             [FormGroup
              [Checkbox {:label "Member"
                         :as "h4"
@@ -148,7 +148,7 @@
                         :on-change #(reset! new-role "member")
                         :radio true}]]
             [:p {:style {:margin-top "0px"
-                         :margin-left "1.5rem"}} "Can see every member in the organization, and can create new projects."]
+                         :margin-left "1.5rem"}} "Can see every member and project in the organization"]
             [Button {:disabled (or (nil? @new-role)
                                    @retrieving?)
                      :color "red"
@@ -170,7 +170,7 @@
         current-user-id (r/cursor state [:current-user-id])
         current-username (r/cursor state [:current-username])
         self-user-id @(subscribe [:self/user-id])
-        self-permissions (get-user-id-permissions self-user-id)]
+        self-permissions @(subscribe [:current-org-permissions])]
     [TableRow
      [TableCell
       [Avatar {:user-id user-id}]
@@ -356,13 +356,15 @@
 
 (defn OrgUsers
   []
-  (let [org-users (r/cursor state [:org-users])]
+  (let [org-users (r/cursor state [:org-users])
+        org-permissions (subscribe [:current-org-permissions])]
     (r/create-class
      {:reagent-render
       (fn [this]
         (get-org-users!)
         [:div
-         [InviteMemberModal]
+         (when (some #{"owner" "admin"} @org-permissions)
+           [InviteMemberModal])
          [ChangeRoleModal]
          [RemoveModal]
          [UsersTable org-users]])})))

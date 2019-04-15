@@ -60,4 +60,8 @@
                    request {:authorize-fn (user-has-org-permission? org-id ["admin" "owner"])}
                    (let [project-name (-> request :body :project-name)
                          user-id (current-user-id request)]
-                     (api/create-project-for-org! project-name user-id org-id)))))))
+                     (api/create-project-for-org! project-name user-id org-id))))
+            (GET "/projects" request
+                 (wrap-authorize
+                  request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin" "member"])}
+                  (api/group-projects org-id))))))

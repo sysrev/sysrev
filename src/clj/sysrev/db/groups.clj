@@ -94,7 +94,7 @@
 
 (defn read-groups
   [user-id]
-  (-> (select :g.*)
+  (-> (select :g.* :wug.permissions)
       (modifiers :distinct)
       (from [:web_user_group :wug])
       (join [:groups :g]
@@ -128,3 +128,13 @@
               [:= :user-id user-id]
               [:= :group-id group-id]])
       do-query first :permissions))
+
+(defn group-projects
+  "Return all projects group-id owns"
+  [group-id]
+  (-> (select :p.project-id :p.name :p.settings)
+      (from [:project :p])
+      (join [:project_group :pg]
+            [:= :pg.project-id :p.project-id])
+      (where [:= :pg.group_id group-id])
+      do-query))

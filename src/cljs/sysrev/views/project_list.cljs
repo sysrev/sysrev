@@ -27,7 +27,7 @@
        {:on-click #(dispatch [:action [:join-project project-id]])}
        "Join"]]]))
 
-(defn- ProjectsListSegment [title projects member?]
+(defn ProjectsListSegment [title projects member?]
   (with-loader [[:identity]] {}
     (when (or (not-empty projects) (true? member?))
       [:div.ui.segments.projects-list

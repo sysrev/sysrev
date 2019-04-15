@@ -30,16 +30,18 @@
                ;; TODO: do something on error
                {})))
 
-(defn- CreateProjectForm []
+(defn- CreateProjectForm [& [initial-org-id]]
   (let [project-name (subscribe [:view-field view [:project-name]])
         orgs (subscribe [:orgs])
-        current-org-id (r/atom "current-user")
+        current-org-id (r/atom (or initial-org-id
+                                   "current-user"))
         create-project #(if (= @current-org-id "current-user")
                           (dispatch [:action [:create-project @project-name]])
                           (dispatch [:action [:create-org-project @project-name @current-org-id]]))]
     (r/create-class
      {:reagent-render
       (fn [this]
+        (.log js/console "init-org-id: " initial-org-id)
         [Form {:class "create-project"
                :on-submit (util/wrap-prevent-default create-project)}
          [Input {:placeholder "Project Name"
@@ -51,7 +53,9 @@
                              #(dispatch-sync [:set-view-field view [:project-name]
                                               (-> % .-target .-value)]))}]
          ;; this needs to check to see if a user is an owner or admin of an org
-         (when-not (empty? @orgs)
+         (when (and (not (empty? (->> @orgs
+                                      (filter #(some #{"owner" "admin"} (:permissions %))))))
+                    (nil? initial-org-id))
            [:div {:style {:margin-top "0.5em"}} "Owner "
             [Dropdown {:options (-> (map #(hash-map :text (:group-name %)
                                                     :value (:id %)) @orgs)
@@ -67,9 +71,10 @@
       :component-did-mount (fn [this]
                              (dispatch [:read-orgs!]))})))
 
-(defn CreateProject []
+(defn CreateProject [& [initial-org-id]]
+  (.log js/console "current-org-id: " initial-org-id)
   [Segment {:secondary true}
    [Header {:as "h4"
             :dividing true}
     "Create a New Project"]
-   [CreateProjectForm]])
+   [CreateProjectForm initial-org-id]])

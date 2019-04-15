@@ -7,6 +7,7 @@
             [sysrev.state.ui :refer [get-panel-field set-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.org.users :refer [OrgUsers]]
+            [sysrev.views.panels.org.projects :refer [OrgProjects]]
             [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -58,6 +59,16 @@
                 first
                 :group-name)))
 
+(reg-sub :current-org-permissions
+         (fn []
+           [(subscribe [:orgs])
+            (subscribe [:current-org])])
+         (fn [[orgs current-org]]
+           (->> orgs
+                (filter #(= (:id %) current-org))
+                first
+                :permissions)))
+
 (defn OrgContent
   []
   (let [current-path active-route
@@ -81,13 +92,18 @@
                      :class (cond-> "item"
                               (= @current-path "/org/users") (str " active"))}
            "Users"]
-          [MenuItem {:name "Profile"
+          [MenuItem {:name "Projects"
+                     :id "org-projects"
+                     :href "/org/projects"
+                     :class (cond-> "item"
+                              (= @current-path "/org/projects") (str " active"))}]
+          #_[MenuItem {:name "Profile"
                      :id "org-profile"
                      :href "/org/profile"
                      :class (cond-> "item"
                               (= @current-path "/org/profile") (str " active"))}
            "Profile"]
-          [MenuItem {:name "Billing"
+          #_[MenuItem {:name "Billing"
                      :id "org-billing"
                      :href "/org/billing"
                      :class (cond-> "item"
@@ -103,15 +119,18 @@
                                              ($ data :value)))}]])]
          [:div {:id "org-content"}
           (condp re-matches @current-path
-            #"/org/profile"
-            [:div
-             (when-not (empty? @orgs)
-               [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
-             [:h1 "Profile settings go here"]]
             #"/org/users"
             [OrgUsers]
-            #"/org/billing"
-            [:h1 "foo"]
+            #"/org/projects"
+            [OrgProjects]
+            ;; #"/org/profile"
+            ;; [:div
+            ;;  (when-not (empty? @orgs)
+            ;;    [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
+            ;;  [:h1 "Profile settings go here"]]
+            ;; #"/org/billing"
+            ;; [:h1 "foo"]
+            [:div {:style {:display "none"}}]
             )]])
       :component-did-mount (fn [this]
                              (read-orgs!))})))

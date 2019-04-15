@@ -1468,3 +1468,7 @@
     (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id (groups/group-id->group-name org-id)))]
       {:result {:group-perm-id (groups/set-user-group-permissions! web-user-group-id permissions)}}
       {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
+
+(defn group-projects
+  [group-id]
+  {:result {:projects (groups/group-projects group-id)}})
