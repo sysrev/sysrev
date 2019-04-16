@@ -51,23 +51,19 @@
    check-status (fn [n-full n-conflict n-resolved]
                   (Thread/sleep 250)
                   (nav/go-project-route "")
-                  (is (b/exists? include-full))
-                  (is (= (format "Full (%d)" n-full)
-                         (taxi/text include-full)))
-                  (is (b/exists? conflicts))
-                  (is (= (format "Conflict (%d)" n-conflict)
-                         (taxi/text conflicts)))
-                  (is (b/exists? resolved))
-                  (is (= (format "Resolved (%d)" n-resolved)
-                         (taxi/text resolved))))]
+                  (b/exists? include-full)
+                  (is (= (format "Full (%d)" n-full) (taxi/text include-full)))
+                  (b/exists? conflicts)
+                  (is (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
+                  (b/exists? resolved)
+                  (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))]
   (do (nav/log-in)
       ;; create project
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
       ;; import one article
-      (import/import-pmid-vector
-       @project-id {:pmids [25706626]} {:use-future? false})
+      (import/import-pmid-vector @project-id {:pmids [25706626]} {:use-future? false})
       (nav/go-project-route "/manage")  ; test "Manage" button
       ;; create a categorical label
       (define/define-label label1)
@@ -85,9 +81,9 @@
       (switch-user user1)
       (nav/go-project-route "/review")
       (review/set-article-answers lvalues-1)
-      (let [uanswers (export/export-user-answers @project-id)
+      (let [uanswers (export/export-user-answers-csv @project-id)
             [_ u1] uanswers
-            ganswers (export/export-group-answers @project-id)
+            ganswers (export/export-group-answers-csv @project-id)
             [_ g1] ganswers]
         (is (= 1 (-> uanswers rest count)))
         (is (in? u1 "true"))
@@ -99,8 +95,8 @@
         (is (in? g1 "single")) ;; consensus status
         (is (in? g1 "1"))      ;; user count
         (is (in? g1 (to-user-name user1)))
-        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
-        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
+        (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
+        (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; review article from user2 (different categorical answer)
       (switch-user user2)
       (nav/go-project-route "/review")
@@ -108,8 +104,8 @@
       (is (b/exists? ".no-review-articles"))
       ;; check for no conflict
       (check-status 1 0 0)
-      (let [uanswers (export/export-user-answers @project-id)
-            ganswers (export/export-group-answers @project-id)
+      (let [uanswers (export/export-user-answers-csv @project-id)
+            ganswers (export/export-group-answers-csv @project-id)
             [_ g1] ganswers]
         (is (= 2 (-> uanswers rest count)))
         (is (= 1 (-> ganswers rest count)))
@@ -122,8 +118,8 @@
         (let [names (map to-user-name [user1 user2])]
           (is (or (in? g1 (str/join ", " names))
                   (in? g1 (str/join ", " (reverse names))))))
-        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
-        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
+        (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
+        (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; enable label consensus setting
       (switch-user user1)
       (reset! label-id-1 (->> (vals (project/project-labels @project-id))
@@ -135,8 +131,8 @@
         (merge label1 {:consensus true}))
       ;; check that article now shows as conflict
       (check-status 0 1 0)
-      (let [uanswers (export/export-user-answers @project-id)
-            ganswers (export/export-group-answers @project-id)
+      (let [uanswers (export/export-user-answers-csv @project-id)
+            ganswers (export/export-group-answers-csv @project-id)
             [_ g1] ganswers]
         (is (= 2 (-> uanswers rest count)))
         (is (= 1 (-> ganswers rest count)))
@@ -149,8 +145,8 @@
         (let [names (map to-user-name [user1 user2])]
           (is (or (in? g1 (str/join ", " names))
                   (in? g1 (str/join ", " (reverse names))))))
-        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
-        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
+        (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
+        (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; switch to non-admin user to use "Change Labels"
       (switch-user user2)
       ;; check article list interface (Conflict filter)
@@ -190,8 +186,8 @@
       (nav/go-project-route "/articles")
       ;; check that article is resolved
       (check-status 1 0 1)
-      (let [uanswers (export/export-user-answers @project-id)
-            ganswers (export/export-group-answers @project-id)
+      (let [uanswers (export/export-user-answers-csv @project-id)
+            ganswers (export/export-group-answers-csv @project-id)
             [_ g1] ganswers]
         (is (= 2 (-> uanswers rest count)))
         (is (= 1 (-> ganswers rest count)))
@@ -202,8 +198,8 @@
         (let [names (map to-user-name [user1 user2])]
           (is (or (in? g1 (str/join ", " names))
                   (in? g1 (str/join ", " (reverse names))))))
-        (is (= uanswers (-> uanswers csv/write-csv csv/parse-csv)))
-        (is (= ganswers (-> ganswers csv/write-csv csv/parse-csv))))
+        (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
+        (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; check article list interface (Resolved filter)
       (b/click resolved)
       (is (b/exists? "div.article-list-article"))

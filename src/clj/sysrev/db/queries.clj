@@ -302,7 +302,7 @@
                       [:!= :al.answer nil]
                       [:!= :al.answer (to-jsonb nil)]
                       [:!= :al.answer (to-jsonb [])]
-                      [:!= :al.answer (to-jsonb {})]])))
+                      #_ [:!= :al.answer (to-jsonb {})]])))
 
 (defn filter-label-user [m user-id]
   (-> m (merge-where [:= :al.user-id user-id])))
@@ -503,3 +503,16 @@
           (where [:in id-field (vec id-group)])
           (#(if alter-query (alter-query %) %))
           do-execute))))
+
+(defn query-multiple-by-id
+  "Runs query to select fields from table where id-field is any of id-values.
+  Allows for unlimited count of id-values by partitioning values into
+  groups and running multiple select queries."
+  [table id-field id-values fields & {:keys [where alter-query]}]
+  (apply concat (for [id-group (partition-all 250 id-values)]
+                  (when (seq id-group)
+                    (-> (apply select fields) (from table)
+                        (sqlh/where [:in id-field (vec id-group)])
+                        (#(if where (merge-where % where) %))
+                        (#(if alter-query (alter-query %) %))
+                        do-query)))))

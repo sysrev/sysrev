@@ -4,13 +4,14 @@
             [cljs-time.core :as t]
             [sysrev.views.components :refer [updated-time-label note-content-label]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
+            [sysrev.views.annotator :as ann]
             [sysrev.state.labels :refer [real-answer?]]
-            [sysrev.util :refer [time-from-epoch time-elapsed-string]]
-            [sysrev.shared.util :refer [in?]])
+            [sysrev.util :refer [time-from-epoch time-elapsed-string nbsp]]
+            [sysrev.shared.util :refer [in? css]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(defn label-answer-tag
-  "UI component for displaying a label answer."
+(defn LabelAnswerTag
+  "Component for displaying a label answer."
   [label-id answer]
   (let [display @(subscribe [:label/display label-id])
         value-type @(subscribe [:label/value-type label-id])
@@ -41,85 +42,74 @@
            :aria-hidden true}]
          (str/join ", " values))]]]))
 
-(defn label-values-component [labels & {:keys [notes user-name resolved?]}]
-  (let [dark-theme? @(subscribe [:self/dark-theme?])
-        note-entries (concat
-                      (for [note-name (keys notes)] ^{:key [note-name]}
-                        [note-content-label note-name (get notes note-name)]))
-        label-entries (->> @(subscribe [:project/label-ids])
-                           (filter #(contains? labels %))
-                           (map #(do [% (get-in labels [% :answer])])))]
+(defn LabelValuesView [labels & {:keys [notes user-name resolved?]}]
+  (let [dark-theme? @(subscribe [:self/dark-theme?])]
     [:div.label-values
      (when user-name
-       [:div.ui.label.user-name
-        {:class (if dark-theme? nil "basic")}
+       [:div.ui.label.user-name {:class (css [(not dark-theme?) "basic"])}
         user-name])
-     (doall
-      (->> label-entries
-           (map-indexed
-            (fn [i [label-id answer]]
-              (when (real-answer? answer) ^{:key i}
-                [label-answer-tag label-id answer])))))
+     (doall (for [[label-id answer] (->> @(subscribe [:project/label-ids])
+                                         (filter #(contains? labels %))
+                                         (map #(list % (get-in labels [% :answer]))))]
+              (when (real-answer? answer)
+                ^{:key (str label-id)} [LabelAnswerTag label-id answer])))
      (when (and (some #(contains? % :confirm-time) (vals labels))
                 (some #(in? [0 nil] (:confirm-time %)) (vals labels)))
-       [:div.ui.basic.yellow.label.labels-status
-        "Unconfirmed"])
+       [:div.ui.basic.yellow.label.labels-status "Unconfirmed"])
      (when resolved?
-       [:div.ui.basic.purple.label.labels-status
-        "Resolved"])
-     (doall note-entries)
-     #_
-     (when (not-empty note-entries)
-       (if (empty? label-entries)
-         (doall note-entries)
-         [:div {:style {:margin-left "-3px"
-                        :margin-bottom "3px"}}
-          (doall note-entries)]))]))
+       [:div.ui.basic.purple.label.labels-status "Resolved"])
+     (doall (for [note-name (keys notes)] ^{:key [note-name]}
+              [note-content-label note-name (get notes note-name)]))] ))
 
-(defn article-label-values-component [article-id user-id]
+(defn- ArticleLabelValuesView [article-id user-id]
   (let [labels @(subscribe [:article/labels article-id user-id])
         resolved? (= user-id @(subscribe [:article/resolve-user-id article-id]))]
-    [label-values-component labels :resolved? resolved?]))
+    [LabelValuesView labels :resolved? resolved?]))
 
-(defn article-labels-view [article-id &
-                           {:keys [self-only?] :or {self-only? false}}]
+(defn ArticleLabelsView [article-id & {:keys [self-only?]}]
   (let [project-id @(subscribe [:active-project-id])
         self-id @(subscribe [:self/user-id])
         user-labels @(subscribe [:article/labels article-id])
-        user-ids (sort (keys user-labels))
-        label-ids
-        (->> (vals user-labels)
-             (map (fn [ulmap]
-                    (->> (keys ulmap)
-                         (filter #(real-answer?
-                                   (get-in ulmap [% :answer]))))))
-             (apply concat)
-             distinct)
-        user-confirmed?
-        (fn [user-id]
-          (let [ulmap (get user-labels user-id)]
-            (every? #(true? (get-in ulmap [% :confirmed]))
-                    (keys ulmap))))
-        some-real-answer?
-        (fn [user-id]
-          (let [ulmap (get user-labels user-id)]
-            (some #(real-answer? (get-in ulmap [% :answer]))
-                  (keys ulmap))))
-        resolved?
-        (fn [user-id] (= user-id @(subscribe [:article/resolve-user-id article-id])))
-        user-ids-resolved
-        (->> user-ids
-             (filter resolved?)
-             (filter some-real-answer?)
-             (filter user-confirmed?))
-        user-ids-other
-        (->> user-ids
-             (remove resolved?)
-             (filter some-real-answer?)
-             (filter user-confirmed?))
-        user-ids-ordered
-        (cond->> (concat user-ids-resolved user-ids-other)
-          self-only? (filter (partial = self-id)))]
+        resolve-id @(subscribe [:article/resolve-user-id article-id])
+        ann-context {:project-id project-id :article-id article-id :class "abstract"}
+        ann-data-item (ann/annotator-data-item ann-context)
+        ann-status-item [:annotator/status project-id]
+        annotations @(subscribe ann-data-item)
+        user-annotations (fn [user-id] (seq (->> (vals annotations)
+                                                 (filter #(= (:user-id %) user-id)))))
+        user-ids (sort (concat (keys user-labels)
+                               (distinct (->> (vals annotations) (map :user-id) (remove nil?)))))
+        label-ids (->> (vals user-labels)
+                       (map (fn [ulmap]
+                              (->> (keys ulmap)
+                                   (filter #(real-answer? (get-in ulmap [% :answer]))))))
+                       (apply concat)
+                       distinct)
+        user-confirmed? (fn [user-id]
+                          (let [ulmap (get user-labels user-id)]
+                            (every? #(true? (get-in ulmap [% :confirmed]))
+                                    (keys ulmap))))
+        some-real-answer? (fn [user-id]
+                            (let [ulmap (get user-labels user-id)]
+                              (some #(real-answer? (get-in ulmap [% :answer]))
+                                    (keys ulmap))))
+        resolved? (fn [user-id] (= user-id resolve-id))
+        user-ids-resolved (->> user-ids
+                               (filter resolved?)
+                               (filter some-real-answer?)
+                               (filter user-confirmed?))
+        user-ids-other (->> user-ids
+                            (remove resolved?)
+                            (filter some-real-answer?)
+                            (filter user-confirmed?))
+        user-ids-annotated (->> user-ids (filter user-annotations))
+        user-ids-ordered (cond->> (concat user-ids-resolved
+                                          user-ids-other
+                                          user-ids-annotated)
+                           self-only? (filter (partial = self-id))
+                           true distinct)]
+    (dispatch [:require ann-data-item])
+    (dispatch [:require ann-status-item])
     (when (seq user-ids-ordered)
       (with-loader [[:article project-id article-id]]
         {:class "ui segments article-labels-view"}
@@ -130,26 +120,37 @@
                                 (map :confirm-epoch)
                                 (remove nil?)
                                 (remove zero?))
-                 updated-time (if (empty? all-times)
-                                (t/now)
-                                (time-from-epoch (apply max all-times)))]
-             [:div.ui.segment {:key user-id}
-              [:h5.ui.dividing.header
-               [:div.ui.two.column.middle.aligned.grid
-                [:div.row
-                 [:div.column (if self-only?
-                                "Your Labels"
-                                [:div
-                                 [Avatar {:user-id user-id}]
-                                 [UserPublicProfileLink {:user-id user-id
-                                                         :display-name user-name}]])]
-                 [:div.right.aligned.column
-                  [updated-time-label updated-time]]]]]
-              [:div.labels
-               [article-label-values-component article-id user-id]]
-              (let [note-content
-                    @(subscribe [:article/notes article-id user-id "default"])]
-                (when (and (string? note-content)
-                           (not-empty (str/trim note-content)))
-                  [:div.notes
-                   [note-content-label "default" note-content]]))])))))))
+                 updated-time (if (empty? all-times) (t/now)
+                                  (time-from-epoch (apply max all-times)))]
+             (doall
+              (concat
+               [[:div.ui.segment {:key [:user user-id]}
+                 [:h5.ui.dividing.header
+                  [:div.ui.two.column.middle.aligned.grid>div.row
+                   [:div.column
+                    (if self-only? "Your Labels"
+                        [:div
+                         [Avatar {:user-id user-id}]
+                         [UserPublicProfileLink {:user-id user-id
+                                                 :display-name user-name}]])]
+                   [:div.right.aligned.column
+                    [updated-time-label updated-time]]]]
+                 [:div.labels [ArticleLabelValuesView article-id user-id]]
+                 (let [note-content @(subscribe [:article/notes article-id user-id "default"])]
+                   (when (and (string? note-content) (not-empty (str/trim note-content)))
+                     [:div.notes [note-content-label "default" note-content]]))]]
+               (when (and @(subscribe [:have? ann-data-item])
+                          @(subscribe [:have? ann-status-item]))
+                 (when-let [entries (user-annotations user-id)]
+                   (for [{:keys [id selection semantic-class annotation]} entries]
+                     [:div.ui.form.segment.user-annotation {:key [:annotation id]}
+                      [:div.field>div.three.fields
+                       [:div.field [:label "Selection"]
+                        [:div.ui.fluid.basic.label
+                         (or (some-> selection str pr-str) nbsp)]]
+                       [:div.field [:label "Semantic Class"]
+                        [:div.ui.fluid.basic.label
+                         (or (some-> semantic-class str not-empty) nbsp)]]
+                       [:div.field [:label "Value"]
+                        [:div.ui.fluid.basic.label
+                         (or (some-> annotation str not-empty) nbsp)]]]]))))))))))))

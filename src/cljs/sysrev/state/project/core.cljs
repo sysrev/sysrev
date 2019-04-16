@@ -65,12 +65,6 @@
  (fn [[project self-projects] [_ project-id]]
    (project-active-url-id-impl project-id project self-projects)))
 
-(defn get-project-uri [db project-id suburi]
-  (let [project-url-id (project-active-url-id db project-id)
-        url-id (if (string? project-url-id)
-                 project-url-id project-id)]
-    (str "/p/" url-id suburi)))
-
 (reg-sub
  :project/settings
  (fn [[_ project-id]]

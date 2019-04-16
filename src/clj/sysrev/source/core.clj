@@ -222,10 +222,8 @@
           (where [:and
                   [:= :a.project-id project-id]
                   [:= :asrc.source-id source-id]
-                  [:= :al.label-id overall-id]
-                  [:!= :al.answer nil]
-                  [:!= :al.answer (to-jsonb nil)]
-                  [:!= :al.confirm-time nil]])
+                  [:= :al.label-id overall-id]])
+          (q/filter-valid-article-label true)
           do-query first :count))
     0))
 ;;;
@@ -299,7 +297,7 @@
   [project-id]
   (with-project-cache
     project-id [:sources :overlap]
-    (let [source-ids (project-source-ids project-id)]
+    (let [source-ids (project-source-ids project-id :enabled true)]
       (->> (for [id1 source-ids, id2 source-ids]
              (when (< id1 id2)
                (let [overlap (project-source-overlap project-id id1 id2)]
@@ -311,36 +309,49 @@
   :args (s/cat :project-id int?)
   :ret (s/coll-of map?))
 
+(defn project-sources-basic
+  "Returns vector of source information maps for project-id, with just
+  basic information and excluding more expensive queries."
+  [project-id]
+  (with-project-cache
+    project-id [:sources :basic-maps]
+    (with-transaction
+      (-> (select :source-id :project-id :meta :enabled :date-created)
+          (from [:project-source :ps])
+          (where [:= :ps.project-id project-id])
+          (->> do-query
+               (mapv (fn [{:keys [source-id] :as psource}]
+                       (merge psource
+                              {:article-count (-> (select :%count.*)
+                                                  (from [:article-source :asrc])
+                                                  (where [:= :asrc.source-id source-id])
+                                                  do-query first :count)}))))))))
+;;;
+(s/fdef project-sources-basic
+  :args (s/cat :project-id int?)
+  :ret vector?)
+
 (defn project-sources
   "Returns vector of source information maps for project-id."
   [project-id]
   (with-transaction
     (let [overlap-coll (project-sources-overlap project-id)
           unique-coll (source-unique-articles-count project-id)]
-      (-> (select :ps.source-id
-                  :ps.project-id
-                  :ps.meta
-                  :ps.enabled
-                  :ps.date-created)
+      (-> (select :source-id :project-id :meta :enabled :date-created)
           (from [:project-source :ps])
           (where [:= :ps.project-id project-id])
           (->> do-query
-               (mapv
-                (fn [{:keys [source-id] :as psource}]
-                  (let [article-count
-                        (-> (select :%count.*)
-                            (from [:article-source :asrc])
-                            (where [:= :asrc.source-id source-id])
-                            do-query first :count)
-                        labeled-count (source-articles-with-labels source-id)
-                        overlap (->> overlap-coll
-                                     (filter #(= (:source-id %) source-id))
-                                     (mapv #(select-keys % [:overlap-source-id :count])))]
-                    (merge psource
-                           {:article-count article-count
-                            :labeled-article-count labeled-count
-                            :overlap overlap
-                            :unique-articles-count (get unique-coll source-id)})))))))))
+               (mapv (fn [{:keys [source-id] :as psource}]
+                       (merge psource
+                              {:article-count (-> (select :%count.*)
+                                                  (from [:article-source :asrc])
+                                                  (where [:= :asrc.source-id source-id])
+                                                  do-query first :count)
+                               :labeled-article-count (source-articles-with-labels source-id)
+                               :overlap (->> overlap-coll
+                                             (filter #(= (:source-id %) source-id))
+                                             (mapv #(select-keys % [:overlap-source-id :count])))
+                               :unique-articles-count (get unique-coll source-id)}))))))))
 ;;;
 (s/fdef project-sources
   :args (s/cat :project-id int?)

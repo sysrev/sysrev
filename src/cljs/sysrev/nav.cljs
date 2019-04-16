@@ -4,6 +4,7 @@
             [pushy.core :as pushy]
             [re-frame.core :refer [reg-event-db reg-fx]]
             [cljs-http.client :as hc]
+            [cognitect.transit :as transit]
             [sysrev.base :refer [history]]
             [sysrev.util :refer [scroll-top]]))
 
@@ -88,6 +89,10 @@
 
 (defn ^:export set-token [path]
   (pushy/set-token! history path))
+
+#_
+(defn ^:export eval-form [form-transit]
+  (let [form ]))
 
 (defn get-url-params []
   (let [s js/window.location.search

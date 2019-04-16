@@ -7,11 +7,14 @@
             [clojure.string :as str]
             [clojure.stacktrace :refer [print-cause-trace]]
             [sysrev.web.index :as index]
-            [sysrev.db.users :refer [get-user-by-id get-user-by-api-token]]
+            [sysrev.db.users :refer [get-user-by-id get-user-by-api-token
+                                     update-member-access-time]]
             [sysrev.db.project :as project]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? parse-integer]]
-            [sysrev.resources :as res]))
+            [sysrev.shared.util :refer [in? parse-integer ensure-value]]
+            [sysrev.resources :as res]
+            [sysrev.db.users :as users]
+            [clojure.tools.logging :as log]))
 
 (defn current-user-id [request]
   (or (-> request :session :identity :user-id)
@@ -170,74 +173,61 @@
          allow-public# ~allow-public
          roles# ~roles
          authorize-fn# ~authorize-fn
-         body-fn# #(do ~@body)
 
          ;; set implied condition values
-         logged-in# (if (or (not-empty roles#)
-                            (true? developer#))
+         logged-in# (if (or (not-empty roles#) (true? developer#))
                       true logged-in#)
          roles# (if allow-public# ["member"] roles#)
 
          user-id# (current-user-id request#)
          project-id# (active-project request#)
-         valid-project# (and (integer? project-id#)
-                             (project/project-exists? project-id#))
-         public-project# (and valid-project#
-                              (-> (project/project-settings project-id#)
-                                  :public-access true?))
+         valid-project# (some-> project-id# ((ensure-value integer?)) project/project-exists?)
+         public-project# (and valid-project# (-> (project/project-settings project-id#)
+                                                 ((comp true? :public-access))))
          user# (and user-id# (get-user-by-id user-id#))
-         member# (and user-id#
-                      valid-project#
-                      (project/project-member project-id# user-id#))
+         member# (and user-id# valid-project# (project/project-member project-id# user-id#))
          dev-user?# (in? (:permissions user#) "admin")
-         mperms# (:permissions member#)]
-     (cond
-       (and project-id# (not valid-project#))
-       {:error {:status 404
-                :type :not-found
-                :message (format "Project (%s) not found" project-id#)}}
+         mperms# (:permissions member#)
 
-       (and (not (integer? user-id#))
-            (or logged-in#
-                (and allow-public# valid-project# (not public-project#))))
-       {:error {:status 401
-                :type :authentication
-                :message "Not logged in / Invalid API token"}}
+         record-access# #(when (and project-id# user# member#)
+                           (future (try (update-member-access-time user-id# project-id#)
+                                        (catch Throwable e#
+                                          (log/warn "error updating access time:"
+                                                    {:user-id user-id#})))))
+         body-fn# #(do (record-access#) ~@body)]
+     (cond (and project-id# (not valid-project#))
+           {:error {:status 404 :type :not-found
+                    :message (format "Project (%s) not found" project-id#)}}
 
-       (and developer# (not dev-user?#))
-       {:error {:status 403
-                :type :user
-                :message "Not authorized (developer function)"}}
+           (and (not (integer? user-id#))
+                (or logged-in# (and allow-public# valid-project# (not public-project#))))
+           {:error {:status 401 :type :authentication
+                    :message "Not logged in / Invalid API token"}}
 
-       ;; route definition and project settings both allow public access
-       (and allow-public# valid-project# public-project#)
-       (body-fn#)
+           (and developer# (not dev-user?#))
+           {:error {:status 403 :type :user
+                    :message "Not authorized (developer function)"}}
 
-       (and (not-empty roles#)
-            (not (integer? project-id#)))
-       {:error {:status 403
-                :type :project
-                :message "No project selected"}}
+           ;; route definition and project settings both allow public access
+           (and allow-public# valid-project# public-project#)
+           (body-fn#)
 
-       (and
-        ;; member role requirements are set
-        (not-empty roles#)
-        ;; current member does not have any of the permitted roles
-        (not (some (in? mperms#) roles#))
-        ;; allow dev users to ignore project role conditions
-        (not dev-user?#))
-       {:error {:status 403
-                :type :project
-                :message "Not authorized (project member)"}}
+           (and (not-empty roles#) (not (integer? project-id#)))
+           {:error {:status 403 :type :project
+                    :message "No project selected"}}
 
-       (and ((comp not nil?) authorize-fn#)
-            (false? (authorize-fn# request#)))
-       {:error {:status 403
-                :type :project
-                :message "Not authorized (authorize-fn)"}}
+           (and (not-empty roles#) ; member role requirements are set
+                (not (some (in? mperms#) roles#)) ; member doesn't have any permitted role
+                (not dev-user?#)) ; allow dev users to ignore project role conditions
+           {:error {:status 403 :type :project
+                    :message "Not authorized (project member)"}}
 
-       true
-       (body-fn#))))
+           (and ((comp not nil?) authorize-fn#)
+                (false? (authorize-fn# request#)))
+           {:error {:status 403 :type :project
+                    :message "Not authorized (authorize-fn)"}}
+
+           :else (body-fn#))))
 
 ;; Overriding this to allow route handler functions to return result as
 ;; map value with the value being placed in response :body here.

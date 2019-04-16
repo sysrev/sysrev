@@ -14,7 +14,8 @@
             [sysrev.views.panels.project.common :refer [ReadOnlyMessage]]
             [sysrev.views.components :as ui]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]]))
+            [sysrev.shared.util :as sutil :refer [in?]])
+  (:require-macros [sysrev.macros :refer [with-loader]]))
 
 (def panel [:project :project :add-articles])
 
@@ -277,11 +278,9 @@
             (dispatch [:reload [:project project-id]])
             (when (and first-source? (not browser-test?))
               (dispatch [:data/after-load [:project project-id] :poll-source-redirect
-                         (list
-                          (fn []
-                            (when (some-> @article-counts :total (> 0))
-                              (nav/nav-scroll-top
-                               (project-uri project-id "/articles")))))])))
+                         (list (fn []
+                                 (when (some-> @article-counts :total (> 0))
+                                   (nav/nav-scroll-top (project-uri project-id "/articles")))))])))
        1500))))
 
 (defn ArticleSource [source]
@@ -340,8 +339,7 @@
            [DeleteArticleSource source-id]])
 
          ;; when articles are still loading
-         (and (true? importing-articles?) polling?
-              article-count (> article-count 0))
+         (and (true? importing-articles?) polling? article-count (> article-count 0))
          (list
           [:div.eight.wide.column.left.aligned.loaded-count
            {:key :loaded-count}
@@ -355,8 +353,7 @@
            [:div.ui.small.active.loader]])
 
          ;; when articles have been imported
-         (and (false? importing-articles?)
-              labeled-article-count article-count)
+         (and (false? importing-articles?) labeled-article-count article-count)
          (list
           [:div.source-description.column.left.aligned
            {:key :reviewed-count
@@ -372,29 +369,18 @@
              [:span.total-count (.toLocaleString article-count)]
              " " (article-or-articles article-count) " reviewed"]
             ;; unique count
-            (let [unique-articles-count (:unique-articles-count source)]
-              (when-not (nil? unique-articles-count)
-                [:div.column
-                 [:span.unique-count (.toLocaleString unique-articles-count)]
-                 " unique " (article-or-articles unique-articles-count)]))
-            ;; source overlap counts
-            (let [overlap (:overlap source)
-                  non-empty-overlap (filter #(> (:count %) 0) overlap)]
-              (when-not (empty? non-empty-overlap)
-                (doall
-                 (map
-                  (fn [{shared-count :count
-                        overlap-source-id :overlap-source-id} overlap-map]
-                    (let [src-type @(subscribe [:source/display-type source-id])
-                          src-info (some-> @(subscribe [:source/display-info source-id])
-                                           (sutil/string-ellipsis 40))]
-                      ^{:key [:shared source-id overlap-source-id]}
-                      [:div.column
-                       (str (.toLocaleString shared-count) " shared: ")
-                       [:div.ui.label.source-shared
-                        src-type
-                        [:div.detail src-info]]]))
-                  non-empty-overlap))))]]
+            (when-let [unique-articles-count (:unique-articles-count source)]
+              [:div.column
+               [:span.unique-count (.toLocaleString unique-articles-count)]
+               " unique " (article-or-articles unique-articles-count)])
+            (doall (for [{shared-count :count, overlap-source-id :overlap-source-id}
+                         (filter #(pos? (:count %)) (:overlap source))]
+                     (let [src-type @(subscribe [:source/display-type overlap-source-id])
+                           src-info (some-> @(subscribe [:source/display-info overlap-source-id])
+                                            (sutil/string-ellipsis 40))]
+                       ^{:key [:shared source-id overlap-source-id]}
+                       [:div.column (.toLocaleString shared-count) " shared: "
+                        [:div.ui.label.source-shared src-type [:div.detail src-info]]])))]]
           (when (admin?)
             [:div.column.right.aligned.source-actions
              {:key :buttons
@@ -474,14 +460,16 @@
 
 (defn ProjectSourcesPanel []
   (ensure-state)
-  (let [read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
-    [:div
-     (when (admin?)
-       [ImportArticlesView])
-     [ReadOnlyMessage
-      "Managing sources is restricted to project administrators."
-      read-only-message-closed?]
-     [ProjectSourcesList]]))
+  (let [project-id @(subscribe [:active-project-id])
+        read-only-message-closed? (r/cursor state [:read-only-message-closed?])]
+    (with-loader [[:project/sources project-id]] {}
+      [:div
+       (when (admin?)
+         [ImportArticlesView])
+       [ReadOnlyMessage
+        "Managing sources is restricted to project administrators."
+        read-only-message-closed?]
+       [ProjectSourcesList]])))
 
 (defmethod panel-content panel []
   (fn [child]

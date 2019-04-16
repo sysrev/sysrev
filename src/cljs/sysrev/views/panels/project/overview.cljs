@@ -394,20 +394,22 @@
   (let [#_ active-tab #_ (or @important-terms-tab :mesh)
         project-id @(subscribe [:active-project-id])
         terms @(subscribe [:project/important-terms])
-        loading? @(subscribe [:project/important-terms-loading?])
+        ;; TODO: fix this for tests against staging.sysrev.com?
+        ;;       seems to get stuck rendering loader if loading of terms fails
+        loading? (if (= js/window.location.hostname "staging.sysrev.com")
+                   false
+                   @(subscribe [:project/important-terms-loading?]))
         {:keys [mesh #_ chemical #_ gene]} terms]
     (with-loader [[:project project-id]
-                  [:project/important-terms project-id]]
-      {}
+                  [:project/important-terms project-id]] {}
       (when (or (not-empty terms) loading?)
         [:div.ui.segment
          [:h4.ui.dividing.header "Important MeSH Terms"]
          (with-loader [[:project project-id]
                        [:project/important-terms project-id]]
-           {:dimmer :fixed
-            :force-dimmer loading?}
+           {:dimmer :fixed :force-dimmer loading?}
            [:div
-            (when loading?
+            (when @(subscribe [:project/important-terms-loading?])
               (poll-important-terms project-id))
             #_
             [ui/tabbed-panel-menu
@@ -669,8 +671,7 @@
 (defn ProjectOverviewContent []
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]
-                  [:project/markdown-description
-                   project-id {:panel panel}]] {}
+                  [:project/markdown-description project-id {:panel panel}]] {}
       [:div.project-content
        [ProjectDescription {:panel panel}]
        [:div.ui.two.column.stackable.grid.project-overview

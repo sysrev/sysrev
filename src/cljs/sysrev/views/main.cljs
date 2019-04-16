@@ -43,13 +43,11 @@
 
 (defmethod panel-content :default []
   (fn [child]
-    [:div
-     [:h2 "route not found"]
+    [:div [:h2 "route not found"]
      child]))
 
 (defmethod logged-out-content :logged-out []
-  [:div
-   [:h2 "You must be logged in to perform this action"]
+  [:div [:h2 "You must be logged in to perform this action"]
    [:a {:href "/login"} "Log In"]])
 
 (defmethod logged-out-content :default []
@@ -68,24 +66,20 @@
 (defn notifier [entry]
   [:div])
 
-(reg-event-db
- :set-review-interface
- [trim-v]
- (fn [db [interface]]
-   (assoc-in db [:state :review-interface] interface)))
-
-(reg-sub
- :review-interface
- (fn [db]
-   (get-in db [:state :review-interface])))
-
-(defn SidebarAnnotationMenu [ann-context]
+(defn SidebarAnnotationMenu []
   (r/create-class
-   {:component-did-mount
-    (fn [] (util/update-sidebar-height))
+   {:component-did-mount (fn [] (util/update-sidebar-height))
     :reagent-render
-    (fn [ann-context]
-      [annotator/AnnotationMenu ann-context "abstract"])}))
+    (fn []
+      (let [article-id @(subscribe [:visible-article-id])
+            pdf-key (when article-id
+                      (some-> @(subscribe [:view-field :article [article-id :pdf-url]])
+                              pdf/pdf-url->key))
+            ann-context (cond-> {:project-id @(subscribe [:active-project-id])
+                                 :article-id article-id}
+                          pdf-key         (merge {:class "pdf" :pdf-key pdf-key})
+                          (nil? pdf-key)  (merge {:class "abstract"}))]
+        [annotator/AnnotationMenu ann-context "abstract"]))}))
 
 (defn get-article-list-context []
   (let [panel @(subscribe [:active-panel])]
@@ -93,29 +87,10 @@
           (= panel single-article/panel)    (single-article/get-context))))
 
 (defn SidebarColumn []
-  (let [panel @(subscribe [:active-panel])
-        project-id @(subscribe [:active-project-id])
-        article-id @(subscribe [:visible-article-id])
+  (let [article-id @(subscribe [:visible-article-id])
         editing-id @(subscribe [:review/editing-id])
-        pdf-url (when article-id
-                  @(subscribe [:view-field :article [article-id :visible-pdf]]))
-        review-interface @(subscribe [:review-interface])
-        active
-        (cond review-interface             review-interface
-              (= article-id editing-id) :labels
-              :else                     :annotations)
-        pdf-key (some-> pdf-url pdf/pdf-url->key)
-        ann-context (if pdf-key
-                      {:class "pdf"
-                       :project-id project-id
-                       :article-id article-id
-                       :pdf-key pdf-key}
-                      {:class "abstract"
-                       :project-id project-id
-                       :article-id article-id})
-        alist-context (get-article-list-context)]
-    (when active
-      (dispatch [:set-review-interface active])
+        interface @(subscribe [:review-interface])]
+    (when (review/display-sidebar?)
       [:div.three.wide.column.panel-side-column
        [ui/WrapFixedVisibility 10
         [:div.review-menu
@@ -127,16 +102,14 @@
            {:tab-id :annotations
             :content "Annotations"
             :action #(dispatch [:set-review-interface :annotations])}]
-          active
+          interface
           "review-interface"]
-         (when (and article-id alist-context (nil? editing-id))
-           [alist/ChangeLabelsButton
-            alist-context article-id :sidebar true])
-         (if (= active :labels)
-           [review/LabelEditorColumn article-id]
-           [SidebarAnnotationMenu ann-context])
+         (case interface
+           :labels       [review/LabelAnswerEditorColumn article-id]
+           :annotations  [SidebarAnnotationMenu]
+           nil)
          (when (or @(subscribe [:review/on-review-task?])
-                   (= active :labels))
+                   (= interface :labels))
            [review/SaveSkipColumnSegment article-id])]]])))
 
 (defn GlobalFooter []

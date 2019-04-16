@@ -93,7 +93,8 @@
             (Thread/sleep (* 1000 60 60 2))
             (catch Throwable e
               (log/warn "exception in loop-update-global-stats -- continuing")
-              (log/warn (.getMessage e)))
+              (log/warn (.getMessage e))
+              (Thread/sleep (* 1000 60 60 2)))
             (finally
               (send global-stats-agent loop-update-global-stats)))
           true)))

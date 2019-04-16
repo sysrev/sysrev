@@ -38,25 +38,17 @@
   :uri (fn [project-id] "/api/project-info")
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity]])
-  :process
-  (fn [{:keys [db]} [project-id] {:keys [project users]}]
-    (let [url-ids-map
-          (->> (:url-ids project)
-               (map (fn [{:keys [url-id]}]
-                      [url-id project-id]))
-               (apply concat)
-               (apply hash-map))
-          active? (= project-id (active-project-id db))]
-      (cond->
-          {:db (-> db
-                   (load-project (merge project {:error nil}))
-                   (store-user-maps (vals users)))
-           :dispatch [:load-project-url-ids url-ids-map]}
-        active? (merge {:set-page-title (:name project)}))))
-  :on-error
-  (fn [{:keys [db error]} [project-id] _]
-    {:db (-> db (load-project {:project-id project-id
-                               :error error}))}))
+  :process (fn [{:keys [db]} [project-id] {:keys [project users]}]
+             (let [url-ids-map (->> (:url-ids project)
+                                    (map (fn [{:keys [url-id]}] {url-id project-id}))
+                                    (apply merge))
+                   active? (= project-id (active-project-id db))]
+               (cond-> {:db (-> (load-project db (merge project {:error nil}))
+                                (store-user-maps (vals users)))
+                        :dispatch [:load-project-url-ids url-ids-map]}
+                 active? (merge {:set-page-title (:name project)}))))
+  :on-error (fn [{:keys [db error]} [project-id] _]
+              {:db (load-project db {:project-id project-id :error error})}))
 
 (def-data :project/settings
   :loaded? project-loaded?
@@ -149,8 +141,7 @@
   :content (fn [project-id] {:project-id project-id})
   :prereqs (fn [project-id] [[:identity] [:project project-id]])
   :process (fn [{:keys [db]} [project-id] {:keys [sources]}]
-             {:db (assoc-in db [:data :project project-id :sources]
-                            sources)}))
+             {:db (assoc-in db [:data :project project-id :sources] sources)}))
 
 (reg-event-db
  :project/clear-data

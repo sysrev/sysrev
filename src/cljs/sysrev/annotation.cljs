@@ -296,14 +296,14 @@
                    ;; on first item, but it also starts highlight
                    (and (= idx 0)
                         (get start-map idx))
-                   (str "[:div [:span {:style {:background-color \"black\" :color \"white\"}} \"" (escaped-item item))
+                   (str "[:div [:span.annotated-text \"" (escaped-item item))
                    ;; on first item, no highlights
                    (= idx 0)
                    (str "[:div \"" (escaped-item item))
                    ;; on the last item, but it also starts highlight
                    (and (= idx max-index)
                         (get start-map idx))
-                   (str "\"[:span {:style {:background-color \"black\" :color \"white\"}} \"" item "\"]]")
+                   (str "\"[:span.annotated-text \"" item "\"]]")
                    ;; on the last item, close out
                    (= idx max-index)
                    (str (escaped-item item) "\"]]")
@@ -314,7 +314,7 @@
                    ""
                    ;; match for start index at idx
                    (get start-map idx)
-                   (str "\" [:span {:style {:background-color \"black\" :color \"white\"}} \"" (escaped-item item))
+                   (str "\" [:span.annotated-text \"" (escaped-item item))
                    ;; match for end index at idx
                    (get end-map idx)
                    (str "\"]\"" (escaped-item item))

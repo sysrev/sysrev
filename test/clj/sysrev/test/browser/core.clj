@@ -96,21 +96,6 @@
     (delete-test-user :email email)
     (users/create-user email password :project-id project-id)))
 
-(defn current-project-id
-  "Reads project id from current url."
-  []
-  (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
-    (some-> id-str parse-integer)))
-
-(defn current-project-route
-  "Returns substring of current url after base url for project."
-  []
-  (when-let [project-id (current-project-id)]
-    (-> (re-matches (re-pattern
-                     (format ".*/p/%d(.*)$" project-id))
-                    (taxi/current-url))
-        second)))
-
 (defn displayed-now?
   "Wrapper for taxi/displayed? to handle common exceptions. Returns true
   if an element matching q currently exists and is displayed, false if
@@ -162,6 +147,29 @@
                                                       "div.ui.dimmer.active"
                                                       ".ui.button.loading"])
                 timeout interval)))
+
+(defn current-project-id
+  "Reads project id from current url. Waits a short time before
+  returning nil if no project id is immediately found, unless now is
+  true."
+  [& [now]]
+  (letfn [(lookup-id []
+            (let [[_ id-str] (re-matches #".*/p/(\d+)/?.*" (taxi/current-url))]
+              (some-> id-str parse-integer)))]
+    (if now
+      (lookup-id)
+      (when (try-wait wait-until #(integer? (lookup-id)) 2500 50)
+        (lookup-id)))))
+
+(defn current-project-route
+  "Returns substring of current url after base url for project. Waits a
+  short time before returning nil if no project id is immediately
+  found, unless now is true."
+  [& [now]]
+  (when-let [project-id (current-project-id now)]
+    (second (re-matches (re-pattern
+                         (format ".*/p/%d(.*)$" project-id))
+                        (taxi/current-url)))))
 
 (defn webdriver-fixture-once [f]
   (f)
@@ -267,6 +275,14 @@
     (Thread/sleep 20))
   true)
 
+(defn take-screenshot [& [error?]]
+  (let [filename (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")
+        level (if error? :error :info)]
+    (log/logp level "Saving screenshot:" filename)
+    (try (taxi/take-screenshot :file filename)
+         (catch Throwable e
+           (log/error "Screenshot failed:" (type e) (.getMessage e))))))
+
 (defmacro deftest-browser [name enable bindings body & {:keys [cleanup]}]
   (let [name-str (clojure.core/name name)]
     `(deftest ~name
@@ -275,21 +291,15 @@
            (try (log/info "running" ~name-str)
                 ~body
                 (catch Throwable e#
-                  (let [filename# (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")]
-                    (log/error "Saving screenshot:" filename#)
-                    (try (taxi/take-screenshot :file filename#)
-                         (catch Throwable e1#
-                           (log/error "Screenshot failed:" (type e1#) (.getMessage e1#))))
-                    (throw e#)))
+                  (take-screenshot true)
+                  (throw e#))
                 (finally ~cleanup)))))))
 
 (defn cleanup-browser-test-projects []
   (project/delete-all-projects-with-name "Sysrev Browser Test")
-  (when-let [test-user-id (:user-id (users/get-user-by-email
-                                     "browser+test@insilica.co"))]
+  (when-let [test-user-id (:user-id (users/get-user-by-email (:email test-login)))]
     (project/delete-solo-projects-from-user test-user-id)))
 
-(defn current-frame-names
-  []
+(defn current-frame-names []
   (->> (taxi/xpath-finder "//iframe")
        (map #(taxi/attribute % :name))))

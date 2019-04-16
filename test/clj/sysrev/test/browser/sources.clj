@@ -3,13 +3,13 @@
             [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [clojure.test :refer :all]
+            [clojure.tools.logging :as log]
             [sysrev.test.core :refer [default-fixture]]
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.navigate :as nav]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.browser.pubmed :as pm]
-            [clojure.tools.logging :as log]
-            [sysrev.shared.util :as util]))
+            [sysrev.db.project :as project]))
 
 (use-fixtures :once default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -20,10 +20,13 @@
    query1 "foo bar"
    query2 "grault"
    query3 "foo bar Aung"
-   query4 "foo bar Jones"]
+   query4 "foo bar Jones"
+   project-id (atom nil)]
   (do (nav/log-in)
 ;;; create a project
       (nav/new-project project-name)
+      (reset! project-id (b/current-project-id))
+      (assert (integer? @project-id))
       (nav/go-project-route "/add-articles")
 ;;; add sources
       ;; create a new source

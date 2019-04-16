@@ -36,6 +36,7 @@
              "-Xms600m"
              "-Xmx1200m"
              "-server"
+             "-XX:+UseParallelGC"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"
              #_ "-XX:TieredStopAtLevel=1"

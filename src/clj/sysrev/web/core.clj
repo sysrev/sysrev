@@ -52,9 +52,8 @@
 (defn wrap-sysrev-app
   "Ring handler wrapper for web app routes"
   [handler]
-  (let [config
-        (-> default/site-defaults
-            (assoc-in [:session :store] (sysrev-session-store)))]
+  (let [config (assoc-in default/site-defaults
+                         [:session :store] (sysrev-session-store))]
     (-> handler
         wrap-sysrev-response
         wrap-add-anti-forgery-token

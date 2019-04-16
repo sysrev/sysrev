@@ -238,3 +238,20 @@
  :review/reset-ui-labels
  (fn [db]
    (assoc-in db [:state :review :labels] {})))
+
+(reg-event-db
+ :set-review-interface
+ (fn [db [_ interface]]
+   (assoc-in db [:state :review-interface] interface)))
+
+(reg-sub ::review-interface-override #(get-in % [:state :review-interface]))
+
+(reg-sub :review-interface
+         (fn []
+           [(subscribe [:active-project-id])
+            (subscribe [:visible-article-id])
+            (subscribe [:review/editing-id])
+            (subscribe [::review-interface-override])])
+         (fn [[project-id article-id editing-id override]]
+           (when (and project-id article-id editing-id)
+             (or override :labels))))

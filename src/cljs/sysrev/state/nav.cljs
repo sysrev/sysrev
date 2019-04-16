@@ -167,9 +167,16 @@
           url-id (if (string? project-url-id)
                    project-url-id project-id)]
       (str "/p/" url-id (or suburi ""))))))
-;;
+
 (defn project-uri [project-id suburi]
   @(subscribe [:project/uri project-id suburi]))
+
+;; TODO: add this function for use in re-frame events
+#_ (defn get-project-uri [db project-id suburi]
+     (let [project-url-id (project-active-url-id db project-id)
+           url-id (if (string? project-url-id)
+                    project-url-id project-id)]
+       (str "/p/" url-id suburi)))
 
 (reg-event-fx
  :project/navigate

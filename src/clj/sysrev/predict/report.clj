@@ -136,5 +136,4 @@
       (clear-project-cache project-id))))
 
 (defn predict-summary [predict-run-id]
-  (-> (q/query-predict-run-by-id predict-run-id [:meta])
-      :meta))
+  (:meta (q/query-predict-run-by-id predict-run-id [:meta])))

@@ -16,7 +16,7 @@
 
 (defn init-route [& [path]]
   (let [full-url (path->full-url path)]
-    (log/info "loading:" full-url)
+    (log/info "loading" full-url)
     (taxi/to full-url)
     (b/wait-until-loading-completes :pre-wait 100)
     (b/wait-until-loading-completes :pre-wait 100)
@@ -34,15 +34,13 @@
           (init-route path)
           (not= current (path->full-url path))
           (do (b/wait-until-loading-completes :pre-wait 50)
-              (log/info "navigating:" path)
+              (log/info "navigating to" path)
               #_ (taxi/get-url (path->full-url path))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or wait-ms true))))
     nil))
 
 (defn go-project-route [suburi & [project-id]]
-  (when (nil? project-id)
-    (b/wait-until #(integer? (b/current-project-id)) 2500))
   (let [project-id (or project-id (b/current-project-id))]
     (assert (integer? project-id))
     (go-route (str "/p/" project-id suburi))))
@@ -56,6 +54,7 @@
 (defn log-in [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
+    (log/info "logging in" (str "(" email ")"))
     (go-route "/")
     (log-out)
     (go-route "/login")
@@ -63,17 +62,20 @@
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     (Thread/sleep 100)
-    (go-route "/")))
+    (go-route "/")
+    (log/info "login successful")))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
+    (log/info "registering user"  (str "(" email ")"))
     (log-out)
     (go-route "/register")
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
-    (b/wait-until-exists "form.create-project")))
+    (b/wait-until-exists "form.create-project")
+    (log/info "register successful")))
 
 (defn wait-until-overview-ready []
   (-> (b/not-disabled (x/project-menu-item :overview))
@@ -98,7 +100,7 @@
   (b/click (x/project-title-value name)))
 
 (defn delete-current-project []
-  (when (b/current-project-id)
+  (when (b/current-project-id true)
     (log/info "deleting current project")
     (go-project-route "/settings")
     (b/click (xpath "//button[contains(text(),'Project...')]"))

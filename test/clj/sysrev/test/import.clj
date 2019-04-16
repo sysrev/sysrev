@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-http.client :as http]
+            [clojure-csv.core :as csv]
             [clojure.java.io :as io]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.test.core :as test :refer [completes?]]
@@ -10,9 +11,11 @@
             [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :as project]
+            [sysrev.db.export :as export]
             [sysrev.source.import :as import]
             [sysrev.source.endnote :as endnote]
-            [sysrev.util :as util :refer [parse-xml-str xml-find]]))
+            [sysrev.util :as util :refer [parse-xml-str xml-find]]
+            [sysrev.shared.util :as sutil :refer [in?]]))
 
 (use-fixtures :once test/default-fixture)
 (use-fixtures :each test/database-rollback-fixture)
@@ -111,6 +114,15 @@
       (is (completes? (import/import-pmid-file
                        project-id input {:use-future? false})))
       (is (= 200 (project/project-article-count project-id)))
+      (log/info "checking articles-csv export")
+      (let [articles-csv (rest (export/export-articles-csv project-id))
+            article-ids (set (project/project-article-ids project-id))]
+        (is (= (count articles-csv) (count article-ids)))
+        (is (every? (fn [article-id]
+                      (some #(in? % (str article-id)) articles-csv))
+                    article-ids))
+        (is (= articles-csv (-> (csv/write-csv articles-csv)
+                                (csv/parse-csv :strict true)))))
       (finally
         (project/delete-project project-id)))))
 

@@ -3,4 +3,4 @@ set -eu
 
 ./scripts/install-flyway
 cp -f flyway.conf.aws-dev-main flyway.conf
-./flyway migrate
+./flyway -ignoreIgnoredMigrations=true migrate

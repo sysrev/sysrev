@@ -384,8 +384,10 @@
 (defn reload-list [context & [nav-action]]
   (when nav-action
     (dispatch [::set-recent-nav-action context nav-action]))
-  (reload-list-count context)
-  (reload-list-data context))
+  (let [count-item @(subscribe [::count-query context])
+        data-item @(subscribe [::articles-query context])]
+    (dispatch [:data/after-load count-item :reload-list [:reload data-item]])
+    (dispatch [:reload count-item])))
 (reg-fx ::reload-list #(apply reload-list %))
 
 (defn require-list [context]

@@ -173,11 +173,8 @@
 (defn project-sources
   "Return sources for project-id"
   [project-id]
-  (if (project/project-exists? project-id)
-    {:result {:success true
-              :sources (source/project-sources project-id)}}
-    {:error {:status not-found
-             :message (str "project-id " project-id  " not found")}}))
+  {:result {:success true
+            :sources (source/project-sources project-id)}})
 ;;;
 (s/fdef project-sources
   :args (s/cat :project-id int?)

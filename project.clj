@@ -35,9 +35,7 @@
                  [postgre-types "0.0.4"]
                  [hikari-cp "2.6.0"]
                  [clj-postgresql "0.7.0"
-                  :exclusions [org.clojure/java.jdbc
-                               cheshire
-                               prismatic/schema]]
+                  :exclusions [org.clojure/java.jdbc cheshire prismatic/schema]]
                  [honeysql "0.9.4"]
                  [nilenso/honeysql-postgres "0.2.5"]
 
@@ -80,6 +78,7 @@
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
              "-Xms800m"
              "-Xmx1500m"
+             #_ "-XX:+UseParallelGC"
              "-XX:+TieredCompilation"
              "-XX:+AggressiveOpts"
              "-Xverify:none"]
@@ -116,13 +115,12 @@
              {:resource-paths ["config/test-s3-dev"]}
              :dev
              {:jvm-opts ["-Xms1000m" "-Xmx2000m" "-server" #_ "-client"
-                         #_ "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"
+                         #_ "-XX:TieredStopAtLevel=1" #_ "-XX:+UseConcMarkSweepGC"
                          #_ "-XX:+CMSClassUnloadingEnabled"]
               :resource-paths ["config/dev"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]
-              :dependencies [[binaryage/devtools "0.9.10"]
-                             [clj-webdriver "0.7.2"]
+              :dependencies [[clj-webdriver "0.7.2"]
                              [org.seleniumhq.selenium/selenium-api "3.8.1"]
                              [org.seleniumhq.selenium/selenium-support "3.8.1"]
                              [org.seleniumhq.selenium/selenium-java "3.8.1"
@@ -162,7 +160,7 @@
                     sysrev.spark.similarity]}
              :test
              {:jvm-opts [#_ "-server" "-client"
-                         "-XX:TieredStopAtLevel=1" "-XX:+UseConcMarkSweepGC"]
+                         "-XX:TieredStopAtLevel=1" #_ "-XX:+UseConcMarkSweepGC"]
               :resource-paths ["config/test" "resources/test"]
               :source-paths ["src/clj" "src/cljc" "test/clj"]
               :test-paths ["test/clj"]

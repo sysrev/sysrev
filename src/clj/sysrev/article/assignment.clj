@@ -20,56 +20,38 @@
 (defn query-assignment-articles [project-id & [predict-run-id]]
   (with-project-cache
     project-id [:label-values :saved :articles predict-run-id]
-    (let [predict-run-id
-          (or predict-run-id (q/project-latest-predict-run-id project-id))
-          articles
-          (-> (q/select-project-articles project-id [:a.article-id])
-              (->> do-query
-                   (group-by :article-id)
-                   (map-values
-                    (fn [x]
-                      (-> (first x)
-                          (merge {:users [] :score 0.0}))))))
-          scores
-          (-> (q/select-project-articles project-id [:a.article-id])
-              (q/with-article-predict-score predict-run-id)
-              (->> do-query
-                   (group-by :article-id)
-                   (map-values
-                    (fn [x]
-                      (let [score (or (-> x first :score) 0.0)]
-                        {:score score})))))
-          labels
-          (-> (q/select-project-articles
-               project-id [:a.article-id :al.user-id :al.confirm-time])
-              (q/join-article-labels)
-              (q/join-article-label-defs)
-              (q/filter-valid-article-label nil)
-              (->> do-query
-                   (group-by :article-id)
-                   (map-values
-                    (fn [x]
-                      (let [user-ids (->> x (map :user-id) distinct vec)
-                            users-confirmed
-                            (->> x (remove #(nil? (:confirm-time %)))
-                                 (map :user-id) distinct vec)]
-                        {:users user-ids
-                         :users-confirmed users-confirmed})))))]
-      (merge-with merge articles scores labels))))
+    (let [predict-run-id (or predict-run-id (q/project-latest-predict-run-id project-id))
+          [articles labels]
+          (pvalues
+           (-> (q/select-project-articles project-id [:a.article-id])
+               (q/with-article-predict-score predict-run-id)
+               (->> do-query
+                    (group-by :article-id)
+                    (map-values first)
+                    (map-values #(-> % (assoc :users [] :score (or (:score %) 0.0))))))
+           (-> (q/select-project-articles project-id [:a.article-id :al.user-id :al.confirm-time])
+               (q/join-article-labels)
+               (q/filter-valid-article-label nil)
+               (->> do-query
+                    (group-by :article-id)
+                    (map-values (fn [x] (let [user-ids (->> x (map :user-id) distinct vec)
+                                              confirmed (->> x (remove #(nil? (:confirm-time %)))
+                                                             (map :user-id) distinct vec)]
+                                          {:users user-ids
+                                           :users-confirmed confirmed}))))))]
+      (merge-with merge articles labels))))
 
 (defn unlabeled-articles [project-id & [predict-run-id articles]]
   (with-project-cache
     project-id [:label-values :saved :unlabeled-articles predict-run-id]
-    (->> (or articles (query-assignment-articles project-id predict-run-id))
-         vals
+    (->> (vals (or articles (query-assignment-articles project-id predict-run-id)))
          (filter #(= 0 (count (:users-confirmed %))))
          (map #(dissoc % :users-confirmed)))))
 
 (defn single-labeled-articles [project-id self-id & [predict-run-id articles]]
   (with-project-cache
     project-id [:label-values :saved :single-labeled-articles self-id predict-run-id]
-    (->> (or articles (query-assignment-articles project-id predict-run-id))
-         vals
+    (->> (vals (or articles (query-assignment-articles project-id predict-run-id)))
          (filter #(and (= 1 (count (:users %)))
                        (= 1 (count (:users-confirmed %)))
                        (not (in? (:users %) self-id))))
@@ -78,8 +60,7 @@
 (defn fallback-articles [project-id self-id & [predict-run-id articles]]
   (with-project-cache
     project-id [:label-values :saved :fallback-articles self-id predict-run-id]
-    (->> (or articles (query-assignment-articles project-id predict-run-id))
-         vals
+    (->> (vals (or articles (query-assignment-articles project-id predict-run-id)))
          (filter #(and (< (count (:users-confirmed %)) 2)
                        (not (in? (:users %) self-id))))
          (map #(dissoc % :users)))))
@@ -87,8 +68,7 @@
 (defn unlimited-articles [project-id self-id & [predict-run-id articles]]
   (with-project-cache
     project-id [:label-values :saved :unlimited-articles self-id predict-run-id]
-    (->> (or articles (query-assignment-articles project-id predict-run-id))
-         vals
+    (->> (vals (or articles (query-assignment-articles project-id predict-run-id)))
          (filter #(not (in? (:users %) self-id))))))
 
 (defn- pick-ideal-article
@@ -97,15 +77,13 @@
   Randomly picks from the top 5% of article entries sorted by `sort-keyfn`."
   [articles sort-keyfn & [predict-run-id min-random-set]]
   (let [min-random-set (or min-random-set 100)
-        n-closest (max min-random-set (quot (count articles) 20))]
-    (when-let [article-id
-               (->> articles
-                    (sort-by sort-keyfn <)
-                    (take n-closest)
-                    (#(when-not (empty? %) (util/crypto-rand-nth %)))
-                    :article-id)]
-      (-> (article/get-article
-           article-id :predict-run-id predict-run-id)
+        n-closest (max min-random-set (quot (count articles) 4))]
+    (when-let [article-id (->> articles
+                               (sort-by sort-keyfn <)
+                               (take n-closest)
+                               (#(when-not (empty? %) (util/crypto-rand-nth %)))
+                               :article-id)]
+      (-> (article/get-article article-id :predict-run-id predict-run-id)
           (dissoc :raw)))))
 
 (defn ideal-unlabeled-article
@@ -165,29 +143,25 @@
 (defn get-user-label-task [project-id user-id]
   (let [{:keys [second-review-prob unlimited-reviews]
          :or {second-review-prob 0.5
-              unlimited-reviews false}}
-        (project/project-settings project-id)
+              unlimited-reviews false}} (project/project-settings project-id)
         articles (query-assignment-articles project-id)
         [unlimited pending unlabeled today-count]
-        (pvalues
-         (when unlimited-reviews
-           (ideal-unlimited-article project-id user-id nil articles))
-         (when-not unlimited-reviews
-           (ideal-single-labeled-article project-id user-id nil articles))
-         (when-not unlimited-reviews
-           (ideal-unlabeled-article project-id nil articles))
-         (user-confirmed-today-count project-id user-id))
+        (pvalues (when unlimited-reviews
+                   (ideal-unlimited-article project-id user-id nil articles))
+                 (when-not unlimited-reviews
+                   (ideal-single-labeled-article project-id user-id nil articles))
+                 (when-not unlimited-reviews
+                   (ideal-unlabeled-article project-id nil articles))
+                 (user-confirmed-today-count project-id user-id))
         [article status]
-        (cond
-          unlimited-reviews [unlimited :unlimited]
-          (and pending unlabeled)
-          (if (<= (util/crypto-rand) second-review-prob)
-            [pending :single] [unlabeled :unreviewed])
-          pending [pending :single]
-          unlabeled [unlabeled :unreviewed]
-          :else
-          (when-let [fallback (ideal-fallback-article project-id user-id nil articles)]
-            [fallback :single]))]
+        (cond unlimited-reviews        [unlimited :unlimited]
+              (and pending unlabeled)  (if (<= (util/crypto-rand) second-review-prob)
+                                         [pending :single] [unlabeled :unreviewed])
+              pending                  [pending :single]
+              unlabeled                [unlabeled :unreviewed]
+              :else                    (when-let [fallback (ideal-fallback-article
+                                                            project-id user-id nil articles)]
+                                         [fallback :single]))]
     (when (and article status)
       {:article-id (:article-id article)
        :today-count today-count})))

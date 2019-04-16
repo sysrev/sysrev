@@ -1,7 +1,9 @@
 #!/bin/bash
-set -eux
+set -eu
 
 source vars.sh
+
+set -x
 
 cd client
 lein cljsbuild once production

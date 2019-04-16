@@ -1,8 +1,10 @@
 (ns sysrev.shared.util
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [clojure.test.check.generators :as gen])
-  #?(:clj (:import java.util.UUID)))
+            [clojure.test.check.generators :as gen]
+            [cognitect.transit :as transit])
+  #?(:clj (:import java.util.UUID
+                   (java.io ByteArrayOutputStream ByteArrayInputStream))))
 
 (defn parse-integer
   "Reads a number from a string. Returns nil if not a number."
@@ -218,3 +220,26 @@
   can be applied to a value."
   ([test] #(ensure-value test %))
   ([test value] (when (test value) value)))
+
+(defn filter-values
+  "Filters map key-value entries by testing values against f."
+  [f m]
+  (->> (seq m)
+       (filter (fn [[k v]] (f v)))
+       (apply concat)
+       (apply hash-map)))
+
+(defn write-transit-str [x]
+  #?(:clj  (with-open [os (ByteArrayOutputStream.)]
+             (let [w (transit/writer os :json)]
+               (transit/write w x)
+               (.toString os)))
+     :cljs (-> (transit/writer :json)
+               (transit/write x))))
+
+(defn read-transit-str [s]
+  #?(:clj  (-> (ByteArrayInputStream. (.getBytes s "UTF-8"))
+               (transit/reader :json)
+               (transit/read))
+     :cljs (-> (transit/reader :json)
+               (transit/read s))))

@@ -325,8 +325,7 @@
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
       project-id [:labels :overall-label-id]
-      (:label-id
-       (q/query-label-by-name project-id "overall include" [:label-id])))))
+      (:label-id (q/query-label-by-name project-id "overall include" [:label-id])))))
 ;;;
 (s/fdef project-overall-label-id
   :args (s/cat :project-id ::sc/project-id)
@@ -634,24 +633,19 @@
       (->> do-query
            (filter (fn [{:keys [project-id project-uuid]}]
                      (= register-hash (short-uuid project-uuid))))
-           first
-           :project-id)))
+           first :project-id)))
 
 (defn project-exists?
   "Does a project with project-id exist?"
   [project-id & {:keys [include-disabled?]
                  :or {include-disabled? true}}]
-  (= project-id
-     (-> (select :project-id)
-         (from [:project :p])
-         (where [:and
-                 [:= :p.project-id project-id]
-                 (if include-disabled?
-                   true
-                   [:= :p.enabled true])])
-         do-query
-         first
-         :project-id)))
+  (= project-id (-> (select :project-id)
+                    (from [:project :p])
+                    (where [:and
+                            [:= :p.project-id project-id]
+                            (if include-disabled? true
+                                [:= :p.enabled true])])
+                    do-query first :project-id)))
 ;;;
 (s/fdef project-exists?
   :args (s/cat :project-id int?
@@ -764,11 +758,15 @@
     (delete-project project-id)))
 
 (defn project-article-ids
-  "Returns list of all article ids in project."
-  [project-id]
-  (-> (select :article-id)
-      (from :article)
-      (where [:= :project-id project-id])
+  "Returns list of all article ids in project. enabled may optionally be
+  passed as true or false to filter by enabled status."
+  [project-id & [enabled]]
+  (assert (contains? #{nil true false} enabled))
+  (-> (select :article-id) (from :article)
+      (where [:and
+              [:= :project-id project-id]
+              (if (nil? enabled) true
+                  [:= :enabled enabled])])
       (->> do-query (mapv :article-id))))
 
 (defn get-project-by-id

@@ -59,6 +59,8 @@
       ;; edit the markdown
       (b/click edit-markdown-icon)
       (b/wait-until-displayed input)
+      ;; make sure textarea contains the previously saved markdown
+      (is (b/exists? (xpath "//textarea[text()='" markdown-description "']")))
       (b/set-input-text input edited-markdown-description :delay 100)
       (click-save)
       (b/wait-until-displayed {:xpath "//h1[contains(text(),'foo bar')]"})
