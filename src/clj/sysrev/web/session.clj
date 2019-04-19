@@ -1,10 +1,9 @@
 (ns sysrev.web.session
-  (:require
-   [ring.middleware.session.store :refer [SessionStore]]
-   [sysrev.db.core :refer [to-jsonb sql-now do-query do-execute]]
-   [honeysql.core :as sql]
-   [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-   [sysrev.db.queries :as q])
+  (:require [ring.middleware.session.store :refer [SessionStore]]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.db.core :refer [to-jsonb sql-now do-query do-execute]]
+            [sysrev.db.queries :as q])
   (:import [java.util UUID]))
 
 (defn get-session [skey]

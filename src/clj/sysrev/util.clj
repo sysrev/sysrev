@@ -1,5 +1,6 @@
 (ns sysrev.util
-  (:require [clojure.main :refer [demunge]]
+  (:require [clojure.string :as str]
+            [clojure.main :refer [demunge]]
             [clojure.tools.logging :as log]
             [clojure.xml]
             [crypto.random]
@@ -11,13 +12,12 @@
             [clojure.java.io :as io]
             [clojure.java.shell :refer [sh]]
             [sysrev.shared.util :as shared])
-  (:import (javax.xml.parsers SAXParser SAXParserFactory)
-           java.util.UUID
-           (java.io ByteArrayOutputStream)
-           (java.io ByteArrayInputStream)
-           java.security.MessageDigest
+  (:import java.util.UUID
+           (java.io File ByteArrayInputStream ByteArrayOutputStream)
            java.math.BigInteger
-           java.io.File))
+           (javax.xml.parsers SAXParser SAXParserFactory)
+           java.security.MessageDigest
+           org.apache.commons.lang3.exception.ExceptionUtils))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
@@ -91,18 +91,16 @@
        (mapv #(-> % :content first))))
 
 (defn parse-xml-str [s]
-  (let [;; Create parser instance with DTD loading disabled.
-        ;; Without this, parser may make HTTP requests to DTD locations
-        ;; referenced in the XML string.
-        startparse-no-dtd
-        (fn [s ch]
-          (let [^SAXParserFactory factory (SAXParserFactory/newInstance)]
-            (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
-            (let [^SAXParser parser (.newSAXParser factory)]
-              (.parse parser s ch))))]
-    (clojure.xml/parse
-     (java.io.ByteArrayInputStream. (.getBytes s))
-     startparse-no-dtd)))
+  (clojure.xml/parse
+   (ByteArrayInputStream. (.getBytes s))
+   ;; Create parser instance with DTD loading disabled.  Without this,
+   ;; parser may make HTTP requests to DTD locations referenced in the
+   ;; XML string.
+   (fn [s ch]
+     (let [^SAXParserFactory factory (SAXParserFactory/newInstance)]
+       (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
+       (let [^SAXParser parser (.newSAXParser factory)]
+         (.parse parser s ch))))))
 
 (defn all-project-ns []
   (->> (all-ns)
@@ -309,6 +307,15 @@
   "Returns string showing type and message from exception."
   [ex]
   (str (type ex) " - " (.getMessage ex)))
+
+(defn ex-log-message
+  "Returns a string summarizing exception for logging purposes."
+  [ex]
+  (format "%s\n%s" (str ex) (->> (ExceptionUtils/getStackTrace ex)
+                                 (str/split-lines)
+                                 (filter #(str/includes? % "sysrev"))
+                                 (take 5)
+                                 (str/join "\n"))))
 
 ;; from https://github.com/remvee/clj-base64/blob/master/src/remvee/base64.clj
 (def base64-alphabet
