@@ -239,18 +239,18 @@
            [:h4.ui.header.title-header "Personal Settings"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
-           [:a {:key "#general"
-                :id "user-general"
-                :class (cond-> "item"
-                         (= @current-path "/user/settings") (str " active"))
-                :href "/user/settings"}
-            "General"]
            [:a {:key "#profile"
                 :id "user-profile"
                 :class (cond-> "item"
                          (= @current-path "/user/settings/profile") (str " active"))
                 :href "/user/settings/profile"}
             "Profile"]
+           [:a {:key "#general"
+                :id "user-general"
+                :class (cond-> "item"
+                         (= @current-path "/user/settings") (str " active"))
+                :href "/user/settings"}
+            "General"]
            [:a {:key "#billing"
                 :id "user-billing"
                 :class (cond-> "item"

@@ -27,3 +27,6 @@
   ;; only an owner or admin of an org can create projects for that org
   :cleanup
   (println "Cleanup Here"))
+
+
+;; when performing billing, make sure you can go directly to /org/billing and have a plan show up from a browser load!

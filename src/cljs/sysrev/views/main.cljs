@@ -15,6 +15,7 @@
             [sysrev.views.panels.login :refer [LoginRegisterPanel]]
             [sysrev.views.panels.root]
             [sysrev.views.panels.org.main]
+            [sysrev.views.panels.org.plans]
             [sysrev.views.panels.password-reset]
             [sysrev.views.panels.pubmed]
             [sysrev.views.panels.project.common]

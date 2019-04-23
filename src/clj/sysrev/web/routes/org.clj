@@ -64,4 +64,15 @@
             (GET "/projects" request
                  (wrap-authorize
                   request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin" "member"])}
-                  (api/group-projects org-id))))))
+                  (api/group-projects org-id)))
+            (context "/stripe" []
+                     (GET "/current-plan" request
+                          (wrap-authorize
+                           request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin" "member"])}
+                           (api/current-group-plan org-id)))
+                     (POST "/subscribe-plan" request
+                           (wrap-authorize
+                            request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin"])}
+                            (let [{:keys [plan-name]} (:body request)
+                                  user-id (current-user-id request)]
+                              (api/subscribe-org-to-plan user-id org-id plan-name))))))))

@@ -6,8 +6,9 @@
             [sysrev.base :refer [active-route]]
             [sysrev.state.ui :refer [get-panel-field set-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
-            [sysrev.views.panels.org.users :refer [OrgUsers]]
+            [sysrev.views.panels.org.billing :refer [OrgBilling]]
             [sysrev.views.panels.org.projects :refer [OrgProjects]]
+            [sysrev.views.panels.org.users :refer [OrgUsers]]
             [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -39,7 +40,9 @@
                      (reset! orgs (get-in response [:result :orgs]))
                      (when (and (not (empty? @orgs))
                                 (nil? @current-org-id))
-                       (dispatch [:set-current-org! (->> @orgs (sort-by :id) first :id) ])))
+                       (dispatch [:set-current-org! (->> @orgs (sort-by :id) first :id)])
+                       ;; for plans to be able to keep up
+                       (dispatch [:fetch [:org-current-plan]])))
           :error-handler (fn [error-response]
                            (reset! retrieving-orgs? false)
                            (reset! orgs-error (get-in error-response
@@ -103,7 +106,7 @@
                      :class (cond-> "item"
                               (= @current-path "/org/profile") (str " active"))}
            "Profile"]
-          #_[MenuItem {:name "Billing"
+          [MenuItem {:name "Billing"
                      :id "org-billing"
                      :href "/org/billing"
                      :class (cond-> "item"
@@ -128,10 +131,10 @@
             ;;  (when-not (empty? @orgs)
             ;;    [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
             ;;  [:h1 "Profile settings go here"]]
-            ;; #"/org/billing"
-            ;; [:h1 "foo"]
-            [:div {:style {:display "none"}}]
-            )]])
+            #"/org/billing"
+            [OrgBilling]
+            ;; default
+            [:div {:style {:display "none"}}])]])
       :component-did-mount (fn [this]
                              (read-orgs!))})))
 

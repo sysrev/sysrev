@@ -198,8 +198,13 @@
  (dispatch [:set-active-panel [:user-settings]]))
 
 (sr-defroute
+ org-plans "/org/plans" []
+ (dispatch [:set-active-panel [:org-plans]]))
+
+(sr-defroute
  org-settings "/org/*" []
  (dispatch [:set-active-panel [:org-settings]]))
+
 
 (sr-defroute
  users "/users*" []
@@ -271,6 +276,9 @@
 
         [[:users]
          "/users*"]
+
+        [[:org-plans]
+         "/org/plans"]
 
         [[:org-settings]
          "/org/*"]]

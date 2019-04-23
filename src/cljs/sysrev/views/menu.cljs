@@ -61,7 +61,7 @@
         (when full? dev-menu)
         (toggle-theme-button)
         [:a.item {:id "user-name-link"
-                  :href "/user/settings"}
+                  :href "/user/settings/profile"}
          [:div
           [Avatar {:user-id user-id}]
           [:span.blue-text {:style {:margin-left "0.25em"}} user-display]]]

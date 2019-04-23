@@ -121,8 +121,13 @@
 ;; it is not prorated at the time of upgrade/downgrade
 ;; https://stripe.com/docs/subscriptions/upgrading-downgrading
 (defn subscribe-customer!
-  "Subscribe user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response"
-  [user plan-name]
+  "Subscribe user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response. on-success is a fn called when transaction is succesfully completed on Stripe"
+  [user plan-name & {:keys [on-success]
+                     :or {on-success (fn [user plan-name created id]
+                                       (db-plans/add-user-to-plan! {:user-id (:user-id user)
+                                                                    :name plan-name
+                                                                    :created created
+                                                                    :sub-id id}))}}]
   (let [{:keys [created id] :as stripe-response}
         (execute-action (subscriptions/subscribe-customer
                          (common/plan (get-plan-id plan-name))
@@ -131,10 +136,7 @@
     (cond (:error stripe-response)
           stripe-response
           created
-          (do (db-plans/add-user-to-plan! {:user-id (:user-id user)
-                                           :name plan-name
-                                           :created created
-                                           :sub-id id})
+          (do (on-success user plan-name created id)
               stripe-response))))
 
 (defn unsubscribe-customer!

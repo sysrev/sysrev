@@ -18,8 +18,6 @@
 
 (def initial-state {:selected-plan nil
                     :changing-plan? false
-                    ;;:need-card? false
-                    ;;:updating-card? false
                     :error-message nil})
 (defonce state (r/cursor app-db [:state :panels panel]))
 (defn ensure-state []
@@ -76,7 +74,44 @@
   [cents]
   (str (-> cents (/ 100) (.toFixed 2))))
 
-(defn DowngradePlan []
+(defn BusinessUnlimited
+  []
+  [Segment
+   [Grid {:stackable true}
+    [Row
+     [Column {:width 8}
+      [:b "Business Unlimited"]
+      [ListUI
+       [ListItem "Unlimited public projects"]
+       [ListItem "Unlimited private projects"]]]
+     [Column {:width 8 :align "right"}
+      [:h2 "$30 / month"]]]]])
+
+(defn BasicPlan []
+  [Segment
+   [Grid {:stackable true}
+    [Row
+     [Column {:width 8}
+      [:b "Basic"]
+      [ListUI
+       [ListItem "Unlimited public projects"]]]
+     [Column {:width 8 :align "right"}
+      [:h2 "$0 / month"]]]]])
+
+(defn TogglePlanButton
+  [{:keys [disabled on-click class]} & [text]]
+  [Button
+   {:class class
+    :color "green"
+    :on-click
+    ;; TODO: This needs to be a custom fn
+    on-click
+    :disabled disabled}
+   "Upgrade Plan"])
+
+(defn DowngradePlan [{:keys [billing-settings-route
+                             unsubscribe-button-on-click
+                             downgrade-dispatch]}]
   (let [default-source (subscribe [:billing/default-source])
         error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
@@ -90,60 +125,34 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [Segment
-                         [Grid {:stackable true}
-                          [Row
-                           [Column {:width 8}
-                            [:b "Business Unlimited"]
-                            [ListUI
-                             [ListItem "Unlimited public projects"]
-                             [ListItem "Unlimited private projects"]]]
-                           [Column {:width 8 :align "right"}
-                            [:h2 "$30 / month"]]]]]]]]
+                        [BusinessUnlimited]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
-                        [Segment
-                         [Grid {:stackable true}
-                          [Row
-                           [Column {:width 8}
-                            [:b "Basic"]
-                            [ListUI
-                             [ListItem "Unlimited public projects"]]]
-                           [Column {:width 8 :align "right"}
-                            [:h2 "$0 / month"]]]]]
-                        [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+                        [BasicPlan]
+                        [:a {:href billing-settings-route} "Back to Billing Settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
                         [ListUI {:divided true}
                          [:h4 "New Monthly Bill"]
                          [ListItem [:p "Basic plan ($0 / month)"]]
-                         (when (empty? @default-source)
-                           [:a.add-payment-method
-                            {:style {:cursor "pointer"}
-                             :on-click
-                             (util/wrap-prevent-default
-                              #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                   (nav-scroll-top "/user/payment")))}
-                            "Add a payment method"])
                          [:div {:style {:margin-top "1em" :width "100%"}}
-                          [Button
-                           {:class "unsubscribe-plan"
-                            :color "green"
-                            :on-click #(do (reset! changing-plan? true)
-                                           (dispatch [:action [:subscribe-plan "Basic"]]))
-                            :disabled (or (empty? @default-source) @changing-plan?)}
-                           "Unsubscribe"]]
+                          [TogglePlanButton {:disabled (or (empty? @default-source) @changing-plan?)
+                                             :on-click #(do (reset! changing-plan? true)
+                                                            (downgrade-dispatch))
+                                             :class "unsubscribe-plan"} "Unsubscribe"]]
                          (when @error-message
                            [s/Message {:negative true}
-                            [s/MessageHeader "Upgrade Plan Error"]
+                            [s/MessageHeader "Change Plan Error"]
                             [:p @error-message]])]]]]]]]])
       :get-initial-state
       (fn [this]
         (reset! changing-plan? false)
         (reset! error-message nil))})))
 
-(defn UpgradePlan []
+(defn UpgradePlan [{:keys [billing-settings-route
+                           set-payment-calling-route
+                           upgrade-dispatch]}]
   (let [default-source (subscribe [:billing/default-source])
         error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
@@ -157,17 +166,8 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "UPGRADING TO"]
-                        [Segment
-                         [Grid {:stackable true}
-                          [Row
-                           [Column {:width 8}
-                            [:b "Business Unlimited"]
-                            [ListUI
-                             [ListItem "Unlimited public projects"]
-                             [ListItem "Unlimited private projects"]]]
-                           [Column {:width 8 :align "right"}
-                            [:h2 "$30 / month"]]]]]
-                        [:a {:href "/user/settings/billing"} "Back to Billing Settings"]]]]]
+                        [BusinessUnlimited]
+                        [:a {:href billing-settings-route} "Back to Billing Settings"]]]]]
            [Column {:width 8}
             (let [no-default? (empty? @default-source)]
               [Grid
@@ -186,23 +186,23 @@
                       :style {:cursor "pointer"}
                       :on-click
                       (util/wrap-prevent-default
-                       #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                       #(do (dispatch [:payment/set-calling-route! set-payment-calling-route])
                             (reset! error-message nil)
                             (nav-scroll-top "/user/payment")))}
                      (if no-default?
                        "Add a payment method"
                        "Change payment method")])
                   [:div {:style {:margin-top "1em" :width "100%"}}
-                   [Button
-                    {:class "upgrade-plan"
-                     :color "green"
-                     :on-click #(do (reset! changing-plan? true)
-                                    (dispatch [:action [:subscribe-plan "Unlimited"]]))
-                     :disabled (or no-default? @changing-plan?)}
+                   [TogglePlanButton {:disabled (or no-default? @changing-plan?)
+                                      :on-click
+                                      ;; TODO: This needs to be a custom fn
+                                      #(do (reset! changing-plan? true)
+                                           (upgrade-dispatch))
+                                      :class "upgrade-plan"}
                     "Upgrade Plan"]]
                   (when @error-message
                     [s/Message {:negative true}
-                     [s/MessageHeader "Upgrade Plan Error"]
+                     [s/MessageHeader "Change Plan Error"]
                      [:p @error-message]])]]]])]]]])
       :get-initial-state
       (fn [this]
@@ -225,6 +225,11 @@
             current-plan (:name @(subscribe [:plans/current-plan]))]
         [:div
          (when (= current-plan "Basic")
-           [UpgradePlan])
+           [UpgradePlan {:billing-settings-route "/user/settings/billing"
+                         :set-payment-calling-route "/user/plans"
+                         :upgrade-dispatch (fn []
+                                             (dispatch [:action [:subscribe-plan "Unlimited"]]))}])
          (when (= current-plan "Unlimited")
-           [DowngradePlan])]))))
+           [DowngradePlan {:billing-settings-route "/user/settings/billing"
+                           :downgrade-dispatch (fn []
+                                                 (dispatch [:action [:subscribe-plan "Basic"]]))}])]))))

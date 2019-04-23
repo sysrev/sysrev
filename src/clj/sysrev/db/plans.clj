@@ -19,12 +19,45 @@
                   :sub-id sub-id}])
         do-execute)))
 
+(defn add-group-to-plan!
+  "Add a group-id to plan with name at time created with subscription id sub-id"
+  [{:keys [group-id name created sub-id]}]
+    (let [product (-> (select :product)
+                      (from :stripe-plan)
+                      (where [:= :name name])
+                      do-query
+                      first
+                      :product)]
+      (-> (insert-into :plan-group)
+          (values [{:group-id group-id
+                    :product product
+                    :created created
+                    :sub-id sub-id}])
+          do-execute)))
+
 (defn get-current-plan
   "Get the plan for which user is currently subscribed"
   [user]
   (let [product (->> (-> (select :product :created)
                          (from :plan-user)
                          (where [:= :user-id (:user-id user)])
+                         do-query)
+                     (sort-by :created)
+                     reverse
+                     first
+                     :product)]
+    (-> (select :name :product)
+        (from :stripe-plan)
+        (where [:= :product product])
+        do-query
+        first)))
+
+(defn get-current-plan-group
+  "Get the plan for which group-id is currently subscribed"
+  [group-id]
+  (let [product (->> (-> (select :product :created)
+                         (from :plan-group)
+                         (where [:= :group-id group-id])
                          do-query)
                      (sort-by :created)
                      reverse

@@ -5,11 +5,13 @@
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
             [re-frame.db :refer [app-db]]
-            [re-frame.core :refer [subscribe]]
+            [re-frame.core :refer [subscribe dispatch]]
             [sysrev.base :refer [active-route]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
+            [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :as util]
+            [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Image Message MessageHeader
                                            Button Select Divider Popup
                                            Modal ModalContent ModalHeader ModalDescription]])
@@ -429,6 +431,37 @@
       :component-did-mount (fn [this]
                              (get-user-projects! user-id projects))})))
 
+(defn UserOrganization
+  [{:keys [id group-name]}]
+  [:div {:style {:margin-bottom "1em"}
+         :id (str "org-" id)}
+   [:a {:href "#"
+        :on-click (fn [e]
+                    ($ e preventDefault)
+                    (dispatch [:set-current-org! id])
+                    (nav-scroll-top "/org/users"))}
+    group-name]
+   [Divider]])
+
+(defn UserOrgs
+  []
+  (let [orgs (subscribe [:orgs])]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (when-not (empty? @orgs)
+          [Segment
+           [Header {:as "h4"
+                    :dividing true}
+            "Organizations"]
+           [:div {:id "user-organizations"}
+            (map (fn [org]
+                   ^{:key (:id org)}
+                   [UserOrganization org])
+                 @orgs)]]))
+      :component-did-mount (fn [this]
+                             (dispatch [:read-orgs!]))})))
+
 (defn UserActivitySummary
   [projects]
   (let [count-items (fn [projects kw]
@@ -456,7 +489,8 @@
         introduction (r/cursor state [:user :introduction])
         error-message (r/cursor state [:user :error-message])
         projects (r/cursor state [:projects])
-        mutable? (= user-id @(subscribe [:self/user-id]))]
+        mutable? (= user-id @(subscribe [:self/user-id]))
+        orgs (subscribe [:orgs])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -469,7 +503,9 @@
              [Introduction {:mutable? mutable?
                             :introduction introduction
                             :user-id user-id}]
-             [UserProjects @user]])
+             [UserProjects @user]
+             [UserOrgs]
+             [CreateOrg]])
           ;; error message
           [Message {:negative true}
            [MessageHeader "Error Retrieving User"]

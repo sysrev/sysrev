@@ -300,11 +300,35 @@
   {:result {:success true
             :plan (plans/get-current-plan (users/get-user-by-id user-id))}})
 
+(defn current-group-plan
+  "Get the plan for group-id"
+  [group-id]
+  {:result {:success true
+            :plan (plans/get-current-plan-group group-id)}})
+
 (defn subscribe-to-plan
   "Subscribe user to plan-name"
   [user-id plan-name]
   (let [user (users/get-user-by-id user-id)
         stripe-response (stripe/subscribe-customer! user plan-name)]
+    (if (:error stripe-response)
+      (assoc stripe-response
+             :error
+             (merge (:error stripe-response)
+                    {:status not-found}))
+      stripe-response)))
+
+(defn subscribe-org-to-plan
+  "Subscribe the group to plan. Only a user can subscribe to a plan when they have a a valid payment method. This fn allows for them to associated that plan with a group."
+  [user-id group-id plan-name]
+  (let [user (users/get-user-by-id user-id)
+        stripe-response (stripe/subscribe-customer! user plan-name
+                                                    :on-success
+                                                    (fn [user plan-name created id]
+                                                      (plans/add-group-to-plan! {:group-id group-id
+                                                                                 :name plan-name
+                                                                                 :created created
+                                                                                 :sub-id id})))]
     (if (:error stripe-response)
       (assoc stripe-response
              :error
@@ -1449,9 +1473,17 @@
              :message (str "An organization with the name '" org-name "' already exists")}}
     (with-transaction
       ;; create the group
-      (let [new-org-id (groups/create-group! org-name)]
+      (let [new-org-id (groups/create-group! org-name)
+            user (users/get-user-by-id user-id)]
         ;; set the user as group admin
         (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
+        (stripe/subscribe-customer! user default-plan
+                                    :on-success
+                                    (fn [user plan-name created id]
+                                      (plans/add-group-to-plan! {:group-id new-org-id
+                                                                 :name default-plan
+                                                                 :created created
+                                                                 :sub-id id})))
         {:result {:success true
                   :id new-org-id}}))))
 

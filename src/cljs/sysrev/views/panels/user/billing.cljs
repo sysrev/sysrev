@@ -4,8 +4,8 @@
             [re-frame.core :refer [subscribe dispatch reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.views.semantic :as s :refer
-             [Segment Grid Row Column Button Icon]]))
+            [sysrev.views.semantic :refer [Segment Grid Row Column Button Icon Loader
+                                           Header ListUI ListItem]]))
 
 (def panel [:user :billing])
 
@@ -32,7 +32,7 @@
      {:reagent-render
       (fn [this]
         [:div {:style {:font-weight "bold"}}
-         [s/Icon {:name "credit card"}]
+         [Icon {:name "credit card"}]
          (if-not (empty? @default-source)
            (let [{:keys [brand exp_month exp_year last4]}
                  @default-source]
@@ -54,7 +54,7 @@
          (if (nil? @default-source)
            [Row
             [Column {:width 2} "Payment"]
-            [Column {:width 14} [s/Loader {:active true
+            [Column {:width 14} [Loader {:active true
                                            :inline "centered"}]]]
            [Row
             [Column {:width 2} "Payment"]
@@ -72,17 +72,17 @@
         (get-default-source state))})))
 
 ;; TODO: shows Loader forever on actual null plan value (show error message?)
-(defn Plan []
-  (let [current-plan (:name @(subscribe [:plans/current-plan]))
+(defn Plan [{:keys [plans-route current-plan-atom fetch-current-plan]}]
+  (let [current-plan (:name @current-plan-atom)
         basic? (= current-plan "Basic")
         unlimited? (= current-plan "Unlimited")]
-    (dispatch [:fetch [:current-plan]])
+    (fetch-current-plan)
     [Grid {:stackable true}
      (if (nil? current-plan)
        [Row
         [Column {:width 2} "Plan"]
-        [Column {:width 14} [s/Loader {:active true
-                                       :inline "centered"}]]]
+        [Column {:width 14} [Loader {:active true
+                                     :inline "centered"}]]]
        [Row
         [Column {:width 2} "Plan"]
         [Column {:width 8}
@@ -93,14 +93,16 @@
                            basic?     (str " subscribe")
                            unlimited? (str " unsubscribe"))
                   :color (when basic? "green")
-                  :href "/user/plans"}
+                  :href plans-route}
           (cond basic?      "Get private projects"
                 unlimited?  "Unsubscribe")]]])]))
 
 (defn Billing []
   [Segment
-   [s/Header {:as "h4" :dividing true}
+   [Header {:as "h4" :dividing true}
     "Billing"]
-   [s/ListUI {:divided true :relaxed true}
-    [s/ListItem [Plan]]
-    [s/ListItem [PaymentSource]]]])
+   [ListUI {:divided true :relaxed true}
+    [ListItem [Plan {:plans-route "/user/plans"
+                     :current-plan-atom (subscribe [:plans/current-plan])
+                     :fetch-current-plan (fn [] (dispatch [:fetch [:current-plan]]))}]]
+    [ListItem [PaymentSource]]]])
