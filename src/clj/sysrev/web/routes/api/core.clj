@@ -15,7 +15,7 @@
              [integerify-map-keys uuidify-map-keys]]
             [clojure.string :as str]
             [sysrev.config.core :refer [env]]
-            [org.httpkit.client :as client]
+            [clj-http.client :as http]
             [clojure.data.json :as json]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
@@ -170,16 +170,16 @@
 (defn webapi-request [method route body & {:keys [host port url]}]
   (let [port (or port (-> env :server :port))
         host (or host "localhost")
-        base-request {:url (if url
-                             (format "%sweb-api/%s" url route)
-                             (format "http://%s:%d/web-api/%s"
-                                     host port route))
-                      :method method
-                      :headers {"Content-Type" "application/json"}}
-        request-map (condp = method
-                      :get (conj base-request {:query-params body})
-                      :post (conj base-request {:body (json/write-str body)}))
-        {:keys [body]} @(client/request request-map)]
+        request (cond-> {:method method
+                         :url (if url
+                                (format "%sweb-api/%s" url route)
+                                (format "http://%s:%d/web-api/%s" host port route))
+                         :content-type "application/json"
+                         :as :application/json
+                         :throw-exceptions false}
+                  (= method :get)   (assoc :query-params body)
+                  (= method :post)  (assoc :body (json/write-str body)))
+        {:keys [body]} (http/request request)]
     (try (json/read-str body :key-fn keyword)
          (catch Throwable e body))))
 

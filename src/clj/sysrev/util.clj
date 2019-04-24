@@ -1,23 +1,24 @@
 (ns sysrev.util
-  (:require [clojure.main :refer [demunge]]
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]
+            [clojure.java.shell :refer [sh]]
+            [clojure.main :refer [demunge]]
+            [clojure.math.numeric-tower :as math]
             [clojure.tools.logging :as log]
             [clojure.xml]
             [crypto.random]
-            [clojure.math.numeric-tower :as math]
             [cognitect.transit :as transit]
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
             [clj-time.format :as tformat]
-            [clojure.java.io :as io]
-            [clojure.java.shell :refer [sh]]
-            [sysrev.shared.util :as shared])
-  (:import (javax.xml.parsers SAXParser SAXParserFactory)
-           java.util.UUID
-           (java.io ByteArrayOutputStream)
-           (java.io ByteArrayInputStream)
-           java.security.MessageDigest
+            [me.raynes.fs :as fs]
+            [sysrev.shared.util :as sutil])
+  (:import java.util.UUID
+           (java.io File ByteArrayInputStream ByteArrayOutputStream)
            java.math.BigInteger
-           java.io.File))
+           (javax.xml.parsers SAXParser SAXParserFactory)
+           java.security.MessageDigest
+           org.apache.commons.lang3.exception.ExceptionUtils))
 
 (defn integerify-map-keys
   "Maps parsed from JSON with integer keys will have the integers changed
@@ -30,7 +31,7 @@
          (mapv (fn [[k v]]
                  (let [k-int (and (keyword? k)
                                   (re-matches #"^\d+$" (name k))
-                                  (shared/parse-number (name k)))
+                                  (sutil/parse-number (name k)))
                        k-new (if (integer? k-int) k-int k)
                        ;; integerify sub-maps recursively
                        v-new (if (map? v)
@@ -91,18 +92,16 @@
        (mapv #(-> % :content first))))
 
 (defn parse-xml-str [s]
-  (let [;; Create parser instance with DTD loading disabled.
-        ;; Without this, parser may make HTTP requests to DTD locations
-        ;; referenced in the XML string.
-        startparse-no-dtd
-        (fn [s ch]
-          (let [^SAXParserFactory factory (SAXParserFactory/newInstance)]
-            (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
-            (let [^SAXParser parser (.newSAXParser factory)]
-              (.parse parser s ch))))]
-    (clojure.xml/parse
-     (java.io.ByteArrayInputStream. (.getBytes s))
-     startparse-no-dtd)))
+  (clojure.xml/parse
+   (ByteArrayInputStream. (.getBytes s))
+   ;; Create parser instance with DTD loading disabled.  Without this,
+   ;; parser may make HTTP requests to DTD locations referenced in the
+   ;; XML string.
+   (fn [s ch]
+     (let [^SAXParserFactory factory (SAXParserFactory/newInstance)]
+       (.setFeature factory "http://apache.org/xml/features/nonvalidating/load-external-dtd" false)
+       (let [^SAXParser parser (.newSAXParser factory)]
+         (.parse parser s ch))))))
 
 (defn all-project-ns []
   (->> (all-ns)
@@ -310,6 +309,15 @@
   [ex]
   (str (type ex) " - " (.getMessage ex)))
 
+(defn ex-log-message
+  "Returns a string summarizing exception for logging purposes."
+  [ex]
+  (format "%s\n%s" (str ex) (->> (ExceptionUtils/getStackTrace ex)
+                                 (str/split-lines)
+                                 (filter #(str/includes? % "sysrev"))
+                                 (take 5)
+                                 (str/join "\n"))))
+
 ;; from https://github.com/remvee/clj-base64/blob/master/src/remvee/base64.clj
 (def base64-alphabet
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
@@ -331,3 +339,29 @@
                         3         (map f [18 12 6 0]))]
                 (concat r (lazy-seq (encode (drop 3 bytes)))))))]
     (apply str (encode bytes))))
+
+(defn rename-flyway-files
+  "Handles renaming flyway sql files for formatting. Returns a sequence
+  of shell commands that can be used to rename all of the
+  files. directory should be path containing the sql
+  files. primary-width and extra-width control zero-padding on index
+  numbers in file names. mv argument sets shell command for mv
+  (e.g. \"git mv\")."
+  [directory & {:keys [primary-width extra-width mv]
+                :or {primary-width 4 extra-width 3 mv "mv"}}]
+  (->> (fs/list-dir directory)
+       (map #(str (fs/name %) (fs/extension %)))
+       (map #(re-matches #"(V0\.)([0-9]+)(\.[0-9]+)*(__.*)" %))
+       (map (fn [[original start n extra end]]
+              [(str start
+                    (format (str "%0" primary-width "d") (sutil/parse-integer n))
+                    (when extra
+                      (->> (str/split extra #"\.")
+                           (map #(some->> (sutil/parse-integer %)
+                                          (format (str "%0" extra-width "d"))))
+                           (str/join ".")))
+                    end)
+               original]))
+       (filter (fn [[changed original]] (not= changed original)))
+       sort
+       (map (fn [[changed original]] (str/join " " [mv original changed])))))
