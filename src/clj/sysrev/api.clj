@@ -46,8 +46,8 @@
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
 
-(def default-plan "Basic")
-;; Error code used
+
+;; HTTP error codes
 (def payment-required 402)
 (def forbidden 403)
 (def not-found 404)
@@ -55,7 +55,9 @@
 (def internal-server-error 500)
 (def bad-request 400)
 (def conflict 409)
-
+;; server settings
+(def minimum-support-level 100)
+(def default-plan "Basic")
 (def max-import-articles (:max-import-articles env))
 
 (defmacro try-catch-response
@@ -336,7 +338,37 @@
                     {:status not-found}))
       stripe-response)))
 
-(def minimum-support-level 100)
+(defn project-owner-plan
+  "Return the plan name for the project owner of project-id"
+  [project-id]
+  (let [project-owner (project/get-project-owner project-id)
+        owner-type (-> project-owner keys first)]
+    (condp = owner-type
+      :user-id (:name (plans/get-current-plan project-owner))
+      :group-id (:name (plans/get-current-plan-group (:group-id project-owner)))
+      ;; default
+      "Basic")))
+
+(defn change-project-settings
+  [project-id changes]
+  (doseq [{:keys [setting value]} changes]
+    (cond (and (= setting :public-access)
+               (= value false)
+               ;; owner has Unlimited plan
+               (= "Unlimited" (project-owner-plan project-id)))
+          (project/change-project-setting
+           project-id (keyword setting) value)
+          (and (= setting :public-access)
+               (= value false)
+               (= "Basic" (project-owner-plan project-id)))
+          nil
+          ;; change option
+          :else
+          (project/change-project-setting
+           project-id (keyword setting) value)))
+  {:result
+   {:success true
+    :settings (project/project-settings project-id)}})
 
 (defn support-project-monthly
   "User supports project"
@@ -1480,6 +1512,7 @@
         (stripe/subscribe-customer! user default-plan
                                     :on-success
                                     (fn [user plan-name created id]
+                                      (println "on-success called!")
                                       (plans/add-group-to-plan! {:group-id new-org-id
                                                                  :name default-plan
                                                                  :created created

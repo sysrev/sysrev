@@ -24,7 +24,7 @@
 
 (def-data :org-current-plan
   :loaded? (fn [db]
-             (.log js/console "loaded?"))
+             (contains? @state :current-plan))
   :uri (fn [] (str "/api/org/" @(subscribe [:current-org]) "/stripe/current-plan"))
   :prereqs (fn []
              [[:identity]])

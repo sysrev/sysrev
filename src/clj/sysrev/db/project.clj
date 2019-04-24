@@ -30,7 +30,8 @@
 (s/def ::include-disabled? (s/nilable boolean?))
 
 (def default-project-settings
-  {:second-review-prob 0.5})
+  {:second-review-prob 0.5
+   :public-access true})
 
 (def valid-permissions ["member" "admin" "owner" "resolve"])
 
@@ -777,3 +778,18 @@
       (where [:= :project-id project-id])
       do-query
       first))
+
+(defn get-project-owner
+  [project-id]
+  (with-transaction
+    (if-let [project-group (-> (select :group-id)
+                               (from :project-group)
+                               (where [:= :project-id project-id])
+                               do-query first :group-id)]
+      {:group-id project-group}
+      (-> (select :user-id)
+          (from :project-member)
+          (where [:and
+                  [:= :project-id project-id]
+                  [:= "owner" :%any.permissions]])
+          do-query first))))

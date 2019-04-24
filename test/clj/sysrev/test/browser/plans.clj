@@ -17,6 +17,8 @@
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
+(def use-card ".button.use-card")
+
 (defn get-user-customer [email]
   (some-> email (users/get-user-by-email) :stripe-id
           (customers/get-customer)
@@ -51,6 +53,29 @@
   [error-msg]
   (xpath "//div[contains(@class,'red') and contains(text(),\"" error-msg "\")]"))
 
+(defn user-subscribe-to-unlimited
+  [email]
+  (when-not (get-user-customer email)
+    (log/info (str "Stripe Customer created for " email))
+    (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
+  (wait-until-stripe-id email)
+  (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
+  ;;; go to plans
+  (nav/go-route "/user/settings/billing")
+  (b/click ".button.nav-plans.subscribe" :displayed? true)
+  (b/click "a.payment-method.add-method")
+  ;; enter payment information
+  (bstripe/enter-cc-information {:cardnumber bstripe/valid-visa-cc
+                                 :exp-date "0121"
+                                 :cvc "123"
+                                 :postal "11111"})
+  (b/click use-card)
+  ;; upgrade to unlimited
+  (b/click ".button.upgrade-plan")
+  ;; this time is goes through, confirm we are subscribed to the
+  ;; Unlimited plan now
+  (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000))
+
 ;; need to disable sending emails in this test
 (deftest-browser register-and-check-basic-plan-subscription
   (and (test/db-connected?)
@@ -79,8 +104,7 @@
    get-user #(users/get-user-by-email email)
    get-customer #(get-user-customer email)
    get-stripe-plan #(user-stripe-plan email)
-   get-db-plan #(user-db-plan email)
-   use-card ".button.use-card"]
+   get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
       #_ (b/delete-test-user)
@@ -182,7 +206,7 @@
       ;; try to subscribe again
       (b/click ".button.upgrade-plan")
       ;; this time is goes through, confirm we are subscribed to the
-      ;; pro plan now
+      ;; Unlimied plan now
       (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000)
       ;; Let's check to see if our db thinks the customer is subscribed to the Unlimited
       (is (= "Unlimited" (get-db-plan)))

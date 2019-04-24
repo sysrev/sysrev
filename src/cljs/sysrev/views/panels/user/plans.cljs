@@ -85,7 +85,7 @@
        [ListItem "Unlimited public projects"]
        [ListItem "Unlimited private projects"]]]
      [Column {:width 8 :align "right"}
-      [:h2 "$30 / month"]]]]])
+      [:h2 "$50 / month"]]]]])
 
 (defn BasicPlan []
   [Segment
@@ -104,10 +104,9 @@
    {:class class
     :color "green"
     :on-click
-    ;; TODO: This needs to be a custom fn
     on-click
     :disabled disabled}
-   "Upgrade Plan"])
+   text])
 
 (defn DowngradePlan [{:keys [billing-settings-route
                              unsubscribe-button-on-click
@@ -137,7 +136,7 @@
                          [:h4 "New Monthly Bill"]
                          [ListItem [:p "Basic plan ($0 / month)"]]
                          [:div {:style {:margin-top "1em" :width "100%"}}
-                          [TogglePlanButton {:disabled (or (empty? @default-source) @changing-plan?)
+                          [TogglePlanButton {:disabled (or @changing-plan?)
                                              :on-click #(do (reset! changing-plan? true)
                                                             (downgrade-dispatch))
                                              :class "unsubscribe-plan"} "Unsubscribe"]]
@@ -176,7 +175,7 @@
                  [:h3 "Upgrade Summary"]
                  [ListUI {:divided true}
                   [:h4 "New Monthly Bill"]
-                  [ListItem [:p "Unlimited plan ($30 / month)"]]
+                  [ListItem [:p "Unlimited plan ($50 / month)"]]
                   [:h4 "Billing Information"]
                   [ListItem [DefaultSource]]
                   (when (or no-default?

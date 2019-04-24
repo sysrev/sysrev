@@ -212,23 +212,26 @@
     :value 1.0
     :tooltip "Prioritize fully reviewed articles"}])
 
-(defn- SettingsButton [{:keys [setting key label value tooltip]}]
+(defn- SettingsButton [{:keys [setting key label value tooltip disabled?]}]
   (let [active? (= (render-setting setting)
                    (render-setting-value setting value))
         admin? (admin?)]
     (ui/FixedTooltipElementManual
      [:button.ui.button
       {:id (str (name setting) "_" (name key))
-       :class (if active? "active" "")
+       :class (cond-> " "
+                active? (str "active")
+                disabled? (str " disabled"))
        :on-click (if admin? #(edit-setting setting value) nil)}
       label]
      [:p tooltip]
      "20em"
      :props {:style {:text-align "center"}})))
 
-(defn- SettingsField [{:keys [setting label entries]} entries]
+(defn- SettingsField [{:keys [setting label entries disabled?]} entries]
   (let [elements (->> entries
-                      (map #(SettingsButton (merge % {:setting setting}))))]
+                      (map #(SettingsButton (merge % {:setting setting
+                                                      :disabled? disabled?}))))]
     [:div.field {:id (str "project-setting_" (name setting))
                  :class (input-field-class setting)}
      [:label label]
@@ -256,11 +259,20 @@
     :value false
     :tooltip "Allow access only for project members"}])
 
-(defn- PublicAccessField []
-  [SettingsField
-   {:setting :public-access
-    :label "Project Visibility"
-    :entries public-access-buttons}])
+(defn- PublicAccessField [project-id]
+  (let [owner-key (-> (get-in @app-db [:data :project project-id :owner]) keys first)
+        project-plan (get-in @app-db [:data :project project-id :plan])]
+    [:div [SettingsField
+           {:setting :public-access
+            :label "Project Visibility"
+            :entries public-access-buttons
+            :disabled? (= project-plan "Basic")}]
+     (when (= project-plan
+              "Basic")
+       [:p [:a {:href (if (= owner-key :user-id)
+                        "/user/settings/billing"
+                        "/org/billing")}
+            "Upgrade"] " your plan to make this project private"])]))
 
 (def unlimited-reviews-buttons
   [{:key :false
@@ -390,7 +402,7 @@
          [:h4.ui.dividing.header "Options"]
          [:div.ui.form {:class (if valid? "" "warning")}
           [:div.two.fields
-           [PublicAccessField]
+           [PublicAccessField project-id]
            [DoubleReviewPriorityField]]
           [:div.two.fields
            [UnlimitedReviewsField]]]

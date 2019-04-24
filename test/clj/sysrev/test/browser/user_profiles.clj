@@ -17,6 +17,7 @@
             [sysrev.test.browser.core :as b :refer [deftest-browser]]
             [sysrev.test.browser.markdown :as markdown]
             [sysrev.test.browser.navigate :as nav]
+            [sysrev.test.browser.plans :as plans]
             [sysrev.test.browser.pubmed :as pm]
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
@@ -94,6 +95,12 @@
       (groups/set-active-web-user-group! web-user-group-id true)
       (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
 
+(defn make-project-private []
+  "Must be in the current project for this to work"
+  (nav/go-project-route "/settings")
+  (b/click (xpath "//button[@id='public-access_private']"))
+  (b/click (xpath "//div[contains(@class,'project-options')]//button[contains(@class,'save-changes')]")))
+
 (deftest-browser correct-project-activity
   (test/db-connected?)
   [project-name-1 "Sysrev Browser Test (correct-project-activity 1)"
@@ -104,8 +111,12 @@
                users/get-user-by-email
                :user-id)]
   (do (nav/log-in)
+      ;; subscribe to plans
+      (plans/user-subscribe-to-unlimited email)
       ;; create a project, populate with articles
       (nav/new-project project-name-1)
+      ;; set the project to private
+      (make-project-private)
       (pm/add-articles-from-search-term search-term)
       ;; go to the user profile
       (b/click user-name-link)
@@ -147,6 +158,7 @@
       (is (= 1 (:annotations-contributed (project-activity-summary project-name-1))))
       ;; add another project
       (nav/new-project project-name-2)
+      (make-project-private)
       (pm/add-articles-from-search-term search-term)
       ;; go to the profile
       (b/click user-name-link)
