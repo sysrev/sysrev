@@ -216,7 +216,8 @@
 (defn- filter-dropdown-class [multiple? disabled]
   (let [touchscreen? @(subscribe [:touchscreen?])]
     (-> (if multiple?
-          (css "ui fluid multiple" [(not touchscreen?) "search"] "selection dropdown")
+          (css "ui fluid multiple" [(not touchscreen?) "search"]
+               "selection dropdown filter-dropdown")
           "ui fluid floating dropdown button filter-dropdown")
         (css [disabled "disabled"]))))
 
@@ -867,9 +868,58 @@
      [:div.right.aligned.column
       [:div.ui.label (str article-count " articles")]]]))
 
+(def default-csv-separator "|||")
+(def csv-separator-options ["|||" ";;;" ","])
+
+(reg-sub ::csv-separator
+         (fn [db [_ context]]
+           (or (ui-state/get-panel-field db [:csv-separator] (:panel context))
+               default-csv-separator)))
+
+(reg-event-db ::set-csv-separator
+              (fn [db [_ context value]]
+                (ui-state/set-panel-field db [:csv-separator] value (:panel context))))
+
+(defn- CsvSeparatorDropdownItem [context value]
+  (let [active @(subscribe [::csv-separator context])]
+    [:div.item {:key value
+                :data-value value
+                :class (css [(= value active) "active selected"])
+                :style {:width "100%"}}
+     [:div.ui.two.column.middle.aligned.grid {:style {:margin "0" :padding "0"}}
+      [:div.column {:style {:padding "0"}}
+       [:span {:style {:font-size "15px" :font-weight "bold"}} value]]
+      [:div.right.aligned.column {:style {:padding "0"}}
+       (let [vtype (if (= value ",") :legacy :recommended)]
+         [:div.ui.small.label
+          {:class (css [(= vtype :recommended) "grey"
+                        (= vtype :legacy) "grey"])}
+          (str/capitalize (name vtype))])]]]))
+
+(defn- SelectSeparatorDropdown [context]
+  (let [active @(subscribe [::csv-separator context])]
+    [ui/selection-dropdown
+     [CsvSeparatorDropdownItem context active]
+     (doall (for [x csv-separator-options] ^{:key x} [CsvSeparatorDropdownItem context x]))
+     {:class "ui fluid floating selection dropdown"
+      :onChange (fn [v t] (dispatch [::set-csv-separator context v]))}]))
+
+(defn- ExportSettingsFields [context export-type file-format]
+  (->> [(when (= file-format "CSV")
+          (fn []
+            [:div.field.export-setting {:key :csv-separator}
+             [:div.fields>div.sixteen.wide.field
+              (ui/with-ui-help-tooltip
+                [:label "Value Separator" nbsp [ui/ui-help-icon]]
+                :help-content
+                ["Internal separator for multiple values inside a column, such as label answers."])
+              [SelectSeparatorDropdown context]]]))]
+       (remove nil?)))
+
 (defn- ExportTypeForm [context export-type title file-format]
   (let [project-id @(subscribe [:active-project-id])
-        options @(subscribe [::al/export-filter-args (al/cached context)])
+        options (merge @(subscribe [::al/export-filter-args (al/cached context)])
+                       {:separator @(subscribe [::csv-separator])})
         action [:project/generate-export project-id export-type options]
         running? (loading/action-running? action)
         entry @(subscribe [:project/export-file project-id export-type options])
@@ -889,6 +939,8 @@
       [:div.right.aligned.column>div.ui.small.grey.label file-format]]
      (when expanded?
        [:div.ui.secondary.segment.expanded>div.ui.small.form.export-type
+        (doall (map-indexed (fn [i x] (when x ^{:key i} [x]))
+                            (ExportSettingsFields context export-type file-format)))
         [:div.field>div.fields.export-actions
          [:div.eight.wide.field
           [:button.ui.tiny.fluid.primary.labeled.icon.button

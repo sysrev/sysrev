@@ -352,8 +352,8 @@
                     :margin-right "0"}}])]))
 
 (defn ui-help-icon [& {:keys [size class style] :or {size ""}}]
-  [:i.ui.grey.circle.question.mark.icon {:class (css size class)
-                                         :style style}])
+  [:i.circle.question.mark.icon {:class (css "grey" size class)
+                                 :style style}])
 
 (defn with-ui-help-tooltip [element & {:keys [help-content help-element popup-options]}]
   (list

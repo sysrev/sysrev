@@ -12,12 +12,15 @@
             [sysrev.shared.util :refer [map-values in?]]
             [clojure.set :as set]))
 
+(def default-csv-separator "|||")
+
 (defn stringify-csv-value
   "Formats x as a string to use as a CSV column value."
-  [x]
-  (cond (and (seqable? x) (empty? x))  ""
-        (sequential? x)                (str/join ", " (map str x))
-        :else                          (str x)))
+  [separator x]
+  (let [separator (or separator default-csv-separator)]
+    (cond (and (seqable? x) (empty? x))  ""
+          (sequential? x)                (str/join separator (map str x))
+          :else                          (str x))))
 
 (defn export-user-answers-csv
   "Returns CSV-printable list of raw user article answers. The first row
@@ -25,7 +28,7 @@
   value of (user,article). article-ids optionally specifies a subset
   of articles within project to include; by default, all enabled
   articles will be included."
-  [project-id & {:keys [article-ids]}]
+  [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (let [all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
                          (order-by :label-id-local) do-query)
@@ -69,7 +72,7 @@
                                                            (filter #(= (:label-id %) label-id))
                                                            first :answer))))
                all-authors (str/join "; " (map str authors))]
-           (mapv stringify-csv-value
+           (mapv (partial stringify-csv-value separator)
                  (concat [article-id user-name (if (true? resolved?) true nil)]
                          label-answers
                          [user-note primary-title secondary-title all-authors]))))))))
@@ -80,7 +83,7 @@
   contains answers for one article. article-ids optionally specifies a
   subset of articles within project to include; by default, all
   enabled articles will be included."
-  [project-id & {:keys [article-ids]}]
+  [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (let [project-url (str "https://sysrev.com/p/" project-id)
           all-labels (-> (q/select-label-where project-id true [:label-id :short-label])
@@ -130,7 +133,7 @@
                all-authors (str/join "; " (map str authors))
                all-notes (str/join "; " (map pr-str user-notes))
                article-url (str project-url "/article/" article-id)]
-           (mapv stringify-csv-value
+           (mapv (partial stringify-csv-value separator)
                  (concat [article-id article-url (name (or consensus :none))
                           user-count user-names]
                          (->> all-labels (map (comp get-label-values :label-id)))
@@ -144,7 +147,7 @@
   included. article-ids optionally specifies a subset of articles
   within project to include; by default, all enabled articles will be
   included."
-  [project-id & {:keys [article-ids]}]
+  [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (let [project-url (str "https://sysrev.com/p/" project-id)
           all-articles (->> (q/query-multiple-by-id
@@ -184,7 +187,7 @@
                predict-scores (for [label-id predict-label-ids]
                                 (when-let [score (get-in apredicts [article-id label-id])]
                                   (format "%.3f" score)))]
-           (mapv stringify-csv-value
+           (mapv (partial stringify-csv-value separator)
                  (concat [article-id article-url primary-title secondary-title
                           all-authors abstract]
                          predict-scores))))))))
@@ -196,7 +199,7 @@
   one annotation. article-ids optionally specifies a subset of
   articles within project to include; by default, all enabled articles
   will be included."
-  [project-id & {:keys [article-ids]}]
+  [project-id & {:keys [article-ids separator]}]
   (with-transaction
     (concat
      [["Article ID" "User ID" "Annotation" "Semantic Class" "Selection"
@@ -206,6 +209,6 @@
                 (sort-by #(vector (:article-id %) (:user-id %))))]
        (let [{:keys [start-offset end-offset text-context]} context
              {:keys [field]} text-context]
-         (mapv stringify-csv-value
+         (mapv (partial stringify-csv-value separator)
                [article-id user-id annotation definition selection
                 start-offset end-offset field filename file-key]))))))

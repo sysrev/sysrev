@@ -22,7 +22,8 @@
 
 (deftest-browser label-consensus-test
   (test/db-connected?)
-  [project-id (atom nil)
+  [separator export/default-csv-separator
+   project-id (atom nil)
    label-id-1 (atom nil)
    test-users (mapv #(str "user" % "@fake.com") [1 2 3])
    [user1 user2 user3] test-users
@@ -111,13 +112,13 @@
         (is (= 1 (-> ganswers rest count)))
         (is (in? g1 "true"))
         (let [values ["One" "Two"]]
-          (is (or (in? g1 (str/join ", " values))
-                  (in? g1 (str/join ", " (reverse values))))))
+          (is (or (in? g1 (str/join separator values))
+                  (in? g1 (str/join separator (reverse values))))))
         (is (in? g1 "consistent")) ;; consensus status
         (is (in? g1 "2"))          ;; user count
         (let [names (map to-user-name [user1 user2])]
-          (is (or (in? g1 (str/join ", " names))
-                  (in? g1 (str/join ", " (reverse names))))))
+          (is (or (in? g1 (str/join separator names))
+                  (in? g1 (str/join separator (reverse names))))))
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; enable label consensus setting
@@ -138,13 +139,13 @@
         (is (= 1 (-> ganswers rest count)))
         (is (in? g1 "true"))
         (let [values ["One" "Two"]]
-          (is (or (in? g1 (str/join ", " values))
-                  (in? g1 (str/join ", " (reverse values))))))
+          (is (or (in? g1 (str/join separator values))
+                  (in? g1 (str/join separator (reverse values))))))
         (is (in? g1 "conflict")) ;; consensus status
         (is (in? g1 "2"))          ;; user count
         (let [names (map to-user-name [user1 user2])]
-          (is (or (in? g1 (str/join ", " names))
-                  (in? g1 (str/join ", " (reverse names))))))
+          (is (or (in? g1 (str/join separator names))
+                  (in? g1 (str/join separator (reverse names))))))
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; switch to non-admin user to use "Change Labels"
@@ -196,8 +197,8 @@
         (is (in? g1 "resolved")) ;; consensus status
         (is (in? g1 "2"))          ;; user count
         (let [names (map to-user-name [user1 user2])]
-          (is (or (in? g1 (str/join ", " names))
-                  (in? g1 (str/join ", " (reverse names))))))
+          (is (or (in? g1 (str/join separator names))
+                  (in? g1 (str/join separator (reverse names))))))
         (is (= uanswers (-> uanswers csv/write-csv (csv/parse-csv :strict true))))
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; check article list interface (Resolved filter)

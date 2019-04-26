@@ -558,34 +558,39 @@
            (let [project-id (active-project request)
                  user-id (current-user-id request)
                  export-type (-> request :params :export-type keyword)
-                 {:keys [filters text-search]} (:body request)
+                 {:keys [filters text-search separator]} (:body request)
                  text-search (not-empty text-search)
                  filters (vec (concat filters (when text-search [{:text-search text-search}])))
                  article-ids (when filters
                                (alist/query-project-article-ids {:project-id project-id} filters))
                  tempfile (case export-type
                             :user-answers
-                            (-> (export/export-user-answers-csv project-id :article-ids article-ids)
+                            (-> (export/export-user-answers-csv
+                                 project-id :article-ids article-ids :separator separator)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :group-answers
-                            (-> (export/export-group-answers-csv project-id :article-ids article-ids)
+                            (-> (export/export-group-answers-csv
+                                 project-id :article-ids article-ids :separator separator)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :articles-csv
-                            (-> (export/export-articles-csv project-id :article-ids article-ids)
+                            (-> (export/export-articles-csv
+                                 project-id :article-ids article-ids :separator separator)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :annotations-csv
-                            (-> (export/export-annotations-csv project-id :article-ids article-ids)
+                            (-> (export/export-annotations-csv
+                                 project-id :article-ids article-ids :separator separator)
                                 (csv/write-csv)
                                 (create-export-tempfile))
                             :endnote-xml
                             (endnote-out/project-to-endnote-xml
                              project-id :article-ids article-ids :to-file true))
                  {:keys [download-id]
-                  :as entry} (add-project-export project-id export-type tempfile
-                                                 {:user-id user-id :filters filters})
+                  :as entry} (add-project-export
+                              project-id export-type tempfile
+                              {:user-id user-id :filters filters :separator separator})
                  filename-base (case export-type
                                  :user-answers     "UserAnswers"
                                  :group-answers    "Answers"
@@ -606,9 +611,8 @@
                                "." filename-ext)]
              {:entry (-> (select-keys entry [:download-id :export-type :added-time])
                          (assoc :filename filename
-                                :url (->> ["/api/download-project-export" project-id
-                                           (name export-type) download-id filename]
-                                          (str/join "/" ))))}))))
+                                :url (str/join "/" ["/api/download-project-export" project-id
+                                                    (name export-type) download-id filename])))}))))
 
 (dr (GET "/api/download-project-export/:project-id/:export-type/:download-id/:filename" request
          (wrap-authorize
