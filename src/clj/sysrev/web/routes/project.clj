@@ -93,54 +93,55 @@
      :notes user-notes}))
 
 (defn project-info [project-id]
-  (-> (with-project-cache
-        project-id [:project-info]
-        (let [[[fields users labels keywords notes members predict importance url-ids files documents]
-               [_ [status-counts progress]]
-               [articles sources]]
-              (pvalues [(q/query-project-by-id project-id [:*])
-                        (project/project-users-info project-id)
-                        (project/project-labels project-id true)
-                        (project/project-keywords project-id)
-                        (project/project-notes project-id)
-                        (labels/project-members-info project-id)
-                        (predict-report/predict-summary
-                         (q/project-latest-predict-run-id project-id))
-                        (:result (api/important-terms project-id))
-                        (try
-                          (project/project-url-ids project-id)
-                          (catch Throwable e
-                            (log/info "exception in project-url-ids")
-                            []))
-                        (files/list-document-files-for-project project-id)
-                        (docs/all-article-document-paths project-id)]
-                       [(labels/query-public-article-labels project-id)
-                        (pvalues (labels/project-article-status-counts project-id)
-                                 (labels/query-progress-over-time project-id 30))]
-                       [(project/project-article-count project-id)
-                        #_ (source/project-sources-basic project-id)
-                        (source/project-sources project-id)])]
-          {:project {:project-id project-id
-                     :name (:name fields)
-                     :project-uuid (:project-uuid fields)
-                     :members members
-                     :stats {:articles articles
-                             :status-counts status-counts
-                             :predict predict
-                             :progress progress}
-                     :labels labels
-                     :keywords keywords
-                     :notes notes
-                     :settings (:settings fields)
-                     :files files
-                     :documents documents
-                     :sources sources
-                     :importance importance
-                     :url-ids url-ids
-                     :owner (project/get-project-owner project-id)} 
-           :users users}))
-      ;; bypass cache with assoc-in
-      (assoc-in [:project :plan] (api/project-owner-plan project-id))))
+  (with-project-cache
+    project-id [:project-info]
+    (let [[[fields users labels keywords notes members predict importance url-ids files documents owner plan]
+           [_ [status-counts progress]]
+           [articles sources]]
+          (pvalues [(q/query-project-by-id project-id [:*])
+                    (project/project-users-info project-id)
+                    (project/project-labels project-id true)
+                    (project/project-keywords project-id)
+                    (project/project-notes project-id)
+                    (labels/project-members-info project-id)
+                    (predict-report/predict-summary
+                     (q/project-latest-predict-run-id project-id))
+                    (:result (api/important-terms project-id))
+                    (try
+                      (project/project-url-ids project-id)
+                      (catch Throwable e
+                        (log/info "exception in project-url-ids")
+                        []))
+                    (files/list-document-files-for-project project-id)
+                    (docs/all-article-document-paths project-id)
+                    (project/get-project-owner project-id)
+                    (api/project-owner-plan project-id)]
+                   [(labels/query-public-article-labels project-id)
+                    (pvalues (labels/project-article-status-counts project-id)
+                             (labels/query-progress-over-time project-id 30))]
+                   [(project/project-article-count project-id)
+                    #_ (source/project-sources-basic project-id)
+                    (source/project-sources project-id)])]
+      {:project {:project-id project-id
+                 :name (:name fields)
+                 :project-uuid (:project-uuid fields)
+                 :members members
+                 :stats {:articles articles
+                         :status-counts status-counts
+                         :predict predict
+                         :progress progress}
+                 :labels labels
+                 :keywords keywords
+                 :notes notes
+                 :settings (:settings fields)
+                 :files files
+                 :documents documents
+                 :sources sources
+                 :importance importance
+                 :url-ids url-ids
+                 :owner owner
+                 :plan plan}
+       :users users})))
 
 ;;;
 ;;; Manage references to export files generated for download.

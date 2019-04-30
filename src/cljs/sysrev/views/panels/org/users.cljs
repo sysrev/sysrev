@@ -151,6 +151,7 @@
                          :margin-left "1.5rem"}} "Can see every member and project in the organization"]
             [Button {:disabled (or (nil? @new-role)
                                    @retrieving?)
+                     :id "org-change-role-button"
                      :color "red"
                      :basic true}
              "Change Role"]
@@ -186,9 +187,7 @@
              (not (and (= self-user-id user-id)
                        (some #{"owner"} self-permissions))))
         [Dropdown {:button true
-                   ;;:pointing true
                    :search true
-                   :pointing "down"
                    :class-name "icon"
                    :icon "cog"
                    :text " "
@@ -216,7 +215,8 @@
 (defn UsersTable
   [users]
   (when-not (empty? @users)
-    [Table {:basic "true"}
+    [Table {:basic "true"
+            :id "org-user-table"}
      #_[TableHeader
       [TableRow
        [TableCell ;; select all goes here
@@ -300,7 +300,8 @@
         [Modal {:trigger
                 (r/as-component [Button {:on-click (fn [event]
                                                      (reset-state!))
-                                         :positive true} "Add Member"])
+                                         :positive true
+                                         :id "add-member-button"} "Add Member"])
                 :open @modal-open
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)
@@ -308,13 +309,15 @@
          [ModalHeader (str "Invite Member to " @current-org-name)]
          [ModalContent
           [ModalDescription
-           [Form {:on-submit (fn [event]
+           [Form {:id "invite-member-form"
+                  :on-submit (fn [event]
                                (set-current-search-user-id!)
                                (when-not (nil? @current-search-user-id)
                                  (add-user-to-group! @current-search-user-id @current-org-id)))}
             [:div
              [Search {:loading @search-loading?
                       :placeholder "Search for users by username"
+                      :id "org-search-users-input"
                       :on-result-select (fn [e value]
                                           (let [result (-> value
                                                            (js->clj :keywordize-keys true)
@@ -338,6 +341,7 @@
                       :input (r/as-element
                               [Input {:placeholder "Search for users by username"
                                       :action (r/as-element [Button {:positive true
+                                                                     :id "add-member-button"
                                                                      :class "invite-member"
                                                                      :disabled (nil? @current-search-user-id)}
                                                              "Add Member"])}])}]]

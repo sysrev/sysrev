@@ -1,7 +1,8 @@
 (ns sysrev.db.groups
   (:require
    [honeysql-postgres.helpers :refer [returning]]
-   [honeysql.helpers :as sqlh :refer [select from where insert-into values sset join modifiers]]
+   [honeysql.helpers :as sqlh :refer [select from where insert-into values sset join modifiers
+                                      delete-from]]
    [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array]]
    [sysrev.db.users :as users]
    [sysrev.util :as util]))
@@ -111,6 +112,12 @@
       (returning :id)
       do-query first :id))
 
+(defn delete-group!
+  [group-id]
+  (-> (delete-from :groups)
+      (where [:= :id group-id])
+      do-execute))
+
 (defn create-project-group!
   [project-id group-id]
   (-> (insert-into :project-group)
@@ -138,3 +145,8 @@
             [:= :pg.project-id :p.project-id])
       (where [:= :pg.group_id group-id])
       do-query))
+
+#_(defn create-sysrev-stripe-customer!
+  "Create a stripe cutomer for group"
+  [group-id]
+  (let [{:keys [email user-uuid]}]))

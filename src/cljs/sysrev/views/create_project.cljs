@@ -41,7 +41,6 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (.log js/console "init-org-id: " initial-org-id)
         [Form {:class "create-project"
                :on-submit (util/wrap-prevent-default create-project)}
          [Input {:placeholder "Project Name"
@@ -72,7 +71,6 @@
                              (dispatch [:read-orgs!]))})))
 
 (defn CreateProject [& [initial-org-id]]
-  (.log js/console "current-org-id: " initial-org-id)
   [Segment {:secondary true}
    [Header {:as "h4"
             :dividing true}

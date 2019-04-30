@@ -40,7 +40,7 @@
         [:div
          (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
            [CreateProject @(subscribe [:current-org])])
-         [ProjectsListSegment "Group Projects" @group-projects false]
+         [ProjectsListSegment "Group Projects" @group-projects false :id "group-projects"]
          (when-not (empty? @error)
            [Message {:negative true
                      :onDismiss #(reset! error "")}

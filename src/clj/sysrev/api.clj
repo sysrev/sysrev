@@ -105,7 +105,8 @@
        {:success true
         :project (select-keys project [:project-id :name])}})))
 ;;;
-(s/fdef create-project-for-org!
+;; not pulling in ::sc/org-id for some reason, skipping
+#_ (s/fdef create-project-for-org!
   :args (s/cat :project-name ::sp/name, :user-id ::sc/user-id, :org-id ::sc/org-id)
   :ret ::sp/project)
 
@@ -331,6 +332,7 @@
                                                                                  :name plan-name
                                                                                  :created created
                                                                                  :sub-id id})))]
+    (db/clear-project-cache)
     (if (:error stripe-response)
       (assoc stripe-response
              :error

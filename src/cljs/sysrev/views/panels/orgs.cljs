@@ -39,9 +39,11 @@
          [Form {:on-submit #(create-org! @new-org)}
           [FormField
            [Input {:placeholder "Organization Name"
+                   :id "create-org-input"
                    :value @new-org
                    :action (r/as-element [Button {:primary true
-                                                  :class "create-organization"} "Create"])
+                                                  :class "create-organization"
+                                                  :id "create-org-button"} "Create"])
                    :on-change #(reset! new-org
                                        (-> ($ % :target.value)))}]]]
          (when-not (empty? @create-org-error)

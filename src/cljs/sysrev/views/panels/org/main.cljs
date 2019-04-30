@@ -106,15 +106,17 @@
                      :class (cond-> "item"
                               (= @current-path "/org/profile") (str " active"))}
            "Profile"]
-          [MenuItem {:name "Billing"
-                     :id "org-billing"
-                     :href "/org/billing"
-                     :class (cond-> "item"
-                              (= @current-path "/org/billing") (str " active"))}
-           "Billing"]
+          (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
+            [MenuItem {:name "Billing"
+                       :id "org-billing"
+                       :href "/org/billing"
+                       :class (cond-> "item"
+                                (= @current-path "/org/billing") (str " active"))}
+             "Billing"])
           (when-not (empty? @orgs)
             [MenuItem {:position "right"}
-             [Dropdown {:options (map #(hash-map :text (:group-name %)
+             [Dropdown {:id "change-org-dropdown"
+                        :options (map #(hash-map :text (:group-name %)
                                                  :value (:id %)) @orgs)
                         :value @current-org-id
                         :on-change (fn [event data]
