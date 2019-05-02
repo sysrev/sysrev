@@ -1,7 +1,8 @@
 (ns sysrev.views.panels.user.payment
-  (:require [re-frame.core :refer [reg-event-db trim-v]]
+  (:require [re-frame.core :refer [reg-event-db trim-v dispatch]]
             [sysrev.stripe :refer [StripeCardInfo]]
-            [sysrev.views.base :refer [panel-content logged-out-content]]))
+            [sysrev.views.base :refer [panel-content logged-out-content]]
+            [sysrev.views.semantic :refer [Grid Row Column Header Segment]]))
 
 ;; should be of the form [:route]
 (reg-event-db
@@ -15,8 +16,10 @@
 
 (defmethod panel-content [:payment] []
   (fn [child]
-    [:div {:class "ui two columns stackable grid"}
-     [:div {:class "column"}
-      [:div {:class "ui segment secondary"}
-       [:h1 "Enter your Payment Method"]
-       [StripeCardInfo]]]]))
+    [Grid
+     [Column {:width 8}
+      [Segment {:secondary true}
+       [Header {:as "h1"} "Enter your Payment Method"]
+       [StripeCardInfo {:add-payment-fn
+                        (fn [payload]
+                          (dispatch [:action [:stripe/add-payment-user payload]]))}]]]]))

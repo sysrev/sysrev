@@ -18,6 +18,7 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (def use-card ".button.use-card")
+(def upgrade-link (xpath "//a[text()='Upgrade']"))
 
 (defn get-user-customer [email]
   (some-> email (users/get-user-by-email) :stripe-id

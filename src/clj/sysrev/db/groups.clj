@@ -5,7 +5,9 @@
                                       delete-from]]
    [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array]]
    [sysrev.db.users :as users]
-   [sysrev.util :as util]))
+   [sysrev
+    [util :as util]
+    [stripe :as stripe]]))
 
 (defn group-name->group-id
   "Given a group-name, get the group-id associated with it"
@@ -146,7 +148,29 @@
       (where [:= :pg.group_id group-id])
       do-query))
 
-#_(defn create-sysrev-stripe-customer!
-  "Create a stripe cutomer for group"
+(defn create-sysrev-stripe-customer!
+  "Create a stripe customer for group-id"
   [group-id]
-  (let [{:keys [email user-uuid]}]))
+  (let [group-name (group-id->group-name group-id)
+        stripe-response (stripe/create-customer! :description (str "Sysrev group name: " group-name))
+        stripe-customer-id (:id stripe-response)]
+    (if-not (nil? stripe-customer-id)
+      (try
+        (do (-> (sqlh/update :groups)
+                (sset {:stripe-id stripe-customer-id})
+                (where [:= :id group-id])
+                do-execute)
+            {:success true})
+        (catch Throwable e
+          {:error {:message (str "Exception in " (util/current-function-name))
+                   :exception e}}))
+      {:error {:message
+               (str "No customer id returned by stripe.com for group-id: " group-id)}})))
+
+(defn get-stripe-id
+  "Return the stripe-id for org-id"
+  [org-id]
+  (-> (select :stripe-id)
+      (from :groups)
+      (where [:= :id org-id])
+      do-query first :stripe-id))

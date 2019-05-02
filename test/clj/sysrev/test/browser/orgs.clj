@@ -1,16 +1,21 @@
 (ns sysrev.test.browser.orgs
   (:require [clojure.test :refer :all]
+            [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
+            [sysrev.api :as api]
             [sysrev.db
              [groups :as groups]
-             [users :as users]
-             [project :as project]]
+             [project :as project]
+             [users :as users]]
             [sysrev.test.browser
              [core :as b :refer [deftest-browser]]
              [navigate :as nav]
              [user-profiles :as user-profiles]
-             [xpath :refer [xpath]]]
+             [xpath :refer [xpath]]
+             [stripe :as bstripe]
+             [plans :as plans]]
             [sysrev.test.core :as test]
+            [sysrev.stripe :as stripe]
             [sysrev.util :refer [vector->hash-map]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
@@ -38,8 +43,13 @@
 (def change-org-dropdown "#change-org-dropdown")
 (def current-org-dropdown (xpath "//div[@id='change-org-dropdown']/div[@class='text']"))
 (def group-projects "#group-projects")
-
-
+(def disabled-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'disabled')]"))
+(def active-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'active')]"))
+(def set-private-button "#public-access_private")
+(def save-options-button "#save-options")
+(def no-payment-on-file (xpath "//div[contains(text(),'No payment method on file')]"))
+(defn payment-method [{:keys [exp-date last-4]}]
+  (xpath "//div[contains(text(),'Visa expiring on " exp-date " and ending in " last-4 "')]"))
 (defn user-group-permission
   [user-id group-name]
   (groups/user-group-permission user-id (groups/group-name->group-id group-name)))
@@ -109,7 +119,6 @@
    test-user {:name "foo"
               :email "foo@bar.com"
               :password "foobar"}]
-  ;; test that:
   (do
     (nav/log-in)
     ;; a person can create a org and they are automatically made owners
@@ -191,14 +200,96 @@
     ;; delete test user
     (b/delete-test-user :email (:email test-user))))
 
+;; for manual testing:
+;; delete a customer's card:
+#_(let [stripe-id (-> email users/get-user-by-email :stripe-id)
+        source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
+    (stripe/delete-customer-card! stripe-id source-id))
 
-#_(deftest-browser complex-org-tests
+;; delete a org's card:
+#_(let [group-id (-> (groups/read-groups user-id) first :id)
+      stripe-id (groups/get-stripe-id group-id)
+      source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
+  (stripe/delete-customer-card! stripe-id source-id))
+
+(deftest-browser org-plans
   (test/db-connected?)
-  [org-name-1 "Foo Bar, Inc."]
+  [org-name-1 "Foo Bar, Inc."
+   org-name-1-project "Foo Bar Article Reviews"
+   user-project "Baz Qux"
+   org-cc {:cardnumber bstripe/valid-visa-cc
+           :exp-date "0125"
+           :cvc "123"
+           :postal "12345"}
+   user-cc {:cardnumber bstripe/valid-visa-cc
+            :exp-date "0122"
+            :cvc "123"
+            :postal "11111"}
+   email (:email b/test-login)
+   user-id (-> email
+               users/get-user-by-email
+               :user-id)]
   (do
-    ;; when performing billing, make sure you can go directly to /org/billing and have a plan show up from a browser load!
-
-    ;; users can have multiple orgs and they seamlessly switch
-    )
+    ;; need to be a stripe customer
+    (when-not (plans/get-user-customer email)
+      (log/info (str "Stripe Customer created for " email))
+      (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
+    (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
+    ;; current plan h
+    (is (= (get-in (api/current-plan user-id) [:result :plan :name]) api/default-plan))
+    (plans/wait-until-stripe-id email)
+    ;; start tests
+    (nav/log-in)
+    (create-org org-name-1)
+    ;;; make sure pay wall is in place for org projects and redirects to org plans page
+    ;; create org project
+    (b/click org-projects)
+    (create-project-org org-name-1-project)
+    (nav/go-project-route "/settings")
+    (is (b/exists? disabled-set-private-button))
+    (b/click plans/upgrade-link)
+    (nav/current-path? "/org/billing")
+    ;; subscribe to plans
+    (b/click ".button.nav-plans.subscribe" :displayed? true)
+    (b/click "a.payment-method.add-method")
+    (nav/current-path? "/org/payment")
+    ;; enter payment information
+    (bstripe/enter-cc-information org-cc)
+    (b/click plans/use-card)
+    (b/click ".button.upgrade-plan")
+    ;; switch back to the project and check that it can be set to private
+    (b/click org-projects)
+    (b/click (xpath "//span[text()='" org-name-1-project "']"))
+    (nav/go-project-route "/settings")
+    (b/click set-private-button)
+    (b/click save-options-button)
+    (is (b/exists? active-set-private-button))
+    ;; make sure pay wall is in place for personal projects and redirects to personal plans page
+    (nav/go-route "/")
+    (nav/new-project user-project)
+    (nav/go-project-route "/settings")
+    (is (b/exists? disabled-set-private-button))
+    (b/click plans/upgrade-link)
+    (nav/current-path? "/user/settings/billing")
+    (is (b/exists? no-payment-on-file))
+    ;; get a plan for user
+    (b/click ".button.nav-plans.subscribe" :displayed? true)
+    (b/click "a.payment-method.add-method")
+    (nav/current-path? "/user/payment")
+    (bstripe/enter-cc-information user-cc)
+    (b/click plans/use-card)
+    (b/click ".button.upgrade-plan")
+    (is (b/exists? (payment-method {:exp-date "1/22" :last-4 "4242"})))
+    ;; user can set their projects private
+    (b/click "#user-profile")
+    (b/click (xpath "//a[text()='" user-project "']"))
+    (nav/go-project-route "/settings")
+    (b/click set-private-button)
+    (b/click save-options-button)
+    (is (b/exists? active-set-private-button)))
   :cleanup
-  (println "Cleanup Here"))
+  (do
+    ;; delete projects
+    (->> (users/projects-member user-id) (mapv :project-id) (mapv project/delete-project))
+    ;; delete orgs
+    (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))))

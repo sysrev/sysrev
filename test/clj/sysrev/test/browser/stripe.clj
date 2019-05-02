@@ -41,8 +41,7 @@
 (defn get-stripe-frame-names
   []
   (->> (b/current-frame-names)
-       (filter #(re-matches #".*StripeFrame.*" %))
-       sort))
+       (filter #(re-matches #".*StripeFrame.*" %))))
 
 (defn enter-cc-number
   [cc-number]

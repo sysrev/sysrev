@@ -110,9 +110,9 @@
 
 (defn DowngradePlan [{:keys [billing-settings-route
                              unsubscribe-button-on-click
-                             downgrade-dispatch]}]
-  (let [default-source (subscribe [:billing/default-source])
-        error-message (r/cursor state [:error-message])
+                             downgrade-dispatch
+                             default-source]}]
+  (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
      {:reagent-render
@@ -150,10 +150,11 @@
         (reset! error-message nil))})))
 
 (defn UpgradePlan [{:keys [billing-settings-route
-                           set-payment-calling-route
-                           upgrade-dispatch]}]
-  (let [default-source (subscribe [:billing/default-source])
-        error-message (r/cursor state [:error-message])
+                           upgrade-dispatch
+                           default-source
+                           get-default-source
+                           add-payment-method]}]
+  (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
      {:reagent-render
@@ -177,17 +178,15 @@
                   [:h4 "New Monthly Bill"]
                   [ListItem [:p "Unlimited plan ($50 / month)"]]
                   [:h4 "Billing Information"]
-                  [ListItem [DefaultSource]]
-                  (when (or no-default?
-                            ((comp not nil?) @error-message))
+                  [ListItem [DefaultSource {:get-default-source get-default-source
+                                            :default-source default-source}]]
+                  (when (empty? @error-message)
                     [:a.payment-method
                      {:class (if no-default? "add-method" "change-method")
                       :style {:cursor "pointer"}
-                      :on-click
-                      (util/wrap-prevent-default
-                       #(do (dispatch [:payment/set-calling-route! set-payment-calling-route])
-                            (reset! error-message nil)
-                            (nav-scroll-top "/user/payment")))}
+                      :on-click (util/wrap-prevent-default
+                                 #(do (reset! error-message nil)
+                                      (add-payment-method)))}
                      (if no-default?
                        "Add a payment method"
                        "Change payment method")])
@@ -225,10 +224,14 @@
         [:div
          (when (= current-plan "Basic")
            [UpgradePlan {:billing-settings-route "/user/settings/billing"
-                         :set-payment-calling-route "/user/plans"
                          :upgrade-dispatch (fn []
-                                             (dispatch [:action [:subscribe-plan "Unlimited"]]))}])
+                                             (dispatch [:action [:subscribe-plan "Unlimited"]]))
+                         :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
+                         :get-default-source stripe/get-user-default-source
+                         :add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                                  (dispatch [:navigate [:payment]]))}])
          (when (= current-plan "Unlimited")
            [DowngradePlan {:billing-settings-route "/user/settings/billing"
                            :downgrade-dispatch (fn []
-                                                 (dispatch [:action [:subscribe-plan "Basic"]]))}])]))))
+                                                 (dispatch [:action [:subscribe-plan "Basic"]]))
+                           :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])}])]))))

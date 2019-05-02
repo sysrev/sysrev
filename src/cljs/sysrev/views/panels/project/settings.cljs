@@ -416,7 +416,8 @@
                            (save-changes project-id))
              :on-reset #(do (reset! saving? false)
                             (reset-fields))
-             :saving? @saving?]])]))))
+             :saving? @saving?
+             :id "save-options"]])]))))
 
 (defonce members-state (r/cursor state [:members]))
 

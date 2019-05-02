@@ -120,12 +120,12 @@
                   (wrap-authorize
                    request
                    {:authorize-fn (user-authd? user-id)}
-                   (api/stripe-default-source user-id)))
+                   (api/user-stripe-default-source user-id)))
              (POST "/payment-method" request
                    (wrap-authorize
                     request {:authorize-fn (user-authd? user-id)}
                     (let [{:keys [token]} (:body request)]
-                      (api/stripe-payment-method user-id token))))
+                      (api/update-user-stripe-payment-method! user-id token))))
              (GET "/current-plan" request
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}

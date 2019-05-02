@@ -30,43 +30,51 @@
 
 (defn create-customer!
   "Create a stripe customer"
-  [email uuid]
+  [& {:keys [email description]}]
   (execute-action
    (customers/create-customer
-    (customers/email email)
-    (common/description (str "Sysrev UUID: " uuid)))))
+    (when email
+      (customers/email email))
+    (when description
+      (common/description description)))))
 
 (defn get-customer
   "Get customer associated with stripe customer id"
-  [user]
+  [stripe-id]
   (execute-action
-   (customers/get-customer (:stripe-id user))))
+   (customers/get-customer stripe-id)))
 
 (defn read-customer-sources
   "Return the customer fund sources"
-  [user]
-  (let [customer (get-customer user)
+  [stripe-id]
+  (let [customer (get-customer stripe-id)
         sources (:sources customer)
         default-source (:default_source customer)]
     (assoc sources :default-source default-source)))
 
 (defn read-default-customer-source
-  [user]
-  (let [customer-sources (read-customer-sources user)
+  [stripe-id]
+  (let [customer-sources (read-customer-sources stripe-id)
         default-source (:default-source customer-sources)]
     (first (filter #(= (:id %) default-source) (:data customer-sources)))))
 
 (defn update-customer-card!
   "Update a stripe customer with a stripe-token returned by stripe.js"
-  [user stripe-token]
+  [stripe-id stripe-token]
   (execute-action
    (customers/update-customer
-    (:stripe-id user)
+    stripe-id
     (common/card (get-in stripe-token ["token" "id"])))))
 
+;; used for testing
 (defn delete-customer-card!
   "Delete a card from a customer"
-  [stripe-customer-id])
+  [stripe-id source-id]
+  (http/delete (str stripe-url "/customers/" stripe-id "/sources/" source-id)
+               {:basic-auth stripe-secret-key
+                :throw-execptions false
+                :as :json
+                :coerce :always}))
 
 (defn delete-customer!
   "Delete stripe customer entry for user"
@@ -122,12 +130,7 @@
 ;; https://stripe.com/docs/subscriptions/upgrading-downgrading
 (defn subscribe-customer!
   "Subscribe user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response. on-success is a fn called when transaction is succesfully completed on Stripe"
-  [user plan-name & {:keys [on-success]
-                     :or {on-success (fn [user plan-name created id]
-                                       (db-plans/add-user-to-plan! {:user-id (:user-id user)
-                                                                    :name plan-name
-                                                                    :created created
-                                                                    :sub-id id}))}}]
+  [user plan-name]
   (let [{:keys [created id] :as stripe-response}
         (execute-action (subscriptions/subscribe-customer
                          (common/plan (get-plan-id plan-name))
@@ -136,15 +139,36 @@
     (cond (:error stripe-response)
           stripe-response
           created
-          (do (on-success user plan-name created id)
+          (do (db-plans/add-user-to-plan! {:user-id (:user-id user)
+                                           :name plan-name
+                                           :created created
+                                           :sub-id id})
               stripe-response))))
 
+(defn subscribe-org-customer!
+  "Subscribe org to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response."
+  [group-id stripe-id plan-name]
+  (let [{:keys [created id] :as stripe-response}
+        (execute-action (subscriptions/subscribe-customer
+                         (common/plan (get-plan-id plan-name))
+                         (common/customer stripe-id)
+                         (subscriptions/do-not-prorate)))]
+    (cond (:error stripe-response)
+          stripe-response
+          created
+          (do (db-plans/add-group-to-plan! {:group-id group-id
+                                            :name plan-name
+                                            :created created
+                                            :sub-id id})
+              stripe-response))))
+
+;; not needed for main application, needed only in tests
 (defn unsubscribe-customer!
   "Unsubscribe a user. This just removes user from all plans"
-  [user]
+  [stripe-id]
   ;; need to remove the user from plan_user table!!!
   (execute-action (subscriptions/unsubscribe-customer
-                   (common/customer (:stripe-id user)))))
+                   (common/customer stripe-id))))
 ;; https://stripe.com/docs/billing/subscriptions/quantities#setting-quantities
 
 (defn support-project-monthly!

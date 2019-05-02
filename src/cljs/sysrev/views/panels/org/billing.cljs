@@ -2,6 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
+            [sysrev.stripe :as stripe]
             [sysrev.views.panels.user.billing :refer [Plan PaymentSource]]
             [sysrev.views.semantic :refer [Segment Header ListUI ListItem]]))
 
@@ -22,4 +23,7 @@
         [ListItem [Plan {:plans-route "/org/plans"
                          :current-plan-atom (subscribe [:org/current-plan])
                          :fetch-current-plan (fn [] (dispatch [:fetch [:org-current-plan]]))}]]
-        [ListItem [PaymentSource]]]])}))
+        [ListItem [PaymentSource {:get-default-source (partial stripe/get-org-default-source @(subscribe [:current-org]))
+                                  :default-source (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])
+                                  :add-payment-method #(do (dispatch [:payment/set-calling-route! "/org/billing"])
+                                                           (dispatch [:navigate [:org-payment]]))}]]]])}))

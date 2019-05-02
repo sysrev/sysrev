@@ -112,3 +112,16 @@
 
 (defn panel-exists? [panel & {:keys [wait?] :or {wait? true}}]
   (b/exists? (str "div#" (panel-name panel)) :wait? wait?))
+
+(defn get-path
+  "return the path of string uri"
+  [uri]
+  (-> uri java.net.URI. .getPath))
+
+(defn current-path?
+  "Is the browser currently at the relative-path?"
+  [relative-path]
+  (b/wait-until #(= (-> (taxi/current-url) get-path)
+                    relative-path))
+  (is (= (-> (taxi/current-url) get-path)
+         relative-path)))

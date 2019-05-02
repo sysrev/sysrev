@@ -74,13 +74,17 @@
                         [:div
                          (when (= (:name @current-plan) "Basic")
                            [UpgradePlan {:billing-settings-route "/org/billing"
-                                         :set-payment-calling-route "/org/plans"
                                          :upgrade-dispatch (fn []
-                                                             (dispatch [:action [:org-subscribe-plan "Unlimited"]]))}])
+                                                             (dispatch [:action [:org-subscribe-plan "Unlimited"]]))
+                                         :default-source (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])
+                                         :get-default-source (partial stripe/get-org-default-source @(subscribe [:current-org]))
+                                         :add-payment-method #(do (dispatch [:payment/set-calling-route! "/org/plans"])
+                                                                  (dispatch [:navigate [:org-payment]]))}])
                          (when (= (:name @current-plan) "Unlimited")
                            [DowngradePlan {:billing-settings-route "/org/billing"
                                            :downgrade-dispatch (fn []
-                                                                 (dispatch [:action [:org-subscribe-plan "Basic"]]))}])]))
+                                                                 (dispatch [:action [:org-subscribe-plan "Basic"]]))
+                                           :default-source (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])}])]))
     :component-did-mount (fn [this]
                            (dispatch [:read-orgs!]))}))
 

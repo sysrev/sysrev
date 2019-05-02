@@ -292,7 +292,7 @@
   "Create a stripe customer from user"
   [user]
   (let [{:keys [email user-uuid user-id]} user
-        stripe-response (stripe/create-customer! email (str user-uuid))
+        stripe-response (stripe/create-customer! :email email :description (str "Sysrev UUID: " user-uuid))
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
       (try

@@ -9,7 +9,7 @@
             [sysrev.views.panels.org.billing :refer [OrgBilling]]
             [sysrev.views.panels.org.projects :refer [OrgProjects]]
             [sysrev.views.panels.org.users :refer [OrgUsers]]
-            [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown]])
+            [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown Message MessageHeader]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:org :main])
@@ -80,63 +80,69 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        [:div
-         [Segment {:attached "top"
-                   :aligned "middle"}
-          [Header {:as "h4"}
-           "Organization Settings"]]
-         [Menu {:pointing true
-                :secondary true
-                :attached "bottom"
-                :class "primary-menu"}
-          [MenuItem {:name "Users"
-                     :id "org-users"
-                     :href "/org/users"
-                     :class (cond-> "item"
-                              (= @current-path "/org/users") (str " active"))}
-           "Users"]
-          [MenuItem {:name "Projects"
-                     :id "org-projects"
-                     :href "/org/projects"
-                     :class (cond-> "item"
-                              (= @current-path "/org/projects") (str " active"))}]
-          #_[MenuItem {:name "Profile"
-                     :id "org-profile"
-                     :href "/org/profile"
-                     :class (cond-> "item"
-                              (= @current-path "/org/profile") (str " active"))}
-           "Profile"]
-          (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
-            [MenuItem {:name "Billing"
-                       :id "org-billing"
-                       :href "/org/billing"
+        (if (nil? @current-org-id)
+          [Message {:negative true}
+           [MessageHeader {:as "h4"}
+            "Organization Settings Error"]
+           [:p "You haven't created any organizations. Go to " [:a {:href "/user/settings/profile"}
+                                                              "user settings"] " to create a new organization."]]
+          [:div
+           [Segment {:attached "top"
+                     :aligned "middle"}
+            [Header {:as "h4"}
+             "Organization Settings"]]
+           [Menu {:pointing true
+                  :secondary true
+                  :attached "bottom"
+                  :class "primary-menu"}
+            [MenuItem {:name "Users"
+                       :id "org-users"
+                       :href "/org/users"
                        :class (cond-> "item"
-                                (= @current-path "/org/billing") (str " active"))}
-             "Billing"])
-          (when-not (empty? @orgs)
-            [MenuItem {:position "right"}
-             [Dropdown {:id "change-org-dropdown"
-                        :options (map #(hash-map :text (:group-name %)
-                                                 :value (:id %)) @orgs)
-                        :value @current-org-id
-                        :on-change (fn [event data]
-                                     (reset! current-org-id
-                                             ($ data :value)))}]])]
-         [:div {:id "org-content"}
-          (condp re-matches @current-path
-            #"/org/users"
-            [OrgUsers]
-            #"/org/projects"
-            [OrgProjects]
-            ;; #"/org/profile"
-            ;; [:div
-            ;;  (when-not (empty? @orgs)
-            ;;    [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
-            ;;  [:h1 "Profile settings go here"]]
-            #"/org/billing"
-            [OrgBilling]
-            ;; default
-            [:div {:style {:display "none"}}])]])
+                                (= @current-path "/org/users") (str " active"))}
+             "Users"]
+            [MenuItem {:name "Projects"
+                       :id "org-projects"
+                       :href "/org/projects"
+                       :class (cond-> "item"
+                                (= @current-path "/org/projects") (str " active"))}]
+            #_[MenuItem {:name "Profile"
+                         :id "org-profile"
+                         :href "/org/profile"
+                         :class (cond-> "item"
+                                  (= @current-path "/org/profile") (str " active"))}
+               "Profile"]
+            (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
+              [MenuItem {:name "Billing"
+                         :id "org-billing"
+                         :href "/org/billing"
+                         :class (cond-> "item"
+                                  (= @current-path "/org/billing") (str " active"))}
+               "Billing"])
+            (when-not (empty? @orgs)
+              [MenuItem {:position "right"}
+               [Dropdown {:id "change-org-dropdown"
+                          :options (map #(hash-map :text (:group-name %)
+                                                   :value (:id %)) @orgs)
+                          :value @current-org-id
+                          :on-change (fn [event data]
+                                       (reset! current-org-id
+                                               ($ data :value)))}]])]
+           [:div {:id "org-content"}
+            (condp re-matches @current-path
+              #"/org/users"
+              [OrgUsers]
+              #"/org/projects"
+              [OrgProjects]
+              ;; #"/org/profile"
+              ;; [:div
+              ;;  (when-not (empty? @orgs)
+              ;;    [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
+              ;;  [:h1 "Profile settings go here"]]
+              #"/org/billing"
+              [OrgBilling]
+              ;; default
+              [:div {:style {:display "none"}}])]]))
       :component-did-mount (fn [this]
                              (read-orgs!))})))
 

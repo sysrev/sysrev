@@ -66,6 +66,17 @@
                   request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin" "member"])}
                   (api/group-projects org-id)))
             (context "/stripe" []
+                     (GET "/default-source" request
+                          (wrap-authorize
+                           request
+                           {:authorize-fn (user-has-org-permission? org-id ["owner" "admin"])}
+                           (api/org-stripe-default-source org-id)))
+                     (POST "/payment-method" request
+                           (wrap-authorize
+                            request
+                            {:authorize-fn (user-has-org-permission? org-id ["owner" "admin"])}
+                            (let [{:keys [token]} (:body request)]
+                              (api/update-org-stripe-payment-method! org-id token))))
                      (GET "/current-plan" request
                           (wrap-authorize
                            request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin" "member"])}
@@ -75,4 +86,4 @@
                             request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin"])}
                             (let [{:keys [plan-name]} (:body request)
                                   user-id (current-user-id request)]
-                              (api/subscribe-org-to-plan user-id org-id plan-name))))))))
+                              (api/subscribe-org-to-plan org-id plan-name))))))))

@@ -278,12 +278,25 @@
          {:success true}})
       :else (throw (util/should-never-happen-exception)))))
 
-(defn stripe-payment-method
+(defn update-user-stripe-payment-method!
   "Using a stripe token, update the payment method for user-id"
   [user-id token]
-  (let [stripe-response (stripe/update-customer-card!
-                         (users/get-user-by-id user-id)
+  (let [stripe-id (-> (users/get-user-by-id user-id)
+                      :stripe-id)
+        stripe-response (stripe/update-customer-card!
+                         stripe-id
                          token)]
+    (if (:error stripe-response)
+      stripe-response
+      {:success true})))
+
+(defn update-org-stripe-payment-method!
+  "Using a stripe token, update the payment method for org-id"
+  [org-id token]
+  (let [stripe-id (groups/get-stripe-id org-id)
+        stripe-response (stripe/update-customer-card!
+                        stripe-id
+                        token)]
     (if (:error stripe-response)
       stripe-response
       {:success true})))
@@ -314,6 +327,7 @@
   [user-id plan-name]
   (let [user (users/get-user-by-id user-id)
         stripe-response (stripe/subscribe-customer! user plan-name)]
+    (db/clear-project-cache)
     (if (:error stripe-response)
       (assoc stripe-response
              :error
@@ -323,15 +337,9 @@
 
 (defn subscribe-org-to-plan
   "Subscribe the group to plan. Only a user can subscribe to a plan when they have a a valid payment method. This fn allows for them to associated that plan with a group."
-  [user-id group-id plan-name]
-  (let [user (users/get-user-by-id user-id)
-        stripe-response (stripe/subscribe-customer! user plan-name
-                                                    :on-success
-                                                    (fn [user plan-name created id]
-                                                      (plans/add-group-to-plan! {:group-id group-id
-                                                                                 :name plan-name
-                                                                                 :created created
-                                                                                 :sub-id id})))]
+  [group-id plan-name]
+  (let [stripe-id (groups/get-stripe-id group-id)
+        stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)]
     (db/clear-project-cache)
     (if (:error stripe-response)
       (assoc stripe-response
@@ -355,7 +363,6 @@
   [project-id changes]
   (doseq [{:keys [setting value]} changes]
     (cond (and (= setting :public-access)
-               (= value false)
                ;; owner has Unlimited plan
                (= "Unlimited" (project-owner-plan project-id)))
           (project/change-project-setting
@@ -481,10 +488,18 @@
       {:error {:status (:status finalize-response)
                :message (:error_description body)}})))
 
-(defn stripe-default-source
+(defn user-stripe-default-source
   [user-id]
   {:result
    {:default-source (or (-> (users/get-user-by-id user-id)
+                            :stripe-id
+                            (stripe/read-default-customer-source))
+                        [])}})
+
+(defn org-stripe-default-source
+  [org-id]
+  {:result
+   {:default-source (or (-> (groups/get-stripe-id org-id)
                             (stripe/read-default-customer-source))
                         [])}})
 
@@ -1511,14 +1526,8 @@
             user (users/get-user-by-id user-id)]
         ;; set the user as group admin
         (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
-        (stripe/subscribe-customer! user default-plan
-                                    :on-success
-                                    (fn [user plan-name created id]
-                                      (println "on-success called!")
-                                      (plans/add-group-to-plan! {:group-id new-org-id
-                                                                 :name default-plan
-                                                                 :created created
-                                                                 :sub-id id})))
+        (groups/create-sysrev-stripe-customer! new-org-id)
+        (subscribe-org-to-plan new-org-id default-plan)
         {:result {:success true
                   :id new-org-id}}))))
 

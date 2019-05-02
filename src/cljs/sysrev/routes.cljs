@@ -202,9 +202,12 @@
  (dispatch [:set-active-panel [:org-plans]]))
 
 (sr-defroute
+ org-payment "/org/payment" []
+ (dispatch [:set-active-panel [:org-payment]]))
+
+(sr-defroute
  org-settings "/org/*" []
  (dispatch [:set-active-panel [:org-settings]]))
-
 
 (sr-defroute
  users "/users*" []
@@ -279,6 +282,9 @@
 
         [[:org-plans]
          "/org/plans"]
+
+        [[:org-payment]
+         "/org/payment"]
 
         [[:org-settings]
          "/org/*"]]

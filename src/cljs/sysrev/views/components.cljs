@@ -552,11 +552,12 @@
    (when error
      [:div.ui.red.message error])])
 
-(defn SaveCancelForm [& {:keys [can-save? can-reset? on-save on-reset saving?]}]
+(defn SaveCancelForm [& {:keys [can-save? can-reset? on-save on-reset saving? id]}]
   [:div.ui.two.column.grid.save-reset-form
    [:div.column.save
     [:button.ui.fluid.right.labeled.positive.icon.button.save-changes
-     {:class (css [(not can-save?) "disabled"]
+     {:id id
+      :class (css [(not can-save?) "disabled"]
                   [saving? "loading"])
       :on-click (util/wrap-user-event #(when (and can-save? on-save (not saving?)) (on-save)))}
      "Save Changes"
