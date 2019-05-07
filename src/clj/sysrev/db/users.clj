@@ -308,6 +308,19 @@
                (str "No customer id returned by stripe.com for email: "
                     email " and uuid: " user-uuid)}})))
 
+;; for testing purposes
+(defn delete-sysrev-stripe-customer!
+  [user]
+  (with-transaction
+    (let [{:keys [email user-uuid user-id stripe-id]} user
+          stripe-source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
+      (when stripe-source-id
+        (stripe/delete-customer-card! stripe-id stripe-source-id))
+      (-> (sqlh/update :web-user)
+          (sset {:stripe-id nil})
+          (where [:= :user-id user-id])
+          do-execute))))
+
 (defn set-user-default-project [user-id project-id]
   (-> (sqlh/update :web-user)
       (sset {:default-project-id project-id})
@@ -467,6 +480,19 @@
               [:= :user-id user-id]
               [:= :email email]])
       do-query first))
+
+(defn projects-member-permission
+  "Return all projects for which user-id has permission"
+    [user-id permission]
+  (-> (select :p.project-id :p.name :p.settings)
+      (from [:project :p])
+      (join [:project-member :pm]
+            [:= :pm.project-id :p.project-id])
+      (where [:and
+              [:= permission :%any.pm.permissions]
+              [:= :p.enabled true]
+              [:= :pm.user_id user-id]])
+      do-query))
 
 (defn projects-member
   "Return all projects user-id is a member of"

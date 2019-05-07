@@ -95,7 +95,9 @@
       (wait-until-plan email api/default-plan)
       (is (= api/default-plan (user-stripe-plan email)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan (user-db-plan email)))))
+      (is (= api/default-plan (user-db-plan email))))
+  :clean-up
+  (users/delete-sysrev-stripe-customer! (users/get-user-by-email email)))
 
 ;; need to disable sending emails in this test
 (deftest-browser register-and-subscribe-to-paid-plans
@@ -221,4 +223,6 @@
       (wait-until-plan email api/default-plan)
       (is (= api/default-plan (get-stripe-plan)))
       ;; do we think the user is subscribed to a basic plan?
-      (is (= api/default-plan (get-db-plan)))))
+      (is (= api/default-plan (get-db-plan)))
+      :clean-up
+      (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))))

@@ -292,4 +292,6 @@
     ;; delete projects
     (->> (users/projects-member user-id) (mapv :project-id) (mapv project/delete-project))
     ;; delete orgs
-    (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))))
+    (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))
+    ;; delete sysrev stripe customer
+    (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))))

@@ -326,8 +326,10 @@
   "Subscribe user to plan-name"
   [user-id plan-name]
   (let [user (users/get-user-by-id user-id)
-        stripe-response (stripe/subscribe-customer! user plan-name)]
-    (db/clear-project-cache)
+        stripe-response (stripe/subscribe-customer! user plan-name)
+        groups (->> (users/projects-member-permission user-id "owner")
+                    (mapv :project-id))]
+    (doall (mapv #(db/clear-project-cache %) groups))
     (if (:error stripe-response)
       (assoc stripe-response
              :error
@@ -336,11 +338,12 @@
       stripe-response)))
 
 (defn subscribe-org-to-plan
-  "Subscribe the group to plan. Only a user can subscribe to a plan when they have a a valid payment method. This fn allows for them to associated that plan with a group."
+  "Subscribe the group to plan. Only a user can subscribe to a plan when they have a valid payment method. This fn allows for them to associated that plan with a group."
   [group-id plan-name]
   (let [stripe-id (groups/get-stripe-id group-id)
-        stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)]
-    (db/clear-project-cache)
+        stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)
+        groups-projects (->> group-id groups/group-projects (mapv :project-id))]
+    (doall (mapv #(db/clear-project-cache %) groups-projects))
     (if (:error stripe-response)
       (assoc stripe-response
              :error
@@ -375,6 +378,7 @@
           :else
           (project/change-project-setting
            project-id (keyword setting) value)))
+  (db/clear-project-cache project-id)
   {:result
    {:success true
     :settings (project/project-settings project-id)}})
