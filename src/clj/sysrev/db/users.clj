@@ -1,5 +1,6 @@
 (ns sysrev.db.users
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [clojure.spec.alpha :as s]
             [buddy.core.hash :as hash]
             [buddy.core.codecs :as codecs]
@@ -25,12 +26,8 @@
 (defn all-users
   "Returns seq of short info on all users, for interactive use."
   []
-  (->>
-   (-> (select :*)
-       (from :web-user)
-       do-query)
-   (map
-    #(select-keys % [:user-id :email :permissions]))))
+  (-> (select :*) (from :web-user) do-query
+      (->> (map #(select-keys % [:user-id :email :permissions])))))
 
 (defn get-user-by-email [email]
   (-> (select :*)
@@ -50,15 +47,12 @@
   "Given a coll of user-ids, return a coll of maps that represent the
   publicly viewable information for each user-id"
   [user-ids]
-  (if-not (empty? user-ids)
+  (when (seq user-ids)
     (-> (select :user-id :email :date-created :username :introduction)
         (from :web-user)
         (where [:in :web-user.user-id user-ids])
-        do-query
-        (->> (map #(-> %
-                       (dissoc :email)
-                       (assoc :username (first (clojure.string/split (:email %) #"@")))))))
-    '()))
+        (->> do-query (map #(-> (dissoc % :email)
+                                (assoc :username (first (str/split (:email %) #"@")))))))))
 
 (defn get-user-by-reset-code [reset-code]
   (assert (string? reset-code))

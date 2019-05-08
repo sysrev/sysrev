@@ -29,11 +29,6 @@
 (def valid-label-value-types
   ["boolean" "categorical" "string"])
 
-(defn all-labels-cached []
-  (with-query-cache [:all-labels]
-    (-> (q/select-label-where nil true [:*])
-        (->> do-query (->map-with-key :label-id)))))
-
 (defn get-label-by-id
   "Get a label by its UUID label_id."
   [label-id]

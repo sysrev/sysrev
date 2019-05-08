@@ -1,16 +1,24 @@
 (ns sysrev.custom.ebtc
-  (:require [sysrev.label.core :as labels]
-            [sysrev.label.answer :as answer]
-            [clojure.math.combinatorics :as combo]
+  (:require [clojure.math.combinatorics :as combo]
             [clojure-csv.core :as csv]
-            [sysrev.shared.util :refer [in?]]
-            [sysrev.db.queries :as q]))
+            [sysrev.db.queries :as q]
+            [sysrev.db.project :as project]
+            [sysrev.label.core :as labels]
+            [sysrev.label.answer :as answer]
+            [sysrev.shared.util :refer [in?]]))
+
+(defn label-possible-values [{:keys [label-id] :as label}]
+  (case (:value-type label)
+    "boolean"      [true false]
+    "categorical"  (-> label :definition :all-values)
+    nil))
 
 (defn included-article-label-counts [project-id label-ids]
   (let [articles (labels/project-included-articles project-id)
+        labels (project/project-labels project-id)
         combos
         (->> label-ids
-             (mapv #(->> (answer/label-possible-values %)
+             (mapv #(->> (label-possible-values (get labels %))
                          (concat [nil]) distinct))
              (apply combo/cartesian-product))
         get-article-combos

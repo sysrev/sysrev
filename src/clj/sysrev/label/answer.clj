@@ -16,63 +16,39 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
 
-(defn label-answer-valid? [label-id answer]
-  (let [label (get (l/all-labels-cached) label-id)]
-    (case (:value-type label)
-      "boolean"
-      (when (in? [true false nil] answer)
-        {label-id answer})
-      "categorical"
-      (cond (nil? answer)
-            {label-id answer}
-            (sequential? answer)
-            (let [allowed (-> label :definition :all-values)]
-              (when (every? (in? allowed) answer)
-                {label-id answer}))
-            :else nil)
-      ;; TODO: check that answer value matches label regex
-      "string" (when (coll? answer)
-                 (let [filtered (->> answer
-                                     (filter string?)
-                                     (filterv not-empty))]
-                   (cond (empty? filtered)
-                         {label-id nil}
-                         (every? string? filtered)
-                         {label-id filtered}
-                         :else nil)))
-      {label-id answer})))
+(defn label-answer-valid? [{:keys [label-id value-type definition] :as label} answer]
+  (case value-type
+    "boolean"
+    (when (contains? #{true false nil} answer)
+      {label-id answer})
+    "categorical"
+    (cond (nil? answer) {label-id answer}
+          (sequential? answer) (let [allowed (set (:all-values definition))]
+                                 (when (every? #(contains? allowed %) answer)
+                                   {label-id answer})))
+    ;; TODO: check that answer value matches label regex
+    "string"
+    (when (coll? answer)
+      (let [filtered (->> answer (filter string?) (filterv not-empty))]
+        (cond (empty? filtered)          {label-id nil}
+              (every? string? filtered)  {label-id filtered})))
+    {label-id answer}))
 
-(defn label-answer-inclusion [label-id answer]
-  (let [label (get (l/all-labels-cached) label-id)
-        ivals (-> label :definition :inclusion-values)]
-    (case (:value-type label)
-      "boolean"
-      (cond
-        (empty? ivals) nil
-        (nil? answer) nil
-        :else (boolean (in? ivals answer)))
-      "categorical"
-      (cond
-        (empty? ivals) nil
-        (nil? answer) nil
-        (empty? answer) nil
-        :else (boolean (some (in? ivals) answer)))
+(defn label-answer-inclusion [{:keys [label-id value-type definition] :as label} answer]
+  (let [ivals (:inclusion-values definition)]
+    (case value-type
+      "boolean"      (if (or (empty? ivals) (nil? answer))
+                       nil
+                       (boolean (in? ivals answer)))
+      "categorical"  (if (or (empty? ivals) (empty? answer))
+                       nil
+                       (boolean (some (in? ivals) answer)))
       nil)))
 
-(defn label-possible-values [label-id]
-  (let [label (get (l/all-labels-cached) label-id)]
-    (case (:value-type label)
-      "boolean"
-      [true false]
-      "categorical"
-      (-> label :definition :all-values)
-      nil)))
-
-(defn filter-valid-label-values [label-values]
+(defn filter-valid-label-values [labels label-values]
   (->> label-values
-       (mapv
-        (fn [[label-id answer]]
-          (label-answer-valid? label-id answer)))
+       (mapv (fn [[label-id answer]]
+               (label-answer-valid? (get labels label-id) answer)))
        (remove nil?)
        (apply merge)))
 
@@ -82,8 +58,7 @@
   [article-id user-id & {:keys [resolve-time label-ids]}]
   (with-transaction
     (let [project-id (article/article-project-id article-id)
-          label-ids (or label-ids
-                        (project/project-consensus-label-ids project-id))
+          label-ids (or label-ids (project/project-consensus-label-ids project-id))
           resolve-time (or resolve-time (db/sql-now))]
       (-> (insert-into :article-resolve)
           (values [{:article-id article-id
@@ -112,9 +87,10 @@
   (assert (integer? article-id))
   (assert (map? label-values))
   (with-transaction
-    (let [valid-values (->> label-values filter-valid-label-values)
+    (let [{:keys [project-id]} (q/query-article-by-id article-id [:project-id])
+          project-labels (project/project-labels project-id)
+          valid-values (filter-valid-label-values project-labels label-values)
           now (db/sql-now)
-          project-id (:project-id (q/query-article-by-id article-id [:project-id]))
           current-entries
           (when change?
             (-> (q/select-article-by-id article-id [:al.*])
@@ -140,11 +116,11 @@
           new-entries
           (->> new-label-ids
                (map (fn [label-id]
-                      (let [label (get (l/all-labels-cached) label-id)
+                      (let [label (get project-labels label-id)
                             answer (->> (get valid-values label-id)
                                         (cleanup-label-answer label))
-                            _ (assert (label-answer-valid? label-id answer))
-                            inclusion (label-answer-inclusion label-id answer)]
+                            _ (assert (label-answer-valid? label answer))
+                            inclusion (label-answer-inclusion label answer)]
                         (cond->
                             {:label-id label-id
                              :article-id article-id
@@ -158,18 +134,17 @@
                           confirm? (merge {:confirm-time now}))))))]
       (doseq [label-id existing-label-ids]
         (when (contains? valid-values label-id)
-          (let [label (get (l/all-labels-cached) label-id)
+          (let [label (get project-labels label-id)
                 answer (->> (get valid-values label-id)
                             (cleanup-label-answer label))
-                _ (assert (label-answer-valid? label-id answer))
-                inclusion (label-answer-inclusion label-id answer)]
+                _ (assert (label-answer-valid? label answer))
+                inclusion (label-answer-inclusion label answer)]
             (-> (sqlh/update :article-label)
-                (sset (cond->
-                          {:answer (db/to-jsonb answer)
-                           :updated-time now
-                           :imported (boolean imported?)
-                           :resolve (boolean resolve?)
-                           :inclusion inclusion}
+                (sset (cond-> {:answer (db/to-jsonb answer)
+                               :updated-time now
+                               :imported (boolean imported?)
+                               :resolve (boolean resolve?)
+                               :inclusion inclusion}
                         confirm? (merge {:confirm-time now})))
                 (where [:and
                         [:= :article-id article-id]
@@ -192,6 +167,7 @@
 ;; FIX: can inclusion-values be changed with existing answers?
 ;;      if yes, need to run this.
 ;;      if no, can delete this.
+#_
 (defn update-label-answer-inclusion [label-id]
   (with-transaction
     (let [entries (-> (select :article-label-id :answer)

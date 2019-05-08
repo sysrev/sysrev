@@ -130,43 +130,6 @@
       (log/info
        (str "processed locations for " (count articles) " articles")))))
 
-(defn ensure-label-inclusion-values [& [force?]]
-  (let [project-ids
-        (-> (select :project-id)
-            (from [:project :p])
-            (where
-             [:or
-              (true? force?)
-              [:not
-               [:exists
-                (-> (q/select-project-articles :p.project-id [:*])
-                    (q/join-article-labels)
-                    (merge-where
-                     [:!= :al.inclusion nil]))]]])
-            (->> do-query (map :project-id)))]
-    (doseq [project-id project-ids]
-      (let [alabels
-            (-> (q/select-project-articles
-                 project-id [:al.*])
-                (q/join-article-labels)
-                (merge-where [:= :al.inclusion nil])
-                do-query)]
-        (when (not= 0 (count alabels))
-          (log/info (format "updating inclusion fields for %d rows"
-                            (count alabels))))
-        (doall
-         (->>
-          alabels
-          (pmap
-           (fn [alabel]
-             (let [inclusion (answer/label-answer-inclusion
-                              (:label-id alabel) (:answer alabel))]
-               (-> (sqlh/update [:article-label :al])
-                   (sset {:inclusion inclusion})
-                   (where
-                    [:= :al.article-label-id (:article-label-id alabel)])
-                   do-execute))))))))))
-
 (defn ensure-no-null-authors []
   (let [invalid (-> (q/select-project-articles nil [:a.article-id :a.authors])
                     (->> do-query
@@ -279,7 +242,6 @@
                       #'ensure-entry-uuids
                       #'ensure-permissions-set
                       ;; #'ensure-article-location-entries
-                      ;; #'ensure-label-inclusion-values
                       ;; #'ensure-no-null-authors
                       #'update-stripe-plans-table
                       #'clone/delete-empty-legacy-sources

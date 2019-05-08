@@ -297,12 +297,8 @@
           (swap! *transaction-query-cache* update-cache)))))
   nil)
 
-(defn clear-global-cache []
-  (clear-query-cache [:all-labels]))
-
 (defn clear-project-cache [& [project-id field-path clear-protected?]]
   (let [in-transaction (and *conn* *transaction-query-cache*)]
-    (clear-global-cache)
     (cond
       (and project-id field-path)
       (clear-query-cache (concat [:project project-id] field-path))

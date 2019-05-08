@@ -206,12 +206,10 @@
 (defn project-owes-user
   "Calculate how much a user is owed by a project"
   [project-id user-id]
-  (let [compensatable-articles (project-compensation-for-user project-id user-id)
-        total-owed (->> compensatable-articles
-                       (map #(* (:articles %)
-                                (get-in % [:rate :amount])))
-                       (apply +))]
-    total-owed))
+  (->> (project-compensation-for-user project-id user-id)
+       (map #(* (:articles %)
+                (get-in % [:rate :amount])))
+       (apply +)))
 
 (defn last-payment
   "Return the date of last payment for user-id by project-id"
@@ -234,10 +232,10 @@
   (let [project-users (project-users project-id)]
     (map #(let [compensation-owed (compensation-owed-to-user-by-project project-id (:user-id %))
                 admin-fee (Math/round (* admin-fee compensation-owed))]
-            (hash-map :compensation-owed compensation-owed
-                      :admin-fee admin-fee
-                      :last-payment (last-payment project-id (:user-id %))
-                      :user-id (:user-id %)))
+            {:compensation-owed compensation-owed
+             :admin-fee admin-fee
+             :last-payment (last-payment project-id (:user-id %))
+             :user-id (:user-id %)})
          project-users)))
 
 (defn total-paid
@@ -255,9 +253,7 @@
 (defn total-owed
   "Total owed by project"
   [project-id]
-  (->> (compensation-owed-by-project project-id)
-       (map :compensation-owed)
-       (apply +)))
+  (apply + (map :compensation-owed (compensation-owed-by-project project-id))))
 
 (defn user-compensation
   "Return the current compensation_id associated with user for project-id, or nil if there is none"
@@ -275,9 +271,7 @@
               [:= :cup.period-end nil]
               [:= :cup.web-user-id user-id]
               [:= :cp.project-id project-id]])
-      do-query
-      first
-      :compensation-id))
+      do-query first :compensation-id))
 
 (defn project-users-current-compensation
   "Return a list of all users of a project and their current compensation-id for project-id"

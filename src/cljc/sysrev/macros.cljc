@@ -179,16 +179,13 @@
 
 (defmacro sr-defroute-project
   [name suburi params & body]
-  (assert (or (empty? suburi)
-              (str/starts-with? suburi "/"))
+  (assert (or (empty? suburi) (str/starts-with? suburi "/"))
           (str "sr-defroute-project: suburi must be empty (root) or begin with \"/\"\n"
                "suburi = " (pr-str suburi)))
   (assert (= (first params) 'project-id)
-          (str "sr-defroute-project: params must include 'project-id\n"
+          (str "sr-defroute-project: params must start with project-id\n"
                "params = " (pr-str params)))
-  (let [suffix-name (fn [suffix] (-> name clojure.core/name (str "__" suffix) symbol))
-        owner-id-sym (suffix-name "owner-id")
-        owner-params (vec (concat [owner-id-sym] params))]
+  (let [suffix-name (fn [suffix] (-> name clojure.core/name (str "__" suffix) symbol))]
     `(do (sr-defroute-project--impl nil
                                     ~(suffix-name "legacy")
                                     ~(str "/p/:project-id" suburi)
@@ -196,11 +193,11 @@
                                     ~@body)
          (sr-defroute-project--impl :user-url-id
                                     ~(suffix-name "user")
-                                    ~(str "/u/:user-id/p/:project-id" suburi)
-                                    ~owner-params
+                                    ~(str "/u/:owner-id/p/:project-id" suburi)
+                                    ~(vec (concat '(owner-id) params))
                                     ~@body)
          (sr-defroute-project--impl :org-url-id
                                     ~(suffix-name "org")
-                                    ~(str "/org/:org-id/p/:project-id" suburi)
-                                    ~owner-params
+                                    ~(str "/org/:owner-id/p/:project-id" suburi)
+                                    ~(vec (concat '(owner-id) params))
                                     ~@body))))

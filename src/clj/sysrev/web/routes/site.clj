@@ -6,8 +6,7 @@
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
-            [sysrev.db.core :refer
-             [do-query clear-query-cache with-query-cache sql-now]]
+            [sysrev.db.core :as db :refer [do-query]]
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.queries :as q]
@@ -144,7 +143,7 @@
   (POST "/api/clear-query-cache" request
         (wrap-authorize
          request {:developer true}
-         (clear-query-cache)
+         (db/clear-query-cache)
          {:success true}))
 
   (POST "/api/change-user-settings" request

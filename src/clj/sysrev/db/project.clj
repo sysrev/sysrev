@@ -155,18 +155,14 @@
 (defn create-project
   "Create a new project entry."
   [project-name & {:keys [parent-project-id]}]
-  (try
-    (-> (insert-into :project)
-        (values [{:name project-name
-                  :enabled true
-                  :project-uuid (UUID/randomUUID)
-                  :settings (to-jsonb default-project-settings)
-                  :parent-project-id parent-project-id}])
-        (returning :*)
-        do-query
-        first)
-    (finally
-      (clear-query-cache))))
+  (-> (insert-into :project)
+      (values [{:name project-name
+                :enabled true
+                :project-uuid (UUID/randomUUID)
+                :settings (to-jsonb default-project-settings)
+                :parent-project-id parent-project-id}])
+      (returning :*)
+      do-query first))
 ;;;
 (s/fdef create-project
   :args (s/cat :project-name ::sp/name

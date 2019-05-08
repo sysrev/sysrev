@@ -240,10 +240,9 @@
                          org-id (some-> org-url-id groups/group-id-from-url-id)
                          user-match? (and user-id (= user-id (:user-id owner)))
                          org-match? (and org-id (= org-id (:group-id owner)))
-                         user-redirect? (and (nil? user-url-id) (nil? org-url-id)
-                                             (:user-id owner))
-                         org-redirect? (and (nil? user-url-id) (nil? org-url-id)
-                                            (:group-id owner))
+                         owner-url? (boolean (or user-url-id org-url-id))
+                         user-redirect? (and (not owner-url?) (:user-id owner))
+                         org-redirect? (and (not owner-url?) (:group-id owner))
                          no-owner? (and (nil? owner) project-id)]
                      (cond
                        ;; TODO: remove this after migration to set owners
