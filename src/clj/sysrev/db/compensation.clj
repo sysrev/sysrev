@@ -1,5 +1,5 @@
 (ns sysrev.db.compensation
-  (:require [clojure.string :as string]
+  (:require [clojure.string :as str]
             [clj-time.coerce :as tc]
             [clj-time.local :as l]
             [clj-time.core :as t]
@@ -9,7 +9,8 @@
             [honeysql-postgres.helpers :refer [returning]]
             [sysrev.db.core :refer [do-query do-execute to-jsonb sql-now]]
             [sysrev.db.funds :refer [transaction-source-descriptor]]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [->map-with-key]]))
 
 (def admin-fee 0.20)
 
@@ -180,12 +181,12 @@
   "Return the amount-owed to users of project-id over start-date and end-date"
   [project-id & [start-date end-date]]
   (let [project-users (project-users project-id)
-        email-user-id-map (util/vector->hash-map project-users :user-id)]
+        users-map (->map-with-key :user-id project-users)]
     (->> project-users
          (map #(project-compensation-for-user project-id (:user-id %) start-date end-date))
          flatten
-         (map #(assoc % :name (-> (:email (get email-user-id-map (:user-id %)))
-                                  (string/split #"@")
+         (map #(assoc % :name (-> (:email (get users-map (:user-id %)))
+                                  (str/split #"@")
                                   first))))))
 
 (defn project-paid-user

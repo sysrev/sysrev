@@ -16,7 +16,7 @@
              [plans :as plans]]
             [sysrev.test.core :as test]
             [sysrev.stripe :as stripe]
-            [sysrev.util :refer [vector->hash-map]]))
+            [sysrev.shared.util :refer [->map-with-key]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
@@ -61,7 +61,7 @@
        (mapv taxi/text)
        (mapv #(clojure.string/split % #"\n"))
        (mapv #(hash-map :name (first %) :permission (second %)))
-       (#(vector->hash-map % :name))))
+       (->map-with-key :name)))
 
 (defn add-user-to-org
   "Must be in Organization Settings of the project to add user to"

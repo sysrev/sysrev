@@ -7,7 +7,8 @@
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.views.semantic :as s :refer
              [Grid Row Column Segment Header Message Button Label]]
-            [sysrev.util :as util])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [->map-with-key]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def panel [:user :email])
@@ -37,12 +38,11 @@
     (reset! retrieving-addresses? true)
     (GET (str "/api/user/" @(subscribe [:self/user-id]) "/email/addresses")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
+          :handler (fn [{:keys [result]}]
                      (reset! retrieving-addresses? false)
                      (dispatch [:fetch [:identity]])
-                     (reset! email-addresses (-> response :result :addresses
-                                                 (util/vector->hash-map :id))))
-          :error-handler (fn [error]
+                     (reset! email-addresses (->map-with-key :id (:addresses result))))
+          :error-handler (fn [response]
                            (reset! retrieving-addresses? false)
                            ($ js/console log "[get-email-addresses] There was an error"))})))
 

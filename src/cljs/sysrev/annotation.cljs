@@ -5,7 +5,8 @@
             [reagent.ratom :refer [reaction]]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-sub-raw reg-event-db
                                    reg-event-fx trim-v]]
-            [sysrev.util :as util :refer [vector->hash-map]])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [->map-with-key]])
   (:require-macros [reagent.interop :refer [$ $!]]))
 
 (def semantic-ui js/semanticUIReact)
@@ -284,11 +285,9 @@
         annotations (-> (convert-annotations annotations text)
                         remove-overlaps)
         max-index (- (count text) 1)
-        start-map (vector->hash-map annotations :start)
-        end-map (vector->hash-map annotations :end)
-        escaped-item (fn [item] (if (= item "\"")
-                                  "\\\""
-                                  item))]
+        start-map (->map-with-key :start annotations)
+        end-map (->map-with-key :end annotations)
+        escaped-item #(if (= % "\"") "\\\"" %)]
     (str "[:div "
          (->> (map-indexed
                (fn [idx item]

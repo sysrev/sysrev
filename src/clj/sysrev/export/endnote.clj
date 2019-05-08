@@ -1,29 +1,25 @@
 (ns sysrev.export.endnote
-  (:require [clojure.xml :as xml]
+  (:require [clojure.string :as str]
+            [clojure.xml :as xml]
             [clojure.data.xml :as dxml]
             [clojure.data.xml node prxml]
             [clojure.java.io :as io]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [sysrev.db.core :refer [do-query]]
-            [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
-            [sysrev.shared.util :as u :refer [in? map-values]]
             [sysrev.db.queries :as q]
             [sysrev.label.core :as labels]
             [sysrev.article.core :as article]
-            [sysrev.source.endnote :refer
-             [load-endnote-record parse-endnote-file]]
-            [clojure.string :as str]))
+            [sysrev.source.endnote :refer [load-endnote-record parse-endnote-file]]
+            [sysrev.util :as util :refer [xml-find-value parse-xml-str]]
+            [sysrev.shared.util :as u :refer [in? map-values ->map-with-key]]))
 
 (defn all-included-articles [project-id]
   (->> (keys (labels/project-included-articles project-id))
-       (mapv
-        (fn [article-id]
-          (let [article (q/query-article-by-id article-id [:*])
-                rec-number (xml-find-value
-                            (-> article :raw parse-xml-str)
-                            [:rec-number])]
-            (assoc article :rec-number rec-number))))
+       (mapv (fn [article-id]
+               (let [article (q/query-article-by-id article-id [:*])]
+                 (assoc article :rec-number (-> (parse-xml-str (:raw article))
+                                                (xml-find-value [:rec-number]))))))
        (group-by :rec-number)
        (map-values first)))
 

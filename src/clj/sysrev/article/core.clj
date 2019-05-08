@@ -7,7 +7,7 @@
             [sysrev.db.queries :as q]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
-            [sysrev.shared.util :as u :refer [in? map-values]]
+            [sysrev.shared.util :as u :refer [in? map-values ->map-with-key]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -114,16 +114,12 @@
         article-id (q/to-article-id article-id)]
     (with-project-cache
       project-id [:article article-id :notes :user-notes-map]
-      (->>
-       (-> (q/select-article-by-id article-id [:an.* :pn.name])
-           (q/with-article-note)
-           do-query)
-       (group-by :user-id)
-       (map-values
-        #(->> %
-              (group-by :name)
-              (map-values first)
-              (map-values :content)))))))
+      (-> (q/select-article-by-id article-id [:an.* :pn.name])
+          (q/with-article-note)
+          (->> do-query
+               (group-by :user-id)
+               (map-values #(->> (->map-with-key :name %)
+                                 (map-values :content))))))))
 ;;;
 (s/fdef article-user-notes-map
   :args (s/cat :project-id ::sc/project-id
@@ -170,8 +166,7 @@
        (db/table-fields :aflag [:flag-name :disable :date-created :meta]))
       (q/join-article-flags)
       (->> do-query
-           (group-by :flag-name)
-           (map-values first)
+           (->map-with-key :flag-name)
            (map-values #(dissoc % :flag-name)))))
 
 (defn article-sources-list [article-id]

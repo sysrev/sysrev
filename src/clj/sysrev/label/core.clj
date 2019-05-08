@@ -20,7 +20,7 @@
             [sysrev.db.project :as project]
             [sysrev.article.core :as article]
             [sysrev.util :as util :refer [crypto-rand crypto-rand-nth]]
-            [sysrev.shared.util :as sutil :refer [map-values in?]]
+            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
             [sysrev.shared.labels :refer [cleanup-label-answer]])
   (:import java.util.UUID))
 
@@ -31,11 +31,8 @@
 
 (defn all-labels-cached []
   (with-query-cache [:all-labels]
-    (->>
-     (-> (q/select-label-where nil true [:*])
-         do-query)
-     (group-by :label-id)
-     (map-values first))))
+    (-> (q/select-label-where nil true [:*])
+        (->> do-query (->map-with-key :label-id)))))
 
 (defn get-label-by-id
   "Get a label by its UUID label_id."
@@ -209,14 +206,14 @@
       (->> do-query
            (group-by :user-id)
            (map-values
-            #(->> (group-by :label-id %)
-                  (map-values first)
-                  (map-values (fn [{:keys [confirm-time updated-time] :as entry}]
-                                (merge (select-keys entry [:answer :resolve])
-                                       {:confirmed (not (nil? confirm-time))
-                                        :confirm-epoch (if (nil? confirm-time) 0
-                                                           (max (tc/to-epoch confirm-time)
-                                                                (tc/to-epoch updated-time)))}))))))))
+            #(->> (->map-with-key :label-id %)
+                  (map-values
+                   (fn [{:keys [confirm-time updated-time] :as entry}]
+                     (merge (select-keys entry [:answer :resolve])
+                            {:confirmed (not (nil? confirm-time))
+                             :confirm-epoch (if (nil? confirm-time) 0
+                                                (max (tc/to-epoch confirm-time)
+                                                     (tc/to-epoch updated-time)))}))))))))
 
 (defn user-article-confirmed? [user-id article-id]
   (assert (and (integer? user-id) (integer? article-id)))
@@ -443,21 +440,19 @@
 (defn project-members-info [project-id]
   (with-project-cache
     project-id [:members-info]
-    (let [users (->> (-> (q/select-project-members
-                          project-id [:u.* [:m.permissions :project-permissions]])
-                         do-query)
-                     (group-by :user-id)
-                     (map-values first))
+    (let [users (-> (q/select-project-members
+                     project-id [:u.* [:m.permissions :project-permissions]])
+                    (->> do-query (->map-with-key :user-id)))
           inclusions (project-user-inclusions project-id)
           #_ in-progress
-          #_ (->> (-> (q/select-project-articles
-                       project-id [:al.user-id :%count.%distinct.al.article-id])
-                      (q/join-article-labels)
-                      (q/filter-valid-article-label false)
-                      (group :al.user-id)
-                      do-query)
-                  (group-by :user-id)
-                  (map-values (comp :count first)))]
+          #_ (-> (q/select-project-articles
+                  project-id [:al.user-id :%count.%distinct.al.article-id])
+                 (q/join-article-labels)
+                 (q/filter-valid-article-label false)
+                 (group :al.user-id)
+                 (->> do-query
+                      (->map-with-key :user-id)
+                      (map-values :count)))]
       (->> users
            (mapv (fn [[user-id user]]
                    [user-id

@@ -76,17 +76,15 @@
    (map-values f {} m)))
 
 (defn check
-  "Returns val after running an assertion on `(f val)`.
-  If `f` is not specified, checks that `(not (nil? val))`."
+  "Returns val after running an assertion on (f val).
+  If f is not specified, checks that (not (nil? val))."
   [val & [f]]
-  (let [f (or f (comp not nil?))]
-    (assert (f val))
-    val))
+  (assert ((or f (comp not nil?)) val))
+  val)
 
 (defn conform-map [spec x]
   (and (s/valid? spec x)
-       (->> (s/conform spec x)
-            (apply hash-map))))
+       (apply hash-map (s/conform spec x))))
 
 (s/def ::uuid uuid?)
 
@@ -94,18 +92,14 @@
 
 (defn to-uuid [uuid-or-str]
   (let [in (conform-map ::uuid-or-str uuid-or-str)]
-    (cond
-      (contains? in :uuid) (:uuid in)
-      (contains? in :str)
-      #?(:clj (UUID/fromString (:str in))
-         :cljs (uuid (:str in)))
-      :else nil)))
+    (cond (contains? in :uuid)  (:uuid in)
+          (contains? in :str)   #?(:clj (UUID/fromString (:str in))
+                                   :cljs (uuid (:str in))))))
 
 (defn num-to-english [n]
-  (get ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight"
-        "nine" "ten" "eleven" "twelve" "thirteen" "fourteen" "fifteen"
-        "sixteen"]
-       n))
+  (-> ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"
+       "eleven" "twelve" "thirteen" "fourteen" "fifteen" "sixteen"]
+      (get n)))
 
 (defn short-uuid [uuid]
   (last (str/split (str uuid) #"\-")))
@@ -124,8 +118,7 @@
 (defn pluralize
   "Add an 's' to end of string depending on count."
   [item-count string]
-  (when string
-    (cond-> string (not= item-count 1) (str "s"))))
+  (when string (cond-> string (not= item-count 1) (str "s"))))
 
 (defn string-ellipsis
   "Shorten s using ellipsis in the middle when length is >= max-length."
@@ -239,3 +232,20 @@
                (transit/read))
      :cljs (-> (transit/reader :json)
                (transit/read s))))
+
+;; Slightly modified from clojure.core/group-by
+(defn ->map-with-key [keyfn coll]
+  "Variant of clojure.core/group-by for unique key values.
+
+  Returns a map of the elements of coll keyed by the result of keyfn
+  on each element. The elements of coll must all have a unique value
+  for keyfn. The value at each key will be the single corresponding
+  element."
+  (persistent!
+   (reduce
+    (fn [ret x]
+      (let [k (keyfn x)]
+        (assert (= ::not-found (get ret k ::not-found))
+                (str "->map-with-key: duplicate key value (" k ")"))
+        (assoc! ret k x)))
+    (transient {}) coll)))

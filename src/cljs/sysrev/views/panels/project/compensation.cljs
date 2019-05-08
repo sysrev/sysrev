@@ -13,7 +13,7 @@
             [sysrev.views.semantic :as s :refer [Button Dropdown]]
             [sysrev.views.panels.project.support :as support]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in?]])
+            [sysrev.shared.util :as sutil :refer [in? ->map-with-key]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:project :project :compensation])
@@ -55,10 +55,10 @@
     (GET "/api/project-compensations"
          {:params {:project-id project-id}
           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-          :handler (fn [response]
+          :handler (fn [{:keys [result]}]
                      (reset! loading? false)
                      (reset! project-compensations
-                             (util/vector->hash-map (get-in response [:result :compensations]) :id)))
+                             (->map-with-key :id (:compensations result))))
           :error-handler (fn [response]
                            (reset! loading? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
@@ -72,15 +72,13 @@
      "/api/project-users-current-compensation"
      {:params {:project-id project-id}
       :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-      :handler (fn [response]
+      :handler (fn [{:keys [result]}]
                  (reset! loading? false)
                  (reset! users-current-comp
-                         (util/vector->hash-map
-                          (->> (get-in response [:result :project-users-current-compensation])
-                               (map #(update % :compensation-id
-                                             (fn [x] (if (nil? x) "none" x)))))
-                          :user-id)))
-      :error-handler (fn [error-response]
+                         (->> (:project-users-current-compensation result)
+                              (map #(update % :compensation-id (fn [x] (or x "none"))))
+                              (->map-with-key :user-id))))
+      :error-handler (fn [response]
                        (reset! loading? false)
                        ($ js/console log
                           "[Error] retrieving project-users-current-compensation for project-id: "

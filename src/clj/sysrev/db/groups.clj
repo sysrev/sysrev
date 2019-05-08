@@ -5,7 +5,7 @@
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil]))
+            [sysrev.shared.util :as sutil :refer [->map-with-key]]))
 
 (defn group-name->group-id
   "Given a group-name, get the group-id associated with it"
@@ -71,15 +71,13 @@
                                    [:= :active true]
                                    [:= :group-id (group-name->group-id group-name)]])
                            do-query)
-        users-public-info (util/vector->hash-map (->> users-in-group
-                                                      (map :user-id)
-                                                      (users/get-users-public-info))
-                                                 :user-id)]
-    (if-not (empty? users-in-group)
-      (doall (->> users-in-group
-                  (map #(-> (assoc % :primary-email-verified (users/primary-email-verified? (:user-id %)))))
-                  (map #(merge % (get users-public-info (:user-id %))))))
-      [])))
+        users-public-info (->> (map :user-id users-in-group)
+                               (users/get-users-public-info)
+                               (->map-with-key :user-id))]
+    (vec (some->> (seq users-in-group)
+                  (map #(assoc % :primary-email-verified
+                               (users/primary-email-verified? (:user-id %))))
+                  (map #(merge % (get users-public-info (:user-id %))))))))
 
 (defn user-active-in-group?
   "Is the user-id active in group-name?"

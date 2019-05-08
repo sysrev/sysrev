@@ -42,7 +42,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.util :refer [parse-integer]]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values in?]]
+            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
             [sysrev.biosource.predict :as predict-api])
   (:import [java.io ByteArrayInputStream]
            [java.util UUID]))
@@ -548,10 +548,9 @@
 (defn compensation-owed
   "Return compensations owed for all users by project-id"
   [project-id]
-  (let [project-users (project/project-user-ids project-id)
-        public-info (-> project-users
-                        (users/get-users-public-info)
-                        (util/vector->hash-map :user-id))
+  (let [public-info (->> (project/project-user-ids project-id)
+                         (users/get-users-public-info)
+                         (->map-with-key :user-id))
         compensation-owed-by-project (compensation/compensation-owed-by-project project-id)]
     {:result {:compensation-owed (map #(merge % (get public-info (:user-id %)))
                                       compensation-owed-by-project)}}))
@@ -1364,7 +1363,7 @@
 
 (defn update-project-predictions [project-id]
   (future (predict-api/update-project-predictions project-id))
-  {:result {:success true}})
+  {:success true})
 
 (defn user-projects
   "Return a list of user projects for user-id, including non-public projects when self? is true"
@@ -1373,11 +1372,10 @@
                   user-id [:p.name :p.settings])
         labeled-summary (users/projects-labeled-summary user-id)
         annotations-summary (users/projects-annotated-summary user-id)]
-    {:result {:projects (->> (merge-with merge
-                                         (util/vector->hash-map projects :project-id)
-                                         (util/vector->hash-map labeled-summary :project-id)
-                                         (util/vector->hash-map annotations-summary :project-id))
-                             vals)}}))
+    {:projects (vals (merge-with merge
+                                 (->map-with-key :project-id projects)
+                                 (->map-with-key :project-id labeled-summary)
+                                 (->map-with-key :project-id annotations-summary)))}))
 
 (defn update-user-introduction!
   "Change the introduction for user-id"

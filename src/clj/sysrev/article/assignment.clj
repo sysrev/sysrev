@@ -11,7 +11,7 @@
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.article :as sa]
             [sysrev.util :as util]
-            [sysrev.shared.util :as sutil :refer [in? map-values]]
+            [sysrev.shared.util :as sutil :refer [in? map-values ->map-with-key]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
             [honeysql-postgres.format :refer :all]
@@ -26,9 +26,8 @@
            (-> (q/select-project-articles project-id [:a.article-id])
                (q/with-article-predict-score predict-run-id)
                (->> do-query
-                    (group-by :article-id)
-                    (map-values first)
-                    (map-values #(-> % (assoc :users [] :score (or (:score %) 0.0))))))
+                    (->map-with-key :article-id)
+                    (map-values #(assoc % :users [] :score (or (:score %) 0.0)))))
            (-> (q/select-project-articles project-id [:a.article-id :al.user-id :al.confirm-time])
                (q/join-article-labels)
                (q/filter-valid-article-label nil)

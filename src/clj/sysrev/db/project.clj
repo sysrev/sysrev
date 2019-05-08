@@ -23,7 +23,7 @@
             [sysrev.db.queries :as q]
             [sysrev.util :as util]
             [sysrev.shared.util :as sutil :refer
-             [map-values in? short-uuid to-uuid parse-number]]
+             [map-values in? short-uuid to-uuid parse-number ->map-with-key]]
             [sysrev.shared.keywords :refer [canonical-keyword]])
   (:import java.util.UUID))
 
@@ -301,14 +301,10 @@
   :ret (s/and integer? nat-int?))
 
 (defn project-labels [project-id & [include-disabled?]]
-  (let [project-id (q/to-project-id project-id)]
-    (with-project-cache
-      project-id [:labels :all include-disabled?]
-      (->> (q/select-label-where
-            project-id true [:*] {:include-disabled? include-disabled?})
-           do-query
-           (group-by :label-id)
-           (map-values first)))))
+  (with-project-cache project-id [:labels :all include-disabled?]
+    (-> (q/select-label-where
+         project-id true [:*] {:include-disabled? include-disabled?})
+        (->> do-query (->map-with-key :label-id)))))
 ;;;
 (s/fdef project-labels
   :args (s/cat :project-id ::sc/project-id
@@ -355,40 +351,27 @@
       (let [predict-run-id (q/project-latest-predict-run-id project-id)
             [labels articles]
             (pvalues
-             (->>
-              (-> (q/select-project-article-labels
-                   project-id nil
-                   [:al.article-id :al.label-id :al.answer :al.confirm-time])
-                  (q/filter-label-user user-id)
-                  do-query)
-              (map
-               #(-> %
-                    (assoc :confirmed (not (nil? (:confirm-time %))))
-                    #_ (dissoc :confirm-time))))
-             (->>
-              (-> (q/select-project-articles
-                   project-id
-                   [:a.article-id :a.primary-title :a.secondary-title :a.authors
-                    :a.year :a.remote-database-name])
-                  ;; (q/with-article-predict-score predict-run-id)
-                  (merge-where
-                   [:exists
-                    (q/select-user-article-labels
-                     user-id :a.article-id nil [:*])])
-                  do-query)
-              (group-by :article-id)
-              (map-values first)))
+             (-> (q/select-project-article-labels
+                  project-id nil
+                  [:al.article-id :al.label-id :al.answer :al.confirm-time])
+                 (q/filter-label-user user-id)
+                 (->> do-query
+                      (map #(assoc % :confirmed (not (nil? (:confirm-time %)))))))
+             (-> (q/select-project-articles
+                  project-id
+                  [:a.article-id :a.primary-title :a.secondary-title :a.authors
+                   :a.year :a.remote-database-name])
+                 ;; (q/with-article-predict-score predict-run-id)
+                 (merge-where [:exists (q/select-user-article-labels
+                                        user-id :a.article-id nil [:*])])
+                 (->> do-query (->map-with-key :article-id))))
             labels-map (fn [confirmed?]
                          (->> labels
                               (filter #(= (true? (:confirmed %)) confirmed?))
                               (group-by :article-id)
                               (map-values
-                               #(map (fn [m]
-                                       (dissoc m :article-id :confirmed))
-                                     %))
-                              (filter
-                               (fn [[aid cs]]
-                                 (some (comp not nil? :answer) cs)))
+                               #(->> % (map (fn [m] (dissoc m :article-id :confirmed)))))
+                              (filter (fn [[aid cs]] (some (comp not nil? :answer) cs)))
                               (apply concat)
                               (apply hash-map)))
             [confirmed unconfirmed]
@@ -495,15 +478,10 @@
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
       project-id [:keywords :all]
-      (->> (q/select-project-keywords project-id [:*])
-           do-query
-           (map
-            (fn [kw]
-              (assoc kw :toks
-                     (->> (str/split (:value kw) #" ")
-                          (mapv canonical-keyword)))))
-           (group-by :keyword-id)
-           (map-values first)))))
+      (->> (do-query (q/select-project-keywords project-id [:*]))
+           (map (fn [kw] (assoc kw :toks (->> (str/split (:value kw) #" ")
+                                              (mapv canonical-keyword)))))
+           (->map-with-key :keyword-id)))))
 ;;;
 (s/fdef project-keywords
   :args (s/cat :project-id ::sc/project-id)
@@ -572,11 +550,9 @@
   (let [project-id (q/to-project-id project-id)]
     (with-project-cache
       project-id [:notes :all]
-      (->> (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
-               (q/with-project-note)
-               do-query)
-           (group-by :name)
-           (map-values first)))))
+      (-> (q/select-project-where [:= :p.project-id project-id] [:pn.*])
+          (q/with-project-note)
+          (->> do-query (->map-with-key :name))))))
 ;;;
 (s/fdef project-notes
   :args (s/cat :project-id ::sc/project-id)
@@ -671,25 +647,19 @@
 (defn project-users-info [project-id]
   (with-project-cache
     project-id [:users-info]
-    (->> (-> (q/select-project-members project-id [:u.*])
-             do-query)
-         (group-by :user-id)
-         (map-values first)
-         (map-values
-          #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
+    (->> (do-query (q/select-project-members project-id [:u.*]))
+         (->map-with-key :user-id)
+         (map-values #(select-keys % [:user-id :user-uuid :email :verified :permissions])))))
 
 (defn project-pmids
   "Given a project-id, return all PMIDs associated with the project"
   [project-id]
-  (->> (-> (select :public-id)
-           (from :article)
-           (where [:and
-                   [:= :project-id project-id]
-                   [:= :enabled true]])
-           do-query)
-       (mapv :public-id)
-       (mapv parse-number)
-       (filterv (comp not nil?))))
+  (-> (select :public-id) (from :article)
+      (where [:and [:= :project-id project-id] [:= :enabled true]])
+      (->> do-query
+           (mapv :public-id)
+           (mapv parse-number)
+           (filterv (comp not nil?)))))
 
 (defn project-url-ids [project-id]
   (-> (select :url-id :user-id :date-created)
