@@ -206,7 +206,7 @@
       (taxi/wait-until #(= project-name-2 (first (private-project-names))))
       (is (= project-name-2 (first (private-project-names)))))
   :cleanup
-  (do (->> (users/user-project-ids user-id) (mapv project/delete-project))))
+  (do (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))))
 
 (deftest-browser user-description
   (test/db-connected?)

@@ -738,19 +738,15 @@
   (q/delete-by-id :project :name project-name))
 
 (defn get-single-user-project-ids [user-id]
-  (let [user-project-ids
-        (-> (select :project-id)
-            (from :project-member)
-            (where [:= :user-id user-id])
-            (->> do-query (map :project-id) vec))
-        member-counts
-        (when (not-empty user-project-ids)
-          (-> (select :user-id :project-id)
-              (from :project-member)
-              (where [:in :project-id user-project-ids])
-              (->> do-query
-                   (group-by :project-id)
-                   (map-values count))))]
+  (let [project-ids (-> (select :project-id)
+                        (from :project-member)
+                        (where [:= :user-id user-id])
+                        (->> do-query (map :project-id) vec))
+        member-counts (when (not-empty project-ids)
+                        (-> (select :user-id :project-id)
+                            (from :project-member)
+                            (where [:in :project-id project-ids])
+                            (->> do-query (group-by :project-id) (map-values count))))]
     (->> (vec member-counts)
          (map (fn [[project-id n-members]]
                 (when (= 1 n-members) project-id)))

@@ -194,7 +194,7 @@
   :cleanup
   (do
     ;; delete projects
-    (->> (users/user-project-ids user-id) (mapv project/delete-project))
+    (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))
     ;; delete orgs
     (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))
     ;; delete test user
@@ -290,7 +290,7 @@
   :cleanup
   (do
     ;; delete projects
-    (->> (users/user-project-ids user-id) (mapv project/delete-project))
+    (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))
     ;; delete orgs
     (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))
     ;; delete sysrev stripe customer

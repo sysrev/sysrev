@@ -417,39 +417,30 @@
       (where [:and [:= :user-id user-id] [:= :email email]])
       do-query first))
 
-(defn projects-member-permission
-  "Return all projects for which user-id has permission"
-  [user-id permission]
-  (-> (select :p.project-id :p.name :p.settings)
+(defn user-projects
+  "Returns sequence of projects for which user-id is a
+  member. Includes :project-id by default; fields optionally specifies
+  additional fields from [:project :p] or [:project-member :pm]."
+  [user-id & [fields]]
+  (-> (apply select :p.project-id fields)
       (from [:project :p])
-      (join [:project-member :pm]
-            [:= :pm.project-id :p.project-id])
-      (where [:and
-              [:= permission :%any.pm.permissions]
-              [:= :p.enabled true]
-              [:= :pm.user_id user-id]])
+      (join [:project-member :pm] [:= :pm.project-id :p.project-id])
+      (where [:and [:= :p.enabled true] [:= :pm.user-id user-id]])
       do-query))
 
-(defn user-project-ids [user-id]
-  "Returns sequence of ids for projects that user-id is a member of."
-  (-> (select :p.project-id)
-      (from [:project :p])
-      (where [:and
-              [:= :p.enabled true]
-              [:exists (-> (select :*)
-                           (from [:project-member :pm])
-                           (where [:and
-                                   [:= :pm.project-id :p.project-id]
-                                   [:= :pm.user-id user-id]]))]])
-      do-query (->> (mapv :project-id))))
+(defn user-public-projects
+  "Returns sequence of public projects for which user-id is a member.
+  (see user-projects)"
+  [user-id & [fields]]
+  (->> (user-projects user-id (conj fields :p.settings))
+       (filter #(-> % :settings :public-access true?))))
 
-(defn user-public-project-ids
-  "Returns sequence of ids for public projects that user-id is a member of."
-  [user-id]
-  (->> (q/query-multiple-by-id :project [:project-id :settings]
-                               :project-id (user-project-ids user-id))
-       (filter #(-> % :settings :public-access true?))
-       (mapv :project-id)))
+(defn user-owned-projects
+  "Returns sequence of projects which are owned by user-id.
+  (see user-projects)"
+  [user-id & [fields]]
+  (->> (user-projects user-id (conj fields :pm.permissions))
+       (filter #(in? (:permissions %) "owner"))))
 
 (defn projects-labeled-summary
   "Return the count of articles and labels done by user-id grouped by projects"

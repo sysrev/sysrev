@@ -327,30 +327,23 @@
   "Subscribe user to plan-name"
   [user-id plan-name]
   (let [user (users/get-user-by-id user-id)
-        stripe-response (stripe/subscribe-customer! user plan-name)
-        groups (->> (users/projects-member-permission user-id "owner")
-                    (mapv :project-id))]
-    (doall (mapv #(db/clear-project-cache %) groups))
-    (if (:error stripe-response)
-      (assoc stripe-response
-             :error
-             (merge (:error stripe-response)
-                    {:status not-found}))
-      stripe-response)))
+        stripe-response (stripe/subscribe-customer! user plan-name)]
+    (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
+      (db/clear-project-cache project-id))
+    (cond-> stripe-response
+      (:error stripe-response) (update :error #(merge % {:status not-found})))))
 
 (defn subscribe-org-to-plan
-  "Subscribe the group to plan. Only a user can subscribe to a plan when they have a valid payment method. This fn allows for them to associated that plan with a group."
+  "Subscribe the group to plan. Only a user can subscribe to a plan when
+  they have a valid payment method. This fn allows for them to
+  associated that plan with a group."
   [group-id plan-name]
   (let [stripe-id (groups/get-stripe-id group-id)
-        stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)
-        groups-projects (->> group-id groups/group-projects (mapv :project-id))]
-    (doall (mapv #(db/clear-project-cache %) groups-projects))
-    (if (:error stripe-response)
-      (assoc stripe-response
-             :error
-             (merge (:error stripe-response)
-                    {:status not-found}))
-      stripe-response)))
+        stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)]
+    (doseq [{:keys [project-id]} (groups/group-projects group-id)]
+      (db/clear-project-cache project-id))
+    (cond-> stripe-response
+      (:error stripe-response) (update :error #(merge % {:status not-found})))))
 
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
@@ -1376,11 +1369,8 @@
 (defn user-projects
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
-  (let [project-ids (if self?
-                      (users/user-project-ids user-id)
-                      (users/user-public-project-ids user-id))
-        projects (q/query-multiple-by-id :project [:project-id :name :settings]
-                                         :project-id project-ids)
+  (let [projects ((if self? users/user-projects users/user-public-projects)
+                  user-id [:p.name :p.settings])
         labeled-summary (users/projects-labeled-summary user-id)
         annotations-summary (users/projects-annotated-summary user-id)]
     {:result {:projects (->> (merge-with merge
