@@ -14,8 +14,7 @@
   (let [panel [:project :project :overview]
         prev-panel @(subscribe [:active-panel])
         diff-panel (and prev-panel (not= panel prev-panel))
-        markdown-item [:project/markdown-description
-                       project-id {:panel panel}]]
+        markdown-item [:project/markdown-description project-id {:panel panel}]]
     (dispatch [:set-active-panel panel])
     (dispatch [:require [:project project-id]])
     (dispatch [:require markdown-item])
@@ -214,81 +213,41 @@
  (dispatch [:set-active-panel [:users]]))
 
 (defn- load-default-panels [db]
-  (->> [[[]
-         "/"]
-
+  (->> [[[] "/"]
         [[:project]
          #(project-uri (:project-id %) "")]
-
         [[:project :project :overview]
          #(project-uri (:project-id %) "")]
-
         [[:project :project :articles]
          #(project-uri (:project-id %) "/articles")]
-
         [[:project :project :single-article]
          #(project-uri (:project-id %) "/article")]
-
         [[:project :project :manage]
          #(project-uri (:project-id %) "/manage")]
-
         [[:project :project :add-articles]
          #(project-uri (:project-id %) "/add-articles")]
-
-        [[:project :user]
-         #(project-uri (:project-id %) "/user")]
-
-        [[:project :user :labels]
-         #(project-uri (:project-id %) "/user")]
-
         [[:project :project :labels :edit]
          #(project-uri (:project-id %) "/labels/edit")]
-
         [[:project :review]
          #(project-uri (:project-id %) "/review")]
-
         [[:project :project :settings]
          #(project-uri (:project-id %) "/settings")]
-
         [[:project :project :compensations]
          #(project-uri (:project-id %) "/compensations")]
-
         [[:project :project :export-data]
          #(project-uri (:project-id %) "/export")]
-
-        [[:login]
-         "/login"]
-
-        [[:request-password-reset]
-         "/request-password-reset"]
-
-        [[:pubmed-search]
-         "/pubmed-search"]
-
-        [[:payment]
-         "/user/payment"]
-
         [[:project :project :support]
          #(project-uri (:project-id %) "/support")]
-
-        [[:plans]
-         "/user/plans"]
-
-        [[:user-settings]
-         "/user/settings*"]
-
-        [[:users]
-         "/users*"]
-
-        [[:org-plans]
-         "/org/plans"]
-
-        [[:org-payment]
-         "/org/payment"]
-
-        [[:org-settings]
-         "/org/*"]]
-
+        [[:login] "/login"]
+        [[:request-password-reset] "/request-password-reset"]
+        [[:pubmed-search] "/pubmed-search"]
+        [[:payment] "/user/payment"]
+        [[:plans] "/user/plans"]
+        [[:user-settings] "/user/settings*"]
+        [[:users] "/users*"]
+        [[:org-plans] "/org/plans"]
+        [[:org-payment] "/org/payment"]
+        [[:org-settings] "/org/*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))
                db)))

@@ -8,8 +8,8 @@
             [sysrev.data.core :refer [def-data]]
             [sysrev.state.project.base :refer [get-project-raw]]
             [sysrev.util :refer [dissoc-in]]
-            [sysrev.shared.util :refer
-             [in? parse-integer integer-project-id?]]))
+            [sysrev.shared.util :as sutil :refer
+             [in? parse-integer ensure-pred filter-values]]))
 
 (defn active-panel [db]
   (get-in db [:state :active-panel]))
@@ -86,76 +86,83 @@
             (map (fn [prefix]
                    [:set-active-subpanel prefix uri]))))})))
 
+;; TODO: remove this subpanel logic? (not used now)
 (reg-event-fx
  :navigate
  [trim-v]
  (fn [{:keys [db]} [path params & {:keys [scroll-top?]}]]
    (let [active (active-panel db)]
      {(if scroll-top? :nav-scroll-top :nav)
-      (let [uri
-            (if (= path (take (count path) active))
-              (default-subpanel-uri db path)
-              (active-subpanel-uri db path))]
+      (let [uri (if (= path (take (count path) active))
+                  (default-subpanel-uri db path)
+                  (active-subpanel-uri db path))]
         (if (fn? uri) (uri params) uri))})))
 
 (defn lookup-project-url-id [db url-id]
-  (get-in db [:data :project-url-ids url-id] :not-found))
+  (when url-id (get-in db [:data :project-url-ids url-id] :not-found)))
 
-(reg-sub
- :project-url-id
- (fn [db [_ url-id]]
-   (lookup-project-url-id db url-id)))
+(reg-sub :project-url-id
+         (fn [db [_ url-id]]
+           (lookup-project-url-id db url-id)))
 
-(defn active-project-url [db]
-  (get-in db [:state :active-project-url]))
-(reg-sub :active-project-url active-project-url)
+(reg-sub :active-project-url #(get-in % [:state :active-project-url]))
 
 (defn active-project-id [db]
-  (or (get-in db [:state :active-project-literal])
-      (some->> (active-project-url db)
-               (lookup-project-url-id db)
-               (#(if (integer? %) % nil)))))
+  (let [literals (get-in db [:state :active-project-literal])
+        url-id (get-in db [:state :active-project-url])
+        [_ owner] url-id]
+    (if (and (:project literals) (nil? owner))
+      (:project literals) ; Legacy /p/<int> format
+      (->> (lookup-project-url-id db url-id)
+           (ensure-pred integer?)))))
+
 (reg-sub :active-project-id active-project-id)
 
-(reg-sub
- :recent-active-project
- (fn [db] (get-in db [:state :recent-active-project])))
+(reg-sub :recent-active-project #(get-in % [:state :recent-active-project]))
+
+(reg-event-db :set-project-url-error
+              (fn [db [_ error?]]
+                (assoc-in db [:state :active-project-url-error] (boolean error?))))
 
 (reg-event-fx
  :set-active-project-url
- [trim-v]
- (fn [{:keys [db]} [url-id]]
-   (let [literal-id (-> (and url-id
-                             (integer-project-id? url-id)
-                             (parse-integer url-id))
-                        (#(if (integer? %) % nil)))
-         recent-url (get-in db [:state :recent-project-url])
+ (fn [{:keys [db]} [_ [project-url-id {:keys [user-url-id org-url-id] :as owner}]]]
+   (let [;; url-id - vector used to look up project id from url strings
+         ;; (will be nil when this is called for a non-project url)
+         url-id (when project-url-id [project-url-id owner])
+         _ (println "url-id = " (pr-str url-id))
+         ;; get any integer values from url id strings
+         literal-ids (->> {:project (parse-integer project-url-id)
+                           :user (parse-integer user-url-id)
+                           :org-url-id (parse-integer org-url-id)}
+                          (filter-values integer?))
+         ;; most recent non-nil value for url-id
+         recent-url-id (get-in db [:state :recent-project-url])
+         ;; active project id before updating for url
          cur-active (active-project-id db)
-         new-db
-         (cond->
-             (-> db
-                 (assoc-in [:state :active-project-literal] literal-id)
-                 (assoc-in [:state :active-project-url] url-id))
-             url-id (assoc-in [:state :recent-project-url] url-id))
-         new-active (active-project-id new-db)
-         new-db (cond-> new-db
-                  new-active (assoc-in [:state :recent-active-project] new-active))
-         ;; Reset data if this causes changing to a new active project.
-         changed? (and recent-url url-id
-                       (not= recent-url url-id)
-                       (not= cur-active new-active))]
-     (cond-> {:db new-db}
-       changed?
+         ;; new value for re-frame db map
+         new-db (as-> db new-db
+                  ;; store id literals from url to state
+                  (assoc-in new-db [:state :active-project-literal] literal-ids)
+                  ;; store project/owner id strings from url to state
+                  (assoc-in new-db [:state :active-project-url] url-id)
+                  ;; update value of most recent non-nil url id
+                  (cond-> new-db url-id (assoc-in [:state :recent-project-url] url-id))
+                  ;; update value of most recent non-nil project id
+                  (if-let [new-active (active-project-id new-db)]
+                    (assoc-in new-db [:state :recent-active-project] (active-project-id new-db))
+                    new-db))
+         ;; active project id after updating for url
+         new-active (active-project-id new-db)]
+     (cond-> {:db new-db
+              ;; update browser page title based on project name
+              :set-page-title (some->> new-active (get-project-raw new-db) :name)}
+       ;; reset data if this changes to a new active project
+       (and (not= cur-active new-active) recent-url-id url-id (not= recent-url-id url-id))
        (merge {:reset-ui true, :reset-needed true})
-
-       (and url-id (nil? literal-id))
-       (merge {:dispatch [:require [:project-url-id url-id]]})
-
-       (nil? new-active)
-       (merge {:set-page-title nil})
-
-       new-active
-       (merge {:set-page-title (:name (get-project-raw new-db new-active))})))))
+       ;; look up project id from server
+       url-id
+       (merge {:dispatch [:require [:project-url-id url-id]]})))))
 
 (reg-sub-raw
  :project/uri
@@ -178,27 +185,19 @@
                     project-url-id project-id)]
        (str "/p/" url-id suburi)))
 
-(reg-event-fx
- :project/navigate
- [trim-v]
- (fn [_ [project-id]]
-   {:nav-scroll-top (project-uri project-id "")}))
+(reg-event-fx :project/navigate
+              (fn [_ [_ project-id]]
+                {:nav-scroll-top (project-uri project-id "")}))
 
-(reg-event-db
- :load-project-url-ids
- [trim-v]
- (fn [db [url-ids-map]]
-   (update-in db [:data :project-url-ids]
-              #(merge % url-ids-map))))
+(reg-event-db :load-project-url-ids
+              (fn [db [_ url-ids-map]]
+                (update-in db [:data :project-url-ids] #(merge % url-ids-map))))
 
 (def-data :project-url-id
-  :loaded? (fn [db url-id]
-             (-> (get-in db [:data :project-url-ids])
-                 (contains? url-id)))
+  :loaded? (fn [db url-id] (-> (get-in db [:data :project-url-ids])
+                               (contains? url-id)))
+  :prereqs (fn [_] [[:identity]])
   :uri (fn [url-id] "/api/lookup-project-url")
-  :content (fn [url-id] {:url-id url-id})
-  :prereqs (fn [url-id] [])
-  :process
-  (fn [_ [url-id] {:keys [project-id]}]
-    (let [project-id (-> project-id (#(if (integer? %) % nil)))]
-      {:dispatch [:load-project-url-ids {url-id project-id}]})))
+  :content (fn [url-id] {:url-id (sutil/write-transit-str url-id)})
+  :process (fn [_ [url-id] {:keys [project-id]}]
+             {:dispatch [:load-project-url-ids {url-id project-id}]}))

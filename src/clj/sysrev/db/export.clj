@@ -147,12 +147,14 @@
   [project-id & {:keys [article-ids]}]
   (with-transaction
     (let [project-url (str "https://sysrev.com/p/" project-id)
+          article-ids (or (seq article-ids) (project/project-article-ids project-id))
           all-articles (->> (q/query-multiple-by-id
-                             [:article :a] :article-id (if (seq article-ids) article-ids
-                                                           (project/project-article-ids project-id))
-                             [:a.article-id :a.primary-title :a.secondary-title :a.authors :a.abstract]
-                             :where [:= :a.enabled true])
-                            (group-by :article-id) (map-values first))
+                             :article [:article-id :primary-title :secondary-title
+                                       :authors :abstract]
+                             :article-id article-ids
+                             :where [:= :enabled true])
+                            (group-by :article-id)
+                            (map-values first))
           predict-run-id (q/project-latest-predict-run-id project-id)
           predict-label-ids [(project/project-overall-label-id project-id)]
           ;; TODO: select labels by presence of label_predicts entries

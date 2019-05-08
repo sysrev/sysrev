@@ -698,11 +698,13 @@
       (order-by [:date-created :desc])
       (->> do-query vec)))
 
+;; TODO: support filtering by project owner
 (defn project-id-from-url-id [url-id]
-  (-> (select :project-id)
-      (from [:project-url-id :purl])
-      (where [:= :url-id url-id])
-      do-query first :project-id))
+  (or (sutil/parse-integer url-id)
+      (-> (select :project-id)
+          (from [:project-url-id :purl])
+          (where [:= :url-id url-id])
+          do-query first :project-id)))
 
 (defn add-project-url-id
   "Adds a project-url-id entry (custom URL)"
@@ -779,9 +781,12 @@
       do-query
       first))
 
-(defn get-project-owner
-  [project-id]
+(defn get-project-owner [project-id]
   (with-transaction
+    (assert (integer? (-> (select :project-id)
+                          (from :project)
+                          (where [:= :project-id project-id])
+                          do-query first :project-id)))
     (if-let [project-group (-> (select :group-id)
                                (from :project-group)
                                (where [:= :project-id project-id])

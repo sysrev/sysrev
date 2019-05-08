@@ -11,7 +11,7 @@
                                      update-member-access-time]]
             [sysrev.db.project :as project]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [in? parse-integer ensure-value]]
+            [sysrev.shared.util :refer [in? parse-integer ensure-pred]]
             [sysrev.resources :as res]
             [sysrev.db.users :as users]
             [clojure.tools.logging :as log]))
@@ -181,7 +181,7 @@
 
          user-id# (current-user-id request#)
          project-id# (active-project request#)
-         valid-project# (some-> project-id# ((ensure-value integer?)) project/project-exists?)
+         valid-project# (some-> project-id# ((ensure-pred integer?)) project/project-exists?)
          public-project# (and valid-project# (-> (project/project-settings project-id#)
                                                  ((comp true? :public-access))))
          user# (and user-id# (get-user-by-id user-id#))

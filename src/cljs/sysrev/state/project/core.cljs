@@ -44,12 +44,10 @@
    (str (nav/current-url-base) "/register/" project-hash)))
 
 (defn- project-active-url-id-impl [project-id project self-projects]
-  (let [project-url
-        (-> project :url-ids first :url-id)
-        self-url
-        (->> self-projects
-             (filter #(= (:project-id %) project-id))
-             first :url-ids first)]
+  (let [project-url (-> project :url-ids first :url-id)
+        self-url (->> self-projects
+                      (filter #(= (:project-id %) project-id))
+                      first :url-ids first)]
     (or project-url self-url)))
 ;;
 (defn project-active-url-id [db project-id]

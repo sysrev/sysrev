@@ -6,7 +6,7 @@
             [cljs-time.format :as tformat]
             [cljsjs.jquery]
             [cljsjs.moment]
-            [sysrev.shared.util :refer [parse-integer ensure-value]])
+            [sysrev.shared.util :refer [parse-integer ensure-pred]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (defn integerify-map-keys
@@ -110,7 +110,7 @@
     (or (some-> url (sp "//") second (sp "/") first (sp ".")
                 (some->> (take-last 2)
                          (str/join ".")
-                         (ensure-value string?)))
+                         (ensure-pred string?)))
         url)))
 
 (defn validate

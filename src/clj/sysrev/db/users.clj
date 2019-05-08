@@ -7,20 +7,19 @@
             crypto.random
             [clj-time.core :as t]
             [clj-time.coerce :as tc]
-            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [honeysql.core :as sql]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.config.core :refer [env]]
-            [sysrev.db.core :as db
-             :refer [do-query do-execute with-transaction
-                     sql-now to-sql-array to-jsonb raw-query]]
+            [sysrev.db.core :as db :refer
+             [do-query do-execute with-transaction sql-now raw-query]]
             [sysrev.db.queries :as q]
             [sysrev.db.project :refer [add-project-member]]
             [sysrev.shared.spec.core :as sc]
             [sysrev.shared.spec.users :as su]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util]
-            [sysrev.shared.util :refer [map-values in?]])
+            [sysrev.shared.util :as sutil :refer [map-values in?]])
   (:import java.util.UUID))
 
 (defn all-users
@@ -88,42 +87,31 @@
              :iterations 6
              :salt (crypto.random/bytes 16)}))
 
-(defn create-user [email password &
-                   {:keys [project-id user-id permissions]
-                    :or {permissions ["user"]}
-                    :as opts}]
-  (let [test-email?
-        (and (not= (:profile env) :prod)
-             (boolean
-              (or (re-find #"\+test.*\@" email)
-                  (re-find #"\@sysrev\.us$" email)
-                  (re-find #"\@insilica\.co$" email))))
-        permissions (cond
-                      (:permissions opts) (:permissions opts)
-                      test-email? ["admin"]
-                      :else permissions)
-        entry
-        (cond->
-            {:email email
-             :pw-encrypted-buddy (encrypt-password password)
-             :verify-code nil ;; (crypto.random/hex 16)
-             :permissions (to-sql-array "text" permissions)
-             :default-project-id project-id
-             :date-created (sql-now)
-             :user-uuid (UUID/randomUUID)
-             :api-token (generate-api-token)}
-            user-id (assoc :user-id user-id))]
-    (when project-id
-      (assert (-> (q/query-project-by-id project-id [:project-id])
-                  :project-id)))
-    (let [{:keys [user-id] :as user}
-          (-> (insert-into :web-user)
-              (values [entry])
-              (returning :*)
-              do-query
-              first)]
-      (when project-id
-        (add-project-member project-id user-id))
+(defn create-user [email password & {:keys [project-id user-id permissions]
+                                     :or {permissions ["user"]}
+                                     :as opts}]
+  (let [test-email? (and (not= (:profile env) :prod)
+                         (boolean (or (re-find #"\+test.*\@" email)
+                                      (re-find #"\@sysrev\.us$" email)
+                                      (re-find #"\@insilica\.co$" email))))
+        permissions (cond (:permissions opts)  (:permissions opts)
+                          test-email?          ["admin"]
+                          :else                permissions)
+        entry (cond-> {:email email
+                       :pw-encrypted-buddy (encrypt-password password)
+                       :verify-code nil ;; (crypto.random/hex 16)
+                       :permissions (db/to-sql-array "text" permissions)
+                       :default-project-id project-id
+                       :date-created (sql-now)
+                       :user-uuid (UUID/randomUUID)
+                       :api-token (generate-api-token)}
+                user-id (assoc :user-id user-id))]
+    (when project-id (assert (q/query-project-by-id project-id [:project-id])))
+    (let [{:keys [user-id] :as user} (-> (insert-into :web-user)
+                                         (values [entry])
+                                         (returning :*)
+                                         do-query first)]
+      (when project-id (add-project-member project-id user-id))
       (db/clear-query-cache)
       user)))
 
@@ -136,14 +124,12 @@
 (defn set-user-permissions
   "Change the site permissions for a user account."
   [user-id permissions]
-  (try
-    (-> (sqlh/update :web-user)
-        (sset {:permissions (to-sql-array "text" permissions)})
-        (where [:= :user-id user-id])
-        (returning :user-id :permissions)
-        do-query)
-    (finally
-      (db/clear-query-cache))))
+  (try (-> (sqlh/update :web-user)
+           (sset {:permissions (db/to-sql-array "text" permissions)})
+           (where [:= :user-id user-id])
+           (returning :user-id :permissions)
+           do-query)
+       (finally (db/clear-query-cache))))
 
 (defn valid-password? [email password-attempt]
   (let [entry (get-user-by-email email)
@@ -155,17 +141,13 @@
 
 (defn delete-user [user-id]
   (assert (integer? user-id))
-  (try
-    (q/delete-by-id :web-user :user-id user-id)
-    (finally
-      (db/clear-query-cache))))
+  (try (q/delete-by-id :web-user :user-id user-id)
+       (finally (db/clear-query-cache))))
 
 (defn delete-user-by-email [email]
   (assert (string? email))
-  (try
-    (q/delete-by-id :web-user :email email)
-    (finally
-      (db/clear-query-cache))))
+  (try (q/delete-by-id :web-user :email email)
+       (finally (db/clear-query-cache))))
 
 (defn create-password-reset-code [user-id]
   (-> (sqlh/update :web-user)
@@ -180,21 +162,18 @@
       do-execute))
 
 (defn user-password-reset-url
-  [user-id & {:keys [url-base]
-              :or {url-base "https://sysrev.com"}}]
-  (when-let [reset-code
-             (-> (select :reset-code)
-                 (from :web-user)
-                 (where [:= :user-id user-id])
-                 do-query first :reset-code)]
+  [user-id & {:keys [url-base] :or {url-base "https://sysrev.com"}}]
+  (when-let [reset-code (-> (select :reset-code)
+                            (from :web-user)
+                            (where [:= :user-id user-id])
+                            do-query first :reset-code)]
     (format "%s/reset-password/%s" url-base reset-code)))
 
 (defn user-settings [user-id]
-  (into {}
-        (-> (select :settings)
-            (from :web-user)
-            (where [:= :user-id user-id])
-            do-query first :settings)))
+  (into {} (-> (select :settings)
+               (from :web-user)
+               (where [:= :user-id user-id])
+               do-query first :settings)))
 
 (defn change-user-setting [user-id setting new-value]
   (let [user-id (q/to-user-id user-id)
@@ -205,7 +184,7 @@
         new-settings (assoc cur-settings setting new-value)]
     (assert (s/valid? ::su/settings new-settings))
     (-> (sqlh/update :web-user)
-        (sset {:settings (to-jsonb new-settings)})
+        (sset {:settings (db/to-jsonb new-settings)})
         (where [:= :user-id user-id])
         do-execute)
     new-settings))
@@ -213,17 +192,10 @@
 (defn user-identity-info
   "Returns basic identity info for user."
   [user-id & [self?]]
-  (-> (select :user-id
-              :user-uuid
-              :email
-              :verified
-              :permissions
-              :settings
-              :default-project-id)
+  (-> (select :user-id :user-uuid :email :verified :permissions :settings :default-project-id)
       (from :web-user)
       (where [:= :user-id user-id])
-      do-query
-      first))
+      do-query first))
 
 (defn user-self-info
   "Returns a map of values with various user account information.
@@ -231,82 +203,73 @@
   [user-id]
   (let [uperms (:permissions (get-user-by-id user-id))
         admin? (in? uperms "admin")
-        project-url-ids
-        (-> (select :purl.url-id :purl.project-id)
-            (from [:project-member :m])
-            (join [:project :p]
-                  [:= :p.project-id :m.project-id])
-            (merge-join [:project-url-id :purl]
-                        [:= :purl.project-id :p.project-id])
-            (where [:and
-                    [:= :m.user-id user-id]
-                    [:= :p.enabled true]
-                    [:= :m.enabled true]])
-            (order-by [:purl.date-created :desc])
-            (->> do-query
-                 (group-by :project-id)
-                 (map-values #(mapv :url-id %))))
-        projects
-        (-> (select :p.project-id :p.name :p.date-created
-                    :m.join-date :m.access-date
-                    [:p.enabled :project-enabled]
-                    [:m.enabled :member-enabled]
-                    [:m.permissions :permissions])
-            (from [:project-member :m])
-            (join [:project :p]
-                  [:= :p.project-id :m.project-id])
-            (where [:and
-                    [:= :m.user-id user-id]
-                    [:= :p.enabled true]
-                    [:= :m.enabled true]])
-            (order-by [:m.access-date :desc :nulls :last]
-                      [:p.date-created])
-            (->> do-query
-                 (sort-by
-                  (fn [{:keys [access-date date-created]}]
-                    [(if access-date
-                       (tc/to-epoch access-date) 0)
-                     (- (tc/to-epoch date-created))]))
-                 reverse
-                 (mapv #(assoc % :member? true
-                               :url-ids (get project-url-ids
-                                             (:project-id %))))))
+        project-url-ids (-> (select :purl.url-id :purl.project-id)
+                            (from [:project-member :m])
+                            (join [:project :p]
+                                  [:= :p.project-id :m.project-id])
+                            (merge-join [:project-url-id :purl]
+                                        [:= :purl.project-id :p.project-id])
+                            (where [:and
+                                    [:= :m.user-id user-id]
+                                    [:= :p.enabled true]
+                                    [:= :m.enabled true]])
+                            (order-by [:purl.date-created :desc])
+                            (->> do-query
+                                 (group-by :project-id)
+                                 (map-values #(mapv :url-id %))))
+        projects (-> (select :p.project-id :p.name :p.date-created
+                             :m.join-date :m.access-date
+                             [:p.enabled :project-enabled]
+                             [:m.enabled :member-enabled]
+                             [:m.permissions :permissions])
+                     (from [:project-member :m])
+                     (join [:project :p]
+                           [:= :p.project-id :m.project-id])
+                     (where [:and
+                             [:= :m.user-id user-id]
+                             [:= :p.enabled true]
+                             [:= :m.enabled true]])
+                     (order-by [:m.access-date :desc :nulls :last]
+                               [:p.date-created])
+                     (->> do-query
+                          (sort-by (fn [{:keys [access-date date-created]}]
+                                     [(or (some-> access-date tc/to-epoch) 0)
+                                      (- (tc/to-epoch date-created))]))
+                          reverse
+                          (mapv #(-> % (assoc :member? true
+                                              :url-ids (get project-url-ids (:project-id %)))))))
         self-project-ids (->> projects (map :project-id))
-        all-projects
-        (when admin?
-          (-> (select :p.project-id :p.name :p.date-created
-                      [:p.enabled :project-enabled])
-              (from [:project :p])
-              (where [:and [:= :p.enabled true]])
-              (order-by :p.date-created)
-              (->> do-query
-                   (filterv #(not (in? self-project-ids (:project-id %))))
-                   (mapv #(assoc % :member? false
-                                 :url-ids (get project-url-ids
-                                               (:project-id %)))))))]
-    {:projects (->> [projects all-projects]
-                    (apply concat)
-                    vec)}))
+        all-projects (when admin?
+                       (-> (select :p.project-id :p.name :p.date-created
+                                   [:p.enabled :project-enabled])
+                           (from [:project :p])
+                           (where [:and [:= :p.enabled true]])
+                           (order-by :p.date-created)
+                           (->> do-query
+                                (filterv #(not (in? self-project-ids (:project-id %))))
+                                (mapv #(assoc % :member? false
+                                              :url-ids (get project-url-ids
+                                                            (:project-id %)))))))]
+    {:projects (->> [projects all-projects] (apply concat) vec)}))
 
 (defn create-sysrev-stripe-customer!
   "Create a stripe customer from user"
   [user]
   (let [{:keys [email user-uuid user-id]} user
-        stripe-response (stripe/create-customer! :email email :description (str "Sysrev UUID: " user-uuid))
+        stripe-response (stripe/create-customer! :email email
+                                                 :description (str "Sysrev UUID: " user-uuid))
         stripe-customer-id (:id stripe-response)]
     (if-not (nil? stripe-customer-id)
-      (try
-        (do (-> (sqlh/update :web-user)
-                (sset {:stripe-id stripe-customer-id})
-                (where [:= :user-id user-id])
-                do-execute)
-            {:success true})
-        (catch Throwable e
-          {:error {:message "Exception in create-sysrev-stripe-customer!"
-                   :exception e}}))
-      {:error {:message
-               (str "No customer id returned by stripe.com for email: "
-                    email " and uuid: " user-uuid)}})))
+      (try (do (-> (sqlh/update :web-user)
+                   (sset {:stripe-id stripe-customer-id})
+                   (where [:= :user-id user-id])
+                   do-execute)
+               {:success true})
+           (catch Throwable e
+             {:error {:message "Exception in create-sysrev-stripe-customer!"
+                      :exception e}}))
+      {:error {:message (str "No customer id returned by stripe.com for email: "
+                             email " and uuid: " user-uuid)}})))
 
 ;; for testing purposes
 (defn delete-sysrev-stripe-customer!
@@ -398,26 +361,6 @@
                 [:= :principal true]])
         do-query first :verified boolean)))
 
-#_(defn email-verified?
-  "Has this email address already been verified?"
-  [email]
-  (-> (select :verified)
-      (from :web-user-email)
-      (where [:and
-              [:= :email email]
-              [:= :verified true]])
-      do-query first :verified boolean))
-
-#_(defn email-exists-for-user-id?
-  "Does user-id already have an entry for email?"
-  [user-id email]
-  (-> (select :verified)
-      (from :web-user-email)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :email email]])
-      do-query empty? not))
-
 (defn set-primary-email!
   "Given an email, set it as the primary email address for user-id. This assumes that the email address has been confirmed"
   [user-id email]
@@ -438,15 +381,13 @@
         do-execute)
     ;; update the user
     (-> (sqlh/update :web-user)
-        (sset {:verified true
-               :email email})
+        (sset {:verified true, :email email})
         (where [:= :user-id user-id])
         do-execute)))
 
 (defn verify-email! [email verify-code user-id]
   (-> (sqlh/update :web-user-email)
-      (sset {:verified true
-             :updated (sql-now)})
+      (sset {:verified true, :updated (sql-now)})
       (where [:and
               (if verify-code
                 [:= :verify-code verify-code]
@@ -459,31 +400,26 @@
   [user-id]
   (-> (select :*)
       (from :web-user-email)
-      (where [:and [:= :user-id user-id]])
-      do-query
-      (->> (filter :active))))
+      (where [:and [:= :user-id user-id] [:= :active true]])
+      do-query))
 
 (defn set-active-field-email!
   [user-id email active]
   (-> (sqlh/update :web-user-email)
       (sset {:active active})
-      (where [:and
-              [:= :email email]
-              [:= :user-id user-id]])
+      (where [:and [:= :email email] [:= :user-id user-id]])
       do-execute))
 
 (defn read-email-verification-code
   [user-id email]
   (-> (select :verify-code)
       (from :web-user-email)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :email email]])
+      (where [:and [:= :user-id user-id] [:= :email email]])
       do-query first))
 
 (defn projects-member-permission
   "Return all projects for which user-id has permission"
-    [user-id permission]
+  [user-id permission]
   (-> (select :p.project-id :p.name :p.settings)
       (from [:project :p])
       (join [:project-member :pm]
@@ -494,66 +430,54 @@
               [:= :pm.user_id user-id]])
       do-query))
 
-(defn projects-member
-  "Return all projects user-id is a member of"
-  [user-id]
-  (-> (select :p.project-id :p.name :p.settings)
+(defn user-project-ids [user-id]
+  "Returns sequence of ids for projects that user-id is a member of."
+  (-> (select :p.project-id)
       (from [:project :p])
-      (join [:project-member :pm]
-            [:= :pm.project-id :p.project-id])
       (where [:and
               [:= :p.enabled true]
-              [:= :pm.user_id user-id]])
-      do-query))
+              [:exists (-> (select :*)
+                           (from [:project-member :pm])
+                           (where [:and
+                                   [:= :pm.project-id :p.project-id]
+                                   [:= :pm.user-id user-id]]))]])
+      do-query (->> (mapv :project-id))))
 
-(defn public-projects-member
-  "Return all public project a user-id is a member of"
+(defn user-public-project-ids
+  "Returns sequence of ids for public projects that user-id is a member of."
   [user-id]
-  (->> (projects-member user-id)
-       (filter #(-> % :settings :public-access true?))))
+  (->> (q/query-multiple-by-id :project [:project-id :settings]
+                               :project-id (user-project-ids user-id))
+       (filter #(-> % :settings :public-access true?))
+       (mapv :project-id)))
 
 (defn projects-labeled-summary
   "Return the count of articles and labels done by user-id grouped by projects"
   [user-id]
-  (-> (select [:%count.%distinct.al.article_id :articles]
-              [:%count.al.article_label_id :labels]
-              [:a.project_id :project-id])
-      (from [:article_label :al])
-      (join [:article :a]
-            [:= :a.article_id :al.article_id])
-      (where [:and
-              [:= :al.user_id user-id]
-              [:= :a.enabled true]])
-      (group :a.project_id)
+  (-> (select [:%count.%distinct.al.article-id :articles]
+              [:%count.al.article-label-id :labels]
+              [:a.project-id :project-id])
+      (from [:article-label :al])
+      (join [:article :a] [:= :a.article-id :al.article-id])
+      (where [:and [:= :al.user-id user-id] [:= :a.enabled true]])
+      (group :a.project-id)
       do-query))
 
 (defn projects-annotated-summary
   "Return the count of annotations done by user-id grouped by projects"
   [user-id]
-  (-> (select [:%count.an.id :annotations] [:a.project_id :project-id])
+  (-> (select [:%count.an.id :annotations] [:a.project-id :project-id])
       (from [:annotation :an])
-      (join [:annotation-article :aa]
-            [:= :aa.annotation-id :an.id]
-            [:article :a]
-            [:= :a.article-id :aa.article-id]
-            [:annotation_web_user :awu]
-            [:= :awu.annotation_id :an.id])
-      (left-join [:annotation-s3store :as3]
-                 [:= :an.id :as3.annotation-id]
-
-                 [:s3store :s3]
-                 [:= :s3.id :as3.s3store-id]
-
-                 [:annotation-web-user :au]
-                 [:= :au.annotation-id :an.id]
-
-                 [:annotation-semantic-class :asc]
-                 [:= :an.id :asc.annotation-id]
-
-                 [:semantic-class :sc]
-                 [:= :sc.id :asc.semantic-class-id])
+      (join [:annotation-article :aa] [:= :aa.annotation-id :an.id]
+            [:article :a] [:= :a.article-id :aa.article-id]
+            [:annotation-web-user :awu] [:= :awu.annotation-id :an.id])
+      (left-join [:annotation-s3store :as3] [:= :an.id :as3.annotation-id]
+                 [:s3store :s3] [:= :s3.id :as3.s3store-id]
+                 [:annotation-web-user :au] [:= :au.annotation-id :an.id]
+                 [:annotation-semantic-class :asc] [:= :an.id :asc.annotation-id]
+                 [:semantic-class :sc] [:= :sc.id :asc.semantic-class-id])
       (group :a.project-id)
-      (where [:= :awu.user_id user-id])
+      (where [:= :awu.user-id user-id])
       do-query))
 
 (defn update-user-introduction!
@@ -570,17 +494,21 @@
     (let [user-ids (->> ["SELECT user_id FROM web_user WHERE (email ilike ?) ORDER BY email LIMIT ?"
                          (str term "%")
                          5]
-                        raw-query
+                        db/raw-query
                         (map :user-id))
           ;; original query, except using ilike instead of like for case insensitivity
           #_(-> (select :user-id)
-              (from :web-user)
-              (where [:like :email (str term "%")])
-              (order-by :email)
-              ;; don't want to overwhelm with options
-              (limit 5)
-              (sql/format))]
+                (from :web-user)
+                (where [:like :email (str term "%")])
+                (order-by :email)
+                ;; don't want to overwhelm with options
+                (limit 5)
+                (sql/format))]
       ;; check to see if we have results before returning the public info
       (if (empty? user-ids)
         user-ids
         (get-users-public-info user-ids)))))
+
+(defn user-id-from-url-id [url-id]
+  ;; TODO: implement url-id strings for users
+  (sutil/parse-integer url-id))

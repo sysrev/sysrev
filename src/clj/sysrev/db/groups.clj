@@ -1,13 +1,11 @@
 (ns sysrev.db.groups
-  (:require
-   [honeysql-postgres.helpers :refer [returning]]
-   [honeysql.helpers :as sqlh :refer [select from where insert-into values sset join modifiers
-                                      delete-from]]
-   [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array]]
-   [sysrev.db.users :as users]
-   [sysrev
-    [util :as util]
-    [stripe :as stripe]]))
+  (:require [honeysql-postgres.helpers :refer [returning]]
+            [honeysql.helpers :as sqlh :refer :all :exclude [update]]
+            [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array]]
+            [sysrev.db.users :as users]
+            [sysrev.stripe :as stripe]
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil]))
 
 (defn group-name->group-id
   "Given a group-name, get the group-id associated with it"
@@ -174,3 +172,7 @@
       (from :groups)
       (where [:= :id org-id])
       do-query first :stripe-id))
+
+(defn group-id-from-url-id [url-id]
+  ;; TODO: implement url-id strings for groups
+  (sutil/parse-integer url-id))

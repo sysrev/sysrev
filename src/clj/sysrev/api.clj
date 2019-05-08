@@ -15,6 +15,7 @@
             [sysrev.charts :as charts]
             [sysrev.config.core :refer [env]]
             [sysrev.article.core :as article]
+            [sysrev.db.queries :as q]
             [sysrev.db.annotations :as db-annotations]
             [sysrev.db.compensation :as compensation]
             [sysrev.db.core :as db :refer [with-transaction]]
@@ -1375,9 +1376,11 @@
 (defn user-projects
   "Return a list of user projects for user-id, including non-public projects when self? is true"
   [user-id self?]
-  (let [projects (if self?
-                   (users/projects-member user-id)
-                   (users/public-projects-member user-id))
+  (let [project-ids (if self?
+                      (users/user-project-ids user-id)
+                      (users/user-public-project-ids user-id))
+        projects (q/query-multiple-by-id :project [:project-id :name :settings]
+                                         :project-id project-ids)
         labeled-summary (users/projects-labeled-summary user-id)
         annotations-summary (users/projects-annotated-summary user-id)]
     {:result {:projects (->> (merge-with merge

@@ -508,8 +508,9 @@
   "Runs query to select fields from table where id-field is any of id-values.
   Allows for unlimited count of id-values by partitioning values into
   groups and running multiple select queries."
-  [table id-field id-values fields & {:keys [where alter-query]}]
-  (apply concat (for [id-group (partition-all 250 id-values)]
+  [table fields id-field id-values & {:keys [where alter-query]}]
+  (apply concat (for [id-group (->> (if (sequential? id-values) id-values [id-values])
+                                    (partition-all 200))]
                   (when (seq id-group)
                     (-> (apply select fields) (from table)
                         (sqlh/where [:in id-field (vec id-group)])

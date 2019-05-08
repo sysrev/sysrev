@@ -11,8 +11,7 @@
             [honeysql-postgres.format :refer :all]
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]
             [sysrev.api :as api]
-            [sysrev.web.app :as web :refer
-             [wrap-authorize current-user-id active-project]]
+            [sysrev.web.app :as web :refer [wrap-authorize current-user-id active-project]]
             [sysrev.web.routes.core :refer [setup-local-routes]]
             [sysrev.db.core :as db :refer
              [do-query do-execute with-transaction with-project-cache]]
@@ -20,6 +19,7 @@
             [sysrev.db.users :as users]
             [sysrev.db.project :as project]
             [sysrev.db.export :as export]
+            [sysrev.db.groups :as groups]
             [sysrev.article.core :as article]
             [sysrev.db.documents :as docs]
             [sysrev.label.core :as labels]
@@ -230,10 +230,30 @@
 (dr (GET "/api/lookup-project-url" request
          (wrap-authorize
           request {}
-          {:result (when-let [project-id (try (some-> request :params :url-id
-                                                      project/project-id-from-url-id)
-                                              (catch Throwable e nil))]
-                     {:project-id project-id})})))
+          {:result (let [url-id (-> request :params :url-id sutil/read-transit-str)
+                         self-id (current-user-id request)
+                         [project-url-id {:keys [user-url-id org-url-id]}] url-id
+                         ;; TODO: lookup project-id from combination of owner/project names
+                         project-id (project/project-id-from-url-id project-url-id)
+                         owner (some-> project-id project/get-project-owner)
+                         user-id (some-> user-url-id users/user-id-from-url-id)
+                         org-id (some-> org-url-id groups/group-id-from-url-id)
+                         user-match? (and user-id (= user-id (:user-id owner)))
+                         org-match? (and org-id (= org-id (:group-id owner)))
+                         user-redirect? (and (nil? user-url-id) (nil? org-url-id)
+                                             (:user-id owner))
+                         org-redirect? (and (nil? user-url-id) (nil? org-url-id)
+                                            (:group-id owner))
+                         no-owner? (and (nil? owner) project-id)]
+                     (cond
+                       ;; TODO: remove this after migration to set owners
+                       no-owner?       {:project-id project-id}
+                       user-match?     {:project-id project-id :user-id user-id}
+                       org-match?      {:project-id project-id :org-id org-id}
+                       user-redirect?  {:project-id project-id :user-id (:user-id owner)}
+                       org-redirect?   {:project-id project-id :org-id (:group-id owner)}
+                       project-id      {:project-id project-id}
+                       :else        nil))})))
 
 (dr (GET "/api/query-register-project" request
          (wrap-authorize

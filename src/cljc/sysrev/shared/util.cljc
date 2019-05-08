@@ -6,24 +6,26 @@
   #?(:clj (:import java.util.UUID
                    (java.io ByteArrayOutputStream ByteArrayInputStream))))
 
+(defn ensure-pred
+  "Returns value if (pred value) returns logical true, otherwise
+  returns nil. With one argument, returns a function using pred that
+  can be applied to a value."
+  ([pred] #(ensure-pred pred %))
+  ([pred value] (when (pred value) value)))
+
 (defn parse-integer
   "Reads a number from a string. Returns nil if not a number."
   [s]
   (if (integer? s) s
       (when (and (string? s) (re-find #"^ *\d+ *$" s))
         #?(:clj
-           (try
-             (Integer/parseInt s)
-             (catch Throwable e
-               (try
-                 (read-string s)
-                 (catch Throwable e2
-                   nil))))
-
+           (try (Integer/parseInt s)
+                (catch Throwable e
+                  (try (->> (read-string s) (ensure-pred integer?))
+                       (catch Throwable e2 nil))))
            :cljs
-           (let [val (js/parseInt s)]
-             (when (and (integer? val) (not= val ##NaN) (not (js/isNaN val)))
-               val))))))
+           (->> (js/parseInt s)
+                (ensure-pred #(and (integer? %) (not= % ##NaN) (not (js/isNaN %)))))))))
 
 (defn parse-number
   "Reads a number from a string. Returns nil if not a number."
@@ -214,18 +216,12 @@
   [s & {:keys [parens] :or {parens "()"}}]
   (when s (str (subs parens 0 1) s (subs parens 1 2))))
 
-(defn ensure-value
-  "Returns value if (test value) evaluates as logical true, otherwise
-  returns nil. With one argument, returns a function using test that
-  can be applied to a value."
-  ([test] #(ensure-value test %))
-  ([test value] (when (test value) value)))
-
 (defn filter-values
-  "Filters map key-value entries by testing values against f."
-  [f m]
+  "Returns a map of the entries in m for which (pred value) returns
+  logical true."
+  [pred m]
   (->> (seq m)
-       (filter (fn [[k v]] (f v)))
+       (filter (fn [[k v]] (pred v)))
        (apply concat)
        (apply hash-map)))
 
