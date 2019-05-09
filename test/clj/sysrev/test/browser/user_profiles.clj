@@ -29,8 +29,8 @@
 
 (def user-name-link (xpath "//a[@id='user-name-link']"))
 (def user-profile-tab (xpath "//a[@id='user-profile']"))
-(def public-project-divs (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a"))
-(def private-project-divs (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/a"))
+(def public-project-divs (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/descendant::a"))
+(def private-project-divs (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/descendant::a"))
 (def activity-values (xpath "//h2[contains(@class,'articles-reviewed' | 'labels-contributed' | 'annotations-contributed')]"))
 (def user-activity-summary-div (xpath "//div[@id='user-activity-summary']" activity-values))
 (defn project-activity-summary-div [project-name] (xpath "//a[contains(text(),'" project-name "')]"
@@ -120,7 +120,7 @@
       (pm/add-articles-from-search-term search-term)
       ;; go to the user profile
       (b/click user-name-link)
-      (b/click user-profile-tab)
+      (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
       (is (= project-name-1 (first (private-project-names))))
       ;; do some work to see if it shows up in the user profile
@@ -132,7 +132,7 @@
                                         {:value true})]))
       ;; go back to profile, check activity
       (b/click user-name-link)
-      (b/click user-profile-tab)
+      (b/click "#user-projects")
       ;; is the user's overall activity correct?
       (is (= 3 (:articles-reviewed (user-activity-summary))))
       (is (= 3 (:labels-contributed (user-activity-summary))))
@@ -147,7 +147,7 @@
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; return to the profile, the user should have one annotation
       (b/click user-name-link)
-      (b/click user-profile-tab)
+      (b/click "#user-projects")
       ;; total activity
       (is (= 3 (:articles-reviewed (user-activity-summary))))
       (is (= 3 (:labels-contributed (user-activity-summary))))
@@ -162,7 +162,7 @@
       (pm/add-articles-from-search-term search-term)
       ;; go to the profile
       (b/click user-name-link)
-      (b/click user-profile-tab)
+      (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
       (is (= project-name-2 (->> (private-project-names)
                                  (filter #(= % project-name-2))
@@ -181,7 +181,7 @@
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; go back and check activity
       (b/click user-name-link)
-      (b/click user-profile-tab)
+      (b/click "#user-projects")
       ;; total activity
       (is (= 5 (:articles-reviewed (user-activity-summary))))
       (is (= 5 (:labels-contributed (user-activity-summary))))
@@ -200,7 +200,7 @@
       (b/click (xpath "//button[@id='public-access_public']"))
       (b/click (xpath "//div[contains(@class,'project-options')]//button[contains(@class,'save-changes')]"))
       (b/click user-name-link)
-      (b/click user-profile-tab)
+      (b/click "#user-projects")
       (taxi/wait-until #(= project-name-1 (first (public-project-names))))
       (is (= project-name-1 (first (public-project-names))))
       (taxi/wait-until #(= project-name-2 (first (private-project-names))))
@@ -214,15 +214,18 @@
    password-browser+test (:password b/test-login)
    email-test-user "test@insilica.co"
    password-test-user "testinsilica"
+   _ (b/create-test-user :email email-test-user :password password-test-user)
+   user-id-test-user (-> email-test-user
+                         users/get-user-by-email
+                         :user-id)
    user-id-browser+test (-> (:email b/test-login)
                             users/get-user-by-email
                             :user-id)
    user-introduction "I am the browser test"]
-  (do ;; create another test user
-    (b/create-test-user :email email-test-user :password password-test-user)
-    ;; make them a public reviewer
-    (make-public-reviewer user-id-browser+test email-browser+test)
-    (nav/log-in)
+  (do
+    ;; make test-user a public reviewer
+    (make-public-reviewer user-id-test-user email-test-user)
+    (nav/log-in email-test-user password-test-user)
     ;; go to the user profile
     (b/click user-name-link)
     (b/click user-profile-tab)
@@ -232,11 +235,11 @@
     (b/set-input-text "textarea" user-introduction :delay 100)
     (markdown/click-save)
     (b/exists? (xpath "//p[text()='" user-introduction "']"))
-    ;; log in as another user
-    (nav/log-in email-test-user password-test-user)
-    ;; go to user
+    ;; log in as test user
+    (nav/log-in)
+    ;; go to users
     (nav/go-route "/users")
-    (b/click (xpath "//a[@href='/users/" user-id-browser+test "']"))
+    (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']"))
     ;; the introduction still reads the same
     (b/exists? (xpath "//p[text()='" user-introduction "']"))
     ;; there is no edit introduction option
@@ -250,9 +253,8 @@
   (do (nav/log-in)
       ;; go to the user profile
       #_ (b/click user-name-link)
-      (nav/go-route "/user/settings" 250) ;; using go-route for stronger sleep/wait included
-      #_ (b/click user-profile-tab)
-      (nav/go-route "/user/settings/profile" 250)
+      (b/click "#user-name-link")
+      (b/click "#user-profile")
       ;; click the user profile avatar
       (b/click avatar)
       (Thread/sleep 250)

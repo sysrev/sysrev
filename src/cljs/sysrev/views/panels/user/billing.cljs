@@ -91,5 +91,5 @@
                      :fetch-current-plan (fn [] (dispatch [:fetch [:current-plan]]))}]]
     [ListItem [PaymentSource {:get-default-source stripe/get-user-default-source
                               :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
-                              :add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/settings/billing"])
+                              :add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/" @(subscribe [:self/user-id]) "/billing"])
                                                        (dispatch [:navigate [:payment]]))}]]]])

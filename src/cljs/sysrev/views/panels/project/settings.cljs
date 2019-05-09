@@ -270,7 +270,7 @@
      (when (= project-plan
               "Basic")
        [:p [:a {:href (if (= owner-key :user-id)
-                        "/user/settings/billing"
+                        (str "/user/" @(subscribe [:self/user-id]) "/billing")
                         "/org/billing")}
             "Upgrade"] " your plan to make this project private"])]))
 

@@ -560,41 +560,47 @@
                (user-amount-owed @(:project-id project1) (:name user3))))
         ;; is foo shown the correct payments owed?
         (switch-user user1)
-        (nav/go-route "/user/settings/compensation")
+        (b/click "#user-name-link")
+        (b/click "#user-compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-owed? user1 project1)
         (correct-payments-owed? user1 project2)
         ;; is bar shown the correct payments owed?
         (switch-user user2)
-        (nav/go-route "/user/settings/compensation")
+        (b/click "#user-name-link")
+        (b/click "#user-compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-owed? user2 project1)
         (correct-payments-owed? user2 project2)
         ;; is corge shown the correct payments owed?
         (switch-user user3)
-        (nav/go-route "/user/settings/compensation")
+        (b/click "#user-name-link")
+        (b/click "#user-compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-owed? user3 project1)
         (correct-payments-owed? user3 project2)
         ;; pay some users
         (switch-user nil project1)
         (nav/go-project-route "/compensations")
-        (pay-user (:email user1))
-        (pay-user (:email user2))
+        (pay-user (:name user1))
+        (pay-user (:name user2))
         ;; check if user1 and user3 are paid by project1, but still owed by project2
         (switch-user user1)
-        (nav/go-route "/user/settings/compensation")
+        (b/click "#user-name-link")
+        (b/click "#user-compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-paid? user1 project1)
         (correct-payments-owed? user1 project2)
         (switch-user user3)
-        (nav/go-route "/user/settings/compensation")
+        (b/click "#user-name-link")
+        (b/click "#user-compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-paid? user3 project1)
         (correct-payments-owed? user3 project2)
         ;; user2 should be still owed by project1 and project2
         (switch-user user2)
-        (nav/go-route "/user/settings/compensation")
+        (b/click "#user-name-link")
+        (b/click "#user-compensation")
         (b/wait-until-exists payments-owed-header)
         (correct-payments-paid? user2 project1)
         (correct-payments-owed? user2 project2)))
@@ -642,7 +648,10 @@
        ;; (staging.sysrev.com)
        (not (test/remote-test?)))
   [user1 {:email "foo@insilica.co" :password "foobar"}
-   new-email-address "bar@insilica.co"]
+   new-email-address "bar@insilica.co"
+   user-id (-> (:email user1)
+               users/get-user-by-email
+               :user-id)]
   (do (alter-var-root #'sysrev.sendgrid/send-template-email
                       (fn [send-template-email]
                         (fn [to subject message
@@ -651,13 +660,14 @@
       (b/create-test-user)
       (nav/register-user (:email user1) (:password user1))
       ;; the user can't be listed as a public reviewer
-      (nav/go-route "/user/settings")
+      (b/click "#user-name-link")
+      (b/click "#user-general")
       (b/wait-until-exists opt-in-toggle)
       (is (taxi/attribute opt-in-toggle "disabled"))
       ;; verify the email address
       (let [{:keys [user-id email]} (users/get-user-by-email (:email user1))
             {:keys [verify-code]} (users/read-email-verification-code user-id email)]
-        (nav/init-route (str "/user/settings/email/" verify-code))
+        (nav/init-route (str "/user/" user-id "/email/" verify-code))
         (is (email-verified? email))
         ;; add a new email address
         (b/click add-new-email-address)
@@ -671,7 +681,7 @@
         (is (email-unverified? new-email-address))
         ;; verify new email address
         ;; FIX: nav/init-route should not be needed
-        (nav/init-route (str "/user/settings/email/"
+        (nav/init-route (str "/user/" user-id "/email/"
                              (:verify-code (users/read-email-verification-code
                                             user-id new-email-address))))
         (is (email-verified? new-email-address))
@@ -686,7 +696,8 @@
         ;; the email count should be 1
         (is (= 1 (email-address-count)))
         ;; opt-in as a public reviewer
-        (nav/go-route "/user/settings")
+        (b/click "#user-name-link")
+        (b/click "#user-general")
         (b/wait-until-exists opt-in-toggle)
         ;; due to the hacky nature of React Semantic UI toggle buttons,
         ;; you click the label, not the input
@@ -714,14 +725,15 @@
         ;; confirm we aren't a member of Invitation Test
         (b/wait-until-exists (xpath "//h4[contains(text(),'Create a New Project')]"))
         (is (= 0 (your-projects-count)))
-        (nav/go-route "/user/settings")
-        (b/click (xpath "//a[@href='/user/settings/invitations']"))
+        ;;(nav/go-route "/user/settings")
+        (b/click "#user-name-link")
+        (b/click "#user-general")
+        (b/click (xpath "//a[@href='/user/" user-id "/invitations']"))
         ;; accept the invitation
         (b/click (xpath "//button[contains(text(),'Accept')]"))
         (is (b/exists? (xpath "//div[contains(text(),'You accepted this invitation')]")))
         ;; are we now a member of at least one project?
         (nav/go-route "/")
         (is (= 1 (your-projects-count)))))
-
   :cleanup
-  (b/delete-test-user :email (:email user1)))
+  (do (b/delete-test-user :email (:email user1))))

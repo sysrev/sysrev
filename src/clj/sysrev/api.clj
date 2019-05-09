@@ -235,7 +235,7 @@
     (sendgrid/send-template-email
      email "Verify Your Email"
      (str "Verify your email by clicking <a href='" (sysrev-base-url)
-          "/user/settings/email/" verify-code "'>here</a>."))
+          "/user/" user-id "/email/" verify-code "'>here</a>."))
     {:result {:success true}}))
 
 (defn register-user!

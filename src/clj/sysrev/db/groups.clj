@@ -1,7 +1,7 @@
 (ns sysrev.db.groups
   (:require [honeysql-postgres.helpers :refer [returning]]
             [honeysql.helpers :as sqlh :refer :all :exclude [update]]
-            [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array]]
+            [sysrev.db.core :refer [do-query do-execute sql-now to-sql-array with-transaction]]
             [sysrev.db.users :as users]
             [sysrev.stripe :as stripe]
             [sysrev.util :as util]

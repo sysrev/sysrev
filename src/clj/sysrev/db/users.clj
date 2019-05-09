@@ -50,13 +50,15 @@
   "Given a coll of user-ids, return a coll of maps that represent the
   publicly viewable information for each user-id"
   [user-ids]
-  (-> (select :user-id :email :date-created :username :introduction)
-      (from :web-user)
-      (where [:in :web-user.user-id user-ids])
-      do-query
-      (->> (map #(-> %
-                     (dissoc :email)
-                     (assoc :username (first (clojure.string/split (:email %) #"@"))))))))
+  (if-not (empty? user-ids)
+    (-> (select :user-id :email :date-created :username :introduction)
+        (from :web-user)
+        (where [:in :web-user.user-id user-ids])
+        do-query
+        (->> (map #(-> %
+                       (dissoc :email)
+                       (assoc :username (first (clojure.string/split (:email %) #"@")))))))
+    '()))
 
 (defn get-user-by-reset-code [reset-code]
   (assert (string? reset-code))

@@ -62,7 +62,8 @@
   (wait-until-stripe-id email)
   (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
   ;;; go to plans
-  (nav/go-route "/user/settings/billing")
+  (b/click "#user-name-link")
+  (b/click "#user-billing")
   (b/click ".button.nav-plans.subscribe" :displayed? true)
   (b/click "a.payment-method.add-method")
   ;; enter payment information
@@ -124,7 +125,8 @@
       ;; do we think the user is subscribed to a basic plan?
       (is (= api/default-plan (get-db-plan)))
 ;;; upgrade plan
-      (nav/go-route "/user/settings/billing")
+      (b/click "#user-name-link")
+      (b/click "#user-billing")
       (b/click ".button.nav-plans.subscribe" :displayed? true)
       (b/click "a.payment-method.add-method")
 ;;; payment method
@@ -141,7 +143,7 @@
       (if (test/full-tests?)
         (log/info "running full stripe tests")
         (log/info "skipping full stripe tests"))
-      (when (test/full-tests?)
+      #_(when (test/full-tests?)
         ;; basic failure with Luhn Check
         #_ (b/input-text (label-input "Card Number") bstripe/fail-luhn-check-cc)
         (bstripe/enter-cc-number bstripe/fail-luhn-check-cc)

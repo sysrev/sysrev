@@ -401,3 +401,12 @@
 
 (defn unix-epoch->date-string [unix]
   (-> unix (js/moment.unix) ($ format "YYYY-MM-DD HH:mm:ss")))
+
+(defn condensed-number
+  "Condense numbers over 1000 to be factors of k"
+  [i]
+  (when (= i 0)
+    (str 0))
+  (if (> i 999)
+    (-> (/ i 1000)  ($ toFixed 1) (str "K"))
+    (str i)))

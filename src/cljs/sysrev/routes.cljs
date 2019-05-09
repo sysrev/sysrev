@@ -193,10 +193,6 @@
  (dispatch [:set-active-panel [:payment]]))
 
 (sr-defroute
- user-settings "/user/settings*" []
- (dispatch [:set-active-panel [:user-settings]]))
-
-(sr-defroute
  org-plans "/org/plans" []
  (dispatch [:set-active-panel [:org-plans]]))
 
@@ -209,7 +205,7 @@
  (dispatch [:set-active-panel [:org-settings]]))
 
 (sr-defroute
- users "/users*" []
+ users "/user*" []
  (dispatch [:set-active-panel [:users]]))
 
 (defn- load-default-panels [db]
@@ -243,7 +239,6 @@
         [[:pubmed-search] "/pubmed-search"]
         [[:payment] "/user/payment"]
         [[:plans] "/user/plans"]
-        [[:user-settings] "/user/settings*"]
         [[:users] "/users*"]
         [[:org-plans] "/org/plans"]
         [[:org-payment] "/org/payment"]

@@ -16,7 +16,7 @@
 
 (def ^:private panel [:stripe])
 
-(def default-redirect-uri "/user/settings/billing")
+(def default-redirect-uri (str "/user/" @(subscribe [:self/user-id])  "/billing"))
 
 (def initial-state {:error-message nil
                     :need-card? false

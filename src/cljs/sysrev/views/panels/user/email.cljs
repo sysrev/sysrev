@@ -133,10 +133,10 @@
       (fn [this]
         [:div
          (when-not (str/blank? @verify-message)
-           (js/setTimeout #(nav-scroll-top "/user/settings/email") 1000)
+           (js/setTimeout #(nav-scroll-top (str "/user/" @(subscribe [:self/user-id]) "/email")) 1000)
            [Message @verify-message])
          (when-not (str/blank? @verify-error)
-           (js/setTimeout #(nav-scroll-top "/user/settings/email") 1000)
+           (js/setTimeout #(nav-scroll-top (str "/user/" @(subscribe [:self/user-id]) "/email")) 1000)
            [Message {:negative true} @verify-error])
          [:div {:style {:margin-top "1em"}}
           "Redirecting to email settings..."]])

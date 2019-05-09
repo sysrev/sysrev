@@ -47,9 +47,6 @@
         (nav/go-project-route "")
         (is (root-panel-exists?))
 
-        (nav/go-route "/user/settings")
-        (is (nav/panel-exists? [:user-settings]))
-
         (when project-id
           (nav/go-project-route "/settings" project-id))
 

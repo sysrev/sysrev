@@ -55,7 +55,7 @@
           (do
             (reset! (r/cursor state [:changing-plan?]) false)
             (reset! (r/cursor state [:error-messsage]) nil)
-            (nav-scroll-top "/user/settings/billing")            
+            (nav-scroll-top (str "/user/" @(subscribe [:self/user-id]) "/billing"))            
             {:dispatch [:fetch [:current-plan]]})))
   :on-error
   (fn [{:keys [db error]} _ _]
@@ -223,7 +223,7 @@
             current-plan (:name @(subscribe [:plans/current-plan]))]
         [:div
          (when (= current-plan "Basic")
-           [UpgradePlan {:billing-settings-route "/user/settings/billing"
+           [UpgradePlan {:billing-settings-route (str "/user/" @(subscribe [:self/user-id]) "/billing")
                          :upgrade-dispatch (fn []
                                              (dispatch [:action [:subscribe-plan "Unlimited"]]))
                          :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
@@ -231,7 +231,7 @@
                          :add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
                                                   (dispatch [:navigate [:payment]]))}])
          (when (= current-plan "Unlimited")
-           [DowngradePlan {:billing-settings-route "/user/settings/billing"
+           [DowngradePlan {:billing-settings-route (str "/user/" @(subscribe [:self/user-id]) "/billing")
                            :downgrade-dispatch (fn []
                                                  (dispatch [:action [:subscribe-plan "Basic"]]))
                            :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])}])]))))

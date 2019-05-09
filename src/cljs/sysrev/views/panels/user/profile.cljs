@@ -5,15 +5,13 @@
             [clojure.spec.alpha :as s]
             [reagent.core :as r]
             [re-frame.db :refer [app-db]]
-            [re-frame.core :refer [subscribe dispatch]]
+            [re-frame.core :refer [subscribe]]
             [sysrev.base :refer [active-route]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
-            [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :as util]
-            [sysrev.views.panels.orgs :refer [CreateOrg]]
             [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Image Message MessageHeader
-                                           Button Select Divider Popup
+                                           Button Select Popup
                                            Modal ModalContent ModalHeader ModalDescription]])
   (:require-macros [reagent.interop :refer [$]]))
 
@@ -21,16 +19,8 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-(s/def ::ratom #(instance? reagent.ratom/RAtom %))
-
-(defn condensed-number
-  "Condense numbers over 1000 to be factors of k"
-  [i]
-  (when (= i 0)
-    (str 0))
-  (if (> i 999)
-    (-> (/ i 1000)  ($ toFixed 1) (str "K"))
-    (str i)))
+(s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
+                    (instance? reagent.ratom/RCursor %)))
 
 (defn get-project-invitations!
   "Get all of the invitations that have been sent by the project for which user-id is the admin of"
@@ -178,7 +168,7 @@
 
 (defn UserPublicProfileLink
   [{:keys [user-id display-name]}]
-  [:a.user-public-profile {:href (str "/users/" user-id)} display-name])
+  [:a.user-public-profile {:href (str "/user/" user-id "/profile")} display-name])
 
 (defn Avatar
   [{:keys [user-id]}]
@@ -287,8 +277,8 @@
 (s/def ::mutable? boolean?)
 (s/def ::user-id integer?)
 
-(s/fdef Introduction
-  :args (s/keys :req-un [::mutable? ::introduction ::user-id]))
+#_(s/fdef Introduction
+    :args (s/keys :req-un [::mutable? ::introduction ::user-id]))
 
 (defn Introduction
   "Display introduction and edit if mutable? is true"
@@ -330,151 +320,6 @@
         (reset! loading? false)
         {})})))
 
-(defn ActivitySummary
-  [{:keys [articles labels annotations count-font-size]}]
-  (let [header-margin-bottom "0.10em"]
-    (when (or (> articles 0)
-              (> labels 0)
-              (> annotations 0))
-      [Grid {:columns 3
-             :style {:display "block"}}
-       [Row
-        (when (> articles 0)
-          [Column
-           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
-                          count-font-size (assoc :font-size count-font-size))
-                 :class "articles-reviewed"} (condensed-number articles)]
-           [:p "Articles Reviewed"]])
-        (when (> labels 0)
-          [Column
-           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
-                          count-font-size (assoc :font-size count-font-size))
-                 :class "labels-contributed"} (condensed-number labels)]
-           [:p "Labels Contributed"]])
-        (when (> annotations 0)
-          [Column
-           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
-                          count-font-size (assoc :font-size count-font-size))
-                 :class "annotations-contributed"} (condensed-number annotations)]
-           [:p "Annotations Contributed"]])]])))
-
-(defn Project
-  [{:keys [name project-id articles labels annotations]
-    :or {articles 0
-         labels 0
-         annotations 0}}]
-  [:div {:style {:margin-bottom "1em"}
-         :id (str "project-" project-id)}
-   [:a {:href (str "/p/" project-id)
-        :style {:margin-bottom "0.5em"
-                :display "block"}} name]
-   [ActivitySummary {:articles articles
-                     :labels labels
-                     :annotations annotations
-                     :count-font-size "1em"}]
-   [Divider]])
-
-(defn UserProjects
-  [{:keys [user-id]}]
-  (let [projects (r/cursor state [:projects])
-        error-message (r/atom "")
-        retrieving-projects? (r/atom false)
-        get-user-projects! (fn [user-id projects-atom]
-                             (reset! retrieving-projects? true)
-                             (GET (str "/api/user/" user-id "/projects")
-                                  {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                                   :handler (fn [response]
-                                              (reset! retrieving-projects? false)
-                                              (reset! projects-atom (-> response :result :projects)))
-                                   :error-handler (fn [error-response]
-                                                    (.log js/console (clj->js error-response))
-                                                    (reset! retrieving-projects? false)
-                                                    (reset! error-message (get-in error-response [:response :error :message])))}))]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        (let [{:keys [public private]} (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)
-              activity-summary (fn [{:keys [articles labels annotations]}]
-                                 (+ articles labels annotations))
-              sort-fn #(> (activity-summary %1)
-                          (activity-summary %2))
-              ;; because we need to exclude anything that doesn't explicitly have a settings keyword
-              ;; non-public project summaries are given, but without identifying profile information
-              private (filter #(contains? % :settings) private)]
-          (when-not (empty? @projects)
-            [:div.projects
-             (when-not (empty? public)
-               [Segment
-                [Header {:as "h4"
-                         :dividing true}
-                 "Projects"]
-                [:div {:id "public-projects"}
-                 (->> public
-                      (sort sort-fn)
-                      (map (fn [project]
-                             ^{:key (:project-id project)}
-                             [Project project])))]])
-             (when-not (empty? private)
-               [Segment
-                [Header {:as "h4"
-                         :dividing true}
-                 "Private Projects"]
-                [:div {:id "private-projects"}
-                 (->> private
-                      (sort sort-fn)
-                      (map (fn [project]
-                             ^{:key (:project-id project)}
-                             [Project project])))]])])))
-      :component-will-receive-props
-      (fn [this new-argv]
-        (get-user-projects! (-> new-argv second :user-id) projects))
-      :component-did-mount (fn [this]
-                             (get-user-projects! user-id projects))})))
-
-(defn UserOrganization
-  [{:keys [id group-name]}]
-  [:div {:style {:margin-bottom "1em"}
-         :id (str "org-" id)}
-   [:a {:href "#"
-        :on-click (fn [e]
-                    ($ e preventDefault)
-                    (dispatch [:set-current-org! id])
-                    (nav-scroll-top "/org/users"))}
-    group-name]
-   [Divider]])
-
-(defn UserOrgs
-  []
-  (let [orgs (subscribe [:orgs])]
-    (r/create-class
-     {:reagent-render
-      (fn [this]
-        (when-not (empty? @orgs)
-          [Segment
-           [Header {:as "h4"
-                    :dividing true}
-            "Organizations"]
-           [:div {:id "user-organizations"}
-            (map (fn [org]
-                   ^{:key (:id org)}
-                   [UserOrganization org])
-                 @orgs)]]))
-      :component-did-mount (fn [this]
-                             (dispatch [:read-orgs!]))})))
-
-(defn UserActivitySummary
-  [projects]
-  (let [count-items (fn [projects kw]
-                      (->> projects (map kw) (apply +)))
-        articles (count-items projects :articles)
-        labels (count-items projects :labels)
-        annotations (count-items projects :annotations)]
-    (when (> (+ articles labels annotations) 0)
-      [Segment {:id "user-activity-summary"}
-       [ActivitySummary {:articles articles
-                         :labels labels
-                         :annotations annotations}]])))
-
 (defn ProfileSettings
   [{:keys [user-id username]}]
   (let [editing? (r/cursor state [:editing-profile?])]
@@ -483,12 +328,12 @@
       [User {:user-id user-id :username username}])))
 
 (defn Profile
-  [{:keys [user-id username]}]
+  [{:keys [user-id]}]
   (let [user (r/cursor state [:user])
-        projects (r/cursor state [:projects])
+        ;;projects (r/cursor state [:projects])
         introduction (r/cursor state [:user :introduction])
         error-message (r/cursor state [:user :error-message])
-        projects (r/cursor state [:projects])
+        ;;projects (r/cursor state [:projects])
         mutable? (= user-id @(subscribe [:self/user-id]))
         orgs (subscribe [:orgs])]
     (r/create-class
@@ -499,13 +344,9 @@
           (when-not (nil? @user)
             [:div
              [ProfileSettings @user]
-             [UserActivitySummary @projects]
              [Introduction {:mutable? mutable?
                             :introduction introduction
-                            :user-id user-id}]
-             [UserProjects @user]
-             [UserOrgs]
-             [CreateOrg]])
+                            :user-id user-id}]])
           ;; error message
           [Message {:negative true}
            [MessageHeader "Error Retrieving User"]
@@ -516,12 +357,13 @@
       :component-did-mount
       (fn [this]
         (reset! user nil)
-        (reset! projects nil)
+        ;;(reset! projects nil)
         (get-user! user-id))
       :component-did-umount
       (fn [this]
         (reset! user nil)
-        (reset! projects nil))
+        ;;(reset! projects nil)
+        )
       :get-initial-state
       (fn [this]
         (reset! user nil)

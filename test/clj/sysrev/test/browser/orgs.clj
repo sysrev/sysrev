@@ -25,6 +25,7 @@
 (def org-projects "#org-projects")
 (def org-users "#org-users")
 (def org-billing "#org-billing")
+(def user-orgs "#user-orgs")
 
 (def create-org-input "#create-org-input")
 (def create-org-button "#create-org-button")
@@ -82,6 +83,7 @@
 (defn create-org
   [org-name]
   (b/click user-profiles/user-name-link)
+  (b/click user-orgs)
   (b/set-input-text-per-char create-org-input org-name)
   (b/click create-org-button)
   (b/wait-until-exists add-member-button))
@@ -140,6 +142,7 @@
     (change-user-permission (:name test-user) "Member")
     (nav/log-in (:email test-user) (:password test-user))
     (b/click user-profiles/user-name-link)
+    (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']"))
     (is (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
     ;; an org is switched, the correct user list shows up
@@ -162,13 +165,14 @@
     (b/click org-projects)
     (create-project-org org-name-1-project)
     ;; add test-user to Baz Qux as an owner
-    (nav/go-route "/org/settings")
+    (nav/go-route "/org/users")
     (switch-to-org org-name-2)
     (add-user-to-org (:name test-user))
     (change-user-permission (:name test-user) "Owner")
     ;; log-in as test-user and see that they cannot create group projects
     (nav/log-in (:email test-user) (:password test-user))
     (b/click user-profiles/user-name-link)
+    (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']"))
     ;; org-users and projects links exists, but billing link doesn't exist
     (is (and (b/exists? org-users)
@@ -193,11 +197,11 @@
     (is (b/exists? org-billing)))
   :cleanup
   (do
-    ;; delete projects
+    ;;delete projects
     (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))
-    ;; delete orgs
+    ;;delete orgs
     (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))
-    ;; delete test user
+    ;;delete test user
     (b/delete-test-user :email (:email test-user))))
 
 ;; for manual testing:
@@ -235,7 +239,7 @@
       (log/info (str "Stripe Customer created for " email))
       (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
     (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
-    ;; current plan h
+    ;; current plan
     (is (= (get-in (api/current-plan user-id) [:result :plan :name]) api/default-plan))
     (plans/wait-until-stripe-id email)
     ;; start tests
@@ -270,7 +274,7 @@
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (nav/current-path? "/user/settings/billing")
+    (nav/current-path? (str "/user/" user-id "/billing"))
     (is (b/exists? no-payment-on-file))
     ;; get a plan for user
     (b/click ".button.nav-plans.subscribe" :displayed? true)
@@ -282,6 +286,7 @@
     (is (b/exists? (payment-method {:exp-date "1/22" :last-4 "4242"})))
     ;; user can set their projects private
     (b/click "#user-profile")
+    (b/click "#user-projects")
     (b/click (xpath "//a[text()='" user-project "']"))
     (nav/go-project-route "/settings")
     (b/click set-private-button)

@@ -130,7 +130,6 @@
    (let [;; url-id - vector used to look up project id from url strings
          ;; (will be nil when this is called for a non-project url)
          url-id (when project-url-id [project-url-id owner])
-         _ (println "url-id = " (pr-str url-id))
          ;; get any integer values from url id strings
          literal-ids (->> {:project (parse-integer project-url-id)
                            :user (parse-integer user-url-id)

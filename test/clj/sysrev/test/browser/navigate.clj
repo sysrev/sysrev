@@ -49,7 +49,7 @@
   (when (taxi/exists? "a#log-out-link")
     (log/info "logging out")
     (b/click "a#log-out-link" :if-not-exists :skip)
-    (Thread/sleep 100)))
+    (b/wait-until-exists #"login-register-panel")))
 
 (defn log-in [& [email password]]
   (let [email (or email (:email b/test-login))

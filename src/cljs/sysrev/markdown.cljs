@@ -38,7 +38,8 @@
   [:div {:style {:word-wrap "break-word"}
          :dangerouslySetInnerHTML {:__html (create-markdown-html markdown)}}])
 
-(s/def ::ratom #(instance? reagent.ratom/RAtom %))
+(s/def ::ratom #(or (instance? reagent.ratom/RAtom %)
+                    (instance? reagent.ratom/RCursor %)))
 
 (s/def ::content string?)
 (s/def ::set-content! fn?)
@@ -46,7 +47,7 @@
 (s/def ::mutable? (s/nilable boolean?))
 (s/def ::editing? ::ratom)
 
-(s/fdef MarkdownComponent
+#_(s/fdef MarkdownComponent
   :args (s/keys :req-un [::content ::set-content! ::loading? ::mutable? ::editing?]))
 
 ;; refactor to use semantic js components to make it easier to read
