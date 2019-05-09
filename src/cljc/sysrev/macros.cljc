@@ -145,6 +145,7 @@
      (let [clear-text# true
            use-timeout# false
            project-url-id# ~(if owner-key (second params) (first params))
+           ;; _# (println "params = " (pr-str ~params))
            owner-url-id# ~(when owner-key (some->> (first params) (hash-map owner-key)))
            url-id# [project-url-id# owner-url-id#]
            body-fn# (fn []
@@ -152,6 +153,7 @@
                       ~@body
                       (when clear-text# (sysrev.util/clear-text-selection-soon)))
            route-fn# #(let [cur-id# @(subscribe [:active-project-url])]
+                        ;; (println "sr-defroute: url-id = " (pr-str url-id#))
                         (dispatch [:set-active-project-url url-id#])
                         (let [project-id# (lookup-project-url-id url-id#)]
                           (println (str "running " (clojure.core/name '~name) ": "

@@ -27,14 +27,11 @@
 (defn create-source
   "Create an entry in project_source table"
   [project-id metadata]
-  (try
-    (-> (insert-into :project-source)
-        (values [{:meta metadata
-                  :project-id project-id}])
-        (returning :source-id)
-        do-query first :source-id)
-    (finally
-      (clear-project-cache project-id))))
+  (try (-> (insert-into :project-source)
+           (values [{:project-id project-id, :meta metadata}])
+           (returning :source-id)
+           do-query first :source-id)
+       (finally (clear-project-cache project-id))))
 ;;;
 (s/fdef create-source
   :args (s/cat :project-id int? :metadata map?)
@@ -48,13 +45,11 @@
 (defn update-source-meta
   "Replace the metadata for source-id"
   [source-id metadata]
-  (try
-    (-> (sqlh/update :project-source)
-        (sset {:meta metadata})
-        (where [:= :source-id source-id])
-        do-execute)
-    (finally
-      (clear-project-cache (source-id->project-id source-id)))))
+  (try (-> (sqlh/update :project-source)
+           (sset {:meta metadata})
+           (where [:= :source-id source-id])
+           do-execute)
+       (finally (clear-project-cache (source-id->project-id source-id)))))
 ;;;
 (s/fdef update-source-meta
   :args (s/cat :source-id int? :metadata map?))
@@ -77,46 +72,34 @@
   article entries unless contained in another source."
   [source-id]
   (with-transaction
-    (try
-      (let [project-id (source-id->project-id source-id)
-            asources (-> (select :*)
-                         (from [:article-source :asrc])
-                         (where [:= :asrc.article-id :a.article-id]))]
-        (-> (delete-from [:article :a])
-            (where [:and
-                    [:= :a.project-id project-id]
-                    [:exists
-                     (-> asources
-                         (merge-where
-                          [:= :asrc.source-id source-id]))]
-                    [:not
-                     [:exists
-                      (-> asources
-                          (merge-where
-                           [:!= :asrc.source-id source-id]))]]])
-            do-execute)
-        (q/delete-by-id :article-source :source-id source-id))
-      (finally
-        (clear-project-cache (source-id->project-id source-id))))))
+    (try (let [project-id (source-id->project-id source-id)
+               asources (-> (select :*)
+                            (from [:article-source :as])
+                            (where [:= :as.article-id :a.article-id]))]
+           (-> (delete-from [:article :a])
+               (where [:and
+                       [:= :a.project-id project-id]
+                       [:exists (-> asources (merge-where [:= :as.source-id source-id]))]
+                       [:not [:exists (-> asources (merge-where [:!= :as.source-id source-id]))]]])
+               do-execute)
+           (q/delete-by-id :article-source :source-id source-id))
+         (finally (clear-project-cache (source-id->project-id source-id))))))
 
 (defn fail-source-import
   "Update database in response to an error during the import process
   for a project-source."
   [source-id]
-  (alter-source-meta
-   source-id #(assoc % :importing-articles? :error))
+  (alter-source-meta source-id #(assoc % :importing-articles? :error))
   (delete-source-articles source-id))
 
 (defn project-article-sources-map
   "Returns map of {article-id -> [source-id]} representing the sources each
   article is contained in."
   [project-id & {:keys [enabled] :or {enabled nil}}]
-  (-> (select :ars.article-id :ars.source-id :a.enabled)
+  (-> (select :as.article-id :as.source-id :a.enabled)
       (from [:project-source :ps])
-      (join [:article-source :ars]
-            [:= :ars.source-id :ps.source-id]
-            [:article :a]
-            [:= :a.article-id :ars.article-id])
+      (join [:article-source :as] [:= :as.source-id :ps.source-id]
+            [:article :a]         [:= :a.article-id :as.article-id])
       (where [:and
               [:= :ps.project-id project-id]
               (cond (true? enabled)   [:= :ps.enabled true]
@@ -188,8 +171,7 @@
   labels associated with an article"
   [source-id]
   (let [project-id (source-id->project-id source-id)]
-    (alter-source-meta
-     source-id #(assoc % :deleting? true))
+    (alter-source-meta source-id #(assoc % :deleting? true))
     (try (with-transaction
            ;; delete articles that aren't contained in another source
            (delete-source-articles source-id)
@@ -232,28 +214,21 @@
 (defn source-unique-articles-count
   "Return map of {source-id -> unique-article-count} for project sources"
   [project-id]
-  (with-project-cache
-    project-id [:sources :unique-counts]
-    (let [asources (-> (select :asrc.*)
-                       (from [:project-source :psrc])
-                       (join [:article-source :asrc]
-                             [:= :asrc.source-id :psrc.source-id])
-                       (where [:and
-                               [:= :psrc.project-id project-id]
-                               [:= :psrc.enabled true]])
+  (with-project-cache project-id [:sources :unique-counts]
+    (let [asources (-> (select :as.*)
+                       (from [:project-source :ps])
+                       (join [:article-source :as] [:= :as.source-id :ps.source-id])
+                       (where [:and [:= :ps.project-id project-id] [:= :ps.enabled true]])
                        (->> do-query (group-by :article-id)))]
       (-> (select :source-id)
           (from :project-source)
-          (where [:and
-                  [:= :project-id project-id]
-                  [:= :enabled true]])
-          (->> do-query
-               (pmap (fn [{:keys [source-id]}]
-                       {source-id
-                        (->> (vals asources)
-                             (filter #(and (= 1 (count %))
-                                           (= source-id (:source-id (first %)))))
-                             count)}))
+          (where [:and [:= :project-id project-id] [:= :enabled true]])
+          do-query
+          (->> (pmap (fn [{:keys [source-id]}]
+                       {source-id (->> (vals asources)
+                                       (filter #(and (= 1 (count %))
+                                                     (= source-id (:source-id (first %)))))
+                                       count)}))
                (apply merge {}))))))
 
 (defn project-source-overlap
@@ -263,16 +238,15 @@
   fn will return 0."
   [project-id base-source-id source-id]
   (count (-> (select :%count.*)
-             (from [:article-source :ars])
-             (left-join [:project-source :ps]
-                        [:= :ars.source-id :ps.source-id])
+             (from [:article-source :as])
+             (left-join [:project-source :ps] [:= :as.source-id :ps.source-id])
              (where [:and
                      [:= :ps.project-id project-id]
                      [:= :ps.enabled true]
                      [:or
                       [:= :ps.source-id base-source-id]
                       [:= :ps.source-id source-id]]])
-             (group :ars.article-id)
+             (group :as.article-id)
              (having [:> :%count.* 1])
              do-query)))
 ;;;
@@ -293,8 +267,7 @@
 (defn project-sources-overlap
   "Given a project-id, determine the overlap of all enabled sources"
   [project-id]
-  (with-project-cache
-    project-id [:sources :overlap]
+  (with-project-cache project-id [:sources :overlap]
     (let [source-ids (project-source-ids project-id :enabled true)]
       (->> (for [id1 source-ids, id2 source-ids]
              (when (< id1 id2)
@@ -311,8 +284,7 @@
   "Returns vector of source information maps for project-id, with just
   basic information and excluding more expensive queries."
   [project-id]
-  (with-project-cache
-    project-id [:sources :basic-maps]
+  (with-project-cache project-id [:sources :basic-maps]
     (with-transaction
       (-> (select :source-id :project-id :meta :enabled :date-created)
           (from [:project-source :ps])

@@ -211,8 +211,7 @@
                           :count (count entries)})))))
 
 (defn project-article-annotations [project-id & {:keys [include-disabled?]}]
-  (with-project-cache
-    project-id [:annotations :articles]
+  (with-project-cache project-id [:annotations :articles include-disabled?]
     (-> (select :an.created :aa.article-id :sc.definition :au.user-id)
         (from [:annotation :an])
         (join [:annotation-article :aa]   [:= :aa.annotation-id :an.id]
@@ -220,10 +219,8 @@
               [:annotation-web-user :au]  [:= :au.annotation-id :an.id])
         (left-join [:annotation-semantic-class :asc]  [:= :asc.annotation-id :an.id]
                    [:semantic-class :sc]              [:= :sc.id :asc.semantic-class-id])
-        (where [:and
-                [:= :a.project-id project-id]
-                (if include-disabled? true
-                    [:= :a.enabled true])])
+        (where [:and [:= :a.project-id project-id]
+                (if include-disabled? true [:= :a.enabled true])])
         (->> do-query
              (group-by :article-id)
              (map-values (fn [entries]

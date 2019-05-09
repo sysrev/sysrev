@@ -33,15 +33,44 @@
   (-> (select :*)
       (from :web-user)
       (where [:= (sql/call :lower :email) (sql/call :lower email)])
-      do-query
-      first))
+      do-query first))
 
 (defn get-user-by-id [user-id]
   (-> (select :*)
       (from :web-user)
       (where [:= :user-id user-id])
-      do-query
-      first))
+      do-query first))
+
+(defn user-projects
+  "Returns sequence of projects for which user-id is a
+  member. Includes :project-id by default; fields optionally specifies
+  additional fields from [:project :p] or [:project-member :pm]."
+  [user-id & [fields]]
+  (-> (apply select :p.project-id fields)
+      (from [:project :p])
+      (join [:project-member :pm] [:= :pm.project-id :p.project-id])
+      (where [:and [:= :p.enabled true] [:= :pm.user-id user-id]])
+      do-query))
+
+(defn user-public-projects
+  "Returns sequence of public projects for which user-id is a member.
+  (see user-projects)"
+  [user-id & [fields]]
+  (->> (user-projects user-id (conj fields :p.settings))
+       (filter #(-> % :settings :public-access true?))))
+
+(defn user-owned-projects
+  "Returns sequence of projects which are owned by user-id.
+  (see user-projects)"
+  [user-id & [fields]]
+  (->> (user-projects user-id (conj fields :pm.permissions))
+       (filter #(in? (:permissions %) "owner"))))
+
+(defn clear-user-cache
+  "Clears cache for projects that may be affected by a change to user-id."
+  [user-id]
+  (doseq [{:keys [project-id]} (user-projects user-id)]
+    (db/clear-project-cache project-id)))
 
 (defn get-users-public-info
   "Given a coll of user-ids, return a coll of maps that represent the
@@ -108,7 +137,6 @@
                                          (returning :*)
                                          do-query first)]
       (when project-id (add-project-member project-id user-id))
-      (db/clear-query-cache)
       user)))
 
 (defn set-user-password [email new-password]
@@ -125,15 +153,13 @@
            (where [:= :user-id user-id])
            (returning :user-id :permissions)
            do-query)
-       (finally (db/clear-query-cache))))
+       (finally (clear-user-cache user-id))))
 
 (defn valid-password? [email password-attempt]
   (let [entry (get-user-by-email email)
         encrypted-password (:pw-encrypted-buddy entry)]
-    (boolean
-     (and entry
-          encrypted-password
-          (buddy.hashers/check password-attempt encrypted-password)))))
+    (boolean (and entry encrypted-password
+                  (buddy.hashers/check password-attempt encrypted-password)))))
 
 (defn delete-user [user-id]
   (assert (integer? user-id))
@@ -172,18 +198,18 @@
                do-query first :settings)))
 
 (defn change-user-setting [user-id setting new-value]
-  (let [user-id (q/to-user-id user-id)
-        cur-settings (-> (select :settings)
-                         (from :web-user)
-                         (where [:= :user-id user-id])
-                         do-query first :settings)
-        new-settings (assoc cur-settings setting new-value)]
-    (assert (s/valid? ::su/settings new-settings))
-    (-> (sqlh/update :web-user)
-        (sset {:settings (db/to-jsonb new-settings)})
-        (where [:= :user-id user-id])
-        do-execute)
-    new-settings))
+  (with-transaction
+    (let [cur-settings (-> (select :settings)
+                           (from :web-user)
+                           (where [:= :user-id user-id])
+                           do-query first :settings)
+          new-settings (assoc cur-settings setting new-value)]
+      (assert (s/valid? ::su/settings new-settings))
+      (-> (sqlh/update :web-user)
+          (sset {:settings (db/to-jsonb new-settings)})
+          (where [:= :user-id user-id])
+          do-execute)
+      new-settings)))
 
 (defn user-identity-info
   "Returns basic identity info for user."
@@ -412,31 +438,6 @@
       (from :web-user-email)
       (where [:and [:= :user-id user-id] [:= :email email]])
       do-query first))
-
-(defn user-projects
-  "Returns sequence of projects for which user-id is a
-  member. Includes :project-id by default; fields optionally specifies
-  additional fields from [:project :p] or [:project-member :pm]."
-  [user-id & [fields]]
-  (-> (apply select :p.project-id fields)
-      (from [:project :p])
-      (join [:project-member :pm] [:= :pm.project-id :p.project-id])
-      (where [:and [:= :p.enabled true] [:= :pm.user-id user-id]])
-      do-query))
-
-(defn user-public-projects
-  "Returns sequence of public projects for which user-id is a member.
-  (see user-projects)"
-  [user-id & [fields]]
-  (->> (user-projects user-id (conj fields :p.settings))
-       (filter #(-> % :settings :public-access true?))))
-
-(defn user-owned-projects
-  "Returns sequence of projects which are owned by user-id.
-  (see user-projects)"
-  [user-id & [fields]]
-  (->> (user-projects user-id (conj fields :pm.permissions))
-       (filter #(in? (:permissions %) "owner"))))
 
 (defn projects-labeled-summary
   "Return the count of articles and labels done by user-id grouped by projects"

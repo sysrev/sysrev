@@ -18,8 +18,7 @@
             [honeysql-postgres.helpers :refer :all :exclude [partition-by]]))
 
 (defn query-assignment-articles [project-id & [predict-run-id]]
-  (with-project-cache
-    project-id [:label-values :saved :articles predict-run-id]
+  (with-project-cache project-id [:label-values :saved :articles predict-run-id]
     (let [predict-run-id (or predict-run-id (q/project-latest-predict-run-id project-id))
           [articles labels]
           (pvalues
@@ -41,8 +40,7 @@
       (merge-with merge articles labels))))
 
 (defn unlabeled-articles [project-id & [predict-run-id articles]]
-  (with-project-cache
-    project-id [:label-values :saved :unlabeled-articles predict-run-id]
+  (with-project-cache project-id [:label-values :saved :unlabeled-articles predict-run-id]
     (->> (vals (or articles (query-assignment-articles project-id predict-run-id)))
          (filter #(= 0 (count (:users-confirmed %))))
          (map #(dissoc % :users-confirmed)))))

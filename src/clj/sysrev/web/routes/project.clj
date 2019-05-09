@@ -93,8 +93,7 @@
      :notes user-notes}))
 
 (defn project-info [project-id]
-  (with-project-cache
-    project-id [:project-info]
+  (with-project-cache project-id [:project-info]
     (let [[[fields users labels keywords notes members predict importance url-ids files documents owner plan]
            [_ [status-counts progress]]
            [articles sources]]

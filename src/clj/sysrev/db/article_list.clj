@@ -27,8 +27,7 @@
 ;;;
 
 (defn project-article-predicts [project-id]
-  (with-project-cache
-    project-id [:article-list :predicts]
+  (with-project-cache project-id [:article-list :predicts]
     (when-let [predict-run-id (q/project-latest-predict-run-id project-id)]
       (-> (q/select-project-articles
            project-id [:lp.article-id :lp.label-id [:lp.val :score]])
@@ -40,8 +39,7 @@
                       (apply merge))))))))
 
 (defn project-article-sources [project-id]
-  (with-project-cache
-    project-id [:article-list :sources]
+  (with-project-cache project-id [:article-list :sources]
     (-> (q/select-project-articles project-id [:a.article-id :asrc.source-id])
         (q/join-article-source)
         (->> do-query
@@ -49,8 +47,7 @@
              (map-values #(mapv :source-id %))))))
 
 (defn project-article-labels [project-id]
-  (with-project-cache
-    project-id [:article-list :article-labels]
+  (with-project-cache project-id [:article-list :article-labels]
     (-> (q/select-project-articles
          project-id [:al.article-id :al.label-id :al.user-id :al.answer :al.inclusion
                      :al.updated-time :al.confirm-time :al.resolve])
@@ -64,8 +61,7 @@
              (group-by :article-id)))))
 
 (defn project-article-consensus [project-id]
-  (with-project-cache
-    project-id [:article-list :consensus]
+  (with-project-cache project-id [:article-list :consensus]
     (apply merge {}
            (for [article-id (keys (project-article-labels project-id))]
              {article-id
@@ -74,8 +70,7 @@
                                {:labels (label/article-resolved-labels project-id article-id)})}}))))
 
 (defn project-article-notes [project-id]
-  (with-project-cache
-    project-id [:article-list :notes]
+  (with-project-cache project-id [:article-list :notes]
     (-> (q/select-project-articles
          project-id [:a.article-id :an.user-id :an.content :an.updated-time :pn.name])
         (q/with-article-note)
@@ -126,8 +121,7 @@
 ;;;
 
 (defn article-ids-from-text-search [project-id text]
-  (with-project-cache
-    project-id [:text-search-ids text]
+  (with-project-cache project-id [:text-search-ids text]
     (let [tokens (-> text (str/lower-case) (str/split #"[ \t\r\n]+"))]
       (->> (format "
 SELECT article_id FROM article
@@ -269,8 +263,7 @@ WHERE project_id=%d
 
 (defn project-article-list-filtered
   [{:keys [project-id] :as context} filters sort-by sort-dir]
-  (with-project-cache
-    project-id [:filtered-article-list [filters sort-by sort-dir]]
+  (with-project-cache project-id [:filtered-article-list [filters sort-by sort-dir]]
     (let [;; get these in parallel first, always needed for updated-time
           [article-ids labels notes annotations]
           (pvalues (project/project-article-ids project-id true)

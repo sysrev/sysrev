@@ -568,26 +568,22 @@
          500 :api "Only one of admin-members-only, user-names-only, user-ids-only may be used")
 
         :else
-        (let [to-user-ids
-              (fn [user-names]
-                ;; TODO: will need to update this for customizable user names
-                (->> (q/select-project-members project-id [:u.user-id :u.email])
-                     do-query
-                     (filter
-                      #(and (-> % :email string?)
-                            (in? user-names
-                                 (-> % :email (str/split #"@") first))))
-                     (map :user-id)))
-              user-ids
-              (or user-ids-only
-                  (and user-names-only (to-user-ids user-names-only)))
-              new-project-id (clone/clone-project
-                              new-project-name project-id
-                              :articles articles
-                              :labels labels
-                              :answers answers
-                              :members members
-                              :user-ids-only user-ids)]
+        (let [to-user-ids (fn [user-names]
+                            ;; TODO: will need to update this for customizable user names
+                            (->> (do-query (q/select-project-members
+                                            project-id [:u.user-id :u.email]))
+                                 (filter #(and (-> % :email string?)
+                                               (in? user-names
+                                                    (-> % :email (str/split #"@") first))))
+                                 (map :user-id)))
+              user-ids (or user-ids-only
+                           (and user-names-only (to-user-ids user-names-only)))
+              new-project-id (clone/clone-project new-project-name project-id
+                                                  :articles articles
+                                                  :labels labels
+                                                  :answers answers
+                                                  :members members
+                                                  :user-ids-only user-ids)]
           {:result {:success true
                     :new-project {:project-id new-project-id
                                   :name new-project-name

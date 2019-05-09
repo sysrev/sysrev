@@ -358,24 +358,20 @@
 
 (defn change-project-settings
   [project-id changes]
-  (doseq [{:keys [setting value]} changes]
-    (cond (and (= setting :public-access)
-               ;; owner has Unlimited plan
-               (= "Unlimited" (project-owner-plan project-id)))
-          (project/change-project-setting
-           project-id (keyword setting) value)
-          (and (= setting :public-access)
-               (= value false)
-               (= "Basic" (project-owner-plan project-id)))
-          nil
-          ;; change option
-          :else
-          (project/change-project-setting
-           project-id (keyword setting) value)))
-  (db/clear-project-cache project-id)
-  {:result
-   {:success true
-    :settings (project/project-settings project-id)}})
+  (with-transaction
+    (doseq [{:keys [setting value]} changes]
+      (cond (and (= setting :public-access)
+                 ;; owner has Unlimited plan
+                 (= "Unlimited" (project-owner-plan project-id)))
+            (project/change-project-setting project-id (keyword setting) value)
+            (and (= setting :public-access)
+                 (= value false)
+                 (= "Basic" (project-owner-plan project-id)))
+            nil
+            ;; change option
+            :else
+            (project/change-project-setting project-id (keyword setting) value)))
+    {:success true, :settings (project/project-settings project-id)}))
 
 (defn support-project-monthly
   "User supports project"
@@ -803,8 +799,7 @@
 (defn prediction-histogram
   "Given a project-id, return a vector of {:count <int> :score <float>}"
   [project-id]
-  (db/with-project-cache
-    project-id [:prediction-histogram]
+  (db/with-project-cache project-id [:prediction-histogram]
     (let [all-score-vals (->> (range 0 1 0.02)
                               (mapv #(util/round-to % 0.02 2 :op :floor)))
           prediction-scores
