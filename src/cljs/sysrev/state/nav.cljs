@@ -174,7 +174,7 @@
                    project-url-id project-id)]
       (str "/p/" url-id (or suburi ""))))))
 
-(defn project-uri [project-id suburi]
+(defn project-uri [project-id & [suburi]]
   @(subscribe [:project/uri project-id suburi]))
 
 ;; TODO: add this function for use in re-frame events

@@ -156,8 +156,8 @@
                         ;; (println "sr-defroute: url-id = " (pr-str url-id#))
                         (dispatch [:set-active-project-url url-id#])
                         (let [project-id# (lookup-project-url-id url-id#)]
-                          (println (str "running " (clojure.core/name '~name) ": "
-                                        (pr-str {:project-id project-id#})))
+                          #_ (println (str "running " (clojure.core/name '~name) ": "
+                                           (pr-str {:project-id project-id#})))
                           (cond
                             ;; If running lookup on project-id value for url-id,
                             ;; wait until lookup completes before running route

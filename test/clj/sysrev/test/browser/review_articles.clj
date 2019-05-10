@@ -292,8 +292,7 @@
         (is (= categorical-label-value
                (label-button-value (:short-label categorical-label-definition))))))
 
-  :cleanup
-  (when @project-id (project/delete-project @project-id)))
+  :cleanup (some-> @project-id (project/delete-project)))
 
 (defn randomly-review-all-articles
   "Randomly sets labels for articles until all have been reviewed"

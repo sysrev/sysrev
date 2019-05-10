@@ -297,11 +297,10 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        [Modal {:trigger
-                (r/as-component [Button {:on-click (fn [event]
-                                                     (reset-state!))
-                                         :positive true
-                                         :id "add-member-button"} "Add Member"])
+        [Modal {:trigger (r/as-component [Button {:id "add-member-button"
+                                                  :on-click #(reset-state!)
+                                                  :positive true}
+                                          "Add Member"])
                 :open @modal-open
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)
@@ -335,28 +334,28 @@
                                          (let [item (js->clj item :keywordize-keys true)]
                                            (r/as-component
                                             [:div {:style {:display "flex"}}
-                                             [Avatar {:user-id (:user-id item)}] [:p (:username item)]])))
+                                             [Avatar {:user-id (:user-id item)}]
+                                             [:p (:username item)]])))
                       :results @user-search-results
                       :value @user-search-value
                       :input (r/as-element
                               [Input {:placeholder "Search for users by username"
-                                      :action (r/as-element [Button {:positive true
-                                                                     :id "add-member-button"
-                                                                     :class "invite-member"
-                                                                     :disabled (nil? @current-search-user-id)}
-                                                             "Add Member"])}])}]]
+                                      :action (r/as-element
+                                               [Button {:id "submit-add-member"
+                                                        :class "invite-member"
+                                                        :positive true
+                                                        :disabled (nil? @current-search-user-id)}
+                                                "Add Member"])}])}]]
             (when-not (empty? @error)
               [Message {:negative true
                         :onDismiss #(reset! error "")}
                [MessageHeader {:as "h4"} "Add Member Error"]
                @error])]]]])
-      :get-initial-state
-      (fn [this]
-        (reset-state!)
-        {})
-      :component-did-mount
-      (fn [this]
-        (reset-state!))})))
+      :get-initial-state (fn [this]
+                           (reset-state!)
+                           {})
+      :component-did-mount (fn [this]
+                             (reset-state!))})))
 
 (defn OrgUsers
   []

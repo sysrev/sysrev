@@ -64,33 +64,6 @@
 
 ;; opt-in for public reviewer
 (def opt-in-toggle (xpath "//input[@id='opt-in-public-reviewer']"))
-;;;
-;;; NOTE: Compensation entries should not be deleted like this except in testing.
-;;;
-(defn delete-compensation-by-id [project-id compensation-id]
-  ;; delete from compensation-user-period
-  (-> (delete-from :compensation-user-period)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation-project-default
-  (-> (delete-from :compensation-project-default)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation-project
-  (-> (delete-from :compensation-project)
-      (where [:= :compensation-id compensation-id])
-      do-execute)
-  ;; delete from compensation
-  (-> (delete-from :compensation)
-      (where [:= :id compensation-id])
-      do-execute))
-
-(defn delete-project-compensations [project-id]
-  (doseq [{:keys [compensation-id]} (-> (select :compensation-id)
-                                        (from :compensation-project)
-                                        (where [:= :project-id project-id])
-                                        do-query)]
-    (delete-compensation-by-id project-id compensation-id)))
 
 (defn cents->string
   "Convert an integer amount of cents to a string dollar amount"
@@ -319,9 +292,7 @@
   [project-name "Sysrev Compensation Test"
    search-term "foo create"
    amount 100
-   test-user {:name "foo"
-              :email "foo@bar.com"
-              :password "foobar"}
+   test-user {:name "foo", :email "foo@bar.com", :password "foobar"}
    n-articles 3
    project-id (atom nil)]
   (do (nav/log-in)
@@ -348,10 +319,7 @@
       (is (= (* n-articles amount)
              (user-amount-owed @project-id (:name test-user)))))
 
-  :cleanup
-  (do (delete-project-compensations @project-id)
-      (project/delete-project @project-id)
-      (b/delete-test-user :email (:email test-user))))
+  :cleanup (b/cleanup-test-user! :email (:email test-user)))
 
 (deftest-browser multiple-project-compensations
   (test/db-connected?)
@@ -604,13 +572,8 @@
         (b/wait-until-exists payments-owed-header)
         (correct-payments-paid? user2 project1)
         (correct-payments-owed? user2 project2)))
-  :cleanup
-  (do (doseq [{:keys [project-id]} projects]
-        (when @project-id
-          (delete-project-compensations @project-id)
-          (project/delete-project @project-id)))
-      (doseq [{:keys [email]} test-users]
-        (b/delete-test-user :email email))))
+  :cleanup (doseq [{:keys [email]} test-users]
+             (b/cleanup-test-user! :email email)))
 
 ;; for deleting during manual test
 ;; (doall (map #(do (delete-project-compensations %) (project/delete-project %)) [113 114])) ; manual input of project-id

@@ -1,0 +1,4 @@
+#!/bin/bash
+set -eux
+
+lein eastwood "{:namespaces [:source-paths] :exclude-namespaces [sysrev.macros sysrev.user] :exclude-linters [:constant-test]}"

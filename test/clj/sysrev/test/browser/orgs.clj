@@ -1,19 +1,18 @@
 (ns sysrev.test.browser.orgs
-  (:require [clojure.test :refer :all]
+  (:require [clojure.string :as str]
+            [clojure.test :refer :all]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
             [sysrev.api :as api]
-            [sysrev.db
-             [groups :as groups]
-             [project :as project]
-             [users :as users]]
-            [sysrev.test.browser
-             [core :as b :refer [deftest-browser]]
-             [navigate :as nav]
-             [user-profiles :as user-profiles]
-             [xpath :refer [xpath]]
-             [stripe :as bstripe]
-             [plans :as plans]]
+            [sysrev.db.groups :as groups]
+            [sysrev.db.project :as project]
+            [sysrev.db.users :as users]
+            [sysrev.test.browser.core :as b :refer [deftest-browser]]
+            [sysrev.test.browser.navigate :as nav]
+            [sysrev.test.browser.user-profiles :as user-profiles]
+            [sysrev.test.browser.xpath :refer [xpath]]
+            [sysrev.test.browser.stripe :as bstripe]
+            [sysrev.test.browser.plans :as plans]
             [sysrev.test.core :as test]
             [sysrev.stripe :as stripe]
             [sysrev.shared.util :refer [->map-with-key]]))
@@ -29,9 +28,6 @@
 
 (def create-org-input "#create-org-input")
 (def create-org-button "#create-org-button")
-(def add-member-button "#add-member-button")
-(def org-search-users-input "#org-search-users-input")
-(def invite-member-form "#invite-member-form")
 (def org-user-table "#org-user-table")
 (defn change-user-permission-dropdown [username]
   (xpath "//table[@id='org-user-table']/tbody/tr/td/a[text()='" username "']"
@@ -55,12 +51,11 @@
   [user-id group-name]
   (groups/user-group-permission user-id (groups/group-name->group-id group-name)))
 
-(defn org-user-table-entries
-  []
+(defn org-user-table-entries []
   (b/wait-until-exists org-user-table)
   (->> (taxi/find-elements-under org-user-table {:tag :tr})
        (mapv taxi/text)
-       (mapv #(clojure.string/split % #"\n"))
+       (mapv #(str/split % #"\n"))
        (mapv #(hash-map :name (first %) :permission (second %)))
        (->map-with-key :name)))
 
@@ -68,25 +63,26 @@
   "Must be in Organization Settings of the project to add user to"
   [username]
   (b/click org-users)
-  (b/click add-member-button)
-  (b/set-input-text-per-char org-search-users-input username)
-  (taxi/submit invite-member-form))
+  (b/click "#add-member-button" :delay 200)
+  (b/set-input-text-per-char "#org-search-users-input" username)
+  (b/click "#submit-add-member" :delay 200))
 
 (defn change-user-permission
-  "Set username to permission. Must be in Organization Settings of the org you wish to change permissions in. permission is either 'Owner' or 'Member'"
+  "Set username to permission. Must be in Organization Settings of the
+  org you wish to change permissions in. permission is either 'Owner'
+  or 'Member'."
   [username permission]
   (b/click (change-user-permission-dropdown username))
   (b/click change-role)
   (b/click (xpath "//label[contains(text(),'" permission "')]" "/ancestor::h4" "//label"))
   (b/click org-change-role-button))
 
-(defn create-org
-  [org-name]
+(defn create-org [org-name]
   (b/click user-profiles/user-name-link)
   (b/click user-orgs)
   (b/set-input-text-per-char create-org-input org-name)
   (b/click create-org-button)
-  (b/wait-until-exists add-member-button))
+  (b/wait-until-exists "#add-member-button"))
 
 (defn create-project-org
   "Must be in the Organization Settings for the org for which the project is being created"
@@ -115,9 +111,7 @@
    org-name-2 "Baz Qux"
    org-name-1-project "Foo Bar Article Reviews"
    email (:email b/test-login)
-   user-id (-> email
-               users/get-user-by-email
-               :user-id)
+   user-id (:user-id (users/get-user-by-email email))
    test-user {:name "foo"
               :email "foo@bar.com"
               :password "foobar"}]
@@ -126,18 +120,16 @@
     ;; a person can create a org and they are automatically made owners
     (create-org org-name-1)
     (is (some (set ["owner"]) (user-group-permission user-id org-name-1)))
-    ;;; an owner can add a user to the org
+;;; an owner can add a user to the org
     ;; add a user
     (b/create-test-user :name (:name test-user)
                         :email (:email test-user)
                         :password (:password test-user))
     (add-user-to-org (:name test-user))
-    (is (= "member")
-        (get-in (org-user-table-entries) ["foo" :permission]))
+    (is (= "member" (get-in (org-user-table-entries) ["foo" :permission])))
     ;; an owner can change permissions of a member
     (change-user-permission (:name test-user) "Owner")
-    (is (= "owner"
-           (get-in (org-user-table-entries) ["foo" :permission])))
+    (is (= "owner" (get-in (org-user-table-entries) ["foo" :permission])))
     ;; only an owner can change permissions, not a member
     (change-user-permission (:name test-user) "Member")
     (nav/log-in (:email test-user) (:password test-user))
@@ -151,16 +143,10 @@
     ;; create a new org
     (create-org org-name-2)
     ;; should only be one user in this org
-    (is (= (-> (org-user-table-entries)
-               vals
-               count)
-           1))
+    (is (= 1 (count (org-user-table-entries))))
     ;; switch back to the other org, there is two users in this one
     (switch-to-org org-name-1)
-    (is (= (-> (org-user-table-entries)
-               vals
-               count)
-           2))
+    (is (= 2 (count (org-user-table-entries))))
     ;; only an owner or admin of an org can create projects for that org
     (b/click org-projects)
     (create-project-org org-name-1-project)
@@ -175,8 +161,7 @@
     (b/click user-orgs)
     (b/click (xpath "//a[text()='" org-name-1 "']"))
     ;; org-users and projects links exists, but billing link doesn't exist
-    (is (and (b/exists? org-users)
-             (b/exists? org-projects)))
+    (is (and (b/exists? org-users) (b/exists? org-projects)))
     (is (not (taxi/exists? org-billing)))
     ;; group projects exists, but not the create project input
     (b/click org-projects)
@@ -195,14 +180,8 @@
     (b/wait-until-exists (change-user-permission-dropdown "browser+test"))
     ;; billing link is available
     (is (b/exists? org-billing)))
-  :cleanup
-  (do
-    ;;delete projects
-    (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))
-    ;;delete orgs
-    (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))
-    ;;delete test user
-    (b/delete-test-user :email (:email test-user))))
+  :cleanup (doseq [{:keys [email]} [b/test-login test-user]]
+             (b/cleanup-test-user! :email email :groups true)))
 
 ;; for manual testing:
 ;; delete a customer's card:
@@ -230,9 +209,7 @@
             :cvc "123"
             :postal "11111"}
    email (:email b/test-login)
-   user-id (-> email
-               users/get-user-by-email
-               :user-id)]
+   user-id (:user-id (users/get-user-by-email email))]
   (do
     ;; need to be a stripe customer
     (when-not (plans/get-user-customer email)
@@ -252,11 +229,11 @@
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (nav/current-path? "/org/billing")
+    (nav/is-current-path "/org/billing")
     ;; subscribe to plans
     (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
-    (nav/current-path? "/org/payment")
+    (nav/is-current-path "/org/payment")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
     (b/click plans/use-card)
@@ -274,12 +251,12 @@
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (nav/current-path? (str "/user/" user-id "/billing"))
+    (nav/is-current-path (str "/user/" user-id "/billing"))
     (is (b/exists? no-payment-on-file))
     ;; get a plan for user
     (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
-    (nav/current-path? "/user/payment")
+    (nav/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
     (b/click plans/use-card)
     (b/click ".button.upgrade-plan")
@@ -292,11 +269,5 @@
     (b/click set-private-button)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button)))
-  :cleanup
-  (do
-    ;; delete projects
-    (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))
-    ;; delete orgs
-    (->> (groups/read-groups user-id) (mapv :id) (mapv groups/delete-group!))
-    ;; delete sysrev stripe customer
-    (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))))
+  :cleanup (do (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))
+               (b/cleanup-test-user! :user-id user-id :groups true)))

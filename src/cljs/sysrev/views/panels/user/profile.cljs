@@ -9,13 +9,15 @@
             [sysrev.base :refer [active-route]]
             [sysrev.croppie :refer [CroppieComponent]]
             [sysrev.markdown :refer [MarkdownComponent]]
-            [sysrev.util :as util]
-            [sysrev.views.semantic :refer [Segment Header Grid Row Column Icon Image Message MessageHeader
-                                           Button Select Popup
-                                           Modal ModalContent ModalHeader ModalDescription]])
+            [sysrev.nav :refer [nav-scroll-top]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.util :as util :refer [wrap-prevent-default]]
+            [sysrev.views.semantic :refer
+             [Segment Header Grid Row Column Icon Image Message MessageHeader Button Select Popup
+              Modal ModalContent ModalHeader ModalDescription]])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def ^:private panel [:state :panels :user :profile])
+(def panel [:user :profile])
 
 (def state (r/cursor app-db [:state :panels panel]))
 
@@ -49,7 +51,7 @@
                            (reset! retrieving-users? false)
                            (reset! user-error-message (get-in error-response [:response :error :message])))})))
 
-(defn Invitation
+(defn- InvitationMessage
   [{:keys [project-id description accepted active created]}]
   (let [projects @(subscribe [:self/projects])
         project-name (->> projects
@@ -64,26 +66,22 @@
      (when-not (nil? accepted)
        [:div (str "Invitation " (if accepted "accepted " "declined "))])]))
 
-(defn Invitations
-  [user-id]
+(defn- UserInvitations [user-id]
   (let [invitations (r/cursor state [:invitations])
         retrieving-invitations? (r/cursor state [:retrieving-invitations?])]
     (r/create-class
      {:reagent-render
       (fn [this]
-        [:div
-         (map (fn [invitation]
-                ^{:key (:id invitation)}
-                [Invitation invitation])
-              (filter #(= user-id (:user-id %)) @invitations))])
+        [:div (doall (for [invitation (filter #(= user-id (:user-id %)) @invitations)]
+                       ^{:key (:id invitation)}
+                       [InvitationMessage invitation]))])
       :component-did-mount
       (fn [this]
         (when (and (nil? @invitations)
                    (not @retrieving-invitations?))
           (get-project-invitations! @(subscribe [:self/user-id]))))})))
 
-(defn InviteUser
-  [user-id]
+(defn- InviteUser [user-id]
   (let [project-id (r/atom nil)
         loading? (r/atom true)
         retrieving-invitations? (r/cursor state [:retrieving-invitations?])
@@ -181,7 +179,7 @@
               :class "sysrev-avatar"
               :alt ""}])))
 
-(defn ProfileAvatar
+(defn- ProfileAvatar
   [{:keys [user-id modal-open]}]
   (let [reload-avatar? (r/cursor state [:reload-avatar?])]
     (if @reload-avatar?
@@ -191,7 +189,7 @@
               :style {:cursor "pointer"}
               :alt ""}])))
 
-(defn AvatarModal
+(defn- AvatarModal
   [{:keys [user-id modal-open]}]
   [Modal {:trigger
           (r/as-component
@@ -209,7 +207,7 @@
                         :modal-open modal-open
                         :reload-avatar? (r/cursor state [:reload-avatar?])}]]]])
 
-(defn UserAvatar
+(defn- UserAvatar
   [{:keys [mutable? user-id modal-open]}]
   (if mutable?
     [AvatarModal {:user-id user-id
@@ -217,7 +215,7 @@
     [ProfileAvatar {:user-id user-id
                     :modal-open (constantly false)}]))
 
-(defn UserInteraction
+(defn- UserInteraction
   [{:keys [user-id username]}]
   [:div
    [UserPublicProfileLink {:user-id user-id :display-name username}]
@@ -225,7 +223,7 @@
     (when-not (= user-id @(subscribe [:self/user-id]))
       [InviteUser user-id])
     [:div {:style {:margin-top "1em"}}
-     [Invitations user-id]]]])
+     [UserInvitations user-id]]]])
 
 (defn User
   [{:keys [username user-id]}]
@@ -244,7 +242,7 @@
        [Column
         [UserInteraction {:user-id user-id :username username}]]]]]))
 
-(defn EditingUser
+(defn- EditingUser
   [{:keys [user-id username]}]
   (let [editing? (r/cursor state [:editing-profile?])]
     [Segment {:class "editing-user"}
@@ -254,24 +252,20 @@
         [Icon {:name "user icon" :size "huge"}]]
        [Column {:width 12}
         [UserPublicProfileLink {:user-id user-id :display-name username}]
-        [:div>a {:href "#" :on-click (util/wrap-prevent-default #(swap! editing? not))}
+        [:div>a {:href "#" :on-click (wrap-prevent-default #(swap! editing? not))}
          "Save Profile"]
         [:div
          (when-not (= user-id @(subscribe [:self/user-id]))
            [InviteUser user-id])
          [:div {:style {:margin-top "1em"}}
-          [Invitations user-id]]]]]]]))
+          [UserInvitations user-id]]]]]]]))
 
-(defn EditIntroduction
+(defn- EditIntroduction
   [{:keys [editing? mutable? blank?]}]
-  (when mutable?
-    (when (not @editing?)
-      [:a {:href "#"
-           :id "edit-introduction"
-           :on-click (fn [event]
-                       ($ event preventDefault)
-                       (swap! editing? not))}
-       "Edit"])))
+  (when (and mutable? (not @editing?))
+    [:a {:id "edit-introduction"
+         :href "#" :on-click (wrap-prevent-default #(swap! editing? not))}
+     "Edit"]))
 
 (s/def ::introduction ::ratom)
 (s/def ::mutable? boolean?)
@@ -280,7 +274,7 @@
 #_(s/fdef Introduction
     :args (s/keys :req-un [::mutable? ::introduction ::user-id]))
 
-(defn Introduction
+(defn- Introduction
   "Display introduction and edit if mutable? is true"
   [{:keys [mutable? introduction user-id]}]
   (let [editing? (r/cursor state [:user :editing?])
@@ -320,7 +314,7 @@
         (reset! loading? false)
         {})})))
 
-(defn ProfileSettings
+(defn- ProfileSettings
   [{:keys [user-id username]}]
   (let [editing? (r/cursor state [:editing-profile?])]
     (if @editing?

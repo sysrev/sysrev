@@ -3,19 +3,26 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clj-webdriver.taxi :as taxi]
-            [sysrev.test.core :as test]
+            [sysrev.test.core :as test :refer [completes?]]
             [sysrev.test.browser.core :as b]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
-(defn path->full-url [path]
+(defn url->path
+  "Returns relative path component of URL string."
+  [uri]
+  (.getPath (java.net.URI. uri)))
+
+(defn path->url
+  "Returns full URL from relative path string, based on test config."
+  [path]
   (let [path (if (empty? path) "/" path)]
     (str (:url (test/get-selenium-config))
          (if (= (nth path 0) \/)
            (subs path 1) path))))
 
 (defn init-route [& [path]]
-  (let [full-url (path->full-url path)]
+  (let [full-url (path->url path)]
     (log/info "loading" full-url)
     (taxi/to full-url)
     (b/wait-until-loading-completes :pre-wait 100)
@@ -32,18 +39,18 @@
     (cond (or (not (string? current))
               (not (str/includes? current (:url (test/get-selenium-config)))))
           (init-route path)
-          (not= current (path->full-url path))
+          (not= current (path->url path))
           (do (b/wait-until-loading-completes :pre-wait 50)
               (log/info "navigating to" path)
-              #_ (taxi/get-url (path->full-url path))
+              #_ (taxi/get-url (path->url path))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or wait-ms true))))
     nil))
 
-(defn go-project-route [suburi & [project-id]]
+(defn go-project-route [suburi & [project-id wait-ms]]
   (let [project-id (or project-id (b/current-project-id))]
     (assert (integer? project-id))
-    (go-route (str "/p/" project-id suburi))))
+    (go-route (str "/p/" project-id suburi) wait-ms)))
 
 (defn log-out []
   (when (taxi/exists? "a#log-out-link")
@@ -113,15 +120,7 @@
 (defn panel-exists? [panel & {:keys [wait?] :or {wait? true}}]
   (b/exists? (str "div#" (panel-name panel)) :wait? wait?))
 
-(defn get-path
-  "return the path of string uri"
-  [uri]
-  (-> uri java.net.URI. .getPath))
-
-(defn current-path?
-  "Is the browser currently at the relative-path?"
-  [relative-path]
-  (b/wait-until #(= (-> (taxi/current-url) get-path)
-                    relative-path))
-  (is (= (-> (taxi/current-url) get-path)
-         relative-path)))
+(defn is-current-path
+  "Runs test assertion that current URL matches relative path."
+  [path]
+  (is (b/try-wait b/wait-until #(= path (url->path (taxi/current-url))))))

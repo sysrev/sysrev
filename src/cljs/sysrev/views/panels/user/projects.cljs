@@ -3,12 +3,14 @@
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
-            [sysrev.util :refer [condensed-number]]
+            [sysrev.state.nav :refer [project-uri]]
+            [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
             [sysrev.views.create-project :refer [CreateProject]]
-            [sysrev.views.semantic :refer [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]])
+            [sysrev.views.semantic :refer
+             [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]])
   (:require-macros [reagent.interop :refer [$]]))
 
-(def ^:private panel [:state :panels :user :projects])
+(def ^:private panel [:user :projects])
 
 (def state (r/cursor app-db [:state :panels panel]))
 
@@ -46,115 +48,87 @@
                     ;; only logged in users can make a project public
                     (get-user-projects! @(subscribe [:self/user-id])))}))
 
-(defn ActivitySummary
-  [{:keys [articles labels annotations count-font-size]}]
-  (let [header-margin-bottom "0.10em"]
-    (when (or (> articles 0)
-              (> labels 0)
-              (> annotations 0))
-      [Grid {:columns 3
-             :style {:display "block"}}
-       [Row
-        (when (> articles 0)
-          [Column
-           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
-                          count-font-size (assoc :font-size count-font-size))
-                 :class "articles-reviewed"} (condensed-number articles)]
-           [:p "Articles Reviewed"]])
-        (when (> labels 0)
-          [Column
-           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
-                          count-font-size (assoc :font-size count-font-size))
-                 :class "labels-contributed"} (condensed-number labels)]
-           [:p "Labels Contributed"]])
-        (when (> annotations 0)
-          [Column
-           [:h2 {:style (cond-> {:margin-bottom header-margin-bottom}
-                          count-font-size (assoc :font-size count-font-size))
-                 :class "annotations-contributed"} (condensed-number annotations)]
-           [:p "Annotations Contributed"]])]])))
+(defn- ActivityColumn [item-count text header-class & [count-font-size]]
+  (when (pos? item-count)
+    [Column
+     [:h2 {:style (cond-> {:margin-bottom "0.10em"}
+                    count-font-size (assoc :font-size count-font-size))
+           :class header-class} (condensed-number item-count)]
+     [:p text]]))
 
-(defn UserActivitySummary
-  [projects]
-  (let [count-items (fn [projects kw]
-                      (->> projects (map kw) (apply +)))
-        articles (count-items projects :articles)
-        labels (count-items projects :labels)
-        annotations (count-items projects :annotations)]
-    (when (> (+ articles labels annotations) 0)
+(defn- UserActivityContent [{:keys [articles labels annotations count-font-size]}]
+  (when (some pos? [articles labels annotations])
+    (let [item-column (fn [item-count text header-class]
+                        [ActivityColumn item-count text header-class count-font-size])]
+      [Grid {:columns 3 :style {:display "block"}}
+       [Row
+        [item-column articles "Articles Reviewed" "articles-reviewed"]
+        [item-column labels "Labels Contributed" "labels-contributed"]
+        [item-column annotations "Annotations Contributed" "annotations-contributed"]]])))
+
+(defn- UserActivitySummary [projects]
+  (let [item-totals (apply merge (->> [:articles :labels :annotations]
+                                      (map (fn [k] {k (apply + (map k projects))}))))]
+    (when (some pos? (vals item-totals))
       [Segment {:id "user-activity-summary"}
-       [ActivitySummary {:articles articles
-                         :labels labels
-                         :annotations annotations}]])))
-(defn MakePublic
-  [{:keys [project-id]}]
-  [Button {:on-click (fn [e]
-                       ($ e preventDefault)
-                       (make-public! project-id))
-           :size "mini"}
+       [UserActivityContent {:articles (item-totals :articles)
+                             :labels (item-totals :labels)
+                             :annotations (item-totals :annotations)}]])))
+
+(defn- MakePublic [{:keys [project-id]}]
+  [Button {:size "mini" :on-click (wrap-prevent-default #(make-public! project-id))}
    "Set Publicly Viewable"])
 
-(defn Project
-  [{:keys [name project-id articles labels annotations settings]
-    :or {articles 0
-         labels 0
-         annotations 0}}]
-  [:div {:style {:margin-bottom "1em"}
-         :id (str "project-" project-id)}
-   [:div
-    [:a {:href (str "/p/" project-id)
-                              :style {:margin-bottom "0.5em"
-                                      :display "inline-block"
-                                      :font-size "2em"}}  name]
-    (when @(subscribe [:users/is-path-user-id-self?])
-      (when-not (:public-access settings)
-        [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]]))]
-   [:div
-    [ActivitySummary {:articles articles
-                      :labels labels
-                      :annotations annotations
-                      :count-font-size "1em"}]]
+(defn- UserProject [{:keys [name project-id articles labels annotations settings]
+                     :or {articles 0, labels 0, annotations 0}}]
+  [:div {:id (str "project-" project-id)
+         :class "user-project-entry"
+         :style {:margin-bottom "1em" :font-size "110%"}}
+   [:a {:href (project-uri project-id)
+        :style {:margin-bottom "0.5em" :display "inline-block"}} name]
+   (when @(subscribe [:users/is-path-user-id-self?])
+     (when-not (:public-access settings)
+       [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]]))
+   [UserActivityContent {:articles articles
+                         :labels labels
+                         :annotations annotations
+                         :count-font-size "1em"}]
    [Divider]])
 
-(defn UserProjects
+(defn- UserProjectsList
   [{:keys [user-id]}]
   (let [projects (subscribe [:users/projects user-id])
         error-message (r/cursor state [:retrieving-projects-error-message])]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [{:keys [public private]} (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)
+        (let [{:keys [public private]}
+              (-> (group-by #(if (get-in % [:settings :public-access]) :public :private) @projects)
+                  ;; because we need to exclude anything that doesn't explicitly have a settings keyword
+                  ;; non-public project summaries are given, but without identifying profile information
+                  (update :private #(filter :settings %)))
               activity-summary (fn [{:keys [articles labels annotations]}]
                                  (+ articles labels annotations))
-              sort-fn #(> (activity-summary %1)
-                          (activity-summary %2))
-              ;; because we need to exclude anything that doesn't explicitly have a settings keyword
-              ;; non-public project summaries are given, but without identifying profile information
-              private (filter #(contains? % :settings) private)]
-          (when-not (empty? @projects)
+              sort-activity #(> (activity-summary %1)
+                                (activity-summary %2))]
+          (when (seq @projects)
             [:div.projects
-             (when-not (empty? public)
+             (when (seq public)
                [Segment
-                [Header {:as "h4"
-                         :dividing true}
+                [Header {:as "h4" :dividing true :style {:font-size "120%"}}
                  "Public Projects"]
                 [:div {:id "public-projects"}
-                 (->> public
-                      (sort sort-fn)
-                      (map (fn [project]
-                             ^{:key (:project-id project)}
-                             [Project project])))]])
-             (when-not (empty? private)
+                 (doall (for [project (sort sort-activity public)]
+                          ^{:key (:project-id project)}
+                          [UserProject project]))]])
+             (when (seq private)
                [Segment
-                [Header {:as "h4"
-                         :dividing true}
+                [Header {:as "h4" :dividing true :style {:font-size "120%"}}
                  "Private Projects"]
                 [:div {:id "private-projects"}
-                 (->> private
-                      (sort sort-fn)
-                      (map (fn [project]
-                             ^{:key (:project-id project)}
-                             [Project project])))]])])))
+                 (doall (for [project (sort sort-activity private)]
+                          ^{:key (:project-id project)}
+                          [UserProject project]))]])])))
       :component-will-receive-props
       (fn [this new-argv]
         (get-user-projects! (-> new-argv second :user-id)))
@@ -162,8 +136,7 @@
                              (when (empty? @projects)
                                (get-user-projects! user-id)))})))
 
-(defn Projects
-  [{:keys [user-id]}]
+(defn UserProjects [{:keys [user-id]}]
   (let [projects (subscribe [:users/projects user-id])]
     (r/create-class
      {:reagent-render
@@ -172,7 +145,7 @@
          [UserActivitySummary @projects]
          (when @(subscribe [:users/is-path-user-id-self?])
            [CreateProject])
-         [UserProjects {:user-id user-id}]])
+         [UserProjectsList {:user-id user-id}]])
       :component-did-mount
       (fn [this]
         (get-user-projects! user-id))})))

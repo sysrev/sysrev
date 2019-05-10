@@ -22,20 +22,20 @@
             [sysrev.test.browser.review-articles :as ra]
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.test.core :as test]
-            [sysrev.util :as util]))
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
 (use-fixtures :once test/default-fixture b/webdriver-fixture-once)
 (use-fixtures :each b/webdriver-fixture-each)
 
 (def user-name-link (xpath "//a[@id='user-name-link']"))
 (def user-profile-tab (xpath "//a[@id='user-profile']"))
-(def public-project-divs (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/descendant::a"))
-(def private-project-divs (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/descendant::a"))
 (def activity-values (xpath "//h2[contains(@class,'articles-reviewed' | 'labels-contributed' | 'annotations-contributed')]"))
 (def user-activity-summary-div (xpath "//div[@id='user-activity-summary']" activity-values))
-(defn project-activity-summary-div [project-name] (xpath "//a[contains(text(),'" project-name "')]"
-                                                         "/ancestor::div[contains(@id,'project-')]"
-                                                         activity-values))
+(defn project-activity-summary-div [project-name]
+  (xpath "//a[contains(text(),'" project-name "')]"
+         "/ancestor::div[contains(@id,'project-')]"
+         activity-values))
 (def edit-introduction (xpath "//a[@id='edit-introduction']"))
 
 ;; avatar
@@ -55,35 +55,28 @@
        "blob.name = 'testfile.png';"
        "myZone.addFile(blob);"))
 
-(defn private-project-names
-  []
-  (b/wait-until-displayed private-project-divs)
-  (->> private-project-divs
-       taxi/find-elements
-       (mapv taxi/text)))
+(defn private-project-names []
+  (b/get-elements-text (xpath "//div[@id='private-projects']/div[contains(@id,'project-')]/a")))
 
-(defn public-project-names
-  []
-  (b/wait-until-displayed public-project-divs)
-  (->> public-project-divs
-       taxi/find-elements
-       (mapv taxi/text)))
+(defn public-project-names []
+  (b/get-elements-text (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a")))
 
 (defn user-activity-summary
   []
   (b/wait-until-displayed user-activity-summary-div)
-  (->> user-activity-summary-div
-       taxi/find-elements
-       (mapv #(hash-map (keyword (taxi/attribute % :class)) (read-string (taxi/text %))))
+  (->> (taxi/elements user-activity-summary-div)
+       (mapv #(hash-map (keyword (taxi/attribute % :class))
+                        (parse-integer (taxi/text %))))
        (apply merge)))
 
 (defn project-activity-summary
   [project-name]
-  (b/wait-until-displayed (project-activity-summary-div project-name))
-  (->> (project-activity-summary-div project-name)
-       taxi/find-elements
-       (mapv #(hash-map (keyword (taxi/attribute % :class)) (read-string (taxi/text %))))
-       (apply merge)))
+  (let [q (project-activity-summary-div project-name)]
+    (b/wait-until-displayed q)
+    (->> (taxi/elements q)
+         (mapv #(hash-map (keyword (taxi/attribute % :class))
+                          (parse-integer (taxi/text %))))
+         (apply merge))))
 
 (defn make-public-reviewer
   [user-id email]
@@ -95,11 +88,15 @@
       (groups/set-active-web-user-group! web-user-group-id true)
       (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
 
-(defn make-project-private []
-  "Must be in the current project for this to work"
-  (nav/go-project-route "/settings")
-  (b/click (xpath "//button[@id='public-access_private']"))
-  (b/click (xpath "//div[contains(@class,'project-options')]//button[contains(@class,'save-changes')]")))
+(defn change-project-public-access
+  "Change public access setting for current project."
+  [public?]
+  (let [q (str "button#public-access_" (if public? "public" "private"))]
+    (nav/go-project-route "/settings")
+    (b/wait-until-exists (-> q b/not-disabled))
+    (when (taxi/exists? (-> q b/not-disabled (b/not-class "active")))
+      (b/click q)
+      (b/click "div.project-options button.save-changes"))))
 
 (deftest-browser correct-project-activity
   (test/db-connected?)
@@ -107,16 +104,15 @@
    project-name-2 "Sysrev Browser Test (correct-project-activity 2)"
    search-term "foo bar"
    email (:email b/test-login)
-   user-id (-> (:email b/test-login)
-               users/get-user-by-email
-               :user-id)]
+   user-id (:user-id (users/get-user-by-email email))
+   click-article-link #(b/click (xpath "//a[contains(text(),'" % "')]"))]
   (do (nav/log-in)
       ;; subscribe to plans
       (plans/user-subscribe-to-unlimited email)
       ;; create a project, populate with articles
       (nav/new-project project-name-1)
       ;; set the project to private
-      (make-project-private)
+      (change-project-public-access false)
       (pm/add-articles-from-search-term search-term)
       ;; go to the user profile
       (b/click user-name-link)
@@ -124,12 +120,11 @@
       ;; is the project-name listed in the private projects section?
       (is (= project-name-1 (first (private-project-names))))
       ;; do some work to see if it shows up in the user profile
-      (b/click (xpath "//a[contains(text(),'" project-name-1 "')]"))
+      (click-article-link project-name-1)
       (b/click (x/project-menu-item :review) :delay 50)
       ;; set three article labels
       (dotimes [n 3]
-        (ra/set-article-answers [(merge ra/include-label-definition
-                                        {:value true})]))
+        (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; go back to profile, check activity
       (b/click user-name-link)
       (b/click "#user-projects")
@@ -140,10 +135,9 @@
       (is (= 3 (:articles-reviewed (project-activity-summary project-name-1))))
       (is (= 3 (:labels-contributed (project-activity-summary project-name-1))))
       ;; let's do some annotations to see if they are showing up
-      (b/click (xpath "//a[contains(text(),'" project-name-1 "')]"))
-      (nav/go-project-route "/articles")
-      (b/wait-until-loading-completes :pre-wait 200)
-      (b/click annotator/article-title-div :delay 200)
+      (click-article-link project-name-1)
+      (nav/go-project-route "/articles" nil 200)
+      (b/click "a.article-title" :delay 200)
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; return to the profile, the user should have one annotation
       (b/click user-name-link)
@@ -158,26 +152,21 @@
       (is (= 1 (:annotations-contributed (project-activity-summary project-name-1))))
       ;; add another project
       (nav/new-project project-name-2)
-      (make-project-private)
+      (change-project-public-access false)
       (pm/add-articles-from-search-term search-term)
       ;; go to the profile
       (b/click user-name-link)
       (b/click "#user-projects")
       ;; is the project-name listed in the private projects section?
-      (is (= project-name-2 (->> (private-project-names)
-                                 (filter #(= % project-name-2))
-                                 first)))
+      (is (in? (private-project-names) project-name-2))
       ;; do some work to see if it shows up in the user profile
-      (b/click (xpath "//a[contains(text(),'" project-name-2 "')]"))
-      (b/click (x/project-menu-item :review) :delay 50)
-      ;; set two article labels
+      (click-article-link project-name-2)
+      ;; review two articles (save labels)
       (dotimes [n 2]
-        (ra/set-article-answers [(merge ra/include-label-definition
-                                        {:value true})]))
+        (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; annotate
-      (nav/go-project-route "/articles")
-      (b/wait-until-loading-completes :pre-wait 200)
-      (b/click annotator/article-title-div :delay 200)
+      (nav/go-project-route "/articles" nil 200)
+      (b/click "a.article-title" :delay 200)
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; go back and check activity
       (b/click user-name-link)
@@ -195,18 +184,13 @@
       (is (= 2 (:labels-contributed (project-activity-summary project-name-2))))
       (is (= 1 (:annotations-contributed (project-activity-summary project-name-2))))
       ;; make the first project, check that both projects show up in the correct divs
-      (b/click (xpath "//a[contains(text(),'" project-name-1 "')]"))
-      (nav/go-project-route "/settings")
-      (b/click (xpath "//button[@id='public-access_public']"))
-      (b/click (xpath "//div[contains(@class,'project-options')]//button[contains(@class,'save-changes')]"))
+      (click-article-link project-name-1)
+      (change-project-public-access true)
       (b/click user-name-link)
       (b/click "#user-projects")
-      (taxi/wait-until #(= project-name-1 (first (public-project-names))))
-      (is (= project-name-1 (first (public-project-names))))
-      (taxi/wait-until #(= project-name-2 (first (private-project-names))))
-      (is (= project-name-2 (first (private-project-names)))))
-  :cleanup
-  (do (->> (users/user-projects user-id) (map :project-id) (mapv project/delete-project))))
+      (is (b/try-wait b/wait-until #(= project-name-1 (first (public-project-names)))))
+      (is (b/try-wait b/wait-until #(= project-name-2 (first (private-project-names))))))
+  :cleanup (b/cleanup-test-user! :user-id user-id))
 
 (deftest-browser user-description
   (test/db-connected?)
@@ -215,12 +199,8 @@
    email-test-user "test@insilica.co"
    password-test-user "testinsilica"
    _ (b/create-test-user :email email-test-user :password password-test-user)
-   user-id-test-user (-> email-test-user
-                         users/get-user-by-email
-                         :user-id)
-   user-id-browser+test (-> (:email b/test-login)
-                            users/get-user-by-email
-                            :user-id)
+   user-id-test-user (:user-id (users/get-user-by-email email-test-user))
+   user-id-browser+test (:user-id (users/get-user-by-email email-browser+test))
    user-introduction "I am the browser test"]
   (do
     ;; make test-user a public reviewer
@@ -244,20 +224,20 @@
     (b/exists? (xpath "//p[text()='" user-introduction "']"))
     ;; there is no edit introduction option
     (is (not (taxi/exists? edit-introduction))))
-  :cleanup
-  (do (b/delete-test-user :email email-test-user)))
+  :cleanup (b/cleanup-test-user! :email email-test-user))
 
 (deftest-browser user-avatar
   (test/db-connected?)
-  [{:keys [user-id]} (-> b/test-login :email users/get-user-by-email)]
+  [{:keys [user-id]} (users/get-user-by-email (:email b/test-login))]
   (do (nav/log-in)
       ;; go to the user profile
-      #_ (b/click user-name-link)
-      (b/click "#user-name-link")
-      (b/click "#user-profile")
+      (b/click "#user-name-link" :delay 250)
+      (Thread/sleep 250)
+      (b/click "#user-profile" :delay 250)
+      (Thread/sleep 500)
       ;; click the user profile avatar
       (b/click avatar)
-      (Thread/sleep 250)
+      (Thread/sleep 500)
       ;; "upload" file
       (log/info "uploading image")
       (taxi/execute-script upload-image-blob-js)
@@ -268,16 +248,15 @@
       (log/info "got image interface")
       (Thread/sleep 500)
       (->actions @b/active-webdriver
-                 (move-to-element (taxi/find-element {:css "div.cr-viewport"}) 0 0)
+                 (move-to-element (taxi/element "div.cr-viewport") 0 0)
                  (click-and-hold) (move-by-offset 83 0) (release)
                  (perform))
       (Thread/sleep 500)
       ;; set avatar
       (log/info "setting avatar")
-      (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
-      (Thread/sleep 1500)
+      (b/click (xpath "//button[contains(text(),'Set Avatar')]") :delay 1500)
       ;; check manually that the avatar matches what we would expect
-      ;; TODO: change this back to fail on incorrect value
+      ;; (two possible values for some reason, depending on system)
       (is (contains? #{"52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
                        "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"}
                      (:key (files/avatar-image-key-filename user-id))))

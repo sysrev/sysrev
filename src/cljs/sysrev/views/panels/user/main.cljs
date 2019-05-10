@@ -15,7 +15,7 @@
             [sysrev.views.panels.user.email :refer [EmailSettings VerifyEmail]]
             [sysrev.views.panels.user.orgs :refer [Orgs]]
             [sysrev.views.panels.user.profile :refer [Profile]]
-            [sysrev.views.panels.user.projects :refer [Projects]]
+            [sysrev.views.panels.user.projects :refer [UserProjects]]
             [sysrev.base]
             [sysrev.nav :refer [nav-scroll-top]]
             [sysrev.util :refer [full-size? get-url-path mobile?]]))
@@ -244,14 +244,14 @@
                       (cond-> "item "
                         (re-matches (re-pattern (str ".*" sub-path)) current-path) (str " active")))
         uri-fn (fn [sub-path]
-                  (str "/user/" @(subscribe [:users/path-user-id]) sub-path))]
+                 (str "/user/" @(subscribe [:users/path-user-id]) sub-path))]
     (r/create-class
      {:reagent-render
       (fn [this]
         [:div
          [:nav
           #_[:div.ui.top.attached.middle.aligned.segment.desktop
-           [:h4.ui.header.title-header "Personal Settings"]]
+             [:h4.ui.header.title-header "Personal Settings"]]
           [:div.ui.secondary.pointing.menu.primary-menu.bottom.attached
            {:class (str " " (if (mobile?) "tiny"))}
            [:a {:key "#profile"
@@ -323,7 +323,7 @@
                 [PublicReviewerOptIn]
                 [CreateOrg]]]]]
             #"/user/(\d*)/projects"
-            [Projects {:user-id @(subscribe [:users/path-user-id])}]
+            [UserProjects {:user-id @(subscribe [:users/path-user-id])}]
             #"/user/(\d*)/orgs"
             [Orgs {:user-id @(subscribe [:users/path-user-id])}]
             #"/user/(\d*)/billing"

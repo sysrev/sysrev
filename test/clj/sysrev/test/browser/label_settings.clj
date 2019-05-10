@@ -210,6 +210,4 @@
 
   :cleanup
   (do (project/delete-project @project-id)
-      (doseq [email test-users]
-        (b/delete-test-user :email email))))
-
+      (doseq [email test-users] (b/delete-test-user :email email))))

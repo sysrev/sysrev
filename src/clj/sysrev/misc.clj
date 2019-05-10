@@ -38,31 +38,6 @@
                                #(->> % (remove empty?) distinct)))]
         label))))
 
-(defn reload-project-abstracts [project-id]
-  (let [articles (-> (select :article-id :raw)
-                     (from [:article :a])
-                     (where
-                      [:and
-                       [:!= :raw nil]
-                       [:= :project-id project-id]])
-                     do-query)]
-    (->> articles
-         (pmap
-          (fn [{:keys [article-id raw]}]
-            (let [pxml (-> raw util/parse-xml-str :content first)
-                  abstract
-                  (-> (util/xml-find
-                       pxml [:MedlineCitation :Article :Abstract :AbstractText])
-                      pubmed/parse-abstract)]
-              (when-not (empty? abstract)
-                (-> (sqlh/update :article)
-                    (sset {:abstract abstract})
-                    (where [:= :article-id article-id])
-                    do-execute))
-              (println (str "processed #" article-id)))))
-         doall)
-    (println (str "updated " (count articles) " articles"))))
-
 (defn merge-article-labels [article-ids]
   (let [labels
         (->> article-ids
