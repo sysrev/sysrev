@@ -1,5 +1,6 @@
 (ns sysrev.annotation
-  (:require [clojure.string :as str]
+  (:require cljs.reader
+            [clojure.string :as str]
             [cljsjs.semantic-ui-react]
             [reagent.core :as r]
             [reagent.ratom :refer [reaction]]
@@ -260,8 +261,9 @@
          annotations)))
 
 (defn html-text->text
-  "Strip all html tags and convert all character entity references (e.g. &lt;) to their single char representation
-  in html-text"
+  "Strip all html tags and convert all character entity
+  references (e.g. &lt;) to their single char representation in
+  html-text"
   [html-text]
   (let [span ($ js/document createElement "SPAN")
         _ ($! span :innerHTML html-text)]
@@ -277,7 +279,8 @@
        remove-overlapping-indices))
 
 (defn highlight-text-div-string
-  "Generate the string to pass to cljs.reader for a div that contains text highlighted with annotations."
+  "Generate the string to pass to cljs.reader for a div that contains
+  text highlighted with annotations."
   [annotations text]
   (let [text (-> text
                  (str/replace #"\n+" "")
@@ -328,14 +331,15 @@
 ;;(def annotations-atom (r/atom {}))
 ;;(def text-atom (r/atom ""))
 (defn AnnotatedText
-  "Return a div with text highlighted by annotations. The class name for the annotated div is given as :class, defaults to 'annotated-text'"
+  "Return a div with text highlighted by annotations. field argument
+  provides a data-field value for the top-level div."
   [annotations text & {:keys [text-decoration reader-error-render field]
-                       :or {reader-error-render [:div "There was an error rendering the annotator view"]
-                            field "annotated-text"}}]
+                       :or {field "annotated-text"}}]
   ;;(reset! text-atom text)
   ;;(reset! annotations-atom annotations)
   [:div {:data-field field}
    (try (cljs.reader/read-string
          (highlight-text-div-string annotations text))
         (catch js/Object e
-          reader-error-render))])
+          (or reader-error-render
+              [:div "There was an error rendering the annotator view"])))])

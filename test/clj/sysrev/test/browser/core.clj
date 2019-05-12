@@ -33,9 +33,7 @@
           (try (taxi/quit) (catch Throwable e nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
-                             (.addArguments
-                              ["window-size=1920,1080"
-                               "headless"]))
+                             (.addArguments ["window-size=1920,1080" "headless"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))
@@ -68,6 +66,16 @@
     (taxi/quit)
     (reset! active-webdriver nil)))
 
+(defonce webdriver-shutdown-hook (atom nil))
+
+(defn ensure-webdriver-shutdown-hook
+  "Ensures that any chromedriver process is killed when JVM exits."
+  []
+  (when-not @webdriver-shutdown-hook
+    (let [runtime (Runtime/getRuntime)]
+      (.addShutdownHook runtime (Thread. #(stop-webdriver)))
+      (reset! webdriver-shutdown-hook true))))
+
 (def test-login
   {:email "browser+test@insilica.co"
    :password "1234567890"})
@@ -99,7 +107,7 @@
   not."
   [q]
   (boolean (some #(boolean (try (and (taxi/exists? %) (taxi/displayed? %))
-                                (catch StaleElementReferenceException e false)))
+                                (catch Throwable e false)))
                  (taxi/elements q))))
 
 (defn try-wait
@@ -118,7 +126,7 @@
   timeout."
   [pred & [timeout interval]]
   (let [timeout (or timeout (if (test/remote-test?) 10000 5000))
-        interval (or interval 20)]
+        interval (or interval 25)]
     (when-not (pred)
       (Thread/sleep interval)
       (taxi/wait-until pred timeout interval))))
@@ -138,11 +146,12 @@
 (defn wait-until-loading-completes
   [& {:keys [timeout interval pre-wait] :or {pre-wait false}}]
   (let [timeout (if (test/remote-test?) 45000 timeout)]
-    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 50)))
-    (wait-until #(every? (complement displayed-now?) [".ui.loader.active"
-                                                      ".ui.dimmer.active > .ui.loader"
-                                                      ".ui.button.loading"])
-                timeout interval)))
+    (when pre-wait (Thread/sleep (if (integer? pre-wait) pre-wait 75)))
+    (is (try-wait wait-until #(every? (complement displayed-now?)
+                                      ["div.ui.loader.active"
+                                       "div.ui.dimmer.active > .ui.loader"
+                                       ".ui.button.loading"])
+                  timeout interval))))
 
 (defn current-project-id
   "Reads project id from current url. Waits a short time before
@@ -166,22 +175,6 @@
     (second (re-matches (re-pattern
                          (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
-
-(defn webdriver-fixture-once [f]
-  (f)
-  (stop-webdriver))
-
-(defn webdriver-fixture-each [f]
-  (let [local? (= "localhost" (:host (test/get-selenium-config)))
-        cache? @db/query-cache-enabled]
-    (do (when-not local?
-          (reset! db/query-cache-enabled false))
-        (when (test/db-connected?)
-          (create-test-user))
-        (start-webdriver true)
-        (f)
-        (when-not local?
-          (reset! db/query-cache-enabled cache?)))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
   (wait-until-displayed q)
@@ -241,19 +234,19 @@
   (not-class q "loading"))
 
 (defn click [q & {:keys [if-not-exists delay displayed?]
-                  :or {if-not-exists :wait, delay 25, displayed? false}}]
+                  :or {if-not-exists :wait, delay 30, displayed? false}}]
   (let [q (not-disabled q) ; auto-exclude "disabled" class when q is css
         go (fn []
              (when (= if-not-exists :wait)
                (if displayed? (wait-until-displayed q) (wait-until-exists q)))
              (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
                (taxi/click q)))]
-    #_ (wait-until-loading-completes :pre-wait 10)
+    (Thread/sleep 30)
     (try (go)
          (catch Throwable e
            (wait-until-loading-completes :pre-wait (+ delay 50))
            (go)))
-    (wait-until-loading-completes :pre-wait delay)))
+    (Thread/sleep delay)))
 
 ;; based on: https://crossclj.info/ns/io.aviso/taxi-toolkit/0.3.1/io.aviso.taxi-toolkit.ui.html#_clear-with-backspace
 (defn backspace-clear
@@ -348,7 +341,68 @@
   (assert (not (and (integer? user-id) (string? email))))
   (let [email (or email (:email (users/get-user-by-id user-id)))
         user-id (or user-id (:user-id (users/get-user-by-email email)))]
-    (assert (and email user-id))
-    (when projects (delete-test-user-projects! user-id compensations))
-    (when groups (delete-test-user-groups! user-id))
-    (delete-test-user :email email)))
+    (when (and email user-id)
+      (when projects (delete-test-user-projects! user-id compensations))
+      (when groups (delete-test-user-groups! user-id))
+      (delete-test-user :email email))))
+
+(defn url->path
+  "Returns relative path component of URL string."
+  [uri]
+  (.getPath (java.net.URI. uri)))
+
+(defn path->url
+  "Returns full URL from relative path string, based on test config."
+  [path]
+  (let [path (if (empty? path) "/" path)]
+    (str (:url (test/get-selenium-config))
+         (if (= (nth path 0) \/)
+           (subs path 1) path))))
+
+(defmacro is-soon
+  "Runs (is pred-form) after attempting to wait for pred-form to
+  evaluate as logical true."
+  [pred-form & [timeout interval]]
+  `(do (try-wait wait-until (fn [] ~pred-form) ~timeout ~interval)
+       (is ~pred-form)))
+
+(defn is-current-path
+  "Runs test assertion that current URL matches relative path."
+  [path]
+  (is-soon (= path (url->path (taxi/current-url)))))
+
+(defn init-route [path & {:keys [silent]}]
+  (let [full-url (path->url path)]
+    (when-not silent (log/info "loading" full-url))
+    (taxi/to full-url)
+    (wait-until-loading-completes :pre-wait 100)
+    (wait-until-loading-completes :pre-wait 100)
+    (taxi/execute-script "sysrev.base.toggle_analytics(false);")
+    (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
+      #_ (log/info "instrumented" fn-count "cljs functions")
+      (assert (> fn-count 0) "no spec functions were instrumented")))
+  nil)
+
+(defn- ensure-logged-out []
+  (try (when (taxi/exists? "a#log-out-link")
+         (click "a#log-out-link" :if-not-exists :skip)
+         (Thread/sleep 100))
+       (catch Throwable _ nil)))
+
+(defn webdriver-fixture-once [f]
+  (f))
+
+(defn webdriver-fixture-each [f]
+  (let [local? (= "localhost" (:host (test/get-selenium-config)))
+        cache? @db/query-cache-enabled]
+    (do (when-not local? (reset! db/query-cache-enabled false))
+        (when (test/db-connected?) (create-test-user))
+        (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
+        #_ (start-webdriver) ;; use existing webdriver if running
+        (start-webdriver true)
+        #_ (try (ensure-logged-out) (init-route "/")
+                ;; try restarting webdriver if unable to load page
+                (catch Throwable _ (start-webdriver true) (init-route "/")))
+        (f)
+        #_ (ensure-logged-out) ;; log out to set up for next test
+        (when-not local? (reset! db/query-cache-enabled cache?)))))

@@ -111,6 +111,7 @@
    get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
+      #_ (b/start-webdriver true)
       #_ (b/delete-test-user)
       #_ (nav/register-user)
       (users/create-sysrev-stripe-customer! (get-user))
@@ -143,7 +144,8 @@
       (if (test/full-tests?)
         (log/info "running full stripe tests")
         (log/info "skipping full stripe tests"))
-      #_(when (test/full-tests?)
+      #_
+      (when (test/full-tests?)
         ;; basic failure with Luhn Check
         #_ (b/input-text (label-input "Card Number") bstripe/fail-luhn-check-cc)
         (bstripe/enter-cc-number bstripe/fail-luhn-check-cc)

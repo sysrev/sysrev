@@ -8,75 +8,49 @@
             [sysrev.test.browser.xpath :as x :refer [xpath]]
             [sysrev.shared.util :as sutil :refer [in? parse-integer]]))
 
-(defn url->path
-  "Returns relative path component of URL string."
-  [uri]
-  (.getPath (java.net.URI. uri)))
-
-(defn path->url
-  "Returns full URL from relative path string, based on test config."
-  [path]
-  (let [path (if (empty? path) "/" path)]
-    (str (:url (test/get-selenium-config))
-         (if (= (nth path 0) \/)
-           (subs path 1) path))))
-
-(defn init-route [& [path]]
-  (let [full-url (path->url path)]
-    (log/info "loading" full-url)
-    (taxi/to full-url)
-    (b/wait-until-loading-completes :pre-wait 100)
-    (b/wait-until-loading-completes :pre-wait 100)
-    (taxi/execute-script "sysrev.base.toggle_analytics(false);")
-    (let [fn-count (taxi/execute-script "return sysrev.core.spec_instrument();")]
-      #_ (log/info "instrumented" fn-count "cljs functions")
-      (assert (> fn-count 0) "no spec functions were instrumented")))
-  nil)
-
-(defn go-route [& [path wait-ms]]
+(defn go-route [path & {:keys [wait-ms silent]}]
   (let [current (taxi/current-url)
         path (if (empty? path) "/" path)]
     (cond (or (not (string? current))
               (not (str/includes? current (:url (test/get-selenium-config)))))
-          (init-route path)
-          (not= current (path->url path))
+          (b/init-route path)
+          (not= current (b/path->url path))
           (do (b/wait-until-loading-completes :pre-wait 50)
-              (log/info "navigating to" path)
-              #_ (taxi/get-url (path->url path))
+              (when-not silent (log/info "navigating to" path))
               (taxi/execute-script (format "sysrev.nav.set_token(\"%s\")" path))
               (b/wait-until-loading-completes :pre-wait (or wait-ms true))))
     nil))
 
-(defn go-project-route [suburi & [project-id wait-ms]]
+(defn go-project-route [suburi & {:keys [project-id wait-ms silent]}]
   (let [project-id (or project-id (b/current-project-id))]
     (assert (integer? project-id))
-    (go-route (str "/p/" project-id suburi) wait-ms)))
+    (go-route (str "/p/" project-id suburi) :wait-ms wait-ms :silent silent)))
 
-(defn log-out []
+(defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
-    (log/info "logging out")
+    (when-not silent (log/info "logging out"))
     (b/click "a#log-out-link" :if-not-exists :skip)
-    (b/wait-until-exists #"login-register-panel")))
+    (Thread/sleep 100)))
 
 (defn log-in [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
     (log/info "logging in" (str "(" email ")"))
-    (go-route "/")
-    (log-out)
-    (go-route "/login")
+    (go-route "/" :silent true)
+    (log-out :silent true)
+    (go-route "/login" :silent true)
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
     (b/click "button[name='submit']")
     (Thread/sleep 100)
-    (go-route "/")
+    (go-route "/" :silent true)
     (log/info "login successful")))
 
 (defn register-user [& [email password]]
   (let [email (or email (:email b/test-login))
         password (or password (:password b/test-login))]
     (log/info "registering user"  (str "(" email ")"))
-    (log-out)
+    (log-out :silent true)
     (go-route "/register")
     (b/set-input-text "input[name='email']" email)
     (b/set-input-text "input[name='password']" password)
@@ -90,7 +64,7 @@
 
 (defn new-project [project-name]
   (log/info "creating project" (pr-str project-name))
-  (go-route "/")
+  (go-route "/" :silent true)
   (b/wait-until-exists "form.create-project")
   (b/set-input-text "form.create-project div.project-name input" project-name)
   (b/click "form.create-project .button.create-project")
@@ -99,17 +73,18 @@
   (b/wait-until-exists
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
+  (log/info "project created")
   (b/wait-until-loading-completes :pre-wait 100))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))
-  (go-route "/")
+  (go-route "/" :silent true)
   (b/click (x/project-title-value name)))
 
 (defn delete-current-project []
   (when (b/current-project-id true)
     (log/info "deleting current project")
-    (go-project-route "/settings")
+    (go-project-route "/settings" :silent true)
     (b/click (xpath "//button[contains(text(),'Project...')]"))
     (b/click (xpath "//button[text()='Confirm']"))
     (b/wait-until-exists "form.create-project")))
@@ -119,8 +94,3 @@
 
 (defn panel-exists? [panel & {:keys [wait?] :or {wait? true}}]
   (b/exists? (str "div#" (panel-name panel)) :wait? wait?))
-
-(defn is-current-path
-  "Runs test assertion that current URL matches relative path."
-  [path]
-  (is (b/try-wait b/wait-until #(= path (url->path (taxi/current-url))))))

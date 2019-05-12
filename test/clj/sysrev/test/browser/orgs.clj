@@ -112,9 +112,8 @@
    org-name-1-project "Foo Bar Article Reviews"
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))
-   test-user {:name "foo"
-              :email "foo@bar.com"
-              :password "foobar"}]
+   test-user {:name "foo", :email "foo@bar.com", :password "foobar"}
+   user-role #(get-in (org-user-table-entries) [% :permission])]
   (do
     (nav/log-in)
     ;; a person can create a org and they are automatically made owners
@@ -126,10 +125,10 @@
                         :email (:email test-user)
                         :password (:password test-user))
     (add-user-to-org (:name test-user))
-    (is (= "member" (get-in (org-user-table-entries) ["foo" :permission])))
+    (b/is-soon (= "member" (user-role "foo")) 2000 100)
     ;; an owner can change permissions of a member
     (change-user-permission (:name test-user) "Owner")
-    (is (= "owner" (get-in (org-user-table-entries) ["foo" :permission])))
+    (b/is-soon (= "owner" (user-role "foo")) 2000 100)
     ;; only an owner can change permissions, not a member
     (change-user-permission (:name test-user) "Member")
     (nav/log-in (:email test-user) (:password test-user))
@@ -211,29 +210,33 @@
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))]
   (do
+    #_ (b/start-webdriver true)
     ;; need to be a stripe customer
     (when-not (plans/get-user-customer email)
       (log/info (str "Stripe Customer created for " email))
       (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
     (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
     ;; current plan
-    (is (= (get-in (api/current-plan user-id) [:result :plan :name]) api/default-plan))
+    (b/is-soon (= (get-in (api/current-plan user-id) [:result :plan :name])
+                  api/default-plan)
+               2000 200)
     (plans/wait-until-stripe-id email)
     ;; start tests
     (nav/log-in)
     (create-org org-name-1)
-    ;;; make sure pay wall is in place for org projects and redirects to org plans page
+;;; make sure pay wall is in place for org projects and redirects to org plans page
     ;; create org project
     (b/click org-projects)
     (create-project-org org-name-1-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (nav/is-current-path "/org/billing")
+    (b/is-current-path "/org/billing")
     ;; subscribe to plans
+    (log/info "attempting plan subscription")
     (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
-    (nav/is-current-path "/org/payment")
+    (b/is-current-path "/org/payment")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
     (b/click plans/use-card)
@@ -246,17 +249,16 @@
     (b/click save-options-button)
     (is (b/exists? active-set-private-button))
     ;; make sure pay wall is in place for personal projects and redirects to personal plans page
-    (nav/go-route "/")
     (nav/new-project user-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (nav/is-current-path (str "/user/" user-id "/billing"))
+    (b/is-current-path (str "/user/" user-id "/billing"))
     (is (b/exists? no-payment-on-file))
     ;; get a plan for user
     (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
-    (nav/is-current-path "/user/payment")
+    (b/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
     (b/click plans/use-card)
     (b/click ".button.upgrade-plan")
@@ -269,5 +271,5 @@
     (b/click set-private-button)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button)))
-  :cleanup (do (users/delete-sysrev-stripe-customer! (users/get-user-by-email email))
+  :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
                (b/cleanup-test-user! :user-id user-id :groups true)))

@@ -87,6 +87,7 @@
             sysrev.test.all
             [sysrev.db.queries :as q]
             [sysrev.api :as api]
+            [sysrev.pubmed :as pubmed]
             [sysrev.test.browser.core :refer :all :exclude [wait-until]])
   (:import java.util.UUID))
 

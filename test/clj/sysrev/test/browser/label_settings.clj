@@ -29,9 +29,8 @@
    to-user-name #(-> % (str/split #"@") first)
    project-name "Label Consensus Test"
    switch-user (fn [email]
-                 (nav/log-out)
                  (nav/log-in email)
-                 (nav/go-project-route "" @project-id))
+                 (nav/go-project-route "" :project-id @project-id))
    label1 {:value-type "categorical"
            :short-label "Test Label 1"
            :question "Is it?"
@@ -49,13 +48,14 @@
    conflicts ".label-status-help .conflict-button"
    resolved ".label-status-help .resolve-button"
    check-status (fn [n-full n-conflict n-resolved]
-                  (Thread/sleep 250)
+                  (Thread/sleep 300)
                   (nav/go-project-route "")
-                  (b/exists? include-full)
+                  (is (b/exists? include-full))
+                  (b/wait-until-loading-completes :pre-wait 50)
                   (is (= (format "Full (%d)" n-full) (taxi/text include-full)))
-                  (b/exists? conflicts)
+                  (is (b/exists? conflicts))
                   (is (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
-                  (b/exists? resolved)
+                  (is (b/exists? resolved))
                   (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))]
   (do (nav/log-in)
       ;; create project
@@ -127,8 +127,7 @@
                                           (:short-label label1)))
                               first :label-id))
       (assert @label-id-1)
-      (define/edit-label @label-id-1
-        (merge label1 {:consensus true}))
+      (define/edit-label @label-id-1 (merge label1 {:consensus true}))
       ;; check that article now shows as conflict
       (check-status 0 1 0)
       (let [uanswers (export/export-user-answers-csv @project-id)
@@ -163,8 +162,7 @@
       (check-status 0 1 0)
       ;; disable label consensus setting
       (switch-user user1)
-      (define/edit-label @label-id-1
-        (merge label1 {:consensus false}))
+      (define/edit-label @label-id-1 (merge label1 {:consensus false}))
       ;; check that article no longer shows as conflict
       (check-status 1 0 0)
       ;; check article list interface (Include Full filter)
@@ -172,8 +170,7 @@
       (is (b/exists? "div.article-list-article"))
       (nav/go-project-route "/articles")
       ;; re-enable label consensus setting
-      (define/edit-label @label-id-1
-        (merge label1 {:consensus true}))
+      (define/edit-label @label-id-1 (merge label1 {:consensus true}))
       ;; check that articles shows as conflict again
       (check-status 0 1 0)
       ;; resolve article conflict
@@ -209,5 +206,5 @@
       (is (b/exists? ".ui.label.labels-status.purple")))
 
   :cleanup
-  (do (project/delete-project @project-id)
+  (do (some-> @project-id (project/delete-project))
       (doseq [email test-users] (b/delete-test-user :email email))))

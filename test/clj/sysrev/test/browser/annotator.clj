@@ -59,7 +59,7 @@
       (pm/add-articles-from-search-term "foo bar enthalpic mesoporous")
       ;; This doesn't work against staging.sysrev.com - cache not cleared?
       #_ (import/import-pmid-vector @project-id {:pmids [25215519]} {:use-future? false})
-      #_ (nav/init-route (str "/p/" @project-id "/add-articles"))
+      #_ (b/init-route (str "/p/" @project-id "/add-articles"))
 ;;;; start annotating articles
       ;; review the single article result
       (b/click (x/project-menu-item :review))

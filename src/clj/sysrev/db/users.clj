@@ -298,7 +298,7 @@
   [user]
   (with-transaction
     (let [{:keys [email user-uuid user-id stripe-id]} user
-          stripe-source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
+          stripe-source-id (:id (stripe/read-default-customer-source stripe-id))]
       (when stripe-source-id
         (stripe/delete-customer-card! stripe-id stripe-source-id))
       (-> (sqlh/update :web-user)

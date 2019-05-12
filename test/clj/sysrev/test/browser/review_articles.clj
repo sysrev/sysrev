@@ -136,22 +136,22 @@
           "string" input-string-with-label-name
           "categorical" select-with-text-label-name) f
     (f short-label value)
-    (Thread/sleep 50)))
+    (Thread/sleep 100)))
 
 (defn set-article-answers
   "Set and save answers on current article for a sequence of labels."
   [label-settings]
   (log/info "setting article labels")
   (nav/go-project-route "/review")
-  (Thread/sleep 200)
+  (Thread/sleep 300)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click x/review-labels-tab :delay 100 :displayed? true)
   (doseq [x label-settings] (set-label-answer x))
-  (Thread/sleep 200)
+  (Thread/sleep 300)
   (when (test/remote-test?) (Thread/sleep 500))
   (b/click ".button.save-labels" :delay 100 :displayed? true)
   (when (test/remote-test?) (Thread/sleep 500))
-  (b/wait-until-loading-completes :pre-wait 200)
+  (b/wait-until-loading-completes :pre-wait 300)
   (db/clear-query-cache))
 
 (defn randomly-set-article-labels

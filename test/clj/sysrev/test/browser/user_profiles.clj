@@ -61,31 +61,35 @@
 (defn public-project-names []
   (b/get-elements-text (xpath "//div[@id='public-projects']/div[contains(@id,'project-')]/a")))
 
-(defn user-activity-summary
-  []
+(defn user-activity-summary []
   (b/wait-until-displayed user-activity-summary-div)
-  (->> (taxi/elements user-activity-summary-div)
-       (mapv #(hash-map (keyword (taxi/attribute % :class))
-                        (parse-integer (taxi/text %))))
-       (apply merge)))
+  (select-keys
+   (->> (taxi/elements user-activity-summary-div)
+        (mapv #(hash-map (keyword (taxi/attribute % :class))
+                         (parse-integer (taxi/text %))))
+        (apply merge))
+   [:articles-reviewed :labels-contributed :annotations-contributed]))
 
 (defn project-activity-summary
   [project-name]
   (let [q (project-activity-summary-div project-name)]
     (b/wait-until-displayed q)
-    (->> (taxi/elements q)
-         (mapv #(hash-map (keyword (taxi/attribute % :class))
-                          (parse-integer (taxi/text %))))
-         (apply merge))))
+    (select-keys
+     (->> (taxi/elements q)
+          (mapv #(hash-map (keyword (taxi/attribute % :class))
+                           (parse-integer (taxi/text %))))
+          (apply merge))
+     [:articles-reviewed :labels-contributed :annotations-contributed])))
 
 (defn make-public-reviewer
   [user-id email]
   (with-transaction
     (users/create-email-verification! user-id email)
-    (users/verify-email! email (:verify-code (users/read-email-verification-code user-id email)) user-id)
+    (users/verify-email!
+     email (:verify-code (users/read-email-verification-code user-id email)) user-id)
     (users/set-primary-email! user-id email)
-    (if-let [web-user-group-id (:id (groups/read-web-user-group-name user-id "public-reviewer"))]
-      (groups/set-active-web-user-group! web-user-group-id true)
+    (if-let [group-id (:id (groups/read-web-user-group-name user-id "public-reviewer"))]
+      (groups/set-active-web-user-group! group-id true)
       (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
 
 (defn change-project-public-access
@@ -105,8 +109,9 @@
    search-term "foo bar"
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))
-   click-article-link #(b/click (xpath "//a[contains(text(),'" % "')]"))]
-  (do (nav/log-in)
+   click-project-link #(b/click (xpath "//a[contains(text(),'" % "')]"))]
+  (do #_ (b/start-webdriver true)
+      (nav/log-in)
       ;; subscribe to plans
       (plans/user-subscribe-to-unlimited email)
       ;; create a project, populate with articles
@@ -117,10 +122,11 @@
       ;; go to the user profile
       (b/click user-name-link)
       (b/click "#user-projects")
+      (Thread/sleep 250)
       ;; is the project-name listed in the private projects section?
-      (is (= project-name-1 (first (private-project-names))))
+      (b/is-soon (in? (private-project-names) project-name-1))
       ;; do some work to see if it shows up in the user profile
-      (click-article-link project-name-1)
+      (click-project-link project-name-1)
       (b/click (x/project-menu-item :review) :delay 50)
       ;; set three article labels
       (dotimes [n 3]
@@ -129,27 +135,31 @@
       (b/click user-name-link)
       (b/click "#user-projects")
       ;; is the user's overall activity correct?
-      (is (= 3 (:articles-reviewed (user-activity-summary))))
-      (is (= 3 (:labels-contributed (user-activity-summary))))
+      (Thread/sleep 500)
+      (b/is-soon (= (select-keys (user-activity-summary)
+                                 [:articles-reviewed :labels-contributed])
+                    {:articles-reviewed 3 :labels-contributed 3}))
       ;; is the individual projects activity correct?
-      (is (= 3 (:articles-reviewed (project-activity-summary project-name-1))))
-      (is (= 3 (:labels-contributed (project-activity-summary project-name-1))))
+      (b/is-soon (= (select-keys (project-activity-summary project-name-1)
+                                 [:articles-reviewed :labels-contributed])
+                    {:articles-reviewed 3 :labels-contributed 3}))
       ;; let's do some annotations to see if they are showing up
-      (click-article-link project-name-1)
-      (nav/go-project-route "/articles" nil 200)
+      (click-project-link project-name-1)
+      (nav/go-project-route "/articles" :wait-ms 200)
       (b/click "a.article-title" :delay 200)
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; return to the profile, the user should have one annotation
       (b/click user-name-link)
       (b/click "#user-projects")
+      (Thread/sleep 500)
       ;; total activity
-      (is (= 3 (:articles-reviewed (user-activity-summary))))
-      (is (= 3 (:labels-contributed (user-activity-summary))))
-      (is (= 1 (:annotations-contributed (user-activity-summary))))
+      (b/is-soon (= (user-activity-summary) {:articles-reviewed 3
+                                             :labels-contributed 3
+                                             :annotations-contributed 1}))
       ;; project activity
-      (is (= 3 (:articles-reviewed (project-activity-summary project-name-1))))
-      (is (= 3 (:labels-contributed (project-activity-summary project-name-1))))
-      (is (= 1 (:annotations-contributed (project-activity-summary project-name-1))))
+      (b/is-soon (= (project-activity-summary project-name-1) {:articles-reviewed 3
+                                                               :labels-contributed 3
+                                                               :annotations-contributed 1}))
       ;; add another project
       (nav/new-project project-name-2)
       (change-project-public-access false)
@@ -157,39 +167,44 @@
       ;; go to the profile
       (b/click user-name-link)
       (b/click "#user-projects")
+      (Thread/sleep 300)
       ;; is the project-name listed in the private projects section?
-      (is (in? (private-project-names) project-name-2))
+      (b/is-soon (in? (private-project-names) project-name-2))
       ;; do some work to see if it shows up in the user profile
-      (click-article-link project-name-2)
+      (click-project-link project-name-2)
       ;; review two articles (save labels)
       (dotimes [n 2]
         (ra/set-article-answers [(merge ra/include-label-definition {:value true})]))
       ;; annotate
-      (nav/go-project-route "/articles" nil 200)
+      (nav/go-project-route "/articles" :wait-ms 200)
       (b/click "a.article-title" :delay 200)
       (annotator/annotate-article "foo" "bar" :offset-x 100)
       ;; go back and check activity
       (b/click user-name-link)
       (b/click "#user-projects")
+      (Thread/sleep 500)
       ;; total activity
-      (is (= 5 (:articles-reviewed (user-activity-summary))))
-      (is (= 5 (:labels-contributed (user-activity-summary))))
-      (is (= 2 (:annotations-contributed (user-activity-summary))))
+      (b/is-soon (= (user-activity-summary) {:articles-reviewed 5
+                                             :labels-contributed 5
+                                             :annotations-contributed 2}))
       ;; project-1
-      (is (= 3 (:articles-reviewed (project-activity-summary project-name-1))))
-      (is (= 3 (:labels-contributed (project-activity-summary project-name-1))))
-      (is (= 1 (:annotations-contributed (project-activity-summary project-name-1))))
+      (b/is-soon (= (project-activity-summary project-name-1) {:articles-reviewed 3
+                                                               :labels-contributed 3
+                                                               :annotations-contributed 1}))
       ;; project-2
-      (is (= 2 (:articles-reviewed (project-activity-summary project-name-2))))
-      (is (= 2 (:labels-contributed (project-activity-summary project-name-2))))
-      (is (= 1 (:annotations-contributed (project-activity-summary project-name-2))))
+      (b/is-soon (= (project-activity-summary project-name-2) {:articles-reviewed 2
+                                                               :labels-contributed 2
+                                                               :annotations-contributed 1}))
       ;; make the first project, check that both projects show up in the correct divs
-      (click-article-link project-name-1)
+      (click-project-link project-name-1)
       (change-project-public-access true)
       (b/click user-name-link)
       (b/click "#user-projects")
-      (is (b/try-wait b/wait-until #(= project-name-1 (first (public-project-names)))))
-      (is (b/try-wait b/wait-until #(= project-name-2 (first (private-project-names))))))
+      (Thread/sleep 500)
+      (b/is-soon (and (in? (public-project-names) project-name-1)
+                      (not (in? (private-project-names) project-name-1))))
+      (b/is-soon (and (in? (private-project-names) project-name-2)
+                      (not (in? (public-project-names) project-name-2)))))
   :cleanup (b/cleanup-test-user! :user-id user-id))
 
 (deftest-browser user-description
@@ -214,16 +229,16 @@
     (b/wait-until-displayed "textarea")
     (b/set-input-text "textarea" user-introduction :delay 100)
     (markdown/click-save)
-    (b/exists? (xpath "//p[text()='" user-introduction "']"))
+    (b/is-soon (b/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; log in as test user
     (nav/log-in)
     ;; go to users
     (nav/go-route "/users")
     (b/click (xpath "//a[@href='/user/" user-id-test-user "/profile']"))
     ;; the introduction still reads the same
-    (b/exists? (xpath "//p[text()='" user-introduction "']"))
+    (b/is-soon (b/exists? (xpath "//p[text()='" user-introduction "']")))
     ;; there is no edit introduction option
-    (is (not (taxi/exists? edit-introduction))))
+    (b/is-soon (not (taxi/exists? edit-introduction))))
   :cleanup (b/cleanup-test-user! :email email-test-user))
 
 (deftest-browser user-avatar
@@ -232,12 +247,9 @@
   (do (nav/log-in)
       ;; go to the user profile
       (b/click "#user-name-link" :delay 250)
-      (Thread/sleep 250)
       (b/click "#user-profile" :delay 250)
-      (Thread/sleep 500)
       ;; click the user profile avatar
-      (b/click avatar)
-      (Thread/sleep 500)
+      (b/click avatar :delay 250)
       ;; "upload" file
       (log/info "uploading image")
       (taxi/execute-script upload-image-blob-js)
@@ -254,7 +266,8 @@
       (Thread/sleep 500)
       ;; set avatar
       (log/info "setting avatar")
-      (b/click (xpath "//button[contains(text(),'Set Avatar')]") :delay 1500)
+      (b/click (xpath "//button[contains(text(),'Set Avatar')]"))
+      (Thread/sleep 1500)
       ;; check manually that the avatar matches what we would expect
       ;; (two possible values for some reason, depending on system)
       (is (contains? #{"52d799d26a9a24d1a09b6bb88383cce385c7fb1b"

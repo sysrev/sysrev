@@ -14,9 +14,9 @@
 (use-fixtures :each b/webdriver-fixture-each)
 
 (defn root-panel-exists? []
-  (b/try-wait b/wait-until (fn [] (some #(nav/panel-exists? % :wait? false)
-                                        [[:project :project :overview]
-                                         [:project :project :add-articles]]))))
+  (b/is-soon (some #(nav/panel-exists? % :wait? false)
+                   [[:project :project :overview]
+                    [:project :project :add-articles]])))
 
 (deftest-browser project-routes
   true []
@@ -25,7 +25,7 @@
       (let [project-id (b/current-project-id)]
         (pm/add-articles-from-search-term "foo bar")
         (is (nav/panel-exists? [:project]))
-        (is (root-panel-exists?))
+        (root-panel-exists?)
         (is (not (nav/panel-exists? [:project :project :fake-panel]
                                     :wait? false)))
 
@@ -45,10 +45,10 @@
         (is (nav/panel-exists? [:project :project :articles]))
 
         (nav/go-project-route "")
-        (is (root-panel-exists?))
+        (root-panel-exists?)
 
         (when project-id
-          (nav/go-project-route "/settings" project-id))
+          (nav/go-project-route "/settings" :project-id project-id))
 
         (is (b/exists? {:css "a#log-out-link"}))))
 
