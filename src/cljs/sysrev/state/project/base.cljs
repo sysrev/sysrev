@@ -52,3 +52,9 @@
    (and (map? project)
         (not-empty project)
         (not error?))))
+
+(reg-sub :project/private-not-viewable?
+         (fn [db [event project-id]]
+           (and (not (get-in db [:data :project project-id :settings :public-access]))
+                (not= "Unlimited"
+                      (get-in db [:data :project project-id :plan])))))

@@ -76,6 +76,10 @@
             @(subscribe [:project/error? project-id])
             [ProjectErrorNotice "Unable to load project"]
 
+            @(subscribe [:project/private-not-viewable? project-id])
+            [ProjectErrorNotice
+             [:div "Private project not accessible. Owner must either make this project public or upgade their plan to Unlimited"]]
+
             :else
             [ProjectContent child]))))
 
