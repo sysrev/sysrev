@@ -3,8 +3,7 @@
 ;;
 
 (ns sysrev.custom.immuno
-  (:require [clojure.xml :as xml]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [clojure.data.xml :as dxml]
             [sysrev.source.endnote :refer [parse-endnote-file]]
             [honeysql.core :as sql]

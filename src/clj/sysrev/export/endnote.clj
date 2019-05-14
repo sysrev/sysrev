@@ -1,6 +1,5 @@
 (ns sysrev.export.endnote
   (:require [clojure.string :as str]
-            [clojure.xml :as xml]
             [clojure.data.xml :as dxml]
             [clojure.data.xml node prxml]
             [clojure.java.io :as io]

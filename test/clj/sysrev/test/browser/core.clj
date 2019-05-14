@@ -17,7 +17,8 @@
             [sysrev.db.groups :as groups]
             [sysrev.stripe :as stripe]
             [sysrev.test.core :as test]
-            [sysrev.shared.util :as sutil :refer [parse-integer]])
+            [sysrev.util :as util]
+            [sysrev.shared.util :as sutil :refer [parse-integer ensure-pred]])
   (:import [org.openqa.selenium.chrome ChromeOptions ChromeDriver]
            [org.openqa.selenium.remote DesiredCapabilities CapabilityType]
            [org.openqa.selenium.logging LoggingPreferences LogType]
@@ -259,10 +260,10 @@
   true)
 
 (defn take-screenshot [& [error?]]
-  (let [filename (str "/tmp/screenshot-" (System/currentTimeMillis) ".png")
+  (let [path (util/tempfile-path (str "screenshot-" (System/currentTimeMillis) ".png"))
         level (if error? :error :info)]
-    (log/logp level "Saving screenshot:" filename)
-    (try (taxi/take-screenshot :file filename)
+    (try (taxi/take-screenshot :file path)
+         (log/logp level "Screenshot saved:" path)
          (catch Throwable e
            (log/error "Screenshot failed:" (type e) (.getMessage e))))))
 
@@ -392,17 +393,24 @@
 (defn webdriver-fixture-once [f]
   (f))
 
+(defn reuse-webdriver? []
+  (->> (:sysrev-reuse-webdriver env)
+       (ensure-pred (every-pred string? not-empty (partial not= "0")))))
+
 (defn webdriver-fixture-each [f]
   (let [local? (= "localhost" (:host (test/get-selenium-config)))
         cache? @db/query-cache-enabled]
     (do (when-not local? (reset! db/query-cache-enabled false))
         (when (test/db-connected?) (create-test-user))
         (ensure-webdriver-shutdown-hook) ;; register jvm shutdown hook
-        #_ (start-webdriver) ;; use existing webdriver if running
-        (start-webdriver true)
-        #_ (try (ensure-logged-out) (init-route "/")
-                ;; try restarting webdriver if unable to load page
-                (catch Throwable _ (start-webdriver true) (init-route "/")))
+        (if (reuse-webdriver?)
+          (do (start-webdriver) ;; use existing webdriver if running
+              (try (ensure-logged-out) (init-route "/")
+                   ;; try restarting webdriver if unable to load page
+                   (catch Throwable _ (start-webdriver true) (init-route "/"))))
+          (start-webdriver true))
         (f)
-        #_ (ensure-logged-out) ;; log out to set up for next test
+        (when (reuse-webdriver?)
+          ;; log out to set up for next test
+          (ensure-logged-out))
         (when-not local? (reset! db/query-cache-enabled cache?)))))

@@ -64,7 +64,6 @@
             [me.raynes.fs :as fs]
             [clojure.test :refer :all]
             [clojure.test.junit :refer :all]
-            [clojure.xml :as xml]
             [clojure.zip :as zip]
             [clojure.data.xml :as dxml]
             [clojure.string :as str]
