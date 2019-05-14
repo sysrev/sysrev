@@ -21,6 +21,7 @@
             [sysrev.shared.util :as sutil :refer [in?]]))
 
 (def test-dbname "sysrev_auto_test")
+(def test-db-host (get-in env [:postgres :host]))
 
 (defonce raw-selenium-config (atom (-> env :selenium)))
 
@@ -95,7 +96,8 @@
 
 (defn init-test-db []
   (when (db-connected?)
-    (let [config {:dbname test-dbname}]
+    (let [config {:dbname test-dbname
+                  :host test-db-host}]
       (if @db-initialized?
         (do (start-app config nil true)
             (let [{:keys [host port dbname]}

@@ -15,28 +15,31 @@
   [org-name]
   (let [create-org-retrieving? (r/cursor state [:create-org-retrieving?])
         create-org-error (r/cursor state [:create-org-error])]
-    (reset! create-org-retrieving? true)
-    (POST "/api/org"
-          {:params {:org-name org-name}
-           :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-           :handler (fn [response]
-                      (reset! create-org-retrieving? false)
-                      (dispatch [:set-current-org! (get-in response [:result :id])])
-                      (nav-scroll-top "/org/users"))
-           :error-handler (fn [error-response]
-                            (reset! create-org-retrieving? false)
-                            (reset! create-org-error
-                                    (get-in error-response [:response :error :message])))})))
+    (when-not @create-org-retrieving?
+      (reset! create-org-retrieving? true)
+      (POST "/api/org"
+            {:params {:org-name org-name}
+             :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+             :handler (fn [response]
+                        (reset! create-org-retrieving? false)
+                        (dispatch [:set-current-org! (get-in response [:result :id])])
+                        (nav-scroll-top "/org/users"))
+             :error-handler (fn [error-response]
+                              (reset! create-org-retrieving? false)
+                              (reset! create-org-error
+                                      (get-in error-response [:response :error :message])))}))))
 
 (defn CreateOrgForm
   []
   (let [new-org (r/cursor state [:new-org])
-        create-org-error (r/cursor state [:create-org-error])]
+        create-org-error (r/cursor state [:create-org-error])
+        create-org-retrieving? (r/cursor state [:create-org-retrieving?])]
     (r/create-class
      {:reagent-render
       (fn [this]
         [:div
-         [Form {:on-submit #(create-org! @new-org)}
+         [Form {:on-submit #(create-org! @new-org)
+                :loading @create-org-retrieving?}
           [FormField
            [Input {:placeholder "Organization Name"
                    :id "create-org-input"
