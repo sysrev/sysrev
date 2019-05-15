@@ -34,7 +34,7 @@
           (try (taxi/quit) (catch Throwable e nil)))
         (reset! active-webdriver
                 (let [opts (doto (ChromeOptions.)
-                             (.addArguments ["window-size=1920,1080" "headless"]))
+                             (.addArguments ["window-size=1920,1080" "headless" "no-sandbox"]))
                       chromedriver (ChromeDriver.
                                     (doto (DesiredCapabilities. (DesiredCapabilities/chrome))
                                       (.setCapability ChromeOptions/CAPABILITY opts)))

@@ -1,0 +1,12 @@
+#!/bin/bash
+set -eu
+
+source vars.sh
+
+set -x
+
+cd client
+lein cljsbuild once production
+cd ..
+
+time docker exec sysrev bash -c 'cd /systematic_review && lein test'
