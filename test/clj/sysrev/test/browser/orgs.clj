@@ -39,7 +39,6 @@
 (def org-change-role-button "#org-change-role-button")
 (def change-org-dropdown "#change-org-dropdown")
 (def current-org-dropdown (xpath "//div[@id='change-org-dropdown']/div[@class='text']"))
-(def group-projects "#group-projects")
 (def disabled-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'disabled')]"))
 (def active-set-private-button (xpath "//button[@id='public-access_private' and contains(@class,'active')]"))
 (def set-private-button "#public-access_private")
@@ -100,10 +99,10 @@
 (defn switch-to-org
   "switch to org-name, must be in Organization Settings"
   [org-name]
-  (b/click change-org-dropdown)
-  (b/click (xpath "//div[@role='option']/span[text()='" org-name "']"))
-  (b/wait-until #(= (taxi/text current-org-dropdown)
-                    org-name)))
+  (b/click user-profiles/user-name-link)
+  (b/click "#user-orgs")
+  (b/click (xpath "//a[text()='" org-name "']"))
+  (b/wait-until-exists "#org-users"))
 
 (deftest-browser simple-org-tests
   (test/db-connected?)
@@ -126,7 +125,7 @@
                         :password (:password test-user))
     (add-user-to-org (:name test-user))
     (b/is-soon (= "member" (user-role "foo")) 2000 100)
-    ;; an owner can change permissions of a member
+    ;;an owner can change permissions of a member
     (change-user-permission (:name test-user) "Owner")
     (b/is-soon (= "owner" (user-role "foo")) 2000 100)
     ;; only an owner can change permissions, not a member
@@ -164,7 +163,7 @@
     (is (not (taxi/exists? org-billing)))
     ;; group projects exists, but not the create project input
     (b/click org-projects)
-    (b/exists? group-projects)
+    (b/exists? "#public-projects")
     (is (not (taxi/exists? "form.create-project")))
     ;; user can't change permissions
     (is (not (taxi/exists? (change-user-permission-dropdown "browser+test"))))
@@ -179,7 +178,8 @@
     (b/wait-until-exists (change-user-permission-dropdown "browser+test"))
     ;; billing link is available
     (is (b/exists? org-billing)))
-  :cleanup (doseq [{:keys [email]} [b/test-login test-user]]
+  :cleanup
+  (doseq [{:keys [email]} [b/test-login test-user]]
              (b/cleanup-test-user! :email email :groups true)))
 
 ;; for manual testing:
@@ -231,7 +231,6 @@
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (b/is-current-path "/org/billing")
     ;; subscribe to plans
     (log/info "attempting plan subscription")
     (b/click ".button.nav-plans.subscribe" :displayed? true)
@@ -243,7 +242,7 @@
     (b/click ".button.upgrade-plan")
     ;; switch back to the project and check that it can be set to private
     (b/click org-projects)
-    (b/click (xpath "//span[text()='" org-name-1-project "']"))
+    (b/click (xpath "//a[text()='" org-name-1-project "']"))
     (nav/go-project-route "/settings")
     (b/click set-private-button)
     (b/click save-options-button)

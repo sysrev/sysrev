@@ -1533,5 +1533,5 @@
       {:error {:message (str "user-id: " user-id " is not part of org-id: " org-id)}})))
 
 (defn group-projects
-  [group-id]
-  {:result {:projects (groups/group-projects group-id)}})
+  [group-id & {:keys [private-projects?]}]
+  {:result {:projects (groups/group-projects group-id :private-projects? private-projects?)}})

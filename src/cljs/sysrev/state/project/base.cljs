@@ -53,8 +53,16 @@
         (not-empty project)
         (not error?))))
 
+(reg-sub :project/plan
+         (fn [db [event project-id]]
+           (get-in db [:data :project project-id :plan])))
+
 (reg-sub :project/private-not-viewable?
          (fn [db [event project-id]]
-           (and (not (get-in db [:data :project project-id :settings :public-access]))
+           (and (not @(subscribe [:project/public-access? project-id]))
                 (not= "Unlimited"
-                      (get-in db [:data :project project-id :plan])))))
+                      @(subscribe [:project/plan project-id])))))
+
+(reg-sub :project/owner
+         (fn [db [event project-id]]
+           (get-in db [:data :project project-id :owner])))

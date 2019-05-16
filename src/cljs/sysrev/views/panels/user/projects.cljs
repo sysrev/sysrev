@@ -48,6 +48,10 @@
                     ;; only logged in users can make a project public
                     (get-user-projects! @(subscribe [:self/user-id])))}))
 
+(defn MakePublic [{:keys [project-id]}]
+  [Button {:size "mini" :on-click (wrap-prevent-default #(make-public! project-id))}
+   "Set Publicly Viewable"])
+
 (defn- ActivityColumn [item-count text header-class & [count-font-size]]
   (when (pos? item-count)
     [Column
@@ -74,10 +78,6 @@
        [UserActivityContent {:articles (item-totals :articles)
                              :labels (item-totals :labels)
                              :annotations (item-totals :annotations)}]])))
-
-(defn- MakePublic [{:keys [project-id]}]
-  [Button {:size "mini" :on-click (wrap-prevent-default #(make-public! project-id))}
-   "Set Publicly Viewable"])
 
 (defn- UserProject [{:keys [name project-id articles labels annotations settings]
                      :or {articles 0, labels 0, annotations 0}}]

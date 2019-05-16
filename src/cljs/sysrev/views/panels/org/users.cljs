@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.org.users
   (:require [ajax.core :refer [GET POST PUT DELETE]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe]]
+            [re-frame.core :refer [subscribe reg-sub dispatch reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.views.panels.user.profile :refer [UserPublicProfileLink Avatar]]
             [sysrev.views.semantic :refer [Segment Table TableHeader TableBody TableRow TableCell Search SearchResults Button
@@ -13,51 +13,57 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-#_(defn get-user-id-permissions
-  [user-id]
-  (let [org-users (r/cursor state [:org-users])]
-    (->> @org-users
-         (filter #(= (:user-id %)
-                     user-id))
-         first
-         :permissions)))
+(reg-sub :org/users
+         (fn [db [event org-id]]
+           (get-in db [:org org-id :users])))
+
+(reg-event-db
+ :org/set-users!
+ [trim-v]
+ (fn [db [org-id users]]
+   (assoc-in db [:org org-id :users] users)))
 
 (defn get-org-users!
-  []
-  (let [org-users (r/cursor state [:org-users])
-        retrieving? (r/cursor state [:retrieving-org-users?])
+  [org-id]
+  (let [retrieving? (r/cursor state [:retrieving-org-users?])
         error (r/cursor state [:retrieving-org-users-error])]
     (reset! retrieving? true)
-    (GET (str "/api/org/" @(subscribe [:current-org]) "/users")
+    (GET (str "/api/org/" org-id "/users")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving? false)
-                     (reset! org-users (get-in response [:result :users])))
+                     (dispatch [:org/set-users! org-id (get-in response [:result :users])]))
           :error-handler (fn [error-response]
                            (reset! retrieving? false)
                            (reset! error (get-in error-response [:response :error :messaage])))})))
 
+(reg-event-fx :org/get-users!
+              [trim-v]
+              (fn [event [org-id]]
+                (get-org-users! org-id)
+                {}))
+
 (defn remove-from-org!
-  [{:keys [user-id]}]
+  [{:keys [user-id org-id]}]
   (let [retrieving? (r/cursor state [:remove-from-org! :retrieving])
         error (r/cursor state [:remove-from-org! :error])
         modal-open (r/cursor state [:remove-modal :open])]
     (reset! retrieving? true)
     (reset! error "")
-    (DELETE (str "/api/org/" @(subscribe [:current-org]) "/user")
+    (DELETE (str "/api/org/" org-id "/user")
             {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
              :params {:user-id user-id}
              :handler (fn [response]
                         (reset! retrieving? false)
                         (reset! error "")
-                        (get-org-users!)
+                        (dispatch [:org/get-users! org-id])
                         (reset! modal-open false))
              :error-handler (fn [response]
                               (reset! retrieving? false)
                               (reset! error (get-in response [:response :error :message])))})))
 
 (defn RemoveModal
-  []
+  [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:remove-modal :open])
         user-id (r/cursor state [:current-user-id])
         username (r/cursor state [:current-username])
@@ -70,7 +76,8 @@
      [ModalHeader (str "Removing 1 member from " @(subscribe [:current-org-name]))]
      [ModalContent
       [ModalDescription
-       [Form {:on-submit #(remove-from-org! {:user-id @user-id})}
+       [Form {:on-submit #(remove-from-org! {:user-id @user-id
+                                             :org-id org-id})}
         [:h4
          "The following members will be removed: "]
         [Table {:basic true
@@ -91,27 +98,27 @@
            @error])]]]]))
 
 (defn change-role!
-  [{:keys [new-role user-id permissions]}]
+  [{:keys [new-role user-id permissions org-id]}]
   (let [retrieving? (r/cursor state [:change-role! :retrieving])
         error (r/cursor state [:change-role! :error])
         modal-open (r/cursor state [:change-role-modal :open])]
     (reset! retrieving? true)
     (reset! error "")
-    (PUT (str "/api/org/" @(subscribe [:current-org]) "/user")
+    (PUT (str "/api/org/" org-id "/user")
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :params {:user-id user-id
                    :permissions permissions}
           :handler (fn [response]
                      (reset! retrieving? false)
                      (reset! error "")
-                     (get-org-users!)
+                     (dispatch [:org/get-users! org-id])
                      (reset! modal-open false))
           :error-handler (fn [response]
                            (reset! retrieving? false)
                            (reset! error (get-in response [:response :error :message])))})))
 
 (defn ChangeRoleModal
-  []
+  [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:change-role-modal :open])
         user-id (r/cursor state [:current-user-id])
         username (r/cursor state [:current-username])
@@ -130,7 +137,8 @@
           [ModalDescription
            [Form {:on-submit #(change-role! {:new-role @new-role
                                              :user-id @user-id
-                                             :permissions [@new-role]})}
+                                             :permissions [@new-role]
+                                             :org-id org-id})}
             [:h4 {:style {:margin-left "-0.5rem"}} "Select a new role"]
             [FormGroup
              [Checkbox {:label "Owner"
@@ -214,7 +222,7 @@
 
 (defn UsersTable
   [users]
-  (when-not (empty? @users)
+  (when-not (empty? users)
     [Table {:basic "true"
             :id "org-user-table"}
      #_[TableHeader
@@ -227,7 +235,7 @@
       (map (fn [user]
              ^{:key (:user-id user)}
              [UserRow user])
-           @users)]]))
+           users)]]))
 
 (defn user-suggestions!
   [term]
@@ -267,14 +275,14 @@
            :handler (fn [response]
                       (reset! retrieving? false)
                       (reset! error "")
-                      (get-org-users!)
+                      (dispatch [:org/get-users! org-id])
                       (reset! modal-open false))
            :error-handler (fn [response]
                             (reset! retrieving? false)
                             (reset! error (get-in response [:response :error :messaage])))})))
 
 (defn InviteMemberModal
-  []
+  [{:keys [org-id]}]
   (let [modal-open (r/cursor state [:invite-member-modal-open?])
         search-loading? (r/cursor state [:search-loading?])
         user-search-results (r/cursor state [:user-search-results])
@@ -305,14 +313,14 @@
                 :on-open #(reset! modal-open true)
                 :on-close #(reset! modal-open false)
                 :close-icon true}
-         [ModalHeader (str "Invite Member to " @current-org-name)]
+         [ModalHeader (str "Invite Member to " org-id)]
          [ModalContent
           [ModalDescription
            [Form {:id "invite-member-form"
                   :on-submit (fn [event]
                                (set-current-search-user-id!)
                                (when-not (nil? @current-search-user-id)
-                                 (add-user-to-group! @current-search-user-id @current-org-id)))}
+                                 (add-user-to-group! @current-search-user-id org-id)))}
             [:div
              [Search {:loading @search-loading?
                       :placeholder "Search for users by username"
@@ -358,17 +366,17 @@
                              (reset-state!))})))
 
 (defn OrgUsers
-  []
-  (let [org-users (r/cursor state [:org-users])
+  [{:keys [org-id]}]
+  (let [org-users (subscribe [:org/users org-id])
         org-permissions (subscribe [:current-org-permissions])]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (get-org-users!)
+        (dispatch [:org/get-users! org-id])
         [:div
          (when (some #{"owner" "admin"} @org-permissions)
-           [InviteMemberModal])
-         [ChangeRoleModal]
-         [RemoveModal]
-         [UsersTable org-users]])})))
+           [InviteMemberModal {:org-id org-id}])
+         [ChangeRoleModal {:org-id org-id}]
+         [RemoveModal {:org-id org-id}]
+         [UsersTable @org-users]])})))
 

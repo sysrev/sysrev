@@ -54,6 +54,11 @@
           request
           {:authorize-fn (constantly true)}
           (api/user-projects user-id (= (current-user-id request) user-id))))
+    (GET "/orgs" request
+         (wrap-authorize
+          request
+          {:authorize-fn (constantly true)}
+          (api/read-orgs user-id)))
     (GET "/payments-owed" request
          (wrap-authorize
           request

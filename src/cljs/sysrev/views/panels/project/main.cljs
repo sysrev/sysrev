@@ -62,26 +62,28 @@
 (defn ProjectPanel [child]
   (ensure-state)
   (when @(subscribe [:have? [:identity]])
-    (let [project-id @(subscribe [:active-project-id])]
-      (cond (or (nil? project-id)
-                @(subscribe [:project/not-found? project-id]))
-            [:div
-             [ProjectErrorNotice "Project not found"]
-             [:div {:style {:margin-top "16px"}}
-              [plist/UserProjectListFull]]]
+    ;; need project info for :project/private-not-viewable?
+    (with-loader [[:project @(subscribe [:active-project-id])]] {}
+      (let [project-id @(subscribe [:active-project-id])]
+        (cond (or (nil? project-id)
+                  @(subscribe [:project/not-found? project-id]))
+              [:div
+               [ProjectErrorNotice "Project not found"]
+               [:div {:style {:margin-top "16px"}}
+                [plist/UserProjectListFull]]]
 
-            @(subscribe [:project/unauthorized? project-id])
-            [ProjectErrorNotice "Not authorized to view project"]
+              @(subscribe [:project/unauthorized? project-id])
+              [ProjectErrorNotice "Not authorized to view project"]
 
-            @(subscribe [:project/error? project-id])
-            [ProjectErrorNotice "Unable to load project"]
+              @(subscribe [:project/error? project-id])
+              [ProjectErrorNotice "Unable to load project"]
 
-            @(subscribe [:project/private-not-viewable? project-id])
-            [ProjectErrorNotice
-             [:div "Private project not accessible. Owner must either make this project public or upgade their plan to Unlimited"]]
+              @(subscribe [:project/private-not-viewable? project-id])
+              [ProjectErrorNotice
+               [:div "Private project not accessible. Owner must either make this project public or upgade their plan to Unlimited"]]
 
-            :else
-            [ProjectContent child]))))
+              :else
+              [ProjectContent child])))))
 
 (defmethod panel-content [:project] []
   (fn [child] [ProjectPanel child]))

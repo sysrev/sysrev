@@ -72,22 +72,32 @@
                 first
                 :permissions)))
 
+(reg-sub :orgs/path-org-id
+         (fn [db _]
+           (-> (re-find #"/org/(\d*)/*" @sysrev.base/active-route) second js/parseInt)))
+
 (defn OrgContent
   []
   (let [current-path active-route
         orgs (r/cursor state [:orgs])
-        current-org-id (r/cursor state [:current-org-id])]
+        current-org-id (subscribe [:orgs/path-org-id])
+        active-item (fn [current-path sub-path]
+                      (cond-> "item "
+                        (re-matches (re-pattern (str ".*" sub-path)) current-path) (str " active")))
+        uri-fn (fn [sub-path]
+                 (str "/org/" @(subscribe [:orgs/path-org-id]) sub-path))]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (if (nil? @current-org-id)
+        (dispatch [:set-current-org! @current-org-id])
+        (if ;; a check for org existance should be implemented here
+            false
           [Message {:negative true}
            [MessageHeader {:as "h4"}
-            "Organization Settings Error"]
-           [:p "You haven't created any organizations. Go to " [:a {:href "/user/settings/profile"}
-                                                              "user settings"] " to create a new organization."]]
+            "Organizations Error"]
+           [:p "There isn't an org here."]]
           [:div
-           [Segment {:attached "top"
+           #_[Segment {:attached "top"
                      :aligned "middle"}
             [Header {:as "h4"}
              "Organization Settings"]]
@@ -97,15 +107,13 @@
                   :class "primary-menu"}
             [MenuItem {:name "Users"
                        :id "org-users"
-                       :href "/org/users"
-                       :class (cond-> "item"
-                                (= @current-path "/org/users") (str " active"))}
+                       :href (uri-fn "/users")
+                       :class (active-item @current-path "/users")}
              "Users"]
             [MenuItem {:name "Projects"
                        :id "org-projects"
-                       :href "/org/projects"
-                       :class (cond-> "item"
-                                (= @current-path "/org/projects") (str " active"))}]
+                       :href (uri-fn "/projects")
+                       :class (active-item @current-path "/projects")}]
             #_[MenuItem {:name "Profile"
                          :id "org-profile"
                          :href "/org/profile"
@@ -115,11 +123,10 @@
             (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
               [MenuItem {:name "Billing"
                          :id "org-billing"
-                         :href "/org/billing"
-                         :class (cond-> "item"
-                                  (= @current-path "/org/billing") (str " active"))}
+                         :href (uri-fn "/billing")
+                         :class (active-item @current-path "/billing")}
                "Billing"])
-            (when-not (empty? @orgs)
+            #_(when-not (empty? @orgs)
               [MenuItem {:position "right"}
                [Dropdown {:id "change-org-dropdown"
                           :options (map #(hash-map :text (:group-name %)
@@ -130,21 +137,21 @@
                                                ($ data :value)))}]])]
            [:div {:id "org-content"}
             (condp re-matches @current-path
-              #"/org/users"
-              [OrgUsers]
-              #"/org/projects"
-              [OrgProjects]
+              #"/org/(\d*)/users"
+              [OrgUsers {:org-id @current-org-id}]
+              #"/org/(\d*)/projects"
+              [OrgProjects {:org-id @current-org-id}]
               ;; #"/org/profile"
               ;; [:div
               ;;  (when-not (empty? @orgs)
               ;;    [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
               ;;  [:h1 "Profile settings go here"]]
-              #"/org/billing"
-              [OrgBilling]
+              #"/org/(\d*)/billing"
+              [OrgBilling {:org-id @current-org-id}]
               ;; default
               [:div {:style {:display "none"}}])]]))
-      :component-did-mount (fn [this]
-                             (read-orgs!))})))
+      :component-did-mount (fn []
+                             (dispatch [:read-orgs!]))})))
 
 (defmethod logged-out-content [:org-settings] []
   (logged-out-content :logged-out))

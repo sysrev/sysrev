@@ -136,13 +136,16 @@
 
 (defn group-projects
   "Return all projects group-id owns"
-  [group-id]
-  (-> (select :p.project-id :p.name :p.settings)
-      (from [:project :p])
-      (join [:project_group :pg]
-            [:= :pg.project-id :p.project-id])
-      (where [:= :pg.group_id group-id])
-      do-query))
+  [group-id & {:keys [private-projects?]}]
+  (let [projects (-> (select :p.project-id :p.name :p.settings)
+                     (from [:project :p])
+                     (join [:project_group :pg]
+                           [:= :pg.project-id :p.project-id])
+                     (where [:= :pg.group_id group-id])
+                     do-query)]
+    (if private-projects?
+      projects
+      (filter #(-> % :settings :public-access true?) projects))))
 
 (defn create-sysrev-stripe-customer!
   "Create a stripe customer for group-id"

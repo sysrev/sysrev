@@ -260,8 +260,10 @@
     :tooltip "Allow access only for project members"}])
 
 (defn- PublicAccessField [project-id]
-  (let [owner-key (-> (get-in @app-db [:data :project project-id :owner]) keys first)
-        project-plan (get-in @app-db [:data :project project-id :plan])]
+  (let [project-owner @(subscribe [:project/owner project-id])
+        owner-key (-> project-owner keys first)
+        owner-id (-> project-owner vals first)
+        project-plan @(subscribe [:project/plan project-id])]
     [:div [SettingsField
            {:setting :public-access
             :label "Project Visibility"
@@ -271,7 +273,7 @@
               "Basic")
        [:p [:a {:href (if (= owner-key :user-id)
                         (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                        "/org/billing")}
+                        (str "/org/" owner-id "/billing"))}
             "Upgrade"] " your plan to make this project private"])]))
 
 (def unlimited-reviews-buttons

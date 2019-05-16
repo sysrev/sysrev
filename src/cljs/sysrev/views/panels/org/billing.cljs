@@ -10,11 +10,12 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-(defn OrgBilling []
+(defn OrgBilling [{:keys [org-id]}]
   (r/create-class
    {:reagent-render
     (fn [this]
-      (when-not @(subscribe [:current-org])
+      (when (nil? @(subscribe [:current-org]))
+        (dispatch [:set-current-org! org-id])
         (dispatch [:fetch [:org-current-plan]]))
       [Segment
        [Header {:as "h4" :dividing true}
@@ -22,8 +23,9 @@
        [ListUI {:divided true :relaxed true}
         [ListItem [Plan {:plans-route "/org/plans"
                          :current-plan-atom (subscribe [:org/current-plan])
-                         :fetch-current-plan (fn [] (dispatch [:fetch [:org-current-plan]]))}]]
-        [ListItem [PaymentSource {:get-default-source (partial stripe/get-org-default-source @(subscribe [:current-org]))
-                                  :default-source (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])
-                                  :add-payment-method #(do (dispatch [:payment/set-calling-route! "/org/billing"])
+                         :fetch-current-plan (fn [] (dispatch [:fetch [:org-current-plan org-id]]))}]]
+        [ListItem [PaymentSource {:get-default-source (partial stripe/get-org-default-source org-id)
+                                  :default-source (subscribe [:stripe/default-source "org" org-id])
+                                  :add-payment-method #(do (dispatch [:payment/set-calling-route!
+                                                                      (str "/org/" org-id "/billing")])
                                                            (dispatch [:navigate [:org-payment]]))}]]]])}))

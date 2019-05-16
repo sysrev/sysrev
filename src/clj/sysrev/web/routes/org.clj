@@ -63,8 +63,10 @@
                      (api/create-project-for-org! project-name user-id org-id))))
             (GET "/projects" request
                  (wrap-authorize
-                  request {:authorize-fn (user-has-org-permission? org-id ["owner" "admin" "member"])}
-                  (api/group-projects org-id)))
+                  request {:authorize-fn (constantly true)}
+                  (api/group-projects org-id :private-projects?
+                                      ((user-has-org-permission? org-id ["owner" "admin" "member"])
+                                       request))))
             (context "/stripe" []
                      (GET "/default-source" request
                           (wrap-authorize
