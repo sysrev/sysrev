@@ -108,10 +108,8 @@
     :disabled disabled}
    text])
 
-(defn DowngradePlan [{:keys [billing-settings-route
-                             unsubscribe-button-on-click
-                             downgrade-dispatch
-                             default-source]}]
+(defn DowngradePlan [{:keys [billing-settings-uri
+                             on-downgrade]}]
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
@@ -128,7 +126,7 @@
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan]
-                        [:a {:href billing-settings-route} "Back to Billing Settings"]]]]]
+                        [:a {:href billing-settings-uri} "Back to Billing Settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]
@@ -138,7 +136,7 @@
                          [:div {:style {:margin-top "1em" :width "100%"}}
                           [TogglePlanButton {:disabled (or @changing-plan?)
                                              :on-click #(do (reset! changing-plan? true)
-                                                            (downgrade-dispatch))
+                                                            (on-downgrade))
                                              :class "unsubscribe-plan"} "Unsubscribe"]]
                          (when @error-message
                            [s/Message {:negative true}
@@ -149,11 +147,11 @@
         (reset! changing-plan? false)
         (reset! error-message nil))})))
 
-(defn UpgradePlan [{:keys [billing-settings-route
-                           upgrade-dispatch
-                           default-source
+(defn UpgradePlan [{:keys [billing-settings-uri
+                           on-upgrade
+                           default-source-atom
                            get-default-source
-                           add-payment-method]}]
+                           on-add-payment-method]}]
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
@@ -167,9 +165,9 @@
             [Grid [Row [Column
                         [:h3 "UPGRADING TO"]
                         [BusinessUnlimited]
-                        [:a {:href billing-settings-route} "Back to Billing Settings"]]]]]
+                        [:a {:href billing-settings-uri} "Back to Billing Settings"]]]]]
            [Column {:width 8}
-            (let [no-default? (empty? @default-source)]
+            (let [no-default? (empty? @default-source-atom)]
               [Grid
                [Row
                 [Column
@@ -179,23 +177,21 @@
                   [ListItem [:p "Unlimited plan ($50 / month)"]]
                   [:h4 "Billing Information"]
                   [ListItem [DefaultSource {:get-default-source get-default-source
-                                            :default-source default-source}]]
+                                            :default-source-atom default-source-atom}]]
                   (when (empty? @error-message)
                     [:a.payment-method
                      {:class (if no-default? "add-method" "change-method")
                       :style {:cursor "pointer"}
                       :on-click (util/wrap-prevent-default
                                  #(do (reset! error-message nil)
-                                      (add-payment-method)))}
+                                      (on-add-payment-method)))}
                      (if no-default?
                        "Add a payment method"
                        "Change payment method")])
                   [:div {:style {:margin-top "1em" :width "100%"}}
                    [TogglePlanButton {:disabled (or no-default? @changing-plan?)
-                                      :on-click
-                                      ;; TODO: This needs to be a custom fn
-                                      #(do (reset! changing-plan? true)
-                                           (upgrade-dispatch))
+                                      :on-click #(do (reset! changing-plan? true)
+                                                     (on-upgrade))
                                       :class "upgrade-plan"}
                     "Upgrade Plan"]]
                   (when @error-message
@@ -223,15 +219,12 @@
             current-plan (:name @(subscribe [:plans/current-plan]))]
         [:div
          (when (= current-plan "Basic")
-           [UpgradePlan {:billing-settings-route (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                         :upgrade-dispatch (fn []
-                                             (dispatch [:action [:subscribe-plan "Unlimited"]]))
-                         :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
+           [UpgradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
+                         :default-source-atom (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
                          :get-default-source stripe/get-user-default-source
-                         :add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                                  (dispatch [:navigate [:payment]]))}])
+                         :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited"]]))
+                         :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                                     (dispatch [:navigate [:payment]]))}])
          (when (= current-plan "Unlimited")
-           [DowngradePlan {:billing-settings-route (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                           :downgrade-dispatch (fn []
-                                                 (dispatch [:action [:subscribe-plan "Basic"]]))
-                           :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])}])]))))
+           [DowngradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
+                           :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))}])]))))

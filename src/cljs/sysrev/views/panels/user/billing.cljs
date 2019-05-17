@@ -13,15 +13,15 @@
 (def state (r/cursor app-db [:state :panels panel]))
 
 (defn DefaultSource
-  [{:keys [get-default-source default-source]}]
+  [{:keys [get-default-source default-source-atom]}]
   (r/create-class
    {:reagent-render
     (fn [this]
       [:div {:style {:font-weight "bold"}}
        [Icon {:name "credit card"}]
-       (if-not (empty? @default-source)
+       (if-not (empty? @default-source-atom)
          (let [{:keys [brand exp_month exp_year last4]}
-               @default-source]
+               @default-source-atom]
            (str brand " expiring on " exp_month "/" (-> exp_year
                                                         str
                                                         (subs 2 4)) " and ending in " last4))
@@ -31,12 +31,12 @@
       (get-default-source))}))
 
 (defn PaymentSource
-  [{:keys [get-default-source default-source add-payment-method]}]
+  [{:keys [get-default-source default-source-atom on-add-payment-method]}]
   (r/create-class
    {:reagent-render
     (fn [this]
       [Grid {:stackable true}
-       (if (nil? @default-source)
+       (if (nil? @default-source-atom)
          [Row
           [Column {:width 2} "Payment"]
           [Column {:width 14} [Loader {:active true
@@ -44,10 +44,10 @@
          [Row
           [Column {:width 2} "Payment"]
           [Column {:width 8} [DefaultSource {:get-default-source get-default-source
-                                             :default-source default-source}]]
+                                             :default-source-atom default-source-atom}]]
           [Column {:width 6 :align "right"}
-           [Button {:on-click add-payment-method}
-            (if-not (empty? @default-source)
+           [Button {:on-click on-add-payment-method}
+            (if-not (empty? @default-source-atom)
               [:div [Icon {:name "credit card"}] "Change payment method"]
               [:div [Icon {:name "credit card"}] "Add payment method"])]]])])
     :component-did-mount
@@ -90,6 +90,6 @@
                      :current-plan-atom (subscribe [:plans/current-plan])
                      :fetch-current-plan (fn [] (dispatch [:fetch [:current-plan]]))}]]
     [ListItem [PaymentSource {:get-default-source stripe/get-user-default-source
-                              :default-source (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
-                              :add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/" @(subscribe [:self/user-id]) "/billing"])
+                              :default-source-atom (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
+                              :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/" @(subscribe [:self/user-id]) "/billing"])
                                                        (dispatch [:navigate [:payment]]))}]]]])

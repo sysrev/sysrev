@@ -74,18 +74,15 @@
                             test-cursor (r/cursor state [:test-cursor])]
                         [:div
                          (when (= (:name @current-plan) "Basic")
-                           [UpgradePlan {:billing-settings-route (str "/org/" @(subscribe [:current-org]) "/billing")
-                                         :upgrade-dispatch (fn []
-                                                             (dispatch [:action [:org-subscribe-plan "Unlimited"]]))
-                                         :default-source (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])
+                           [UpgradePlan {:billing-settings-uri (str "/org/" @(subscribe [:current-org]) "/billing")
+                                         :default-source-atom (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])
                                          :get-default-source (partial stripe/get-org-default-source @(subscribe [:current-org]))
-                                         :add-payment-method #(do (dispatch [:payment/set-calling-route! "/org/plans"])
-                                                                  (dispatch [:navigate [:org-payment]]))}])
+                                         :on-upgrade (fn [] (dispatch [:action [:org-subscribe-plan "Unlimited"]]))
+                                         :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/org/plans"])
+                                                                     (dispatch [:navigate [:org-payment]]))}])
                          (when (= (:name @current-plan) "Unlimited")
-                           [DowngradePlan {:billing-settings-route (str "/org/" @(subscribe [:current-org]) "/billing")
-                                           :downgrade-dispatch (fn []
-                                                                 (dispatch [:action [:org-subscribe-plan "Basic"]]))
-                                           :default-source (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])}])]))
+                           [DowngradePlan {:billing-settings-uri (str "/org/" @(subscribe [:current-org]) "/billing")
+                                           :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan "Basic"]]))}])]))
     :component-did-mount (fn [this]
                            (dispatch [:read-orgs!]))}))
 
