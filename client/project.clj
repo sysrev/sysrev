@@ -33,24 +33,22 @@
                  [cljsjs/showdown "1.8.6-0"]]
   :min-lein-version "2.6.1"
   :jvm-opts ["-Djava.util.logging.config.file=resources/logging.properties"
-             "-Xms600m"
-             "-Xmx1200m"
+             "-Xms500m"
+             "-Xmx1500m"
              "-server"
-             "-XX:+UseParallelGC"
+             #_ "-XX:+UseParallelGC"
              "-XX:+TieredCompilation"
-             "-XX:+AggressiveOpts"
+             #_ "-XX:+AggressiveOpts"
              #_ "-XX:TieredStopAtLevel=1"
              #_ "-XX:+UseConcMarkSweepGC"
              "-Xverify:none"]
   :source-paths ["src/cljs" "src/cljc"]
   :aliases {}
   :plugins [[lein-cljsbuild "1.1.7"]]
-  :clean-targets ^{:protect false}
-  ["target"
-   #_ "resources/public/out-dev"
-   #_ "resources/public/integration"
-   "resources/public/out-production"
-   "resources/public/out-dev"]
+  :clean-targets ^{:protect false} ["target"
+                                    #_ "resources/public/out-dev"
+                                    #_ "resources/public/integration"
+                                    "resources/public/out-production"]
   :cljsbuild
   {:builds
    [{:id "dev"

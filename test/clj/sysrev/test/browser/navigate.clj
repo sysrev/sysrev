@@ -22,9 +22,13 @@
     nil))
 
 (defn go-project-route [suburi & {:keys [project-id wait-ms silent]}]
-  (let [project-id (or project-id (b/current-project-id))]
+  (let [project-id (or project-id (b/current-project-id))
+        current (b/url->path (taxi/current-url))
+        ;; TODO: use server-side lookup to get project base url
+        base-uri (or (second (re-matches #"(.*/p/[\d]+)(.*)" current))
+                     (str "/p/" project-id))]
     (assert (integer? project-id))
-    (go-route (str "/p/" project-id suburi) :wait-ms wait-ms :silent silent)))
+    (go-route (str base-uri suburi) :wait-ms wait-ms :silent silent)))
 
 (defn log-out [& {:keys [silent]}]
   (when (taxi/exists? "a#log-out-link")
@@ -74,7 +78,7 @@
    (xpath (format "//span[contains(@class,'project-title') and text()='%s']" project-name)
           "//ancestor::div[@id='project']"))
   (log/info "project created")
-  (b/wait-until-loading-completes :pre-wait 100))
+  (b/wait-until-loading-completes :pre-wait 200))
 
 (defn open-project [name]
   (log/info "opening project" (pr-str name))

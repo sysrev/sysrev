@@ -40,12 +40,9 @@
  (fn [[user]]
    (:email user)))
 
-(reg-sub
- :user/display
- (fn [[_ user-id]]
-   [(subscribe [:user/email user-id])])
- (fn [[email]]
-   (first (str/split email #"@"))))
+(reg-sub :user/display
+         (fn [[_ user-id]] (subscribe [:user/email user-id]))
+         (fn [email] (first (str/split email #"@"))))
 
 (reg-sub
  :user/permissions

@@ -285,26 +285,20 @@
     (let [clear-text-before (if (boolean? clear-text-before)
                               clear-text-before
                               (not timeout))
-          wrap-handler
-          (fn [event]
-            (when clear-text-before
-              (clear-text-selection))
-            (let [result (f event)]
-              (when clear-text-after
-                (clear-text-selection-soon))
-              result))]
-      (cond->
-          (fn [event]
-            ;; Add short delay before processing event to allow touchscreen
-            ;; events to resolve.
-            (if timeout
-              (do (js/setTimeout #(wrap-handler event) 20)
-                  #_ (js/setTimeout #(f event) 20)
-                  true)
-              (wrap-handler event))
-            true)
-        stop-propagation (wrap-stop-propagation)
-        prevent-default (wrap-prevent-default)))))
+          wrap-handler (fn [event]
+                         (when clear-text-before (clear-text-selection))
+                         (let [result (f event)]
+                           (when clear-text-after (clear-text-selection-soon))
+                           result))]
+      (cond-> (fn [event]
+                ;; Add short delay before processing event to allow touchscreen
+                ;; events to resolve.
+                (if timeout
+                  (js/setTimeout #(wrap-handler event) 20)
+                  (wrap-handler event))
+                true)
+        stop-propagation  (wrap-stop-propagation)
+        prevent-default   (wrap-prevent-default)))))
 
 (defn on-event-value
   "Convenience function for processing input values from events. Takes a
@@ -405,8 +399,6 @@
 (defn condensed-number
   "Condense numbers over 1000 to be factors of k"
   [i]
-  (when (= i 0)
-    (str 0))
   (if (> i 999)
-    (-> (/ i 1000)  ($ toFixed 1) (str "K"))
+    (-> (/ i 1000) ($ toFixed 1) (str "K"))
     (str i)))

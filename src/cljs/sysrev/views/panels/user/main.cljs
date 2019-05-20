@@ -206,7 +206,7 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (let [verified (-> @(subscribe [:self/identity]) :verified)]
+        (let [verified @(subscribe [:self/verified])]
           (when-not (nil? @active?)
             [Segment
              [Header {:as "h4" :dividing true}
@@ -219,10 +219,8 @@
                      :id "opt-in-public-reviewer"
                      :label "Publicly Listed as a Paid Reviewer"
                      :checked @active?
-                     :disabled (or (not verified)
-                                   @loading?)
-                     :on-change (fn [e]
-                                  (put-opt-in!))}]
+                     :disabled (or (not verified) @loading?)
+                     :on-change (fn [e] (put-opt-in!))}]
              (when-not (str/blank? @error-message)
                [Message {:onDismiss #(reset! error-message nil)
                          :negative true}

@@ -25,7 +25,8 @@
    review-n-articles #(review/randomly-review-n-articles % label-definitions)
    switch-user (fn [email]
                  (nav/log-in email)
-                 (nav/go-project-route "/review" :project-id @project-id))]
+                 (nav/go-project-route "/add-articles" :project-id @project-id)
+                 (nav/go-project-route "/review"))]
   (do (nav/log-in)
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))

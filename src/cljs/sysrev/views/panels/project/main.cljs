@@ -4,6 +4,7 @@
             [reagent.core :as r]
             [sysrev.routes :as routes]
             [sysrev.util :refer [nbsp]]
+            [sysrev.base :refer [active-route]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.project.common
              :refer [project-page-menu project-submenu]]
@@ -12,21 +13,14 @@
             [sysrev.views.panels.user.projects :refer [MakePublic]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
-(def initial-state {:create-project nil})
-(defonce state (r/cursor app-db [:state :panels [:project]]))
-(defn ensure-state []
-  (when (nil? @state)
-    (reset! state initial-state)))
-
 (defn ProjectContent [child]
   (when-let [project-id @(subscribe [:active-project-id])]
     (with-loader [[:project project-id]] {}
       (let [project-name @(subscribe [:project/name])
             public? @(subscribe [:project/public-access?])
-            access-label
-            (if public?
-              [:div.ui.label [:i.globe.icon] "Public"]
-              [:div.ui.label [:i.lock.icon] "Private"])]
+            access-label (if public?
+                           [:div.ui.label [:i.globe.icon] "Public"]
+                           [:div.ui.label [:i.lock.icon] "Private"])]
         [:div
          [:div.ui.top.attached.middle.aligned.grid.segment.project-header.desktop
           [:div.row
@@ -65,20 +59,22 @@
   (let [project-owner @(subscribe [:project/owner project-id])
         project-owner-type (-> project-owner keys first)
         project-owner-id (-> project-owner vals first)
-        self-user-id @(subscribe [:self/user-id])]
+        self-id @(subscribe [:self/user-id])
+        project-url @(subscribe [:project/uri project-id])]
     [:div "This private project is currently inaccessible"
      (when (or
             ;; user is an admin of this project
             (and (= :user-id project-owner-type)
-                 @(subscribe [:member/admin? self-user-id project-id]))
+                 @(subscribe [:member/admin? self-id project-id]))
             ;; user is an admin or owner of the org this project belongs to
             (and (= :group-id project-owner-type)
-                 (some #{"admin" "owner"} @(subscribe [:member/org-permissions project-owner-id]))))
+                 (some #{"admin" "owner"}
+                       @(subscribe [:self/org-permissions project-owner-id]))))
        (when (= :user-id project-owner-type)
-         (dispatch [:plans/set-on-subscribe-nav-to-url! (str "/p/" project-id)]))
+         (dispatch [:plans/set-on-subscribe-nav-to-url! project-url]))
        ;; needs to be set for the plan org
        (when (= :group-id project-owner-type)
-         (dispatch [:org/set-on-subscribe-nav-to-url! (str "/p/" project-id)])
+         (dispatch [:org/set-on-subscribe-nav-to-url! project-url])
          (dispatch [:set-current-org! project-owner-id])
          (dispatch [:fetch [:org-current-plan project-owner-id]]))
        [:div
@@ -90,13 +86,16 @@
         [MakePublic project-id]])]))
 
 (defn ProjectPanel [child]
-  (ensure-state)
   (when @(subscribe [:have? [:identity]])
-    ;; need project info for :project/private-not-viewable?
-    (with-loader [[:project @(subscribe [:active-project-id])]] {}
-      (let [project-id @(subscribe [:active-project-id])]
-        (cond (or (nil? project-id)
-                  @(subscribe [:project/not-found? project-id]))
+    (let [project-id @(subscribe [:active-project-id])]
+      ;; redirect to standard project url if needed
+      (when-let [redirect-id @(subscribe [:project-redirect-needed])]
+        (let [[_ suburi] (re-matches #".*/p/[\d]+(.*)" @active-route)
+              std-uri @(subscribe [:project/uri redirect-id suburi])]
+          (dispatch [:nav-redirect std-uri])))
+      (when project-id (dispatch [:require [:project project-id]]))
+      (when (and project-id @(subscribe [:have? [:project project-id]]))
+        (cond @(subscribe [:project/not-found? project-id])
               [:div
                [ProjectErrorNotice "Project not found"]
                [:div {:style {:margin-top "16px"}}
@@ -105,10 +104,10 @@
               @(subscribe [:project/unauthorized? project-id])
               [ProjectErrorNotice "Not authorized to view project"]
 
-              @(subscribe [:project/error? project-id])
+              @(subscribe [:project/error project-id])
               [ProjectErrorNotice "Unable to load project"]
 
-              @(subscribe [:project/private-not-viewable? project-id])
+              @(subscribe [:project/subscription-lapsed? project-id])
               [ProjectErrorNotice
                [PrivateProjectNotViewable project-id]]
 

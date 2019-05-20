@@ -190,7 +190,6 @@
       (nav/new-project project-name)
       (reset! project-id (b/current-project-id))
       (assert (integer? @project-id))
-      (nav/go-project-route "/add-articles")
       (pm/add-articles-from-search-term search-term-first)
 
 ;;; create new labels

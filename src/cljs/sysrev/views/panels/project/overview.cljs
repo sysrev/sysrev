@@ -16,7 +16,7 @@
             [sysrev.views.components :as ui]
             [sysrev.views.charts :as charts]
             [sysrev.views.panels.project.articles :as articles]
-            [sysrev.util :as util]
+            [sysrev.util :as util :refer [wrap-user-event]]
             [sysrev.shared.util :as sutil :refer [in?]])
   (:require-macros [sysrev.macros :refer [with-loader]]))
 
@@ -58,7 +58,8 @@
 (defn- label-status-help-column [colors]
   (let [scounts @(subscribe [:project/status-counts])
         scount #(get scounts % 0)
-        color-border #(str "1px solid " (get colors %))]
+        color-border #(str "1px solid " (get colors %))
+        wrap-nav #(wrap-user-event % :prevent-default true)]
     [:div.label-status-help
      [:div.ui.segments
       [:div.ui.attached.small.segment.status-header.green
@@ -66,11 +67,11 @@
       [:div.ui.attached.segment.status-buttons.with-header
        [:div.ui.small.basic.fluid.buttons
         [:a.ui.button.include-full-button
-         {:on-click #(nav-article-status [true :determined])}
+         {:on-click (wrap-nav #(nav-article-status [true :determined]))}
          (str "Full (" (+ (scount [:consistent true])
                           (scount [:resolved true])) ")")]
         [:a.ui.button.include-partial-button
-         {:on-click #(nav-article-status [true :single])}
+         {:on-click (wrap-nav #(nav-article-status [true :single]))}
          (str "Partial (" (scount [:single true]) ")")]]]]
      [:div.ui.segments
       [:div.ui.attached.small.segment.status-header.orange
@@ -78,11 +79,11 @@
       [:div.ui.attached.segment.status-buttons.with-header
        [:div.ui.small.basic.fluid.buttons
         [:a.ui.button.exclude-full-button
-         {:on-click #(nav-article-status [false :determined])}
+         {:on-click (wrap-nav #(nav-article-status [false :determined]))}
          (str "Full (" (+ (scount [:consistent false])
                           (scount [:resolved false])) ")")]
         [:a.ui.button.exclude-partial-button
-         {:on-click #(nav-article-status [false :single])}
+         {:on-click (wrap-nav #(nav-article-status [false :single]))}
          (str "Partial (" (scount [:single false]) ")")]]]]
      [:div.ui.segments {:style {:border-color "rgba(0,0,0,0.0)"}}
       [:div.ui.attached.segment.status-buttons.no-header
@@ -91,13 +92,13 @@
          {:style {:border-left (color-border :red)
                   :border-top (color-border :red)
                   :border-bottom (color-border :red)}
-          :on-click #(nav-article-status [nil :conflict])}
+          :on-click (wrap-nav #(nav-article-status [nil :conflict]))}
          (str "Conflict (" (scount [:conflict nil]) ")")]
         [:a.ui.button.resolve-button
          {:style {:border-right (color-border :purple)
                   :border-top (color-border :purple)
                   :border-bottom (color-border :purple)}
-          :on-click #(nav-article-status [nil :resolved])}
+          :on-click (wrap-nav #(nav-article-status [nil :resolved]))}
          (str "Resolved (" (+ (scount [:resolved true])
                               (scount [:resolved false])) ")")]]]]]))
 

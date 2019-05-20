@@ -98,23 +98,43 @@
                   (active-subpanel-uri db path))]
         (if (fn? uri) (uri params) uri))})))
 
-(defn lookup-project-url-id [db url-id]
-  (when url-id (get-in db [:data :project-url-ids url-id] :not-found)))
+(defn lookup-project-url [db url-id]
+  (when url-id (get-in db [:data :project-lookups url-id] :loading)))
 
-(reg-sub :project-url-id
+(reg-sub :lookup-project-url
          (fn [db [_ url-id]]
-           (lookup-project-url-id db url-id)))
+           (lookup-project-url db url-id)))
 
-(reg-sub :active-project-url #(get-in % [:state :active-project-url]))
+(defn active-project-url [db] (get-in db [:state :active-project-url]))
+
+(reg-sub :active-project-url active-project-url)
+
+;; checks if current project url should be redirected
+;; (TODO: handle redirect on ownership transfer?)
+(reg-sub :project-redirect-needed
+         (fn [db]
+           (let [url-id (active-project-url db)
+                 [project-id-url owner-url] url-id
+                 owned-url? (and project-id-url owner-url)
+                 full-id (some->> url-id
+                                  (lookup-project-url db)
+                                  (ensure-pred map?))
+                 project-id-full (ensure-pred integer? (:project-id full-id))
+                 user-id-full (ensure-pred integer? (:user-id full-id))
+                 org-id-full (ensure-pred integer? (:org-id full-id))
+                 full-id-valid? (and project-id-full (or user-id-full org-id-full))]
+             ;; redirect on legacy url for owned project
+             (when (and (parse-integer project-id-url)
+                        (nil? owner-url)
+                        full-id-valid?)
+               project-id-full))))
 
 (defn active-project-id [db]
-  (let [literals (get-in db [:state :active-project-literal])
-        url-id (get-in db [:state :active-project-url])
-        [_ owner] url-id]
-    (if (and (:project literals) (nil? owner))
-      (:project literals) ; Legacy /p/<int> format
-      (->> (lookup-project-url-id db url-id)
-           (ensure-pred integer?)))))
+  (let [url-id (get-in db [:state :active-project-url])]
+    (some->> (lookup-project-url db url-id)
+             (ensure-pred map?)
+             :project-id
+             (ensure-pred integer?))))
 
 (reg-sub :active-project-id active-project-id)
 
@@ -161,18 +181,24 @@
        (merge {:reset-ui true, :reset-needed true})
        ;; look up project id from server
        url-id
-       (merge {:dispatch [:require [:project-url-id url-id]]})))))
+       (merge {:dispatch [:require [:lookup-project-url url-id]]})))))
 
-(reg-sub-raw
- :project/uri
- (fn [_ [_ project-id suburi]]
-   (reaction
-    (let [active-id @(subscribe [:active-project-id])
-          project-id (or project-id active-id)
-          project-url-id @(subscribe [:project/active-url-id project-id])
-          url-id (if (string? project-url-id)
-                   project-url-id project-id)]
-      (str "/p/" url-id (or suburi ""))))))
+(reg-sub-raw :project/uri
+             (fn [_ [_ project-id suburi]]
+               (reaction
+                (let [active-id @(subscribe [:active-project-id])
+                      project-id (or project-id active-id)
+                      active-url-id @(subscribe [:active-project-url])
+                      active-full-id (when active-url-id
+                                       @(subscribe [:lookup-project-url active-url-id]))
+                      {:keys [user-id org-id]} active-full-id
+                      project-url-id (or (->> @(subscribe [:project/active-url-id project-id])
+                                              (ensure-pred string?))
+                                         project-id)]
+                  (str (cond user-id  (str "/u/" user-id)
+                             org-id   (str "/o/" org-id)
+                             :else    "")
+                       "/p/" project-url-id (or suburi ""))))))
 
 (defn project-uri [project-id & [suburi]]
   @(subscribe [:project/uri project-id suburi]))
@@ -192,11 +218,16 @@
               (fn [db [_ url-ids-map]]
                 (update-in db [:data :project-url-ids] #(merge % url-ids-map))))
 
-(def-data :project-url-id
-  :loaded? (fn [db url-id] (-> (get-in db [:data :project-url-ids])
+(reg-event-db :load-project-lookup
+              (fn [db [_ url-id project-full-id]]
+                (update-in db [:data :project-lookups] #(assoc % url-id project-full-id))))
+
+(def-data :lookup-project-url
+  :loaded? (fn [db url-id] (-> (get-in db [:data :project-lookups])
                                (contains? url-id)))
   :prereqs (fn [_] [[:identity]])
   :uri (fn [url-id] "/api/lookup-project-url")
   :content (fn [url-id] {:url-id (sutil/write-transit-str url-id)})
-  :process (fn [_ [url-id] {:keys [project-id]}]
-             {:dispatch [:load-project-url-ids {url-id project-id}]}))
+  :process (fn [_ [url-id] project-full-id]
+             #_ (println (pr-str {:project-full-id project-full-id}))
+             {:dispatch [:load-project-lookup url-id project-full-id]}))

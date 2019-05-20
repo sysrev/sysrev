@@ -242,7 +242,6 @@
                (if displayed? (wait-until-displayed q) (wait-until-exists q)))
              (when-not (and (= if-not-exists :skip) (not (taxi/exists? q)))
                (taxi/click q)))]
-    (Thread/sleep 30)
     (try (go)
          (catch Throwable e
            (wait-until-loading-completes :pre-wait (+ delay 50))

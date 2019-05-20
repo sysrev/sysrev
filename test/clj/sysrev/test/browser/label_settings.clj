@@ -30,7 +30,8 @@
    project-name "Label Consensus Test"
    switch-user (fn [email]
                  (nav/log-in email)
-                 (nav/go-project-route "" :project-id @project-id))
+                 (nav/go-project-route "" :project-id @project-id)
+                 (b/wait-until-loading-completes :pre-wait 100))
    label1 {:value-type "categorical"
            :short-label "Test Label 1"
            :question "Is it?"
@@ -50,13 +51,14 @@
    check-status (fn [n-full n-conflict n-resolved]
                   (Thread/sleep 300)
                   (nav/go-project-route "")
+                  (b/wait-until-loading-completes :pre-wait 100)
                   (is (b/exists? include-full))
-                  (b/wait-until-loading-completes :pre-wait 50)
                   (is (= (format "Full (%d)" n-full) (taxi/text include-full)))
                   (is (b/exists? conflicts))
                   (is (= (format "Conflict (%d)" n-conflict) (taxi/text conflicts)))
                   (is (b/exists? resolved))
-                  (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved))))]
+                  (is (= (format "Resolved (%d)" n-resolved) (taxi/text resolved)))
+                  (b/wait-until-loading-completes :pre-wait 150))]
   (do (nav/log-in)
       ;; create project
       (nav/new-project project-name)
@@ -140,7 +142,7 @@
           (is (or (in? g1 (str/join ", " values))
                   (in? g1 (str/join ", " (reverse values))))))
         (is (in? g1 "conflict")) ;; consensus status
-        (is (in? g1 "2"))          ;; user count
+        (is (in? g1 "2"))        ;; user count
         (let [names (map to-user-name [user1 user2])]
           (is (or (in? g1 (str/join ", " names))
                   (in? g1 (str/join ", " (reverse names))))))
@@ -149,7 +151,10 @@
       ;; switch to non-admin user to use "Change Labels"
       (switch-user user2)
       ;; check article list interface (Conflict filter)
-      (b/click conflicts)
+      (b/wait-until-loading-completes :pre-wait 100)
+      (check-status 0 1 0)
+      (b/click conflicts :displayed? true)
+      (b/wait-until-loading-completes :pre-wait 100)
       (b/click "div.article-list-article")
       ;; check for conflict label in article component
       (is (b/exists? ".label.review-status.orange"))
@@ -167,6 +172,7 @@
       (check-status 1 0 0)
       ;; check article list interface (Include Full filter)
       (b/click include-full)
+      (b/wait-until-loading-completes :pre-wait 200)
       (is (b/exists? "div.article-list-article"))
       (nav/go-project-route "/articles")
       ;; re-enable label consensus setting
@@ -175,6 +181,7 @@
       (check-status 0 1 0)
       ;; resolve article conflict
       (b/click conflicts)
+      (b/wait-until-loading-completes :pre-wait 200)
       (b/click "div.article-list-article")
       (is (b/exists? ".button.change-labels"))
       (is (= "Resolve Labels" (taxi/text ".button.change-labels")))
@@ -191,7 +198,7 @@
         (is (in? g1 "true"))
         (is (in? g1 "One"))
         (is (in? g1 "resolved")) ;; consensus status
-        (is (in? g1 "2"))          ;; user count
+        (is (in? g1 "2"))        ;; user count
         (let [names (map to-user-name [user1 user2])]
           (is (or (in? g1 (str/join ", " names))
                   (in? g1 (str/join ", " (reverse names))))))
@@ -199,6 +206,7 @@
         (is (= ganswers (-> ganswers csv/write-csv (csv/parse-csv :strict true)))))
       ;; check article list interface (Resolved filter)
       (b/click resolved)
+      (b/wait-until-loading-completes :pre-wait 200)
       (is (b/exists? "div.article-list-article"))
       (b/click "div.article-list-article")
       ;; check for resolved labels in article component
