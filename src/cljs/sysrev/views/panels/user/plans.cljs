@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.user.plans
   (:require [reagent.core :as r]
-            [re-frame.core :refer [dispatch subscribe reg-event-fx trim-v reg-sub]]
+            [re-frame.core :refer [dispatch subscribe reg-event-fx reg-event-db trim-v reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
@@ -20,6 +20,7 @@
                     :changing-plan? false
                     :error-message nil})
 (defonce state (r/cursor app-db [:state :panels panel]))
+
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
@@ -45,18 +46,28 @@
 (reg-sub :plans/current-plan
          (fn [db] @(r/cursor state [:current-plan])))
 
+(reg-sub :plans/on-subscribe-nav-to-url
+         (fn [db] (get-in db [:state :panels panel :on-subscribe-nav-to-url])))
+
+(reg-event-db
+ :plans/set-on-subscribe-nav-to-url!
+ [trim-v]
+ (fn [db [url]]
+   (assoc-in db [:state :panels panel :on-subscribe-nav-to-url] url)))
+
 (def-action :subscribe-plan
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/subscribe-plan"))
   :content (fn [plan-name]
              {:plan-name plan-name})
   :process
   (fn [{:keys [db]} _ result]
-    (cond (:created result)
-          (do
-            (reset! (r/cursor state [:changing-plan?]) false)
-            (reset! (r/cursor state [:error-messsage]) nil)
-            (nav-scroll-top (str "/user/" @(subscribe [:self/user-id]) "/billing"))            
-            {:dispatch [:fetch [:current-plan]]})))
+    (let [on-subscribe-nav-to-url (subscribe [:plans/on-subscribe-nav-to-url])]
+      (cond (:created result)
+            (do
+              (reset! (r/cursor state [:changing-plan?]) false)
+              (reset! (r/cursor state [:error-messsage]) nil)
+              (nav-scroll-top @on-subscribe-nav-to-url)
+              {:dispatch [:fetch [:current-plan]]}))))
   :on-error
   (fn [{:keys [db error]} _ _]
     (cond
@@ -126,7 +137,7 @@
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan]
-                        [:a {:href billing-settings-uri} "Back to Billing Settings"]]]]]
+                        [:a {:href billing-settings-uri} "Billing Settings"]]]]]
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe Summary"]

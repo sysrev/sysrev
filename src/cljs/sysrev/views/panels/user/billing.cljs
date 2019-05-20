@@ -82,6 +82,7 @@
                 unlimited?  "Unsubscribe")]]])]))
 
 (defn Billing []
+  (dispatch [:plans/set-on-subscribe-nav-to-url! (str "/user/" @(subscribe [:self/user-id]) "/billing")])
   [Segment
    [Header {:as "h4" :dividing true}
     "Billing"]

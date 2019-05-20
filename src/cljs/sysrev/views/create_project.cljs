@@ -32,7 +32,7 @@
 
 (defn- CreateProjectForm [& [initial-org-id]]
   (let [project-name (subscribe [:view-field view [:project-name]])
-        orgs (subscribe [:orgs])
+        orgs (subscribe [:self/orgs])
         current-org-id (r/atom (or initial-org-id
                                    "current-user"))
         create-project #(if (= @current-org-id "current-user")
@@ -51,7 +51,6 @@
                  :on-change (util/wrap-prevent-default
                              #(dispatch-sync [:set-view-field view [:project-name]
                                               (-> % .-target .-value)]))}]
-         ;; this needs to check to see if a user is an owner or admin of an org
          (when (and (not (empty? (->> @orgs
                                       (filter #(some #{"owner" "admin"} (:permissions %))))))
                     (nil? initial-org-id))

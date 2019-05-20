@@ -98,6 +98,7 @@
       (groups/create-project-group! project-id group-id)
       (project/add-project-member project-id user-id
                                   ;; NOT owner, create-project-group!
+                                  ;; makes the group the owner of this project
                                   ;; group projects shouldn't have
                                   ;; a project_member entry with
                                   ;; an "owner" permission
@@ -340,7 +341,7 @@
   [group-id plan-name]
   (let [stripe-id (groups/get-stripe-id group-id)
         stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)]
-    (doseq [{:keys [project-id]} (groups/group-projects group-id)]
+    (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
       (db/clear-project-cache project-id))
     (cond-> stripe-response
       (:error stripe-response) (update :error #(merge % {:status not-found})))))

@@ -142,7 +142,8 @@
            (if user-id
              (-> (merge
                   {:identity (users/user-identity-info user-id true)}
-                  (users/user-self-info user-id))
+                  (users/user-self-info user-id)
+                  (get-in (api/read-orgs user-id) [:result]))
                  (assoc-in [:identity :verified] verified))
              {:identity {:settings (:settings session)}}))))
 

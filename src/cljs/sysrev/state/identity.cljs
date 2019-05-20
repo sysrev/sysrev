@@ -17,7 +17,7 @@
   :loaded? have-identity?
   :uri (fn [] "/api/auth/identity")
   :process
-  (fn [{:keys [db]} _ {:keys [identity projects]}]
+  (fn [{:keys [db]} _ {:keys [identity projects orgs]}]
     (let [have-user? (contains? identity :user-id)
           cur-theme (get-in db [:state :identity :settings :ui-theme])
           new-theme (get-in identity [:settings :ui-theme])
@@ -33,7 +33,8 @@
       (cond->
           {:db (cond-> (-> db
                            (assoc-in [:state :identity] identity)
-                           (assoc-in [:state :self :projects] projects))
+                           (assoc-in [:state :self :projects] projects)
+                           (assoc-in [:state :self :orgs] orgs))
                  have-user? (store-user-map identity))
            :dispatch-n (list [:load-project-url-ids url-ids-map])}
           theme-changed?
@@ -116,6 +117,17 @@
    (if include-available?
      projects
      (->> projects (filterv :member?)))))
+
+(reg-sub
+ :self/orgs
+ (fn [db _]
+   (get-in db [:state :self :orgs])))
+
+(reg-event-db
+ :self/set-orgs!
+ [trim-v]
+ (fn [db [orgs]]
+   (assoc-in db [:state :self :orgs] orgs)))
 
 (reg-sub
  :self/member?

@@ -1,7 +1,7 @@
 (ns sysrev.views.panels.org.main
   (:require [ajax.core :refer [GET]]
             [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx]]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
             [sysrev.state.ui :refer [get-panel-field set-panel-field]]
@@ -23,32 +23,40 @@
 
 (reg-event-db
  :set-current-org!
- (fn [db [_ org-id]]
+ [trim-v]
+ (fn [db [org-id]]
    (set-field db [:current-org-id] org-id)))
+
+(reg-sub :orgs #(get-field % [:orgs]))
+
+(reg-event-db
+ :set-orgs!
+ [trim-v]
+ (fn [db [orgs]]
+   (set-field db [:orgs] orgs)))
 
 (defn read-orgs!
   []
   (let [retrieving-orgs? (r/cursor state [:retrieving-orgs?])
         orgs-error (r/cursor state [:orgs-error])
-        orgs (r/cursor state [:orgs])
+        orgs (subscribe [:orgs])
         current-org-id (r/cursor state [:current-org-id])]
     (reset! retrieving-orgs? true)
     (GET "/api/orgs"
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-orgs? false)
-                     (reset! orgs (get-in response [:result :orgs]))
+                     (dispatch [:self/set-orgs! (get-in response [:result :orgs])])
+                     (dispatch [:set-orgs! (get-in response [:result :orgs])])
                      (when (and (not (empty? @orgs))
                                 (nil? @current-org-id))
                        (dispatch [:set-current-org! (->> @orgs (sort-by :id) first :id)])
                        ;; for plans to be able to keep up
-                       (dispatch [:fetch [:org-current-plan]])))
+                       (dispatch [:fetch [:org-current-plan current-org-id]])))
           :error-handler (fn [error-response]
                            (reset! retrieving-orgs? false)
                            (reset! orgs-error (get-in error-response
                                                       [:response :error :message])))})))
-
-(reg-sub :orgs #(get-field % [:orgs]))
 
 (reg-event-fx :read-orgs! (fn [_ _] (read-orgs!) {}))
 
@@ -79,7 +87,7 @@
 (defn OrgContent
   []
   (let [current-path active-route
-        orgs (r/cursor state [:orgs])
+        orgs (subscribe [:self/orgs])
         current-org-id (subscribe [:orgs/path-org-id])
         active-item (fn [current-path sub-path]
                       (cond-> "item "

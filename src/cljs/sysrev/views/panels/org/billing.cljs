@@ -17,6 +17,7 @@
       (when (nil? @(subscribe [:current-org]))
         (dispatch [:set-current-org! org-id])
         (dispatch [:fetch [:org-current-plan]]))
+      (dispatch [:org/set-on-subscribe-nav-to-url! (str "/org/" @(subscribe [:current-org]) "/billing")])
       [Segment
        [Header {:as "h4" :dividing true}
         "Billing"]

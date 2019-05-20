@@ -42,6 +42,14 @@
    (:permissions member)))
 
 (reg-sub
+ :member/org-permissions
+ (fn [db [_ org-id]]
+   (->> (filter #(= (:id %) org-id)
+                @(subscribe [:self/orgs]))
+        first
+        :permissions)))
+
+(reg-sub
  :member/admin?
  (fn [[_ user-id project-id]]
    [(subscribe [:member/permissions user-id project-id])])
