@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.user.plans
   (:require [reagent.core :as r]
-            [re-frame.core :refer [dispatch subscribe reg-event-fx reg-event-db trim-v reg-sub]]
+            [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub]]
             [re-frame.db :refer [app-db]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]

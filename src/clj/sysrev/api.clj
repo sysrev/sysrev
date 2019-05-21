@@ -372,6 +372,7 @@
             ;; change option
             :else
             (project/change-project-setting project-id (keyword setting) value)))
+    (db/clear-project-cache project-id)
     {:success true, :settings (project/project-settings project-id)}))
 
 (defn support-project-monthly

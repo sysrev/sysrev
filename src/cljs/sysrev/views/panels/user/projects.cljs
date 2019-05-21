@@ -5,6 +5,7 @@
             [reagent.core :as r]
             [sysrev.state.nav :refer [project-uri]]
             [sysrev.util :as util :refer [condensed-number wrap-prevent-default]]
+            [sysrev.views.components :refer [ConfirmationDialog]]
             [sysrev.views.create-project :refer [CreateProject]]
             [sysrev.views.semantic :refer
              [Message MessageHeader Segment Header Grid Row Column Divider Checkbox Button]])
@@ -33,24 +34,42 @@
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-projects? false)
-                     (dispatch [:users/set-projects! user-id (-> response :result :projects)]))
+                     (dispatch [:users/set-projects! user-id (->> response :result :projects)]))
           :error-handler (fn [error-response]
                            (.log js/console (clj->js error-response))
                            (reset! retrieving-projects? false)
                            (reset! error-message (get-in error-response [:response :error :message])))})))
 
-(defn make-public! [project-id]
-  (POST "/api/change-project-settings"
-        {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-         :params {:project-id project-id :changes [{:setting :public-access
-                                                    :value true}]}
-         :handler (fn [response]
-                    ;; only logged in users can make a project public
-                    (get-user-projects! @(subscribe [:self/user-id])))}))
+(defn set-public! [project-id]
+  (let [setting-public? (r/cursor state [project-id :setting-public?])]
+    (reset! setting-public? true)
+    ;; change the project settings
+    (dispatch [:action [:project/change-settings project-id [{:setting :public-access
+                                                              :value true}]
+                        @(subscribe [:self/user-id])]])
+    ;; reset project settings state
+    (dispatch [:project-settings/reset-state!])))
 
 (defn MakePublic [{:keys [project-id]}]
-  [Button {:size "mini" :on-click (wrap-prevent-default #(make-public! project-id))}
-   "Set Publicly Viewable"])
+  (let [confirming? (r/atom false)
+        setting-public? (r/cursor state [project-id :setting-public?])]
+    (r/create-class
+     {:reagent-render
+      (fn [args]
+        [:div
+         (when @confirming?
+           [ConfirmationDialog {:on-cancel #(reset! confirming? false)
+                                :on-confirm (fn [e]
+                                              (set-public! project-id)
+                                              (reset! confirming? false))
+                                :title "Confirm Action"
+                                :message "Are you sure you want to make this project publicly viewable? Anyone will be able to view the contents of this project."}])
+         (when-not @confirming?
+           [Button {:size "mini" :on-click (wrap-prevent-default #(reset! confirming? true))}
+            "Set Publicly Viewable"])])
+      :component-did-mount (fn [this]
+                             (reset! setting-public? false)
+                             (reset! confirming? false))})))
 
 (defn- ActivityColumn [item-count text header-class & [count-font-size]]
   (when (pos? item-count)

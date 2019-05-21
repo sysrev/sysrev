@@ -50,9 +50,7 @@
                      (dispatch [:set-orgs! (get-in response [:result :orgs])])
                      (when (and (not (empty? @orgs))
                                 (nil? @current-org-id))
-                       (dispatch [:set-current-org! (->> @orgs (sort-by :id) first :id)])
-                       ;; for plans to be able to keep up
-                       (dispatch [:fetch [:org-current-plan current-org-id]])))
+                       (dispatch [:set-current-org! (->> @orgs (sort-by :id) first :id)])))
           :error-handler (fn [error-response]
                            (reset! retrieving-orgs? false)
                            (reset! orgs-error (get-in error-response

@@ -66,8 +66,7 @@
                        :on-change (fn [event data]
                                     (reset! current-org-id
                                             ($ data :value)))}]])])
-      :component-did-mount (fn [this]
-                             (dispatch [:read-orgs!]))})))
+      :component-did-mount (fn [this] (dispatch [:read-orgs!]))})))
 
 (defn CreateProject [& [initial-org-id]]
   [Segment {:secondary true}

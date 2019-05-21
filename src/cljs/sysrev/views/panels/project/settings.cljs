@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [reagent.core :as r]
             [re-frame.core :refer
-             [subscribe dispatch reg-sub]]
+             [subscribe dispatch reg-sub reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.loading :as loading]
@@ -22,6 +22,12 @@
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
+
+(reg-event-fx :project-settings/reset-state!
+              [trim-v]
+              (fn [db _]
+                (reset! state initial-state)
+                {}))
 
 (defn- parse-input [skey input]
   (case skey
@@ -133,11 +139,14 @@
   (not= (saved-values) (current-values)))
 
 (def-action :project/change-settings
-  :uri (fn [project-id changes] "/api/change-project-settings")
-  :content (fn [project-id changes]
+  :uri (fn [project-id changes & [user-id]] "/api/change-project-settings")
+  :content (fn [project-id changes & [user-id]]
              {:project-id project-id :changes changes})
-  :process (fn [{:keys [db]} [project-id _] {:keys [settings]}]
-             {:db (assoc-in db [:data :project project-id :settings] settings)}))
+  :process (fn [{:keys [db]} [project-id changes user-id] {:keys [settings]}]
+             {:db (cond-> (assoc-in db [:data :project project-id :settings] settings)
+                    ;; needed in user project pages
+                    user-id
+                    (assoc-in [user-id :projects project-id :settings] settings))}))
 
 (def-action :project/change-name
   :uri (fn [project-id project-name] "/api/change-project-name")
