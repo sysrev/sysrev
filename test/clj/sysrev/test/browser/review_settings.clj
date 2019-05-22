@@ -54,12 +54,16 @@
       ;; user1 can review this article even though already has 2 reviews
       (is (b/exists? ".ui.segments.article-info"))
       (project/change-project-setting @project-id :unlimited-reviews false)
-      (b/init-route (str "/p/" @project-id "/review"))
+      (b/init-route (str "/p/" @project-id "/add-articles"))
+      (b/wait-until-loading-completes :pre-wait 150)
+      (nav/go-project-route "/review")
       ;; can not review after unlimited setting disabled
       (is (b/exists? ".no-review-articles"))
       (project/change-project-setting @project-id :unlimited-reviews true)
       ;; re-enable setting, finish reviewing last article
-      (b/init-route (str "/p/" @project-id "/review"))
+      (b/init-route (str "/p/" @project-id "/add-articles"))
+      (b/wait-until-loading-completes :pre-wait 150)
+      (nav/go-project-route "/review")
       (is (b/exists? ".ui.segments.article-info"))
       (review-n-articles 1)
       (is (b/exists? ".no-review-articles"))
