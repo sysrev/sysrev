@@ -96,7 +96,7 @@
      {:reagent-render
       (fn [this]
         [:div
-         (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
+         (when (some #{"admin" "owner"} @(subscribe [:orgs/org-permissions org-id]))
            [CreateProject org-id])
          [OrgProjectList @(subscribe [:org/projects org-id])]
          (when-not (empty? @error)

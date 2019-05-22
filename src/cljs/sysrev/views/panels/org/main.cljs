@@ -7,6 +7,8 @@
             [sysrev.state.ui :refer [get-panel-field set-panel-field]]
             [sysrev.views.base :refer [panel-content logged-out-content]]
             [sysrev.views.panels.org.billing :refer [OrgBilling]]
+            [sysrev.views.panels.org.payment :refer [OrgPayment]]
+            [sysrev.views.panels.org.plans :refer [OrgPlans]]
             [sysrev.views.panels.org.projects :refer [OrgProjects]]
             [sysrev.views.panels.org.users :refer [OrgUsers]]
             [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown Message MessageHeader]])
@@ -18,14 +20,6 @@
 
 (defn get-field [db path] (get-panel-field db path panel))
 (defn set-field [db path val] (set-panel-field db path val panel))
-
-(reg-sub :current-org #(get-field % [:current-org-id]))
-
-(reg-event-db
- :set-current-org!
- [trim-v]
- (fn [db [org-id]]
-   (set-field db [:current-org-id] org-id)))
 
 (reg-sub :orgs #(get-field % [:orgs]))
 
@@ -47,10 +41,7 @@
           :handler (fn [response]
                      (reset! retrieving-orgs? false)
                      (dispatch [:self/set-orgs! (get-in response [:result :orgs])])
-                     (dispatch [:set-orgs! (get-in response [:result :orgs])])
-                     (when (and (not (empty? @orgs))
-                                (nil? @current-org-id))
-                       (dispatch [:set-current-org! (->> @orgs (sort-by :id) first :id)])))
+                     (dispatch [:set-orgs! (get-in response [:result :orgs])]))
           :error-handler (fn [error-response]
                            (reset! retrieving-orgs? false)
                            (reset! orgs-error (get-in error-response
@@ -58,23 +49,21 @@
 
 (reg-event-fx :read-orgs! (fn [_ _] (read-orgs!) {}))
 
-(reg-sub :current-org-name
-         (fn []
-           [(subscribe [:orgs])
-            (subscribe [:current-org])])
-         (fn [[orgs current-org]]
+(reg-sub :orgs/org-name
+         (fn [[_ org-id]]
+           [(subscribe [:orgs])])
+         (fn [[orgs] [_ org-id]]
            (->> orgs
-                (filter #(= (:id %) current-org))
+                (filter #(= (:id %) org-id))
                 first
                 :group-name)))
 
-(reg-sub :current-org-permissions
-         (fn []
-           [(subscribe [:orgs])
-            (subscribe [:current-org])])
-         (fn [[orgs current-org]]
+(reg-sub :orgs/org-permissions
+         (fn [[_ org-id]]
+           [(subscribe [:orgs])])
+         (fn [[orgs] [_ org-id]]
            (->> orgs
-                (filter #(= (:id %) current-org))
+                (filter #(= (:id %) org-id))
                 first
                 :permissions)))
 
@@ -95,7 +84,6 @@
     (r/create-class
      {:reagent-render
       (fn [this]
-        (dispatch [:set-current-org! @current-org-id])
         (if ;; a check for org existance should be implemented here
             false
           [Message {:negative true}
@@ -126,7 +114,7 @@
                          :class (cond-> "item"
                                   (= @current-path "/org/profile") (str " active"))}
                "Profile"]
-            (when (some #{"admin" "owner"} @(subscribe [:current-org-permissions]))
+            (when (some #{"admin" "owner"} @(subscribe [:orgs/org-permissions @current-org-id]))
               [MenuItem {:name "Billing"
                          :id "org-billing"
                          :href (uri-fn "/billing")
@@ -154,6 +142,10 @@
               ;;  [:h1 "Profile settings go here"]]
               #"/org/(\d*)/billing"
               [OrgBilling {:org-id @current-org-id}]
+              #"/org/(\d*)/plans"
+              [OrgPlans {:org-id @current-org-id}]
+              #"/org/(\d*)/payment"
+              [OrgPayment {:org-id @current-org-id}]
               ;; default
               [:div {:style {:display "none"}}])]]))
       :component-did-mount (fn []

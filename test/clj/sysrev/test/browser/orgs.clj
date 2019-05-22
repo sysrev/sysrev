@@ -235,7 +235,6 @@
     (log/info "attempting plan subscription")
     (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
-    (b/is-current-path "/org/payment")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
     (b/click plans/use-card)

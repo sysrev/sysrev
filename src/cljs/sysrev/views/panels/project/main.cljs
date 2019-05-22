@@ -75,15 +75,14 @@
        ;; needs to be set for the plan org
        (when (= :group-id project-owner-type)
          (dispatch [:org/set-on-subscribe-nav-to-url! project-url])
-         (dispatch [:set-current-org! project-owner-id])
          (dispatch [:fetch [:org-current-plan project-owner-id]]))
        [:div
         [:a {:href (if (= :user-id project-owner-type)
                      "/user/plans"
-                     "/org/plans")}
+                     (str "/org/" project-owner-id "/plans"))}
          "Upgrade your plan"]
         " or "
-        [MakePublic project-id]])]))
+        [MakePublic {:project-id project-id}]])]))
 
 (defn ProjectPanel [child]
   (when @(subscribe [:have? [:identity]])

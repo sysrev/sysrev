@@ -44,8 +44,7 @@
   [:div {:id (str "org-" id)
          :class "user-org-entry"
          :style {:margin-bottom "1em"}}
-   [:a {:href "#" :on-click (wrap-prevent-default #(do (dispatch [:set-current-org! id])
-                                                       (nav-scroll-top (str "/org/" id "/users"))))}
+   [:a {:href "#" :on-click (wrap-prevent-default #(nav-scroll-top (str "/org/" id "/users")))}
     group-name]
    [Divider]])
 

@@ -193,14 +193,6 @@
  (dispatch [:set-active-panel [:payment]]))
 
 (sr-defroute
- org-plans "/org/plans" []
- (dispatch [:set-active-panel [:org-plans]]))
-
-(sr-defroute
- org-payment "/org/payment" []
- (dispatch [:set-active-panel [:org-payment]]))
-
-(sr-defroute
  org-settings "/org/*" []
  (dispatch [:set-active-panel [:org-settings]]))
 
@@ -240,8 +232,6 @@
         [[:payment] "/user/payment"]
         [[:plans] "/user/plans"]
         [[:users] "/users*"]
-        [[:org-plans] "/org/plans"]
-        [[:org-payment] "/org/payment"]
         [[:org-settings] "/org/*"]]
        (reduce (fn [db [prefix uri]]
                  (set-subpanel-default-uri db prefix uri))

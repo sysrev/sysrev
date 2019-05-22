@@ -46,9 +46,9 @@
                 (assoc-in db [:state :panels panel :on-subscribe-nav-to-url] url)))
 
 (def-action :org-subscribe-plan
-  :uri (fn []
-         (str "/api/org/" @(subscribe [:current-org]) "/stripe/subscribe-plan"))
-  :content (fn [plan-name]
+  :uri (fn [org-id plan-name]
+         (str "/api/org/" org-id "/stripe/subscribe-plan"))
+  :content (fn [org-id plan-name]
              {:plan-name plan-name})
   :process
   (fn [{:keys [db]} _ result]
@@ -71,7 +71,7 @@
     {}))
 
 (defn OrgPlans
-  []
+  [{:keys [org-id]}]
   (r/create-class
    {:reagent-render (fn [this]
                       (let [changing-plan? (r/cursor state [:changing-plan?])
@@ -80,29 +80,28 @@
                             error-message (r/cursor state [:error-message])
                             ;; need this for orgs
                             current-plan (subscribe [:org/current-plan])
-                            test-cursor (r/cursor state [:test-cursor])
-                            current-org (subscribe [:current-org])]
+                            test-cursor (r/cursor state [:test-cursor])]
                         (when current-plan)
                         [:div
-                         (if (nil? @current-org)
+                         (if (nil? org-id)
                            [Message {:negative true}
                             [MessageHeader "Organization Plans Error"]
                             "No Organization has been set. "]
                            [:div
                             (when (= (:name @current-plan) "Basic")
-                              [UpgradePlan {:billing-settings-uri (str "/org/" @(subscribe [:current-org]) "/billing")
-                                            :default-source-atom (subscribe [:stripe/default-source "org" @(subscribe [:current-org])])
-                                            :get-default-source (partial stripe/get-org-default-source @(subscribe [:current-org]))
-                                            :on-upgrade (fn [] (dispatch [:action [:org-subscribe-plan "Unlimited"]]))
-                                            :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/org/plans"])
-                                                                        (dispatch [:navigate [:org-payment]]))}])
+                              [UpgradePlan {:billing-settings-uri (str "/org/" org-id "/billing")
+                                            :default-source-atom (subscribe [:stripe/default-source "org" org-id])
+                                            :get-default-source (partial stripe/get-org-default-source org-id)
+                                            :on-upgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Unlimited"]]))
+                                            :on-add-payment-method #(do (dispatch [:payment/set-calling-route! (str "/org/" org-id "/plans")])
+                                                                        (nav-scroll-top (str "/org/" org-id "/payment")))}])
                             (when (= (:name @current-plan) "Unlimited")
-                              [DowngradePlan {:billing-settings-uri (str "/org/" @(subscribe [:current-org]) "/billing")
-                                              :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan "Basic"]]))}])])]))
+                              [DowngradePlan {:billing-settings-uri (str "/org/" org-id "/billing")
+                                              :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Basic"]]))}])])]))
     :component-did-mount (fn [this]
                            (dispatch [:read-orgs!]))}))
 
-(defmethod panel-content panel []
+#_(defmethod panel-content panel []
   (fn [child]
     [OrgPlans]))
 

@@ -73,7 +73,7 @@
             :on-open #(reset! modal-open true)
             :on-close #(reset! modal-open false)
             :close-icon true}
-     [ModalHeader (str "Removing 1 member from " @(subscribe [:current-org-name]))]
+     [ModalHeader (str "Removing 1 member from " @(subscribe [:orgs/org-name org-id]))]
      [ModalContent
       [ModalDescription
        [Form {:on-submit #(remove-from-org! {:user-id @user-id
@@ -173,13 +173,13 @@
                              (reset! error ""))})))
 
 (defn UserRow
-  [{:keys [user-id username permissions]}]
+  [{:keys [user-id username permissions]} org-id]
   (let [change-role-modal-open (r/cursor state [:change-role-modal :open])
         remove-modal-open (r/cursor state [:remove-modal :open])
         current-user-id (r/cursor state [:current-user-id])
         current-username (r/cursor state [:current-username])
         self-user-id @(subscribe [:self/user-id])
-        self-permissions @(subscribe [:current-org-permissions])]
+        self-permissions @(subscribe [:orgs/org-permissions org-id])]
     [TableRow
      [TableCell
       [Avatar {:user-id user-id}]
@@ -221,8 +221,8 @@
                                         (reset! remove-modal-open true)))))}])]]))
 
 (defn UsersTable
-  [users]
-  (when-not (empty? users)
+  [{:keys [org-users org-id]}]
+  (when-not (empty? org-users)
     [Table {:basic "true"
             :id "org-user-table"}
      #_[TableHeader
@@ -234,8 +234,8 @@
      [TableBody
       (map (fn [user]
              ^{:key (:user-id user)}
-             [UserRow user])
-           users)]]))
+             [UserRow user org-id])
+           org-users)]]))
 
 (defn user-suggestions!
   [term]
@@ -289,8 +289,6 @@
         user-search-value (r/cursor state [:user-search-value])
         current-search-user-id (r/cursor state [:current-search-user-id])
         error (r/cursor state [:posting-add-user-to-group-error])
-        current-org-name (subscribe [:current-org-name])
-        current-org-id (subscribe [:current-org])
         reset-state! (fn []
                        (reset! user-search-results nil)
                        (reset! user-search-value "")
@@ -368,7 +366,7 @@
 (defn OrgUsers
   [{:keys [org-id]}]
   (let [org-users (subscribe [:org/users org-id])
-        org-permissions (subscribe [:current-org-permissions])]
+        org-permissions (subscribe [:orgs/org-permissions org-id])]
     (r/create-class
      {:reagent-render
       (fn [this]
@@ -378,5 +376,6 @@
            [InviteMemberModal {:org-id org-id}])
          [ChangeRoleModal {:org-id org-id}]
          [RemoveModal {:org-id org-id}]
-         [UsersTable @org-users]])})))
+         [UsersTable {:org-users @org-users
+                      :org-id org-id}]])})))
 

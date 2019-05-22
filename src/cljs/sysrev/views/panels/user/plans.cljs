@@ -176,7 +176,7 @@
             [Grid [Row [Column
                         [:h3 "UPGRADING TO"]
                         [BusinessUnlimited]
-                        [:a {:href billing-settings-uri} "Back to Billing Settings"]]]]]
+                        [:a {:href billing-settings-uri} "Billing Settings"]]]]]
            [Column {:width 8}
             (let [no-default? (empty? @default-source-atom)]
               [Grid
