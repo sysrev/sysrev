@@ -72,10 +72,8 @@
                        @(subscribe [:self/org-permissions project-owner-id]))))
        (when (= :user-id project-owner-type)
          (dispatch [:plans/set-on-subscribe-nav-to-url! project-url]))
-       ;; needs to be set for the plan org
        (when (= :group-id project-owner-type)
-         (dispatch [:org/set-on-subscribe-nav-to-url! project-url])
-         (dispatch [:fetch [:org-current-plan project-owner-id]]))
+         (dispatch [:org/set-on-subscribe-nav-to-url! project-url]))
        [:div
         [:a {:href (if (= :user-id project-owner-type)
                      "/user/plans"

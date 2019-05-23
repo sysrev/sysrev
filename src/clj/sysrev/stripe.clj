@@ -131,34 +131,34 @@
 (defn subscribe-customer!
   "Subscribe user to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response. on-success is a fn called when transaction is succesfully completed on Stripe"
   [user plan-name]
-  (let [{:keys [created id] :as stripe-response}
+  (let [{:keys [start id] :as stripe-response}
         (execute-action (subscriptions/subscribe-customer
                          (common/plan (get-plan-id plan-name))
                          (common/customer (:stripe-id user))
                          (subscriptions/do-not-prorate)))]
     (cond (:error stripe-response)
           stripe-response
-          created
+          start
           (do (db-plans/add-user-to-plan! {:user-id (:user-id user)
                                            :name plan-name
-                                           :created created
+                                           :created start
                                            :sub-id id})
               stripe-response))))
 
 (defn subscribe-org-customer!
   "Subscribe org to plan-name. Return the stripe response. If the customer is subscribed to a paid plan and no payment method has been attached to the user, this will result in an error in the response."
   [group-id stripe-id plan-name]
-  (let [{:keys [created id] :as stripe-response}
+  (let [{:keys [start id] :as stripe-response}
         (execute-action (subscriptions/subscribe-customer
                          (common/plan (get-plan-id plan-name))
                          (common/customer stripe-id)
                          (subscriptions/do-not-prorate)))]
     (cond (:error stripe-response)
           stripe-response
-          created
+          start
           (do (db-plans/add-group-to-plan! {:group-id group-id
                                             :name plan-name
-                                            :created created
+                                            :created start
                                             :sub-id id})
               stripe-response))))
 

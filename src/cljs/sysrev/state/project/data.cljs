@@ -169,3 +169,11 @@
    (->> (vals projects)
         (sort-by :project-id <)
         (map :project-id))))
+
+(reg-event-fx :project/fetch-all-projects
+              [trim-v]
+              (fn []
+                (let [projects @(subscribe [:self/projects])
+                      project-ids (map :project-id projects)]
+                  (doall (map #(dispatch [:fetch [:project %]]) project-ids)))
+                {}))

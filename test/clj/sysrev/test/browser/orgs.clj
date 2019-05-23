@@ -233,16 +233,12 @@
     (b/click plans/upgrade-link)
     ;; subscribe to plans
     (log/info "attempting plan subscription")
-    (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
     ;; enter payment information
     (bstripe/enter-cc-information org-cc)
     (b/click plans/use-card)
     (b/click ".button.upgrade-plan")
-    ;; switch back to the project and check that it can be set to private
-    (b/click org-projects)
-    (b/click (xpath "//a[text()='" org-name-1-project "']"))
-    (nav/go-project-route "/settings")
+    ;; should be back at project settings
     (b/click set-private-button)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button))
@@ -251,21 +247,14 @@
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
     (b/click plans/upgrade-link)
-    (b/is-current-path (str "/user/" user-id "/billing"))
+    (b/is-current-path "/user/plans")
     (is (b/exists? no-payment-on-file))
     ;; get a plan for user
-    (b/click ".button.nav-plans.subscribe" :displayed? true)
     (b/click "a.payment-method.add-method")
     (b/is-current-path "/user/payment")
     (bstripe/enter-cc-information user-cc)
     (b/click plans/use-card)
     (b/click ".button.upgrade-plan")
-    (is (b/exists? (payment-method {:exp-date "1/22" :last-4 "4242"})))
-    ;; user can set their projects private
-    (b/click "#user-profile")
-    (b/click "#user-projects")
-    (b/click (xpath "//a[text()='" user-project "']"))
-    (nav/go-project-route "/settings")
     (b/click set-private-button)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button)))

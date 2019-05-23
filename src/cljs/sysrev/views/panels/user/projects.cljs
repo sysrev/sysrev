@@ -1,6 +1,6 @@
 (ns sysrev.views.panels.user.projects
   (:require [ajax.core :refer [GET POST]]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db reg-event-fx trim-v]]
             [re-frame.db :refer [app-db]]
             [reagent.core :as r]
             [sysrev.state.nav :refer [project-uri]]
@@ -15,15 +15,15 @@
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-(reg-sub :users/projects
+(reg-sub :user/projects
          (fn [db [event user-id]]
-           (get-in db [user-id :projects])))
+           (get-in db [:users user-id :projects])))
 
 (reg-event-db
- :users/set-projects!
+ :user/set-projects!
  [trim-v]
  (fn [db [user-id projects]]
-   (assoc-in db [user-id :projects] projects)))
+   (assoc-in db [:users user-id :projects] projects)))
 
 (defn get-user-projects! [user-id]
   (let [retrieving-projects? (r/cursor state [:retrieving-projects?])
@@ -34,19 +34,24 @@
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
           :handler (fn [response]
                      (reset! retrieving-projects? false)
-                     (dispatch [:users/set-projects! user-id (->> response :result :projects)]))
+                     (dispatch [:user/set-projects! user-id (->> response :result :projects)]))
           :error-handler (fn [error-response]
                            (.log js/console (clj->js error-response))
                            (reset! retrieving-projects? false)
                            (reset! error-message (get-in error-response [:response :error :message])))})))
+
+(reg-event-fx :user/get-projects!
+              [trim-v]
+              (fn [_ [user-id]]
+                (get-user-projects! user-id)
+                {}))
 
 (defn set-public! [project-id]
   (let [setting-public? (r/cursor state [project-id :setting-public?])]
     (reset! setting-public? true)
     ;; change the project settings
     (dispatch [:action [:project/change-settings project-id [{:setting :public-access
-                                                              :value true}]
-                        @(subscribe [:self/user-id])]])
+                                                              :value true}]]])
     ;; reset project settings state
     (dispatch [:project-settings/reset-state!])))
 
@@ -105,9 +110,14 @@
          :style {:margin-bottom "1em" :font-size "110%"}}
    [:a {:href (project-uri project-id)
         :style {:margin-bottom "0.5em" :display "inline-block"}} name]
-   (when @(subscribe [:users/is-path-user-id-self?])
-     (when-not (:public-access settings)
-       [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]]))
+   (when (and
+          ;; this project is the users project
+          @(subscribe [:users/is-path-user-id-self?])
+          ;; this project is not public
+          (not (:public-access settings))
+          ;; the subscription has lapsed
+          @(subscribe [:project/subscription-lapsed? project-id]))
+     [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]])
    [UserActivityContent {:articles articles
                          :labels labels
                          :annotations annotations
@@ -116,7 +126,7 @@
 
 (defn- UserProjectsList
   [{:keys [user-id]}]
-  (let [projects (subscribe [:users/projects user-id])
+  (let [projects (subscribe [:user/projects user-id])
         error-message (r/cursor state [:retrieving-projects-error-message])]
     (r/create-class
      {:reagent-render
@@ -156,7 +166,7 @@
                                (get-user-projects! user-id)))})))
 
 (defn UserProjects [{:keys [user-id]}]
-  (let [projects (subscribe [:users/projects user-id])]
+  (let [projects (subscribe [:user/projects user-id])]
     (r/create-class
      {:reagent-render
       (fn [this]

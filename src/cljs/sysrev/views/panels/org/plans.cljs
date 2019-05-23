@@ -52,12 +52,16 @@
              {:plan-name plan-name})
   :process
   (fn [{:keys [db]} _ result]
-    (cond (:created result)
-          (do
-            (reset! (r/cursor state [:changing-plan?]) false)
-            (reset! (r/cursor state [:error-messsage]) nil)
-            (nav-scroll-top @(subscribe [:org/on-subscribe-nav-to-url]))
-            {:dispatch [:fetch [:current-plan]]})))
+    (let [on-subscribe-nav-to-url (subscribe [:org/on-subscribe-nav-to-url])]
+      (cond (:created result)
+            (do
+              (reset! (r/cursor state [:changing-plan?]) false)
+              (reset! (r/cursor state [:error-messsage]) nil)
+              ;; need to download all projects associated with the user
+              ;; to update [:project/subscription-lapsed?]
+              (dispatch [:project/fetch-all-projects])
+              (nav-scroll-top @on-subscribe-nav-to-url)
+              {:dispatch [:fetch [:current-plan]]}))))
   :on-error
   (fn [{:keys [db error]} _ _]
     (cond
@@ -81,12 +85,11 @@
                             ;; need this for orgs
                             current-plan (subscribe [:org/current-plan])
                             test-cursor (r/cursor state [:test-cursor])]
-                        (when current-plan)
                         [:div
                          (if (nil? org-id)
                            [Message {:negative true}
                             [MessageHeader "Organization Plans Error"]
-                            "No Organization has been set. "]
+                            "No Organization has been set."]
                            [:div
                             (when (= (:name @current-plan) "Basic")
                               [UpgradePlan {:billing-settings-uri (str "/org/" org-id "/billing")
@@ -99,7 +102,8 @@
                               [DowngradePlan {:billing-settings-uri (str "/org/" org-id "/billing")
                                               :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Basic"]]))}])])]))
     :component-did-mount (fn [this]
-                           (dispatch [:read-orgs!]))}))
+                           (dispatch [:read-orgs!])
+                           (dispatch [:fetch [:org-current-plan org-id]]))}))
 
 #_(defmethod panel-content panel []
   (fn [child]

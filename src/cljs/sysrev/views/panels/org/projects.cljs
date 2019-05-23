@@ -48,18 +48,25 @@
 
 (defn OrgProject
   [{:keys [name project-id settings]}]
+  (let [project-owner @(subscribe [:project/owner project-id])
+        org-id (-> project-owner vals first)]
     [:div {:id (str "project-" project-id)
-         :class "org-project-entry"
-         :style {:margin-bottom "1em" :font-size "110%"}}
-   [:a {:href (project-uri project-id)
-        :style {;;:margin-bottom "0.5em"
-                :display "inline-block"
-                }} name]
-     ;; need a function to determine if user is org-admin or not for this
-     #_(when @(subscribe [:users/is-path-user-id-self?])
-       (when-not (:public-access settings)
-         [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]]))
-     [Divider]])
+           :class "org-project-entry"
+           :style {:margin-bottom "1em" :font-size "110%"}}
+     [:a {:href (project-uri project-id)
+          :style {;;:margin-bottom "0.5em"
+                  :display "inline-block"
+                  }} name]
+     (when (and
+            ;; user has proper perms for this project
+            (some #{"admin" "owner"}
+                  @(subscribe [:self/org-permissions org-id]))
+            ;; this project is not public
+            (not (:public-access settings))
+            ;; the subscription has lapsed
+            @(subscribe [:project/subscription-lapsed? project-id]))
+       [:div {:style {:margin-bottom "0.5em"}} [MakePublic {:project-id project-id}]])
+     [Divider]]))
 
 (defn OrgProjectList
   [projects]
@@ -105,4 +112,5 @@
             [MessageHeader {:as "h4"} "Get Group Projects error"]
             @error])])
       :component-did-mount (fn [this]
+                             (.log js/console "I mounted")
                              (dispatch [:org/get-projects! org-id]))})))

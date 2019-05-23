@@ -66,6 +66,9 @@
             (do
               (reset! (r/cursor state [:changing-plan?]) false)
               (reset! (r/cursor state [:error-messsage]) nil)
+              ;; need to download all projects associated with the user
+              ;; to update [:project/subscription-lapsed?] for MakePublic
+              (dispatch [:project/fetch-all-projects])
               (nav-scroll-top @on-subscribe-nav-to-url)
               {:dispatch [:fetch [:current-plan]]}))))
   :on-error

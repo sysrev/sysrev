@@ -139,14 +139,20 @@
   (not= (saved-values) (current-values)))
 
 (def-action :project/change-settings
-  :uri (fn [project-id changes & [user-id]] "/api/change-project-settings")
-  :content (fn [project-id changes & [user-id]]
+  :uri (fn [project-id changes] "/api/change-project-settings")
+  :content (fn [project-id changes]
              {:project-id project-id :changes changes})
-  :process (fn [{:keys [db]} [project-id changes user-id] {:keys [settings]}]
-             {:db (cond-> (assoc-in db [:data :project project-id :settings] settings)
-                    ;; needed in user project pages
-                    user-id
-                    (assoc-in [user-id :projects project-id :settings] settings))}))
+  :process (fn [{:keys [db]} [project-id changes] {:keys [settings]}]
+             ;; if project is owned by an org, also reload that orgs projects
+             ;; this is hacky, need a keyword to [:action [...] :on-success #(do something)]
+             ;; because this can't just be handled by sysrev.views.panels.user.projects/set-public!
+             (let [project-owner @(subscribe [:project/owner project-id])
+                   owner-key (-> project-owner keys first)
+                   owner-id (-> project-owner vals first)]
+               (when (= :group-id owner-key)
+                 (dispatch [:org/get-projects! owner-id])))
+             {:db (cond-> (assoc-in db [:data :project project-id :settings] settings))
+              :dispatch [:user/get-projects! @(subscribe [:self/user-id])]}))
 
 (def-action :project/change-name
   :uri (fn [project-id project-name] "/api/change-project-name")
@@ -272,7 +278,8 @@
   (let [project-owner @(subscribe [:project/owner project-id])
         owner-key (-> project-owner keys first)
         owner-id (-> project-owner vals first)
-        project-plan @(subscribe [:project/plan project-id])]
+        project-plan @(subscribe [:project/plan project-id])
+        project-url @(subscribe [:project/uri project-id])]
     [:div [SettingsField
            {:setting :public-access
             :label "Project Visibility"
@@ -281,9 +288,13 @@
      (when (= project-plan
               "Basic")
        [:p [:a {:href (if (= owner-key :user-id)
-                        (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                        (str "/org/" owner-id "/billing"))}
-            "Upgrade"] " your plan to make this project private"])]))
+                        (str "/user/plans")
+                        (str "/org/" owner-id "/plans"))
+                :on-click (fn [e]
+                            (if (= owner-key :user-id)
+                              (dispatch [:plans/set-on-subscribe-nav-to-url! (str project-url "/settings")])
+                              (dispatch [:org/set-on-subscribe-nav-to-url! (str project-url "/settings")])))}
+            "Upgrade"] (str (if (= owner-key :user-id) " your " " the organization's ") "plan to make this project private")])]))
 
 (def unlimited-reviews-buttons
   [{:key :false

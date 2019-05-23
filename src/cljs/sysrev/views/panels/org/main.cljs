@@ -91,44 +91,33 @@
             "Organizations Error"]
            [:p "There isn't an org here."]]
           [:div
-           #_[Segment {:attached "top"
-                     :aligned "middle"}
-            [Header {:as "h4"}
-             "Organization Settings"]]
-           [Menu {:pointing true
-                  :secondary true
-                  :attached "bottom"
-                  :class "primary-menu"}
-            [MenuItem {:name "Users"
-                       :id "org-users"
-                       :href (uri-fn "/users")
-                       :class (active-item @current-path "/users")}
-             "Users"]
-            [MenuItem {:name "Projects"
-                       :id "org-projects"
-                       :href (uri-fn "/projects")
-                       :class (active-item @current-path "/projects")}]
-            #_[MenuItem {:name "Profile"
-                         :id "org-profile"
-                         :href "/org/profile"
-                         :class (cond-> "item"
-                                  (= @current-path "/org/profile") (str " active"))}
-               "Profile"]
-            (when (some #{"admin" "owner"} @(subscribe [:orgs/org-permissions @current-org-id]))
-              [MenuItem {:name "Billing"
-                         :id "org-billing"
-                         :href (uri-fn "/billing")
-                         :class (active-item @current-path "/billing")}
-               "Billing"])
-            #_(when-not (empty? @orgs)
-              [MenuItem {:position "right"}
-               [Dropdown {:id "change-org-dropdown"
-                          :options (map #(hash-map :text (:group-name %)
-                                                   :value (:id %)) @orgs)
-                          :value @current-org-id
-                          :on-change (fn [event data]
-                                       (reset! current-org-id
-                                               ($ data :value)))}]])]
+           (when-not (re-matches #"/org/(\d*)/plans" @current-path)
+             [:nav
+              [Menu {:pointing true
+                     :secondary true
+                     :attached "bottom"
+                     :class "primary-menu"}
+               [MenuItem {:name "Users"
+                          :id "org-users"
+                          :href (uri-fn "/users")
+                          :class (active-item @current-path "/users")}
+                "Users"]
+               [MenuItem {:name "Projects"
+                          :id "org-projects"
+                          :href (uri-fn "/projects")
+                          :class (active-item @current-path "/projects")}]
+               #_[MenuItem {:name "Profile"
+                            :id "org-profile"
+                            :href "/org/profile"
+                            :class (cond-> "item"
+                                     (= @current-path "/org/profile") (str " active"))}
+                  "Profile"]
+               (when (some #{"admin" "owner"} @(subscribe [:orgs/org-permissions @current-org-id]))
+                 [MenuItem {:name "Billing"
+                            :id "org-billing"
+                            :href (uri-fn "/billing")
+                            :class (active-item @current-path "/billing")}
+                  "Billing"])]])
            [:div {:id "org-content"}
             (condp re-matches @current-path
               #"/org/(\d*)/users"
