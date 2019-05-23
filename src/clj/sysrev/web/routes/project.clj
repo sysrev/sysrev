@@ -182,7 +182,8 @@
 
 (dr (GET "/api/project-info" request
          (wrap-authorize
-          request {:allow-public true}
+          request {:allow-public true
+                   :bypass-subscription-lapsed? true}
           (let [project-id (active-project request)
                 valid-project
                 (and (integer? project-id)
@@ -433,7 +434,8 @@
 
 (dr (GET "/api/project-settings" request
          (wrap-authorize
-          request {:allow-public true}
+          request {:allow-public true
+                   :bypass-subscription-lapsed? true}
           (let [project-id (active-project request)]
             {:result {:settings (project/project-settings project-id)
                       :project-name (-> (q/select-project-where

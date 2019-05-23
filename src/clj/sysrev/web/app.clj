@@ -14,6 +14,7 @@
             [sysrev.shared.util :refer [in? parse-integer ensure-pred]]
             [sysrev.resources :as res]
             [sysrev.db.users :as users]
+            [sysrev.api :refer [subscription-lapsed?]]
             [clojure.tools.logging :as log]))
 
 (defn current-user-id [request]
@@ -151,12 +152,13 @@
   request map and returns a boolean \"authorized\" value, and will be tested as
   an additional custom condition after the other conditions."
   [request
-   {:keys [logged-in developer roles allow-public authorize-fn]
+   {:keys [logged-in developer roles allow-public authorize-fn bypass-subscription-lapsed?]
     :or {logged-in nil
          developer false
          allow-public false
          roles nil
-         authorize-fn nil}
+         authorize-fn nil
+         bypass-subscription-lapsed? false}
     :as conditions}
    & body]
   (assert ((comp not empty?) body)
@@ -173,7 +175,7 @@
          allow-public# ~allow-public
          roles# ~roles
          authorize-fn# ~authorize-fn
-
+         bypass-subscription-lapsed?# ~bypass-subscription-lapsed?
          ;; set implied condition values
          logged-in# (if (or (not-empty roles#) (true? developer#))
                       true logged-in#)
@@ -226,6 +228,11 @@
                 (false? (authorize-fn# request#)))
            {:error {:status 403 :type :project
                     :message "Not authorized (authorize-fn)"}}
+
+           (and (not bypass-subscription-lapsed?#)
+                (subscription-lapsed? project-id#))
+           {:error {:status 402 :type :project
+                    :message "This action requires an upgraded plan"}}
 
            :else (body-fn#))))
 

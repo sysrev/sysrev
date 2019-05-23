@@ -1537,3 +1537,15 @@
 (defn group-projects
   [group-id & {:keys [private-projects?]}]
   {:result {:projects (groups/group-projects group-id :private-projects? private-projects?)}})
+
+(defn subscription-lapsed?
+  "Is the project private with a lapsed subscription?"
+  [project-id]
+  (if (nil? project-id)
+    false
+    (let [public-access? (get-in (project/project-settings project-id) [:public-access])
+          plan (project-owner-plan project-id)]
+      (if (and (not public-access?)
+               (not= "Unlimited" plan))
+        true
+        false))))
