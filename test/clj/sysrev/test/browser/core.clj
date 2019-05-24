@@ -90,7 +90,7 @@
              (catch Throwable t nil)))
       (when user-id
         (-> (delete-from :compensation-user-period)
-            (where [:= :web-user-id user-id])
+            (where [:= :user-id user-id])
             do-execute))
       (users/delete-user-by-email email))))
 
@@ -173,8 +173,7 @@
   found, unless now is true."
   [& [now]]
   (when-let [project-id (current-project-id now)]
-    (second (re-matches (re-pattern
-                         (format ".*/p/%d(.*)$" project-id))
+    (second (re-matches (re-pattern (format ".*/p/%d(.*)$" project-id))
                         (taxi/current-url)))))
 
 (defn set-input-text [q text & {:keys [delay clear?] :or {delay 20 clear? true}}]
@@ -295,9 +294,6 @@
   (when wait? (wait-until-displayed q))
   (mapv taxi/text (taxi/elements q)))
 
-;;;
-;;; NOTE: Compensation entries should not be deleted like this except in testing.
-;;;
 (defn delete-compensation-by-id [project-id compensation-id]
   ;; delete from compensation-user-period
   (-> (delete-from :compensation-user-period)
@@ -313,7 +309,7 @@
       do-execute)
   ;; delete from compensation
   (-> (delete-from :compensation)
-      (where [:= :id compensation-id])
+      (where [:= :compensation-id compensation-id])
       do-execute))
 
 (defn delete-project-compensations [project-id]
@@ -329,8 +325,8 @@
     (project/delete-project project-id)))
 
 (defn delete-test-user-groups! [user-id]
-  (doseq [{:keys [id]} (groups/read-groups user-id)]
-    (groups/delete-group! id)))
+  (doseq [{:keys [group-id]} (groups/read-groups user-id)]
+    (groups/delete-group! group-id)))
 
 (defn cleanup-test-user!
   "Deletes a test user by user-id or email, along with other entities

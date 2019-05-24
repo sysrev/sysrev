@@ -76,23 +76,23 @@
 (defn s3-id-from-filename-key
   "Returns s3-id associated with pair of filename and key."
   [filename key]
-  (-> (select :id)
+  (-> (select :s3-id)
       (from :s3store)
       (where [:and
               [:= :filename filename]
               [:= :key key]])
-      do-query first :id))
+      do-query first :s3-id))
 
 (defn s3-id-from-article-key
   "Returns s3-id associated with pair of article-id and s3store key."
   [article-id key]
-  (-> (select :s3.id)
+  (-> (select :s3.s3-id)
       (from [:s3store :s3])
-      (join [:article-pdf :apdf] [:= :apdf.s3-id :s3.id])
+      (join [:article-pdf :apdf] [:= :apdf.s3-id :s3.s3-id])
       (where [:and
               [:= :s3.key key]
               [:= :apdf.article-id article-id]])
-      do-query first :id))
+      do-query first :s3-id))
 
 (defn associate-s3-file-with-article
   "Associate an s3 filename/key pair with an article."
@@ -124,11 +124,11 @@
 (defn get-article-file-maps
   "Returns a coll of s3store file maps associated with article-id."
   [article-id]
-  (-> (select :filename :key :id)
+  (-> (select :filename :key :s3-id)
       (from :s3store)
-      (where [:in :s3store.id (-> (select :s3-id)
-                                  (from :article-pdf)
-                                  (where [:= :article-id article-id]))])
+      (where [:in :s3store.s3-id (-> (select :s3-id)
+                                     (from :article-pdf)
+                                     (where [:= :article-id article-id]))])
       do-query))
 
 (defn s3-id->key
@@ -136,14 +136,14 @@
   [s3-id]
   (-> (select :key)
       (from :s3store)
-      (where [:= :id s3-id])
+      (where [:= :s3-id s3-id])
       do-query first :key))
 
 (defn get-profile-image-s3-association
   "Given an s3-id and user-id, return the association"
   [s3-id user-id]
   (-> (select :s3-id)
-      (from :web-user-profile-image)
+      (from :user-profile-image)
       (where [:and
               [:= :s3-id s3-id]
               [:= :user-id user-id]])
@@ -152,17 +152,17 @@
 (defn associate-profile-image-s3-with-user
   "Associate a s3store id with a user's profile image"
   [s3-id user-id]
-  (-> (insert-into :web-user-profile-image)
+  (-> (insert-into :user-profile-image)
       (values [{:user-id user-id
                 :s3-id s3-id
-                :active true}])
+                :enabled true}])
       do-execute))
 
 (defn deactivate-all-profile-images
   "Deactivate all user profile images for user-id"
   [user-id]
-  (-> (sqlh/update :web-user-profile-image)
-      (sset {:active false})
+  (-> (sqlh/update :user-profile-image)
+      (sset {:enabled false})
       (where [:= :user-id user-id])
       do-execute))
 
@@ -170,8 +170,8 @@
   "Activate s3-id for user-id, deactivate all others"
   [s3-id user-id]
   (deactivate-all-profile-images user-id)
-  (-> (sqlh/update :web-user-profile-image)
-      (sset {:active true})
+  (-> (sqlh/update :user-profile-image)
+      (sset {:enabled true})
       (where [:and
               [:= :user-id user-id]
               [:= :s3-id s3-id]])
@@ -181,29 +181,29 @@
   "Return the key, filename associated with the active profile"
   [user-id]
   (let [s3-id (-> (select :s3-id)
-                  (from :web-user-profile-image)
+                  (from :user-profile-image)
                   (where [:and
                           [:= :user-id user-id]
-                          [:= :active true]])
+                          [:= :enabled true]])
                   do-query first :s3-id)]
-    (-> (select :key :filename :id)
+    (-> (select :key :filename :s3-id)
         (from :s3store)
-        (where [:= :id s3-id])
+        (where [:= :s3-id s3-id])
         do-query first)))
 
 (defn active-profile-image-meta
   "Return image profile meta for user-id"
   [user-id]
   (-> (select :meta)
-      (from :web_user_profile_image)
+      (from :user-profile-image)
       (where [:and
-              [:= :active true]
-              [:= :user_id user-id]])
+              [:= :enabled true]
+              [:= :user-id user-id]])
       do-query first :meta))
 
 (defn update-profile-image-meta!
   [s3-id meta]
-  (-> (sqlh/update :web_user_profile_image)
+  (-> (sqlh/update :user-profile-image)
       (sset {:meta (to-jsonb meta)})
       (where [:= :s3-id s3-id])
       do-execute))
@@ -211,14 +211,14 @@
 (defn read-avatar
   [user-id]
   (-> (select :*)
-      (from :web_user_avatar_image)
+      (from :user-avatar-image)
       (where [:= :user-id user-id])
       do-query first))
 
 (defn associate-avatar-image-with-user
   "Associate a s3store id with user's avatar image"
   [s3-id user-id]
-  (-> (insert-into :web_user_avatar_image)
+  (-> (insert-into :user-avatar-image)
       (values [{:s3-id s3-id
                 :user-id user-id}])
       do-execute))
@@ -227,14 +227,14 @@
   "Return the key, filename associated with the active profile"
   [user-id]
   (let [s3-id (-> (select :s3-id)
-                  (from :web-user-avatar-image)
+                  (from :user-avatar-image)
                   (where [:and
                           [:= :user-id user-id]
-                          [:= :active true]])
+                          [:= :enabled true]])
                   do-query first :s3-id)]
-    (-> (select :key :filename :id)
+    (-> (select :key :filename :s3-id)
         (from :s3store)
-        (where [:= :id s3-id])
+        (where [:= :s3-id s3-id])
         do-query first)))
 
 (defn gravatar-link
@@ -252,5 +252,5 @@
 (defn delete-file!
   [s3-id]
   (-> (delete-from :s3store)
-      (where [:= :id s3-id])
+      (where [:= :s3-id s3-id])
       do-execute))

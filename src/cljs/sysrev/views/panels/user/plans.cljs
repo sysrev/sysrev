@@ -230,15 +230,17 @@
             updating-card? (r/cursor state [:updating-card?])
             need-card? (r/cursor stripe/state [:need-card?])
             error-message (r/cursor state [:error-message])
-            current-plan (:name @(subscribe [:plans/current-plan]))]
+            current-plan (:name @(subscribe [:plans/current-plan]))
+            self-id @(subscribe [:self/user-id])]
         [:div
          (when (= current-plan "Basic")
-           [UpgradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                         :default-source-atom (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
+           [UpgradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
+                         :default-source-atom (subscribe [:stripe/default-source "user" self-id])
                          :get-default-source stripe/get-user-default-source
-                         :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited"]]))
-                         :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                                     (dispatch [:navigate [:payment]]))}])
+                         :on-upgrade #(dispatch [:action [:subscribe-plan "Unlimited"]])
+                         :on-add-payment-method
+                         #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                              (dispatch [:navigate [:payment]]))}])
          (when (= current-plan "Unlimited")
-           [DowngradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                           :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))}])]))))
+           [DowngradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
+                           :on-downgrade #(dispatch [:action [:subscribe-plan "Basic"]])}])]))))

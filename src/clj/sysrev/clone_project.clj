@@ -185,8 +185,8 @@
                      (returning :article-id)
                      do-query first :article-id)]
         (doseq [s3-file (files/get-article-file-maps (:article-id article))]
-          (when (:id s3-file)
-            (files/associate-s3-file-with-article (:id s3-file) new-article-id)))))))
+          (when (:s3-id s3-file)
+            (files/associate-s3-file-with-article (:s3-id s3-file) new-article-id)))))))
 
 ;; TODO: copy actual sources instead of doing this
 (defn create-project-legacy-source

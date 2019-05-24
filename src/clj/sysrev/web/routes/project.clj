@@ -86,7 +86,7 @@
                        (labels/article-resolved-status project-id article-id)
                        (labels/article-resolved-labels project-id article-id)))]
     {:article (merge (prepare-article-response article)
-                     {:pdfs (-> article-pdfs :result :files)}
+                     {:pdfs (:files article-pdfs)}
                      {:review-status consensus}
                      {:resolve (merge resolve {:labels resolve-labels})})
      :labels user-labels
@@ -105,7 +105,7 @@
                     (labels/project-members-info project-id)
                     (predict-report/predict-summary
                      (q/project-latest-predict-run-id project-id))
-                    (:result (api/important-terms project-id))
+                    (api/important-terms project-id)
                     (try
                       (project/project-url-ids project-id)
                       (catch Throwable e
@@ -259,10 +259,9 @@
           request {}
           (let [register-hash (-> request :params :register-hash)
                 project-id (project/project-id-from-register-hash register-hash)]
-            (if (nil? project-id)
-              {:result {:project nil}}
-              (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
-                {:result {:project {:project-id project-id :name name}}}))))))
+            {:project (when project-id
+                        (let [{:keys [name]} (q/query-project-by-id project-id [:name])]
+                          {:project-id project-id :name name}))}))))
 
 ;; Returns map with full information on an article
 (dr (GET "/api/article-info/:article-id" request
@@ -437,11 +436,9 @@
           request {:allow-public true
                    :bypass-subscription-lapsed? true}
           (let [project-id (active-project request)]
-            {:result {:settings (project/project-settings project-id)
-                      :project-name (-> (q/select-project-where
-                                         [:= :project-id project-id]
-                                         [:name])
-                                        do-query first :name)}}))))
+            {:settings (project/project-settings project-id)
+             :project-name (-> (q/select-project-where [:= :project-id project-id] [:name])
+                               do-query first :name)}))))
 
 (dr (POST "/api/change-project-settings" request
           (wrap-authorize
@@ -456,9 +453,7 @@
            (let [project-id (active-project request)
                  {:keys [project-name]} (:body request)]
              (project/change-project-name project-id project-name)
-             {:result
-              {:success true
-               :project-name project-name}}))))
+             {:success true, :project-name project-name}))))
 
 (dr (POST "/api/change-project-permissions" request
           (wrap-authorize
@@ -757,8 +752,8 @@
                                  :context (:context annotation-map) :pdf-key pdf-key)))]
                (when (and (string? semantic-class)
                           (not-empty semantic-class)
-                          (-> result :result :annotation-id))
-                 (api/update-annotation! (-> result :result :annotation-id)
+                          (:annotation-id result))
+                 (api/update-annotation! (:annotation-id result)
                                          annotation semantic-class user-id))
                result)))))
 
@@ -823,12 +818,12 @@
           (let [project-id (active-project request)]
             (api/read-project-compensations project-id)))))
 
-(dr (PUT "/api/toggle-compensation-active" request
+(dr (PUT "/api/toggle-compensation-enabled" request
          (wrap-authorize
           request {:roles ["admin"]}
           (let [project-id (active-project request)
-                {:keys [compensation-id active]} (:body request)]
-            (api/toggle-compensation-active! project-id compensation-id active)))))
+                {:keys [compensation-id enabled]} (:body request)]
+            (api/toggle-compensation-enabled! project-id compensation-id enabled)))))
 
 (dr (GET "/api/get-default-compensation" request
          (wrap-authorize
@@ -889,7 +884,7 @@
                  {:keys [verify-user-id]} (:body request)]
              (assert (= user-id verify-user-id) "verify-user-id mismatch")
              (project/delete-member-labels-notes project-id user-id)
-             {:result {:success true}}))))
+             {:success true}))))
 
 (dr (POST "/api/update-project-predictions" request
           (wrap-authorize

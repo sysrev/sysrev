@@ -40,11 +40,12 @@
                            (reset! error-message (get-in error-response [:response :error :message])))})))
 
 
-(defn UserOrganization [{:keys [id group-name]}]
-  [:div {:id (str "org-" id)
+(defn UserOrganization [{:keys [group-id group-name]}]
+  [:div {:id (str "org-" group-id)
          :class "user-org-entry"
          :style {:margin-bottom "1em"}}
-   [:a {:href "#" :on-click (wrap-prevent-default #(nav-scroll-top (str "/org/" id "/users")))}
+   [:a {:href "#" :on-click (wrap-prevent-default
+                             #(nav-scroll-top (str "/org/" group-id "/users")))}
     group-name]
    [Divider]])
 
@@ -56,7 +57,7 @@
                           [Segment
                            [Header {:as "h4" :dividing true} "Organizations"]
                            [:div {:id "user-organizations"}
-                            (doall (for [org @orgs] ^{:key (:id org)}
+                            (doall (for [org @orgs] ^{:key (:group-id org)}
                                      [UserOrganization org]))]]))
       :component-did-mount (fn [this]
                              (get-user-orgs! user-id))})))

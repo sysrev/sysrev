@@ -264,10 +264,10 @@
       do-query first :s3-id))
 
 (defn associate-pmcid-s3store
-  "Given a pmcid and an s3store-id, associate the two"
-  [pmcid s3store-id]
+  "Given a pmcid and an s3-id, associate the two"
+  [pmcid s3-id]
   (-> (insert-into :pmcid-s3store)
-      (values [{:pmcid pmcid :s3-id s3store-id}])
+      (values [{:pmcid pmcid :s3-id s3-id}])
       do-execute))
 
 ;; TODO: replace with generic function

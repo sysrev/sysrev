@@ -10,65 +10,66 @@
 (defn group-name->group-id
   "Given a group-name, get the group-id associated with it"
   [group-name]
-  (-> (select :id)
+  (-> (select :group-id)
       (from :groups)
       (where [:= :group-name group-name])
-      do-query first :id))
+      do-query first :group-id))
 
 (defn group-id->group-name
   "Given a group-id, the the group name"
   [group-id]
   (-> (select :group-name)
       (from :groups)
-      (where [:= :id group-id])
+      (where [:= :group-id group-id])
       do-query first :group-name))
 
 (defn add-user-to-group!
-  "Create an association between group-name and user-id in web-user-group with optional :permissions vector that default to {'member'}"
+  "Create a user-group association between group-id and user-id
+  with optional :permissions vector (default of [\"member\"])"
   [user-id group-id & {:keys [permissions]}]
-  (-> (insert-into :web-user-group)
+  (-> (insert-into :user-group)
       (values [(cond-> {:user-id user-id
                         :group-id group-id}
                  permissions (assoc :permissions (to-sql-array "text" permissions) ))])
       (returning :id)
       do-query first :id))
 
-(defn read-web-user-group-name
-  "Read the id for the web-user-group for user-id and group-name"
+(defn read-user-group-name
+  "Read the id for the user-group for user-id and group-name"
   [user-id group-name]
-  (-> (select :id :active)
-      (from :web-user-group)
+  (-> (select :id :enabled)
+      (from :user-group)
       (where [:and
               [:= :user-id user-id]
               [:= :group-id (group-name->group-id group-name)]])
       do-query
       first))
 
-(defn set-active-web-user-group!
-  "Set the boolean active? on group-id"
-  [web-user-group-id active?]
-  (-> (sqlh/update :web-user-group)
-      (sset {:active active?
+(defn set-user-group-enabled!
+  "Set boolean enabled status for user-group entry"
+  [user-group-id enabled]
+  (-> (sqlh/update :user-group)
+      (sset {:enabled enabled
              :updated (sql-now)})
-      (where [:= :id web-user-group-id])
+      (where [:= :id user-group-id])
       do-execute))
 
 (defn set-user-group-permissions!
-  "Set the permissions for user-id"
-  [web-user-group-id permissions]
-  (-> (sqlh/update :web-user-group)
+  "Set the permissions for user-group-id"
+  [user-group-id permissions]
+  (-> (sqlh/update :user-group)
       (sset {:permissions (to-sql-array "text" permissions)
              :updated (sql-now)})
-      (where [:= :id web-user-group-id])
+      (where [:= :id user-group-id])
       do-execute))
 
 (defn read-users-in-group
   "Return all of the users in group-name"
   [group-name]
   (let [users-in-group (-> (select :user-id :permissions)
-                           (from :web-user-group)
+                           (from :user-group)
                            (where [:and
-                                   [:= :active true]
+                                   [:= :enabled true]
                                    [:= :group-id (group-name->group-id group-name)]])
                            do-query)
         users-public-info (->> (map :user-id users-in-group)
@@ -80,40 +81,35 @@
                   (map #(merge % (get users-public-info (:user-id %))))))))
 
 (defn user-active-in-group?
-  "Is the user-id active in group-name?"
+  "Test for presence of enabled user-group entry"
   [user-id group-name]
-  (-> (select :active)
-      (from :web-user-group)
+  (-> (select :enabled)
+      (from :user-group)
       (where [:and
               [:= :user-id user-id]
               [:= :group-id (group-name->group-id group-name)]])
-      do-query
-      first
-      boolean))
+      do-query first :enabled boolean))
 
 (defn read-groups
   [user-id]
-  (-> (select :g.* :wug.permissions)
+  (-> (select :g.* :ug.permissions)
       (modifiers :distinct)
-      (from [:web_user_group :wug])
-      (join [:groups :g]
-            [:= :wug.group_id :g.id])
-      (where [:and
-              [:= :wug.user_id user-id]
-              [:= :wug.active true]])
+      (from [:user-group :ug])
+      (join [:groups :g] [:= :ug.group-id :g.group-id])
+      (where [:and [:= :ug.user-id user-id] [:= :ug.enabled true]])
       do-query))
 
 (defn create-group!
   [group-name]
   (-> (insert-into :groups)
       (values [{:group-name group-name}])
-      (returning :id)
-      do-query first :id))
+      (returning :group-id)
+      do-query first :group-id))
 
 (defn delete-group!
   [group-id]
   (-> (delete-from :groups)
-      (where [:= :id group-id])
+      (where [:= :group-id group-id])
       do-execute))
 
 (defn create-project-group!
@@ -128,7 +124,7 @@
   "Return the permissions for user-id in group-id"
   [user-id group-id]
   (-> (select :permissions)
-      (from :web-user-group)
+      (from :user-group)
       (where [:and
               [:= :user-id user-id]
               [:= :group-id group-id]])
@@ -139,9 +135,9 @@
   [group-id & {:keys [private-projects?]}]
   (-> (select :p.project-id :p.name :p.settings)
       (from [:project :p])
-      (join [:project_group :pg]
+      (join [:project-group :pg]
             [:= :pg.project-id :p.project-id])
-      (where [:= :pg.group_id group-id])
+      (where [:= :pg.group-id group-id])
       do-query
       (cond->> private-projects? (filter #(-> % :settings :public-access true?)))))
 
@@ -155,7 +151,7 @@
       (try
         (do (-> (sqlh/update :groups)
                 (sset {:stripe-id stripe-customer-id})
-                (where [:= :id group-id])
+                (where [:= :group-id group-id])
                 do-execute)
             {:success true})
         (catch Throwable e
@@ -169,7 +165,7 @@
   [org-id]
   (-> (select :stripe-id)
       (from :groups)
-      (where [:= :id org-id])
+      (where [:= :group-id org-id])
       do-query first :stripe-id))
 
 (defn group-id-from-url-id [url-id]

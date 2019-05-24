@@ -11,7 +11,9 @@
             [sysrev.views.panels.org.plans :refer [OrgPlans]]
             [sysrev.views.panels.org.projects :refer [OrgProjects]]
             [sysrev.views.panels.org.users :refer [OrgUsers]]
-            [sysrev.views.semantic :refer [Segment Header Menu MenuItem Dropdown Message MessageHeader]])
+            [sysrev.views.semantic :refer
+             [Segment Header Menu MenuItem Dropdown Message MessageHeader]]
+            [sysrev.shared.util :as sutil :refer [ensure-pred parse-integer css]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:org :main])
@@ -23,18 +25,12 @@
 
 (reg-sub :orgs #(get-field % [:orgs]))
 
-(reg-event-db
- :set-orgs!
- [trim-v]
- (fn [db [orgs]]
-   (set-field db [:orgs] orgs)))
+(reg-event-db :set-orgs! (fn [db [_ orgs]]
+                           (set-field db [:orgs] orgs)))
 
-(defn read-orgs!
-  []
+(defn read-orgs! []
   (let [retrieving-orgs? (r/cursor state [:retrieving-orgs?])
-        orgs-error (r/cursor state [:orgs-error])
-        orgs (subscribe [:orgs])
-        current-org-id (r/cursor state [:current-org-id])]
+        orgs-error (r/cursor state [:orgs-error])]
     (reset! retrieving-orgs? true)
     (GET "/api/orgs"
          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
@@ -49,43 +45,37 @@
 
 (reg-event-fx :read-orgs! (fn [_ _] (read-orgs!) {}))
 
+(reg-sub :orgs/get
+         (fn [[_ org-id]] (subscribe [:orgs]))
+         (fn [orgs [_ org-id]] (first (->> orgs (filter #(= (:group-id %) org-id))))))
+
 (reg-sub :orgs/org-name
-         (fn [[_ org-id]]
-           [(subscribe [:orgs])])
-         (fn [[orgs] [_ org-id]]
-           (->> orgs
-                (filter #(= (:id %) org-id))
-                first
-                :group-name)))
+         (fn [[_ org-id]] (subscribe [:orgs/get org-id]))
+         (fn [org] (:group-name org)))
 
 (reg-sub :orgs/org-permissions
-         (fn [[_ org-id]]
-           [(subscribe [:orgs])])
-         (fn [[orgs] [_ org-id]]
-           (->> orgs
-                (filter #(= (:id %) org-id))
-                first
-                :permissions)))
+         (fn [[_ org-id]] (subscribe [:orgs/get org-id]))
+         (fn [org] (:permissions org)))
 
-(reg-sub :orgs/path-org-id
+(reg-sub :orgs/org-id-from-url
          (fn [db _]
-           (-> (re-find #"/org/(\d*)/*" @sysrev.base/active-route) second js/parseInt)))
+           (some->> (second (re-find #"/org/(\d*)/*" @active-route))
+                    (ensure-pred string?)
+                    (parse-integer))))
 
-(defn OrgContent
-  []
+(defn OrgContent []
   (let [current-path active-route
         orgs (subscribe [:self/orgs])
-        current-org-id (subscribe [:orgs/path-org-id])
+        current-org-id (subscribe [:orgs/org-id-from-url])
         active-item (fn [current-path sub-path]
-                      (cond-> "item "
-                        (re-matches (re-pattern (str ".*" sub-path)) current-path) (str " active")))
-        uri-fn (fn [sub-path]
-                 (str "/org/" @(subscribe [:orgs/path-org-id]) sub-path))]
+                      (let [url-match? (re-matches (re-pattern (str ".*" sub-path))
+                                                   current-path)]
+                        (css "item" [url-match? "active"])))
+        uri-fn (fn [sub-path] (str "/org/" @current-org-id sub-path))]
     (r/create-class
      {:reagent-render
       (fn [this]
-        (if ;; a check for org existance should be implemented here
-            false
+        (if false ; a check for org existance should be implemented here
           [Message {:negative true}
            [MessageHeader {:as "h4"}
             "Organizations Error"]
@@ -127,7 +117,7 @@
               ;; #"/org/profile"
               ;; [:div
               ;;  (when-not (empty? @orgs)
-              ;;    [:h1 (str (->> @orgs (filter #(= (:id %) @current-org-id)) first))])
+              ;;    [:h1 (str (->> @orgs (filter #(= (:group-id %) @current-org-id)) first))])
               ;;  [:h1 "Profile settings go here"]]
               #"/org/(\d*)/billing"
               [OrgBilling {:org-id @current-org-id}]
@@ -137,8 +127,7 @@
               [OrgPayment {:org-id @current-org-id}]
               ;; default
               [:div {:style {:display "none"}}])]]))
-      :component-did-mount (fn []
-                             (dispatch [:read-orgs!]))})))
+      :component-did-mount (fn [] (dispatch [:read-orgs!]))})))
 
 (defmethod logged-out-content [:org-settings] []
   (logged-out-content :logged-out))

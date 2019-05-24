@@ -79,7 +79,7 @@
   (when (seq user-ids)
     (-> (select :user-id :email :date-created :username :introduction)
         (from :web-user)
-        (where [:in :web-user.user-id user-ids])
+        (where [:in :user-id user-ids])
         (->> do-query (map #(-> (dissoc % :email)
                                 (assoc :username (first (str/split (:email %) #"@")))))))))
 
@@ -315,21 +315,17 @@
 (defn update-member-access-time [user-id project-id]
   (-> (sqlh/update :project-member)
       (sset {:access-date (sql-now)})
-      (where [:and
-              [:= :user-id user-id]
-              [:= :project-id project-id]])
+      (where [:and [:= :user-id user-id] [:= :project-id project-id]])
       do-execute))
 
-(defn create-web-user-stripe-acct [stripe-acct user-id]
-  (-> (insert-into :web-user-stripe-acct)
-      (values [{:stripe-acct stripe-acct
-                :user-id user-id}])
+(defn create-user-stripe [stripe-acct user-id]
+  (-> (insert-into :user-stripe)
+      (values [{:stripe-acct stripe-acct, :user-id user-id}])
       do-execute))
 
-(defn user-stripe-account
-  [user-id]
+(defn user-stripe-account [user-id]
   (-> (select :*)
-      (from :web-user-stripe-acct)
+      (from :user-stripe)
       (where [:= :user-id user-id])
       do-query first))
 
@@ -337,38 +333,28 @@
   "Is this email already primary and verified?"
   [email]
   (-> (select :email)
-      (from :web-user-email)
-      (where [:and
-              [:= :email email]
-              [:= :principal true]
-              [:= :verified true]])
+      (from :user-email)
+      (where [:and [:= :email email] [:= :principal true] [:= :verified true]])
       do-query empty? not))
 
-(defn create-email-verification!
-  [user-id email & {:keys [principal] :or {principal false}}]
-  (-> (insert-into :web-user-email)
+(defn create-email-verification! [user-id email & {:keys [principal] :or {principal false}}]
+  (-> (insert-into :user-email)
       (values [{:user-id user-id
                 :email email
                 :verify-code (crypto.random/hex 16)
                 :principal principal}])
       do-execute))
 
-(defn web-user-email
-  [user-id verify-code]
+(defn user-email-status [user-id verify-code]
   (-> (select :verify-code :verified :email)
-      (from :web-user-email)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :verify-code verify-code]])
+      (from :user-email)
+      (where [:and [:= :user-id user-id] [:= :verify-code verify-code]])
       do-query first))
 
-(defn current-email-entry
-  [user-id email]
+(defn current-email-entry [user-id email]
   (-> (select :*)
-      (from :web-user-email)
-      (where [:and
-              [:= :user-id user-id]
-              [:= :email email]])
+      (from :user-email)
+      (where [:and [:= :user-id user-id] [:= :email email]])
       do-query first))
 
 (defn primary-email-verified?
@@ -376,30 +362,24 @@
   [user-id]
   (let [{:keys [email]} (get-user-by-id user-id)]
     (-> (select :verified)
-        (from :web-user-email)
-        (where [:and
-                [:= :user-id user-id]
-                [:= :email email]
-                [:= :principal true]])
+        (from :user-email)
+        (where [:and [:= :user-id user-id] [:= :email email] [:= :principal true]])
         do-query first :verified boolean)))
 
 (defn set-primary-email!
-  "Given an email, set it as the primary email address for user-id. This assumes that the email address has been confirmed"
+  "Given an email, set it as the primary email address for user-id. This
+  assumes that the email address has been confirmed"
   [user-id email]
-  ;; set all web-user-email principal to false for this user-id
+  ;; set all user-email principal to false for this user-id
   ;; note: this will eventually change
   (with-transaction
-    (-> (sqlh/update :web-user-email)
-        (sset {:principal false
-               :updated (sql-now)})
+    (-> (sqlh/update :user-email)
+        (sset {:principal false, :updated (sql-now)})
         (where [:= :user-id user-id])
         do-execute)
-    (-> (sqlh/update :web-user-email)
-        (sset {:principal true
-               :updated (sql-now)})
-        (where [:and
-                [:= :user-id user-id]
-                [:= :email email]])
+    (-> (sqlh/update :user-email)
+        (sset {:principal true, :updated (sql-now)})
+        (where [:and [:= :user-id user-id] [:= :email email]])
         do-execute)
     ;; update the user
     (-> (sqlh/update :web-user)
@@ -408,7 +388,7 @@
         do-execute)))
 
 (defn verify-email! [email verify-code user-id]
-  (-> (sqlh/update :web-user-email)
+  (-> (sqlh/update :user-email)
       (sset {:verified true, :updated (sql-now)})
       (where [:and
               (if verify-code
@@ -418,24 +398,21 @@
               [:= :user-id user-id]])
       do-execute))
 
-(defn read-email-addresses
-  [user-id]
+(defn read-email-addresses [user-id]
   (-> (select :*)
-      (from :web-user-email)
-      (where [:and [:= :user-id user-id] [:= :active true]])
+      (from :user-email)
+      (where [:and [:= :user-id user-id] [:= :enabled true]])
       do-query))
 
-(defn set-active-field-email!
-  [user-id email active]
-  (-> (sqlh/update :web-user-email)
-      (sset {:active active})
+(defn set-user-email-enabled! [user-id email enabled]
+  (-> (sqlh/update :user-email)
+      (sset {:enabled enabled})
       (where [:and [:= :email email] [:= :user-id user-id]])
       do-execute))
 
-(defn read-email-verification-code
-  [user-id email]
+(defn read-email-verification-code [user-id email]
   (-> (select :verify-code)
-      (from :web-user-email)
+      (from :user-email)
       (where [:and [:= :user-id user-id] [:= :email email]])
       do-query first))
 
@@ -454,22 +431,20 @@
 (defn projects-annotated-summary
   "Return the count of annotations done by user-id grouped by projects"
   [user-id]
-  (-> (select [:%count.an.id :annotations] [:a.project-id :project-id])
+  (-> (select [:%count.an.annotation-id :annotations] :a.project-id)
       (from [:annotation :an])
-      (join [:annotation-article :aa] [:= :aa.annotation-id :an.id]
-            [:article :a] [:= :a.article-id :aa.article-id]
-            [:annotation-web-user :awu] [:= :awu.annotation-id :an.id])
-      (left-join [:annotation-s3store :as3] [:= :an.id :as3.annotation-id]
-                 [:s3store :s3] [:= :s3.id :as3.s3store-id]
-                 [:annotation-web-user :au] [:= :au.annotation-id :an.id]
-                 [:annotation-semantic-class :asc] [:= :an.id :asc.annotation-id]
-                 [:semantic-class :sc] [:= :sc.id :asc.semantic-class-id])
+      (join [:ann-article :aa]  [:= :aa.annotation-id :an.annotation-id]
+            [:article :a]       [:= :a.article-id :aa.article-id]
+            [:ann-user :au]     [:= :au.annotation-id :an.annotation-id])
+      (left-join [:ann-s3store :as3]         [:= :an.annotation-id :as3.annotation-id]
+                 [:s3store :s3]              [:= :s3.s3-id :as3.s3-id]
+                 [:ann-semantic-class :asc]  [:= :an.annotation-id :asc.annotation-id]
+                 [:semantic-class :sc]       [:= :sc.semantic-class-id :asc.semantic-class-id])
       (group :a.project-id)
-      (where [:= :awu.user-id user-id])
+      (where [:= :au.user-id user-id])
       do-query))
 
-(defn update-user-introduction!
-  [user-id introduction]
+(defn update-user-introduction! [user-id introduction]
   (-> (sqlh/update :web-user)
       (sset {:introduction introduction})
       (where [:= :user-id user-id])

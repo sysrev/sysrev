@@ -70,8 +70,7 @@
         (apply merge))
    [:articles-reviewed :labels-contributed :annotations-contributed]))
 
-(defn project-activity-summary
-  [project-name]
+(defn project-activity-summary [project-name]
   (let [q (project-activity-summary-div project-name)]
     (b/wait-until-displayed q)
     (select-keys
@@ -81,15 +80,14 @@
           (apply merge))
      [:articles-reviewed :labels-contributed :annotations-contributed])))
 
-(defn make-public-reviewer
-  [user-id email]
+(defn make-public-reviewer [user-id email]
   (with-transaction
     (users/create-email-verification! user-id email)
     (users/verify-email!
      email (:verify-code (users/read-email-verification-code user-id email)) user-id)
     (users/set-primary-email! user-id email)
-    (if-let [group-id (:id (groups/read-web-user-group-name user-id "public-reviewer"))]
-      (groups/set-active-web-user-group! group-id true)
+    (if-let [user-group-id (:id (groups/read-user-group-name user-id "public-reviewer"))]
+      (groups/set-user-group-enabled! user-group-id true)
       (groups/add-user-to-group! user-id (groups/group-name->group-id "public-reviewer")))))
 
 (defn change-project-public-access
@@ -274,7 +272,7 @@
                        "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"}
                      (:key (files/avatar-image-key-filename user-id))))
       (log/info "got file key")
-      (is (= (-> user-id api/read-profile-image-meta :result :meta)
+      (is (= (:meta (api/read-profile-image-meta user-id))
              {:points ["1" "120" "482" "600"], :zoom 0.2083, :orientation 1}))
       (log/info "got image meta")
       (is (-> (:key (files/avatar-image-key-filename user-id))

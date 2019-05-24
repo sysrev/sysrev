@@ -56,7 +56,7 @@
                     (nil? initial-org-id))
            [:div {:style {:margin-top "0.5em"}} "Owner "
             [Dropdown {:options (-> (map #(hash-map :text (:group-name %)
-                                                    :value (:id %)) @orgs)
+                                                    :value (:group-id %)) @orgs)
                                     (conj {:text @(subscribe [:user/display])
                                            :value "current-user"}))
                        :value @current-org-id

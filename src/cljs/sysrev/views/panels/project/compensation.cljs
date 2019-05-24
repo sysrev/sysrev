@@ -58,7 +58,7 @@
           :handler (fn [{:keys [result]}]
                      (reset! loading? false)
                      (reset! project-compensations
-                             (->map-with-key :id (:compensations result))))
+                             (->map-with-key :compensation-id (:compensations result))))
           :error-handler (fn [response]
                            (reset! loading? false)
                            ($ js/console log "[Error] retrieving for project-id: " project-id))})))
@@ -244,21 +244,21 @@
                                                               (constantly nil)
                                                               check-pending-interval)))})))
 
-(defn ToggleCompensationActive [{:keys [id] :as compensation}]
+(defn ToggleCompensationEnabled [{:keys [compensation-id] :as compensation}]
   (let [project-id @(subscribe [:active-project-id])
-        compensation-atom (r/cursor state [:project-compensations id])
-        active? (r/cursor compensation-atom [:active])
+        compensation-atom (r/cursor state [:project-compensations compensation-id])
+        enabled (r/cursor compensation-atom [:enabled])
         updating? (r/cursor compensation-atom [:updating?])]
     [Button {:toggle true
-             :active @active?
+             :active @enabled
              :disabled @updating?
              :on-click (fn [_]
-                         (swap! active? not)
+                         (swap! enabled not)
                          (reset! updating? true)
-                         (PUT "/api/toggle-compensation-active"
+                         (PUT "/api/toggle-compensation-enabled"
                               {:params {:project-id project-id
-                                        :compensation-id id
-                                        :active @active?}
+                                        :compensation-id compensation-id
+                                        :enabled @enabled}
                                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
                                :handler (fn [response]
                                           (reset! updating? false)
@@ -267,7 +267,7 @@
                                                 ($ js/console log
                                                    (str "[Error] " "update-compensation!"))
                                                 (reset! updating? false))}))}
-     (if @active? "Active" "Disabled")]))
+     (if @enabled "Active" "Disabled")]))
 
 (defn CreateCompensationForm []
   (let [project-id @(subscribe [:active-project-id])
@@ -348,9 +348,9 @@
              [:div.ui.relaxed.divided.list
               (doall
                (for [c project-compensations]
-                 [:div.item {:key (:id c)}
+                 [:div.item {:key (:compensation-id c)}
                   [:div.right.floated.content
-                   [ToggleCompensationActive c]]
+                   [ToggleCompensationEnabled c]]
                   [:div.content {:style {:padding-top "4px"
                                          :padding-bottom "4px"}}
                    [CompensationAmount c admin-fee]]]))])
@@ -476,10 +476,10 @@
   [project-compensations]
   (conj (->> (vals project-compensations)
              (sort-by #(get-in % [:rate :amount]))
-             (filter :active)
+             (filter :enabled)
              (map (fn [compensation]
                     {:text (rate->string (:rate compensation))
-                     :value (:id compensation)})))
+                     :value (:compensation-id compensation)})))
         {:text "No Compensation"
          :value "none"}))
 

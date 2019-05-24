@@ -114,12 +114,12 @@
                   (wrap-authorize
                    request
                    {:authorize-fn (user-authd? user-id)}
-                   (api/user-group-name-active? user-id "public-reviewer")))
+                   (api/user-in-group-name? user-id "public-reviewer")))
              (PUT "/active" request
                   (wrap-authorize
                    request {:authorize-fn (user-authd? user-id)}
-                   (let [{:keys [active]} (:body request)]
-                     (api/set-web-user-group! user-id "public-reviewer" active)))))
+                   (let [{:keys [enabled]} (:body request)]
+                     (api/set-user-group! user-id "public-reviewer" enabled)))))
     (context "/stripe" []
              (GET "/default-source" request
                   (wrap-authorize

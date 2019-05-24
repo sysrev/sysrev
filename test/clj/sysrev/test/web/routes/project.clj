@@ -156,8 +156,7 @@
       ;; these should be no sources for this project yet
       (let [response (route-response :get "/api/project-sources"
                                      {:project-id project-id})]
-        (is (empty? (get-in response
-                            [:result :sources]))))
+        (is (empty? (get-in response [:result :sources]))))
       ;; add a member to a project
       (let [new-user-email "baz@qux.com"
             new-user-password "bazqux"]

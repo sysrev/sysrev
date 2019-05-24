@@ -37,11 +37,9 @@
                            (reset! retrieving? false)
                            (reset! error (get-in error-response [:response :error :messaage])))})))
 
-(reg-event-fx :org/get-users!
-              [trim-v]
-              (fn [event [org-id]]
-                (get-org-users! org-id)
-                {}))
+(reg-event-fx :org/get-users! (fn [_ [_ org-id]]
+                                (get-org-users! org-id)
+                                {}))
 
 (defn remove-from-org!
   [{:keys [user-id org-id]}]
@@ -363,8 +361,7 @@
       :component-did-mount (fn [this]
                              (reset-state!))})))
 
-(defn OrgUsers
-  [{:keys [org-id]}]
+(defn OrgUsers [{:keys [org-id]}]
   (let [org-users (subscribe [:org/users org-id])
         org-permissions (subscribe [:orgs/org-permissions org-id])]
     (r/create-class

@@ -491,9 +491,7 @@
     There are currently only two types of annotations for article, those which label an abstract or label a pdf. If an annotation has a pdf-source, it can be assumed the selection comes from a pdf. Otherwise, if there is no pdf-source the selection is associated with just the title, author or abstract of an article"}
   (fn [request]
     (let [{:keys [project-id] :as body}
-          (-> request
-              :query-params
-              walk/keywordize-keys)]
+          (walk/keywordize-keys (:query-params request))]
       {:result (api/project-annotations (parse-integer project-id))})))
 
 (def-webapi

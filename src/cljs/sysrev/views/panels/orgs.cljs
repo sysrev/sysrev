@@ -4,15 +4,15 @@
             [re-frame.core :refer [subscribe dispatch]]
             [re-frame.db :refer [app-db]]
             [sysrev.nav :refer [nav-scroll-top]]
-            [sysrev.views.semantic :refer [Form FormField FormInput Button Segment Header Input Message MessageHeader]])
+            [sysrev.views.semantic :refer
+             [Form FormField FormInput Button Segment Header Input Message MessageHeader]])
   (:require-macros [reagent.interop :refer [$]]))
 
 (def ^:private panel [:orgs])
 
 (def state (r/cursor app-db [:state :panels panel]))
 
-(defn create-org!
-  [org-name]
+(defn create-org! [org-name]
   (let [create-org-retrieving? (r/cursor state [:create-org-retrieving?])
         create-org-error (r/cursor state [:create-org-error])]
     (when-not @create-org-retrieving?
@@ -20,17 +20,15 @@
       (POST "/api/org"
             {:params {:org-name org-name}
              :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-             :handler (fn [response]
-                        (let [new-org-id (get-in response [:result :id])]
+             :handler (fn [{:keys [result]}]
+                        (let [new-org-id (:group-id result)]
                           (reset! create-org-retrieving? false)
                           (nav-scroll-top (str "/org/" new-org-id "/users"))))
-             :error-handler (fn [error-response]
+             :error-handler (fn [{:keys [error]}]
                               (reset! create-org-retrieving? false)
-                              (reset! create-org-error
-                                      (get-in error-response [:response :error :message])))}))))
+                              (reset! create-org-error (:message error)))}))))
 
-(defn CreateOrgForm
-  []
+(defn CreateOrgForm []
   (let [new-org (r/cursor state [:new-org])
         create-org-error (r/cursor state [:create-org-error])
         create-org-retrieving? (r/cursor state [:create-org-retrieving?])]
@@ -62,9 +60,7 @@
       (fn [this]
         (reset! create-org-error nil))})))
 
-(defn CreateOrg
-  []
+(defn CreateOrg []
   [Segment {:secondary true}
-   [Header {:as "h4"
-            :dividing true} "Create a New Organization"]
+   [Header {:as "h4" :dividing true} "Create a New Organization"]
    [CreateOrgForm]])

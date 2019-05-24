@@ -217,8 +217,7 @@
       (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
     (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
     ;; current plan
-    (b/is-soon (= (get-in (api/current-plan user-id) [:result :plan :name])
-                  api/default-plan)
+    (b/is-soon (= api/default-plan (get-in (api/current-plan user-id) [:plan :name]))
                2000 200)
     (plans/wait-until-stripe-id email)
     ;; start tests

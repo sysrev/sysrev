@@ -123,7 +123,7 @@
 
 (defroutes site-routes
   (GET "/api/global-stats" request
-       {:result {:stats (sysrev-global-stats)}})
+       {:stats (sysrev-global-stats)})
 
   (POST "/api/delete-user" request
         (wrap-authorize
@@ -154,9 +154,7 @@
            (doseq [{:keys [setting value]} changes]
              (users/change-user-setting
               user-id (keyword setting) value))
-           {:result
-            {:success true
-             :settings (users/user-settings user-id)}}))))
+           {:success true, :settings (users/user-settings user-id)}))))
 
 (defn public-project-summaries
   "Returns a sequence of summary maps for every project."

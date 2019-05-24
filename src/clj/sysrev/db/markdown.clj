@@ -15,8 +15,8 @@
 (defn create-markdown-entry [markdown]
   (-> (insert-into :markdown)
       (values [{:string markdown}])
-      (returning :id)
-      do-query first :id))
+      (returning :markdown-id)
+      do-query first :markdown-id))
 
 (defn set-project-description!
   "Sets value for a project description."
@@ -28,7 +28,7 @@
               ;; delete entry
               (when markdown-id
                 (-> (delete-from :markdown)
-                    (where [:= :id markdown-id])
+                    (where [:= :markdown-id markdown-id])
                     do-execute)
                 (-> (delete-from :project-description)
                     (where [:and
@@ -40,7 +40,7 @@
               ;; update entry
               (-> (sqlh/update :markdown)
                   (sset {:string value})
-                  (where [:= :id markdown-id])
+                  (where [:= :markdown-id markdown-id])
                   do-execute)
 
               :else
@@ -58,7 +58,6 @@
   [project-id]
   (-> (select :md.string)
       (from [:project-description :pd])
-      (join [:markdown :md]
-            [:= :pd.markdown-id :md.id])
+      (join [:markdown :md] [:= :pd.markdown-id :md.markdown-id])
       (where [:= :pd.project-id project-id])
       do-query first :string))

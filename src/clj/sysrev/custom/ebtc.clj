@@ -79,7 +79,7 @@
                 [:= :a.project-id project-id]
                 [:or
                  [:= :a.abstract nil]
-                 [:= (sql/call :char_length :a.abstract) 0]]])
+                 [:= (sql/call "char_length" :a.abstract) 0]]])
         (->> do-query
              (map :article-id)
              (mapv #(set-article-flag % "no abstract" true))))
@@ -88,7 +88,7 @@
         (where [:and
                 [:= :a.project-id project-id]
                 [:!= :a.abstract nil]
-                [:< (sql/call :char_length :a.abstract) min-length]])
+                [:< (sql/call "char_length" :a.abstract) min-length]])
         (->> do-query
              (map :article-id)
              (mapv #(set-article-flag % "short abstract" true

@@ -115,18 +115,15 @@
   (f/unparse (f/formatter :date) (l/local-now)))
 
 (defn user-amount-owed [project-id user-name]
-  (->> (get-in (api/project-compensation-for-users project-id
-                                                   (todays-date)
-                                                   (todays-date))
-               [:result :amount-owed])
+  (->> (:amount-owed (api/project-compensation-for-users
+                      project-id (todays-date) (todays-date)))
        (filter #(= (:name %) user-name))
        (map #(* (:articles %)
                 (get-in % [:rate :amount])))
        (apply +)))
 
 (defn user-amount-paid [project-name email]
-  (->> (get-in (api/payments-paid (:user-id (users/get-user-by-email email)))
-               [:result :payments-paid])
+  (->> (:payments-paid (api/payments-paid (:user-id (users/get-user-by-email email))))
        (filter #(= (:project-name %) project-name))
        (map :total-paid)
        (apply +)))
@@ -175,22 +172,22 @@
 
 (defn articles-reviewed-by-user
   [project-id user-id]
-  (-> (select :al.article_id)
-      (from [:article_label :al])
-      (join [:article :a] [:= :a.article_id :al.article_id])
-      (where [:and [:= :a.project-id project-id] [:= :al.user_id user-id]])
+  (-> (select :al.article-id)
+      (from [:article-label :al])
+      (join [:article :a] [:= :a.article-id :al.article-id])
+      (where [:and [:= :a.project-id project-id] [:= :al.user-id user-id]])
       do-query))
 
 (defn articles-unreviewed-by-user
   [project-id user-id]
   (let [review-articles (->> (articles-reviewed-by-user project-id user-id)
                              (map :article-id))]
-    (-> (select :article_id)
+    (-> (select :article-id)
         (from :article)
         (where [:and
                 (when-not (empty? review-articles)
-                  [:not-in :article_id review-articles])
-                [:= :project_id project-id]])
+                  [:not-in :article-id review-articles])
+                [:= :project-id project-id]])
         do-query
         (->> (map :article-id)))))
 
@@ -209,24 +206,24 @@
   [project-id user-id article-id]
   (try
     (with-transaction
-      (let [project-labels (-> (select :label_id :value_type :definition :label_id_local)
+      (let [project-labels (-> (select :label-id :value-type :definition :label-id-local)
                                (from :label)
-                               (where [:= :project_id project-id])
+                               (where [:= :project-id project-id])
                                do-query)]
         (doall (map (fn [label]
                       (condp = (:value-type label)
                         "boolean"
                         ;;
-                        (-> (insert-into :article_label)
-                            (values [{:article_label_local_id (:label-id-local label)
-                                      :article_id article-id
-                                      :label_id (:label-id label)
-                                      :user_id user-id
+                        (-> (insert-into :article-label)
+                            (values [{:article-label-local-id (:label-id-local label)
+                                      :article-id article-id
+                                      :label-id (:label-id label)
+                                      :user-id user-id
                                       :answer (-> [true false]
                                                   (nth (rand-int 2))
                                                   to-jsonb)
                                       :imported false
-                                      :confirm_time (sql-now)}])
+                                      :confirm-time (sql-now)}])
                             do-execute)))
                     project-labels))))
     (finally

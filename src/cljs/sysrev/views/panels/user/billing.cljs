@@ -17,18 +17,15 @@
   (r/create-class
    {:reagent-render
     (fn [this]
-      [:div {:style {:font-weight "bold"}}
+      [:div.bold
        [Icon {:name "credit card"}]
-       (if-not (empty? @default-source-atom)
-         (let [{:keys [brand exp_month exp_year last4]}
-               @default-source-atom]
-           (str brand " expiring on " exp_month "/" (-> exp_year
-                                                        str
-                                                        (subs 2 4)) " and ending in " last4))
+       (if (seq @default-source-atom)
+         (let [{:keys [brand exp_month exp_year last4]} @default-source-atom]
+           (str brand " expiring on " exp_month "/" (subs (str exp_year) 2 4)
+                " and ending in " last4))
          "No payment method on file.")])
     :component-did-mount
-    (fn [this]
-      (get-default-source))}))
+    (fn [this] (get-default-source))}))
 
 (defn PaymentSource
   [{:keys [get-default-source default-source-atom on-add-payment-method]}]
@@ -51,8 +48,7 @@
               [:div [Icon {:name "credit card"}] "Change payment method"]
               [:div [Icon {:name "credit card"}] "Add payment method"])]]])])
     :component-did-mount
-    (fn [this]
-      (get-default-source))}))
+    (fn [this] (get-default-source))}))
 
 ;; TODO: shows Loader forever on actual null plan value (show error message?)
 (defn Plan
@@ -82,15 +78,17 @@
                 unlimited?  "Unsubscribe")]]])]))
 
 (defn Billing []
-  (dispatch [:plans/set-on-subscribe-nav-to-url! (str "/user/" @(subscribe [:self/user-id]) "/billing")])
-  [Segment
-   [Header {:as "h4" :dividing true}
-    "Billing"]
-   [ListUI {:divided true :relaxed true}
-    [ListItem [Plan {:plans-route "/user/plans"
-                     :current-plan-atom (subscribe [:plans/current-plan])
-                     :fetch-current-plan (fn [] (dispatch [:fetch [:current-plan]]))}]]
-    [ListItem [PaymentSource {:get-default-source stripe/get-user-default-source
-                              :default-source-atom (subscribe [:stripe/default-source "user" @(subscribe [:self/user-id])])
-                              :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/" @(subscribe [:self/user-id]) "/billing"])
-                                                       (dispatch [:navigate [:payment]]))}]]]])
+  (let [self-id @(subscribe [:self/user-id])
+        billing-url (str "/user/" self-id "/billing")]
+    (dispatch [:plans/set-on-subscribe-nav-to-url! billing-url])
+    [Segment
+     [Header {:as "h4" :dividing true} "Billing"]
+     [ListUI {:divided true :relaxed true}
+      [ListItem [Plan {:plans-route "/user/plans"
+                       :current-plan-atom (subscribe [:plans/current-plan])
+                       :fetch-current-plan #(dispatch [:fetch [:current-plan]])}]]
+      [ListItem [PaymentSource
+                 {:get-default-source stripe/get-user-default-source
+                  :default-source-atom (subscribe [:stripe/default-source "user" self-id])
+                  :on-add-payment-method #(do (dispatch [:payment/set-calling-route! billing-url])
+                                              (dispatch [:navigate [:payment]]))}]]]]))

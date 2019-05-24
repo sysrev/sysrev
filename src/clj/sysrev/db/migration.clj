@@ -213,21 +213,17 @@
               do-execute))))
     (log/info "Finished Converting Dates. ")))
 
-(defn ensure-web-user-email-entries
+(defn ensure-user-email-entries
   "Migrate to new email verification system, should only be run when the
-  web_user_email table is essentially empty"
+  user-email table is essentially empty"
   []
-  (when (< (-> (select :%count.*)
-               (from :web-user-email)
-               do-query first :count)
-           1)
-    (let [web-user (-> (select :user-id :email)
-                       (from :web-user)
-                       do-query)]
-      (doall (map #(users/create-email-verification!
-                    (:user-id %)
-                    (:email %)
-                    :principal true) web-user)))))
+  (when (= 0 (-> (select :%count.*)
+                 (from :user-email)
+                 do-query first :count))
+    (doseq [{:keys [user-id email]} (-> (select :user-id :email)
+                                        (from :web-user)
+                                        do-query)]
+      (users/create-email-verification! user-id email :principal true))))
 
 (defn ensure-groups
   "Ensure that there are always the required SysRev groups"
@@ -246,7 +242,7 @@
                       #'update-stripe-plans-table
                       #'clone/delete-empty-legacy-sources
                       #'ensure-project-sources-exist
-                      #'ensure-web-user-email-entries
+                      #'ensure-user-email-entries
                       #'ensure-groups
                       #'migrate-all-project-article-resolve]]
     (log/info "Running " (str migrate-fn))

@@ -42,7 +42,7 @@
                    request
                    {:authorize-fn (user-has-org-permission? org-id ["admin" "owner"])}
                    (let [user-id (get-in request [:body :user-id])]
-                     (api/set-web-user-group! user-id (groups/group-id->group-name org-id) true))))
+                     (api/set-user-group! user-id (groups/group-id->group-name org-id) true))))
             (PUT "/user" request
                  (wrap-authorize
                   request
@@ -54,7 +54,7 @@
                     (wrap-authorize
                      request {:authorize-fn (user-has-org-permission? org-id ["admin" "owner"])}
                      (let [user-id (get-in request [:body :user-id])]
-                       (api/set-web-user-group! user-id (groups/group-id->group-name org-id) false))))
+                       (api/set-user-group! user-id (groups/group-id->group-name org-id) false))))
             (POST "/project" request
                   (wrap-authorize
                    request {:authorize-fn (user-has-org-permission? org-id ["admin" "owner"])}

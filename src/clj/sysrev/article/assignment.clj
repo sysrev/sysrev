@@ -133,8 +133,8 @@
   (-> (q/select-project-article-labels project-id true [:al.article-id])
       (q/filter-label-user user-id)
       (merge-where [:=
-                    (sql/call :date_trunc "day" :al.confirm-time)
-                    (sql/call :date_trunc "day" :%now)])
+                    (sql/call "date_trunc" "day" :al.confirm-time)
+                    (sql/call "date_trunc" "day" :%now)])
       (->> do-query (map :article-id) distinct count)))
 
 (defn get-user-label-task [project-id user-id]

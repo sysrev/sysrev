@@ -130,8 +130,8 @@ WHERE project_id=%d
   AND text_search @@ to_tsquery('%s');"
                    project-id
                    (->> tokens (map #(str "(" % ")")) (str/join " & ")))
-           (j/query @active-db)
-           (mapv :article_id)))))
+           (db/raw-query)
+           (mapv :article-id)))))
 
 (defn filter-labels-confirmed [confirmed? labels]
   (assert (in? [true false nil] confirmed?))

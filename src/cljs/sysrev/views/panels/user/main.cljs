@@ -181,36 +181,37 @@
         error-message (r/atom "")
         ;; TODO: get this value from identity request instead (way
         ;; easier, available everywhere)
-        get-opt-in (fn []
-                     (reset! loading? true)
-                     (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
-                          {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                           :handler (fn [response]
-                                      (reset! active? (-> response :result :active))
-                                      (reset! loading? false))
-                           :error-handler (fn [error-response]
-                                            (reset! loading? false)
-                                            (reset! error-message "There was an error retrieving opt-in status"))}))
-        put-opt-in! (fn []
-                      (reset! loading? true)
-                      (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
-                           {:params {:active (not @active?)}
-                            :format :transit
-                            :headers {"x-csrf-token" @(subscribe [:csrf-token])}
-                            :handler (fn [response]
-                                       (reset! active? (-> response :result :active))
-                                       (reset! loading? false))
-                            :error-handler (fn [error-message]
-                                             (reset! loading? false)
-                                             (reset! error-message "There was an error when setting opt-in status"))}))]
+        get-opt-in
+        (fn []
+          (reset! loading? true)
+          (GET (str "/api/user/" user-id "/groups/public-reviewer/active")
+               {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                :handler (fn [{:keys [result]}]
+                           (reset! active? (:enabled result))
+                           (reset! loading? false))
+                :error-handler (fn [_]
+                                 (reset! loading? false)
+                                 (reset! error-message "There was an error retrieving opt-in status"))}))
+        put-opt-in!
+        (fn []
+          (reset! loading? true)
+          (PUT (str "/api/user/" user-id "/groups/public-reviewer/active")
+               {:params {:enabled (not @active?)}
+                :format :transit
+                :headers {"x-csrf-token" @(subscribe [:csrf-token])}
+                :handler (fn [{:keys [result]}]
+                           (reset! active? (:enabled result))
+                           (reset! loading? false))
+                :error-handler (fn [_]
+                                 (reset! loading? false)
+                                 (reset! error-message "There was an error when setting opt-in status"))}))]
     (r/create-class
      {:reagent-render
       (fn [this]
         (let [verified @(subscribe [:self/verified])]
           (when-not (nil? @active?)
             [Segment
-             [Header {:as "h4" :dividing true}
-              "Public Reviewer Opt In"]
+             [Header {:as "h4" :dividing true} "Public Reviewer Opt In"]
              (when-not verified
                [Message {:warning true}
                 [:a {:href "/user/settings/email"}
@@ -222,8 +223,7 @@
                      :disabled (or (not verified) @loading?)
                      :on-change (fn [e] (put-opt-in!))}]
              (when-not (str/blank? @error-message)
-               [Message {:onDismiss #(reset! error-message nil)
-                         :negative true}
+               [Message {:negative true, :onDismiss #(reset! error-message nil)}
                 [MessageHeader "Opt-In Error"]
                 @error-message])])))
       :get-initial-state
@@ -231,8 +231,7 @@
         (reset! loading? true)
         (get-opt-in))})))
 
-(defn UserContent
-  []
+(defn UserContent []
   (let [current-path sysrev.base/active-route
         current-panel (subscribe [:active-panel])
         payments-owed (subscribe [:compensation/payments-owed])

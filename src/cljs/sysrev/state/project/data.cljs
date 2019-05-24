@@ -55,10 +55,8 @@
   :process
   (fn [{:keys [db]} [project-id] {:keys [settings project-name]}]
     {:db (cond-> db
-           settings
-           (assoc-in [:data :project project-id :settings] settings)
-           project-name
-           (assoc-in [:data :project project-id :name] project-name))}))
+           settings      (assoc-in [:data :project project-id :settings] settings)
+           project-name  (assoc-in [:data :project project-id :name] project-name))}))
 
 (def-data :project/files
   :loaded? project-loaded?
@@ -76,7 +74,8 @@
                  (contains? args)))
   :uri (fn [project-id] "/api/project-articles")
   :content (fn [project-id args]
-             (merge {:project-id project-id} args
+             (merge {:project-id project-id}
+                    args
                     {:lookup-count true}))
   :prereqs (fn [project-id]
              [[:identity]

@@ -14,7 +14,7 @@
             [sysrev.shared.util :refer [in? parse-integer ensure-pred]]
             [sysrev.resources :as res]
             [sysrev.db.users :as users]
-            [sysrev.api :refer [subscription-lapsed?]]
+            [sysrev.api :as api]
             [clojure.tools.logging :as log]))
 
 (defn current-user-id [request]
@@ -230,7 +230,7 @@
                     :message "Not authorized (authorize-fn)"}}
 
            (and (not bypass-subscription-lapsed?#)
-                (subscription-lapsed? project-id#))
+                (api/subscription-lapsed? project-id#))
            {:error {:status 402 :type :project
                     :message "This action requires an upgraded plan"}}
 
