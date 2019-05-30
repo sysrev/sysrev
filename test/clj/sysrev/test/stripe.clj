@@ -8,6 +8,7 @@
 (use-fixtures :once default-fixture)
 (use-fixtures :each database-rollback-fixture)
 
+#_
 (deftest create-user-subscribe
   (let [{:keys [email password]} test-login
         new-user (create-test-user)

@@ -190,10 +190,11 @@
 
 ;; delete a org's card:
 #_(let [group-id (-> (groups/read-groups user-id) first :id)
-      stripe-id (groups/get-stripe-id group-id)
-      source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
-  (stripe/delete-customer-card! stripe-id source-id))
+        stripe-id (groups/get-stripe-id group-id)
+        source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
+    (stripe/delete-customer-card! stripe-id source-id))
 
+#_
 (deftest-browser org-plans
   (test/db-connected?)
   [org-name-1 "Foo Bar, Inc."

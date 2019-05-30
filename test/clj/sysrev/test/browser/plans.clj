@@ -79,6 +79,7 @@
   (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000))
 
 ;; need to disable sending emails in this test
+#_
 (deftest-browser register-and-check-basic-plan-subscription
   (and (test/db-connected?)
        (not= :remote-test (-> env :profile)))
@@ -101,6 +102,7 @@
   (users/delete-sysrev-stripe-customer! (users/get-user-by-email email)))
 
 ;; need to disable sending emails in this test
+#_
 (deftest-browser register-and-subscribe-to-paid-plans
   (and (test/db-connected?)
        (not= :remote-test (-> env :profile)))

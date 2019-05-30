@@ -174,9 +174,11 @@
   so that there is a record of their existence. If a plan is changed
   on the stripe, it is updated here."
   []
-  (let [plans (->> (stripe/get-plans)
-                   :data
-                   (mapv #(select-keys % [:name :amount :product :created :id])))]
+  (let [plans (->> (:data (stripe/get-plans))
+                   (map #(-> (assoc % :name (:nickname %))
+                             (dissoc :nickname)
+                             (select-keys [:name :amount :product :created :id])))
+                   (filter :amount))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :name)
