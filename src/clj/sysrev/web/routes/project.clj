@@ -504,17 +504,15 @@
                  user-id (current-user-id request)]
              (api/toggle-source source-id enabled?)))))
 
-(dr (GET "/api/sources/download/:project-id/:source-id/:key/:filename" request
+(dr (GET "/api/sources/download/:project-id/:source-id" request
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                key (-> request :params :key)
-                filename (-> request :params :filename)
-                data (fstore/get-file key :import)]
-            (-> (response/response data)
-                (response/header
-                 "Content-Disposition"
-                 (format "attachment; filename=\"%s\"" filename)))))))
+                source-id (parse-integer (-> request :params :source-id))
+                {:keys [key filename]} (source/source-upload-file source-id)]
+            (-> (response/response (fstore/get-file key :import))
+                (response/header "Content-Disposition"
+                                 (format "attachment; filename=\"%s\"" filename)))))))
 
 ;;;
 ;;; Project document files
@@ -527,11 +525,14 @@
                 files (files/list-document-files-for-project project-id)]
             {:result (vec files)}))))
 
-(dr (GET "/api/files/:project-id/download/:file-key/:filename" request
+(dr (GET "/api/files/:project-id/download/:file-key" request
          (wrap-authorize
           request {:allow-public true}
           (let [project-id (active-project request)
-                {:keys [file-key filename]} (:params request)]
+                {:keys [file-key]} (:params request)
+                filename (:name (->> (files/list-document-files-for-project project-id)
+                                     (filter #(= file-key (str (:file-id %))))
+                                     first))]
             (-> (response/response (fstore/get-file file-key :document))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
@@ -704,23 +705,27 @@
           (let [{:keys [article-id]} (:params request)]
             (api/article-pdfs (parse-integer article-id))))))
 
-(dr (GET "/api/files/:project-id/article/:article-id/download/:key/:filename" request
+(dr (GET "/api/files/:project-id/article/:article-id/download/:key" request
          (wrap-authorize
           request {:roles ["member"]}
-          (let [{:keys [key filename]} (:params request)]
+          (let [key (-> request :params :key)
+                article-id (parse-integer (-> request :params :article-id))
+                {:keys [filename]} (->> (files/get-article-file-maps article-id)
+                                        (filter #(= key (str (:key %))))
+                                        first)]
             (-> (response/response (fstore/get-file key :pdf))
                 (response/header "Content-Type" "application/pdf")
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
-(dr (GET "/api/files/:project-id/article/:article-id/view/:key/:filename" request
+(dr (GET "/api/files/:project-id/article/:article-id/view/:key" request
          (wrap-authorize
           request {:roles ["member"]}
           (let [{:keys [key]} (:params request)]
             (-> (response/response (fstore/get-file key :pdf))
                 (response/header "Content-Type" "application/pdf"))))))
 
-(dr (POST "/api/files/:project-id/article/:article-id/delete/:key/:filename" request
+(dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request
           (wrap-authorize
            request {:roles ["member"]}
            (let [{:keys [article-id key filename]} (:params request)]

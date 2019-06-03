@@ -257,11 +257,9 @@
         (apply concat)
         vec)))
 
-(reg-sub
- :article/pdfs
- (fn [[_ article-id]]
-   [(subscribe [:article/raw article-id])])
- (fn [[article]] (-> article :pdfs)))
+(reg-sub :article/pdfs
+         (fn [[_ article-id]] (subscribe [:article/raw article-id]))
+         (fn [article] (:pdfs article)))
 
 (reg-sub
  :article/open-access-available?

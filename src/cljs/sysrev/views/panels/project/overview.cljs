@@ -171,7 +171,7 @@
   (get file-types (-> fname (str/split #"\.") last) "text"))
 
 (defn- get-file-url [project-id key name]
-  (str "/api/files/" project-id "/download/" key "/" name))
+  (str "/api/files/" project-id "/download/" key))
 
 (reg-sub
  ::editing-files

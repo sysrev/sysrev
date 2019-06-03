@@ -225,10 +225,7 @@
          [:div.import-label.ui.large.basic.label
           [:span.import-label
            (if (and s3-file (:filename s3-file) (:key s3-file))
-             [:a {:href (str "/api/sources/download/" project-id
-                             "/" source-id
-                             "/" (:key s3-file)
-                             "/" (:filename s3-file))
+             [:a {:href (str "/api/sources/download/" project-id "/" source-id)
                   :target "_blank"
                   :download (:filename s3-file)}
               import-label " " [:i.download.icon]]

@@ -132,8 +132,7 @@
 
 (def-action :pdf/delete-pdf
   :uri (fn [project-id article-id key filename]
-         (str "/api/files/" project-id "/article/"
-              article-id "/delete/" key "/" filename))
+         (str "/api/files/" project-id "/article/" article-id "/delete/" key))
   :process (fn [_ [project-id article-id _ _] _]
              {:dispatch [:reload [:pdf/article-pdfs project-id article-id]]}))
 
@@ -310,7 +309,7 @@
        (str article-id ".pdf")]]]))
 
 (defn view-s3-pdf-url [project-id article-id key filename]
-  (str "/api/files/" project-id "/article/" article-id  "/view/" key "/" filename))
+  (str "/api/files/" project-id "/article/" article-id "/view/" key))
 
 (defn S3PDF [{:keys [article-id key filename]}]
   (let [confirming? (r/atom false)]
@@ -320,8 +319,7 @@
          (when-not @confirming?
            [:div
             [:a.ui.labeled.icon.button
-             {:href (str "/api/files/" project-id "/article/"
-                         article-id "/download/" key "/" filename)
+             {:href (str "/api/files/" project-id "/article/" article-id "/download/" key)
               :target "_blank"
               :download filename}
              [:i.download.icon]
@@ -348,17 +346,14 @@
                "No"]]]])]))))
 
 (defn ArticlePDFs [article-id]
-  (let [article-pdfs @(subscribe [:article/pdfs article-id])]
-    (when (not-empty article-pdfs)
-      [:div (doall
-             (map-indexed
-              (fn [i file-map]
-                ^{:key (gensym i)}
-                [:div.field>div.fields>div
-                 [S3PDF {:article-id article-id
-                         :key (:key file-map)
-                         :filename (:filename file-map)}]])
-              (filter #(not (:open-access? %)) article-pdfs)))])))
+  (when-let [pdfs (seq (->> @(subscribe [:article/pdfs article-id])
+                            (remove :open-access?)))]
+    [:div (doall (map-indexed (fn [i file-map] ^{:key i}
+                                [:div.field>div.fields>div
+                                 [S3PDF {:article-id article-id
+                                         :key (:key file-map)
+                                         :filename (:filename file-map)}]])
+                              pdfs))]))
 
 (defn PDFs [article-id]
   (when article-id
