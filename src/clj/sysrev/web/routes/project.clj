@@ -727,9 +727,16 @@
 
 (dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request
           (wrap-authorize
-           request {:roles ["member"]}
-           (let [{:keys [article-id key filename]} (:params request)]
-             (api/dissociate-article-pdf article-id key filename)))))
+           request {:roles ["admin"]}
+           (let [key (-> request :params :key)
+                 article-id (parse-integer (-> request :params :article-id))
+                 {:keys [filename]} (->> (files/get-article-file-maps article-id)
+                                         (filter #(= key (str (:key %))))
+                                         first)]
+             (if (not= (article/article-project-id article-id) (active-project request))
+               {:error {:status api/not-found
+                        :message (str "Article " article-id " not found in project")}}
+               (api/dissociate-article-pdf article-id key filename))))))
 
 ;;;
 ;;; Article annotations
