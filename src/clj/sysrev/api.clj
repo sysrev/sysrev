@@ -1324,7 +1324,7 @@
   [user-id]
   (let [{:keys [key filename]} (files/active-profile-image-key-filename user-id)]
     (if-not (empty? key)
-      (-> (response/response (fstore/get-file key :image))
+      (-> (response/response (fstore/get-file-stream key :image))
           (response/header "Content-Disposition"
                            (format "attachment: filename=\"" filename "\"")))
       {:error {:status not-found
@@ -1374,7 +1374,7 @@
         gravatar-img (files/gravatar-link email)
         {:keys [key filename]} (files/avatar-image-key-filename user-id)]
     (cond (not (empty? key))
-          (-> (response/response (fstore/get-file key :image))
+          (-> (response/response (fstore/get-file-stream key :image))
               (response/header "Content-Disposition"
                                (format "attachment: filename=\"" filename "\"")))
           (not (nil? gravatar-img))

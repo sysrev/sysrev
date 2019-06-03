@@ -510,7 +510,7 @@
           (let [project-id (active-project request)
                 source-id (parse-integer (-> request :params :source-id))
                 {:keys [key filename]} (source/source-upload-file source-id)]
-            (-> (response/response (fstore/get-file key :import))
+            (-> (response/response (fstore/get-file-stream key :import))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
@@ -533,7 +533,7 @@
                 filename (:name (->> (files/list-document-files-for-project project-id)
                                      (filter #(= file-key (str (:file-id %))))
                                      first))]
-            (-> (response/response (fstore/get-file file-key :document))
+            (-> (response/response (fstore/get-file-stream file-key :document))
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
 
@@ -687,7 +687,7 @@
 
 ;; TODO: article-id is ignored; check value or remove
 (dr (GET "/api/open-access/:article-id/view/:key" [article-id key]
-         (-> (response/response (fstore/get-file key :pdf))
+         (-> (response/response (fstore/get-file-stream key :pdf))
              (response/header "Content-Type" "application/pdf"))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/upload-pdf" request
@@ -713,7 +713,7 @@
                 {:keys [filename]} (->> (files/get-article-file-maps article-id)
                                         (filter #(= key (str (:key %))))
                                         first)]
-            (-> (response/response (fstore/get-file key :pdf))
+            (-> (response/response (fstore/get-file-stream key :pdf))
                 (response/header "Content-Type" "application/pdf")
                 (response/header "Content-Disposition"
                                  (format "attachment; filename=\"%s\"" filename)))))))
@@ -722,7 +722,7 @@
          (wrap-authorize
           request {:roles ["member"]}
           (let [{:keys [key]} (:params request)]
-            (-> (response/response (fstore/get-file key :pdf))
+            (-> (response/response (fstore/get-file-stream key :pdf))
                 (response/header "Content-Type" "application/pdf"))))))
 
 (dr (POST "/api/files/:project-id/article/:article-id/delete/:key" request

@@ -63,11 +63,15 @@
                  :bucket-name (lookup-bucket bucket)
                  :key (some-> file-key str)))
 
-(defn get-file
-  "Given a file-key and bucket specifier, return byte array of file data"
+(defn get-file-stream
+  "Return input stream of file data for file-key in bucket."
   [file-key bucket]
-  (-> (lookup-file file-key bucket)
-      :object-content util/slurp-bytes))
+  (:object-content (lookup-file file-key bucket)))
+
+(defn get-file-bytes
+  "Return byte array of file data for file-key in bucket."
+  [file-key bucket]
+  (util/slurp-bytes (get-file-stream file-key bucket)))
 
 ;; TODO: move this somewhere else?
 (defn save-document-file [project-id user-id name file]
