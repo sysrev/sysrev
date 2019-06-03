@@ -269,8 +269,12 @@
       (Thread/sleep 1500)
       ;; check manually that the avatar matches what we would expect
       ;; (two possible values for some reason, depending on system)
-      (is (contains? #{"52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
-                       "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"}
+      (is (contains? #{;; original test value (james mac)
+                       "52d799d26a9a24d1a09b6bb88383cce385c7fb1b"
+                       ;; second test value (jeff/james mac, jenkins linux)
+                       "4ee9a0e6b3db1c818dd6f4a343260f639d457fb7"
+                       ;; another value (jeff chromium linux)
+                       "10ea7c8cc6223d6a1efd8de7b5e81ac3cf1bca92"}
                      (:key (files/avatar-image-key-filename user-id))))
       (log/info "got file key")
       (is (= (:meta (api/read-profile-image-meta user-id))

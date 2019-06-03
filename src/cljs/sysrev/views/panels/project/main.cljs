@@ -104,7 +104,8 @@
               @(subscribe [:project/error project-id])
               [ProjectErrorNotice "Unable to load project"]
 
-              @(subscribe [:project/subscription-lapsed? project-id])
+              (and @(subscribe [:project/subscription-lapsed? project-id])
+                   (not @(subscribe [:user/admin?])))
               [ProjectErrorNotice
                [PrivateProjectNotViewable project-id]]
 
@@ -115,4 +116,11 @@
   (fn [child] [ProjectPanel child]))
 
 (defmethod panel-content [:project :project] []
-  (fn [child] [:div child]))
+  (fn [child]
+    (let [project-id @(subscribe [:active-project-id])]
+      [:div
+       (when (and project-id
+                  @(subscribe [:project/subscription-lapsed? project-id])
+                  @(subscribe [:user/admin?]))
+         [:div.ui.small.warning.message "Subscription Lapsed (dev override)"])
+       child])))

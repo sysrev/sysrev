@@ -230,7 +230,8 @@
                     :message "Not authorized (authorize-fn)"}}
 
            (and (not bypass-subscription-lapsed?#)
-                (api/subscription-lapsed? project-id#))
+                (api/subscription-lapsed? project-id#)
+                (not dev-user?#))
            {:error {:status 402 :type :project
                     :message "This action requires an upgraded plan"}}
 
