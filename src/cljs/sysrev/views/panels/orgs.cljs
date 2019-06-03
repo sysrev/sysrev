@@ -21,7 +21,7 @@
             {:params {:org-name org-name}
              :headers {"x-csrf-token" @(subscribe [:csrf-token])}
              :handler (fn [{:keys [result]}]
-                        (let [new-org-id (:group-id result)]
+                        (let [new-org-id (:id result)]
                           (reset! create-org-retrieving? false)
                           (nav-scroll-top (str "/org/" new-org-id "/users"))))
              :error-handler (fn [{:keys [error]}]

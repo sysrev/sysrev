@@ -55,7 +55,7 @@
   [{:keys [plans-route current-plan-atom fetch-current-plan]}]
   (let [current-plan (:name @current-plan-atom)
         basic? (= current-plan "Basic")
-        unlimited? (= current-plan "Unlimited")]
+        unlimited? (some #{"Unlimited_User" "Unlimited_Org"} [current-plan])]
     (fetch-current-plan)
     [Grid {:stackable true}
      (if (nil? current-plan)
@@ -67,7 +67,7 @@
         [Column {:width 2} "Plan"]
         [Column {:width 8}
          (cond basic?      "Free Plan, unlimited public projects"
-               unlimited?  "Unlimited Plan, unlimited public and private projects")]
+               unlimited?  "Pro Plan, unlimited public and private projects")]
         [Column {:width 6 :align "right"}
          [Button {:class (cond-> "nav-plans"
                            basic?     (str " subscribe")

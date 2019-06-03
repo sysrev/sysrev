@@ -95,12 +95,22 @@
                               [UpgradePlan {:billing-settings-uri (str "/org/" org-id "/billing")
                                             :default-source-atom (subscribe [:stripe/default-source "org" org-id])
                                             :get-default-source (partial stripe/get-org-default-source org-id)
-                                            :on-upgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Unlimited"]]))
+                                            :on-upgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Unlimited_Org"]]))
                                             :on-add-payment-method #(do (dispatch [:payment/set-calling-route! (str "/org/" org-id "/plans")])
-                                                                        (nav-scroll-top (str "/org/" org-id "/payment")))}])
-                            (when (= (:name @current-plan) "Unlimited")
+                                                                        (nav-scroll-top (str "/org/" org-id "/payment")))
+                                            :unlimited-plan-name "Team Pro Plan"
+                                            :unlimited-plan-price {:tiers
+                                                                   [{:flat_amount 3000, :unit_amount nil, :up_to 5}
+                                                                    {:flat_amount nil, :unit_amount 1000, :up_to nil}]
+                                                                   :member-count @(subscribe [:orgs/member-count org-id])}}])
+                            (when (= (:name @current-plan) "Unlimited_Org")
                               [DowngradePlan {:billing-settings-uri (str "/org/" org-id "/billing")
-                                              :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Basic"]]))}])])]))
+                                              :on-downgrade (fn [] (dispatch [:action [:org-subscribe-plan org-id "Basic"]]))
+                                              :unlimited-plan-name "Team Pro Plan"
+                                              :unlimited-plan-price {:tiers
+                                                                     [{:flat_amount 3000, :unit_amount nil, :up_to 5}
+                                                                      {:flat_amount nil, :unit_amount 1000, :up_to nil}]
+                                                                     :member-count @(subscribe [:orgs/member-count org-id])}}])])]))
     :component-did-mount (fn [this]
                            (dispatch [:read-orgs!])
                            (dispatch [:fetch [:org-current-plan org-id]]))}))

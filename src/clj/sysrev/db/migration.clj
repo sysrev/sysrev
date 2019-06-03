@@ -174,15 +174,14 @@
   so that there is a record of their existence. If a plan is changed
   on the stripe, it is updated here."
   []
-  (let [plans (->> (:data (stripe/get-plans))
-                   (map #(-> (assoc % :name (:nickname %))
-                             (dissoc :nickname)
-                             (select-keys [:name :amount :product :created :id])))
-                   (filter :amount))]
+  (let [plans (->> (stripe/get-plans)
+                   :data
+                   (mapv #(select-keys % [:nickname :created :id]))
+                   (mapv #(clojure.set/rename-keys % {:nickname :name})))]
     (-> (insert-into :stripe-plan)
         (values plans)
         (upsert (-> (on-conflict :name)
-                    (do-update-set :product :amount :id :created)))
+                    (do-update-set :id :created)))
         do-execute)))
 
 ;; TODO: has this been run? should it be?

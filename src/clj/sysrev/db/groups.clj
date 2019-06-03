@@ -139,7 +139,7 @@
             [:= :pg.project-id :p.project-id])
       (where [:= :pg.group-id group-id])
       do-query
-      (cond->> private-projects? (filter #(-> % :settings :public-access true?)))))
+      (cond->> (not private-projects?) (filter #(-> % :settings :public-access true?)))))
 
 (defn create-sysrev-stripe-customer!
   "Create a stripe customer for group-id"

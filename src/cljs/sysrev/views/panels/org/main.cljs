@@ -57,6 +57,15 @@
          (fn [[_ org-id]] (subscribe [:orgs/get org-id]))
          (fn [org] (:permissions org)))
 
+(reg-sub :orgs/member-count
+         (fn [[_ org-id]]
+           [(subscribe [:orgs])])
+         (fn [[orgs] [_ org-id]]
+           (->> orgs
+                (filter #(= (:id %) org-id))
+                first
+                :member-count)))
+
 (reg-sub :orgs/org-id-from-url
          (fn [db _]
            (some->> (second (re-find #"/org/(\d*)/*" @active-route))
@@ -87,11 +96,11 @@
                      :secondary true
                      :attached "bottom"
                      :class "primary-menu"}
-               [MenuItem {:name "Users"
-                          :id "org-users"
+               [MenuItem {:name "Members"
+                          :id "org-members"
                           :href (uri-fn "/users")
                           :class (active-item @current-path "/users")}
-                "Users"]
+                "Members"]
                [MenuItem {:name "Projects"
                           :id "org-projects"
                           :href (uri-fn "/projects")

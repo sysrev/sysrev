@@ -58,7 +58,6 @@
 (def conflict 409)
 ;; server settings
 (def minimum-support-level 100)
-(def default-plan "Basic")
 (def max-import-articles (:max-import-articles env))
 
 (defmacro try-catch-response
@@ -252,12 +251,14 @@
                :exception db-result}}
       (true? db-result)
       (let [new-user (users/get-user-by-email email)]
-        ;; create-sysrev-stripe-customer! will handle logging any
-        ;; error messages related to not being able to create a stripe
-        ;; customer for the user
-        (users/create-sysrev-stripe-customer! new-user)
-        ;; subscribe the customer to the basic plan, by default
-        (stripe/subscribe-customer! (users/get-user-by-email email) default-plan)
+        ;; create-sysrev-stripe-customer! will handle
+        ;; logging any error messages related to not
+        ;; being able to create a stripe customer for the
+        ;; user
+        (users/create-sysrev-stripe-customer!
+         new-user)
+        ;; create a subscription for the user. Uses default plan
+        (stripe/create-subscription-user! (users/get-user-by-email email))
         ;; add email verification entry for email
         (users/create-email-verification! (:user-id new-user) email :principal true)
         ;; send verification email
@@ -294,7 +295,8 @@
 (defn current-plan
   "Get the plan for user-id"
   [user-id]
-  {:success true, :plan (plans/get-current-plan (users/get-user-by-id user-id))})
+  {:result {:success true
+            :plan (plans/get-current-plan user-id)}})
 
 (defn current-group-plan
   "Get the plan for group-id"
@@ -304,24 +306,45 @@
 (defn subscribe-to-plan
   "Subscribe user to plan-name"
   [user-id plan-name]
-  (let [user (users/get-user-by-id user-id)
-        stripe-response (stripe/subscribe-customer! user plan-name)]
-    (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
-      (db/clear-project-cache project-id))
-    (cond-> stripe-response
-      (:error stripe-response) (update :error #(merge % {:status not-found})))))
+  (let [{:keys [stripe-id]} (users/get-user-by-id user-id)
+        {:keys [sub-id]} (plans/get-current-plan user-id)
+        sub-item-id (stripe/get-subscription-item sub-id)
+        plan (stripe/get-plan-id plan-name)
+        {:keys [body] :as stripe-response} (stripe/update-subscription-item!
+                                            {:id sub-item-id
+                                             :plan plan})]
+    (when-not (:error body)
+      (plans/add-user-to-plan! {:user-id user-id
+                                :plan plan
+                                :created (util/now-unix-seconds)
+                                :sub-id sub-id})
+      ;; clear the project caches
+      (doseq [{:keys [project-id]} (users/user-owned-projects user-id)]
+        (db/clear-project-cache project-id)))
+    (cond-> body
+      (:error body) (update :error #(merge % {:status not-found})))))
 
 (defn subscribe-org-to-plan
-  "Subscribe the group to plan. Only a user can subscribe to a plan when
-  they have a valid payment method. This fn allows for them to
-  associated that plan with a group."
+  "Subscribe the group to plan."
   [group-id plan-name]
   (let [stripe-id (groups/get-stripe-id group-id)
-        stripe-response (stripe/subscribe-org-customer! group-id stripe-id plan-name)]
-    (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
-      (db/clear-project-cache project-id))
-    (cond-> stripe-response
-      (:error stripe-response) (update :error #(merge % {:status not-found})))))
+        {:keys [sub-id]} (plans/get-current-plan-group group-id)
+        sub-item-id (stripe/get-subscription-item sub-id)
+        plan (stripe/get-plan-id plan-name)
+        {:keys [body] :as stripe-response} (stripe/update-subscription-item!
+                                            {:id sub-item-id
+                                             :plan plan
+                                             :quantity (count (groups/read-users-in-group (groups/group-id->group-name group-id)))})]
+    (when-not (:error body)
+      (plans/add-group-to-plan! {:group-id group-id
+                                 :plan plan
+                                 :created (util/now-unix-seconds)
+                                 :sub-id sub-id})
+      ;; clear the project caches
+      (doseq [{:keys [project-id]} (groups/group-projects group-id :private-projects? true)]
+        (db/clear-project-cache project-id)))
+    (cond-> body
+      (:error body) (update :error #(merge % {:status not-found})))))
 
 (defn project-owner-plan
   "Return the plan name for the project owner of project-id"
@@ -329,7 +352,7 @@
   (let [project-owner (project/get-project-owner project-id)
         owner-type (-> project-owner keys first)]
     (condp = owner-type
-      :user-id (:name (plans/get-current-plan project-owner))
+      :user-id (:name (plans/get-current-plan (:user-id project-owner)))
       :group-id (:name (plans/get-current-plan-group (:group-id project-owner)))
       ;; default
       "Basic")))
@@ -340,7 +363,7 @@
     (doseq [{:keys [setting value]} changes]
       (cond (and (= setting :public-access)
                  ;; owner has Unlimited plan
-                 (= "Unlimited" (project-owner-plan project-id)))
+                 (some #{"Unlimited_Org" "Unlimited_User"} [(project-owner-plan project-id)]))
             (project/change-project-setting project-id (keyword setting) value)
             (and (= setting :public-access)
                  (= value false)
@@ -1390,8 +1413,12 @@
 (defn read-orgs
   "Return all organzations user-id is a member of"
   [user-id]
-  {:orgs (filterv #(not= (:group-name %) "public-reviewer")
-                  (groups/read-groups user-id))})
+  {:result {:orgs
+            (->> (groups/read-groups user-id)
+                 (filterv #(not= (:group-name %) "public-reviewer"))
+                 (mapv #(assoc % :member-count (-> (groups/group-id->group-name (:id %))
+                                                   (groups/read-users-in-group)
+                                                   count))))}})
 
 (defn create-org! [user-id org-name]
   ;; check to see if group already exists
@@ -1402,13 +1429,15 @@
     (with-transaction
       ;; create the group
       (let [new-org-id (groups/create-group! org-name)
-            user (users/get-user-by-id user-id)]
+            user (users/get-user-by-id user-id)
+            _ (groups/create-sysrev-stripe-customer! new-org-id)
+            stripe-id (groups/get-stripe-id new-org-id)]
         ;; set the user as group admin
-        (groups/add-user-to-group! user-id (groups/group-name->group-id org-name)
-                                   :permissions ["owner"])
-        (groups/create-sysrev-stripe-customer! new-org-id)
-        (subscribe-org-to-plan new-org-id default-plan)
-        {:success true, :group-id new-org-id}))))
+        (groups/add-user-to-group! user-id (groups/group-name->group-id org-name) :permissions ["owner"])
+        (stripe/create-subscription-org! new-org-id stripe-id)
+        {:result {:success true
+                  :id new-org-id}}))))
+
 
 (defn search-users [term]
   {:success true, :users (users/search-users term)})
@@ -1426,7 +1455,11 @@
 (defn subscription-lapsed?
   "Is the project private with a lapsed subscription?"
   [project-id]
-  (boolean (when project-id
-             (let [{:keys [public-access]} (project/project-settings project-id)
-                   plan (project-owner-plan project-id)]
-               (and (not public-access) (not= plan "Unlimited"))))))
+  (if (nil? project-id)
+    false
+    (let [public-access? (get-in (project/project-settings project-id) [:public-access])
+          plan (project-owner-plan project-id)]
+      (if (and (not public-access?)
+               (not (some #{"Unlimited_Org" "Unlimited_User"} [plan])))
+        true
+        false))))

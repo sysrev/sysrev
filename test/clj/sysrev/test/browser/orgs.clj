@@ -22,7 +22,7 @@
 
 ;; org tabs
 (def org-projects "#org-projects")
-(def org-users "#org-users")
+(def org-users "#org-members")
 (def org-billing "#org-billing")
 (def user-orgs "#user-orgs")
 
@@ -102,7 +102,7 @@
   (b/click user-profiles/user-name-link)
   (b/click "#user-orgs")
   (b/click (xpath "//a[text()='" org-name "']"))
-  (b/wait-until-exists "#org-users"))
+  (b/wait-until-exists org-users))
 
 (deftest-browser simple-org-tests
   (test/db-connected?)
@@ -216,9 +216,10 @@
     (when-not (plans/get-user-customer email)
       (log/info (str "Stripe Customer created for " email))
       (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
-    (stripe/subscribe-customer! (users/get-user-by-email email) api/default-plan)
+    (stripe/create-subscription-user! (users/get-user-by-email email))
     ;; current plan
-    (b/is-soon (= api/default-plan (get-in (api/current-plan user-id) [:plan :name]))
+    (b/is-soon (= (get-in (api/current-plan user-id) [:result :plan :name])
+                  stripe/default-plan)
                2000 200)
     (plans/wait-until-stripe-id email)
     ;; start tests

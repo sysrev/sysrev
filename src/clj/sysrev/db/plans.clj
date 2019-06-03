@@ -4,50 +4,36 @@
             [sysrev.db.core :refer [do-query do-execute]]))
 
 (defn add-user-to-plan!
-  "Add user-id to plan with name at time created with subscription id sub-id"
-  [{:keys [user-id name created sub-id]}]
-  (let [product (-> (select :product)
-                    (from :stripe-plan)
-                    (where [:= :name name])
-                    do-query first :product)]
-    (-> (insert-into :plan-user)
-        (values [{:user-id user-id, :product product, :created created, :sub-id sub-id}])
-        do-execute)))
+  "Add user-id to plan with at time created with subscription id sub-id"
+  [{:keys [user-id plan created sub-id]}]
+  (-> (insert-into :plan-user)
+      (values [{:user-id user-id, :plan plan, :created created, :sub-id sub-id}])
+      do-execute))
 
 (defn add-group-to-plan!
   "Add a group-id to plan with name at time created with subscription id sub-id"
-  [{:keys [group-id name created sub-id]}]
-  (let [product (-> (select :product)
-                    (from :stripe-plan)
-                    (where [:= :name name])
-                    do-query first :product)]
-    (-> (insert-into :plan-group)
-        (values [{:group-id group-id, :product product, :created created, :sub-id sub-id}])
-        do-execute)))
+  [{:keys [group-id plan created sub-id]}]
+  (-> (insert-into :plan-group)
+      (values [{:group-id group-id, :plan plan, :created created, :sub-id sub-id}])
+      do-execute))
 
 (defn get-current-plan
   "Get the plan for which user is currently subscribed"
-  [user]
-  (let [product (-> (select :product :created)
-                    (from :plan-user)
-                    (where [:= :user-id (:user-id user)])
-                    do-query (->> (sort-by :created) last :product))]
-    (-> (select :name :product)
-        (from :stripe-plan)
-        (where [:= :product product])
-        do-query first)))
+  [user-id]
+  (-> (select :*)
+      (from [:plan-user :pu])
+      (join [:stripe-plan :sp] [:= :pu.plan :sp.id])
+      (where [:= :user-id user-id])
+      do-query (->> (sort-by :created) last)))
 
 (defn get-current-plan-group
-  "Get the plan for which group-id is currently subscribed"
+  "Get the information for the plan the group is currently subscribed to"
   [group-id]
-  (let [product (-> (select :product :created)
-                    (from :plan-group)
-                    (where [:= :group-id group-id])
-                    do-query (->> (sort-by :created) last :product))]
-    (-> (select :name :product)
-        (from :stripe-plan)
-        (where [:= :product product])
-        do-query first)))
+  (-> (select :*)
+      (from [:plan-group :pg])
+      (join [:stripe-plan :sp] [:= :pg.plan :sp.id])
+      (where [:= :group-id group-id])
+      do-query (->> (sort-by :created) last)))
 
 (defn get-support-project-plan
   "Return the information for the support project plan used to subscribe

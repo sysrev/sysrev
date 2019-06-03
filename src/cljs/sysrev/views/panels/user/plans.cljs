@@ -25,15 +25,6 @@
   (when (nil? @state)
     (reset! state initial-state)))
 
-(def-data :plans
-  :loaded? (fn [db] (contains? @state :plans))
-  :uri (fn [] "/api/plans")
-  :prereqs (fn [] [[:identity]])
-  :process (fn [_ _ result]
-             (ensure-state)
-             (reset! (r/cursor state [:plans]) (:plans result))
-             {}))
-
 (def-data :current-plan
   :loaded? (fn [db] (contains? @state :current-plan))
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/current-plan"))
@@ -88,18 +79,38 @@
   [cents]
   (str (-> cents (/ 100) (.toFixed 2))))
 
-(defn BusinessUnlimited
-  []
+(defn price-summary
+  [{:keys [tiers member-count]}]
+  (let [base (->> tiers (map :flat_amount) (filter int?) (apply +))
+        per-user (->> tiers (map :unit_amount) (filter int?) (apply +))
+        up-to (->> tiers (map :up_to) (filter int?) first)
+        monthly-bill (+ base (* (max 0 (- member-count 5)) per-user))]
+    {:base base
+     :per-user per-user
+     :up-to up-to
+     :monthly-bill monthly-bill}))
+
+(defn Unlimited
+  [{:keys [unlimited-plan-price
+           unlimited-plan-name]}]
   [Segment
    [Grid {:stackable true}
     [Row
-     [Column {:width 8}
-      [:b "Business Unlimited"]
+     [Column {:width 6}
+      [:b unlimited-plan-name]
       [ListUI
        [ListItem "Unlimited public projects"]
        [ListItem "Unlimited private projects"]]]
-     [Column {:width 8 :align "right"}
-      [:h2 "$50 / month"]]]]])
+     [Column {:width 10 :align "right"}
+      (if (map? unlimited-plan-price)
+        (let [{:keys [base per-user up-to monthly-bill]} (price-summary unlimited-plan-price)]
+          [:div
+           [Row [:h3 "$" (cents->dollars base) " / month"]]
+           [Row [:h3 "up to 5 org members"]]
+           [:br]
+           [Row [:h3 "$ " (cents->dollars per-user) " / month"]]
+           [Row [:h3 "per additional member"]]])
+        [Row [:h3 (str "$" (cents->dollars unlimited-plan-price) " / month")] ])]]]])
 
 (defn BasicPlan []
   [Segment
@@ -123,7 +134,9 @@
    text])
 
 (defn DowngradePlan [{:keys [billing-settings-uri
-                             on-downgrade]}]
+                             on-downgrade
+                             unlimited-plan-price
+                             unlimited-plan-name]}]
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
@@ -136,7 +149,8 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "Unsubscribe from"]
-                        [BusinessUnlimited]]]]
+                        [Unlimited {:unlimited-plan-price unlimited-plan-price
+                                    :unlimited-plan-name unlimited-plan-name}]]]]
             [Grid [Row [Column
                         [:h3 "New Plan"]
                         [BasicPlan]
@@ -165,7 +179,9 @@
                            on-upgrade
                            default-source-atom
                            get-default-source
-                           on-add-payment-method]}]
+                           on-add-payment-method
+                           unlimited-plan-price
+                           unlimited-plan-name]}]
   (let [error-message (r/cursor state [:error-message])
         changing-plan? (r/cursor state [:changing-plan?])]
     (r/create-class
@@ -178,7 +194,8 @@
            [Column {:width 8}
             [Grid [Row [Column
                         [:h3 "UPGRADING TO"]
-                        [BusinessUnlimited]
+                        [Unlimited {:unlimited-plan-price unlimited-plan-price
+                                    :unlimited-plan-name unlimited-plan-name}]
                         [:a {:href billing-settings-uri} "Billing Settings"]]]]]
            [Column {:width 8}
             (let [no-default? (empty? @default-source-atom)]
@@ -188,7 +205,15 @@
                  [:h3 "Upgrade Summary"]
                  [ListUI {:divided true}
                   [:h4 "New Monthly Bill"]
-                  [ListItem [:p "Unlimited plan ($50 / month)"]]
+                  [ListItem [:p (str "Unlimited plan ("
+                                     (if (map? unlimited-plan-price)
+                                       (str "$" (-> unlimited-plan-price
+                                                    price-summary
+                                                    :monthly-bill
+                                                    cents->dollars)
+                                            " / month")
+                                       (str "$" (cents->dollars unlimited-plan-price) " / month"))
+                                     ")")]]
                   [:h4 "Billing Information"]
                   [ListItem [DefaultSource {:get-default-source get-default-source
                                             :default-source-atom default-source-atom}]]
@@ -237,10 +262,13 @@
            [UpgradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
                          :default-source-atom (subscribe [:stripe/default-source "user" self-id])
                          :get-default-source stripe/get-user-default-source
-                         :on-upgrade #(dispatch [:action [:subscribe-plan "Unlimited"]])
-                         :on-add-payment-method
-                         #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                              (dispatch [:navigate [:payment]]))}])
-         (when (= current-plan "Unlimited")
-           [DowngradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
-                           :on-downgrade #(dispatch [:action [:subscribe-plan "Basic"]])}])]))))
+                         :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
+                         :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                                     (dispatch [:navigate [:payment]]))
+                         :unlimited-plan-price 1000
+                         :unlimited-plan-name "Pro Plan"}])
+         (when (= current-plan "Unlimited_User")
+           [DowngradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
+                           :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
+                           :unlimited-plan-name "Pro Plan"
+                           :unlimited-plan-price 1000}])]))))
