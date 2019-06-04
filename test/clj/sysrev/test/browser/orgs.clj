@@ -44,8 +44,10 @@
 (def set-private-button "#public-access_private")
 (def save-options-button "#save-options")
 (def no-payment-on-file (xpath "//div[contains(text(),'No payment method on file')]"))
+
 (defn payment-method [{:keys [exp-date last-4]}]
   (xpath "//div[contains(text(),'Visa expiring on " exp-date " and ending in " last-4 "')]"))
+
 (defn user-group-permission
   [user-id group-name]
   (groups/user-group-permission user-id (groups/group-name->group-id group-name)))
@@ -186,7 +188,9 @@
 ;; delete a customer's card:
 #_(let [stripe-id (-> email users/get-user-by-email :stripe-id)
         source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
-    (stripe/delete-customer-card! stripe-id source-id))
+    source-id
+    ;;(stripe/delete-customer-card! stripe-id source-id)
+    )
 
 ;; delete a org's card:
 #_(let [group-id (-> (groups/read-groups user-id) first :id)
@@ -194,7 +198,6 @@
         source-id (-> (stripe/read-default-customer-source stripe-id) :id)]
     (stripe/delete-customer-card! stripe-id source-id))
 
-#_
 (deftest-browser org-plans
   (test/db-connected?)
   [org-name-1 "Foo Bar, Inc."
@@ -211,12 +214,12 @@
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))]
   (do
-    #_ (b/start-webdriver true)
     ;; need to be a stripe customer
-    (when-not (plans/get-user-customer email)
+    (when-not (:stripe-id (users/get-user-by-email email))
       (log/info (str "Stripe Customer created for " email))
       (users/create-sysrev-stripe-customer! (users/get-user-by-email email)))
-    (stripe/create-subscription-user! (users/get-user-by-email email))
+    (when-not (-> email users/get-user-by-email :user-id (api/current-plan) (get-in [:result :plan]))
+      (stripe/create-subscription-user! (users/get-user-by-email email)))
     ;; current plan
     (b/is-soon (= (get-in (api/current-plan user-id) [:result :plan :name])
                   stripe/default-plan)
@@ -258,6 +261,53 @@
     (b/click ".button.upgrade-plan")
     (b/click set-private-button)
     (b/click save-options-button)
-    (is (b/exists? active-set-private-button)))
+    (is (b/exists? active-set-private-button))
+    ;; user downgrades to basic plan
+    (b/click user-profiles/user-name-link)
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
+    (b/exists? ".button.nav-plans.subscribe")
+    ;; paywall is in place for their project they set private
+    (b/click "#user-projects")
+    (b/click (xpath "//a[contains(text(),'" user-project "')]"))
+    ;; this is a user project, should redirect to /user/plans
+    (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
+    ;; set the project public viewable
+    (b/click "#set-publicly-viewable")
+    (b/click "#confirm-cancel-form-confirm")
+    (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
+    ;; renew subscription to Unlimited
+    (b/click user-profiles/user-name-link)
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.subscribe")
+    (b/click ".button.upgrade-plan")
+    (is (b/exists? ".button.nav-plans.unsubscribe"))
+    ;; go back to projects
+    (b/click "#user-projects")
+    (b/click (xpath "//a[contains(text(),'" user-project "')]"))
+    ;; set the project private
+    (nav/go-project-route "/settings")
+    (b/click set-private-button)
+    (b/click save-options-button)
+    (is (b/exists? active-set-private-button))
+    ;; downgrade to basic plan again
+    (b/click user-profiles/user-name-link)
+    (b/click "#user-billing")
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
+    (b/exists? ".button.nav-plans.subscribe")
+    ;; go to user project again
+    (b/click "#user-projects")
+    (b/click (xpath "//a[contains(text(),'" user-project "')]"))
+    ;; paywall is in place
+    (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
+    ;; upgrade plans
+    (b/click (xpath "//a[contains(@href,'/user/plans')]"))
+    (b/click ".button.upgrade-plan")
+    ;; paywal has been lifted
+    (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
+    ;; put org firewall tests HERE
+    )
   :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
-               (b/cleanup-test-user! :user-id user-id :groups true)))
+               (b/cleanup-test-user! :email email :groups true)))

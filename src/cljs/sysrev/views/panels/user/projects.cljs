@@ -70,7 +70,8 @@
                                 :title "Confirm Action"
                                 :message "Are you sure you want to make this project publicly viewable? Anyone will be able to view the contents of this project."}])
          (when-not @confirming?
-           [Button {:size "mini" :on-click (wrap-prevent-default #(reset! confirming? true))}
+           [Button {:size "mini" :on-click (wrap-prevent-default #(reset! confirming? true))
+                    :id "set-publicly-viewable"}
             "Set Publicly Viewable"])])
       :component-did-mount (fn [this]
                              (reset! setting-public? false)

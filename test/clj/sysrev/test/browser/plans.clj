@@ -79,7 +79,6 @@
   (b/wait-until-displayed ".button.nav-plans.unsubscribe" 10000))
 
 ;; need to disable sending emails in this test
-#_
 (deftest-browser register-and-check-basic-plan-subscription
   (and (test/db-connected?)
        (not= :remote-test (-> env :profile)))
@@ -102,7 +101,6 @@
   (users/delete-sysrev-stripe-customer! (users/get-user-by-email email)))
 
 ;; need to disable sending emails in this test
-#_
 (deftest-browser register-and-subscribe-to-paid-plans
   (and (test/db-connected?)
        (not= :remote-test (-> env :profile)))
@@ -113,9 +111,6 @@
    get-db-plan #(user-db-plan email)]
   (do (assert stripe/stripe-secret-key)
       (assert stripe/stripe-public-key)
-      #_ (b/start-webdriver true)
-      #_ (b/delete-test-user)
-      #_ (nav/register-user)
       (users/create-sysrev-stripe-customer! (get-user))
       (stripe/create-subscription-user! (get-user))
       (nav/log-in)
@@ -146,7 +141,6 @@
       (if (test/full-tests?)
         (log/info "running full stripe tests")
         (log/info "skipping full stripe tests"))
-      #_
       (when (test/full-tests?)
         ;; basic failure with Luhn Check
         #_ (b/input-text (label-input "Card Number") bstripe/fail-luhn-check-cc)

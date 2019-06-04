@@ -100,7 +100,6 @@
       (b/click q)
       (b/click "div.project-options button.save-changes"))))
 
-#_
 (deftest-browser correct-project-activity
   (test/db-connected?)
   [project-name-1 "Sysrev Browser Test (correct-project-activity 1)"

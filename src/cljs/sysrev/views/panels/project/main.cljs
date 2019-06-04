@@ -104,8 +104,7 @@
               @(subscribe [:project/error project-id])
               [ProjectErrorNotice "Unable to load project"]
 
-              (and @(subscribe [:project/subscription-lapsed? project-id])
-                   (not @(subscribe [:user/admin?])))
+              (and @(subscribe [:project/subscription-lapsed? project-id]))
               [ProjectErrorNotice
                [PrivateProjectNotViewable project-id]]
 

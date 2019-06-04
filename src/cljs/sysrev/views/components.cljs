@@ -590,7 +590,7 @@
      (when message [:p.bold {:style {:font-size "16px"}} message])]]
    [:div.ui.two.column.grid.confirm-cancel-form
     [:div.column>button.ui.fluid.button
-     {:on-click (util/wrap-user-event on-confirm) :class action-color}
+     {:on-click (util/wrap-user-event on-confirm) :class action-color :id "confirm-cancel-form-confirm"}
      "Confirm"]
     [:div.column>button.ui.fluid.button
      {:on-click (util/wrap-user-event on-cancel)}
