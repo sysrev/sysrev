@@ -228,7 +228,6 @@
     ;; start tests
     (nav/log-in)
     (create-org org-name-1)
-;;; make sure pay wall is in place for org projects and redirects to org plans page
     ;; create org project
     (b/click org-projects)
     (create-project-org org-name-1-project)
@@ -246,7 +245,8 @@
     (b/click set-private-button)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button))
-    ;; make sure pay wall is in place for personal projects and redirects to personal plans page
+    ;;; user pay wall
+    ;;
     (nav/new-project user-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -273,7 +273,7 @@
     (b/click (xpath "//a[contains(text(),'" user-project "')]"))
     ;; this is a user project, should redirect to /user/plans
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
-    ;; set the project public viewable
+    ;; set the project publicly viewable
     (b/click "#set-publicly-viewable")
     (b/click "#confirm-cancel-form-confirm")
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
@@ -305,9 +305,52 @@
     ;; upgrade plans
     (b/click (xpath "//a[contains(@href,'/user/plans')]"))
     (b/click ".button.upgrade-plan")
-    ;; paywal has been lifted
+    ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-    ;; put org firewall tests HERE
-    )
+    ;;; org paywall
+    ;;
+    ;; go to org, subscribe to basic
+    (switch-to-org org-name-1)
+    (b/click org-billing)
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
+    (is (b/exists? ".button.nav-plans.subscribe"))
+    ;; go to org projects
+    (b/click org-projects)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
+    ;; should redirect to /org/<org-id>/plans
+    (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
+    ;; set the project publicly viewable
+    (b/click "#set-publicly-viewable")
+    (b/click "#confirm-cancel-form-confirm")
+    (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
+    ;; renew subscription to unlimited
+    (switch-to-org org-name-1)
+    (b/click org-billing)
+    (b/click ".button.nav-plans.subscribe")
+    (b/click ".button.upgrade-plan")
+    (is (b/exists? ".button.nav-plans.unsubscribe"))
+    ;; set project to private again
+    (switch-to-org org-name-1)
+    (b/click org-projects)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
+    (nav/go-project-route "/settings")
+    (b/click set-private-button)
+    (b/click save-options-button)
+    ;; downgrade to basic plan again
+    (switch-to-org org-name-1)
+    (b/click org-billing)
+    (b/click ".button.nav-plans.unsubscribe")
+    (b/click ".button.unsubscribe-plan")
+    (is (b/exists? ".button.nav-plans.subscribe"))
+    ;; go to project again
+    (b/click org-projects)
+    (b/click (xpath "//a[contains(text(),'" org-name-1-project "')]"))
+    ;; paywall is in place
+    (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
+    (b/click (xpath "//a[contains(text(),'Upgrade your plan')]"))
+    (b/click ".button.upgrade-plan")
+    ;; paywall has been lifted
+    (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]"))))
   :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
-               (b/cleanup-test-user! :email email :groups true)))
+                 (b/cleanup-test-user! :email email :groups true)))

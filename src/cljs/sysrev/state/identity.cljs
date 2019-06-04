@@ -122,7 +122,7 @@
          :<- [:self/orgs]
          (fn [orgs [_ org-id]]
            ((comp :permissions first)
-            (filter #(= (:id %) org-id) orgs))))
+            (filter #(= (:group-id %) org-id) orgs))))
 
 (reg-event-db
  :self/set-orgs!
