@@ -2,7 +2,7 @@
   (:require [clj-webdriver.taxi :as taxi]
             [clj-webdriver.core :refer
              [->actions double-click move-to-element click-and-hold move-by-offset release perform]]
-            [clojure.string :as string]
+            [clojure.string :as str]
             [clojure.test :refer :all]
             [clojure-csv.core :as csv]
             [sysrev.api :as api]

@@ -247,7 +247,7 @@
     (b/click set-private-button)
     (b/click save-options-button)
     (is (b/exists? active-set-private-button))
-    ;;; user pay wall
+;;; user pay wall
     ;;
     (nav/new-project user-project)
     (nav/go-project-route "/settings")
@@ -309,7 +309,7 @@
     (b/click ".button.upgrade-plan")
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
-    ;;; org paywall
+;;; org paywall
     ;;
     ;; go to org, subscribe to basic
     (switch-to-org org-name-1)
@@ -355,4 +355,4 @@
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]"))))
   :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
-                 (b/cleanup-test-user! :email email :groups true)))
+               (b/cleanup-test-user! :email email :groups true)))

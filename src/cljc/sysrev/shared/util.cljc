@@ -62,9 +62,12 @@
            res)))))
 
 (defn in?
-  "Tests if `coll` contains an element equal to `x`.
-  With one argument `coll`, returns the function #(in? coll %)."
-  ([coll x] (some #(= x %) coll))
+  "Tests if `coll` contains an element equal to `x`. With one argument `coll`,
+  returns the function #(in? coll %). Delegates to `contains?` for
+  efficiency if `coll` is a set."
+  ([coll x] (if (set? coll)
+              (contains? coll x)
+              (some #(= x %) coll)))
   ([coll] #(in? coll %)))
 
 (defn map-values

@@ -104,7 +104,9 @@
               @(subscribe [:project/error project-id])
               [ProjectErrorNotice "Unable to load project"]
 
-              (and @(subscribe [:project/subscription-lapsed? project-id]))
+              (and @(subscribe [:project/subscription-lapsed? project-id])
+                   ;; Don't block real (non-test) dev users from seeing projects
+                   (not @(subscribe [:user/actual-admin?])))
               [ProjectErrorNotice
                [PrivateProjectNotViewable project-id]]
 
@@ -120,6 +122,6 @@
       [:div
        (when (and project-id
                   @(subscribe [:project/subscription-lapsed? project-id])
-                  @(subscribe [:user/admin?]))
+                  @(subscribe [:user/actual-admin?]))
          [:div.ui.small.warning.message "Subscription Lapsed (dev override)"])
        child])))
