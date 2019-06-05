@@ -176,6 +176,10 @@
 (defn now-unix-seconds []
   (-> (t/now) (tc/to-long) (/ 1000) int))
 
+(defn sql-date->clj-time
+  [s]
+  (tformat/parse (tformat/formatter :mysql) s))
+
 ;; see: https://stackoverflow.com/questions/10751638/clojure-rounding-to-decimal-places
 (defn round
   "Round a double to the given precision (number of significant digits)"

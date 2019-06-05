@@ -7,6 +7,7 @@
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log]
             [clojure.walk :refer [keywordize-keys]]
+            [clj-time.core :as t]
             [me.raynes.fs :as fs]
             [ring.util.response :as response]
             [sysrev.biosource.annotations :as annotations]
@@ -59,6 +60,9 @@
 ;; server settings
 (def minimum-support-level 100)
 (def max-import-articles (:max-import-articles env))
+(defn paywall-grandfather-date
+  []
+  "2019-06-09 23:56:00")
 
 (defmacro try-catch-response
   [body]
@@ -1458,8 +1462,11 @@
   (if (nil? project-id)
     false
     (let [public-access? (get-in (project/project-settings project-id) [:public-access])
+          created-clj-time (-> project-id project/get-project-by-id :date-created db/time-to-string util/sql-date->clj-time)
           plan (project-owner-plan project-id)]
       (if (and (not public-access?)
+               (t/after? created-clj-time
+                         (util/sql-date->clj-time (paywall-grandfather-date)))
                (not (some #{"Unlimited_Org" "Unlimited_User"} [plan])))
         true
         false))))

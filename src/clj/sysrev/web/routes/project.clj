@@ -94,7 +94,7 @@
 
 (defn project-info [project-id]
   (with-project-cache project-id [:project-info]
-    (let [[[fields users labels keywords notes members predict importance url-ids files documents owner plan]
+    (let [[[fields users labels keywords notes members predict importance url-ids files documents owner plan subscription-lapsed?]
            [_ [status-counts progress]]
            [articles sources]]
           (pvalues [(q/query-project-by-id project-id [:*])
@@ -114,7 +114,8 @@
                     (files/list-document-files-for-project project-id)
                     (docs/all-article-document-paths project-id)
                     (project/get-project-owner project-id)
-                    (api/project-owner-plan project-id)]
+                    (api/project-owner-plan project-id)
+                    (api/subscription-lapsed? project-id)]
                    [(labels/query-public-article-labels project-id)
                     (pvalues (labels/project-article-status-counts project-id)
                              (labels/query-progress-over-time project-id 30))]
@@ -139,7 +140,8 @@
                  :importance importance
                  :url-ids url-ids
                  :owner owner
-                 :plan plan}
+                 :plan plan
+                 :subscription-lapsed? subscription-lapsed?}
        :users users})))
 
 ;;;

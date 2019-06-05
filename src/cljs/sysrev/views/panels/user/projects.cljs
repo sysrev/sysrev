@@ -53,7 +53,8 @@
     (dispatch [:action [:project/change-settings project-id [{:setting :public-access
                                                               :value true}]]])
     ;; reset project settings state
-    (dispatch [:project-settings/reset-state!])))
+    (dispatch [:project-settings/reset-state!])
+    (dispatch [:reload [:project project-id]])))
 
 (defn MakePublic [{:keys [project-id]}]
   (let [confirming? (r/atom false)

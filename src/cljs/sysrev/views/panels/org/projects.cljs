@@ -112,5 +112,4 @@
             [MessageHeader {:as "h4"} "Get Group Projects error"]
             @error])])
       :component-did-mount (fn [this]
-                             (.log js/console "I mounted")
                              (dispatch [:org/get-projects! org-id]))})))

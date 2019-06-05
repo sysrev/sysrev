@@ -214,6 +214,8 @@
    email (:email b/test-login)
    user-id (:user-id (users/get-user-by-email email))]
   (do
+    (alter-var-root #'sysrev.api/paywall-grandfather-date (fn [paywall-grandfather-date]
+                                                            (constantly "2019-01-01 00:00:00")))
     ;; need to be a stripe customer
     (when-not (:stripe-id (users/get-user-by-email email))
       (log/info (str "Stripe Customer created for " email))

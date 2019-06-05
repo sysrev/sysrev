@@ -37,7 +37,6 @@
 (reg-sub :project/subscription-lapsed?
          (fn [[_ project-id]]
            [(subscribe [:have? [:project project-id]])
-            (subscribe [:project/public-access? project-id])
-            (subscribe [:project/plan project-id])])
-         (fn [[loaded? public? plan] _]
-           (and loaded? (not public?) (not (some #{"Unlimited_Org" "Unlimited_User"} [plan])))))
+            (subscribe [:project/raw project-id])])
+         (fn [[loaded? project] _]
+           (and loaded? (:subscription-lapsed? project))))
