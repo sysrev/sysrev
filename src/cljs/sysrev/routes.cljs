@@ -10,21 +10,6 @@
             [sysrev.macros])
   (:require-macros [sysrev.macros :refer [sr-defroute sr-defroute-project]]))
 
-(defn- go-project-panel [project-id]
-  (let [panel [:project :project :overview]
-        prev-panel @(subscribe [:active-panel])
-        diff-panel (and prev-panel (not= panel prev-panel))
-        markdown-item [:project/markdown-description project-id {:panel panel}]]
-    (dispatch [:set-active-panel panel])
-    (dispatch [:require [:project project-id]])
-    (dispatch [:require markdown-item])
-    (dispatch [:require [:project/label-counts project-id]])
-    (dispatch [:require [:project/important-terms project-id]])
-    (dispatch [:require [:project/prediction-histograms project-id]])
-    (when diff-panel
-      (dispatch [:reload [:project project-id]])
-      (dispatch [:reload markdown-item]))))
-
 (sr-defroute
  home "/" []
  (dispatch [:set-active-panel [:root]])
@@ -38,8 +23,19 @@
 
 (sr-defroute-project
  project "" [project-id]
- (let [project-id @(subscribe [:active-project-id])]
-   (go-project-panel project-id)))
+ (let [project-id @(subscribe [:active-project-id])
+       panel [:project :project :overview]
+       prev-panel @(subscribe [:active-panel])
+       diff-panel (and prev-panel (not= panel prev-panel))
+       all-data-items [[:project project-id]
+                       [:project/markdown-description project-id {:panel panel}]
+                       [:project/label-counts project-id]
+                       [:project/important-terms project-id]
+                       [:project/prediction-histograms project-id]]]
+   (dispatch [:set-active-panel panel])
+   (doseq [item all-data-items] (dispatch [:require item]))
+   (when diff-panel
+     (doseq [item all-data-items] (dispatch [:reload item])))))
 
 (sr-defroute-project
  articles "/articles" [project-id]
