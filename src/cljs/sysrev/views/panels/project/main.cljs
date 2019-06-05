@@ -56,31 +56,33 @@
 
 (defn PrivateProjectNotViewable
   [project-id]
-  (let [project-owner @(subscribe [:project/owner project-id])
-        project-owner-type (-> project-owner keys first)
-        project-owner-id (-> project-owner vals first)
-        self-id @(subscribe [:self/user-id])
-        project-url @(subscribe [:project/uri project-id])]
-    [:div "This private project is currently inaccessible"
-     (when (or
-            ;; user is an admin of this project
-            (and (= :user-id project-owner-type)
-                 @(subscribe [:member/admin? self-id project-id]))
-            ;; user is an admin or owner of the org this project belongs to
-            (and (= :group-id project-owner-type)
-                 (some #{"admin" "owner"}
-                       @(subscribe [:self/org-permissions project-owner-id]))))
-       (when (= :user-id project-owner-type)
-         (dispatch [:plans/set-on-subscribe-nav-to-url! project-url]))
-       (when (= :group-id project-owner-type)
-         (dispatch [:org/set-on-subscribe-nav-to-url! project-url]))
-       [:div
-        [:a {:href (if (= :user-id project-owner-type)
-                     "/user/plans"
-                     (str "/org/" project-owner-id "/plans"))}
-         "Upgrade your plan"]
-        " or "
-        [MakePublic {:project-id project-id}]])]))
+  (when-let [url-id @(subscribe [:active-project-url])]
+    (with-loader [[:lookup-project-url url-id]] {}
+      (let [project-owner @(subscribe [:project/owner project-id])
+            project-owner-type (-> project-owner keys first)
+            project-owner-id (-> project-owner vals first)
+            self-id @(subscribe [:self/user-id])
+            project-url @(subscribe [:project/uri project-id])]
+        [:div "This private project is currently inaccessible"
+         (when (or
+                ;; user is an admin of this project
+                (and (= :user-id project-owner-type)
+                     @(subscribe [:member/admin? self-id project-id]))
+                ;; user is an admin or owner of the org this project belongs to
+                (and (= :group-id project-owner-type)
+                     (some #{"admin" "owner"}
+                           @(subscribe [:self/org-permissions project-owner-id]))))
+           (when (= :user-id project-owner-type)
+             (dispatch [:plans/set-on-subscribe-nav-to-url! project-url]))
+           (when (= :group-id project-owner-type)
+             (dispatch [:org/set-on-subscribe-nav-to-url! project-url]))
+           [:div
+            [:a {:href (if (= :user-id project-owner-type)
+                         "/user/plans"
+                         (str "/org/" project-owner-id "/plans"))}
+             "Upgrade your plan"]
+            " or "
+            [MakePublic {:project-id project-id}]])]))))
 
 (defn ProjectPanel [child]
   (when @(subscribe [:have? [:identity]])
