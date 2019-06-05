@@ -2,6 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
             [re-frame.db :refer [app-db]]
+            [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.nav :refer [nav-scroll-top]]
@@ -116,7 +117,9 @@
                                       :member-count @(subscribe [:orgs/member-count org-id])}}]
              [Message {:negative true}
               [MessageHeader "Organization Plans Error"]
-              "No plan found."]))]))
+              [:div
+               [:p (str "No plan found for org-id:" org-id)]
+               [:p (str "Active Route: " @active-route)]]]))]))
     :component-did-mount (fn [this]
                            (dispatch [:read-orgs!])
                            (dispatch [:fetch [:org-current-plan org-id]]))}))

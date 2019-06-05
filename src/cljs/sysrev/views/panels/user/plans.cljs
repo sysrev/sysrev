@@ -2,6 +2,7 @@
   (:require [reagent.core :as r]
             [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub]]
             [re-frame.db :refer [app-db]]
+            [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
             [sysrev.action.core :refer [def-action]]
             [sysrev.stripe :as stripe]
@@ -275,4 +276,6 @@
                           :unlimited-plan-price 1000}]
           [s/Message {:negative true}
            [s/MessageHeader "User Plans Error"]
-           "No plan found."])))))
+           [:div
+            [:p (str "No plan found for user-id: " self-id)]
+            [:p (str "Active route: " @active-route)]]])))))
