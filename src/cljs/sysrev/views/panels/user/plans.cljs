@@ -16,26 +16,27 @@
 
 (def ^:private panel [:plans])
 
+#_
 (def initial-state {:selected-plan nil
                     :changing-plan? false
                     :error-message nil})
+
 (defonce state (r/cursor app-db [:state :panels panel]))
 
+#_
 (defn ensure-state []
   (when (nil? @state)
     (reset! state initial-state)))
 
 (def-data :current-plan
-  :loaded? (fn [db] (contains? @state :current-plan))
+  :loaded? (fn [db] (get-in db [:state :panels panel :current-plan]))
   :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/current-plan"))
   :prereqs (fn [] [[:identity]])
-  :process (fn [_ _ result]
-             (ensure-state)
-             (reset! (r/cursor state [:current-plan]) (:plan result))
-             {}))
+  :process (fn [{:keys [db]} _ result]
+             {:db (assoc-in db [:state :panels panel :current-plan] (:plan result))}))
 
 (reg-sub :plans/current-plan
-         (fn [db] @(r/cursor state [:current-plan])))
+         (fn [db] (get-in db [:state :panels panel :current-plan])))
 
 (reg-sub :plans/on-subscribe-nav-to-url
          (fn [db] (get-in db [:state :panels panel :on-subscribe-nav-to-url])))
@@ -247,7 +248,7 @@
 
 (defmethod panel-content [:plans] []
   (fn [child]
-    (ensure-state)
+    #_ (ensure-state)
     (stripe/ensure-state)
     (with-loader [[:identity]
                   [:current-plan]] {}
@@ -257,18 +258,21 @@
             error-message (r/cursor state [:error-message])
             current-plan (:name @(subscribe [:plans/current-plan]))
             self-id @(subscribe [:self/user-id])]
-        [:div
-         (when (= current-plan "Basic")
-           [UpgradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
-                         :default-source-atom (subscribe [:stripe/default-source "user" self-id])
-                         :get-default-source stripe/get-user-default-source
-                         :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
-                         :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                                     (dispatch [:navigate [:payment]]))
-                         :unlimited-plan-price 1000
-                         :unlimited-plan-name "Pro Plan"}])
-         (when (= current-plan "Unlimited_User")
-           [DowngradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                           :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
-                           :unlimited-plan-name "Pro Plan"
-                           :unlimited-plan-price 1000}])]))))
+        (condp = current-plan
+          "Basic"
+          [UpgradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
+                        :default-source-atom (subscribe [:stripe/default-source "user" self-id])
+                        :get-default-source stripe/get-user-default-source
+                        :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
+                        :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                                    (dispatch [:navigate [:payment]]))
+                        :unlimited-plan-price 1000
+                        :unlimited-plan-name "Pro Plan"}]
+          "Unlimited_User"
+          [DowngradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
+                          :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
+                          :unlimited-plan-name "Pro Plan"
+                          :unlimited-plan-price 1000}]
+          [s/Message {:negative true}
+           [s/MessageHeader "User Plans Error"]
+           "No plan found."])))))

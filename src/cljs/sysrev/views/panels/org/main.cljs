@@ -69,7 +69,6 @@
 (reg-sub :orgs/org-id-from-url
          (fn [db _]
            (some->> (second (re-find #"/org/(\d*)/*" @active-route))
-                    (ensure-pred string?)
                     (parse-integer))))
 
 (defn OrgContent []
@@ -135,7 +134,9 @@
               #"/org/(\d*)/payment"
               [OrgPayment {:org-id @current-org-id}]
               ;; default
-              [:div {:style {:display "none"}}])]]))
+              [Message {:negative true}
+               [MessageHeader {:as "h4"} "Organizations Error"]
+               [:p "This page does not exist."]])]]))
       :component-did-mount (fn [] (dispatch [:read-orgs!]))})))
 
 (defmethod logged-out-content [:org-settings] []

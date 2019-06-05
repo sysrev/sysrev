@@ -182,7 +182,8 @@
 
 (sr-defroute
  plans "/user/plans" []
- (dispatch [:set-active-panel [:plans]]))
+ (dispatch [:set-active-panel [:plans]])
+ (dispatch [:reload [:current-plan]] ))
 
 (sr-defroute
  plans "/user/payment" []
