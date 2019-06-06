@@ -199,7 +199,7 @@
     (stripe/delete-customer-card! stripe-id source-id))
 
 (deftest-browser org-plans
-  (test/db-connected?)
+  (and (test/db-connected?) (not (test/remote-test?)))
   [org-name-1 "Foo Bar, Inc."
    org-name-1-project "Foo Bar Article Reviews"
    user-project "Baz Qux"
@@ -307,7 +307,8 @@
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; upgrade plans
     (b/click (xpath "//a[contains(@href,'/user/plans')]"))
-    #_(when-not (try (b/exists? ".button.upgrade-plan")
+    #_
+    (when-not (try (b/exists? ".button.upgrade-plan")
                    (catch Throwable e false))
       (taxi/refresh)
       (log/info "Browser was refreshed"))
@@ -357,7 +358,8 @@
     ;; paywall is in place
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     (b/click (xpath "//a[contains(text(),'Upgrade your plan')]"))
-    #_(when-not (try (b/exists? ".button.upgrade-plan")
+    #_
+    (when-not (try (b/exists? ".button.upgrade-plan")
                    (catch Throwable e false))
       (taxi/refresh)
       (log/info "Browser was refreshed"))
