@@ -249,6 +249,7 @@
     (is (b/exists? active-set-private-button))
 ;;; user pay wall
     ;;
+    (log/info "Testing User Paywall")
     (nav/new-project user-project)
     (nav/go-project-route "/settings")
     (is (b/exists? disabled-set-private-button))
@@ -306,12 +307,16 @@
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; upgrade plans
     (b/click (xpath "//a[contains(@href,'/user/plans')]"))
+    (when (not (b/exists? ".button.upgrade-plan"))
+      (taxi/refresh)
+      (log/info "Browser was refreshed"))
     (b/click ".button.upgrade-plan")
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
 ;;; org paywall
     ;;
     ;; go to org, subscribe to basic
+    (log/info "Testing Org Paywall")
     (switch-to-org org-name-1)
     (b/click org-billing)
     (b/click ".button.nav-plans.unsubscribe")
@@ -351,6 +356,9 @@
     ;; paywall is in place
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     (b/click (xpath "//a[contains(text(),'Upgrade your plan')]"))
+    (when (not (b/exists? ".button.upgrade-plan"))
+      (taxi/refresh)
+      (log/info "Browser was refreshed"))
     (b/click ".button.upgrade-plan")
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]"))))
