@@ -119,7 +119,7 @@
               [MessageHeader "Organization Plans Error"]
               [:div
                [:p]
-               [:p (str "No plan found for org-id:" org-id)]
+               [:p (str "Plan (" (:name @current-plan) ") is not recognized for org-id: " org-id)]
                [:p (str "Active Route: " @active-route)]]]))])
       :component-did-mount (fn [this]
                              (dispatch [:read-orgs!])

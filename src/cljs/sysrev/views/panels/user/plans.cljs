@@ -20,8 +20,9 @@
 (defonce state (r/cursor app-db [:state :panels panel]))
 
 (def-data :current-plan
-  :loaded? (fn [db] (get-in db [:state :panels panel :current-plan]))
-  :uri (fn [] (str "/api/user/" @(subscribe [:self/user-id]) "/stripe/current-plan"))
+  :loaded? (fn [db]
+             (get-in db [:state :panels panel :current-plan]))
+  :uri (fn [user-id] (str "/api/user/" user-id "/stripe/current-plan"))
   :prereqs (fn [] [[:identity]])
   :process (fn [{:keys [db]} _ result]
              {:db (assoc-in db [:state :panels panel :current-plan] (:plan result))}))
@@ -53,7 +54,7 @@
               ;; to update [:project/subscription-lapsed?] for MakePublic
               (dispatch [:project/fetch-all-projects])
               (nav-scroll-top @on-subscribe-nav-to-url)
-              {:dispatch [:fetch [:current-plan]]}))))
+              {:dispatch [:fetch [:current-plan @(subscribe [:self/user-id])]]}))))
   :on-error
   (fn [{:keys [db error]} _ _]
     (cond
@@ -266,12 +267,12 @@
            [s/MessageHeader "User Plans Error"]
            [:div
             [:p]
-            [:p (str "No plan found for user-id: " @self-id)]
+            [:p (str "Plan (" (:name @current-plan) ") is not recognized for user-id: " @self-id)]
             [:p (str "Active route: " @active-route)]]]))
       :component-did-mount (fn [this]
                              (stripe/ensure-state)
                              (dispatch [:fetch [:identity]])
-                             (dispatch [:fetch [:current-plan]]))})))
+                             (dispatch [:fetch [:current-plan @self-id]]))})))
 
 (defmethod panel-content [:plans] []
   (fn [child]

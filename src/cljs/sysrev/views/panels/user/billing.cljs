@@ -86,7 +86,7 @@
      [ListUI {:divided true :relaxed true}
       [ListItem [Plan {:plans-route "/user/plans"
                        :current-plan-atom (subscribe [:plans/current-plan])
-                       :fetch-current-plan #(dispatch [:fetch [:current-plan]])}]]
+                       :fetch-current-plan #(dispatch [:fetch [:current-plan self-id]])}]]
       [ListItem [PaymentSource
                  {:get-default-source stripe/get-user-default-source
                   :default-source-atom (subscribe [:stripe/default-source "user" self-id])
