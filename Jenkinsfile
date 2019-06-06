@@ -149,7 +149,7 @@ node {
         try {
           sshagent(['sysrev-admin']) {
             withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
-              // sh './jenkins/migrate.dev'
+              sh './jenkins/migrate.dev'
               sh './jenkins/deploy'
             }
             // sh './jenkins/clone-db-to-dev'
@@ -187,7 +187,7 @@ node {
           if (branch == 'staging') {
             sshagent(['sysrev-admin']) {
               withEnv(["SYSREV_HOST=staging.sysrev.com"]) {
-                // sh './jenkins/migrate.dev'
+                sh './jenkins/migrate.dev'
                 sh './jenkins/deploy'
               }
             }
