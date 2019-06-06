@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.user.plans
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub]]
+  (:require [ajax.core :refer [GET]]
+            [reagent.core :as r]
+            [re-frame.core :refer [dispatch subscribe reg-event-db trim-v reg-sub reg-event-fx]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
@@ -20,12 +21,32 @@
 (defonce state (r/cursor app-db [:state :panels panel]))
 
 (def-data :current-plan
-  :loaded? (fn [db]
-             (get-in db [:state :panels panel :current-plan]))
-  :uri (fn [user-id] (str "/api/user/" user-id "/stripe/current-plan"))
-  :prereqs (fn [] [[:identity]])
+  :loaded? (fn [db user-id]
+             (contains? (get-in db [:state :panels panel])
+                        :current-plan))
+  :uri (fn [user-id]
+         ;; (.log js/console ":current-plan called")
+         ;; (.log js/console ":current-plan think user-id: " user-id)
+         (str "/api/user/" user-id "/stripe/current-plan"))
+  :prereqs (fn [user-id] [[:identity]])
   :process (fn [{:keys [db]} _ result]
+             ;;(.log js/console ":current-plan processed and had a result: " (get-in result [:plan :name]))
              {:db (assoc-in db [:state :panels panel :current-plan] (:plan result))}))
+
+(defn get-current-plan
+  [user-id]
+  (GET (str "/api/user/" user-id "/stripe/current-plan")
+       {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+        :handler (fn [{:keys [result]}]
+                   ;;(.log js/console "get-current-plan had a result: " (get-in result [:plan :name]))
+                   (reset! (r/cursor state [:current-plan]) (:plan result)))}))
+
+(reg-event-fx
+ :user/get-current-plan
+ []
+ (fn [_ [_ user-id]]
+   (get-current-plan user-id)
+   {}))
 
 (reg-sub :plans/current-plan
          (fn [db] (get-in db [:state :panels panel :current-plan])))
@@ -54,7 +75,10 @@
               ;; to update [:project/subscription-lapsed?] for MakePublic
               (dispatch [:project/fetch-all-projects])
               (nav-scroll-top @on-subscribe-nav-to-url)
-              {:dispatch [:fetch [:current-plan @(subscribe [:self/user-id])]]}))))
+              ;;{:dispatch [:fetch [:current-plan @(subscribe [:self/user-id])]]}
+              (get-current-plan @(subscribe [:self/user-id]))
+              {}
+              ))))
   :on-error
   (fn [{:keys [db error]} _ _]
     (cond
@@ -270,9 +294,13 @@
             [:p (str "Plan (" (:name @current-plan) ") is not recognized for user-id: " @self-id)]
             [:p (str "Active route: " @active-route)]]]))
       :component-did-mount (fn [this]
-                             (stripe/ensure-state)
-                             (dispatch [:fetch [:identity]])
-                             (dispatch [:fetch [:current-plan @self-id]]))})))
+                             ;;(.log js/console "component did mount")
+                             ;;(stripe/ensure-state)
+                             ;;(dispatch [:fetch [:identity]])
+                             ;;(.log js/console "self-id: " @self-id)
+                             ;;(dispatch [:require [:current-plan @self-id]])
+                             ;;(dispatch [:reload [:current-plan @self-id]])
+                             (get-current-plan @self-id))})))
 
 (defmethod panel-content [:plans] []
   (fn [child]

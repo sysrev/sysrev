@@ -1,6 +1,7 @@
 (ns sysrev.views.panels.org.plans
-  (:require [reagent.core :as r]
-            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v]]
+  (:require [ajax.core :refer [GET]]
+            [reagent.core :as r]
+            [re-frame.core :refer [subscribe dispatch reg-sub reg-event-db trim-v reg-event-fx]]
             [re-frame.db :refer [app-db]]
             [sysrev.base :refer [active-route]]
             [sysrev.data.core :refer [def-data]]
@@ -35,6 +36,21 @@
   :process (fn [{:keys [db]} _ result]
              {:db (assoc-in db [:state :panels panel :current-plan] (:plan result))}))
 
+(defn get-org-current-plan
+  [org-id]
+  (GET (str "/api/org/" org-id "/stripe/current-plan")
+       {:headers {"x-csrf-token" @(subscribe [:csrf-token])}
+        :handler (fn [{:keys [result]}]
+                   ;;(.log js/console "get-org-current-plan had a result: " (get-in result [:plan :name]))
+                   (reset! (r/cursor state [:current-plan]) (:plan result)))}))
+
+(reg-event-fx
+ :org/get-current-plan
+ []
+ (fn [_ [_ org-id]]
+   (get-org-current-plan org-id)
+   {}))
+
 (reg-sub :org/current-plan
          (fn [db] (get-in db [:state :panels panel :current-plan])))
 
@@ -52,7 +68,7 @@
   :content (fn [org-id plan-name]
              {:plan-name plan-name})
   :process
-  (fn [{:keys [db]} _ result]
+  (fn [{:keys [db]} [org-id _] result]
     (let [on-subscribe-nav-to-url (subscribe [:org/on-subscribe-nav-to-url])]
       (cond (:created result)
             (do
@@ -62,7 +78,10 @@
               ;; to update [:project/subscription-lapsed?]
               (dispatch [:project/fetch-all-projects])
               (nav-scroll-top @on-subscribe-nav-to-url)
-              {:dispatch [:fetch [:org-current-plan]]}))))
+              ;;{:dispatch [:fetch [:org-current-plan]]}
+              (get-org-current-plan org-id)
+              {}
+              ))))
   :on-error
   (fn [{:keys [db error]} _ _]
     (cond
@@ -123,7 +142,8 @@
                [:p (str "Active Route: " @active-route)]]]))])
       :component-did-mount (fn [this]
                              (dispatch [:read-orgs!])
-                             (dispatch [:fetch [:org-current-plan org-id]]))})))
+                             ;;(dispatch [:fetch [:org-current-plan org-id]])
+                             (get-org-current-plan org-id))})))
 
 (defmethod logged-out-content [:org-plans] []
   (logged-out-content :logged-out))

@@ -307,10 +307,11 @@
     (is (b/exists? (xpath "//a[contains(@href,'/user/plans')]")))
     ;; upgrade plans
     (b/click (xpath "//a[contains(@href,'/user/plans')]"))
-    (when (not (b/exists? ".button.upgrade-plan"))
+    #_(when-not (try (b/exists? ".button.upgrade-plan")
+                   (catch Throwable e false))
       (taxi/refresh)
       (log/info "Browser was refreshed"))
-    (b/click ".button.upgrade-plan")
+    (b/click ".button.upgrade-plan" :displayed? true)
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]")))
 ;;; org paywall
@@ -356,10 +357,11 @@
     ;; paywall is in place
     (is (b/exists? (xpath "//a[contains(@href,'/org') and contains(@href,'/plans')]")))
     (b/click (xpath "//a[contains(text(),'Upgrade your plan')]"))
-    (when (not (b/exists? ".button.upgrade-plan"))
+    #_(when-not (try (b/exists? ".button.upgrade-plan")
+                   (catch Throwable e false))
       (taxi/refresh)
       (log/info "Browser was refreshed"))
-    (b/click ".button.upgrade-plan")
+    (b/click ".button.upgrade-plan" :displayed? true)
     ;; paywall has been lifted
     (is (b/exists? (xpath "//span[contains(text(),'Label Definitions')]"))))
   :cleanup (do (some-> email (users/get-user-by-email) (users/delete-sysrev-stripe-customer!))
