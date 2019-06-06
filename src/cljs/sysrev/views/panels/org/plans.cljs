@@ -77,16 +77,16 @@
 
 (defn OrgPlans
   [{:keys [org-id]}]
-  (r/create-class
-   {:reagent-render
-    (fn [this]
-      (let [changing-plan? (r/cursor state [:changing-plan?])
-            updating-card? (r/cursor state [:updating-card?])
-            need-card? (r/cursor stripe/state [:need-card?])
-            error-message (r/cursor state [:error-message])
-            ;; need this for orgs
-            current-plan (subscribe [:org/current-plan])
-            test-cursor (r/cursor state [:test-cursor])]
+  (let [changing-plan? (r/cursor state [:changing-plan?])
+        updating-card? (r/cursor state [:updating-card?])
+        need-card? (r/cursor stripe/state [:need-card?])
+        error-message (r/cursor state [:error-message])
+        ;; need this for orgs
+        current-plan (subscribe [:org/current-plan])
+        test-cursor (r/cursor state [:test-cursor])]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
         [:div
          (if (nil? org-id)
            [Message {:negative true}
@@ -118,11 +118,12 @@
              [Message {:negative true}
               [MessageHeader "Organization Plans Error"]
               [:div
+               [:p]
                [:p (str "No plan found for org-id:" org-id)]
-               [:p (str "Active Route: " @active-route)]]]))]))
-    :component-did-mount (fn [this]
-                           (dispatch [:read-orgs!])
-                           (dispatch [:fetch [:org-current-plan org-id]]))}))
+               [:p (str "Active Route: " @active-route)]]]))])
+      :component-did-mount (fn [this]
+                             (dispatch [:read-orgs!])
+                             (dispatch [:fetch [:org-current-plan org-id]]))})))
 
 (defmethod logged-out-content [:org-plans] []
   (logged-out-content :logged-out))

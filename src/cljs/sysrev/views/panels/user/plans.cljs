@@ -237,32 +237,42 @@
 (defmethod logged-out-content [:plans] []
   (logged-out-content :logged-out))
 
+(defn UserPlans []
+  (let [changing-plan? (r/cursor state [:changing-plan?])
+        updating-card? (r/cursor state [:updating-card?])
+        need-card? (r/cursor stripe/state [:need-card?])
+        error-message (r/cursor state [:error-message])
+        current-plan (subscribe [:plans/current-plan])
+        self-id (subscribe [:self/user-id])]
+    (r/create-class
+     {:reagent-render
+      (fn [this]
+        (condp = (:name @current-plan)
+          "Basic"
+          [UpgradePlan {:billing-settings-uri (str "/user/" @self-id "/billing")
+                        :default-source-atom (subscribe [:stripe/default-source "user" @self-id])
+                        :get-default-source stripe/get-user-default-source
+                        :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
+                        :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
+                                                    (dispatch [:navigate [:payment]]))
+                        :unlimited-plan-price 1000
+                        :unlimited-plan-name "Pro Plan"}]
+          "Unlimited_User"
+          [DowngradePlan {:billing-settings-uri (str "/user/" @self-id "/billing")
+                          :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
+                          :unlimited-plan-name "Pro Plan"
+                          :unlimited-plan-price 1000}]
+          [s/Message {:negative true}
+           [s/MessageHeader "User Plans Error"]
+           [:div
+            [:p]
+            [:p (str "No plan found for user-id: " @self-id)]
+            [:p (str "Active route: " @active-route)]]]))
+      :component-did-mount (fn [this]
+                             (stripe/ensure-state)
+                             (dispatch [:fetch [:identity]])
+                             (dispatch [:fetch [:current-plan]]))})))
+
 (defmethod panel-content [:plans] []
   (fn [child]
-    (stripe/ensure-state)
-    (let [changing-plan? (r/cursor state [:changing-plan?])
-          updating-card? (r/cursor state [:updating-card?])
-          need-card? (r/cursor stripe/state [:need-card?])
-          error-message (r/cursor state [:error-message])
-          current-plan (:name @(subscribe [:plans/current-plan]))
-          self-id @(subscribe [:self/user-id])]
-      (condp = current-plan
-        "Basic"
-        [UpgradePlan {:billing-settings-uri (str "/user/" self-id "/billing")
-                      :default-source-atom (subscribe [:stripe/default-source "user" self-id])
-                      :get-default-source stripe/get-user-default-source
-                      :on-upgrade (fn [] (dispatch [:action [:subscribe-plan "Unlimited_User"]]))
-                      :on-add-payment-method #(do (dispatch [:payment/set-calling-route! "/user/plans"])
-                                                  (dispatch [:navigate [:payment]]))
-                      :unlimited-plan-price 1000
-                      :unlimited-plan-name "Pro Plan"}]
-        "Unlimited_User"
-        [DowngradePlan {:billing-settings-uri (str "/user/" @(subscribe [:self/user-id]) "/billing")
-                        :on-downgrade (fn [] (dispatch [:action [:subscribe-plan "Basic"]]))
-                        :unlimited-plan-name "Pro Plan"
-                        :unlimited-plan-price 1000}]
-        [s/Message {:negative true}
-         [s/MessageHeader "User Plans Error"]
-         [:div
-          [:p (str "No plan found for user-id: " self-id)]
-          [:p (str "Active route: " @active-route)]]]))))
+    [UserPlans]))
